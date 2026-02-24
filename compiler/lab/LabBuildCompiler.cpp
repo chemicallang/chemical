@@ -3003,6 +3003,239 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
 
 }
 
+std::string LabBuildCompiler::get_commands_cache_dir() {
+    auto home = getUserHomeDirectory();
+    if (home.empty()) return "";
+    auto chemical_dir = resolve_rel_child_path_str(home, ".chemical");
+    return resolve_rel_child_path_str(chemical_dir, "commands");
+}
+
+int LabBuildCompiler::run_invocation(
+    const std::string& exe_path,
+    const std::string& target,
+    const std::vector<std::string_view>& args,
+    OutputMode mode,
+    CmdOptions* cmd_options
+) {
+    bool is64Bit = true; // assume 64 bit for now, should be passed from options if possible
+#ifdef _WIN32
+    #ifndef _WIN64
+        is64Bit = false;
+    #endif
+#endif
+    
+    std::string build_dir = resolve_non_canon_parent_path(target, "build");
+    LabBuildCompilerOptions compiler_opts(exe_path, "", std::move(build_dir), is64Bit);
+    compiler_opts.out_mode = mode;
+    compiler_opts.def_out_mode = mode;
+    
+    CompilerBinder binder(exe_path);
+    LocationManager loc_man;
+    LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
+    compiler.set_cmd_options(cmd_options);
+    
+    LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, compiler.binder);
+    
+    // Detection logic
+    // 1. Is it a transformer? (Multiple args, first is likely a module, second is a file)
+    if (args.size() >= 1) {
+        std::string first_arg = target;
+        std::string second_arg(args[0]);
+        
+        bool first_is_file = first_arg.ends_with(".lab") || first_arg.ends_with(".mod");
+        bool second_is_file = second_arg.ends_with(".lab") || second_arg.ends_with(".mod");
+        
+        if (!first_is_file && second_is_file) {
+            // Probably a transformer
+            std::vector<std::string_view> transformer_args;
+            for(size_t i = 1; i < args.size(); ++i) transformer_args.push_back(args[i]);
+            return compiler.run_transformer(first_arg, second_arg, transformer_args, context);
+        }
+    }
+    
+    // 2. Is it a local project?
+    if (target.ends_with(".lab") || target.ends_with(".mod")) {
+        return compiler.run_local_project(target, args, context);
+    }
+    
+    // 3. It's a remote module run
+    return compiler.run_remote_module(target, args, context);
+}
+
+int LabBuildCompiler::run_local_project(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+    auto& options = *this->options;
+    chem::string outputPath;
+    
+    // Determine output path (temporary or build dir)
+    outputPath.append(options.build_dir);
+    outputPath.append("/");
+#ifdef _WIN32
+    outputPath.append("run_temp.exe");
+#else
+    outputPath.append("run_temp");
+#endif
+
+    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options.build_dir), options.out_mode);
+    LabBuildContext::initialize_job(&final_job, &options);
+
+    int result = 0;
+    if (target.ends_with(".lab")) {
+        result = build_lab_file(context, target);
+    } else {
+        result = build_mod_file(context, target, &final_job);
+    }
+
+    if (result == 0) {
+        // Run the executable
+        std::vector<char*> argv;
+        std::string exe_str = final_job.abs_path.to_std_string();
+        argv.push_back(const_cast<char*>(exe_str.c_str()));
+        for (const auto& arg : args) {
+            argv.push_back(const_cast<char*>(arg.data()));
+        }
+        argv.push_back(nullptr);
+
+        return launch_process_and_wait(exe_str.c_str(), argv.data(), argv.size() - 1);
+    }
+
+    return result;
+}
+
+int LabBuildCompiler::run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+    auto cache_dir = get_commands_cache_dir();
+    if (cache_dir.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine home directory for caching" << std::endl;
+        return 1;
+    }
+
+    // Ensure cache dir exists
+    fs::create_directories(cache_dir);
+
+    LabJob dummy_job(LabJobType::Executable, chem::string("dummy"), options->out_mode);
+    dummy_job.build_dir = chem::string(cache_dir);
+
+    RemoteImport import { .from = chem::string_view(target), .symbol_info = DependencySymbolInfo { .location = 0 } };
+    dummy_job.remote_imports.push_back(import);
+    
+    if (process_remote_imports(&dummy_job) != 0) {
+        return 1;
+    }
+
+    if (dummy_job.dependencies.empty()) return 1;
+    auto mod = dummy_job.dependencies[0].module;
+    
+    // Remote module name is used to find the entry point if it's a transformer, 
+    // but here we are running it as a project.
+    for (const auto& path : mod->paths) {
+        std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
+        if (fs::exists(lab_path)) return run_local_project(lab_path, args, context);
+        
+        std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
+        if (fs::exists(mod_path)) return run_local_project(mod_path, args, context);
+    }
+
+    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "remote module '" << target << "' has no build.lab or chemical.mod" << std::endl;
+    return 1;
+}
+
+int LabBuildCompiler::run_transformer(const std::string& transformer, const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+    std::string transformer_path = transformer;
+    std::string mod_name;
+
+    if (transformer.find('/') != std::string::npos && !fs::exists(transformer)) {
+        // It's a remote transformer, download it
+        auto cache_dir = get_commands_cache_dir();
+        if (cache_dir.empty()) return 1;
+        fs::create_directories(cache_dir);
+
+        LabJob download_job(LabJobType::Executable, chem::string("download"), options->out_mode);
+        download_job.build_dir = chem::string(cache_dir);
+        RemoteImport import { .from = chem::string_view(transformer), .symbol_info = DependencySymbolInfo { .location = 0 } };
+        download_job.remote_imports.push_back(import);
+
+        if (process_remote_imports(&download_job) != 0) return 1;
+        if (download_job.dependencies.empty()) return 1;
+
+        auto mod = download_job.dependencies[0].module;
+        mod_name = mod->name.to_std_string();
+        
+        // Find the transformer's main file (.mod or .lab)
+        bool found = false;
+        for (const auto& path : mod->paths) {
+            std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
+            if (fs::exists(mod_path)) {
+                transformer_path = mod_path;
+                found = true;
+                break;
+            }
+            std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
+            if (fs::exists(lab_path)) {
+                transformer_path = lab_path;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformer module '" << transformer << "' has no chemical.mod or build.lab" << std::endl;
+             return 1;
+        }
+    } else {
+        // Local transformer
+        if (auto pos = transformer_path.find_last_of("\\/"); pos != std::string::npos) {
+            mod_name = transformer_path.substr(pos + 1);
+        } else {
+            mod_name = transformer_path;
+        }
+        if (mod_name.ends_with(".mod")) mod_name = mod_name.substr(0, mod_name.size() - 4);
+        else if (mod_name.ends_with(".lab")) mod_name = mod_name.substr(0, mod_name.size() - 4);
+    }
+
+    // Compile transformer
+    const auto state = built_lab_file(context, transformer_path, transformer_path.ends_with(".mod"));
+    if (!state) return 1;
+
+    std::string entry_point = mod_name + "_main";
+    auto transformer_main = (int(*)(LabModule*, int, char**)) tcc_get_symbol(state, entry_point.c_str());
+    
+    if (!transformer_main) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformer entry point '" << entry_point << "' not found" << std::endl;
+        tcc_delete(state);
+        return 1;
+    }
+
+    // Compile target to LabModule*
+    LabJob target_job(LabJobType::Executable, chem::string("target"), options->out_mode);
+    LabModule* target_mod = nullptr;
+    if (target.ends_with(".mod")) {
+        target_mod = build_module_from_mod_file(context, target, &target_job);
+    } else if (target.ends_with(".lab")) {
+        // For .lab we don't have a single LabModule returned easily, but we can try to build it
+        // and see if we can get the primary module it defines.
+        // Actually, the user says "chemical run transformer chemical.mod", so .mod is the primary use case.
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformers currently only support .mod files as targets" << std::endl;
+        tcc_delete(state);
+        return 1;
+    }
+
+    if (!target_mod) {
+        tcc_delete(state);
+        return 1;
+    }
+
+    // Invoke
+    std::vector<char*> argv;
+    std::string transformer_name_arg = transformer;
+    argv.push_back(const_cast<char*>(transformer_name_arg.c_str()));
+    for (const auto& arg : args) argv.push_back(const_cast<char*>(arg.data()));
+    argv.push_back(nullptr);
+    
+    int ret = transformer_main(target_mod, (int)argv.size() - 1, argv.data());
+    
+    tcc_delete(state);
+    return ret;
+}
+
+
 LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
 }

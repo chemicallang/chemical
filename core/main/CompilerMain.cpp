@@ -378,6 +378,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("dlltool", CmdOptionType::SubCommand),
             CmdOption("ranlib", CmdOptionType::SubCommand),
             CmdOption("lib", CmdOptionType::SubCommand),
+            CmdOption("run", CmdOptionType::SubCommand),
             CmdOption("mode", "m", CmdOptionType::SingleValue),
             CmdOption("plugin-mode", "pm", CmdOptionType::SingleValue),
             CmdOption("version", CmdOptionType::NoValue),
@@ -487,6 +488,32 @@ int compiler_main(int argc, char *argv[]) {
         return chemical_clang_main2(subc);
     }
 #endif
+ 
+    auto& run_cmd_opt = options.cmd_opt("run");
+    if(run_cmd_opt.has_multi_value()) {
+        auto run_args = run_cmd_opt.get_multi_opt_values();
+        if(run_args.empty()) {
+             std::cerr << rang::fg::red << "error: " << rang::fg::reset << "'run' subcommand requires at least one argument (file or module)" << std::endl;
+             return 1;
+        }
+
+        // The first argument is the target to run, subsequent are passed to it
+        std::string target(run_args[0]);
+        std::vector<std::string_view> exec_args;
+        for(size_t i = 1; i < run_args.size(); ++i) {
+            exec_args.push_back(run_args[i]);
+        }
+
+        auto compiler_exe_path = getExecutablePath();
+        auto mode = get_output_mode(options.option_new("mode", "m"), options.has_value("verbose", "v"));
+        
+        // Target can be local file (.lab, .mod) or remote (org/repo)
+        bool is_local = target.ends_with(".lab") || target.ends_with(".mod");
+        
+        // Implement the actual run logic in LabBuildCompiler
+        return LabBuildCompiler::run_invocation(compiler_exe_path, target, exec_args, mode, &options);
+    }
+
 
     auto verbose = options.has_value("verbose", "v");
 

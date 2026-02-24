@@ -34,3 +34,8 @@ std::string absolute_path(const std::string_view& relative);
  * get our actual compiler (clang based) executable path relative to tiny cc
  */
 std::string compiler_exe_path_relative_to_tcc(const std::string_view& exe_path);
+ 
+/**
+ * get user home directory
+ */
+std::string getUserHomeDirectory();

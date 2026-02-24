@@ -678,3 +678,18 @@ bool requestSudo() {
 }
 
 #endif
+
+#ifdef _WIN32
+std::string getUserHomeDirectory() {
+    char path[MAX_PATH];
+    if (GetEnvironmentVariableA("USERPROFILE", path, MAX_PATH)) {
+        return std::string(path);
+    }
+    return "";
+}
+#else
+std::string getUserHomeDirectory() {
+    const char* home = std::getenv("HOME");
+    return home ? std::string(home) : "";
+}
+#endif

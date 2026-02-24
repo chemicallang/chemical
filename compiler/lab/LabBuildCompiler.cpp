@@ -1377,6 +1377,30 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
 }
 
+void delegated_function_body(FunctionDeclaration& global_main, TypeBuilder& typeBuilder, Namespace* mod_namespace, FunctionDeclaration* namespaced_func, SourceLocation loc) {
+    // put the parameters
+    FunctionParam argc_param("argc", {typeBuilder.getIntType(), loc}, 0, nullptr, false, (ASTNode*) &global_main, loc);
+    PointerType f(typeBuilder.getCharType(), true); PointerType s(&f, true);
+    FunctionParam argv_param("argv", {&s, loc}, 1, nullptr, false, (ASTNode*) &global_main, loc);
+    global_main.params = { &argc_param, &argv_param };
+    // put the body code
+    global_main.body.emplace(&global_main, loc);
+    AccessChain chain_values(&global_main, loc);
+    VariableIdentifier ns_id(mod_namespace->name_view(), (BaseType*) typeBuilder.getVoidType(), loc);
+    ns_id.linked = mod_namespace;
+    VariableIdentifier fn_id(namespaced_func->name_view(), namespaced_func, loc);
+    fn_id.linked = namespaced_func;
+    chain_values.values = { &ns_id };
+    FunctionCall call_val(&chain_values, namespaced_func->returnType, loc);
+    VariableIdentifier argc_id("argc", argc_param.getType(), loc);
+    argc_id.linked = &argc_param;
+    VariableIdentifier argv_id("argv", argv_param.getType(), loc);
+    argc_id.linked = &argv_param;
+    call_val.values = { &argc_id, &argv_id };
+    ReturnStatement stmt((Value*) &call_val, (ASTNode*) &global_main, loc);
+    global_main.body.value().nodes = { &stmt };
+}
+
 int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
 
@@ -1589,7 +1613,44 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // add the job obj path to linkables
     if(did_compile_chemical) {
+
         job->objects.emplace_back(job_obj_path);
+
+        // TODO: this code is in the wrong place, because symbol resolver disposes symbols after module
+        //  has been processed
+        // should we create the main method for the user
+        // we do it, if generating an executable and user didn't write one
+        if(get_job_type == LabJobType::Executable && exe->dependencies.size() == 1) {
+            auto global_main_func = resolver.find("main");
+            if (global_main_func == nullptr) {
+                // the main function doesn't exist
+                // job has a single module as a dependency, which should contain the main function
+                // but since it doesn't we'll try for a namespaced main function
+                const auto mod = exe->dependencies[0].module;
+                auto mod_namespace = resolver.find(mod->name.to_chem_view());
+                if(mod_namespace != nullptr && mod_namespace->kind() == ASTNodeKind::NamespaceDecl && is_linkage_public(mod_namespace->specifier())) {
+                    const auto namespaced_main = mod_namespace->child("main");
+                    if(namespaced_main != nullptr && namespaced_main->kind() == ASTNodeKind::FunctionDecl && is_linkage_public(namespaced_main->specifier())) {
+
+                        const auto func = namespaced_main->as_function_unsafe();
+
+                        // lets create a main function that delegates to the namespaced main function
+                        // then generate code for it
+                        const auto loc = func->encoded_location();
+                        auto& typeBuilder = resolver.comptime_scope.typeBuilder;
+                        FunctionDeclaration global_main(LocatedIdentifier("main"), func->returnType, false, mod_namespace->parent(), loc, AccessSpecifier::Public);
+                        global_main.set_no_mangle(true);
+
+                        // prepare body
+                        delegated_function_body(global_main, typeBuilder, mod_namespace->as_namespace_unsafe(), func, loc);
+
+                        // generate code for the global main
+                        c_visitor.visit(&global_main);
+                    }
+                }
+            }
+        }
+
     }
 
     // end the translation (must be done)
@@ -3025,7 +3086,7 @@ std::string LabBuildCompiler::get_commands_cache_dir() {
 }
 
 int LabBuildCompiler::run_invocation(
-    const std::string& exe_path,
+    const std::string& compiler_exe_path,
     const std::string& target,
     const std::vector<std::string_view>& args,
     OutputMode mode,
@@ -3041,11 +3102,11 @@ int LabBuildCompiler::run_invocation(
     // For local projects, build in the current directory's build folder
     // For remote/transformers, we'll override this once we have the module name
     std::string build_dir = "build";
-    LabBuildCompilerOptions compiler_opts(exe_path, "", std::move(build_dir), is64Bit);
+    LabBuildCompilerOptions compiler_opts(compiler_exe_path, "", std::move(build_dir), is64Bit);
     compiler_opts.out_mode = mode;
     compiler_opts.def_out_mode = mode;
     
-    CompilerBinder binder(exe_path);
+    CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
     compiler.set_cmd_options(cmd_options);
@@ -3055,7 +3116,7 @@ int LabBuildCompiler::run_invocation(
     // Detection logic
     // 1. Is it a transformer? (Multiple args, first is likely a module, second is a file)
     if (args.size() >= 1) {
-        std::string first_arg = target;
+        auto& first_arg = target;
         std::string second_arg(args[0]);
         
         bool first_is_file = first_arg.ends_with(".lab") || first_arg.ends_with(".mod");
@@ -3071,25 +3132,30 @@ int LabBuildCompiler::run_invocation(
     
     // 2. Is it a local project?
     if (target.ends_with(".lab") || target.ends_with(".mod")) {
-        return compiler.run_local_project(target, args, context);
+
+        auto exe_path = chem::string("build");
+#ifdef _WIN32
+        exe_path.append("run.exe");
+#else
+        exe_path.append("run");
+#endif
+
+        return compiler.run_local_project(target, std::move(exe_path), args, context);
+
     }
     
     // 3. It's a remote module run
     return compiler.run_remote_module(target, args, context);
 }
 
-int LabBuildCompiler::run_local_project(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+int LabBuildCompiler::run_local_project(
+        const std::string& target,
+        chem::string outputPath,
+        const std::vector<std::string_view>& args,
+        LabBuildContext& context
+) {
+
     auto& options = *this->options;
-    chem::string outputPath;
-    
-    // Determine output path (temporary or build dir)
-    outputPath.append(options.build_dir);
-    outputPath.append("/");
-#ifdef _WIN32
-    outputPath.append("run.exe");
-#else
-    outputPath.append("run");
-#endif
 
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options.build_dir), options.out_mode);
     LabBuildContext::initialize_job(&final_job, &options);
@@ -3147,22 +3213,45 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     auto mod = dummy_job.dependencies[0].module;
 
     // Set specialized build directory in the cache for this project
-    auto specialized_build_dir = resolve_rel_child_path_str(cache_dir, "build");
-    specialized_build_dir = resolve_rel_child_path_str(specialized_build_dir, mod->format('.'));
-    this->options->build_dir = specialized_build_dir;
-    fs::create_directories(specialized_build_dir);
-    
+    auto exe_build_dir = resolve_rel_child_path_str(cache_dir, "build");
+    exe_build_dir = resolve_rel_child_path_str(exe_build_dir, mod->format('.'));
+
+    // the assets build dir contains things like object files, c output
+    // we can delete this directory on success, since we are only concerned
+    // with the final executable
+    auto assets_build_dir = resolve_rel_child_path_str(exe_build_dir, "build");
+    this->options->build_dir = assets_build_dir;
+    fs::create_directories(assets_build_dir);
+
+    // determine output path of the executable
+    chem::string outputPath;
+    outputPath.append(exe_build_dir);
+    outputPath.append("/");
+#ifdef _WIN32
+    outputPath.append("run.exe");
+#else
+    outputPath.append("run");
+#endif
+
     // Remote module name is used to find the entry point if it's a transformer, 
     // but here we are running it as a project.
     for (const auto& path : mod->paths) {
         std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
         if (fs::exists(lab_path)) {
-            return run_local_project(lab_path, args, context);
+            const auto status = run_local_project(lab_path, std::move(outputPath), args, context);
+            if(status == 0) {
+                fs::remove_all(assets_build_dir);
+            }
+            return status;
         }
         
         std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
         if (fs::exists(mod_path)) {
-            return run_local_project(mod_path, args, context);
+            const auto status = run_local_project(mod_path, std::move(outputPath), args, context);
+            if(status == 0) {
+                fs::remove_all(assets_build_dir);
+            }
+            return status;
         }
     }
 
@@ -3265,8 +3354,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // Invoke
     std::vector<char*> argv;
-    std::string transformer_name_arg = transformer;
-    argv.push_back(const_cast<char*>(transformer_name_arg.c_str()));
+    argv.push_back(const_cast<char*>(transformer.c_str()));
     for (const auto& arg : args) argv.push_back(const_cast<char*>(arg.data()));
     argv.push_back(nullptr);
     

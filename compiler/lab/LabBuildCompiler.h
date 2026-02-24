@@ -440,8 +440,14 @@ public:
 private:
     /**
      * runs a local project (.lab or .mod)
+     * the target is the file (.lab or .mod)
      */
-    int run_local_project(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);
+    int run_local_project(
+            const std::string& target,
+            chem::string outputPath,
+            const std::vector<std::string_view>& args,
+            LabBuildContext& context
+    );
 
     /**
      * runs a remote module

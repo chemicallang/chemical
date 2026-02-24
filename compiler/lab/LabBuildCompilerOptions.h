@@ -32,6 +32,12 @@ public:
     bool is_caching_enabled = true;
 
     /**
+     * should build lab be cached into an object file
+     * or a timestamp be generated for it ?
+     */
+    bool is_build_lab_caching_enabled = true;
+
+    /**
      * force recompilation of plugins
      */
     bool force_recompile_plugins = false;

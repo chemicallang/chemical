@@ -401,8 +401,40 @@ public:
     int build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job);
 
     /**
+     * run invocation point, dispatches to local, remote or transformer run
+     */
+    static int run_invocation(
+        const std::string& exe_path,
+        const std::string& target,
+        const std::vector<std::string_view>& args,
+        OutputMode mode,
+        CmdOptions* cmd_options
+    );
+
+    /**
      * the destructor
      */
     ~LabBuildCompiler();
+
+private:
+    /**
+     * runs a local project (.lab or .mod)
+     */
+    int run_local_project(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);
+
+    /**
+     * runs a remote module
+     */
+    int run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);
+
+    /**
+     * runs a transformer
+     */
+    int run_transformer(const std::string& transformer, const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);
+
+    /**
+     * gets the centralized cache directory for chemical commands
+     */
+    static std::string get_commands_cache_dir();
 
 };

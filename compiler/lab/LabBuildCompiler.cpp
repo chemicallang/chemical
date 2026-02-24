@@ -2923,7 +2923,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
 }
 
-int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
+int LabBuildCompiler::build_module_build_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job, bool mod_file_source) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2942,7 +2942,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // get chemical.mod file into a tcc state
-    const auto state = built_lab_file(context, path, true);
+    const auto state = built_lab_file(context, path, mod_file_source);
     if(!state) {
         return 1;
     }
@@ -3096,7 +3096,7 @@ int LabBuildCompiler::run_local_project(const std::string& target, const std::ve
 
     int result = 0;
     if (target.ends_with(".lab")) {
-        result = build_lab_file(context, target);
+        result = build_module_lab_file(context, target, &final_job);
     } else {
         result = build_mod_file(context, target, &final_job);
     }

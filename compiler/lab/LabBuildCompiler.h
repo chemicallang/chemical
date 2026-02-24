@@ -396,9 +396,30 @@ public:
     int build_lab_file(LabBuildContext& context, const std::string_view& path);
 
     /**
+     * build the chemical.mod or build.lab file at path, with the given job
+     * assuming the build.lab and chemical.mod will return a module pointer
+     */
+    int build_module_build_file(
+            LabBuildContext& context,
+            const std::string_view& path,
+            LabJob* final_job,
+            bool mod_file_source
+    );
+
+    /**
+     * a module level build.lab file returns a module pointer
+     * processing for building it in a job is different
+     */
+    inline int build_module_lab_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
+        return build_module_build_file(context, path, final_job, false);
+    }
+
+    /**
      * build the mod file given at path, into an executable at outputPath
      */
-    int build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job);
+    inline int build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
+        return build_module_build_file(context, path, final_job, true);
+    }
 
     /**
      * run invocation point, dispatches to local, remote or transformer run

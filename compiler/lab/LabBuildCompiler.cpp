@@ -2640,39 +2640,53 @@ TCCState* LabBuildCompiler::built_lab_file(
     // compiling the c output from build.labs
     auto str = c_visitor.writer.finalized_std_view();
 
-    // TODO place a check to only output this when need be
+    // should emit c file for the build.lab
+    const auto emit_c = options->emit_c && options->is_build_lab_caching_enabled;
+    // the path to the c file
     const auto labOutCPath = resolve_rel_child_path_str(labModDir, "build.lab.c");
-    writeToFile(labOutCPath, str);
+
+    if(emit_c) {
+        writeToFile(labOutCPath, str);
+    }
 
     if(verbose) {
         std::cout << "[lab] compiling current module to object file for caching" << std::endl;
     }
 
     // let's first create an object file for build.lab (for caching)
-    const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, to_tcc_mode(options));
-    if(objRes == -1){
+    if(options->is_build_lab_caching_enabled) {
 
-        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to compile 'build.lab' at '" << path <<  "' to object file, written to '" << labOutCPath << '\'' << std::endl;
+        const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, to_tcc_mode(options));
+        if (objRes == -1) {
 
-        // TODO: object file compilation failed, we must delete any existing timestamp file (so next time, we must build the build.lab from scratch)
+            // emit c if not, because error occurred
+            if(!emit_c) writeToFile(labOutCPath, str);
 
+            std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset
+                      << " failed to compile 'build.lab' at '" << path << "' to object file, written to '"
+                      << labOutCPath << '\'' << std::endl;
 
-    } else {
+            // TODO: object file compilation failed, we must delete any existing timestamp file (so next time, we must build the build.lab from scratch)
+
+        }
 
         // since object file compilation was successful, we should save a timestamp
         save_mod_timestamp(module_files, std::string_view(buildLabTimestamp), options->out_mode);
-
     }
 
     // creating a new tcc state
     const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
     if(state == nullptr) {
+        // emit c if not, because error occurred
+        if(!emit_c) writeToFile(labOutCPath, str);
         std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't create tcc state for 'build.lab' file at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         return nullptr;
     }
 
     // compiling the program
     if(tcc_compile_string(state, str.data()) == -1) {
+        // emit c if not, because error occurred
+        if(!emit_c) writeToFile(labOutCPath, str);
         std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " couldn't compile 'build.lab' at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         tcc_delete(state);
         return nullptr;
@@ -3024,7 +3038,9 @@ int LabBuildCompiler::run_invocation(
     #endif
 #endif
     
-    std::string build_dir = resolve_non_canon_parent_path(target, "build");
+    // For local projects, build in the current directory's build folder
+    // For remote/transformers, we'll override this once we have the module name
+    std::string build_dir = "build";
     LabBuildCompilerOptions compiler_opts(exe_path, "", std::move(build_dir), is64Bit);
     compiler_opts.out_mode = mode;
     compiler_opts.def_out_mode = mode;
@@ -3070,9 +3086,9 @@ int LabBuildCompiler::run_local_project(const std::string& target, const std::ve
     outputPath.append(options.build_dir);
     outputPath.append("/");
 #ifdef _WIN32
-    outputPath.append("run_temp.exe");
+    outputPath.append("run.exe");
 #else
-    outputPath.append("run_temp");
+    outputPath.append("run");
 #endif
 
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options.build_dir), options.out_mode);
@@ -3088,14 +3104,14 @@ int LabBuildCompiler::run_local_project(const std::string& target, const std::ve
     if (result == 0) {
         // Run the executable
         std::vector<char*> argv;
-        std::string exe_str = final_job.abs_path.to_std_string();
-        argv.push_back(const_cast<char*>(exe_str.c_str()));
+        const auto exe_str = final_job.abs_path.data();
+        argv.push_back(const_cast<char*>(exe_str));
         for (const auto& arg : args) {
             argv.push_back(const_cast<char*>(arg.data()));
         }
         argv.push_back(nullptr);
 
-        return launch_process_and_wait(exe_str.c_str(), argv.data(), argv.size() - 1);
+        return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
     }
 
     return result;
@@ -3121,17 +3137,33 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
         return 1;
     }
 
+    // disable caching, because it causes generation of .dat and partial 2c files
+    // we don't want these files being generated in the cache build directory
+    options->is_caching_enabled = false;
+    // disable build lab caching, we don't want to generate its .dat and partial 2c files
+    options->is_build_lab_caching_enabled = false;
+
     if (dummy_job.dependencies.empty()) return 1;
     auto mod = dummy_job.dependencies[0].module;
+
+    // Set specialized build directory in the cache for this project
+    auto specialized_build_dir = resolve_rel_child_path_str(cache_dir, "build");
+    specialized_build_dir = resolve_rel_child_path_str(specialized_build_dir, mod->format('.'));
+    this->options->build_dir = specialized_build_dir;
+    fs::create_directories(specialized_build_dir);
     
     // Remote module name is used to find the entry point if it's a transformer, 
     // but here we are running it as a project.
     for (const auto& path : mod->paths) {
         std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
-        if (fs::exists(lab_path)) return run_local_project(lab_path, args, context);
+        if (fs::exists(lab_path)) {
+            return run_local_project(lab_path, args, context);
+        }
         
         std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
-        if (fs::exists(mod_path)) return run_local_project(mod_path, args, context);
+        if (fs::exists(mod_path)) {
+            return run_local_project(mod_path, args, context);
+        }
     }
 
     std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "remote module '" << target << "' has no build.lab or chemical.mod" << std::endl;
@@ -3188,6 +3220,15 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         }
         if (mod_name.ends_with(".mod")) mod_name = mod_name.substr(0, mod_name.size() - 4);
         else if (mod_name.ends_with(".lab")) mod_name = mod_name.substr(0, mod_name.size() - 4);
+    }
+
+    // Set specialized build directory for the transformer execution
+    auto cache_dir = get_commands_cache_dir();
+    if (!cache_dir.empty()) {
+        auto specialized_build_dir = resolve_rel_child_path_str(cache_dir, "build");
+        specialized_build_dir = resolve_rel_child_path_str(specialized_build_dir, mod_name);
+        this->options->build_dir = specialized_build_dir;
+        fs::create_directories(specialized_build_dir);
     }
 
     // Compile transformer

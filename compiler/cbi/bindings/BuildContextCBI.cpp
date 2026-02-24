@@ -270,19 +270,27 @@ static std::span<ImportSymbol> allocate_symbols(ASTAllocator& allocator, const s
     return {ptr, symbols.size()};
 }
 
+static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, const DependencySymbolInfo& existing_info) {
+    const auto info = (DependencySymbolInfo*) allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
+    *info = existing_info;
+    return info;
+}
+
 inline void add_remote_import(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep, LabModule* mod) {
     auto& allocator = self->compiler.global_allocator;
+    std::lock_guard<std::mutex> lock(self->compiler.job_mutex);
+    auto allocated_dep_info = allocate_dep_info(allocator, DependencySymbolInfo{
+            .symbols = allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
+            .alias = allocate_view(allocator, dep->alias),
+            .location = dep->location,
+    });
     job->remote_imports.emplace_back(
             allocate_view(allocator, dep->from),
             allocate_view(allocator, dep->subdir),
             allocate_view(allocator, dep->version),
             allocate_view(allocator, dep->branch),
             allocate_view(allocator, dep->commit),
-            DependencySymbolInfo{
-                    allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
-                    allocate_view(allocator, dep->alias),
-                    dep->location,
-            },
+            *allocated_dep_info,
             mod
     );
 }
@@ -297,11 +305,11 @@ void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabMod
 
 static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, DependencySymbolInfoCBI* cbi_info) {
     if(!cbi_info) return nullptr;
-    const auto info = (DependencySymbolInfo*) allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
-    info->symbols = allocate_symbols(allocator, std::span(cbi_info->symbols.ptr, cbi_info->symbols.size));
-    info->alias = allocate_view(allocator, cbi_info->alias);
-    info->location = cbi_info->location;
-    return info;
+    return allocate_dep_info(allocator, DependencySymbolInfo {
+            .symbols = allocate_symbols(allocator, std::span(cbi_info->symbols.ptr, cbi_info->symbols.size)),
+            .alias = allocate_view(allocator, cbi_info->alias),
+            .location = cbi_info->location
+    });
 }
 
 void BuildContextadd_dependency(LabBuildContext* self, LabJob* job, LabModule* module, DependencySymbolInfoCBI* cbi) {

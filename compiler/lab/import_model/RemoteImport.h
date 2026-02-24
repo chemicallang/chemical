@@ -14,6 +14,6 @@ struct RemoteImport {
     chem::string_view version;
     chem::string_view branch;
     chem::string_view commit;
-    DependencySymbolInfo symbol_info;
+    DependencySymbolInfo& symbol_info;
     LabModule* requester;
 };

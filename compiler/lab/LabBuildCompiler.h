@@ -102,7 +102,22 @@ public:
     GlobalContainer* container = nullptr;
 
     /**
-     * a pointer to current job
+     * mutex to protect access to the job object (remote_imports, dependencies, link_libs, etc.)
+     */
+    std::mutex job_mutex;
+
+    /**
+     * mutex to protect access to buildLabDependenciesCache
+     */
+    std::mutex buildLabDependenciesCacheMutex;
+
+    /**
+     * mutex to protect access to mod_storage
+     */
+    std::mutex mod_storage_mutex;
+
+    /**
+     * the current job being compiled
      */
     LabJob* current_job;
 
@@ -356,7 +371,7 @@ public:
     /**
      * process remote imports for the job
      */
-    int process_remote_imports(LabJob* job);
+    int process_remote_imports(LabBuildContext& context, LabJob* job);
 
     /**
      * resolves a conflict between two remote imports

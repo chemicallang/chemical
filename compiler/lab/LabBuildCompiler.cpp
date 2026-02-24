@@ -1424,7 +1424,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // process remote imports
-    auto ri_res = process_remote_imports(job);
+    LabBuildContext context(*this, path_handler, mod_storage, binder);
+    auto ri_res = process_remote_imports(context, job);
     if(ri_res != 0) return ri_res;
 
     // flatten the dependencies
@@ -2022,15 +2023,17 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         ModuleDependencyRecord& dependency,
         LabJob* job
 ) {
-
     auto& module_path = dependency.module_dir_path;
     auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
     if(std::filesystem::exists(buildLabPath)) {
 
         // check if we have already parsed this build.lab (from another module's dependency)
-        auto found = buildLabDependenciesCache.find(buildLabPath);
-        if(found != buildLabDependenciesCache.end()) {
-            return found->second;
+        {
+            std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
+            auto found = buildLabDependenciesCache.find(buildLabPath);
+            if(found != buildLabDependenciesCache.end()) {
+                return found->second;
+            }
         }
 
         // build lab file into a tcc state
@@ -2055,8 +2058,11 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         // call the root build.lab build's function
         const auto modPtr = build(&context, job);
 
-        // store the mod pointer in cache, so we don't need to build this build.lab again
-        buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
+        if (modPtr) {
+            // store the mod pointer in cache, so we don't need to build this build.lab again
+            std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
+            buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
+        }
 
         return modPtr;
 
@@ -2066,16 +2072,22 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         if(std::filesystem::exists(modFilePath)) {
 
             // check if we have already parsed this chemical.mod (from another module's dependency)
-            auto found = buildLabDependenciesCache.find(modFilePath);
-            if(found != buildLabDependenciesCache.end()) {
-                return found->second;
+            {
+                std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
+                auto found = buildLabDependenciesCache.find(modFilePath);
+                if(found != buildLabDependenciesCache.end()) {
+                    return found->second;
+                }
             }
 
             // build the mod file
-            const auto modPtr = built_mod_file(context, modFilePath, job);
+            const auto modPtr = build_module_from_mod_file(context, modFilePath, job);
 
-            // store the module pointer in cache
-            buildLabDependenciesCache[std::move(modFilePath)] = modPtr;
+            if (modPtr) {
+                // store the module pointer in cache
+                std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
+                buildLabDependenciesCache[std::move(modFilePath)] = modPtr;
+            }
 
             return modPtr;
 
@@ -2087,7 +2099,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         }
 
 
-    };
+    }
 
 }
 
@@ -2256,9 +2268,11 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         if(resolved.has_value()) {
             if(resolved.value()) {
                 switch(linkLib.kind) {
-                    case ModFileLinkLibKind::Name:
+                    case ModFileLinkLibKind::Name: {
+                        std::lock_guard<std::mutex> lock(job_mutex);
                         job->link_libs.emplace_back(chem::string(linkLib.name));
                         break;
+                    }
                     case ModFileLinkLibKind::File:
                         // TODO: support file link libs
                         std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "file based link libraries aren't supported '" << modFilePathView << '\'' << std::endl;
@@ -3196,10 +3210,11 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     LabJob dummy_job(LabJobType::Executable, chem::string("dummy"), options->out_mode);
     dummy_job.build_dir = chem::string(cache_dir);
 
-    RemoteImport import { .from = chem::string_view(target), .symbol_info = DependencySymbolInfo { .location = 0 } };
+    DependencySymbolInfo sym_info { .location = 0 };
+    RemoteImport import { .from = chem::string_view(target), .symbol_info = sym_info };
     dummy_job.remote_imports.push_back(import);
     
-    if (process_remote_imports(&dummy_job) != 0) {
+    if (process_remote_imports(context, &dummy_job) != 0) {
         return 1;
     }
 
@@ -3271,10 +3286,11 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
         LabJob download_job(LabJobType::Executable, chem::string("download"), options->out_mode);
         download_job.build_dir = chem::string(cache_dir);
-        RemoteImport import { .from = chem::string_view(transformer), .symbol_info = DependencySymbolInfo { .location = 0 } };
+        DependencySymbolInfo sym_info { .location = 0 };
+        RemoteImport import { .from = chem::string_view(transformer), .symbol_info = sym_info };
         download_job.remote_imports.push_back(import);
 
-        if (process_remote_imports(&download_job) != 0) return 1;
+        if (process_remote_imports(context, &download_job) != 0) return 1;
         if (download_job.dependencies.empty()) return 1;
 
         auto mod = download_job.dependencies[0].module;
@@ -3429,12 +3445,16 @@ int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, Rem
 
 struct RemoteImportProgress {
     std::mutex mutex;
-    int total;
+    std::atomic<int> total;
     std::atomic<int> completed{0};
-    int last_width = 0;
+    int last_width{0};
     std::vector<std::string> errors;
 
     RemoteImportProgress(int total) : total(total) {}
+
+    void add_to_total(int n) {
+        total += n;
+    }
 
     void add_error(std::string msg) {
         std::lock_guard<std::mutex> lock(mutex);
@@ -3443,9 +3463,12 @@ struct RemoteImportProgress {
 
     void update() {
         int done = ++completed;
+        int current_total = total.load();
+        if (current_total == 0) return;
+
         std::lock_guard<std::mutex> lock(mutex);
         
-        float progress = (float)done / total;
+        float progress = (float)done / current_total;
         int bar_width = 30;
         int pos = (int)(bar_width * progress);
 
@@ -3457,7 +3480,7 @@ struct RemoteImportProgress {
         }
         bar += "] ";
 
-        auto text = "[lab] downloading " + bar + std::to_string((int)(progress * 100)) + "% (" + std::to_string(done) + "/" + std::to_string(total) + ")";
+        auto text = "[lab] downloading " + bar + std::to_string((int)(progress * 100)) + "% (" + std::to_string(done) + "/" + std::to_string(current_total) + ")";
         std::cout << "\r" << text;
         
         int current_width = (int)text.size();
@@ -3469,7 +3492,8 @@ struct RemoteImportProgress {
     }
 
     void finish() {
-        if (completed >= total && errors.empty() && total > 0) {
+        int current_total = total.load();
+        if (completed >= current_total && errors.empty() && current_total > 0) {
             // Keep the 100% status on screen and move to next line
             std::cout << std::endl;
         } else {
@@ -3505,6 +3529,7 @@ static int run_git_and_capture(const std::string& cmd, std::string& output) {
 }
 
 static int download_remote_import_group(
+    LabBuildContext& context,
     LabBuildCompiler* compiler,
     LabJob* job,
     std::span<RemoteImport*> imports,
@@ -3563,18 +3588,22 @@ static int download_remote_import_group(
         }
     }
 
-    auto mod = new LabModule(LabModuleType::Directory, std::move(info.mod_scope), std::move(info.mod_name));
-
-    if(main_import->subdir.empty()) {
-        mod->paths.emplace_back(target_dir);
+    // After download, we must initialize the module correctly
+    // We use create_module_for_dependency which handles build.lab or chemical.mod
+    ModuleDependencyRecord record{ "" };
+    
+    // Determine the actual module path (taking subdir into account)
+    if (main_import->subdir.empty()) {
+        record.module_dir_path = target_dir;
     } else {
-        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, main_import->subdir.view()));
+        record.module_dir_path = resolve_rel_child_path_str(target_dir, main_import->subdir.view());
     }
 
-    {
-        std::lock_guard<std::mutex> lock(progress.mutex);
-        compiler->mod_storage.insert_module_ptr_dangerous(mod);
-        
+    auto mod = compiler->create_module_for_dependency(context, record, job);
+
+    if (mod) {
+        // Link all imports in this group to the initialized module
+        std::lock_guard<std::mutex> lock(compiler->job_mutex);
         for (auto import : imports) {
             if(import->requester) {
                 import->requester->add_dependency(mod, &import->symbol_info);
@@ -3582,13 +3611,16 @@ static int download_remote_import_group(
                 job->add_dependency(mod, &import->symbol_info);
             }
         }
+        return 0;
+    } else {
+        std::stringstream ss;
+        ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to initialize module after download from '" << main_import->from << "'\n";
+        progress.add_error(ss.str());
+        return 1;
     }
-
-    return 0;
 }
 
-int LabBuildCompiler::process_remote_imports(LabJob* job) {
-
+int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* job) {
     if(job->remote_imports.empty()) {
         return 0;
     }
@@ -3596,90 +3628,94 @@ int LabBuildCompiler::process_remote_imports(LabJob* job) {
     const auto job_build_dir = job->build_dir.to_std_string();
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    // 1 - Deduplicate and group imports by target repo
-    struct ImportInfo {
-        RemoteImport* import;
-        std::string target_dir;
-    };
-    std::vector<ImportInfo> infos;
-    infos.reserve(job->remote_imports.size());
-
-    for(auto& import : job->remote_imports) {
-        infos.push_back({&import, get_remote_repo_info(remote_mods_dir, &import).target_dir});
-    }
-
-    // sort by target_dir to group them
-    std::sort(infos.begin(), infos.end(), [](const ImportInfo& a, const ImportInfo& b) {
-        return a.target_dir < b.target_dir;
-    });
-
-    // Create groups of imports that point to the same repo
-    std::vector<RemoteImport*> group_ptrs;
-    group_ptrs.reserve(infos.size());
-    struct Group {
-        size_t offset;
-        size_t size;
-    };
-    std::vector<Group> groups;
-
-    for (size_t i = 0; i < infos.size(); ) {
-        size_t start = i;
-        RemoteImport* first = infos[i].import;
-        group_ptrs.push_back(first);
-        i++;
-        while (i < infos.size() && infos[i].target_dir == infos[start].target_dir) {
-            if (resolve_remote_import_conflict(*first, *infos[i].import) != 0) {
-                return 1;
-            }
-            group_ptrs.push_back(infos[i].import);
-            i++;
-        }
-        groups.push_back({group_ptrs.size() - (i - start), i - start});
-    }
-
-    // 2 - Launch downloads in parallel
-    RemoteImportProgress progress((int)groups.size());
-    std::vector<std::future<int>> futures;
-    futures.reserve(groups.size());
-
-    // --- PROGRESS BAR SIMULATION START (REMOVE THIS BLOCK LATER) ---
-    // This simulates 300 imports to test the progress bar UI
-    // if (groups.size() > 0) {
-    //     std::cout << "[lab] testing progress bar with 300 simulated imports..." << std::endl;
-    //     RemoteImportProgress sim_progress(300);
-    //     std::vector<std::future<int>> sim_futures;
-    //     for (int i = 0; i < 300; ++i) {
-    //         sim_futures.emplace_back(pool.push([&sim_progress](int id) {
-    //             std::this_thread::sleep_for(std::chrono::milliseconds(300 + (rand() % 30)));
-    //             sim_progress.update();
-    //             return 0;
-    //         }));
-    //     }
-    //     for (auto& f : sim_futures) f.get();
-    //     sim_progress.finish();
-    //     std::cout << "[lab] progress bar test finished, proceeding with actual downloads." << std::endl;
-    // }
-    // --- PROGRESS BAR SIMULATION END ---
-
-    if (groups.size() > 0) {
-        std::cout << "[lab] processing " << groups.size() << " remote imports" << std::endl;
-    }
-
-    for(const auto& group : groups) {
-        std::span<RemoteImport*> import_span(&group_ptrs[group.offset], group.size);
-        futures.emplace_back(pool.push([this, job, import_span, &progress](int id) {
-            auto result = download_remote_import_group(this, job, import_span, progress);
-            progress.update();
-            return result;
-        }));
-    }
-
+    RemoteImportProgress progress(0);
+    size_t processed_count = 0;
     int final_status = 0;
-    for(auto& f : futures) {
-        auto status = f.get();
-        if(status != 0) {
-            final_status = status;
+
+    while (true) {
+        std::vector<RemoteImport> current_wave;
+        {
+            std::lock_guard<std::mutex> lock(job_mutex);
+            if (processed_count >= job->remote_imports.size()) {
+                break;
+            }
+            // We copy the imports to process this wave safely, as the vector might reallocate
+            for (size_t i = processed_count; i < job->remote_imports.size(); ++i) {
+                current_wave.push_back(job->remote_imports[i]);
+            }
+            processed_count = job->remote_imports.size();
         }
+
+        if (current_wave.empty()) break;
+
+        // 1 - Deduplicate and group imports by target repo
+        struct ImportInfo {
+            RemoteImport* import;
+            std::string target_dir;
+        };
+        std::vector<ImportInfo> infos;
+        infos.reserve(current_wave.size());
+
+        for(auto& import : current_wave) {
+            infos.push_back({&import, get_remote_repo_info(remote_mods_dir, &import).target_dir});
+        }
+
+        // sort by target_dir to group them
+        std::sort(infos.begin(), infos.end(), [](const ImportInfo& a, const ImportInfo& b) {
+            return a.target_dir < b.target_dir;
+        });
+
+        // Create groups of imports that point to the same repo
+        std::vector<RemoteImport*> group_ptrs;
+        group_ptrs.reserve(infos.size());
+        struct Group {
+            size_t offset;
+            size_t size;
+        };
+        std::vector<Group> groups;
+
+        for (size_t i = 0; i < infos.size(); ) {
+            size_t start = i;
+            RemoteImport* first = infos[i].import;
+            group_ptrs.push_back(first);
+            i++;
+            while (i < infos.size() && infos[i].target_dir == infos[start].target_dir) {
+                // Conflict resolution still uses pointers within current_wave which is safe here
+                if (resolve_remote_import_conflict(*first, *infos[i].import) != 0) {
+                    return 1;
+                }
+                group_ptrs.push_back(infos[i].import);
+                i++;
+            }
+            groups.push_back({group_ptrs.size() - (i - start), i - start});
+        }
+
+        if (groups.empty()) break;
+
+        progress.add_to_total((int)groups.size());
+        std::cout << "[lab] processing " << groups.size() << " remote imports (wave)" << std::endl;
+
+        // 2 - Launch downloads in parallel
+        std::vector<std::future<int>> futures;
+        futures.reserve(groups.size());
+
+        for(const auto& group : groups) {
+            std::span<RemoteImport*> import_span(&group_ptrs[group.offset], group.size);
+            futures.emplace_back(pool.push([this, &context, job, import_span, &progress](int id) {
+                auto result = download_remote_import_group(context, this, job, import_span, progress);
+                progress.update();
+                return result;
+            }));
+        }
+
+        for(auto& f : futures) {
+            auto status = f.get();
+            if(status != 0) {
+                final_status = status;
+            }
+        }
+
+        if (final_status != 0) break;
     }
     
     progress.finish();

@@ -108,6 +108,22 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
+/**
+ * add the given module as a directory module
+ */
+LabModule* LabBuildContext::new_module(
+        LabModuleType type,
+        const chem::string_view& scope_name,
+        const chem::string_view& module_name
+) {
+    auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
+    {
+        std::lock_guard<std::mutex> lock(compiler.mod_storage_mutex);
+        storage.insert_module_ptr_dangerous(mod);
+    }
+    return mod;
+}
+
 void LabBuildContext::put_job_before(LabJob* newJob, LabJob* existingJob) {
     // lets first remove the job (scanning backwards)
     auto& v = executables;

@@ -213,11 +213,7 @@ public:
             LabModuleType type,
             const chem::string_view& scope_name,
             const chem::string_view& module_name
-    ) {
-        auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
-        storage.insert_module_ptr_dangerous(mod);
-        return mod;
-    }
+    );
 
     /**
      * add the given module as a directory module

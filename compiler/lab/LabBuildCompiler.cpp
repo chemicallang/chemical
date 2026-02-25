@@ -1386,30 +1386,6 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
 }
 
-void delegated_function_body(FunctionDeclaration& global_main, TypeBuilder& typeBuilder, Namespace* mod_namespace, FunctionDeclaration* namespaced_func, SourceLocation loc) {
-    // put the parameters
-    FunctionParam argc_param("argc", {typeBuilder.getIntType(), loc}, 0, nullptr, false, (ASTNode*) &global_main, loc);
-    PointerType f(typeBuilder.getCharType(), true); PointerType s(&f, true);
-    FunctionParam argv_param("argv", {&s, loc}, 1, nullptr, false, (ASTNode*) &global_main, loc);
-    global_main.params = { &argc_param, &argv_param };
-    // put the body code
-    global_main.body.emplace(&global_main, loc);
-    AccessChain chain_values(&global_main, loc);
-    VariableIdentifier ns_id(mod_namespace->name_view(), (BaseType*) typeBuilder.getVoidType(), loc);
-    ns_id.linked = mod_namespace;
-    VariableIdentifier fn_id(namespaced_func->name_view(), namespaced_func, loc);
-    fn_id.linked = namespaced_func;
-    chain_values.values = { &ns_id };
-    FunctionCall call_val(&chain_values, namespaced_func->returnType, loc);
-    VariableIdentifier argc_id("argc", argc_param.getType(), loc);
-    argc_id.linked = &argc_param;
-    VariableIdentifier argv_id("argv", argv_param.getType(), loc);
-    argc_id.linked = &argv_param;
-    call_val.values = { &argc_id, &argv_id };
-    ReturnStatement stmt((Value*) &call_val, (ASTNode*) &global_main, loc);
-    global_main.body.value().nodes = { &stmt };
-}
-
 int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
 
@@ -1620,44 +1596,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // add the job obj path to linkables
     if(did_compile_chemical) {
-
         job->objects.emplace_back(job_obj_path);
-
-        // TODO: this code is in the wrong place, because symbol resolver disposes symbols after module
-        //  has been processed
-        // should we create the main method for the user
-        // we do it, if generating an executable and user didn't write one
-        if(get_job_type == LabJobType::Executable && exe->dependencies.size() == 1) {
-            auto global_main_func = resolver.find("main");
-            if (global_main_func == nullptr) {
-                // the main function doesn't exist
-                // job has a single module as a dependency, which should contain the main function
-                // but since it doesn't we'll try for a namespaced main function
-                const auto mod = exe->dependencies[0].module;
-                auto mod_namespace = resolver.find(mod->name.to_chem_view());
-                if(mod_namespace != nullptr && mod_namespace->kind() == ASTNodeKind::NamespaceDecl && is_linkage_public(mod_namespace->specifier())) {
-                    const auto namespaced_main = mod_namespace->child("main");
-                    if(namespaced_main != nullptr && namespaced_main->kind() == ASTNodeKind::FunctionDecl && is_linkage_public(namespaced_main->specifier())) {
-
-                        const auto func = namespaced_main->as_function_unsafe();
-
-                        // lets create a main function that delegates to the namespaced main function
-                        // then generate code for it
-                        const auto loc = func->encoded_location();
-                        auto& typeBuilder = resolver.comptime_scope.typeBuilder;
-                        FunctionDeclaration global_main(LocatedIdentifier("main"), func->returnType, false, mod_namespace->parent(), loc, AccessSpecifier::Public);
-                        global_main.set_no_mangle(true);
-
-                        // prepare body
-                        delegated_function_body(global_main, typeBuilder, mod_namespace->as_namespace_unsafe(), func, loc);
-
-                        // generate code for the global main
-                        c_visitor.visit(&global_main);
-                    }
-                }
-            }
-        }
-
     }
 
     // end the translation (must be done)
@@ -3066,6 +3005,18 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
 
     // call the root chemical.mod build's function
     const auto main_module = build(&context, final_job);
+    if(main_module == nullptr) {
+        return 1;
+    }
+
+    // if running via 'chemical run', promote library module to application
+    // so the main function becomes the entry point (no_mangle)
+    if(promote_to_app && main_module && main_module->package_kind == PackageKind::Library) {
+        main_module->package_kind = PackageKind::Application;
+    }
+
+    // just put main the module as this job's dependency
+    final_job->add_dependency(main_module);
 
     // lets compile any cbi jobs user may have specified
     for(auto& job : context.executables) {
@@ -3076,35 +3027,6 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
             }
         }
     }
-
-    // check if user gave command to output ir or asm
-    if(cmd) {
-        const auto has_ll = cmd->has_value("out-ll-all");
-        const auto has_asm = cmd->has_value("out-asm-all");
-        if(has_ll || has_asm) {
-            for(auto& modPtr : mod_storage.get_modules()) {
-                auto& module = *modPtr.get();
-                const auto mod_dir = get_mod_dir(final_job, &module);
-                if (has_ll) {
-                    module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
-                }
-                if (has_asm) {
-                    module.asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
-                }
-            }
-        }
-    }
-
-    // just put main the module as this job's dependency
-    final_job->add_dependency(main_module);
-
-    // if running via 'chemical run', promote library module to application
-    // so the main function becomes the entry point (no_mangle)
-    if(promote_to_app && main_module && main_module->package_kind == PackageKind::Library) {
-        main_module->package_kind = PackageKind::Application;
-    }
-
-    current_job = final_job;
 
     const auto job_result = do_job(final_job);
     if(job_result != 0) {
@@ -3238,14 +3160,16 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     // Ensure cache dir exists
     fs::create_directories(cache_dir);
 
-    LabJob dummy_job(LabJobType::Executable, chem::string("dummy"), options->out_mode);
-    dummy_job.build_dir = chem::string(cache_dir);
+    // creating a executable job
+    LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
 
+    // add the user's requested command module as a remote import to the job
     DependencySymbolInfo sym_info { .location = 0 };
     RemoteImport import { .from = chem::string_view(target), .symbol_info = sym_info };
-    dummy_job.remote_imports.push_back(import);
-    
-    if (process_remote_imports(context, &dummy_job) != 0) {
+    final_job.remote_imports.push_back(import);
+
+    // this will process remote imports recursively, and add to the job
+    if (process_remote_imports(context, &final_job) != 0) {
         return 1;
     }
 
@@ -3255,8 +3179,19 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     // disable build lab caching, we don't want to generate its .dat and partial 2c files
     options->is_build_lab_caching_enabled = false;
 
-    if (dummy_job.dependencies.empty()) return 1;
-    auto mod = dummy_job.dependencies[0].module;
+    // if remote imports succeeded, it must have lead to a single module
+    // the first one
+    if (final_job.dependencies.empty()) return 1;
+    auto mod = final_job.dependencies[0].module;
+
+    // clearing the remote imports from the final job
+    // we've downloaded them, we still use do_job
+    // do_job will again process remote imports, when we can just skip that
+    final_job.remote_imports.clear();
+
+    // since we are running it
+    // we should ensure its main function automatically gets no_mangle
+    mod->package_kind = PackageKind::Application;
 
     // Set specialized build directory in the cache for this project
     auto exe_build_dir = resolve_rel_child_path_str(cache_dir, "build");
@@ -3266,11 +3201,12 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     // we can delete this directory on success, since we are only concerned
     // with the final executable
     auto assets_build_dir = resolve_rel_child_path_str(exe_build_dir, "build");
-    this->options->build_dir = assets_build_dir;
+    options->build_dir = assets_build_dir;
+    final_job.build_dir = chem::string(assets_build_dir);
     fs::create_directories(assets_build_dir);
 
     // determine output path of the executable
-    chem::string outputPath;
+    auto& outputPath = final_job.abs_path;
     outputPath.append(exe_build_dir);
     outputPath.append("/");
 #ifdef _WIN32
@@ -3279,28 +3215,49 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     outputPath.append("run");
 #endif
 
-    // Remote module name is used to find the entry point if it's a transformer, 
-    // but here we are running it as a project.
-    std::string lab_path = resolve_rel_child_path_str(exe_build_dir, "build.lab");
-    if (fs::exists(lab_path)) {
-        const auto status = run_local_project(lab_path, std::move(outputPath), args, context);
-        if(status == 0) {
-            fs::remove_all(assets_build_dir);
+    // lets compile any cbi jobs user may have specified
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI) {
+            const auto job_result = do_job(job.get());
+            if(job_result != 0) {
+                return job_result;
+            }
         }
-        return status;
     }
 
-    std::string mod_path = resolve_rel_child_path_str(exe_build_dir, "chemical.mod");
-    if (fs::exists(mod_path)) {
-        const auto status = run_local_project(mod_path, std::move(outputPath), args, context);
-        if(status == 0) {
-            fs::remove_all(assets_build_dir);
-        }
-        return status;
+    // do the actual job
+    const auto job_result = do_job(&final_job);
+    if(job_result == 0) {
+        fs::remove_all(assets_build_dir);
+    } else {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "emitting executable, returned status code 1" << std::endl;
     }
 
-    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "remote module '" << target << "' has no build.lab or chemical.mod" << std::endl;
-    return 1;
+    // get allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
+
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    // end if compilation failed
+    if(job_result != 0) {
+        return job_result;
+    }
+
+    // Run the executable
+    std::vector<char*> argv;
+    const auto exe_str = final_job.abs_path.data();
+    argv.push_back(const_cast<char*>(exe_str));
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.data()));
+    }
+    argv.push_back(nullptr);
+    return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
+
 }
 
 int LabBuildCompiler::run_transformer(const std::string& transformer, const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {

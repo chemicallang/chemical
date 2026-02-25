@@ -5,10 +5,7 @@
 enum class LabModuleType : int {
 
     /**
-     * a files module is which contains chemical source files, if any c files
-     * are present, they are converted to c file modules and taken as
-     * dependencies on current module, any object files are linked with the
-     * final executable or dynamic lib
+     * a files module contains directly .ch files in its 'paths', nothing else
      */
     Files = 0,
 
@@ -31,9 +28,9 @@ enum class LabModuleType : int {
     ObjFile = 3,
 
     /**
-     * a directory with no build.lab file, is considered a directory module
-     * files inside are sorted so that independent files that don't depend on other files
-     * are compiled first
+     * a directory module is created from a chemical.mod or build.lab (module level) file
+     * directory module can contain directory paths, file paths, when its a directory
+     * we recursively traverse to add files with .ch extension
      */
     Directory = 4,
 

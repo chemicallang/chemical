@@ -426,7 +426,10 @@ ComptimeBlock* Parser::parseComptimeBlockNoKw(ASTAllocator& allocator) {
 
 bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data) {
 
-    if(token->type == TokenType::Identifier && token->value == "module") {
+    if(token->type == TokenType::Identifier && (token->value == "module" || token->value == "library")) {
+        token++;
+    } else if(token->type == TokenType::Identifier && token->value == "application") {
+        data.package_kind = PackageKind::Application;
         token++;
     } else {
         error("expected a module definition at top");

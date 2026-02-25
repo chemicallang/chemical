@@ -312,12 +312,15 @@ void BuildContextadd_dependency(LabBuildContext* self, LabJob* job, LabModule* m
     job->add_dependency(module, allocate_dep_info(self->compiler.global_allocator, cbi));
 }
 
-LabModule* BuildContextnew_module(LabBuildContext* self, int type, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
+LabModule* BuildContextnew_package(LabBuildContext* self, int type, int package_kind, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
     auto& allocator = self->compiler.global_allocator;
-    if(type < 0 || type > static_cast<int>(LabModuleType::Last)) {
-        return nullptr;
+    auto mod = new LabModule(LabModuleType::Directory, chem::string(*scope_name), chem::string(*name));
+    if(type >= 0 && type < static_cast<int>(LabModuleType::Last)) {
+        mod->type = static_cast<LabModuleType>(type);
     }
-    auto mod = new LabModule(static_cast<LabModuleType>(type), chem::string(*scope_name), chem::string(*name));
+    if(package_kind >= 0 && package_kind <= static_cast<int>(PackageKind::Application)) {
+        mod->package_kind = static_cast<PackageKind>(package_kind);
+    }
     self->storage.insert_module_ptr_dangerous(mod);
     if(dependencies->size > 0) {
         mod->reserve_dependencies(dependencies->size);

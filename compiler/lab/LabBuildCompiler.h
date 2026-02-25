@@ -140,15 +140,15 @@ public:
     /**
      * job level allocator
      */
-    ASTAllocator* job_allocator;
+    ASTAllocator* job_allocator = nullptr;
     /**
      * module level allocator
      */
-    ASTAllocator* mod_allocator;
+    ASTAllocator* mod_allocator = nullptr;
     /**
      * file level allocator
      */
-    ASTAllocator* file_allocator;
+    ASTAllocator* file_allocator = nullptr;
 
     /**
      * constructor
@@ -336,6 +336,11 @@ public:
     int do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*, void*));
 
     /**
+     * this function just takes a std::function and calls it setting the allocators
+     */
+    int do_allocating(const std::function<int()>& fn);
+
+    /**
      * will perform the job, using appropriate allocators on stack
      */
     int do_job_allocating(LabJob* job);
@@ -408,32 +413,60 @@ public:
     /**
      * will build the lab file
      */
-    int build_lab_file(LabBuildContext& context, const std::string_view& path);
+    int build_lab_file_no_alloc(LabBuildContext& context, const std::string_view& path);
+
+    /**
+     * will build the lab file
+     */
+    inline int build_lab_file(LabBuildContext& context, const std::string_view& path) {
+        return do_allocating([&]() -> int {
+            return build_lab_file_no_alloc(context, path);
+        });
+    }
 
     /**
      * build the chemical.mod or build.lab file at path, with the given job
      * assuming the build.lab and chemical.mod will return a module pointer
+     * this function doesn't create allocators
      */
-    int build_module_build_file(
+    int build_module_build_file_no_alloc(
             LabBuildContext& context,
             const std::string_view& path,
             LabJob* final_job,
-            bool mod_file_source
+            bool mod_file_source,
+            bool promote_to_app = false
     );
+
+    /**
+     * build the chemical.mod or build.lab file at path, with the given job
+     * assuming the build.lab and chemical.mod will return a module pointer
+     * this function creates allocators
+     */
+    inline int build_module_build_file(
+            LabBuildContext& context,
+            const std::string_view& path,
+            LabJob* final_job,
+            bool mod_file_source,
+            bool promote_to_app = false
+    ) {
+        return do_allocating([&]() -> int {
+            return build_module_build_file_no_alloc(context, path, final_job, mod_file_source, promote_to_app);
+        });
+    }
 
     /**
      * a module level build.lab file returns a module pointer
      * processing for building it in a job is different
      */
-    inline int build_module_lab_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
-        return build_module_build_file(context, path, final_job, false);
+    inline int build_module_lab_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job, bool promote_to_app = false) {
+        return build_module_build_file(context, path, final_job, false, promote_to_app);
     }
 
     /**
      * build the mod file given at path, into an executable at outputPath
      */
-    inline int build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
-        return build_module_build_file(context, path, final_job, true);
+    inline int build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job, bool promote_to_app = false) {
+        return build_module_build_file(context, path, final_job, true, promote_to_app);
     }
 
     /**

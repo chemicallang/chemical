@@ -9,6 +9,7 @@
 #include "core/diag/Diagnostic.h"
 #include <string>
 #include "ast/utils/IffyConditional.h"
+#include "compiler/lab/PackageKind.h"
 
 typedef IffyBase ModFileIfBase;
 typedef IffyCondId ModFileIfId;
@@ -55,6 +56,12 @@ public:
      * the module name in the .mod file's module declaration
      */
     chem::string_view module_name;
+
+    /**
+     * the package kind parsed from the .mod file's declaration keyword
+     * module/library -> Library, application -> Application
+     */
+    PackageKind package_kind = PackageKind::Library;
 
     /**
      * the scope is used to contain the file

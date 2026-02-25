@@ -417,12 +417,15 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     // we need to search for main function in each module and make it no_mangle
     // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
-    const auto main_func = resolver->find("main");
-    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-        if (options->verbose) {
-            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+    // only do this for application modules - library modules keep main mangled
+    if(module->package_kind == PackageKind::Application) {
+        const auto main_func = resolver->find("main");
+        if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+            if (options->verbose) {
+                std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+            }
+            main_func->as_function_unsafe()->set_no_mangle(true);
         }
-        main_func->as_function_unsafe()->set_no_mangle(true);
     }
 
     resolver->module_scope_end(mod_index);

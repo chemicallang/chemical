@@ -21,7 +21,7 @@
 
 const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextgetAnnotationController", (void*) BuildContextgetAnnotationController },
-        { "lab_BuildContextnew_module", (void*) BuildContextnew_module },
+        { "lab_BuildContextnew_package", (void*) BuildContextnew_package },
         { "lab_BuildContextset_module_symbol_info", (void*) BuildContextset_module_symbol_info },
         { "lab_BuildContextget_cached", (void*) BuildContextget_cached },
         { "lab_BuildContextset_cached", (void*) BuildContextset_cached },

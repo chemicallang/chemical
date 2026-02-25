@@ -211,10 +211,7 @@ AtReplaceResult ImportPathHandler::get_atDirective(const std::string_view& fileP
     return { std::string(filePath.substr(1, slash - 1)), "" };
 }
 
-AtReplaceResult ImportPathHandler::replace_at_in_path(
-        const std::string_view& filePath,
-        const std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases
-) {
+AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string_view& filePath) {
     if(filePath[0] != '@') return {std::string(filePath), ""};
     auto slash = filePath.find('/');
     if(slash == std::string::npos) {
@@ -224,13 +221,6 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(
     auto found = path_resolvers.find(atDirective);
     if(found != path_resolvers.end()) {
         return found->second(*this, filePath, slash);
-    }
-    auto next = aliases.find(atDirective);
-    if(next != aliases.end()) {
-        std::string path;
-        path.append(next->second);
-        path.append(filePath.substr(slash));
-        return { std::move(path), "" };
     }
     auto resolver = lib_path_replacer(atDirective, *this, filePath, slash);
     if(resolver.error.empty()) {
@@ -250,12 +240,6 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
         }
     }
     return { absolute_path(resolve_sibling(base_path, import_path)), "" };
-}
-
-inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
-    ASTDiagnoser diagnoser(loc_man);
-    diagnoser.error(loc) << message;
-    diagnoser.print_diagnostics("lab");
 }
 
 ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(

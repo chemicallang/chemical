@@ -639,12 +639,6 @@ bool ASTProcessor::import_chemical_files_recursive(
 
 }
 
-inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
-    ASTDiagnoser diagnoser(loc_man);
-    diagnoser.error(loc) << message;
-    diagnoser.print_diagnostics("lab");
-}
-
 bool ASTProcessor::figure_out_direct_imports(
         ASTFileMetaData& fileData,
         std::vector<ASTNode*>& fileNodes,
@@ -703,7 +697,8 @@ bool ASTProcessor::figure_out_direct_imports(
 
             } else {
 
-                error_out(loc_man, stmt->encoded_location(), "couldn't replace '@' in the path");
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't replace '@' in the path at ";
+                std::cerr << loc_man.formatLocation(stmt->encoded_location()) << std::endl;
                 return false;
 
             }

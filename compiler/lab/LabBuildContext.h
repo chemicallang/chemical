@@ -187,26 +187,6 @@ public:
     }
 
     /**
-     * declare alias for a path for user into given job
-     * this method is used by the cbi, if the path has any aliases we replace those
-     * by getting them from the job
-     * returns true if declared
-     */
-    bool declare_user_alias(LabJob* job, std::string alias, std::string path);
-
-    /**
-     * module with it's dependent modules will be declared with it's name
-     * to the absolute path alias, if the module is a directory module
-     */
-    static void put_path_aliases(LabJob* job, LabModule* module);
-
-    /**
-     * all the modules of this job will be declared with path aliases
-     * including the indirect dependent modules
-     */
-    static void init_path_aliases(LabJob* job);
-
-    /**
      * add the given module as a directory module
      */
     LabModule* new_module(

@@ -149,6 +149,15 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency
 }
 
 /**
+ * this should be used in each job, so children of each module are calculated again
+ */
+void zero_out_cached_children(std::vector<LabModule*>& mods) {
+    for(const auto mod : mods) {
+        mod->children = nullptr;
+    }
+}
+
+/**
  * constructor
  */
 LabBuildCompiler::LabBuildCompiler(
@@ -1431,8 +1440,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
 
-    // index the modules, so imports can be resolved
-    mod_storage.index_modules(dependencies);
+    // zero out cached children, so they are calculated again during sym res
+    zero_out_cached_children(dependencies);
 
     // allocating required variables before going into loop
     bool do_compile = job_type != LabJobType::ToCTranslation;
@@ -1545,9 +1554,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // the processor we use
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
-
-    // import executable path aliases
-    processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver, job->target_data);
@@ -1700,7 +1706,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
     }
 
-    exe->path_aliases = std::move(processor.path_handler.path_aliases);
     return 0;
 
 }
@@ -1732,8 +1737,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
 
-    // index the modules, so imports can be resolved
-    mod_storage.index_modules(dependencies);
+    // zero out cached children, so they are calculated again during sym res
+    zero_out_cached_children(dependencies);
 
     // build dir
     auto build_dir = job->build_dir.to_std_string();
@@ -1816,9 +1821,6 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;
 
-    // import executable path aliases
-    processor.path_handler.path_aliases = std::move(job->path_aliases);
-
     create_or_rebind_container(this, global, resolver, job->target_data);
 
     // before compilation of the module, we prepare the target machine
@@ -1881,8 +1883,6 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         }
 
     }
-
-    job->path_aliases = std::move(processor.path_handler.path_aliases);
 
     return 0;
 
@@ -2164,9 +2164,7 @@ int LabBuildCompiler::translate_mod_file_to_lab(
 }
 
 inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
-    ASTDiagnoser diagnoser(loc_man);
-    diagnoser.error(loc) << message;
-    diagnoser.print_diagnostics("lab");
+    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << message << " at " << loc_man.formatLocation(loc) << std::endl;
 }
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
@@ -2491,6 +2489,9 @@ TCCState* LabBuildCompiler::built_lab_file(
     // including all (+nested) dependencies in a single vector
     // sorted in the order of least dependence (flattened with all the dependencies in one vector)
     auto outModDependencies = flatten_dedupe_sorted(mod_dependencies);
+
+    // zero out cached children, so they are calculated again during sym res
+    zero_out_cached_children(outModDependencies);
 
     // figure out path for lab modules directory
     const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");

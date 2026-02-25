@@ -121,8 +121,6 @@ extern "C" {
 
     void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_view* path);
 
-    bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_view* alias, chem::string_view* path);
-
     void BuildContextbuild_path(chem::string_view* str, LabBuildContext* self);
 
     bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name);

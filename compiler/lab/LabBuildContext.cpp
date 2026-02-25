@@ -66,48 +66,6 @@ void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* optio
     ::initialize_job(job, options, options->target_triple);
 }
 
-void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases, std::string alias, std::string path) {
-    const auto path_last = path.size() - 1;
-    if(path[path_last] == '/') {
-        path = path.substr(0, path_last);
-    }
-    aliases[std::move(alias)] = std::move(path);
-}
-
-bool LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::string path) {
-    auto found = job->path_aliases.find(alias);
-    if(found != job->path_aliases.end()) {
-        std::cerr << "[lab] error declaring alias '" << alias << "' for path '" << path << "', an alias with same already exists in job '" << job->name << "'" << std::endl;
-        return false;
-    }
-    while(path[0] == '@') {
-        auto result = handler.replace_at_in_path(path, job->path_aliases);
-        if(result.error.empty()) {
-            path = std::move(result.replaced);
-        } else {
-            std::cerr << "[lab] error declaring alias '" << alias << "' for path '" << path << "', " << result.error << " in job '" << job->name << "'" << std::endl;
-            return false;
-        }
-    }
-    declare_alias(job->path_aliases, std::move(alias), std::move(path));
-    return true;
-}
-
-void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {
-    if(module->type == LabModuleType::Directory) {
-        declare_alias(job->path_aliases, module->name.to_std_string(), module->paths[0].to_std_string());
-    }
-    for(auto dep : module->get_dependencies()) {
-        put_path_aliases(job, dep.module);
-    }
-}
-
-void LabBuildContext::init_path_aliases(LabJob* job) {
-    for(auto dep : job->dependencies) {
-        put_path_aliases(job, dep.module);
-    }
-}
-
 /**
  * add the given module as a directory module
  */

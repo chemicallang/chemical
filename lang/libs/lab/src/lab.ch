@@ -164,10 +164,6 @@ public interface BuildContext {
     // add a linkable object (.o file)
     func add_object (&self, job : *LabJob, path : &std::string_view) : void;
 
-    // declare an alias for a path that can be used in imports like import '@alias/sub_path.ch'
-    // returns true if declared
-    func declare_alias (&self, job : *LabJob, alias : &std::string_view, path : &std::string_view) : bool;
-
     // get build
     func build_path (&self) : std::string_view;
 

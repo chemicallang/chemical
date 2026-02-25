@@ -64,12 +64,6 @@ public:
     std::unordered_map<std::string, ImportPathResolverFn, StringHash, StringEqual> path_resolvers;
 
     /**
-     * path aliases are used to basically alias a path using '@'
-     * when user will import using an '@' we will
-     */
-    std::unordered_map<std::string, std::string, StringHash, StringEqual> path_aliases;
-
-    /**
      * constructor
      */
     ImportPathHandler(std::string compiler_exe_path);
@@ -102,17 +96,7 @@ public:
     /**
      * replace '@' in path
      */
-    AtReplaceResult replace_at_in_path(
-            const std::string_view& filePath,
-            const std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases
-    );
-
-    /**
-     * a helper method
-     */
-    inline AtReplaceResult replace_at_in_path(const std::string_view &filePath) {
-        return replace_at_in_path(filePath, path_aliases);
-    }
+    AtReplaceResult replace_at_in_path(const std::string_view& filePath);
 
     /**
      * resolve given import path

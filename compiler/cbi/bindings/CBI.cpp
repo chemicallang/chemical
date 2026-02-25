@@ -41,7 +41,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextset_environment_testing", (void*) BuildContextset_environment_testing },
         { "lab_BuildContextindex_cbi_fn", (void*) BuildContextindex_cbi_fn },
         { "lab_BuildContextadd_object", (void*) BuildContextadd_object },
-        { "lab_BuildContextdeclare_alias", (void*) BuildContextdeclare_alias },
         { "lab_BuildContextbuild_path", (void*) BuildContextbuild_path },
         { "lab_BuildContexthas_arg", (void*) BuildContexthas_arg },
         { "lab_BuildContextget_arg", (void*) BuildContextget_arg },

@@ -132,10 +132,6 @@ void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_vie
     job->objects.emplace_back(*path);
 }
 
-bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_view* alias, chem::string_view* path) {
-    return self->declare_user_alias(job, alias->str(), path->str());
-}
-
 void BuildContextbuild_path(chem::string_view* view, LabBuildContext* self) {
     auto& str = self->compiler.options->build_dir;
     new (view) chem::string_view(str.data(), str.size());

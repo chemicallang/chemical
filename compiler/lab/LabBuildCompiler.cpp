@@ -3099,16 +3099,14 @@ int LabBuildCompiler::run_invocation(
     
     // 2. Is it a local project?
     if (target.ends_with(".lab") || target.ends_with(".mod")) {
-
-        auto exe_path = chem::string("build");
-#ifdef _WIN32
-        exe_path.append("run.exe");
-#else
-        exe_path.append("run");
-#endif
-
         return compiler.do_allocating([&]() -> int {
-            return compiler.run_local_project(target, std::move(exe_path), args, context);
+            compiler_opts.build_dir = resolve_sibling(target, "build");
+#ifdef _WIN32
+            auto exe_path = resolve_rel_child_path_str(compiler_opts.build_dir, "run.exe");
+#else
+            auto exe_path = resolve_rel_child_path_str(compiler_opts.build_dir, "run");
+#endif
+            return compiler.run_local_project(target, chem::string(exe_path), args, context);
         });
 
     }
@@ -3119,6 +3117,17 @@ int LabBuildCompiler::run_invocation(
     });
 }
 
+static int launch_process_and_wait(const char* exe_str, const std::vector<std::string_view>& args) {
+    // Run the executable
+    std::vector<char*> argv;
+    argv.push_back(const_cast<char*>(exe_str));
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.data()));
+    }
+    argv.push_back(nullptr);
+    return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
+}
+
 int LabBuildCompiler::run_local_project(
         const std::string& target,
         chem::string outputPath,
@@ -3127,26 +3136,13 @@ int LabBuildCompiler::run_local_project(
 ) {
 
     auto& opts = *options;
-
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(opts.build_dir), opts.out_mode);
     LabBuildContext::initialize_job(&final_job, &opts);
-
-    // promote to app
     const auto result = build_module_build_file_no_alloc(context, target, &final_job, !target.ends_with(".lab"), true);
-
     if (result == 0) {
         // Run the executable
-        std::vector<char*> argv;
-        const auto exe_str = final_job.abs_path.data();
-        argv.push_back(const_cast<char*>(exe_str));
-        for (const auto& arg : args) {
-            argv.push_back(const_cast<char*>(arg.data()));
-        }
-        argv.push_back(nullptr);
-
-        return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
+        return launch_process_and_wait(final_job.abs_path.data(), args);
     }
-
     return result;
 }
 
@@ -3183,17 +3179,6 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
 
     info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
     return info;
-}
-
-int launch_process_and_wait(const char* exe_str, const std::vector<std::string_view>& args) {
-    // Run the executable
-    std::vector<char*> argv;
-    argv.push_back(const_cast<char*>(exe_str));
-    for (const auto& arg : args) {
-        argv.push_back(const_cast<char*>(arg.data()));
-    }
-    argv.push_back(nullptr);
-    return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
 }
 
 int LabBuildCompiler::run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
@@ -3447,6 +3432,7 @@ struct RemoteImportProgress {
     std::atomic<int> total;
     std::atomic<int> completed{0};
     int last_width{0};
+    bool is_first_time_printing = true;
     std::vector<std::string> errors;
 
     RemoteImportProgress(int total) : total(total) {}
@@ -3466,28 +3452,41 @@ struct RemoteImportProgress {
         if (current_total == 0) return;
 
         std::lock_guard<std::mutex> lock(mutex);
-        
+
         float progress = (float)done / current_total;
         int bar_width = 30;
         int pos = (int)(bar_width * progress);
 
-        std::string bar = "[";
-        for (int i = 0; i < bar_width; ++i) {
-            if (i < pos) bar += "=";
-            else if (i == pos) bar += ">";
-            else bar += " ";
-        }
-        bar += "] ";
+        std::string output;
+        output.reserve(128);
 
-        auto text = "[lab] downloading " + bar + std::to_string((int)(progress * 100)) + "% (" + std::to_string(done) + "/" + std::to_string(current_total) + ")";
-        std::cout << "\r" << text;
-        
-        int current_width = (int)text.size();
-        if (current_width < last_width) {
-            for (int i = 0; i < last_width - current_width; ++i) std::cout << " ";
+        if (!is_first_time_printing)
+            output += '\r';
+        else
+            is_first_time_printing = false;
+
+        output += "[lab] downloading [";
+
+        for (int i = 0; i < bar_width; ++i) {
+            if (i < pos) output += '=';
+            else if (i == pos) output += '>';
+            else output += ' ';
         }
-        last_width = current_width;
-        std::cout << std::flush;
+
+        output += "] ";
+        output += std::to_string((int)(progress * 100));
+        output += "% (";
+        output += std::to_string(done);
+        output += "/";
+        output += std::to_string(current_total);
+        output += ")";
+
+        if (output.size() < last_width)
+            output.append(last_width - output.size(), ' ');
+
+        last_width = output.size();
+
+        std::cout << output << std::flush;
     }
 
     void finish() {

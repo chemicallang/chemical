@@ -3150,18 +3150,94 @@ int LabBuildCompiler::run_local_project(
     return result;
 }
 
+struct RemoteRepoInfo {
+    chem::string mod_scope, mod_name;
+    std::string storage_path;
+    std::string target_dir;
+};
+
+static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const chem::string_view& from_path) {
+    RemoteRepoInfo info;
+    auto from_path_view = from_path.view();
+    auto last_slash = from_path_view.find_last_of('/');
+    bool has_remote_origin = false;
+
+    if(last_slash != std::string_view::npos) {
+        info.mod_name.append(from_path_view.substr(last_slash + 1));
+        auto parent = from_path_view.substr(0, last_slash);
+        auto second_slash = parent.find_last_of('/');
+        if (second_slash != std::string_view::npos) {
+             has_remote_origin = true;
+             info.mod_scope.append(parent.substr(second_slash + 1));
+        } else {
+             info.mod_scope.append(parent);
+        }
+    } else {
+        info.mod_name.append(from_path_view);
+    }
+
+    info.storage_path = from_path.str();
+    if(!has_remote_origin) {
+        info.storage_path = "github.com/" + info.storage_path;
+    }
+
+    info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
+    return info;
+}
+
+int launch_process_and_wait(const char* exe_str, const std::vector<std::string_view>& args) {
+    // Run the executable
+    std::vector<char*> argv;
+    argv.push_back(const_cast<char*>(exe_str));
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.data()));
+    }
+    argv.push_back(nullptr);
+    return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
+}
+
 int LabBuildCompiler::run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+
     auto cache_dir = get_commands_cache_dir();
     if (cache_dir.empty()) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine home directory for caching" << std::endl;
         return 1;
     }
 
+    // the target dir is where we should store executable
+    // inside target dir, create a build dir, which we should use for the build
+    auto info = get_remote_repo_info(cache_dir, chem::string_view(target));
+
+    // determine output path of the executable
+    auto outputPath = chem::string();
+    outputPath.append(info.target_dir);
+    outputPath.append("/");
+#ifdef _WIN32
+    outputPath.append("run.exe");
+#else
+    outputPath.append("run");
+#endif
+
+    // lets check if executable already exists and invoke it
+    // without downloading it
+    if(fs::exists(outputPath.to_view())) {
+        // executable already exists
+        return launch_process_and_wait(outputPath.data(), args);
+    }
+
+    // we will delete the build dir, this contains everything (remote modules, intermediate objects)
+    auto build_dir = resolve_rel_child_path_str(info.target_dir, "build");
+
     // Ensure cache dir exists
-    fs::create_directories(cache_dir);
+    fs::create_directories(build_dir);
 
     // creating a executable job
     LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
+    // this is where 'remote' directory will be created by process_remote_imports
+    // we use build_dir, since we want to delete the downloaded sources at the end
+    final_job.build_dir = chem::string(build_dir);
+    // setting the absolute path to the executable
+    final_job.abs_path.append(outputPath.to_view());
 
     // add the user's requested command module as a remote import to the job
     DependencySymbolInfo sym_info { .location = 0 };
@@ -3193,28 +3269,6 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     // we should ensure its main function automatically gets no_mangle
     mod->package_kind = PackageKind::Application;
 
-    // Set specialized build directory in the cache for this project
-    auto exe_build_dir = resolve_rel_child_path_str(cache_dir, "build");
-    exe_build_dir = resolve_rel_child_path_str(exe_build_dir, mod->format('.'));
-
-    // the assets build dir contains things like object files, c output
-    // we can delete this directory on success, since we are only concerned
-    // with the final executable
-    auto assets_build_dir = resolve_rel_child_path_str(exe_build_dir, "build");
-    options->build_dir = assets_build_dir;
-    final_job.build_dir = chem::string(assets_build_dir);
-    fs::create_directories(assets_build_dir);
-
-    // determine output path of the executable
-    auto& outputPath = final_job.abs_path;
-    outputPath.append(exe_build_dir);
-    outputPath.append("/");
-#ifdef _WIN32
-    outputPath.append("run.exe");
-#else
-    outputPath.append("run");
-#endif
-
     // lets compile any cbi jobs user may have specified
     for(auto& job : context.executables) {
         if(job->type == LabJobType::CBI) {
@@ -3228,7 +3282,8 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     // do the actual job
     const auto job_result = do_job(&final_job);
     if(job_result == 0) {
-        fs::remove_all(assets_build_dir);
+        // removes downloaded sources + intermediate objects
+        fs::remove_all(build_dir);
     } else {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "emitting executable, returned status code 1" << std::endl;
     }
@@ -3249,14 +3304,7 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     }
 
     // Run the executable
-    std::vector<char*> argv;
-    const auto exe_str = final_job.abs_path.data();
-    argv.push_back(const_cast<char*>(exe_str));
-    for (const auto& arg : args) {
-        argv.push_back(const_cast<char*>(arg.data()));
-    }
-    argv.push_back(nullptr);
-    return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
+    return launch_process_and_wait(final_job.abs_path.data(), args);
 
 }
 
@@ -3369,41 +3417,6 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
 LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
-}
-
-struct RemoteRepoInfo {
-    chem::string mod_scope, mod_name;
-    std::string storage_path;
-    std::string target_dir;
-    bool has_remote_origin = false;
-};
-
-static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const RemoteImport* import) {
-    RemoteRepoInfo info;
-    auto from_path_view = import->from.view();
-    auto last_slash = from_path_view.find_last_of('/');
-
-    if(last_slash != std::string_view::npos) {
-        info.mod_name.append(from_path_view.substr(last_slash + 1));
-        auto parent = from_path_view.substr(0, last_slash);
-        auto second_slash = parent.find_last_of('/');
-        if (second_slash != std::string_view::npos) {
-             info.has_remote_origin = true;
-             info.mod_scope.append(parent.substr(second_slash + 1));
-        } else {
-             info.mod_scope.append(parent);
-        }
-    } else {
-        info.mod_name.append(from_path_view);
-    }
-
-    info.storage_path = import->from.str();
-    if(!info.has_remote_origin) {
-        info.storage_path = "github.com/" + info.storage_path;
-    }
-
-    info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
-    return info;
 }
 
 int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, RemoteImport& current) {
@@ -3527,7 +3540,7 @@ static int download_remote_import_group(
     const auto job_build_dir = job->build_dir.to_std_string();
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    auto info = get_remote_repo_info(remote_mods_dir, main_import);
+    auto info = get_remote_repo_info(remote_mods_dir, main_import->from);
     auto target_dir = info.target_dir;
 
     if(!fs::exists(target_dir)) {
@@ -3588,6 +3601,17 @@ static int download_remote_import_group(
     auto mod = compiler->create_module_for_dependency(context, record, job);
 
     if (mod) {
+        // since we created the lab module pointer from the chemical.mod or build.lab
+        // prevent user form changing the scope name or module name
+        if(mod->scope_name != info.mod_scope) {
+            mod->scope_name.clear();
+            mod->scope_name.append(info.mod_scope.to_view());
+        }
+        if(mod->name != info.mod_name) {
+            mod->name.clear();
+            mod->name.append(info.mod_name.to_view());
+        }
+
         // Link all imports in this group to the initialized module
         std::lock_guard<std::mutex> lock(compiler->job_mutex);
         for (auto import : imports) {
@@ -3643,7 +3667,7 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
         infos.reserve(current_wave.size());
 
         for(auto& import : current_wave) {
-            infos.push_back({&import, get_remote_repo_info(remote_mods_dir, &import).target_dir});
+            infos.push_back({&import, get_remote_repo_info(remote_mods_dir, import.from).target_dir});
         }
 
         // sort by target_dir to group them

@@ -11,6 +11,7 @@
 #include <span>
 #include <optional>
 #include "import_model/ModuleDependency.h"
+#include "PackageKind.h"
 
 struct LabModule {
 
@@ -18,6 +19,13 @@ struct LabModule {
      * type of the module
      */
     LabModuleType type;
+
+    /**
+     * the package kind determines how the main function is treated
+     * Library: main is mangled (multiple mains can coexist)
+     * Application: main is no_mangle (becomes the entry point)
+     */
+    PackageKind package_kind = PackageKind::Library;
 
     /**
      * the scope name of the module

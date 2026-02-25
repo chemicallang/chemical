@@ -32,15 +32,31 @@ const char* parseModDecl(char* scope_name, char* mod_name, size_t& scopeSizeOut,
         p++;
     }
 
-    // Look for "module"
-    const char* keyword = "module";
-    for (int i = 0; keyword[i] != '\0'; i++) {
-        if (p == end || *p != keyword[i])
-            return "bad keyword";
-        p++;
+    // Look for "module", "library", or "application"
+    const char* keywords[] = {"module", "library", "application"};
+    const int keyword_lengths[] = {6, 7, 11};
+    bool matched = false;
+    for (int k = 0; k < 3; k++) {
+        const char* kw = keywords[k];
+        const char* test_p = p;
+        bool kw_match = true;
+        for (int i = 0; kw[i] != '\0'; i++) {
+            if (test_p == end || *test_p != kw[i]) {
+                kw_match = false;
+                break;
+            }
+            test_p++;
+        }
+        if (kw_match) {
+            p = test_p;
+            matched = true;
+            break;
+        }
     }
+    if (!matched)
+        return "bad keyword";
 
-    // There must be whitespace after "module"
+    // There must be whitespace after the keyword
     if (p < end && !std::isspace(static_cast<unsigned char>(*p))) {
         return "bad keyword";
     }

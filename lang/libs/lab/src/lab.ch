@@ -6,6 +6,11 @@ public enum ModuleType {
     Directory
 }
 
+public enum PackageKind {
+    Library,
+    Application
+}
+
 @compiler.interface
 public interface Module {
     func getType(&self) : ModuleType
@@ -102,7 +107,7 @@ public interface BuildContext {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
-    func new_module(&self, type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
+    func new_package(&self, type : ModuleType, package_kind : PackageKind, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
 
     func set_module_symbol_info(&self, module : *mut Module, index : uint, info : &DependencySymbolInfo);
 
@@ -204,8 +209,16 @@ public interface BuildContext {
 
 }
 
+public func (ctx : &BuildContext) new_module(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {
+    return ctx.new_package(type, PackageKind.Library, scope_name, name, dependencies);
+}
+
+public func (ctx : &BuildContext) new_app_module(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {
+    return ctx.new_package(type, PackageKind.Application, scope_name, name, dependencies);
+}
+
 public func (ctx : &BuildContext) directory_module(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {
-    return ctx.new_module(ModuleType.Directory, scope_name, name, dependencies);
+    return ctx.new_package(ModuleType.Directory, PackageKind.Library, scope_name, name, dependencies);
 }
 
 func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::span<*mut Module>) {
@@ -218,17 +231,17 @@ func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::spa
     }
 }
 
-public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
+public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, package_kind : PackageKind, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
-    return ctx.new_module(type, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+    return ctx.new_package(type, package_kind, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
 }
 
 // a single .c file
 public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
-    const mod = ctx.new_module(ModuleType.CFile, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
     ctx.add_path(mod, path)
     return mod;
 }
@@ -237,21 +250,27 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
 public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
-    const mod = ctx.new_module(ModuleType.CPPFile, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    const mod = ctx.new_package(ModuleType.CPPFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
     ctx.add_path(mod, path)
     return mod;
 }
 
 // a single .o file
 public func (ctx : &BuildContext) object_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module {
-    const mod = ctx.new_module(ModuleType.ObjFile, scope_name, name, std::span<ModuleDependency>());
+    const mod = ctx.new_package(ModuleType.ObjFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>());
     ctx.add_path(mod, path)
     return mod;
 }
 
 // directory module
 public func (ctx : &BuildContext) chemical_dir_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    const mod = ctx.new_module_with_deps(ModuleType.Directory, scope_name, name, dependencies);
+    const mod = ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Library, scope_name, name, dependencies);
+    ctx.add_path(mod, path);
+    return mod;
+}
+
+public func (ctx : &BuildContext) directory_app_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+    const mod = ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Application, scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;
 }
@@ -316,19 +335,19 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
 
 public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     if(path.ends_with(".c")) {
-        const mod = ctx.new_module_with_deps(ModuleType.CFile, scope_name, name, dependencies);
+        const mod = ctx.new_module_with_deps(ModuleType.CFile, PackageKind.Library, scope_name, name, dependencies);
         ctx.add_path(mod, path);
         return mod;
     } else if(path.ends_with(".cpp")) {
-        const mod = ctx.new_module_with_deps(ModuleType.CPPFile, scope_name, name, dependencies);
+        const mod = ctx.new_module_with_deps(ModuleType.CPPFile, PackageKind.Library, scope_name, name, dependencies);
         ctx.add_path(mod, path);
         return mod;
     } else if(path.ends_with(".o")) {
-        const mod = ctx.new_module_with_deps(ModuleType.ObjFile, scope_name, name, dependencies);
+        const mod = ctx.new_module_with_deps(ModuleType.ObjFile, PackageKind.Library, scope_name, name, dependencies);
         ctx.add_path(mod, path);
         return mod;
     } else {
-        const mod = ctx.new_module_with_deps(ModuleType.Directory, scope_name, name, dependencies);
+        const mod = ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Library, scope_name, name, dependencies);
         ctx.add_path(mod, path);
         return mod;
     }

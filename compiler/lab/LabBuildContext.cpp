@@ -72,9 +72,11 @@ void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* optio
 LabModule* LabBuildContext::new_module(
         LabModuleType type,
         const chem::string_view& scope_name,
-        const chem::string_view& module_name
+        const chem::string_view& module_name,
+        PackageKind pkg_kind
 ) {
     auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
+    mod->package_kind = pkg_kind;
     {
         std::lock_guard<std::mutex> lock(compiler.mod_storage_mutex);
         storage.insert_module_ptr_dangerous(mod);

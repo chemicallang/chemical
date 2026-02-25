@@ -602,6 +602,7 @@ set(COMMON_SOURCES
         compiler/lab/import_model/RemoteImport.h
         compiler/lab/import_model/DependencySymbolInfo.h
         compiler/lab/import_model/ModuleDependency.h
+        compiler/lab/PackageKind.h
 )
 
 # Chemical LSP Executable Target

@@ -2228,7 +2228,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     }
 
     // create a new module
-    const auto module = context.new_module(scope_name, module_name);
+    const auto module = context.new_module(scope_name, module_name, modFileData.package_kind);
 
     // get all the sources
     for(auto& src : modFileData.sources_list) {
@@ -2831,18 +2831,49 @@ int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*,
     ASTAllocator _mod_allocator(mod_mem_size);
     ASTAllocator _file_allocator(file_mem_size);
 
+    // we switch these back, just in case, we had allocators already
+    auto prev_job_allocator = job_allocator;
+    auto prev_mod_allocator = mod_allocator;
+    auto prev_file_allocator = file_allocator;
+
     // the allocators that will be used for all jobs
-    set_allocators(
-            &_job_allocator,
-            &_mod_allocator,
-            &_file_allocator
-    );
+    set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
 
     // do the jobs
     const auto result = do_jobs(this, data);
 
+    // set allocators back to previous
+    set_allocators(prev_job_allocator, prev_mod_allocator, prev_file_allocator);
+
     return result;
 
+}
+
+int LabBuildCompiler::do_allocating(const std::function<int()>& fn) {
+
+    // allocating ast allocators
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
+
+    // we switch these back, just in case, we had allocators already
+    auto prev_job_allocator = job_allocator;
+    auto prev_mod_allocator = mod_allocator;
+    auto prev_file_allocator = file_allocator;
+
+    // the allocators that will be used for all jobs
+    set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
+
+    // do the jobs
+    const auto result = fn();
+
+    // set allocators back to previous
+    set_allocators(prev_job_allocator, prev_mod_allocator, prev_file_allocator);
+
+    return result;
 }
 
 int LabBuildCompiler::do_job_allocating(LabJob* job) {
@@ -2925,20 +2956,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
-
-    // allocating ast allocators
-    const auto job_mem_size = 100000; // 100 kb
-    const auto mod_mem_size = 100000; // 100 kb
-    const auto file_mem_size = 100000; // 100 kb
-    ASTAllocator _job_allocator(job_mem_size);
-    ASTAllocator _mod_allocator(mod_mem_size);
-    ASTAllocator _file_allocator(file_mem_size);
-
-    // the allocators that will be used for all jobs
-    job_allocator = &_job_allocator;
-    mod_allocator = &_mod_allocator;
-    file_allocator = &_file_allocator;
+int LabBuildCompiler::build_lab_file_no_alloc(LabBuildContext& context, const std::string_view& path) {
 
     // mkdir the build directory
     create_dir(options->build_dir);
@@ -2951,6 +2969,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // automatic destroy
     TCCDeletor auto_del(state);
+
+    // allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
 
     // clear everything from allocators before proceeding
     _job_allocator.clear();
@@ -2999,20 +3022,13 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
 }
 
-int LabBuildCompiler::build_module_build_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job, bool mod_file_source) {
-
-    // allocating ast allocators
-    const auto job_mem_size = 100000; // 100 kb
-    const auto mod_mem_size = 100000; // 100 kb
-    const auto file_mem_size = 100000; // 100 kb
-    ASTAllocator _job_allocator(job_mem_size);
-    ASTAllocator _mod_allocator(mod_mem_size);
-    ASTAllocator _file_allocator(file_mem_size);
-
-    // the allocators that will be used for all jobs
-    job_allocator = &_job_allocator;
-    mod_allocator = &_mod_allocator;
-    file_allocator = &_file_allocator;
+int LabBuildCompiler::build_module_build_file_no_alloc(
+        LabBuildContext& context,
+        const std::string_view& path,
+        LabJob* final_job,
+        bool mod_file_source,
+        bool promote_to_app
+) {
 
     // mkdir the build directory
     create_dir(options->build_dir);
@@ -3025,6 +3041,11 @@ int LabBuildCompiler::build_module_build_file(LabBuildContext& context, const st
 
     // automatic destroy
     TCCDeletor auto_del(state);
+
+    // allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
 
     // clear everything from allocators before proceeding
     _job_allocator.clear();
@@ -3076,6 +3097,12 @@ int LabBuildCompiler::build_module_build_file(LabBuildContext& context, const st
 
     // just put main the module as this job's dependency
     final_job->add_dependency(main_module);
+
+    // if running via 'chemical run', promote library module to application
+    // so the main function becomes the entry point (no_mangle)
+    if(promote_to_app && main_module && main_module->package_kind == PackageKind::Library) {
+        main_module->package_kind = PackageKind::Application;
+    }
 
     current_job = final_job;
 
@@ -3141,7 +3168,10 @@ int LabBuildCompiler::run_invocation(
             // Probably a transformer
             std::vector<std::string_view> transformer_args;
             for(size_t i = 1; i < args.size(); ++i) transformer_args.push_back(args[i]);
-            return compiler.run_transformer(first_arg, second_arg, transformer_args, context);
+
+            return compiler.do_allocating([&]() -> int {
+                return compiler.run_transformer(first_arg, second_arg, transformer_args, context);
+            });
         }
     }
     
@@ -3155,12 +3185,16 @@ int LabBuildCompiler::run_invocation(
         exe_path.append("run");
 #endif
 
-        return compiler.run_local_project(target, std::move(exe_path), args, context);
+        return compiler.do_allocating([&]() -> int {
+            return compiler.run_local_project(target, std::move(exe_path), args, context);
+        });
 
     }
     
     // 3. It's a remote module run
-    return compiler.run_remote_module(target, args, context);
+    return compiler.do_allocating([&]() -> int {
+        return compiler.run_remote_module(target, args, context);
+    });
 }
 
 int LabBuildCompiler::run_local_project(
@@ -3170,17 +3204,13 @@ int LabBuildCompiler::run_local_project(
         LabBuildContext& context
 ) {
 
-    auto& options = *this->options;
+    auto& opts = *options;
 
-    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options.build_dir), options.out_mode);
-    LabBuildContext::initialize_job(&final_job, &options);
+    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(opts.build_dir), opts.out_mode);
+    LabBuildContext::initialize_job(&final_job, &opts);
 
-    int result = 0;
-    if (target.ends_with(".lab")) {
-        result = build_module_lab_file(context, target, &final_job);
-    } else {
-        result = build_mod_file(context, target, &final_job);
-    }
+    // promote to app
+    const auto result = build_module_build_file_no_alloc(context, target, &final_job, !target.ends_with(".lab"), true);
 
     if (result == 0) {
         // Run the executable
@@ -3251,24 +3281,22 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
     // Remote module name is used to find the entry point if it's a transformer, 
     // but here we are running it as a project.
-    for (const auto& path : mod->paths) {
-        std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
-        if (fs::exists(lab_path)) {
-            const auto status = run_local_project(lab_path, std::move(outputPath), args, context);
-            if(status == 0) {
-                fs::remove_all(assets_build_dir);
-            }
-            return status;
+    std::string lab_path = resolve_rel_child_path_str(exe_build_dir, "build.lab");
+    if (fs::exists(lab_path)) {
+        const auto status = run_local_project(lab_path, std::move(outputPath), args, context);
+        if(status == 0) {
+            fs::remove_all(assets_build_dir);
         }
-        
-        std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
-        if (fs::exists(mod_path)) {
-            const auto status = run_local_project(mod_path, std::move(outputPath), args, context);
-            if(status == 0) {
-                fs::remove_all(assets_build_dir);
-            }
-            return status;
+        return status;
+    }
+
+    std::string mod_path = resolve_rel_child_path_str(exe_build_dir, "chemical.mod");
+    if (fs::exists(mod_path)) {
+        const auto status = run_local_project(mod_path, std::move(outputPath), args, context);
+        if(status == 0) {
+            fs::remove_all(assets_build_dir);
         }
+        return status;
     }
 
     std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "remote module '" << target << "' has no build.lab or chemical.mod" << std::endl;

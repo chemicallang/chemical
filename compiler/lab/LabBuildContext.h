@@ -192,14 +192,15 @@ public:
     LabModule* new_module(
             LabModuleType type,
             const chem::string_view& scope_name,
-            const chem::string_view& module_name
+            const chem::string_view& module_name,
+            PackageKind pkg_kind = PackageKind::Library
     );
 
     /**
      * add the given module as a directory module
      */
-    inline LabModule* new_module(const chem::string_view& scope_name, const chem::string_view& module_name) {
-        return new_module(LabModuleType::Directory, scope_name, module_name);
+    inline LabModule* new_module(const chem::string_view& scope_name, const chem::string_view& module_name, PackageKind pkg_kind = PackageKind::Library) {
+        return new_module(LabModuleType::Directory, scope_name, module_name, pkg_kind);
     }
 
     /**

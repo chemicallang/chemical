@@ -1297,16 +1297,6 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
 
 void value_alloca(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value) {
     type_with_id(visitor, type, identifier);
-//    const auto var = type->get_direct_linked_variant();
-//    if(var) {
-//        visitor.write(" = ");
-//        visitor.write("{ .");
-//        visitor.write(variant_type_variant_name);
-//        visitor.write(" = ");
-//        visitor.write_str(std::to_string(var->variables().size()));
-//        visitor.space();
-//        visitor.write('}');
-//    }
     visitor.write(';');
 }
 

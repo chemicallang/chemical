@@ -298,6 +298,44 @@ void Codegen::default_initialize_inherited(VariablesContainer* container, llvm::
     }
 }
 
+llvm::Constant* Codegen::get_default_constant(VariablesContainer* container) {
+    auto& gen = *this;
+    std::vector<llvm::Constant*> elements;
+
+    // 1. Inherited
+    for (auto& inh : container->inherited) {
+        const auto struct_def = inh.type->get_direct_linked_struct();
+        if (struct_def) {
+            elements.emplace_back(get_default_constant(struct_def));
+        }
+    }
+
+    // 2. Direct variables
+    for (const auto var : container->variables()) {
+        const auto defValue = var->default_value();
+        if (defValue) {
+            const auto val = defValue->llvm_value(gen, nullptr);
+            if (llvm::isa<llvm::Constant>(val)) {
+                elements.emplace_back((llvm::Constant*)val);
+            } else {
+                error(var) << "expected default value for '" << var->name << "' to be a constant";
+                elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
+            }
+        } else {
+            if (ASTNode::isUnionDecl(container->kind())) {
+                elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
+                break;
+            }
+            error(var) << "missing value for member '" << var->name << "' with no default value";
+            elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
+        }
+        if (ASTNode::isUnionDecl(container->kind())) break;
+    }
+
+    auto structTy = llvm::cast<llvm::StructType>(container->llvm_type(gen));
+    return llvm::ConstantStruct::get(structTy, elements);
+}
+
 /// Implicitly casts an integer constant to the target integer type,
 /// performing sign or zero extension (or truncation) as needed.
 /// Returns a llvm::ConstantInt* if the conversion is valid, or nullptr if not.

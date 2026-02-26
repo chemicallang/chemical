@@ -175,17 +175,68 @@ unsigned int StructValue::store_in_array(
 }
 
 llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    std::vector<llvm::Constant*> llvm_vals;
-    for(auto& pair : values) {
-        const auto val = pair.second.value;
-        const auto final_val = val->llvm_value(gen, nullptr);
-        if(llvm::isa<llvm::Constant>(final_val)) {
-            llvm_vals.emplace_back((llvm::Constant*) final_val);
-        } else {
-            gen.error("expected value to result in a constant expression", val);
+    if(gen.current_function == nullptr) {
+        std::vector<llvm::Constant*> llvm_vals;
+
+        // handle inherited structs
+        if (definition) {
+            for (auto& inh : definition->inherited) {
+                const auto node = inh.type->get_direct_linked_canonical_node();
+                if (node->kind() == ASTNodeKind::StructDecl) {
+                    const auto decl = node->as_struct_def_unsafe();
+                    const auto found = values.find(decl->name_view());
+                    if (found != values.end()) {
+                        // user provided a value for the inherited struct
+                        const auto final_val = found->second.value->llvm_value(gen, nullptr);
+                        if (llvm::isa<llvm::Constant>(final_val)) {
+                            llvm_vals.emplace_back((llvm::Constant*) final_val);
+                        } else {
+                            gen.error("expected value to result in a constant expression", found->second.value);
+                        }
+                    } else {
+                        // default initialize the inherited struct (using recursive default values)
+                        llvm_vals.emplace_back(gen.get_default_constant(decl));
+                    }
+                }
+            }
         }
+
+        // handle direct variables
+        for (const auto var : container->variables()) {
+            const auto found = values.find(var->name);
+            Value* value_ptr = nullptr;
+            if (found != values.end()) {
+                value_ptr = found->second.value;
+            } else {
+                value_ptr = var->default_value();
+            }
+
+            if (value_ptr) {
+                const auto final_val = value_ptr->llvm_value(gen, var->known_type());
+                if (llvm::isa<llvm::Constant>(final_val)) {
+                    llvm_vals.emplace_back((llvm::Constant*) final_val);
+                } else {
+                    gen.error("expected value to result in a constant expression", value_ptr);
+                }
+            } else {
+                if (is_union()) {
+                    // for union we only need one member, if not found we might just put zero for first
+                    if (llvm_vals.empty()) {
+                         llvm_vals.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
+                    }
+                } else {
+                    gen.error(this) << "expected a value or a default value for '" << var->name << "' during constant initialization";
+                    llvm_vals.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
+                }
+            }
+
+            if (is_union()) break; // only first member for union
+        }
+
+        return llvm::ConstantStruct::get((llvm::StructType*) llvm_type(gen), llvm_vals);
+    } else {
+        return llvm_allocate(gen, "", expected_type);
     }
-    return llvm::ConstantStruct::get((llvm::StructType*) llvm_type(gen), llvm_vals);
 }
 
 void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {

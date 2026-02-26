@@ -171,6 +171,32 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 
 }
 
+void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
+    visit(value->parent_val);
+    const auto last_linked = value->parent_val->get_chain_last_linked();
+    switch(last_linked->kind()) {
+        case ASTNodeKind::FunctionDecl: {
+            const auto decl = last_linked->as_function_unsafe();
+            value->setType(decl->returnType);
+            if(decl->is_comptime()) {
+
+            } else {
+                linker.error(value) << "cannot call a runtime function at top level";
+            }
+            return;
+        }
+        case ASTNodeKind::VariantMember: {
+            const auto mem = last_linked->as_variant_member_unsafe();
+            value->setType(mem->parent()->known_type());
+            return;
+        }
+        default: {
+            linker.error(value) << "call to unsupported parent value at top level";
+            return;
+        }
+    }
+}
+
 void TopLevelLinkSignature::VisitComptimeBlock(ComptimeBlock* node) {
     if(linker.comptime_context) {
         RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeBlock(node);

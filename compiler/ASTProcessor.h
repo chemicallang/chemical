@@ -563,4 +563,4 @@ public:
 
 };
 
-void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<LabModule*>& inMods);
+void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<ModuleDependency>& deps);

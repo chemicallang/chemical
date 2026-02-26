@@ -397,6 +397,11 @@ public:
     void default_initialize_inherited(VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value);
 
     /**
+     * returns a constant representing the default values of the given container
+     */
+    llvm::Constant* get_default_constant(VariablesContainer* container);
+
+    /**
      * default initialize the struct inside the given ptr, the parent_value is probably the debug_value
      */
     void default_initialize_struct(ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value);

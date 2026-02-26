@@ -69,6 +69,8 @@ public:
 
     void VisitVariableIdentifier(VariableIdentifier* value);
 
+    void VisitFunctionCall(FunctionCall* value);
+
     void VisitLinkedType(LinkedType* type);
 
     void VisitGenericType(GenericType* type);

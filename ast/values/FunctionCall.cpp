@@ -839,11 +839,108 @@ llvm::Value* FunctionCall::loadable_llvm_pointer(Codegen& gen, SourceLocation lo
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {
-    std::vector<llvm::Value*> args;
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    const auto value = llvm_chain_value(gen, args, destructibles);
-    Value::destruct(gen, destructibles);
-    return value;
+    if(gen.current_function == nullptr) {
+
+        // top level function call, only variants are allowed through
+        const auto parent_linked = parent_val->get_chain_last_linked();
+        if(parent_linked->kind() != ASTNodeKind::VariantMember){
+            gen.error(this) << "only variant calls supported at top level";
+            return gen.builder->getInt32(0);
+        }
+
+        // get member and definition
+        const auto member = parent_linked->as_variant_member_unsafe();
+        const auto def = member->parent();
+
+        // creating a struct type for the variant
+        const auto def_type = (llvm::StructType*) def->llvm_type(gen);
+
+        // getting the integer index
+        const auto member_index = def->direct_child_index(member->name);
+        if(member_index == -1) {
+            gen.error(this) << "couldn't find member index for the variant member with name '" << member->name << "'";
+            return gen.builder->getInt32(0);
+        }
+
+        // constant values inside the struct
+        std::vector<llvm::Constant*> constant_values;
+
+        // handle inherited structs
+        for (auto& inh : def->inherited) {
+            const auto node = inh.type->get_direct_linked_canonical_node();
+            if (node->kind() == ASTNodeKind::StructDecl) {
+                const auto decl = node->as_struct_def_unsafe();
+                // Variants don't usually initialize inherited structs via arguments, 
+                // they are default initialized.
+                constant_values.emplace_back(gen.get_default_constant(decl));
+            }
+        }
+
+        // 1. Tag (member index)
+        constant_values.emplace_back(gen.builder->getInt32(member_index));
+
+        // 2. Data (member struct)
+        const auto struct_type = (llvm::StructType*) member->llvm_raw_struct_type(gen);
+        std::vector<llvm::Constant*> member_vals;
+        
+        unsigned i = 0;
+        const auto total_args = values.size();
+        for (auto& param_pair : member->values) {
+            const auto param = param_pair.second;
+            Value* value_ptr = nullptr;
+            if (i < total_args) {
+                value_ptr = values[i];
+            } else {
+                value_ptr = param->def_value;
+            }
+
+            if (value_ptr) {
+                const auto val = value_ptr->llvm_value(gen, param->type->canonical());
+                if (llvm::isa<llvm::Constant>(val)) {
+                    member_vals.emplace_back((llvm::Constant*) val);
+                } else {
+                    gen.error("expected constant value for variant argument", value_ptr);
+                    member_vals.emplace_back(llvm::ConstantAggregateZero::get(param->type->llvm_type(gen)));
+                }
+            } else {
+                gen.error(this) << "no argument given for argument " << std::to_string(i) << ", and no default value exists";
+                member_vals.emplace_back(llvm::ConstantAggregateZero::get(param->type->llvm_type(gen)));
+            }
+            i++;
+        }
+
+        const auto member_const_struct = llvm::ConstantStruct::get(struct_type, member_vals);
+        
+        // The variant's payload field is a struct containing the member struct
+        // def_type layout: { inherited..., tag, { largest_member_struct } }
+        // We need to wrap our member_const_struct in another struct to match the "{ largest_member_struct }" field,
+        // and potentially bitcast/pad it if it's not the largest.
+        
+        // In LLVM type gen for variants (VariantDefinition::llvm_type_with_member):
+        // elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements)); where sub_elements is { largest_member_struct }
+        
+        const auto payload_wrapper_type = (llvm::StructType*) def_type->getElementType(def_type->getNumElements() - 1);
+        const auto inner_payload_type = payload_wrapper_type->getElementType(0); // This is the LARGE representation
+        
+        // Create an anonymous constant struct { member_const_struct }
+        const auto wrapped_member = llvm::ConstantStruct::getAnon({ member_const_struct });
+        
+        // Now bitcast this wrapped struct to the actual payload wrapper type (which has the largest member size)
+        // Wait, ConstantStruct::getAnon might not be exactly bitcastable if sizes differ.
+        // Actually, we can use ConstantExpr::getBitCast if we wrap it in a way that sizes work out or just use the expected type.
+        // Since it's a union-like payload, bitcasting the wrapped struct is exactly what we want.
+        
+        constant_values.emplace_back(llvm::ConstantExpr::getBitCast(wrapped_member, payload_wrapper_type));
+
+        return llvm::ConstantStruct::get(def_type, constant_values);
+
+    } else {
+        std::vector<llvm::Value*> args;
+        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+        const auto value = llvm_chain_value(gen, args, destructibles);
+        Value::destruct(gen, destructibles);
+        return value;
+    }
 }
 
 bool FunctionCall::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {

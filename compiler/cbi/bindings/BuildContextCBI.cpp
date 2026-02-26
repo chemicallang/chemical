@@ -272,31 +272,56 @@ static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, const De
     return info;
 }
 
-inline void add_remote_import(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep, LabModule* mod) {
+void BuildContextset_conflict_resolution_strategy(LabBuildContext* self, LabJob* job, int strategy) {
+    if (strategy >= 0 && strategy <= 2) {
+        job->conflict_strategy = static_cast<ConflictResolutionStrategy>(strategy);
+    }
+}
+
+bool BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep, int strategy) {
     auto& allocator = self->compiler.global_allocator;
-    std::lock_guard<std::mutex> lock(self->compiler.job_mutex);
-    auto allocated_dep_info = allocate_dep_info(allocator, DependencySymbolInfo{
-            .symbols = allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
-            .alias = allocate_view(allocator, dep->alias),
-            .location = dep->location,
+    RemoteImport import {
+        .from = allocate_view(allocator, dep->from),
+        .subdir = allocate_view(allocator, dep->subdir),
+        .version = allocate_view(allocator, dep->version),
+        .branch = allocate_view(allocator, dep->branch),
+        .commit = allocate_view(allocator, dep->commit),
+        .mod_scope = allocate_view(allocator, dep->scope),
+        .mod_name = allocate_view(allocator, dep->name),
+        .origin = allocate_view(allocator, dep->origin)
+    };
+    
+    auto sym_info = allocate_dep_info(allocator, DependencySymbolInfo{
+        .symbols = allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
+        .alias = allocate_view(allocator, dep->alias),
+        .location = dep->location,
     });
-    job->remote_imports.emplace_back(
-            allocate_view(allocator, dep->from),
-            allocate_view(allocator, dep->subdir),
-            allocate_view(allocator, dep->version),
-            allocate_view(allocator, dep->branch),
-            allocate_view(allocator, dep->commit),
-            *allocated_dep_info,
-            mod
-    );
+    import.requesters.push_back({ nullptr, sym_info });
+    
+    return self->compiler.add_remote_import(job, import, static_cast<ConflictResolutionStrategy>(strategy));
 }
 
-void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep) {
-    add_remote_import(self, job, dep, nullptr);
-}
-
-void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep) {
-    add_remote_import(self, job, dep, mod);
+bool BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep, int strategy) {
+    auto& allocator = self->compiler.global_allocator;
+    RemoteImport import {
+        .from = allocate_view(allocator, dep->from),
+        .subdir = allocate_view(allocator, dep->subdir),
+        .version = allocate_view(allocator, dep->version),
+        .branch = allocate_view(allocator, dep->branch),
+        .commit = allocate_view(allocator, dep->commit),
+        .mod_scope = allocate_view(allocator, dep->scope),
+        .mod_name = allocate_view(allocator, dep->name),
+        .origin = allocate_view(allocator, dep->origin)
+    };
+    
+    auto sym_info = allocate_dep_info(allocator, DependencySymbolInfo{
+        .symbols = allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
+        .alias = allocate_view(allocator, dep->alias),
+        .location = dep->location,
+    });
+    import.requesters.push_back({ mod, sym_info });
+    
+    return self->compiler.add_remote_import(job, import, static_cast<ConflictResolutionStrategy>(strategy));
 }
 
 static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, DependencySymbolInfoCBI* cbi_info) {

@@ -23,6 +23,15 @@ enum class LabJobStatus : int {
     Failure = 3
 };
 
+enum class ConflictResolutionStrategy : int {
+    Default = 0,
+    PreferNewerVersion = 1,
+    PreferOlderVersion = 2,
+    RaiseError = 3,
+    OverridePrevious = 4,
+    KeepPrevious = 5
+};
+
 struct LabJob {
 
     /**
@@ -90,10 +99,21 @@ struct LabJob {
     std::vector<RemoteImport> remote_imports;
 
     /**
+     * index for remote imports to avoid linear searches
+     * key: origin/scope/name, value: index in remote_imports
+     */
+    std::unordered_map<std::string, size_t> remote_import_index;
+
+    /**
      * definitions are user defined build variables, that user can use at compile
      * time to trigger different code paths and generate different code
      */
     std::unordered_map<std::string, bool> definitions;
+
+    /**
+     * the conflict resolution strategy for remote imports
+     */
+    ConflictResolutionStrategy conflict_strategy = ConflictResolutionStrategy::PreferNewerVersion;
 
     /**
      * constructor

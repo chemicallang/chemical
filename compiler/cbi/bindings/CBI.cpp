@@ -53,6 +53,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextinvoke_ranlib", (void*) BuildContextinvoke_ranlib },
         { "lab_BuildContextinvoke_lib", (void*) BuildContextinvoke_lib },
         { "lab_BuildContextinvoke_ar", (void*) BuildContextinvoke_ar },
+        { "lab_BuildContextset_conflict_resolution_strategy", (void*) BuildContextset_conflict_resolution_strategy },
         { "lab_BuildContextfetch_job_dependency", (void*) BuildContextfetch_job_dependency },
         { "lab_BuildContextfetch_mod_dependency", (void*) BuildContextfetch_mod_dependency },
 

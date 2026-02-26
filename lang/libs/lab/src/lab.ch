@@ -102,6 +102,15 @@ public struct ModuleDependency {
     var info : *mut DependencySymbolInfo
 };
 
+public enum ConflictResolutionStrategy {
+    Default,
+    PreferNewerVersion,
+    PreferOlderVersion,
+    RaiseError,
+    OverridePrevious,
+    KeepPrevious
+}
+
 @compiler.interface
 public interface BuildContext {
 
@@ -201,11 +210,14 @@ public interface BuildContext {
     // invoke ar with given cli args
     func invoke_ar (&self, string_arr : std::span<std::string_view>) : int;
 
+    // sets the conflict resolution strategy for the job
+    func set_conflict_resolution_strategy(&self, job : *mut LabJob, strategy : ConflictResolutionStrategy);
+
     // fetches a remote dependency for the job
-    func fetch_job_dependency(&self, job : *mut LabJob, dep : &ImportRepo);
+    func fetch_job_dependency(&self, job : *mut LabJob, dep : &ImportRepo, strategy : ConflictResolutionStrategy = ConflictResolutionStrategy.Default) : bool;
 
     // fetches a remote dependency for the module
-    func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module, dep : &ImportRepo);
+    func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module, dep : &ImportRepo, strategy : ConflictResolutionStrategy = ConflictResolutionStrategy.Default) : bool;
 
 }
 
@@ -281,6 +293,9 @@ public struct ImportSymbol {
 };
 
 public struct ImportRepo {
+    var scope : std::string_view
+    var name : std::string_view
+    var origin : std::string_view
     var from : std::string_view
     var subdir : std::string_view
     var version : std::string_view

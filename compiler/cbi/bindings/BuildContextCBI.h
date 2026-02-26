@@ -44,6 +44,9 @@ struct RemoteImportSymbolCBISpan {
 };
 
 struct RemoteImportCBI {
+    chem::string_view scope;
+    chem::string_view name;
+    chem::string_view origin;
     chem::string_view from;
     chem::string_view subdir;
     chem::string_view version;
@@ -145,9 +148,10 @@ extern "C" {
 
     int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr);
 
-    void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep);
+    void BuildContextset_conflict_resolution_strategy(LabBuildContext* self, LabJob* job, int strategy);
 
-    void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep);
+    bool BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep, int strategy);
 
+    bool BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep, int strategy);
 
 }

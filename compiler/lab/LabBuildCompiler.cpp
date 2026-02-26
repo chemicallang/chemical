@@ -962,8 +962,8 @@ int LabBuildCompiler::process_module_gen(
         // this will set all the generic instantiations to generated
         // which means generic decls won't generate those instantiations
         process_cached_module(processor, mod->direct_files, false);
-        for(const auto dep : mod->dependencies) {
-            process_cached_module(processor, dep->direct_files, false);
+        for(auto& dep : mod->dependencies) {
+            process_cached_module(processor, dep.module->direct_files, false);
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -1409,6 +1409,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // process remote imports
+    // TODO: new context being created to handle remote imports
     LabBuildContext context(*this, path_handler, mod_storage, binder);
     auto ri_res = process_remote_imports(context, job);
     if(ri_res != 0) return ri_res;
@@ -1670,7 +1671,9 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // process remote imports
-    auto ri_res = process_remote_imports(job);
+    // TODO: new context being created to handle remote imports
+    LabBuildContext context(*this, path_handler, mod_storage, binder);
+    auto ri_res = process_remote_imports(context, job);
     if(ri_res != 0) return ri_res;
 
     // flatten the dependencies
@@ -1710,8 +1713,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;
 
-        for(const auto mod : job->dependencies) {
-            const auto changed = has_module_changed(this, mod, mods_dir, false);
+        for(auto& dep : job->dependencies) {
+            const auto changed = has_module_changed(this, dep.module, mods_dir, false);
             if(changed) {
                 has_any_changed = true;
             }
@@ -1919,7 +1922,8 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
         std::cerr << rang::fg::red << "[lab] " << "couldn't open the file for writing translated chemical from c at '" << job->abs_path.data() << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
-    for(auto mod : job->dependencies) {
+    for(auto& dep : job->dependencies) {
+        const auto mod = dep.module;
         RepresentationVisitor visitor(output);
         std::vector<std::string> args;
         args.emplace_back(options->exe_path);
@@ -3146,37 +3150,103 @@ int LabBuildCompiler::run_local_project(
     return result;
 }
 
-struct RemoteRepoInfo {
-    chem::string mod_scope, mod_name;
-    std::string storage_path;
-    std::string target_dir;
-};
+static int parse_version_part(std::string_view& v) {
+    int res = 0;
+    while (!v.empty() && isdigit(v[0])) {
+        res = res * 10 + (v[0] - '0');
+        v.remove_prefix(1);
+    }
+    return res;
+}
 
-static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const chem::string_view& from_path) {
-    RemoteRepoInfo info;
-    auto from_path_view = from_path.view();
+int LabBuildCompiler::compare_remote_versions(const chem::string_view& v1_raw, const chem::string_view& v2_raw) {
+    if (v1_raw == v2_raw) return 0;
+    if (v1_raw.empty()) return -1;
+    if (v2_raw.empty()) return 1;
+
+    auto v1 = v1_raw.view();
+    auto v2 = v2_raw.view();
+
+    // Skip 'v' prefix if present
+    if (!v1.empty() && v1[0] == 'v') v1.remove_prefix(1);
+    if (!v2.empty() && v2[0] == 'v') v2.remove_prefix(1);
+
+    while (!v1.empty() || !v2.empty()) {
+        if (!v1.empty() && !isdigit(v1[0]) && v1[0] != '.') return -2;
+        if (!v2.empty() && !isdigit(v2[0]) && v2[0] != '.') return -2;
+
+        int n1 = parse_version_part(v1);
+        int n2 = parse_version_part(v2);
+
+        if (n1 < n2) return -1;
+        if (n1 > n2) return 1;
+
+        if (!v1.empty() && v1[0] == '.') v1.remove_prefix(1);
+        if (!v2.empty() && v2[0] == '.') v2.remove_prefix(1);
+
+        if (v1.empty() && v2.empty()) break;
+    }
+
+    return 0;
+}
+
+bool LabBuildCompiler::parse_remote_import_from(RemoteImport& import, ASTAllocator& allocator) {
+    if (!import.mod_scope.empty() && !import.mod_name.empty()) {
+        if (import.origin.empty()) {
+             import.origin = chem::string_view("github.com");
+        }
+        return true;
+    }
+
+    auto from_path_view = import.from.view();
+    if (from_path_view.empty()) return false;
+
     auto last_slash = from_path_view.find_last_of('/');
+    
+    chem::string mod_scope, mod_name, origin;
     bool has_remote_origin = false;
 
-    if(last_slash != std::string_view::npos) {
-        info.mod_name.append(from_path_view.substr(last_slash + 1));
+    if (last_slash != std::string_view::npos) {
+        mod_name.append(from_path_view.substr(last_slash + 1));
         auto parent = from_path_view.substr(0, last_slash);
         auto second_slash = parent.find_last_of('/');
         if (second_slash != std::string_view::npos) {
              has_remote_origin = true;
-             info.mod_scope.append(parent.substr(second_slash + 1));
+             mod_scope.append(parent.substr(second_slash + 1));
+             origin.append(parent.substr(0, second_slash));
         } else {
-             info.mod_scope.append(parent);
+             mod_scope.append(parent);
+             origin.append("github.com");
         }
     } else {
-        info.mod_name.append(from_path_view);
+        mod_name.append(from_path_view);
+        origin.append("github.com");
     }
 
-    info.storage_path = from_path.str();
-    if(!has_remote_origin) {
-        info.storage_path = "github.com/" + info.storage_path;
+    if (import.mod_scope.empty())
+        import.mod_scope = { allocator.allocate_str(mod_scope.data(), mod_scope.size()) };
+    if (import.mod_name.empty())
+        import.mod_name = { allocator.allocate_str(mod_name.data(), mod_name.size()) };
+    if (import.origin.empty()) {
+        import.origin = { allocator.allocate_str(origin.data(), origin.size()) };
     }
 
+    return !import.mod_name.empty();
+}
+
+struct RemoteRepoInfo {
+    std::string storage_path;
+    std::string target_dir;
+};
+
+static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const RemoteImport& import) {
+    RemoteRepoInfo info;
+    auto& path = info.storage_path;
+    path += import.origin.view();
+    path += '/';
+    path += import.mod_scope.view();
+    path += '/';
+    path += import.mod_name.view();
     info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
     return info;
 }
@@ -3191,7 +3261,12 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
     // the target dir is where we should store executable
     // inside target dir, create a build dir, which we should use for the build
-    auto info = get_remote_repo_info(cache_dir, chem::string_view(target));
+    RemoteImport import { .from = chem::string_view(target) };
+    if(!parse_remote_import_from(import, global_allocator)) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the remote module string" << std::endl;
+        return 1;
+    }
+    auto info = get_remote_repo_info(cache_dir, import);
 
     // determine output path of the executable
     auto outputPath = chem::string();
@@ -3225,9 +3300,11 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     final_job.abs_path.append(outputPath.to_view());
 
     // add the user's requested command module as a remote import to the job
-    DependencySymbolInfo sym_info { .location = 0 };
-    RemoteImport import { .from = chem::string_view(target), .symbol_info = sym_info };
-    final_job.remote_imports.push_back(import);
+    auto sym_info = (DependencySymbolInfo*) global_allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
+    *sym_info = { .location = 0 };
+    import.requesters.push_back({ nullptr, sym_info });
+    if (!add_remote_import(&final_job, import)) return 1;
+
 
     // this will process remote imports recursively, and add to the job
     if (process_remote_imports(context, &final_job) != 0) {
@@ -3305,9 +3382,12 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
         LabJob download_job(LabJobType::Executable, chem::string("download"), options->out_mode);
         download_job.build_dir = chem::string(cache_dir);
-        DependencySymbolInfo sym_info { .location = 0 };
-        RemoteImport import { .from = chem::string_view(transformer), .symbol_info = sym_info };
-        download_job.remote_imports.push_back(import);
+        auto sym_info = (DependencySymbolInfo*) global_allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
+        *sym_info = { .location = 0 };
+        RemoteImport import { .from = chem::string_view(transformer) };
+        import.requesters.push_back({ nullptr, sym_info });
+        if (!add_remote_import(&download_job, import)) return 1;
+
 
         if (process_remote_imports(context, &download_job) != 0) return 1;
         if (download_job.dependencies.empty()) return 1;
@@ -3404,27 +3484,94 @@ LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
 }
 
-int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, RemoteImport& current) {
+bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, ConflictResolutionStrategy strategy) {
+    if (!parse_remote_import_from(import, global_allocator)) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(job_mutex);
+
+    std::string key;
+    key.reserve(import.origin.size() + import.mod_scope.size() + import.mod_name.size() + 2);
+    key.append(import.origin.view());
+    key.append("/");
+    key.append(import.mod_scope.view());
+    key.append("/");
+    key.append(import.mod_name.view());
+
+    auto it_idx = job->remote_import_index.find(key);
+    if (it_idx != job->remote_import_index.end()) {
+        auto& existing = job->remote_imports[it_idx->second];
+        bool keep_existing = true;
+        int res = resolve_remote_import_conflict(strategy == ConflictResolutionStrategy::Default ? job->conflict_strategy : strategy, existing, import, keep_existing);
+        if (res != 0) return false;
+        
+        // merge requesters
+        std::vector<RemoteImportRequester> merged_requesters = std::move(existing.requesters);
+        for(auto& req : import.requesters) {
+            merged_requesters.push_back(req);
+        }
+
+        if (!keep_existing) {
+            existing = std::move(import);
+        }
+        existing.requesters = std::move(merged_requesters);
+        return true;
+    }
+
+    job->remote_import_index[key] = job->remote_imports.size();
+    job->remote_imports.push_back(std::move(import));
+    return true;
+}
+
+int LabBuildCompiler::resolve_remote_import_conflict(ConflictResolutionStrategy strategy, RemoteImport& existing, RemoteImport& current, bool& keep_existing) {
+    if (strategy == ConflictResolutionStrategy::OverridePrevious) {
+        keep_existing = false;
+        return 0;
+    }
+    if (strategy == ConflictResolutionStrategy::KeepPrevious) {
+        keep_existing = true;
+        return 0;
+    }
+
     // 1 - if the versions / commit hash / branch are same, this means its just a duplicate
     if (existing.version == current.version && 
         existing.branch == current.branch && 
         existing.commit == current.commit &&
         existing.subdir == current.subdir) {
+        keep_existing = true;
         return 0;
     }
 
-    // placeholder for command line resolution
-    // if(resolved_remote_imports.find(...) != resolved_remote_imports.end()) ...
+    if (strategy == ConflictResolutionStrategy::RaiseError) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "version conflict detected for remote import '" << existing.from << "'\n";
+        std::cerr << "  first requested version: " << (existing.version.empty() ? (existing.commit.empty() ? existing.branch : existing.commit) : existing.version) << "\n";
+        // for now just show the first requester's location
+        if (!existing.requesters.empty())
+            std::cerr << " at " << loc_man.formatLocation(existing.requesters[0].symbol_info->location) << '\n';
+        std::cerr << "  second requested version: " << (current.version.empty() ? (current.commit.empty() ? current.branch : current.commit) : current.version) << "\n";
+        if (!current.requesters.empty())
+            std::cerr << " at " << loc_man.formatLocation(current.requesters[0].symbol_info->location) << '\n';
+        return 1;
+    }
 
-    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
-    std::cerr << "version conflict detected for remote import '" << existing.from << "'\n";
-    std::cerr << "  first requested version: " << (existing.version.empty() ? (existing.commit.empty() ? existing.branch : existing.commit) : existing.version) << "\n";
-    std::cerr << " at " << loc_man.formatLocation(existing.symbol_info.location) << '\n';
-    std::cerr << "  second requested version: " << (current.version.empty() ? (current.commit.empty() ? current.branch : current.commit) : current.version) << "\n";
-    std::cerr << " at " << loc_man.formatLocation(current.symbol_info.location) << '\n';
-    std::cerr << "  conflict resolution via command line is currently not supported, but planned." << std::endl;
+    int cmp = compare_remote_versions(existing.version, current.version);
+    if (cmp == -2) {
+        // Fallback to RaiseError if versions are incomparable
+        return resolve_remote_import_conflict(ConflictResolutionStrategy::RaiseError, existing, current, keep_existing);
+    }
 
-    return 1;
+    if (strategy == ConflictResolutionStrategy::PreferNewerVersion) {
+        keep_existing = (cmp >= 0);
+    } else if (strategy == ConflictResolutionStrategy::PreferOlderVersion) {
+        keep_existing = (cmp <= 0);
+    } else {
+        // Default (was hopefully resolved to a specific strategy above, but if not, prefer newer)
+        keep_existing = (cmp >= 0);
+    }
+
+    return 0;
 }
 
 struct RemoteImportProgress {
@@ -3526,20 +3673,17 @@ static int run_git_and_capture(const std::string& cmd, std::string& output) {
 #endif
 }
 
-static int download_remote_import_group(
+static int download_remote_import(
     LabBuildContext& context,
     LabBuildCompiler* compiler,
     LabJob* job,
-    std::span<RemoteImport*> imports,
+    RemoteImport* import,
     RemoteImportProgress& progress
 ) {
-    if (imports.empty()) return 0;
-
-    RemoteImport* main_import = imports[0];
     const auto job_build_dir = job->build_dir.to_std_string();
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    auto info = get_remote_repo_info(remote_mods_dir, main_import->from);
+    auto info = get_remote_repo_info(remote_mods_dir, *import);
     auto target_dir = info.target_dir;
 
     if(!fs::exists(target_dir)) {
@@ -3553,16 +3697,15 @@ static int download_remote_import_group(
         std::string git_base = "git -c advice.detachedHead=false ";
         std::vector<std::string> arg_list;
         
-        if(!main_import->commit.empty()) {
+        if(!import->commit.empty()) {
              fs::create_directories(target_dir);
-             auto commit_str = main_import->commit.str();
-             // Individual commands for better shell compatibility (PowerShell, Git Bash, etc.)
+             auto commit_str = import->commit.str();
              arg_list.push_back("-C \"" + target_dir + "\" init --quiet");
              arg_list.push_back("-C \"" + target_dir + "\" remote add origin \"" + url + "\"");
              arg_list.push_back("-C \"" + target_dir + "\" fetch --quiet --depth 1 origin \"" + commit_str + "\"");
              arg_list.push_back("-C \"" + target_dir + "\" checkout --quiet FETCH_HEAD");
         } else {
-            auto& version_or_branch = main_import->version.empty() ? main_import->branch : main_import->version;
+            auto& version_or_branch = import->version.empty() ? import->branch : import->version;
             if(version_or_branch.empty()) {
                 arg_list.push_back("clone --quiet --depth 1 \"" + url + "\" \"" + target_dir + "\"");
             } else {
@@ -3571,14 +3714,13 @@ static int download_remote_import_group(
         }
 
         for (const auto& args : arg_list) {
-            // 2>&1 works on nearly every shell (CMD, SH, PS) to combine stdout/stderr
             std::string cmd = git_base + args + " 2>&1";
             std::string output;
             int result = run_git_and_capture(cmd, output);
             if (result != 0) {
                 std::stringstream ss;
                 ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
-                ss << " from '" << main_import->from << "'\n";
+                ss << " from '" << import->from << "'\n";
                 ss << "[git] " << output << "\n";
                 progress.add_error(ss.str());
                 return result;
@@ -3586,44 +3728,37 @@ static int download_remote_import_group(
         }
     }
 
-    // After download, we must initialize the module correctly
-    // We use create_module_for_dependency which handles build.lab or chemical.mod
     ModuleDependencyRecord record{ "" };
-    
-    // Determine the actual module path (taking subdir into account)
-    if (main_import->subdir.empty()) {
+    if (import->subdir.empty()) {
         record.module_dir_path = target_dir;
     } else {
-        record.module_dir_path = resolve_rel_child_path_str(target_dir, main_import->subdir.view());
+        record.module_dir_path = resolve_rel_child_path_str(target_dir, import->subdir.view());
     }
 
     auto mod = compiler->create_module_for_dependency(context, record, job);
 
     if (mod) {
-        // since we created the lab module pointer from the chemical.mod or build.lab
-        // prevent user form changing the scope name or module name
-        if(mod->scope_name != info.mod_scope) {
+        if(mod->scope_name != import->mod_scope) {
             mod->scope_name.clear();
-            mod->scope_name.append(info.mod_scope.to_view());
+            mod->scope_name.append(import->mod_scope);
         }
-        if(mod->name != info.mod_name) {
+        if(mod->name != import->mod_name) {
             mod->name.clear();
-            mod->name.append(info.mod_name.to_view());
+            mod->name.append(import->mod_name);
         }
 
-        // Link all imports in this group to the initialized module
         std::lock_guard<std::mutex> lock(compiler->job_mutex);
-        for (auto import : imports) {
-            if(import->requester) {
-                import->requester->add_dependency(mod, &import->symbol_info);
+        for (auto& req_info : import->requesters) {
+            if(req_info.requester) {
+                req_info.requester->add_dependency(mod, req_info.symbol_info);
             } else {
-                job->add_dependency(mod, &import->symbol_info);
+                job->add_dependency(mod, req_info.symbol_info);
             }
         }
         return 0;
     } else {
         std::stringstream ss;
-        ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to initialize module after download from '" << main_import->from << "'\n";
+        ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to initialize module after download from '" << import->from << "'\n";
         progress.add_error(ss.str());
         return 1;
     }
@@ -3634,84 +3769,34 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
         return 0;
     }
 
-    const auto job_build_dir = job->build_dir.to_std_string();
-    auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
-
     RemoteImportProgress progress(0);
     size_t processed_count = 0;
     int final_status = 0;
 
     while (true) {
-        std::vector<RemoteImport> current_wave;
+        std::vector<RemoteImport*> wave_ptrs;
         {
             std::lock_guard<std::mutex> lock(job_mutex);
             if (processed_count >= job->remote_imports.size()) {
                 break;
             }
-            // We copy the imports to process this wave safely, as the vector might reallocate
             for (size_t i = processed_count; i < job->remote_imports.size(); ++i) {
-                current_wave.push_back(job->remote_imports[i]);
+                wave_ptrs.push_back(&job->remote_imports[i]);
             }
             processed_count = job->remote_imports.size();
         }
 
-        if (current_wave.empty()) break;
+        if (wave_ptrs.empty()) break;
 
-        // 1 - Deduplicate and group imports by target repo
-        struct ImportInfo {
-            RemoteImport* import;
-            std::string target_dir;
-        };
-        std::vector<ImportInfo> infos;
-        infos.reserve(current_wave.size());
+        progress.add_to_total((int)wave_ptrs.size());
+        std::cout << "[lab] processing " << wave_ptrs.size() << " remote imports (wave)" << std::endl;
 
-        for(auto& import : current_wave) {
-            infos.push_back({&import, get_remote_repo_info(remote_mods_dir, import.from).target_dir});
-        }
-
-        // sort by target_dir to group them
-        std::sort(infos.begin(), infos.end(), [](const ImportInfo& a, const ImportInfo& b) {
-            return a.target_dir < b.target_dir;
-        });
-
-        // Create groups of imports that point to the same repo
-        std::vector<RemoteImport*> group_ptrs;
-        group_ptrs.reserve(infos.size());
-        struct Group {
-            size_t offset;
-            size_t size;
-        };
-        std::vector<Group> groups;
-
-        for (size_t i = 0; i < infos.size(); ) {
-            size_t start = i;
-            RemoteImport* first = infos[i].import;
-            group_ptrs.push_back(first);
-            i++;
-            while (i < infos.size() && infos[i].target_dir == infos[start].target_dir) {
-                // Conflict resolution still uses pointers within current_wave which is safe here
-                if (resolve_remote_import_conflict(*first, *infos[i].import) != 0) {
-                    return 1;
-                }
-                group_ptrs.push_back(infos[i].import);
-                i++;
-            }
-            groups.push_back({group_ptrs.size() - (i - start), i - start});
-        }
-
-        if (groups.empty()) break;
-
-        progress.add_to_total((int)groups.size());
-        std::cout << "[lab] processing " << groups.size() << " remote imports (wave)" << std::endl;
-
-        // 2 - Launch downloads in parallel
         std::vector<std::future<int>> futures;
-        futures.reserve(groups.size());
+        futures.reserve(wave_ptrs.size());
 
-        for(const auto& group : groups) {
-            std::span<RemoteImport*> import_span(&group_ptrs[group.offset], group.size);
-            futures.emplace_back(pool.push([this, &context, job, import_span, &progress](int id) {
-                auto result = download_remote_import_group(context, this, job, import_span, progress);
+        for(auto import : wave_ptrs) {
+            futures.emplace_back(pool.push([this, &context, job, import, &progress](int id) {
+                auto result = download_remote_import(context, this, job, import, progress);
                 progress.update();
                 return result;
             }));

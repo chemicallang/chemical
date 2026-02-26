@@ -374,14 +374,31 @@ public:
     );
 
     /**
-     * process remote imports for the job
+     * adds a remote import to the job, handles early parsing and conflict resolution
+     * @returns true if added successfully, false on parsing or conflict error
+     */
+    bool add_remote_import(LabJob* job, RemoteImport& import, ConflictResolutionStrategy strategy = ConflictResolutionStrategy::Default);
+
+    /**
+     * parses the 'from' field of a remote import
+     */
+    static bool parse_remote_import_from(RemoteImport& import, ASTAllocator& allocator);
+
+    /**
+     * compares two remote versions
+     * @returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2, -2 if incomparable
+     */
+    static int compare_remote_versions(const chem::string_view& v1, const chem::string_view& v2);
+
+    /**
+     * processes remote imports for the job
      */
     int process_remote_imports(LabBuildContext& context, LabJob* job);
 
     /**
      * resolves a conflict between two remote imports
      */
-    int resolve_remote_import_conflict(RemoteImport& existing, RemoteImport& current);
+    int resolve_remote_import_conflict(ConflictResolutionStrategy strategy, RemoteImport& existing, RemoteImport& current, bool& keep_existing);
 
     /**
      * will build the lab file and return the callable tcc state

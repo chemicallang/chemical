@@ -152,12 +152,6 @@ void VarInitStatement::code_gen(Codegen &gen) {
             const auto allocaInst = gen.builder->CreateAlloca(t, nullptr, llvm::StringRef(v.data(), v.size()));
             gen.di.instr(allocaInst, encoded_location());
             llvm_ptr = allocaInst;
-            const auto var = type->get_direct_linked_variant();
-            if(var) {
-                auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-                const auto storeInst = gen.builder->CreateStore(gen.builder->getInt32(var->variables().size()), gep);
-                gen.di.instr(storeInst, encoded_location());
-            }
         }
         put_destructible(gen);
         gen.di.declare(this, llvm_ptr);

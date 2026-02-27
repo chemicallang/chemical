@@ -32,6 +32,8 @@ enum class CBIFunctionType : int {
 
     SemanticTokensPut,
 
-    FoldingRangesPut
+    FoldingRangesPut,
+
+    TransformerMain
 
 };

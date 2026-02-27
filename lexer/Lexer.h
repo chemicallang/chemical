@@ -92,7 +92,6 @@ public:
      */
     Diagnoser diagnoser;
 
-#ifdef LSP_BUILD
     /**
      * keep whitespace tokens, should be manually enabled by LSP
      * if it's not going to parse this output, because parser does not
@@ -105,7 +104,6 @@ public:
      * expect it, this is useful for providing documentation and other ide features
      */
     bool keep_comments = false;
-#endif
 
     /**
      * the constructor

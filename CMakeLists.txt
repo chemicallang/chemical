@@ -604,6 +604,7 @@ set(COMMON_SOURCES
         compiler/lab/import_model/ModuleDependency.h
         compiler/lab/PackageKind.h
         compiler/lab/transformer/TransformerContext.h
+        compiler/cbi/bindings/TransformerContextCBI.cpp
 )
 
 # Chemical LSP Executable Target

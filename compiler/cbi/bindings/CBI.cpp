@@ -14,6 +14,7 @@
 #include "ParserCBI.h"
 #include "ASTDiagnoserCBI.h"
 #include "AnnotationControllerCBI.h"
+#include "TransformerContextCBI.h"
 
 #ifdef LSP_BUILD
 #include "compiler/cbi/bindings/lsp/LSPHooks.h"
@@ -314,12 +315,48 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_VariantMemberadd_param", (void*) VariantMemberadd_param },
         { "compiler_EmbeddedNodegetDataPtr", (void*) EmbeddedNodegetDataPtr },
         { "compiler_EmbeddedValuegetDataPtr", (void*) EmbeddedValuegetDataPtr },
+        { "compiler_FunctionDeclarationgetReturnType", (void*) FunctionDeclarationgetReturnType },
+        { "compiler_FunctionParamgetName", (void*) FunctionParamgetName },
+        { "compiler_FunctionParamgetType", (void*) FunctionParamgetType },
+        { "compiler_BaseDefMembergetName", (void*) BaseDefMembergetName },
+        { "compiler_BaseDefMembergetType", (void*) BaseDefMembergetType },
+        { "compiler_StructDefinitiongetMembers", (void*) StructDefinitiongetMembers },
+        { "compiler_StructDefinitiongetFunctions", (void*) StructDefinitiongetFunctions },
+        { "compiler_InterfaceDefinitiongetFunctions", (void*) InterfaceDefinitiongetFunctions },
+        { "compiler_EnumDeclarationgetMembers", (void*) EnumDeclarationgetMembers },
+        { "compiler_VariantDefinitiongetMembers", (void*) VariantDefinitiongetMembers },
+        { "compiler_FunctionDeclarationgetName", (void*) FunctionDeclarationgetName },
+        { "compiler_StructDefinitiongetName", (void*) StructDefinitiongetName },
+        { "compiler_InterfaceDefinitiongetName", (void*) InterfaceDefinitiongetName },
+        { "compiler_NamespacegetName", (void*) NamespacegetName },
+        { "compiler_EnumDeclarationgetName", (void*) EnumDeclarationgetName },
+        { "compiler_EnumMembergetName", (void*) EnumMembergetName },
+        { "compiler_VariantDefinitiongetName", (void*) VariantDefinitiongetName },
+        { "compiler_UnionDefinitiongetName", (void*) UnionDefinitiongetName },
+        { "compiler_UnionDefgetName", (void*) UnionDefinitiongetName },
+        { "compiler_FileScopegetBody", (void*) FileScopegetBody },
 };
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetAnnotationController", (void*) SymbolResolvergetAnnotationController},
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
+};
+
+const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {
+        { "transformer_TransformerContextgetTargetJob", (void*) TransformerContextgetTargetJob },
+        { "transformer_TransformerContextparseTarget", (void*) TransformerContextparseTarget },
+        { "transformer_TransformerContextanalyzeTarget", (void*) TransformerContextanalyzeTarget },
+        { "transformer_TransformerContextgetFlattenedModules", (void*) TransformerContextgetFlattenedModules },
+        { "transformer_TransformerContextgetFileTokens", (void*) TransformerContextgetFileTokens },
+        { "transformer_TransformerContextdecodeLocation", (void*) TransformerContextdecodeLocation },
+
+
+        { "transformer_ASTFileMetaDatagetFileId", (void*) FileMetaDatagetFileId },
+        { "transformer_ASTFileMetaDatagetAbsPath", (void*) FileMetaDatagetAbsPath },
+        { "transformer_ASTFileMetaDatagetFileScope", (void*) FileMetaDatagetFileScope },
+
+        { "transformer_TransformerModulegetFiles", (void*) ModulegetFiles },
 };
 
 const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {
@@ -350,6 +387,7 @@ void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std:
     interface_maps.emplace("PtrVec", PtrVecSymMap);
     interface_maps.emplace("SymbolResolver", SymbolResolverSymMap);
     interface_maps.emplace("ASTDiagnoser", ASTDiagnoserSymMap);
+    interface_maps.emplace("TransformerContext", TransformerContextSymMap);
 #ifdef LSP_BUILD
     interface_maps.emplace("LSPAnalyzers", LSPAnalyzersMap);
 #endif

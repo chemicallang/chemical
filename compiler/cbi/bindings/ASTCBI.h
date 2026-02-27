@@ -111,4 +111,40 @@ extern "C" {
 
     void* EmbeddedValuegetDataPtr(EmbeddedValue* value);
 
+    BaseType* FunctionDeclarationgetReturnType(FunctionDeclaration* decl);
+
+    void FunctionParamgetName(chem::string_view* view, FunctionParam* param);
+
+    BaseType* FunctionParamgetType(FunctionParam* param);
+
+    void BaseDefMembergetName(chem::string_view* view, BaseDefMember* member);
+
+    BaseType* BaseDefMembergetType(BaseDefMember* member);
+
+    std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def);
+
+    std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def);
+
+    std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def);
+
+    std::vector<EnumMember*>* EnumDeclarationgetMembers(EnumDeclaration* decl);
+
+    std::vector<BaseDefMember*>* VariantDefinitiongetMembers(VariantDefinition* def);
+
+    void FunctionDeclarationgetName(chem::string_view* view, FunctionDeclaration* decl);
+
+    void StructDefinitiongetName(chem::string_view* view, StructDefinition* def);
+
+    void InterfaceDefinitiongetName(chem::string_view* view, InterfaceDefinition* def);
+
+    void NamespacegetName(chem::string_view* view, Namespace* ns);
+
+    void EnumDeclarationgetName(chem::string_view* view, EnumDeclaration* decl);
+
+    void EnumMembergetName(chem::string_view* view, EnumMember* member);
+
+    void VariantDefinitiongetName(chem::string_view* view, VariantDefinition* def);
+
+    void UnionDefinitiongetName(chem::string_view* view, UnionDef* def);
+
 }

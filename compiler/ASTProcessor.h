@@ -193,6 +193,16 @@ public:
     );
 
     /**
+     * imports given files in parallel and also retains tokens/comments if keep_comments is true
+     */
+    bool import_chemical_files_direct_with_tokens(
+            ctpl::thread_pool& pool,
+            std::vector<ASTFileMetaData>& files,
+            std::unordered_map<unsigned int, std::vector<Token>>& token_map,
+            bool keep_comments = false
+    );
+
+    /**
      * this imports the given files in parallel using the given thread pool
      * this also imports any files for which import statements are present in the given
      * files, it recursively handles import statements
@@ -204,6 +214,39 @@ public:
             std::vector<ASTFileMetaData>& files,
             bool use_job_allocator
     );
+
+    /**
+     * same as import_chemical_file, but it is also capable of returning tokens
+     */
+    bool import_chemical_file_with_tokens(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& abs_path,
+            InputSource* inp_source,
+            bool use_job_allocator,
+            std::vector<Token>* out_tokens,
+            bool keep_comments = false
+    );
+
+    /**
+     * import chemical file with absolute path to it
+     * @return true if success importing file, false otherwise
+     */
+    bool import_chemical_file_with_tokens(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& absolute_path,
+            bool use_job_allocator,
+            std::vector<Token>* out_tokens,
+            bool keep_comments = false
+    ) {
+        auto inp_source = make_file_input_source(absolute_path.data(), result);
+        if(inp_source.has_value()) {
+            return import_chemical_file_with_tokens(result, fileId, absolute_path, &inp_source.value(), use_job_allocator, out_tokens, keep_comments);
+        } else {
+            return false;
+        }
+    }
 
     /**
      * determine the direct files in the module, for example if this is a directory module
@@ -313,19 +356,6 @@ public:
         } else {
             return false;
         }
-    }
-
-    /**
-     * lex, parse in file and return Scope containing nodes
-     * without performing any symbol resolution
-     */
-    bool import_file(
-            ASTFileResult& result,
-            unsigned int fileId,
-            const std::string_view& abs_path,
-            bool use_job_allocator
-    ) {
-        return import_chemical_file(result, fileId, abs_path, use_job_allocator);
     }
 
     /**

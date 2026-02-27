@@ -879,25 +879,21 @@ Token Lexer::getNextToken() {
         case '/': {
             auto p = provider.peek();
             if (p == '/') {
-#ifdef LSP_BUILD
                 if(keep_comments) {
                     provider.increment();
                     const auto data_ptr = provider.current_data();
                     read_current_line(provider);
                     return Token(TokenType::SingleLineComment, view_from(provider, data_ptr), pos);
                 }
-#endif
                 read_current_line(provider);
                 return getNextToken();
             } else if(p == '*') {
-#ifdef LSP_BUILD
                 if(keep_comments) {
                     provider.increment();
                     const auto start = provider.current_data();
                     const auto end = read_multi_line_comment_text(provider);
                     return Token(TokenType::MultiLineComment, chem::string_view(start, end - start), pos);
                 }
-#endif
                 read_multi_line_comment_text(provider);
                 return getNextToken();
             } else {
@@ -1003,11 +999,9 @@ Token Lexer::getNextToken() {
         case '\t':
             // skip the whitespace
             provider.skipWhitespaces();
-#ifdef LSP_BUILD
             if(lex_whitespace) {
                 return Token(TokenType::Whitespace, { curr_data_ptr, (unsigned long long) (provider.current_data() - curr_data_ptr) }, pos);
             }
-#endif
             return getNextToken();
         case '\n':
             return Token(TokenType::NewLine, view_str(NewlineCStr), pos);

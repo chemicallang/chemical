@@ -1,0 +1,18 @@
+import lab;
+import std;
+import "@std/build.lab" as __mod_0_stmt
+import "@fs/build.lab" as __mod_1_stmt
+import "@compiler/build.lab" as __mod_2_stmt
+import "@transformer/build.lab" as __mod_3_stmt
+
+public func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {
+	const __chx_already_exists = ctx.get_cached(__chx_job, "", "refgen");
+	if(__chx_already_exists != null) { return __chx_already_exists; }
+	const deps : []ModuleDependency = [ ModuleDependency { module: __mod_0_stmt.build(ctx, __chx_job), info: null }, ModuleDependency { module: __mod_1_stmt.build(ctx, __chx_job), info: null }, ModuleDependency { module: __mod_2_stmt.build(ctx, __chx_job), info: null }, ModuleDependency { module: __mod_3_stmt.build(ctx, __chx_job), info: null },  ];
+	const mod = ctx.new_package(ModuleType.Directory, PackageKind.Library, "", "refgen", std::span<ModuleDependency>(deps, 4));
+	ctx.set_cached(__chx_job, mod)
+	ctx.add_path(mod, lab::rel_path_to("src").to_view());
+	ctx.index_cbi_fn(__chx_job as *mut LabJobCBI, "transformer_main", "transformer_main", CBIFunctionType.TransformerMain)
+	return mod;
+}
+

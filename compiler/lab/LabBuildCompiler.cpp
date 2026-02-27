@@ -3484,7 +3484,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // the cbi job for the transformer module
     // created so we can store remote imports here
-    LabJob transformer_job(LabJobType::CBI, chem::string("main"), options->out_mode);
+    LabJobCBI transformer_job(chem::string("main"), options->out_mode);
 
     // It's a remote transformer, download it
     auto cache_dir = get_transformers_cache_dir();
@@ -3511,16 +3511,19 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         }
 
         // search for a build file (chemical.mod or build.lab)
+        bool is_mod_file_source = true;
         auto build_file_path = native_path + "/chemical.mod";
         if(!fs::exists(build_file_path)) {
             build_file_path = native_path + "/build.lab";
-            if(!fs::exists(build_file_path)) {
+            if(fs::exists(build_file_path)) {
+                is_mod_file_source = false;
+            } else {
                 std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find a build file 'chemical.mod' or 'build.lab' for '" << transformer << "'" << std::endl;
                 return 1;
             }
         }
 
-        transformer_to_mod_status = build_module_build_file(context, build_file_path, &transformer_job, true, false);
+        transformer_to_mod_status = build_module_build_file(context, build_file_path, &transformer_job, is_mod_file_source, false);
 
     } else {
 

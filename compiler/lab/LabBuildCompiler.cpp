@@ -3490,6 +3490,12 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     auto cache_dir = get_transformers_cache_dir();
     if (cache_dir.empty()) return 1;
 
+    // create and set build directory
+    auto build_dir_path = resolve_rel_child_path_str(cache_dir, transformer);
+    fs::create_directories(build_dir_path);
+    options->build_dir = build_dir_path;
+    transformer_job.build_dir = chem::string(build_dir_path);
+
     // native transformer names
     bool is_native = false;
     if(transformer == "refgen") {
@@ -3500,13 +3506,27 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     if(is_native) {
         auto native_path = path_handler.resolve_native_lib(chem::string_view(transformer));
         if(native_path.empty()) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find native transformer " << transformer << std::endl;
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find native transformer '" << transformer << "'" << std::endl;
             return 1;
         }
-        transformer_to_mod_status = build_module_build_file(context, native_path + "/chemical.mod", &transformer_job, true, false);
+
+        // search for a build file (chemical.mod or build.lab)
+        auto build_file_path = native_path + "/chemical.mod";
+        if(!fs::exists(build_file_path)) {
+            build_file_path = native_path + "/build.lab";
+            if(!fs::exists(build_file_path)) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find a build file 'chemical.mod' or 'build.lab' for '" << transformer << "'" << std::endl;
+                return 1;
+            }
+        }
+
+        transformer_to_mod_status = build_module_build_file(context, build_file_path, &transformer_job, true, false);
+
     } else {
+
         // compile transformer job to a module
         transformer_to_mod_status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+
     }
 
     if(transformer_to_mod_status != 0) {
@@ -3521,6 +3541,11 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // creating a job for the target
     LabJob other_job(LabJobType::ProcessingOnly, chem::string("target"), options->out_mode);
+    other_job.build_dir = chem::string(build_dir_path);
+
+    // disable caching, we must always reparse for a transformation job
+    options->is_caching_enabled = false;
+    options->is_build_lab_caching_enabled = false;
 
     // compile the other module job to a module
     auto target_to_mod_status = local_or_remote_project_to_module(&other_job, target, cache_dir, context);

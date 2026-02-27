@@ -88,7 +88,8 @@ public enum CBIFunctionType {
     ReplacementNode,
     ReplacementValue,
     SemanticTokensPut,
-    FoldingRangesPut
+    FoldingRangesPut,
+    TransformerMain
 }
 
 public struct DependencySymbolInfo {

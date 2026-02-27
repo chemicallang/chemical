@@ -503,6 +503,18 @@ public:
     ~LabBuildCompiler();
 
 private:
+
+    /**
+     * a job is required to put incoming remote imports, the target module
+     * would probably at the first number in the job's dependencies
+     */
+    int local_or_remote_project_to_module(
+        LabJob* job,
+        const std::string& target,
+        const std::string& cache_dir,
+        LabBuildContext& context
+    );
+
     /**
      * runs a local project (.lab or .mod)
      * the target is the file (.lab or .mod)

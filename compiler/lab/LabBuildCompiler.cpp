@@ -59,6 +59,7 @@
 #include <cctype>
 #include <thread>
 #include <chrono>
+#include "compiler/lab/transformer/TransformerContext.h"
 
 
 
@@ -3370,113 +3371,199 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
 }
 
-int LabBuildCompiler::run_transformer(const std::string& transformer, const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
-    std::string transformer_path = transformer;
-    std::string mod_name;
+int LabBuildCompiler::local_or_remote_project_to_module(
+        LabJob* job,
+        const std::string& target,
+        const std::string& cache_dir,
+        LabBuildContext& context
+) {
+    const auto is_mod_transformer = target.ends_with(".mod");
+    if (!is_mod_transformer && !target.ends_with(".lab")) {
 
-    if (transformer.find('/') != std::string::npos && !fs::exists(transformer)) {
-        // It's a remote transformer, download it
-        auto cache_dir = get_commands_cache_dir();
-        if (cache_dir.empty()) return 1;
-        fs::create_directories(cache_dir);
+        // the target dir is where we should store executable
+        // inside target dir, create a build dir, which we should use for the build
+        RemoteImport import { .from = chem::string_view(target) };
+        if(!parse_remote_import_from(import, global_allocator)) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the remote module string" << std::endl;
+            return 1;
+        }
+        auto info = get_remote_repo_info(cache_dir, import);
 
-        LabJob download_job(LabJobType::Executable, chem::string("download"), options->out_mode);
-        download_job.build_dir = chem::string(cache_dir);
+        // we will delete the build dir, this contains everything (remote modules, intermediate objects)
+        auto build_dir = resolve_rel_child_path_str(info.target_dir, "build");
+
+        // Ensure cache dir exists
+        fs::create_directories(build_dir);
+
+        // this is where 'remote' directory will be created by process_remote_imports
+        // we use build_dir, since we want to delete the downloaded sources at the end
+        job->build_dir = chem::string(build_dir);
+
+        // add the user's requested command module as a remote import to the job
         auto sym_info = (DependencySymbolInfo*) global_allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
         *sym_info = { .location = 0 };
-        RemoteImport import { .from = chem::string_view(transformer) };
         import.requesters.push_back({ nullptr, sym_info });
-        if (!add_remote_import(&download_job, import)) return 1;
+        if (!add_remote_import(job, import)) return 1;
 
-
-        if (process_remote_imports(context, &download_job) != 0) return 1;
-        if (download_job.dependencies.empty()) return 1;
-
-        auto mod = download_job.dependencies[0].module;
-        mod_name = mod->name.to_std_string();
-        
-        // Find the transformer's main file (.mod or .lab)
-        bool found = false;
-        for (const auto& path : mod->paths) {
-            std::string mod_path = resolve_rel_child_path_str(path.to_view(), "chemical.mod");
-            if (fs::exists(mod_path)) {
-                transformer_path = mod_path;
-                found = true;
-                break;
-            }
-            std::string lab_path = resolve_rel_child_path_str(path.to_view(), "build.lab");
-            if (fs::exists(lab_path)) {
-                transformer_path = lab_path;
-                found = true;
-                break;
-            }
+        // this will process remote imports recursively, and add to the job
+        if (process_remote_imports(context, job) != 0) {
+            return 1;
         }
-        if (!found) {
-             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformer module '" << transformer << "' has no chemical.mod or build.lab" << std::endl;
-             return 1;
-        }
+
+        // disable caching, because it causes generation of .dat and partial 2c files
+        // we don't want these files being generated in the cache build directory
+        options->is_caching_enabled = false;
+        // disable build lab caching, we don't want to generate its .dat and partial 2c files
+        options->is_build_lab_caching_enabled = false;
+
+        // clearing the remote imports from the final job
+        // we've downloaded them, we still use do_job
+        // do_job will again process remote imports, when we can just skip that
+        job->remote_imports.clear();
+
     } else {
-        // Local transformer
-        if (auto pos = transformer_path.find_last_of("\\/"); pos != std::string::npos) {
-            mod_name = transformer_path.substr(pos + 1);
-        } else {
-            mod_name = transformer_path;
+
+        // mkdir the build directory
+        create_dir(options->build_dir);
+
+        // get chemical.mod/build.lab file into a tcc state
+        const auto state = built_lab_file(context, target, is_mod_transformer);
+        if(!state) {
+            return 1;
         }
-        if (mod_name.ends_with(".mod")) mod_name = mod_name.substr(0, mod_name.size() - 4);
-        else if (mod_name.ends_with(".lab")) mod_name = mod_name.substr(0, mod_name.size() - 4);
+
+        // automatic destroy
+        TCCDeletor auto_del(state);
+
+        // allocators
+        auto& _job_allocator = *job_allocator;
+        auto& _mod_allocator = *mod_allocator;
+        auto& _file_allocator = *file_allocator;
+
+        // clear everything from allocators before proceeding
+        _job_allocator.clear();
+        _mod_allocator.clear();
+        _file_allocator.clear();
+
+        // get the build method
+        auto build = (LabModule*(*)(LabBuildContext*, LabJob*)) tcc_get_symbol(state, "chemical_lab_build");
+        if(!build) {
+            std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+            return 1;
+        }
+
+        // clear the module storage
+        // these modules were created to facilitate the build.lab generation
+        // if not cleared, these modules will interfere with modules created for executable
+        context.storage.clear();
+
+        // call the root chemical.mod build's function
+        const auto main_module = build(&context, job);
+        if(main_module == nullptr) {
+            return 1;
+        }
+
+        // just put main the module as this job's dependency
+        job->add_dependency(main_module);
+
+    }
+}
+
+std::string get_transformers_cache_dir() {
+    auto home = getUserHomeDirectory();
+    if (home.empty()) return "";
+    auto chemical_dir = resolve_rel_child_path_str(home, ".chemical");
+    return resolve_rel_child_path_str(chemical_dir, "transformers");
+}
+
+
+int LabBuildCompiler::run_transformer(const std::string& transformer, const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+
+    // the cbi job for the transformer module
+    // created so we can store remote imports here
+    LabJob transformer_job(LabJobType::CBI, chem::string("main"), options->out_mode);
+
+    // It's a remote transformer, download it
+    auto cache_dir = get_transformers_cache_dir();
+    if (cache_dir.empty()) return 1;
+
+    // compile transformer job to a module
+    auto transformer_to_mod_status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+    if(transformer_to_mod_status != 0) {
+        return transformer_to_mod_status;
     }
 
-    // Set specialized build directory for the transformer execution
-    auto cache_dir = get_commands_cache_dir();
-    if (!cache_dir.empty()) {
-        auto specialized_build_dir = resolve_rel_child_path_str(cache_dir, "build");
-        specialized_build_dir = resolve_rel_child_path_str(specialized_build_dir, mod_name);
-        this->options->build_dir = specialized_build_dir;
-        fs::create_directories(specialized_build_dir);
-    }
-
-    // Compile transformer
-    const auto state = built_lab_file(context, transformer_path, transformer_path.ends_with(".mod"));
-    if (!state) return 1;
-
-    std::string entry_point = mod_name + "_main";
-    auto transformer_main = (int(*)(LabModule*, int, char**)) tcc_get_symbol(state, entry_point.c_str());
-    
-    if (!transformer_main) {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformer entry point '" << entry_point << "' not found" << std::endl;
-        tcc_delete(state);
+    // check other transformer contains at least a single module
+    if(transformer_job.dependencies.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find the transformer module" << std::endl;
         return 1;
     }
 
-    // Compile target to LabModule*
-    LabJob target_job(LabJobType::Executable, chem::string("target"), options->out_mode);
-    LabModule* target_mod = nullptr;
-    if (target.ends_with(".mod")) {
-        target_mod = build_module_from_mod_file(context, target, &target_job);
-    } else if (target.ends_with(".lab")) {
-        // For .lab we don't have a single LabModule returned easily, but we can try to build it
-        // and see if we can get the primary module it defines.
-        // Actually, the user says "chemical run transformer chemical.mod", so .mod is the primary use case.
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "transformers currently only support .mod files as targets" << std::endl;
-        tcc_delete(state);
+    // creating a job for the target
+    LabJob other_job(LabJobType::ProcessingOnly, chem::string("target"), options->out_mode);
+
+    // compile the other module job to a module
+    auto target_to_mod_status = local_or_remote_project_to_module(&other_job, target, cache_dir, context);
+    if(target_to_mod_status != 0) {
+        return target_to_mod_status;
+    }
+
+    // check other job contains at least a single module
+    if(other_job.dependencies.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find the target module" << std::endl;
         return 1;
     }
 
-    if (!target_mod) {
-        tcc_delete(state);
+    // allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
+
+    // lets compile any cbi jobs user may have specified
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI) {
+            const auto job_result = do_job(job.get());
+            if(job_result != 0) {
+                return job_result;
+            }
+        }
+    }
+
+    // do the job, which means functions have been loaded into compiler binder
+    const auto job_result = do_job(&transformer_job);
+
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    if(job_result != 0) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't compile transformer, status code " << job_result << std::endl;
+        return job_result;
+    }
+
+    // the transformer context is passed
+    TransformerContext transformer_context(&other_job);
+
+    // lets see if the transformer init function is available
+    const auto transformer_main_fn = binder.findHook("transformer_main", CBIFunctionType::TransformerMain);
+    if(transformer_main_fn == nullptr) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find function transformer_main" << std::endl;
         return 1;
     }
 
-    // Invoke
+    // Invoke transformer_init
     std::vector<char*> argv;
     argv.push_back(const_cast<char*>(transformer.c_str()));
     for (const auto& arg : args) argv.push_back(const_cast<char*>(arg.data()));
     argv.push_back(nullptr);
-    
-    int ret = transformer_main(target_mod, (int)argv.size() - 1, argv.data());
-    
-    tcc_delete(state);
-    return ret;
+
+    // transformer main
+    const auto transformer_main = (int(*)(TransformerContext*, int, char**)) transformer_main_fn;
+
+    // transformer context would automatically allow us to compile the module however we want
+    return transformer_main(&transformer_context, (int)argv.size() - 1, argv.data());
+
 }
 
 

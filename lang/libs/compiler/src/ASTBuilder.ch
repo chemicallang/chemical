@@ -259,6 +259,10 @@ public struct EmbeddedValue : Value {
 
 // The ASTNodes
 
+public struct BaseDefMember : ASTNode {
+    func getName(&self) : string_view
+}
+
 public struct StructMemberInitializer : ASTNode {}
 
 public struct CapturedVariable : ASTNode {}
@@ -297,6 +301,12 @@ public struct Scope : ASTNode {
 
 }
 
+public struct FileScope : ASTNode {
+
+    func getBody(&self) : *mut Scope
+
+}
+
 public struct LoopASTNode : ASTNode {
 
 }
@@ -309,11 +319,17 @@ public struct DoWhileLoop : LoopASTNode {
 
 public struct EnumDeclaration : ASTNode {
 
+    func getName(&self) : string_view
+
     func add_member(&self, member : *EnumMember)
+
+    func getMembers(&self) : *mut VecRef<EnumMember>
 
 }
 
-public struct EnumMember : ASTNode {}
+public struct EnumMember : ASTNode {
+    func getName(&self) : string_view
+}
 
 public struct ForLoop : LoopASTNode {
 
@@ -327,13 +343,20 @@ public struct SwitchStatement {
 
 public struct FunctionDeclaration : ASTNode {
 
+    func getName(&self) : string_view
+
     func get_params(&self) : *mut VecRef<FunctionParam>;
 
     func add_body(&self) : *mut VecRef<ASTNode>
 
+    func getReturnType(&self) : *mut BaseType
+
 }
 
-public struct FunctionParam : ASTNode {}
+public struct FunctionParam : ASTNode {
+    func getName(&self) : string_view
+    func getType(&self) : *mut BaseType
+}
 
 public struct GenericTypeParameter : ASTNode {}
 
@@ -355,27 +378,43 @@ public struct ImplDefinition : ASTNode {
 
 public struct InterfaceDefinition : ASTNode {
 
+    func getName(&self) : string_view
+
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+
+    func getFunctions(&self) : *mut VecRef<ASTNode>
 
 }
 
 public struct Namespace : ASTNode {
 
-     func get_body(&self) : *mut VecRef<ASTNode>;
+    func getName(&self) : string_view
+
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
 public struct StructDefinition : ASTNode {
 
+    func getName(&self) : string_view
+
     func add_member(name : &string_view, member : *StructMember)
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
+    func getMembers(&self) : *mut VecRef<BaseDefMember>
+
+    func getFunctions(&self) : *mut VecRef<ASTNode>
+
 }
 
-public struct StructMember : ASTNode {}
+public struct StructMember : BaseDefMember {
+    func getType(&self) : *mut BaseType
+}
 
 public struct UnionDef : ASTNode {
+
+    func getName(&self) : string_view
 
     func add_member(name : &string_view, member : *StructMember)
 
@@ -397,7 +436,11 @@ public struct WhileLoop : LoopASTNode {
 
 public struct VariantDefinition : ASTNode {
 
+    func getName(&self) : string_view
+
     func add_member(&self, name : &string_view, member : *StructMember)
+
+    func getMembers(&self) : *mut VecRef<BaseDefMember>
 
 }
 

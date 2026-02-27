@@ -478,7 +478,7 @@ ASTFileResult* chem_file_concur_importer_direct(
         bool use_job_allocator
 ) {
     // import the file
-    processor->import_file(*fileData.result, fileData.file_id, fileData.abs_path, use_job_allocator);
+    processor->import_chemical_file(*fileData.result, fileData.file_id, fileData.abs_path, use_job_allocator);
 
     // print the file results
     processor->print_file_results(*fileData.result, chem::string_view(fileData.abs_path), processor->options->benchmark_files);
@@ -837,6 +837,76 @@ bool ASTProcessor::import_chemical_file_recursive(
 
 }
 
+// this imports a chemical file without any imports
+std::pair<ASTFileResult*, std::vector<Token>> chem_file_concur_importer_direct_toks(
+        int id,
+        ASTProcessor* processor,
+        ASTFileMetaData& fileData,
+        bool use_job_allocator,
+        bool keep_comments
+) {
+
+    // out tokens
+    std::vector<Token> tokens;
+
+    // import the file
+    processor->import_chemical_file_with_tokens(*fileData.result, fileData.file_id, fileData.abs_path, use_job_allocator, &tokens, keep_comments);
+
+    // print the file results
+    processor->print_file_results(*fileData.result, chem::string_view(fileData.abs_path), processor->options->benchmark_files);
+
+    // return the result
+    return { fileData.result, std::move(tokens) };
+}
+
+bool ASTProcessor::import_chemical_files_direct_with_tokens(
+        ctpl::thread_pool& pool,
+        std::vector<ASTFileMetaData>& files,
+        std::unordered_map<unsigned int, std::vector<Token>>& token_map,
+        bool keep_comments
+) {
+    std::vector<std::future<std::pair<ASTFileResult*, std::vector<Token>>>> futures;
+    futures.reserve(files.size());
+
+    // launch all files concurrently
+    for(auto& fileData : files) {
+
+        const auto file_id = fileData.file_id;
+        const auto& abs_path = fileData.abs_path;
+
+        // we must try to store chem::string_view into the fileData, from the beginning
+        const auto ptr = new ASTFileResult(file_id, "", fileData.module);
+        // copy the metadata into it
+        *static_cast<ASTFileMetaData*>(ptr) = fileData;
+        fileData.result = ptr;
+        // cache uses std::unique_ptr to destruct it
+        // we must store in cache, otherwise we'll have a memory leak
+        cache.emplace(file_id, ptr);
+
+#if defined(DEBUG_FUTURE) && DEBUG_FUTURE
+        std::promise<bool> promise;
+        promise.set_value(chem_file_concur_importer_direct_toks(0, this, fileData, false, keep_comments));
+        futures.emplace_back(promise.get_future());
+#else
+        futures.emplace_back(
+                pool.push(chem_file_concur_importer_direct_toks, this, fileData, false, keep_comments)
+        );
+#endif
+
+    }
+
+    // put each file sequentially into the out_files
+    for(auto& wrap : futures) {
+        const auto result = wrap.get();
+        if(!result.first->continue_processing) {
+            return false;
+        }
+        token_map[result.first->file_id] = std::move(result.second);
+    }
+
+    return true;
+}
+
 void ASTProcessor::print_file_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {
     std::lock_guard print_lock(print_mutex);
     print_results(result, abs_path, benchmark);
@@ -900,6 +970,119 @@ bool ASTProcessor::import_chemical_file(
             fileId,
             abs_path,
             tokens.data(),
+            resolver->comptime_scope.loc_man,
+            controller,
+            job_allocator,
+            use_job_allocator ? job_allocator : mod_allocator,
+            type_builder,
+            resolver->is64Bit,
+            &binder
+    );
+
+    // setting file scope as parent of all nodes parsed
+    parser.parent_node = &result.unit.scope;
+
+    // actual parsing
+    if(benchmark) {
+        result.parse_benchmark.benchmark_begin();
+        parser.parse(unit.scope.body.nodes);
+        result.parse_benchmark.benchmark_end();
+    } else {
+        parser.parse(unit.scope.body.nodes);
+    }
+
+    // move parser diagnostics
+    if(!parser.diagnostics.empty()) {
+        result.parse_diagnostics = std::move(parser.diagnostics);
+    }
+
+    // continue
+    if(parser.has_errors) {
+        result.continue_processing = false;
+        return false;
+    } else {
+        return true;
+    }
+}
+
+bool ASTProcessor::import_chemical_file_with_tokens(
+        ASTFileResult& result,
+        unsigned int fileId,
+        const std::string_view& abs_path,
+        InputSource* inp_source,
+        bool use_job_allocator,
+        std::vector<Token>* out_tokens,
+        bool keep_comments
+) {
+
+    result.abs_path = abs_path;
+    result.file_id = fileId;
+    result.private_symbol_range = { 0, 0 };
+    result.continue_processing = true;
+    result.diCompileUnit = nullptr;
+
+    auto& unit = result.unit;
+
+    Lexer lexer(std::string(abs_path), *inp_source, &binder, file_allocator);
+    lexer.keep_comments = keep_comments;
+    std::vector<Token> tokens;
+
+    const auto benchmark = options->benchmark_files;
+
+    // actual lexing
+    if(benchmark) {
+        result.lex_benchmark.benchmark_begin();
+        lexer.getTokens(tokens);
+        result.lex_benchmark.benchmark_end();
+    } else {
+        lexer.getTokens(tokens);
+    }
+
+    const auto total_toks = tokens.size();
+    if(total_toks == 0) {
+        // empty file
+        return true;
+    } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
+        auto& last = tokens[total_toks - 1];
+        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
+    }
+
+    // copy tokens if requested
+    if(out_tokens != nullptr) {
+        *out_tokens = tokens;
+    }
+
+    // move lexer diagnostics
+    if(!lexer.diagnoser.diagnostics.empty()) {
+        result.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+    }
+
+    // do not continue, if error occurs during lexing
+    if(lexer.diagnoser.has_errors) {
+        result.continue_processing = false;
+        return false;
+    }
+
+    // we should remove the comment tokens before giving them to the parser
+    // parser does not expect comments or whitespaces
+    std::vector<Token> clean_tokens;
+    Token* tokens_to_parse = tokens.data();
+
+    if(keep_comments) {
+        clean_tokens.reserve(tokens.size());
+        for(auto& t : tokens) {
+            if(t.type != TokenType::SingleLineComment && t.type != TokenType::MultiLineComment && t.type != TokenType::Whitespace) {
+                clean_tokens.push_back(t);
+            }
+        }
+        tokens_to_parse = clean_tokens.data();
+    }
+
+    // parse the file
+    Parser parser(
+            fileId,
+            abs_path,
+            tokens_to_parse,
             resolver->comptime_scope.loc_man,
             controller,
             job_allocator,

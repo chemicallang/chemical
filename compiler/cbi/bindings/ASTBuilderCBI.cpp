@@ -76,6 +76,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/structures/EnumMember.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "std/chem_string.h"
 #include "compiler/symres/SymResLinkBodyAPI.h"
@@ -778,4 +779,85 @@ void* EmbeddedNodegetDataPtr(EmbeddedNode* node) {
 
 void* EmbeddedValuegetDataPtr(EmbeddedValue* value) {
     return value->data_ptr;
+}
+
+std::vector<BaseDefMember*>* VariantDefinitiongetMembers(VariantDefinition* def) {
+    return (std::vector<BaseDefMember*>*) &def->variables();
+}
+
+BaseType* FunctionDeclarationgetReturnType(FunctionDeclaration* decl) {
+    return decl->returnType;
+}
+
+void FunctionParamgetName(chem::string_view* view, FunctionParam* param) {
+    *view = param->name;
+}
+
+BaseType* FunctionParamgetType(FunctionParam* param) {
+    return param->type;
+}
+
+void BaseDefMembergetName(chem::string_view* view, BaseDefMember* member) {
+    *view = member->name;
+}
+
+BaseType* BaseDefMembergetType(BaseDefMember* member) {
+    if (member->kind() == ASTNodeKind::StructMember) {
+        return static_cast<StructMember*>(member)->type;
+    }
+    // TODO handle other member types if needed
+    return nullptr;
+}
+
+std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def) {
+    return (std::vector<BaseDefMember*>*) &def->variables();
+}
+
+std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def) {
+    return (std::vector<ASTNode*>*) &def->functions();
+}
+
+std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def) {
+    return (std::vector<ASTNode*>*) &def->functions();
+}
+
+std::vector<EnumMember*>* EnumDeclarationgetMembers(EnumDeclaration* decl) {
+    auto vec = new std::vector<EnumMember*>();
+    vec->reserve(decl->members.size());
+    for(auto& pair : decl->members) {
+        vec->push_back(pair.second);
+    }
+    return vec;
+}
+
+void FunctionDeclarationgetName(chem::string_view* view, FunctionDeclaration* decl) {
+    *view = decl->name_view();
+}
+
+void StructDefinitiongetName(chem::string_view* view, StructDefinition* def) {
+    *view = def->identifier.identifier;
+}
+
+void InterfaceDefinitiongetName(chem::string_view* view, InterfaceDefinition* def) {
+    *view = def->identifier.identifier;
+}
+
+void NamespacegetName(chem::string_view* view, Namespace* ns) {
+    *view = ns->identifier.identifier;
+}
+
+void EnumDeclarationgetName(chem::string_view* view, EnumDeclaration* decl) {
+    *view = decl->name_view();
+}
+
+void EnumMembergetName(chem::string_view* view, EnumMember* member) {
+    *view = member->name;
+}
+
+void VariantDefinitiongetName(chem::string_view* view, VariantDefinition* def) {
+    *view = def->identifier.identifier;
+}
+
+void UnionDefinitiongetName(chem::string_view* view, UnionDef* def) {
+    *view = def->identifier.identifier;
 }

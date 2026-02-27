@@ -1370,7 +1370,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
     // error out if cbi types are empty
     if(cbiJob->indexes.empty()) {
-        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "cbi job has no cbi types'" << job_name << '\'' << std::endl;
+        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "cbi job has no cbi types '" << job_name << '\'' << std::endl;
         return 1;
     }
 
@@ -2305,7 +2305,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     if(mod_file_source) {
         lab_processor.import_mod_file_as_lab(buildLabMetaData, labFileResult, true);
     } else {
-        lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
+        lab_processor.import_chemical_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
     }
 
     // probably an error during parsing
@@ -3467,6 +3467,9 @@ int LabBuildCompiler::local_or_remote_project_to_module(
         job->add_dependency(main_module);
 
     }
+
+    return 0;
+
 }
 
 std::string get_transformers_cache_dir() {
@@ -3487,8 +3490,25 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     auto cache_dir = get_transformers_cache_dir();
     if (cache_dir.empty()) return 1;
 
-    // compile transformer job to a module
-    auto transformer_to_mod_status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+    // native transformer names
+    bool is_native = false;
+    if(transformer == "refgen") {
+        is_native = true;
+    }
+
+    int transformer_to_mod_status = 0;
+    if(is_native) {
+        auto native_path = path_handler.resolve_native_lib(chem::string_view(transformer));
+        if(native_path.empty()) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't find native transformer " << transformer << std::endl;
+            return 1;
+        }
+        transformer_to_mod_status = build_module_build_file(context, native_path + "/chemical.mod", &transformer_job, true, false);
+    } else {
+        // compile transformer job to a module
+        transformer_to_mod_status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+    }
+
     if(transformer_to_mod_status != 0) {
         return transformer_to_mod_status;
     }
@@ -3542,8 +3562,23 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         return job_result;
     }
 
+    // flatten the modules of other job, which is going to be processed by transformer
+    auto outMods = flatten_dedupe_sorted(other_job.dependencies);
+
+    // an interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(other_job.mode, other_job.target_data, nullptr, this, *job_allocator, type_builder, loc_man);
+
+    // we hold the instantiated types inside this container
+    InstantiationsContainer instContainer;
+
+    // a new symbol resolver for every executable
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // creating a ast processor is required
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+
     // the transformer context is passed
-    TransformerContext transformer_context(&other_job);
+    TransformerContext transformer_context(&other_job, this, &processor, std::move(outMods));
 
     // lets see if the transformer init function is available
     const auto transformer_main_fn = binder.findHook("transformer_main", CBIFunctionType::TransformerMain);

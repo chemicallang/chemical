@@ -3055,6 +3055,7 @@ std::string LabBuildCompiler::get_commands_cache_dir() {
 }
 
 int LabBuildCompiler::run_invocation(
+    LabBuildCompilerOptions& compiler_opts,
     const std::string& compiler_exe_path,
     const std::string& target,
     const std::vector<std::string_view>& args,
@@ -3070,11 +3071,9 @@ int LabBuildCompiler::run_invocation(
     
     // For local projects, build in the current directory's build folder
     // For remote/transformers, we'll override this once we have the module name
-    std::string build_dir = "build";
-    LabBuildCompilerOptions compiler_opts(compiler_exe_path, "", std::move(build_dir), is64Bit);
     compiler_opts.out_mode = mode;
     compiler_opts.def_out_mode = mode;
-    
+
     CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);

@@ -1048,6 +1048,18 @@ bool ASTProcessor::import_chemical_file_with_tokens(
         lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
     }
 
+    // comments will be disposed as soon as input source dies
+    // because source is memory mapped, we will move the comment to job allocator
+    if(keep_comments) {
+        for(auto& t : tokens) {
+            if(t.type == TokenType::SingleLineComment || t.type == TokenType::MultiLineComment) {
+                const auto s = t.value.size();
+                const auto str_ptr = job_allocator.allocate_str(t.value.data(), s);
+                t.value = chem::string_view(str_ptr, s);
+            }
+        }
+    }
+
     // copy tokens if requested
     if(out_tokens != nullptr) {
         *out_tokens = tokens;

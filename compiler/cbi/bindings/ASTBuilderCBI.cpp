@@ -81,6 +81,12 @@
 #include "std/chem_string.h"
 #include "compiler/symres/SymResLinkBodyAPI.h"
 #include "ast/statements/EmbeddedNode.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericTypeParameter.h"
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
 #ifdef LSP_BUILD
@@ -627,6 +633,10 @@ std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type) {
     return &func_type->params;
 }
 
+BaseType* FunctionTypegetReturnType(FunctionType* func_type) {
+    return func_type->returnType;
+}
+
 Value* AccessChainas_value(AccessChain* chain) {
     // c++ casting is required because Value is in the second place in inheritance
     // and the first ASTNode is virtual containing a pointer
@@ -799,6 +809,58 @@ BaseType* FunctionParamgetType(FunctionParam* param) {
 
 void BaseDefMembergetName(chem::string_view* view, BaseDefMember* member) {
     *view = member->name;
+}
+
+std::vector<GenericTypeParameter*>* BaseGenericDeclgetGenericParams(BaseGenericDecl* decl) {
+    return &decl->generic_params;
+}
+
+StructDefinition* GenericStructDeclgetMasterImpl(GenericStructDecl* decl) {
+    return decl->master_impl;
+}
+
+FunctionDeclaration* GenericFuncDeclgetMasterImpl(GenericFuncDecl* decl) {
+    return decl->master_impl;
+}
+
+VariantDefinition* GenericVariantDeclgetMasterImpl(GenericVariantDecl* decl) {
+    return decl->master_impl;
+}
+
+UnionDef* GenericUnionDeclgetMasterImpl(GenericUnionDecl* decl) {
+    return decl->master_impl;
+}
+
+InterfaceDefinition* GenericInterfaceDeclgetMasterImpl(GenericInterfaceDecl* decl) {
+    return decl->master_impl;
+}
+
+void GenericTypeParametergetName(chem::string_view* view, GenericTypeParameter* param) {
+    *view = param->identifier;
+}
+
+BaseType* GenericTypeParametergetDefaultType(GenericTypeParameter* param) {
+    return (BaseType*) param->def_type.getType();
+}
+
+bool FunctionDeclarationisExtensionFn(FunctionDeclaration* decl) {
+    return decl->isExtensionFn();
+}
+
+BaseType* ArrayTypegetElementType(ArrayType* type) {
+    return type->elem_type;
+}
+
+int ArrayTypegetArraySize(ArrayType* type) {
+    return (int) type->get_array_size();
+}
+
+BaseType* DynamicTypegetChildType(DynamicType* type) {
+    return type->referenced;
+}
+
+BaseType* LiteralTypegetChildType(LiteralType* type) {
+    return type->underlying;
 }
 
 BaseType* BaseDefMembergetType(BaseDefMember* member) {

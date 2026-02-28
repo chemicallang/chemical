@@ -7,6 +7,7 @@
 
 class SymbolResolver;
 class VariablesContainer;
+class BaseGenericDecl;
 
 extern "C" {
 
@@ -77,9 +78,19 @@ extern "C" {
 
     BaseType* ReferenceTypegetChildType(ReferenceType* type);
 
+    BaseType* ArrayTypegetElementType(ArrayType* type);
+
+    int ArrayTypegetArraySize(ArrayType* type);
+
+    BaseType* DynamicTypegetChildType(DynamicType* type);
+
+    BaseType* LiteralTypegetChildType(LiteralType* type);
+
     BaseType* TypealiasStatementgetActualType(TypealiasStatement* type);
 
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
+
+    BaseType* FunctionTypegetReturnType(FunctionType* func_type);
 
     Value* AccessChainas_value(AccessChain* chain);
 
@@ -216,5 +227,24 @@ extern "C" {
     std::size_t VariablesContainergetInheritedCount(VariablesContainer* container);
 
     BaseType* VariablesContainergetInheritedType(VariablesContainer* container, std::size_t index);
+
+    // Generic declarations
+    std::vector<GenericTypeParameter*>* BaseGenericDeclgetGenericParams(BaseGenericDecl* decl);
+
+    StructDefinition* GenericStructDeclgetMasterImpl(GenericStructDecl* decl);
+
+    FunctionDeclaration* GenericFuncDeclgetMasterImpl(GenericFuncDecl* decl);
+
+    VariantDefinition* GenericVariantDeclgetMasterImpl(GenericVariantDecl* decl);
+
+    UnionDef* GenericUnionDeclgetMasterImpl(GenericUnionDecl* decl);
+
+    InterfaceDefinition* GenericInterfaceDeclgetMasterImpl(GenericInterfaceDecl* decl);
+
+    void GenericTypeParametergetName(chem::string_view* view, GenericTypeParameter* param);
+
+    BaseType* GenericTypeParametergetDefaultType(GenericTypeParameter* param);
+
+    bool FunctionDeclarationisExtensionFn(FunctionDeclaration* decl);
 
 }

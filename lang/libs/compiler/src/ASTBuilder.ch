@@ -81,7 +81,10 @@ public struct IntNType : BaseType {
 
 public struct AnyType : BaseType {}
 
-public struct ArrayType : BaseType {}
+public struct ArrayType : BaseType {
+    func getElementType(&self) : *mut BaseType
+    func getArraySize(&self) : int
+}
 
 public struct I8Type : IntNType {}
 public struct I16Type : IntNType {}
@@ -97,13 +100,17 @@ public struct BoolType : BaseType {}
 
 public struct DoubleType : BaseType {}
 
-public struct DynamicType : BaseType {}
+public struct DynamicType : BaseType {
+    func getChildType(&self) : *mut BaseType
+}
 
 public struct FloatType : BaseType {}
 
 public struct FunctionType : BaseType {
 
     func get_params(&self) : *mut VecRef<FunctionParam>;
+
+    func getReturnType(&self) : *mut BaseType
 
 }
 
@@ -133,7 +140,9 @@ public struct LinkedType : BaseType {
 
 public struct LinkedValueType : BaseType {}
 
-public struct LiteralType : BaseType {}
+public struct LiteralType : BaseType {
+    func getChildType(&self) : *mut BaseType
+}
 
 public struct LongType : IntNType {}
 
@@ -407,6 +416,8 @@ public struct FunctionDeclaration : ASTNode {
 
     func getAttributes(&self, out : *mut FuncDeclAttributesCBI)
 
+    func isExtensionFn(&self) : bool
+
 }
 
 public struct FunctionParam : ASTNode {
@@ -414,7 +425,37 @@ public struct FunctionParam : ASTNode {
     func getType(&self) : *mut BaseType
 }
 
-public struct GenericTypeParameter : ASTNode {}
+public struct BaseGenericDecl : ASTNode {
+    func getGenericParams(&self) : *mut VecRef<GenericTypeParameter>
+}
+
+public struct GenericStructDecl : BaseGenericDecl {
+    func getMasterImpl(&self) : *mut StructDefinition
+}
+
+public struct GenericFuncDecl : BaseGenericDecl {
+    func getMasterImpl(&self) : *mut FunctionDeclaration
+}
+
+public struct GenericVariantDecl : BaseGenericDecl {
+    func getMasterImpl(&self) : *mut VariantDefinition
+}
+
+public struct GenericUnionDecl : BaseGenericDecl {
+    func getMasterImpl(&self) : *mut UnionDef
+}
+
+public struct GenericInterfaceDecl : BaseGenericDecl {
+    func getMasterImpl(&self) : *mut InterfaceDefinition
+}
+
+public struct GenericTypeParameter : ASTNode {
+
+    func getName(&self) : string_view
+
+    func getDefaultType(&self) : *mut BaseType
+
+}
 
 public struct IfStatement : ASTNode {
 
@@ -432,7 +473,7 @@ public struct ImplDefinition : ASTNode {
 
 }
 
-public struct InterfaceDefinition : ASTNode {
+public struct InterfaceDefinition : VariablesContainer {
 
     func getName(&self) : string_view
 
@@ -452,7 +493,15 @@ public struct Namespace : ASTNode {
 
 }
 
-public struct StructDefinition : ASTNode {
+public struct VariablesContainer : ASTNode {
+
+    func getInheritedCount(&self) : size_t
+
+    func getInheritedType(&self, index : size_t) : *mut BaseType
+
+}
+
+public struct StructDefinition : VariablesContainer {
 
     func getName(&self) : string_view
 
@@ -470,7 +519,7 @@ public struct StructMember : BaseDefMember {
     func getType(&self) : *mut BaseType
 }
 
-public struct UnionDef : ASTNode {
+public struct UnionDef : VariablesContainer {
 
     func getName(&self) : string_view
 
@@ -502,7 +551,7 @@ public struct WhileLoop : LoopASTNode {
 
 }
 
-public struct VariantDefinition : ASTNode {
+public struct VariantDefinition : VariablesContainer {
 
     func getName(&self) : string_view
 
@@ -814,8 +863,3 @@ public comptime func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
         return intrinsics::wrap(builder.allocate_size(sizeof(T), alignof(T))) as *mut T
     }
 }
-public struct VariablesContainer : ASTNode {
-    func getInheritedCount(&self) : size_t
-    func getInheritedType(&self, index : size_t) : *mut BaseType
-}
-

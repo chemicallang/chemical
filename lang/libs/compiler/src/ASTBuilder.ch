@@ -559,6 +559,8 @@ public struct VariantDefinition : VariablesContainer {
 
     func getMembers(&self) : *mut VecRef<BaseDefMember>
 
+    func getFunctions(&self) : *mut VecRef<ASTNode>
+
 }
 
 public struct VariantMember : ASTNode {

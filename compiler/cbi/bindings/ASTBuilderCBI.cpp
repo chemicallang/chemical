@@ -875,6 +875,10 @@ std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def) {
     return (std::vector<ASTNode*>*) &def->functions();
 }
 
+std::vector<ASTNode*>* VariantDefinitiongetFunctions(VariantDefinition* def) {
+    return (std::vector<ASTNode*>*) &def->functions();
+}
+
 std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def) {
     return (std::vector<ASTNode*>*) &def->functions();
 }

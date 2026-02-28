@@ -473,6 +473,16 @@ public struct UnionDef : ASTNode {
     func add_member(name : &string_view, member : *StructMember)
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+    
+    func getMembers(&self) : *mut VecRef<BaseDefMember>
+
+    func getFunctions(&self) : *mut VecRef<ASTNode>
+
+    func getAttributes(&self, out : *mut InterfaceDefinitionAttrsCBI)
+    
+    func getMembers(&self) : *mut VecRef<BaseDefMember>
+
+    func getFunctions(&self) : *mut VecRef<ASTNode>
 
 }
 

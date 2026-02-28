@@ -172,6 +172,10 @@ extern "C" {
 
     std::vector<BaseDefMember*>* VariantDefinitiongetMembers(VariantDefinition* def);
 
+    std::vector<BaseDefMember*>* UnionDefinitiongetMembers(UnionDef* def);
+
+    std::vector<ASTNode*>* UnionDefinitiongetFunctions(UnionDef* def);
+
     void FunctionDeclarationgetName(chem::string_view* view, FunctionDeclaration* decl);
 
     void StructDefinitiongetName(chem::string_view* view, StructDefinition* def);

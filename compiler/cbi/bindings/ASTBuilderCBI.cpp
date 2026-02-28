@@ -861,3 +861,67 @@ void VariantDefinitiongetName(chem::string_view* view, VariantDefinition* def) {
 void UnionDefinitiongetName(chem::string_view* view, UnionDef* def) {
     *view = def->identifier.identifier;
 }
+
+void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclaration* decl) {
+    auto& attrs = decl->attrs;
+    out->specifier = static_cast<int32_t>(attrs.specifier);
+    out->is_comptime = attrs.is_comptime;
+    out->is_compiler_decl = attrs.is_compiler_decl;
+    out->multi_func_index = attrs.multi_func_index;
+    out->inline_strategy = static_cast<int32_t>(attrs.inline_strategy);
+    out->is_extern = attrs.is_extern;
+    out->is_cpp_mangle = attrs.is_cpp_mangle;
+    out->deprecated = attrs.deprecated;
+    out->is_implicit = attrs.is_implicit;
+    out->is_noReturn = attrs.is_noReturn;
+    out->is_constructor_fn = attrs.is_constructor_fn;
+    out->is_copy_fn = attrs.is_copy_fn;
+    out->is_delete_fn = attrs.is_delete_fn;
+    out->is_unsafe = attrs.is_unsafe;
+    out->is_override = attrs.is_override;
+    out->has_usage = attrs.has_usage;
+    out->no_mangle = attrs.no_mangle;
+    out->is_generated = attrs.is_generated;
+    out->std_call = attrs.std_call;
+    out->dll_import = attrs.dll_import;
+    out->dll_export = attrs.dll_export;
+}
+
+void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, InterfaceDefinition* def) {
+    auto& attrs = def->attrs;
+    out->specifier = static_cast<int32_t>(attrs.specifier);
+    out->has_implementation = attrs.has_implementation;
+    out->deprecated = attrs.deprecated;
+    out->is_static = attrs.is_static;
+    out->is_no_mangle = attrs.is_no_mangle;
+    out->is_extern = attrs.is_extern;
+}
+
+void TypealiasStatementgetAttributes(TypealiasDeclAttributesCBI* out, TypealiasStatement* stmt) {
+    auto& attrs = stmt->attrs;
+    out->specifier = static_cast<int32_t>(attrs.specifier);
+    out->is_comptime = attrs.is_comptime;
+    out->deprecated = attrs.deprecated;
+    out->is_no_mangle = attrs.is_no_mangle;
+    out->is_inlined = attrs.is_inlined;
+}
+
+int ASTNodegetAccessSpecifier(ASTNode* node) {
+    return static_cast<int>(node->specifier());
+}
+
+void TypealiasStatementgetName(chem::string_view* view, TypealiasStatement* stmt) {
+    *view = stmt->name_view();
+}
+
+std::size_t GenericTypegetArgumentCount(GenericType* type) {
+    return type->types.size();
+}
+
+BaseType* GenericTypegetArgumentType(GenericType* type, std::size_t index) {
+    return type->types[index];
+}
+
+uint64_t GenericTypegetArgumentLocation(GenericType* type, std::size_t index) {
+    return type->types[index].encoded_location().encoded;
+}

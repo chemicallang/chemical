@@ -1,5 +1,45 @@
-
 using namespace std;
+
+public struct FuncDeclAttributesCBI {
+    var specifier : AccessSpecifier;
+    var is_comptime : bool;
+    var is_compiler_decl : bool;
+    var multi_func_index : u8;
+    var inline_strategy : int;
+    var is_extern : bool;
+    var is_cpp_mangle : bool;
+    var deprecated : bool;
+    var is_implicit : bool;
+    var is_noReturn : bool;
+    var is_constructor_fn : bool;
+    var is_copy_fn : bool;
+    var is_delete_fn : bool;
+    var is_unsafe : bool;
+    var is_override : bool;
+    var has_usage : bool;
+    var no_mangle : bool;
+    var is_generated : bool;
+    var std_call : bool;
+    var dll_import : bool;
+    var dll_export : bool;
+}
+
+public struct InterfaceDefinitionAttrsCBI {
+    var specifier : AccessSpecifier;
+    var has_implementation : bool;
+    var deprecated : bool;
+    var is_static : bool;
+    var is_no_mangle : bool;
+    var is_extern : bool;
+}
+
+public struct TypealiasDeclAttributesCBI {
+    var specifier : AccessSpecifier;
+    var is_comptime : bool;
+    var deprecated : bool;
+    var is_no_mangle : bool;
+    var is_inlined : bool;
+}
 
 // The Base Structs
 
@@ -70,6 +110,12 @@ public struct FunctionType : BaseType {
 public struct GenericType : BaseType {
 
     func getLinkedType(&self) : *mut LinkedType;
+
+    func getArgumentCount(&self) : size_t
+
+    func getArgumentType(&self, index : size_t) : *mut BaseType
+
+    func getArgumentLocation(&self, index : size_t) : ubigint
 
 }
 
@@ -289,6 +335,10 @@ public struct TypealiasStatement : ASTNode {
 
     func getActualType(&self) : *mut BaseType
 
+    func getName(&self) : string_view
+
+    func getAttributes(&self, out : *mut TypealiasDeclAttributesCBI)
+
 }
 
 public struct UsingStmt : ASTNode {}
@@ -351,6 +401,8 @@ public struct FunctionDeclaration : ASTNode {
 
     func getReturnType(&self) : *mut BaseType
 
+    func getAttributes(&self, out : *mut FuncDeclAttributesCBI)
+
 }
 
 public struct FunctionParam : ASTNode {
@@ -383,6 +435,8 @@ public struct InterfaceDefinition : ASTNode {
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
     func getFunctions(&self) : *mut VecRef<ASTNode>
+
+    func getAttributes(&self, out : *mut InterfaceDefinitionAttrsCBI)
 
 }
 

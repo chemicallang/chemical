@@ -37,6 +37,8 @@ extern "C" {
 
     // FileMetaData getters
     void ModulegetFiles(ASTFileMetaDataSpanCBI* out, LabModule* self);
+    std::size_t ModulegetFileCount(LabModule* self);
+    ASTFileMetaData* ModulegetFile(LabModule* self, unsigned int index);
     unsigned int FileMetaDatagetFileId(ASTFileMetaData* self);
     void FileMetaDatagetAbsPath(chem::string_view* view, ASTFileMetaData* self);
     FileScope* FileMetaDatagetFileScope(ASTFileMetaData* self);

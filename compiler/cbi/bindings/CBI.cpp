@@ -344,19 +344,22 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
 };
 
 const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {
-        { "transformer_TransformerContextgetTargetJob", (void*) TransformerContextgetTargetJob },
-        { "transformer_TransformerContextparseTarget", (void*) TransformerContextparseTarget },
-        { "transformer_TransformerContextanalyzeTarget", (void*) TransformerContextanalyzeTarget },
-        { "transformer_TransformerContextgetFlattenedModules", (void*) TransformerContextgetFlattenedModules },
-        { "transformer_TransformerContextgetFileTokens", (void*) TransformerContextgetFileTokens },
-        { "transformer_TransformerContextdecodeLocation", (void*) TransformerContextdecodeLocation },
+        {"transformer_TransformerContextgetTargetJob",        (void*) TransformerContextgetTargetJob},
+        {"transformer_TransformerContextparseTarget",         (void*) TransformerContextparseTarget},
+        {"transformer_TransformerContextanalyzeTarget",       (void*) TransformerContextanalyzeTarget},
+        {"transformer_TransformerContextgetFlattenedModules", (void*) TransformerContextgetFlattenedModules},
+        {"transformer_TransformerContextgetFileTokens",       (void*) TransformerContextgetFileTokens},
+        {"transformer_TransformerContextdecodeLocation",      (void*) TransformerContextdecodeLocation},
 
 
-        { "transformer_ASTFileMetaDatagetFileId", (void*) FileMetaDatagetFileId },
-        { "transformer_ASTFileMetaDatagetAbsPath", (void*) FileMetaDatagetAbsPath },
-        { "transformer_ASTFileMetaDatagetFileScope", (void*) FileMetaDatagetFileScope },
+        {"transformer_ASTFileMetaDatagetFileId",              (void*) FileMetaDatagetFileId},
+        {"transformer_ASTFileMetaDatagetAbsPath",             (void*) FileMetaDatagetAbsPath},
+        {"transformer_ASTFileMetaDatagetFileScope",           (void*) FileMetaDatagetFileScope},
 
-        { "transformer_TransformerModulegetFiles", (void*) ModulegetFiles },
+        {"transformer_TransformerModulegetFiles",             (void*) ModulegetFiles},
+        {"transformer_TransformerModulegetFileCount",         (void*) ModulegetFileCount},
+        {"transformer_TransformerModulegetFile",              (void*) ModulegetFile},
+        {"transformer_TransformerFileScopegetBody",           (void*) FileScopegetBody},
 };
 
 const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {

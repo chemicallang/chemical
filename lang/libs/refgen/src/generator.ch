@@ -88,25 +88,35 @@ func get_node_name(node : *ASTNode) : std::string_view {
         return (node as *VariantDefinition).getName();
     } else if (kind == ASTNodeKind.UnionDecl) {
         return (node as *UnionDef).getName();
+    } else if (kind == ASTNodeKind.GenericFuncDecl) {
+        return (node as *GenericFuncDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.GenericStructDecl) {
+        return (node as *GenericStructDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.GenericVariantDecl) {
+        return (node as *GenericVariantDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.GenericUnionDecl) {
+        return (node as *GenericUnionDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
+        return (node as *GenericInterfaceDecl).getMasterImpl().getName();
     }
     return std::string_view();
 }
 
 // Get a kind label for documentation
 func get_kind_label(kind : ASTNodeKind) : std::string_view {
-    if (kind == ASTNodeKind.FunctionDecl) {
+    if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
         return std::string_view("function");
-    } else if (kind == ASTNodeKind.StructDecl) {
+    } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.GenericStructDecl) {
         return std::string_view("struct");
-    } else if (kind == ASTNodeKind.InterfaceDecl) {
+    } else if (kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.GenericInterfaceDecl) {
         return std::string_view("interface");
     } else if (kind == ASTNodeKind.NamespaceDecl) {
         return std::string_view("namespace");
     } else if (kind == ASTNodeKind.EnumDecl) {
         return std::string_view("enum");
-    } else if (kind == ASTNodeKind.VariantDecl) {
+    } else if (kind == ASTNodeKind.VariantDecl || kind == ASTNodeKind.GenericVariantDecl) {
         return std::string_view("variant");
-    } else if (kind == ASTNodeKind.UnionDecl) {
+    } else if (kind == ASTNodeKind.UnionDecl || kind == ASTNodeKind.GenericUnionDecl) {
         return std::string_view("union");
     }
     return std::string_view("declaration");
@@ -277,6 +287,37 @@ public struct Generator {
             // but for deep search we could index them too. However, let's stick to functions/types for now.
         } else if (kind == ASTNodeKind.InterfaceDecl) {
             var def = node as *InterfaceDefinition;
+            var funcs = def.getFunctions();
+            if (funcs != null) {
+                for (var i = 0u; i < funcs.size(); i++) {
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                }
+            }
+        } else if (kind == ASTNodeKind.GenericStructDecl) {
+            var gdef = node as *GenericStructDecl;
+            var def = gdef.getMasterImpl();
+            var funcs = def.getFunctions();
+            if (funcs != null) {
+                for (var i = 0u; i < funcs.size(); i++) {
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                }
+            }
+        } else if (kind == ASTNodeKind.GenericVariantDecl) {
+            var gdef = node as *GenericVariantDecl;
+            var def = gdef.getMasterImpl();
+            // Variants might have members that are indexed if we want, but usually we just index methods
+        } else if (kind == ASTNodeKind.GenericUnionDecl) {
+            var gdef = node as *GenericUnionDecl;
+            var def = gdef.getMasterImpl();
+            var funcs = def.getFunctions();
+            if (funcs != null) {
+                for (var i = 0u; i < funcs.size(); i++) {
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                }
+            }
+        } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
+            var gdef = node as *GenericInterfaceDecl;
+            var def = gdef.getMasterImpl();
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
@@ -587,7 +628,20 @@ public struct Generator {
             if (int_kind == IntNTypeKind.ULong) return std::string_view("ulong");
             if (int_kind == IntNTypeKind.LongLong) return std::string_view("longlong");
             if (int_kind == IntNTypeKind.ULongLong) return std::string_view("ulonglong");
+            if (int_kind == IntNTypeKind.Int128) return std::string_view("i128");
+            if (int_kind == IntNTypeKind.UInt128) return std::string_view("u128");
+            if (int_kind == IntNTypeKind.Char) return std::string_view("char");
+            if (int_kind == IntNTypeKind.UChar) return std::string_view("uchar");
+            if (int_kind == IntNTypeKind.Short) return std::string_view("short");
+            if (int_kind == IntNTypeKind.UShort) return std::string_view("ushort");
+            if (int_kind == IntNTypeKind.Int) return std::string_view("int");
+            if (int_kind == IntNTypeKind.UInt) return std::string_view("uint");
+            if (int_kind == IntNTypeKind.I32) return std::string_view("i32");
+            if (int_kind == IntNTypeKind.U32) return std::string_view("u32");
+            if (int_kind == IntNTypeKind.I64) return std::string_view("i64");
+            if (int_kind == IntNTypeKind.U64) return std::string_view("u64");
         }
+        if (kind == BaseTypeKind.Any) return std::string_view("any");
         return std::string_view("unknown");
     }
 
@@ -603,6 +657,45 @@ public struct Generator {
         } else if (kind == BaseTypeKind.Reference) {
             html.append_view("&amp;");
             self.render_type((type as *ReferenceType).getChildType(), html, rel_root);
+        } else if (kind == BaseTypeKind.Generic) {
+            var gen = type as *GenericType;
+            var linked = gen.getLinkedType();
+            if (linked != null) {
+                self.render_type(linked, html, rel_root)
+                html.append_view("&lt;");
+                for (var i = 0u; i < gen.getArgumentCount(); i++) {
+                    if (i > 0) html.append_view(", ");
+                    self.render_type(gen.getArgumentType(i), html, rel_root);
+                }
+                html.append_view("&gt;");
+            }
+        } else if (kind == BaseTypeKind.Array) {
+            var arr = type as *ArrayType;
+            self.render_type(arr.getElementType(), html, rel_root);
+            html.append_view("[");
+            if (arr.getArraySize() > 0) {
+                var s = std::string("");
+                s.append_uinteger(arr.getArraySize() as ubigint);
+                html.append_view(s.to_view());
+            }
+            html.append_view("]");
+        } else if (kind == BaseTypeKind.Dynamic) {
+            html.append_view("dyn ");
+            self.render_type((type as *DynamicType).getChildType(), html, rel_root);
+        } else if (kind == BaseTypeKind.Literal) {
+            self.render_type((type as *LiteralType).getChildType(), html, rel_root);
+        } else if (kind == BaseTypeKind.Function) {
+            var ft = type as *FunctionType;
+            html.append_view("func(");
+            var params = ft.get_params();
+            if (params != null) {
+                for (var i = 0u; i < params.size(); i++) {
+                    if (i > 0) html.append_view(", ");
+                    self.render_type(params.get(i).getType(), html, rel_root);
+                }
+            }
+            html.append_view(") : ");
+            self.render_type(ft.getReturnType(), html, rel_root);
         } else if (kind == BaseTypeKind.Linked) {
             var linked = type as *LinkedType;
             var node = linked.getLinkedNode();
@@ -628,25 +721,6 @@ public struct Generator {
                 }
             } else {
                 html.append_view("unknown");
-            }
-        } else if (kind == BaseTypeKind.Generic) {
-            var gen = type as *GenericType;
-            var linked = gen.getLinkedType();
-            if (linked != null) {
-                var node = linked.getLinkedNode();
-                if (node != null) {
-                    var name = get_node_name(node);
-                    html.append_view(name);
-                }
-            }
-            var arg_count = gen.getArgumentCount();
-            if (arg_count > 0) {
-                html.append_view("&lt;");
-                for (var i = 0u; i < arg_count; i++) {
-                    if (i > 0) html.append_view(", ");
-                    self.render_type(gen.getArgumentType(i), html, rel_root);
-                }
-                html.append_view("&gt;");
             }
         } else {
             html.append_view(self.get_type_name(type));
@@ -678,15 +752,40 @@ public struct Generator {
         // Signature with highlighting
         html.append_view("<div class='signature'>");
         
-        if (kind == ASTNodeKind.FunctionDecl) {
-            var decl = node as *FunctionDeclaration;
+        if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
+            var decl : *FunctionDeclaration = null;
+            var gparams : *mut VecRef<GenericTypeParameter> = null;
+
+            if (kind == ASTNodeKind.FunctionDecl) {
+                decl = node as *FunctionDeclaration;
+            } else {
+                var gdecl = node as *GenericFuncDecl;
+                decl = gdecl.getMasterImpl();
+                gparams = gdecl.getGenericParams();
+            }
+
             var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
             decl.getAttributes(&mut attrs);
-            if (attrs.is_comptime) html.append_view("<span class='tok-kwd'>comptime</span> ");
-            if (attrs.is_extern) html.append_view("<span class='tok-kwd'>extern</span> ");
-            html.append_view("<span class='tok-kwd'>func</span> <span class='tok-fn'>");
+            
+            html.append_view("<span class='tok-kwd'>func</span> ");
             html.append_view(name);
-            html.append_view("</span>(");
+            
+            if (gparams != null) {
+                html.append_view("&lt;");
+                for (var i = 0u; i < gparams.size(); i++) {
+                    if (i > 0) html.append_view(", ");
+                    var gp = gparams.get(i);
+                    html.append_view(gp.getName());
+                    var def_t = gp.getDefaultType();
+                    if (def_t != null) {
+                        html.append_view(" = ");
+                        self.render_type(def_t, html, rel_root);
+                    }
+                }
+                html.append_view("&gt;");
+            }
+            
+            html.append_view("(");
             var params = decl.get_params();
             for (var i = 0u; i < params.size(); i++) {
                 if (i > 0) html.append_view(", ");
@@ -697,18 +796,68 @@ public struct Generator {
             }
             html.append_view(") : ");
             self.render_type(decl.getReturnType(), html, rel_root);
-        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl) {
-            if (kind == ASTNodeKind.StructDecl) html.append_view("<span class='tok-kwd'>struct</span> ");
-            else if (kind == ASTNodeKind.InterfaceDecl) {
-                var it_attrs = zeroed<InterfaceDefinitionAttrsCBI>();
-                (node as *InterfaceDefinition).getAttributes(&mut it_attrs);
-                if (it_attrs.is_static) html.append_view("<span class='tok-kwd'>static</span> ");
+
+            if (decl.isExtensionFn()) {
+                html.append_view(" <span class='extension-tag'>extension</span>");
+            }
+        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl || 
+                   kind == ASTNodeKind.GenericStructDecl || kind == ASTNodeKind.GenericInterfaceDecl || kind == ASTNodeKind.GenericVariantDecl ||
+                   kind == ASTNodeKind.GenericUnionDecl || kind == ASTNodeKind.UnionDecl) {
+            
+            var container : *VariablesContainer = null;
+            var gparams : *mut VecRef<GenericTypeParameter> = null;
+            
+            if (kind == ASTNodeKind.StructDecl) {
+                html.append_view("<span class='tok-kwd'>struct</span> ");
+                container = node as *StructDefinition;
+            } else if (kind == ASTNodeKind.GenericStructDecl) {
+                html.append_view("<span class='tok-kwd'>struct</span> ");
+                var gdecl = node as *GenericStructDecl;
+                container = gdecl.getMasterImpl();
+                gparams = gdecl.getGenericParams();
+            } else if (kind == ASTNodeKind.InterfaceDecl) {
                 html.append_view("<span class='tok-kwd'>interface</span> ");
-            } else if (kind == ASTNodeKind.VariantDecl) html.append_view("<span class='tok-kwd'>variant</span> ");
+                container = node as *InterfaceDefinition;
+            } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
+                html.append_view("<span class='tok-kwd'>interface</span> ");
+                var gdecl = node as *GenericInterfaceDecl;
+                container = gdecl.getMasterImpl();
+                gparams = gdecl.getGenericParams();
+            } else if (kind == ASTNodeKind.VariantDecl) {
+                html.append_view("<span class='tok-kwd'>variant</span> ");
+                container = node as *VariantDefinition;
+            } else if (kind == ASTNodeKind.GenericVariantDecl) {
+                html.append_view("<span class='tok-kwd'>variant</span> ");
+                var gdecl = node as *GenericVariantDecl;
+                container = gdecl.getMasterImpl();
+                gparams = gdecl.getGenericParams();
+            } else if (kind == ASTNodeKind.UnionDecl) {
+                html.append_view("<span class='tok-kwd'>union</span> ");
+                container = node as *UnionDef;
+            } else if (kind == ASTNodeKind.GenericUnionDecl) {
+                html.append_view("<span class='tok-kwd'>union</span> ");
+                var gdecl = node as *GenericUnionDecl;
+                container = gdecl.getMasterImpl();
+                gparams = gdecl.getGenericParams();
+            }
             
             html.append_view(name);
             
-            var container = node as *VariablesContainer;
+            if (gparams != null) {
+                html.append_view("&lt;");
+                for (var i = 0u; i < gparams.size(); i++) {
+                    if (i > 0) html.append_view(", ");
+                    var gp = gparams.get(i);
+                    html.append_view(gp.getName());
+                    var def_t = gp.getDefaultType();
+                    if (def_t != null) {
+                        html.append_view(" = ");
+                        self.render_type(def_t, html, rel_root);
+                    }
+                }
+                html.append_view("&gt;");
+            }
+            
             var inherited_count = container.getInheritedCount();
             if (inherited_count > 0) {
                 html.append_view(" : ");
@@ -1021,7 +1170,9 @@ public struct Generator {
             
             a { color: var(--accent); text-decoration: none; transition: all 0.2s; }
             a:hover { filter: brightness(1.2); }
-            
+            .extension-tag { 
+                background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; font-weight: 800; vertical-align: middle; margin-left: 8px;
+            }
             .nav-list { list-style: none; padding: 0; margin: 0; }
             .nav-list li { margin-bottom: 0.85rem; }
             .nav-list a { color: var(--text); font-weight: 500; font-size: 0.95rem; display: block; padding: 4px 0; }

@@ -279,6 +279,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ReferenceTypegetChildType", (void*) ReferenceTypegetChildType },
         { "compiler_TypealiasStatementgetActualType", (void*) TypealiasStatementgetActualType },
         { "compiler_FunctionTypeget_params", (void*) FunctionTypeget_params },
+        { "compiler_FunctionTypegetReturnType", (void*) FunctionTypegetReturnType },
         { "compiler_AccessChainget_values", (void*) AccessChainget_values },
         { "compiler_AccessChainas_value", (void*) AccessChainas_value },
         { "compiler_ArrayValueget_values", (void*) ArrayValueget_values },
@@ -353,6 +354,20 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_TypealiasStatementgetName", (void*) TypealiasStatementgetName },
         { "compiler_VariablesContainergetInheritedCount", (void*) VariablesContainergetInheritedCount },
         { "compiler_VariablesContainergetInheritedType", (void*) VariablesContainergetInheritedType },
+
+        { "compiler_BaseGenericDeclgetGenericParams", (void*) BaseGenericDeclgetGenericParams },
+        { "compiler_GenericStructDeclgetMasterImpl", (void*) GenericStructDeclgetMasterImpl },
+        { "compiler_GenericFuncDeclgetMasterImpl", (void*) GenericFuncDeclgetMasterImpl },
+        { "compiler_GenericVariantDeclgetMasterImpl", (void*) GenericVariantDeclgetMasterImpl },
+        { "compiler_GenericUnionDeclgetMasterImpl", (void*) GenericUnionDeclgetMasterImpl },
+        { "compiler_GenericInterfaceDeclgetMasterImpl", (void*) GenericInterfaceDeclgetMasterImpl },
+        { "compiler_GenericTypeParametergetName", (void*) GenericTypeParametergetName },
+        { "compiler_GenericTypeParametergetDefaultType", (void*) GenericTypeParametergetDefaultType },
+        { "compiler_FunctionDeclarationisExtensionFn", (void*) FunctionDeclarationisExtensionFn },
+        { "compiler_ArrayTypegetElementType", (void*) ArrayTypegetElementType },
+        { "compiler_ArrayTypegetArraySize", (void*) ArrayTypegetArraySize },
+        { "compiler_DynamicTypegetChildType", (void*) DynamicTypegetChildType },
+        { "compiler_LiteralTypegetChildType", (void*) LiteralTypegetChildType },
 };
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {

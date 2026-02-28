@@ -3530,16 +3530,21 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         }
     }
 
+    // allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
+
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
     // do the actual job
     const auto result = do_job(&transformer_job);
     if(result != 0) {
         return result;
     }
-
-    // allocators
-    auto& _job_allocator = *job_allocator;
-    auto& _mod_allocator = *mod_allocator;
-    auto& _file_allocator = *file_allocator;
 
     // clear everything, since now cbi has been built
     mod_storage.clear();
@@ -3548,6 +3553,8 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     _job_allocator.clear();
     _mod_allocator.clear();
     _file_allocator.clear();
+    // clear the exists cache
+    context.existance_cache.clear();
 
     // check other transformer contains at least a single module
     if(transformer_job.dependencies.empty()) {

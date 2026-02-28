@@ -283,10 +283,36 @@ public struct Generator {
                     self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
                 }
             }
-            // Members usually don't need top-level indexing for search unless they are special,
-            // but for deep search we could index them too. However, let's stick to functions/types for now.
+            var members = def.getMembers();
+            if (members != null) {
+                for (var i = 0u; i < members.size(); i++) {
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                }
+            }
         } else if (kind == ASTNodeKind.InterfaceDecl) {
             var def = node as *InterfaceDefinition;
+            var funcs = def.getFunctions();
+            if (funcs != null) {
+                for (var i = 0u; i < funcs.size(); i++) {
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                }
+            }
+        } else if (kind == ASTNodeKind.VariantDecl) {
+            var def = node as *VariantDefinition;
+            var members = def.getMembers();
+            if (members != null) {
+                for (var i = 0u; i < members.size(); i++) {
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                }
+            }
+        } else if (kind == ASTNodeKind.UnionDecl) {
+            var def = node as *UnionDef;
+            var members = def.getMembers();
+            if (members != null) {
+                for (var i = 0u; i < members.size(); i++) {
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                }
+            }
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
@@ -296,32 +322,57 @@ public struct Generator {
         } else if (kind == ASTNodeKind.GenericStructDecl) {
             var gdef = node as *GenericStructDecl;
             var def = gdef.getMasterImpl();
-            var funcs = def.getFunctions();
-            if (funcs != null) {
-                for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+            if (def != null) {
+                var funcs = def.getFunctions();
+                if (funcs != null) {
+                    for (var i = 0u; i < funcs.size(); i++) {
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    }
+                }
+                var members = def.getMembers();
+                if (members != null) {
+                    for (var i = 0u; i < members.size(); i++) {
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    }
                 }
             }
         } else if (kind == ASTNodeKind.GenericVariantDecl) {
             var gdef = node as *GenericVariantDecl;
             var def = gdef.getMasterImpl();
-            // Variants might have members that are indexed if we want, but usually we just index methods
+            if (def != null) {
+                var members = def.getMembers();
+                if (members != null) {
+                    for (var i = 0u; i < members.size(); i++) {
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    }
+                }
+            }
         } else if (kind == ASTNodeKind.GenericUnionDecl) {
             var gdef = node as *GenericUnionDecl;
             var def = gdef.getMasterImpl();
-            var funcs = def.getFunctions();
-            if (funcs != null) {
-                for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+            if (def != null) {
+                var funcs = def.getFunctions();
+                if (funcs != null) {
+                    for (var i = 0u; i < funcs.size(); i++) {
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    }
+                }
+                var members = def.getMembers();
+                if (members != null) {
+                    for (var i = 0u; i < members.size(); i++) {
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    }
                 }
             }
         } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
             var gdef = node as *GenericInterfaceDecl;
             var def = gdef.getMasterImpl();
-            var funcs = def.getFunctions();
-            if (funcs != null) {
-                for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+            if (def != null) {
+                var funcs = def.getFunctions();
+                if (funcs != null) {
+                    for (var i = 0u; i < funcs.size(); i++) {
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    }
                 }
             }
         }
@@ -401,6 +452,7 @@ public struct Generator {
             var sym = self.index.get_ptr(i);
             if (sym.mod_name.to_view().equals(mod_name) && sym.parent_name.empty()) {
                 html.append_view("<div class='top-level-sym'>");
+                html.append_view("<div class='sym-header'>");
                 html.append_view("<a href='./");
                 var f_id = std::string("");
                 f_id.append_uinteger(sym.file_id as ubigint);
@@ -412,30 +464,42 @@ public struct Generator {
                 html.append_view("</b></a> <small>(");
                 html.append_view(get_kind_label(sym.kind));
                 html.append_view(")</small>");
-
-                // Pass 2: Children of this symbol
+                
                 var has_children = false;
                 for (var j = 0u; j < self.index.size(); j++) {
                     var child = self.index.get_ptr(j);
                     if (child.mod_name.to_view().equals(mod_name) && child.parent_name.to_view().equals(sym.name.to_view())) {
-                        if (!has_children) {
-                            html.append_view("<ul class='nav-list' style='margin-left: 1.5rem; margin-top: 0.5rem; border-left: 1px solid var(--border); padding-left: 1rem;'>");
-                            has_children = true;
-                        }
-                        html.append_view("<li><a href='./");
-                        var cf_id = std::string("");
-                        cf_id.append_uinteger(child.file_id as ubigint);
-                        html.append_view(cf_id.to_view());
-                        html.append_view(".html#");
-                        html.append_view(child.name.to_view());
-                        html.append_view("'>");
-                        html.append_view(child.name.to_view());
-                        html.append_view("</a> <small>(");
-                        html.append_view(get_kind_label(child.kind));
-                        html.append_view(")</small></li>");
+                        has_children = true;
+                        break;
                     }
                 }
-                if (has_children) html.append_view("</ul>");
+                
+                if (has_children) {
+                    html.append_view("<button class='collapse-btn' onclick='toggleCollapse(this)'>&#9654;</button>");
+                }
+                html.append_view("</div>");
+
+                if (has_children) {
+                    html.append_view("<div class='collapsible-content' style='display:none;'>");
+                    html.append_view("<ul class='nav-list' style='margin-left: 1.5rem; margin-top: 0.5rem; border-left: 1px solid var(--border); padding-left: 1rem;'>");
+                    for (var j = 0u; j < self.index.size(); j++) {
+                        var child = self.index.get_ptr(j);
+                        if (child.mod_name.to_view().equals(mod_name) && child.parent_name.to_view().equals(sym.name.to_view())) {
+                            html.append_view("<li><a href='./");
+                            var cf_id = std::string("");
+                            cf_id.append_uinteger(child.file_id as ubigint);
+                            html.append_view(cf_id.to_view());
+                            html.append_view(".html#");
+                            html.append_view(child.name.to_view());
+                            html.append_view("'>");
+                            html.append_view(child.name.to_view());
+                            html.append_view("</a> <small>(");
+                            html.append_view(get_kind_label(child.kind));
+                            html.append_view(")</small></li>");
+                        }
+                    }
+                    html.append_view("</ul></div>");
+                }
                 html.append_view("</div><hr style='border: 0; border-top: 1px solid var(--border); margin: 1rem 0;'>");
             }
         }
@@ -932,16 +996,55 @@ public struct Generator {
                 }
                 html.append_view("</div>");
             }
-        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl || kind == ASTNodeKind.UnionDecl) {
-            var funcs : *mut VecRef<ASTNode> = null;
-            if (kind == ASTNodeKind.StructDecl) funcs = (node as *StructDefinition).getFunctions();
-            else if (kind == ASTNodeKind.InterfaceDecl) funcs = (node as *InterfaceDefinition).getFunctions();
-            else if (kind == ASTNodeKind.UnionDecl) funcs = (node as *UnionDef).getFunctions();
+        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl || kind == ASTNodeKind.UnionDecl ||
+                   kind == ASTNodeKind.GenericStructDecl || kind == ASTNodeKind.GenericInterfaceDecl || kind == ASTNodeKind.GenericVariantDecl || kind == ASTNodeKind.GenericUnionDecl) {
             
-            if (funcs != null && funcs.size() > 0) {
+            var funcs : *mut VecRef<ASTNode> = null;
+            var members : *mut VecRef<BaseDefMember> = null;
+            
+            if (kind == ASTNodeKind.StructDecl) {
+                var def = node as *StructDefinition;
+                funcs = def.getFunctions();
+                members = def.getMembers();
+            } else if (kind == ASTNodeKind.InterfaceDecl) {
+                funcs = (node as *InterfaceDefinition).getFunctions();
+            } else if (kind == ASTNodeKind.VariantDecl) {
+                members = (node as *VariantDefinition).getMembers();
+            } else if (kind == ASTNodeKind.UnionDecl) {
+                var def = node as *UnionDef;
+                funcs = def.getFunctions();
+                members = def.getMembers();
+            } else if (kind == ASTNodeKind.GenericStructDecl) {
+                var def = (node as *GenericStructDecl).getMasterImpl();
+                if (def != null) {
+                    funcs = def.getFunctions();
+                    members = def.getMembers();
+                }
+            } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
+                var def = (node as *GenericInterfaceDecl).getMasterImpl();
+                if (def != null) funcs = def.getFunctions();
+            } else if (kind == ASTNodeKind.GenericVariantDecl) {
+                var def = (node as *GenericVariantDecl).getMasterImpl();
+                if (def != null) members = def.getMembers();
+            } else if (kind == ASTNodeKind.GenericUnionDecl) {
+                var def = (node as *GenericUnionDecl).getMasterImpl();
+                if (def != null) {
+                    funcs = def.getFunctions();
+                    members = def.getMembers();
+                }
+            }
+            
+            if ((funcs != null && funcs.size() > 0) || (members != null && members.size() > 0)) {
                 html.append_view("<div class='nested-container'>");
-                for (var i = 0u; i < funcs.size(); i++) {
-                    self.document_node(funcs.get(i), html, tokens, rel_root);
+                if (members != null) {
+                    for (var i = 0u; i < members.size(); i++) {
+                        self.document_node(members.get(i), html, tokens, rel_root);
+                    }
+                }
+                if (funcs != null) {
+                    for (var i = 0u; i < funcs.size(); i++) {
+                        self.document_node(funcs.get(i), html, tokens, rel_root);
+                    }
                 }
                 html.append_view("</div>");
             }
@@ -1046,6 +1149,17 @@ public struct Generator {
                 results.style.display = 'block';
             }
             
+            function toggleCollapse(btn) {
+                const content = btn.parentElement.nextElementSibling;
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    btn.classList.add('expanded');
+                } else {
+                    content.style.display = 'none';
+                    btn.classList.remove('expanded');
+                }
+            }
+
             // Close search on outside click
             document.addEventListener('click', (e) => {
                 const box = document.querySelector('.search-box');
@@ -1209,6 +1323,14 @@ public struct Generator {
             .module-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--accent); }
             .module-card a { font-size: 1.5rem; font-weight: 800; color: var(--text); }
             .hero-text { font-size: 1.25rem; color: var(--text-muted); margin-bottom: 3rem; }
+            
+            .sym-header { display: flex; justify-content: space-between; align-items: center; }
+            .collapse-btn { 
+                background: none; border: none; font-size: 0.8rem; cursor: pointer; color: var(--text-muted);
+                transition: transform var(--transition); padding: 4px 8px;
+            }
+            .collapse-btn.expanded { transform: rotate(90deg); color: var(--accent); }
+            .collapsible-content { padding-bottom: 0.5rem; }
         """;
     }
 }

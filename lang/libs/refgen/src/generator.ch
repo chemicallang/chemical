@@ -97,13 +97,24 @@ public struct Generator {
     var ctx : *TransformerContext
 
     public func generate(&mut self, module : *TransformerModule) {
-        fs::mkdir(self.output_dir.data());
+        var res = fs::create_dir_all(self.output_dir.data());
+        if (res is std::Result.Err) {
+            var Err(e) = res else unreachable;
+            printf("Error creating output directory %s: %s\n", self.output_dir.data(), e.message().data());
+            return;
+        }
 
         var mod_name = module.getName();
         var mod_dir = self.output_dir.copy();
         mod_dir.append_view("/");
         mod_dir.append_view(mod_name);
-        fs::mkdir(mod_dir.data());
+        
+        res = fs::create_dir_all(mod_dir.data());
+        if (res is std::Result.Err) {
+            var Err(e) = res else unreachable;
+            printf("Error creating module directory %s: %s\n", mod_dir.data(), e.message().data());
+            return;
+        }
 
         var files = module.getFiles();
         if (files == null) return;
@@ -157,11 +168,11 @@ public struct Generator {
         out_file.append_view(file_id_str.to_view());
         out_file.append_view(".html");
 
-        var res = fs::write_text_file(out_file.data(), html.data() as *u8, html.size())
-        if(res is std.Result.Err) {
-            printf("couldn't write the file %s\n", out_file.data());
+        var write_res = fs::write_text_file(out_file.data(), html.data() as *u8, html.size());
+        if (write_res is std::Result.Err) {
+            var Err(e) = write_res else unreachable;
+            printf("Error writing documentation file %s: %s\n", out_file.data(), e.message().data());
         }
-
     }
 
     func document_node(&mut self, node : *ASTNode, html : &mut std::string, tokens : *mut VecRef<Token>) {

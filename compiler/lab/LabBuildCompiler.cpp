@@ -3423,9 +3423,6 @@ int LabBuildCompiler::local_or_remote_project_to_module(
 
     } else {
 
-        // mkdir the build directory
-        create_dir(options->build_dir);
-
         // get chemical.mod/build.lab file into a tcc state
         const auto state = built_lab_file(context, target, is_mod_transformer);
         if(!state) {
@@ -3434,16 +3431,6 @@ int LabBuildCompiler::local_or_remote_project_to_module(
 
         // automatic destroy
         TCCDeletor auto_del(state);
-
-        // allocators
-        auto& _job_allocator = *job_allocator;
-        auto& _mod_allocator = *mod_allocator;
-        auto& _file_allocator = *file_allocator;
-
-        // clear everything from allocators before proceeding
-        _job_allocator.clear();
-        _mod_allocator.clear();
-        _file_allocator.clear();
 
         // get the build method
         auto build = (LabModule*(*)(LabBuildContext*, LabJob*)) tcc_get_symbol(state, "chemical_lab_build");
@@ -3502,7 +3489,6 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         is_native = true;
     }
 
-    int transformer_to_mod_status = 0;
     if(is_native) {
         auto native_path = path_handler.resolve_native_lib(chem::string_view(transformer));
         if(native_path.empty()) {
@@ -3523,18 +3509,45 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
             }
         }
 
-        transformer_to_mod_status = build_module_build_file(context, build_file_path, &transformer_job, is_mod_file_source, false);
+        const auto status = local_or_remote_project_to_module(&transformer_job, build_file_path, cache_dir, context);
+        if(status != 0) return status;
 
     } else {
 
         // compile transformer job to a module
-        transformer_to_mod_status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+        const auto status = local_or_remote_project_to_module(&transformer_job, transformer, cache_dir, context);
+        if(status != 0) return status;
 
     }
 
-    if(transformer_to_mod_status != 0) {
-        return transformer_to_mod_status;
+    // first lets execute any cbi jobs, present before, except the final job (done explicitly)
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI && job.get() != &transformer_job) {
+            const auto job_result = do_job(job.get());
+            if(job_result != 0) {
+                return job_result;
+            }
+        }
     }
+
+    // do the actual job
+    const auto result = do_job(&transformer_job);
+    if(result != 0) {
+        return result;
+    }
+
+    // allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
+
+    // clear everything, since now cbi has been built
+    mod_storage.clear();
+    buildLabDependenciesCache.clear();
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
 
     // check other transformer contains at least a single module
     if(transformer_job.dependencies.empty()) {
@@ -3562,37 +3575,6 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
         return 1;
     }
 
-    // allocators
-    auto& _job_allocator = *job_allocator;
-    auto& _mod_allocator = *mod_allocator;
-    auto& _file_allocator = *file_allocator;
-
-    // lets compile any cbi jobs user may have specified
-    for(auto& job : context.executables) {
-        if(job->type == LabJobType::CBI) {
-            const auto job_result = do_job(job.get());
-            if(job_result != 0) {
-                return job_result;
-            }
-        }
-    }
-
-    // do the job, which means functions have been loaded into compiler binder
-    const auto job_result = do_job(&transformer_job);
-
-    // clearing all allocations done in all the allocators
-    _job_allocator.clear();
-    _mod_allocator.clear();
-    _file_allocator.clear();
-
-    if(job_result != 0) {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't compile transformer, status code " << job_result << std::endl;
-        return job_result;
-    }
-
-    // flatten the modules of other job, which is going to be processed by transformer
-    auto outMods = flatten_dedupe_sorted(other_job.dependencies);
-
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(other_job.mode, other_job.target_data, nullptr, this, *job_allocator, type_builder, loc_man);
 
@@ -3604,6 +3586,9 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // creating a ast processor is required
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+
+    // flatten the modules of other job, which is going to be processed by transformer
+    auto outMods = flatten_dedupe_sorted(other_job.dependencies);
 
     // the transformer context is passed
     TransformerContext transformer_context(&other_job, this, &processor, std::move(outMods));

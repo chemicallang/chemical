@@ -3594,8 +3594,20 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     // creating a ast processor is required
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
 
+    // create or rebind the global container (comptime functions like intrinsics namespace)
+    create_or_rebind_container(this, global, resolver, other_job.target_data);
+
     // flatten the modules of other job, which is going to be processed by transformer
     auto outMods = flatten_dedupe_sorted(other_job.dependencies);
+
+    // figuring out direct files in each module
+    // for each module, let's determine its files and whether it has changed
+    for(const auto mod : outMods) {
+
+        // determining module's direct files
+        processor.determine_module_files(mod);
+
+    }
 
     // the transformer context is passed
     TransformerContext transformer_context(&other_job, this, &processor, std::move(outMods));

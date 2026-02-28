@@ -48,12 +48,12 @@ std::vector<LabModule*>* TransformerContextgetFlattenedModules(TransformerContex
     return &self->flattened_mods;
 }
 
-std::vector<Token>* TransformerContextgetFileTokens(TransformerContext* self, unsigned int fileId) {
+void TransformerContextgetFileTokens(FileTokensSpanCBI* out, TransformerContext* self, unsigned int fileId) {
     auto it = self->file_tokens.find(fileId);
     if (it != self->file_tokens.end()) {
-        return &it->second;
+        *out = { it->second.data(), it->second.size() };
     } else {
-        return nullptr;
+        *out = { nullptr, 0 };
     }
 }
 
@@ -66,8 +66,8 @@ void TransformerContextdecodeLocation(LocationDataCBI* out, TransformerContext* 
     out->charEnd = data.charEnd;
 }
 
-std::vector<ASTFileMetaData>* ModulegetFiles(LabModule* self) {
-    return &self->direct_files;
+void ModulegetFiles(ASTFileMetaDataSpanCBI* out, LabModule* self) {
+    *out = ASTFileMetaDataSpanCBI { self->direct_files.data(), self->direct_files.size() };
 }
 
 unsigned int FileMetaDatagetFileId(ASTFileMetaData* self) {

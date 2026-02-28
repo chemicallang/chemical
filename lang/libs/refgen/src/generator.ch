@@ -4,8 +4,7 @@ public namespace refgen {
 // Find the comment token immediately preceding a given line number using binary search.
 // We search the tokens vector for the last SingleLineComment or MultiLineComment
 // whose position.line is just before node_line.
-func find_comment_before(tokens : *mut VecRef<Token>, node_line : uint) : std::string_view {
-    if (tokens == null) return std::string_view("", 0);
+func find_comment_before(tokens : std::span<Token>, node_line : uint) : std::string_view {
     var size = tokens.size();
     if (size == 0) return std::string_view("", 0);
     
@@ -14,7 +13,7 @@ func find_comment_before(tokens : *mut VecRef<Token>, node_line : uint) : std::s
     var best_idx : uint = size; // invalid
     var i = 0u;
     while (i < size) {
-        var tok = tokens.get(i);
+        var tok = tokens.data() + i;
         if (tok.position.line >= node_line) {
             break;
         }
@@ -117,25 +116,34 @@ public struct Generator {
         }
 
         var files = module.getFiles();
-        if (files == null) return;
-
-        var i = 0u;
-        while (i < files.size()) {
-            var file_meta = files.get(i);
-            self.generate_file_docs(file_meta, mod_dir);
-            i++;
+        var start = files.data()
+        const end = start + files.size()
+        while (start != end) {
+            self.generate_file_docs(start, mod_dir.to_view());
+            start++
         }
     }
 
-    func generate_file_docs(&mut self, file_meta : *ASTFileMetaData, mod_dir : std::string) {
+    func generate_file_docs(&mut self, file_meta : *ASTFileMetaData, mod_dir : std::string_view) {
         var file_scope = file_meta.getFileScope();
-        if (file_scope == null) return;
+        if (file_scope == null) {
+            printf("  [Warning] File scope is null for %s\n", file_meta.getAbsPath().data());
+            return;
+        }
 
         var scope = file_scope.getBody();
-        if (scope == null) return;
+        if (scope == null) {
+            printf("  [Warning] Scope body is null for %s\n", file_meta.getAbsPath().data());
+            return;
+        }
 
         var nodes = scope.getNodes();
-        if (nodes == null) return;
+        if (nodes == null) {
+            printf("  [Warning] Nodes are null for %s\n", file_meta.getAbsPath().data());
+            return;
+        }
+
+        printf("  Generating docs for %s (%uint nodes)\n", file_meta.getAbsPath().data(), nodes.size());
 
         // Get tokens for this file to look up comments
         var file_id = file_meta.getFileId();
@@ -160,7 +168,8 @@ public struct Generator {
 
         html.append_view("</div></body></html>");
 
-        var out_file = mod_dir.copy();
+        var out_file = std::string();
+        out_file.append_view(mod_dir);
         out_file.append_view("/");
         // Use file id as filename
         var file_id_str = std::string("");
@@ -175,7 +184,7 @@ public struct Generator {
         }
     }
 
-    func document_node(&mut self, node : *ASTNode, html : &mut std::string, tokens : *mut VecRef<Token>) {
+    func document_node(&mut self, node : *ASTNode, html : &mut std::string, tokens : std::span<Token>) {
         var name = get_node_name(node);
         if (name.size() == 0) return;
 

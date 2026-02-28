@@ -71,6 +71,10 @@ public namespace std {
             return internal_view_find(self, needle);
         }
 
+        func find_last(&self, needle : &std::string_view) : size_t {
+            return internal_view_find_last(self, needle);
+        }
+
         func contains(&self, needle : &std::string_view) : bool {
             return find(needle) != NPOS
         }

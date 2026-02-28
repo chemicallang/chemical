@@ -78,4 +78,44 @@ func internal_view_find(me : &std::string_view, needle : &std::string_view) : si
     return NPOS;
 }
 
+func internal_view_find_last(me : &std::string_view, needle : &std::string_view) : size_t {
+    const hay = me.data();
+    const hay_len = me.size();
+    const nd = needle.data();
+    const nlen = needle.size();
+
+    // Edge cases
+    if (nlen == 0) {
+        return hay_len; // Standard behavior: empty string is found at the very end
+    }
+    if (nlen > hay_len) {
+        return NPOS;
+    }
+
+    // Start at the furthest possible valid index
+    var i : int = (hay_len - nlen) as int;
+
+    while (i >= 0) {
+        var match = true;
+        var j : size_t = 0;
+
+        // Check for substring match
+        while (j < nlen) {
+            if (hay[i as size_t + j] != nd[j]) {
+                match = false;
+                break;
+            }
+            j = j + 1;
+        }
+
+        if (match) {
+            return i as size_t;
+        }
+
+        i = i - 1;
+    }
+
+    return NPOS;
+}
+
 }

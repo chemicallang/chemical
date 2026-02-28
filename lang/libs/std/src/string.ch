@@ -629,6 +629,10 @@ public struct string : Hashable, Eq {
         return internal_view_find(std::string_view(data(), size()), needle);
     }
 
+    func find_last(&self, needle : &std::string_view) : size_t {
+        return internal_view_find_last(std::string_view(data(), size()), needle);
+    }
+
     func contains(&self, needle : &std::string_view) : bool {
         return find(needle) != NPOS
     }

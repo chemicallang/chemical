@@ -939,11 +939,11 @@ BaseType* GenericTypegetArgumentType(GenericType* type, std::size_t index) {
 uint64_t GenericTypegetArgumentLocation(GenericType* type, std::size_t index) {
     return type->types[index].encoded_location().encoded;
 }
+
 std::size_t VariablesContainergetInheritedCount(VariablesContainer* container) {
     return container->inherited.size();
 }
 
-void VariablesContainergetInheritedName(chem::string_view* out, VariablesContainer* container, std::size_t index) {
-    *out = container->inherited[index].ref_type_name();
+BaseType* VariablesContainergetInheritedType(VariablesContainer* container, std::size_t index) {
+    return (BaseType*) container->inherited[index].type.getType();
 }
-

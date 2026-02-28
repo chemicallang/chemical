@@ -816,6 +816,6 @@ public comptime func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
 }
 public struct VariablesContainer : ASTNode {
     func getInheritedCount(&self) : size_t
-    func getInheritedName(&self, index : size_t) : std::string_view
+    func getInheritedType(&self, index : size_t) : *mut BaseType
 }
 

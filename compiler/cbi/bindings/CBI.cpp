@@ -352,7 +352,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTNodegetAccessSpecifier", (void*) ASTNodegetAccessSpecifier },
         { "compiler_TypealiasStatementgetName", (void*) TypealiasStatementgetName },
         { "compiler_VariablesContainergetInheritedCount", (void*) VariablesContainergetInheritedCount },
-        { "compiler_VariablesContainergetInheritedName", (void*) VariablesContainergetInheritedName },
+        { "compiler_VariablesContainergetInheritedType", (void*) VariablesContainergetInheritedType },
 };
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {

@@ -215,6 +215,6 @@ extern "C" {
 
     std::size_t VariablesContainergetInheritedCount(VariablesContainer* container);
 
-    void VariablesContainergetInheritedName(chem::string_view* out, VariablesContainer* container, std::size_t index);
+    BaseType* VariablesContainergetInheritedType(VariablesContainer* container, std::size_t index);
 
 }

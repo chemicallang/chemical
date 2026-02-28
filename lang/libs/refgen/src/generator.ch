@@ -484,7 +484,7 @@ public struct Generator {
 
         var file_id = file_meta.getFileId();
         var tokens = self.ctx.getFileTokens(file_id);
-        var rel_root = get_relative_root(2);
+        var rel_root = get_relative_root(1);
         var abs_path = file_meta.getAbsPath();
 
         // Extract filename from abs_path
@@ -714,7 +714,7 @@ public struct Generator {
                 html.append_view(" : ");
                 for (var i = 0u; i < inherited_count; i++) {
                     if (i > 0) html.append_view(", ");
-                    html.append_view(container.getInheritedName(i));
+                    self.render_type(container.getInheritedType(i), html, rel_root);
                 }
             }
         } else if (kind == ASTNodeKind.EnumDecl) {

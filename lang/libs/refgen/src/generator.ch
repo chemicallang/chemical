@@ -28,7 +28,7 @@ func find_comment_before(tokens : std::span<Token>, node_line : uint) : std::str
     var idx = best_idx;
     var comment_start = size; // invalid sentinel
     while (true) {
-        var tok = tokens.get(idx);
+        var tok = tokens.data() + idx;
         var tok_type = tok.type;
         // SingleLineComment = 140 (enum ordinal), MultiLineComment = 143
         if (tok_type == ChemicalTokenType.SingleLineComment as int || tok_type == ChemicalTokenType.MultiLineComment as int) {
@@ -43,7 +43,7 @@ func find_comment_before(tokens : std::span<Token>, node_line : uint) : std::str
         }
     }
     
-    if (comment_start == size) return std::string_view("", 0);
+    if (comment_start >= size) return std::string_view("", 0);
     
     // Return the value of the first comment token found (closest to the node)
     var comment_tok = tokens.get(comment_start);
@@ -68,27 +68,27 @@ func get_node_name(node : *ASTNode) : std::string_view {
     } else if (kind == ASTNodeKind.UnionDecl) {
         return (node as *UnionDef).getName();
     }
-    return std::string_view("unknown");
+    return std::string_view();
 }
 
 // Get a kind label for documentation
 func get_kind_label(kind : ASTNodeKind) : std::string_view {
     if (kind == ASTNodeKind.FunctionDecl) {
-        return "function";
+        return std::string_view("function");
     } else if (kind == ASTNodeKind.StructDecl) {
-        return "struct";
+        return std::string_view("struct");
     } else if (kind == ASTNodeKind.InterfaceDecl) {
-        return "interface";
+        return std::string_view("interface");
     } else if (kind == ASTNodeKind.NamespaceDecl) {
-        return "namespace";
+        return std::string_view("namespace");
     } else if (kind == ASTNodeKind.EnumDecl) {
-        return "enum";
+        return std::string_view("enum");
     } else if (kind == ASTNodeKind.VariantDecl) {
-        return "variant";
+        return std::string_view("variant");
     } else if (kind == ASTNodeKind.UnionDecl) {
-        return "union";
+        return std::string_view("union");
     }
-    return "declaration";
+    return std::string_view("declaration");
 }
 
 public struct Generator {

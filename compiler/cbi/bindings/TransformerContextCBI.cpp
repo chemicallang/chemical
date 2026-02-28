@@ -78,6 +78,14 @@ ASTFileMetaData* ModulegetFile(LabModule* self, unsigned int index) {
     return &self->direct_files[index];
 }
 
+unsigned int ModulegetDependencyCount(LabModule* self) {
+    return (unsigned int)self->dependencies.size();
+}
+
+LabModule* ModulegetDependency(LabModule* self, unsigned int index) {
+    return self->dependencies[index].module;
+}
+
 unsigned int FileMetaDatagetFileId(ASTFileMetaData* self) {
     return self->file_id;
 }

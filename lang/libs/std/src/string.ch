@@ -637,6 +637,19 @@ public struct string : Hashable, Eq {
         return find(needle) != NPOS
     }
 
+    func starts_with(&self, other : &std::string_view) : bool {
+        if (other.size() > size()) return false;
+        return memcmp(data(), other.data(), other.size()) == 0;
+    }
+
+    func trim(&self) : std::string_view {
+        return to_view().trim();
+    }
+
+    func split(&self, delim : char) : std::vector<std::string_view> {
+        return to_view().split(delim);
+    }
+
     func ends_with(&self, other : &std::string_view) : bool {
         // If other_data is longer than data, data cannot end with other_data.
         if (other.size() > size()) return false;

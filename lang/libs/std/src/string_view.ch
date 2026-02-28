@@ -91,6 +91,39 @@ public namespace std {
             return memcmp(data() + size() - other.size(), other.data(), other.size()) == 0;
         }
 
+        func starts_with(&self, other : &std::string_view) : bool {
+            if (other.size() > size()) return false;
+            return memcmp(data(), other.data(), other.size()) == 0;
+        }
+
+        func trim(&self) : std::string_view {
+            var s = 0u;
+            while (s < _size && (get(s) == ' ' || get(s) == '\t' || get(s) == '\n' || get(s) == '\r')) s++;
+            if (s == _size) return std::string_view("", 0);
+            var e = _size - 1;
+            while (e > s && (get(e) == ' ' || get(e) == '\t' || get(e) == '\n' || get(e) == '\r')) e--;
+            return subview(s, e + 1);
+        }
+
+        func split(&self, delim : char) : std::vector<std::string_view> {
+            var res = std::vector<std::string_view>();
+            var start = 0u;
+            for (var i = 0u; i < _size; i++) {
+                if (get(i) == delim) {
+                    res.push(subview(start, i));
+                    start = i + 1;
+                }
+            }
+            if (start <= _size) {
+                res.push(subview(start, _size));
+            }
+            return res;
+        }
+
+        func to_string(&self) : std::string {
+            return std::string::view_make(self);
+        }
+
         @override
         func hash(&self) : uint {
             return fnv1_hash_view(self) as uint

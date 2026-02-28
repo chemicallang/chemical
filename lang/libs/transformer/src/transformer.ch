@@ -10,6 +10,8 @@ public interface TransformerModule : Module {
     func getFiles(&self) : std::span<ASTFileMetaData>
     func getFileCount(&self) : uint
     func getFile(&self, index : uint) : *mut ASTFileMetaData
+    func getDependencyCount(&self) : uint
+    func getDependency(&self, index : uint) : *mut TransformerModule
 }
 
 @compiler.interface

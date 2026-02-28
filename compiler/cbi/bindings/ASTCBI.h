@@ -178,6 +178,8 @@ extern "C" {
 
     std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def);
 
+    std::vector<ASTNode*>* VariantDefinitiongetFunctions(VariantDefinition* def);
+
     std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def);
 
     std::vector<EnumMember*>* EnumDeclarationgetMembers(EnumDeclaration* decl);

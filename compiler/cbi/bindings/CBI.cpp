@@ -313,6 +313,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_UnionDefinitionadd_member", (void*) UnionDefinitionadd_member },
         { "compiler_UnionDefinitionadd_function", (void*) UnionDefinitionadd_function },
         { "compiler_VariantDefinitionadd_member", (void*) VariantDefinitionadd_member },
+        { "compiler_VariantDefinitiongetFunctions", (void*) VariantDefinitiongetFunctions },
         { "compiler_VariantMemberadd_param", (void*) VariantMemberadd_param },
         { "compiler_EmbeddedNodegetDataPtr", (void*) EmbeddedNodegetDataPtr },
         { "compiler_EmbeddedValuegetDataPtr", (void*) EmbeddedValuegetDataPtr },
@@ -341,7 +342,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_FileScopegetBody", (void*) FileScopegetBody },
         { "compiler_Namespaceget_body", (void*) Namespaceget_body },
         { "compiler_StructDefinitiongetMembers", (void*) StructDefinitiongetMembers },
-        { "compiler_StructDefinitiongetFunctions", (void*) StructDefinitiongetFunctions },
         { "compiler_InterfaceDefinitiongetFunctions", (void*) InterfaceDefinitiongetFunctions },
         { "compiler_EnumDeclarationgetMembers", (void*) EnumDeclarationgetMembers },
         { "compiler_VariantDefinitiongetMembers", (void*) VariantDefinitiongetMembers },
@@ -392,6 +392,8 @@ const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {
         {"transformer_TransformerModulegetFiles",             (void*) ModulegetFiles},
         {"transformer_TransformerModulegetFileCount",         (void*) ModulegetFileCount},
         {"transformer_TransformerModulegetFile",              (void*) ModulegetFile},
+        {"transformer_TransformerModulegetDependencyCount",   (void*) ModulegetDependencyCount},
+        {"transformer_TransformerModulegetDependency",        (void*) ModulegetDependency},
         {"transformer_TransformerFileScopegetBody",           (void*) FileScopegetBody},
 };
 

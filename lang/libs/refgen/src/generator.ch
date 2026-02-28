@@ -44,31 +44,100 @@ func clean_comment(comment : std::string_view) : std::string {
     var s = std::string("");
     var data = comment.data();
     var len = comment.size();
-    
-    // Very basic cleaning: skip //, /*, /**, */ and leading *
+
+    // Skip //, /*, /**, */ and leading *
     var i = 0u;
     while (i < len) {
-        if (data[i] == '/' && i + 1 < len && (data[i+1] == '/' || data[i+1] == '*')) {
+        if (data[i] == '/' && i + 1 < len && data[i+1] == '/') {
             i += 2;
-            if (i < len && data[i] == '*') i++; // match /**
+            while (i < len && (data[i] == ' ' || data[i] == '/')) i++;
+            continue;
+        }
+        if (data[i] == '/' && i + 1 < len && data[i+1] == '*') {
+            i += 2;
+            if (i < len && data[i] == '*') i++;
             continue;
         }
         if (data[i] == '*' && i + 1 < len && data[i+1] == '/') {
             i += 2;
             continue;
         }
-        // Skip leading * on lines (improved for Javadoc style)
+        // Leading * on new lines
         if (data[i] == '*' && (i == 0 || data[i-1] == '\n' || (i > 0 && data[i-1] == ' ' && (i == 1 || data[i-2] == '\n')))) {
             i++;
             if (i < len && data[i] == ' ') i++;
             continue;
         }
-        
+
         s.append(data[i]);
         i++;
     }
-    // Final trim of whitespace at start and end
-    return s;
+    return s.trim().to_string();
+}
+
+func process_doc_comment(comment : std::string_view, html : &mut std::string) {
+    var clean = clean_comment(comment);
+    var lines = std::string_view(clean.data(), clean.size()).split('\n');
+
+    var main_desc = std::string("");
+    var params = std::vector<std::string>();
+    var returns = std::string("");
+    var sees = std::vector<std::string>();
+
+    for (var i = 0u; i < lines.size(); i++) {
+        var line = lines.get(i).trim();
+        if (line.starts_with("@param")) {
+            params.push_back(std::string(line.subview(6, line.size()).trim().data()));
+        } else if (line.starts_with("@return")) {
+            returns = std::string(line.subview(7, line.size()).trim().data());
+        } else if (line.starts_with("@see")) {
+            sees.push_back(std::string(line.subview(4, line.size()).trim().data()));
+        } else {
+            if (!main_desc.empty()) main_desc.append_view("\n");
+            main_desc.append_view(line);
+        }
+    }
+
+    if (!main_desc.empty()) {
+        html.append_view("<div class='doc-main'>");
+        html.append_view(main_desc.to_view());
+        html.append_view("</div>");
+    }
+
+    if (params.size() > 0) {
+        html.append_view("<div class='doc-section'><h4>Parameters</h4><ul class='doc-list'>");
+        for (var i = 0u; i < params.size(); i++) {
+            html.append_view("<li><b>");
+            var p = params.get_ptr(i).to_view();
+            var space = p.find(" ");
+            if (space != -1u) {
+                html.append_view(p.subview(0, space));
+                html.append_view("</b> ");
+                html.append_view(p.subview(space + 1, p.size()));
+            } else {
+                html.append_view(p);
+                html.append_view("</b>");
+            }
+            html.append_view("</li>");
+        }
+        html.append_view("</ul></div>");
+    }
+
+    if (!returns.empty()) {
+        html.append_view("<div class='doc-section'><h4>Returns</h4><p>");
+        html.append_view(returns.to_view());
+        html.append_view("</p></div>");
+    }
+
+    if (sees.size() > 0) {
+        html.append_view("<div class='doc-section'><h4>See Also</h4><ul class='doc-list'>");
+        for (var i = 0u; i < sees.size(); i++) {
+            html.append_view("<li>");
+            html.append_view(sees.get_ptr(i).to_view());
+            html.append_view("</li>");
+        }
+        html.append_view("</ul></div>");
+    }
 }
 
 // Get a name from a node based on its kind
@@ -96,6 +165,8 @@ func get_node_name(node : *ASTNode) : std::string_view {
         return (node as *GenericVariantDecl).getMasterImpl().getName();
     } else if (kind == ASTNodeKind.GenericUnionDecl) {
         return (node as *GenericUnionDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.TypealiasStmt) {
+        return (node as *TypealiasStatement).getName();
     } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
         return (node as *GenericInterfaceDecl).getMasterImpl().getName();
     }
@@ -118,6 +189,8 @@ func get_kind_label(kind : ASTNodeKind) : std::string_view {
         return std::string_view("variant");
     } else if (kind == ASTNodeKind.UnionDecl || kind == ASTNodeKind.GenericUnionDecl) {
         return std::string_view("union");
+    } else if (kind == ASTNodeKind.TypealiasStmt) {
+        return std::string_view("typealias");
     }
     return std::string_view("declaration");
 }
@@ -251,6 +324,7 @@ public struct Generator {
     var git_ref : std::string
     var no_search : bool
     var index : std::vector<SymbolInfo>
+    var sidebar_cache : std::unordered_map<std::string, std::string>
 
     func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view, parent_name : std::string_view) {
         var name = get_node_name(node);
@@ -435,7 +509,7 @@ public struct Generator {
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
         
-        html.append_string(self.generate_sidebar(rel_root.to_view()));
+        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
         html.append_view("<div class='main-content'>");
         html.append_view("<div class='breadcrumb'><a href='../index.html'>Home</a> / ");
@@ -444,14 +518,28 @@ public struct Generator {
         html.append_view("<div class='header'><h1>Module: ");
         html.append_view(mod_name);
         html.append_view("</h1></div>");
+        
+        // Dependency Graph Visualization
+        html.append_view("<div class='dependency-graph'>");
+        html.append_view("<h3>Module Dependencies</h3>");
+        html.append_view("<div class='mermaid'>");
+        html.append_string(self.generate_dependency_graph(mod_name));
+        html.append_view("</div></div>");
 
-        html.append_view("<h3>Symbols</h3><div class='symbol-tree'>");
+        html.append_view("<div class='symbols-header'>");
+        html.append_view("<h3>Symbols</h3>");
+        html.append_view("<button class='theme-btn' onclick='toggleExpandAll(true)'>Expand All</button>");
+        html.append_view("<button class='theme-btn' onclick='toggleExpandAll(false)'>Collapse All</button>");
+        html.append_view("</div><div class='symbol-tree'>");
         
         // Pass 1: Top-level symbols
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
             if (sym.mod_name.to_view().equals(mod_name) && sym.parent_name.empty()) {
-                html.append_view("<div class='top-level-sym'>");
+                var is_public = sym.access == AccessSpecifier.Public;
+                html.append_view("<div class='top-level-sym ");
+                if (!is_public) html.append_view("non-public");
+                html.append_view("'>");
                 html.append_view("<div class='sym-header'>");
                 html.append_view("<a href='./");
                 var f_id = std::string("");
@@ -463,7 +551,7 @@ public struct Generator {
                 html.append_view(sym.name.to_view());
                 html.append_view("</b></a> <small>(");
                 html.append_view(get_kind_label(sym.kind));
-                html.append_view(")</small>");
+                html.append_view(")</small> ");
                 
                 var has_children = false;
                 for (var j = 0u; j < self.index.size(); j++) {
@@ -472,6 +560,10 @@ public struct Generator {
                         has_children = true;
                         break;
                     }
+                }
+                
+                if (sym.access != AccessSpecifier.Public) {
+                    html.append_view("<span class='attr-badge' style='background: #64748b; color: white;'>Private</span>");
                 }
                 
                 if (has_children) {
@@ -520,7 +612,7 @@ public struct Generator {
         }
     }
 
-    func render_github_link(&self, abs_path : &std::string_view, html : &mut std::string) {
+    func render_github_link(&self, abs_path : &std::string_view, line : uint, html : &mut std::string) {
         if (!self.github_links) return;
         var path = std::string(abs_path.data(), abs_path.size());
         var src_idx = path.to_view().find("src/");
@@ -539,6 +631,10 @@ public struct Generator {
                         html.append_view(m_name);
                         html.append_view("/src/");
                         html.append_view(rel_path);
+                        html.append_view("#L");
+                        var l_str = std::string("");
+                        l_str.append_uinteger(line as ubigint);
+                        html.append_view(l_str.to_view());
                         html.append_view("' target='_blank'>");
                         html.append_view("<svg class='git-icon' viewBox='0 0 16 16' width='16' height='16'><path fill='currentColor' d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z'></path></svg>");
                         html.append_view(" Source</a>");
@@ -548,7 +644,47 @@ public struct Generator {
         }
     }
 
-    func generate_sidebar(&mut self, rel_root : &std::string_view) : std::string {
+    func generate_dependency_graph(&mut self, mod_name : std::string_view) : std::string {
+        // We need to find the module in ctx.getFlattenedModules() and get its dependencies
+        var deps = self.ctx.getFlattenedModules();
+        var mod : *TransformerModule = null;
+        for (var i = 0u; i < deps.size(); i++) {
+            var m = deps.get(i) as *TransformerModule;
+            if (m.getName().equals(mod_name)) {
+                mod = m;
+                break;
+            }
+        }
+        
+        if (mod == null) return std::string("");
+        
+        var mermaid = std::string("graph TD\n");
+        mermaid.append_view("    ");
+        mermaid.append_view(mod_name);
+        mermaid.append_view("[");
+        mermaid.append_view(mod_name);
+        mermaid.append_view("]\n");
+        
+        var d_count = mod.getDependencyCount();
+        for (var i = 0u; i < d_count; i++) {
+            var d = mod.getDependency(i);
+            var d_name = d.getName();
+            mermaid.append_view("    ");
+            mermaid.append_view(mod_name);
+            mermaid.append_view(" --> ");
+            mermaid.append_view(d_name);
+            mermaid.append_view("[");
+            mermaid.append_view(d_name);
+            mermaid.append_view("]\n");
+        }
+        return mermaid;
+    }
+
+    func generate_sidebar(&mut self, rel_root : &std::string_view) : &std::string {
+        if (self.sidebar_cache.contains(std::string(rel_root.data(), rel_root.size()))) {
+            return *self.sidebar_cache.get_ptr(std::string(rel_root.data(), rel_root.size()));
+        }
+
         var html = std::string("<div class='sidebar'>");
         html.append_view("<div class='search-box'><input type='text' id='search-input' placeholder='Search...' oninput='searchSymbols()'><div id='search-results'></div></div>");
         
@@ -557,6 +693,9 @@ public struct Generator {
         html.append_view("<button class='theme-btn' onclick=\"setTheme('dark')\">Dark</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('paper')\">Paper</button>");
         html.append_view("</div>");
+        
+        html.append_view("<h3>Filter</h3>");
+        html.append_view("<div class='filter-box'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider round'></span></label> <span>Public Only</span></div>");
 
         html.append_view("<h3>Modules</h3><ul class='nav-list'>");
         var last_mod = std::string("");
@@ -574,7 +713,8 @@ public struct Generator {
             }
         }
         html.append_view("</ul></div>");
-        return html;
+        self.sidebar_cache.insert(std::string(rel_root.data(), rel_root.size()), html.copy());
+        return *self.sidebar_cache.get_ptr(std::string(rel_root.data(), rel_root.size()));
     }
 
     func generate_file_docs(&mut self, file_meta : *ASTFileMetaData, mod_dir : std::string_view, mod_name : std::string_view) {
@@ -608,7 +748,7 @@ public struct Generator {
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
 
-        html.append_string(self.generate_sidebar(rel_root.to_view()));
+        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
         html.append_view("<div class='main-content'>");
         
@@ -624,13 +764,14 @@ public struct Generator {
         html.append_view("<div class='header'><h1>");
         html.append_view(filename);
         html.append_view("</h1>");
-        self.render_github_link(abs_path, html);
+        // No line number for file header? Or line 1?
+        self.render_github_link(abs_path, 1, html);
         html.append_view("</div>");
 
         var i = 0u;
         while (i < nodes.size()) {
             var node = nodes.get(i);
-            self.document_node(node, html, tokens, rel_root.to_view());
+            self.document_node(node, html, tokens, rel_root.to_view(), abs_path);
             i++;
         }
 
@@ -791,7 +932,7 @@ public struct Generator {
         }
     }
 
-    func document_node(&mut self, node : *ASTNode, html : &mut std::string, tokens : std::span<Token>, rel_root : &std::string_view) {
+    func document_node(&mut self, node : *ASTNode, html : &mut std::string, tokens : std::span<Token>, rel_root : &std::string_view, abs_path : &std::string_view) {
         var name = get_node_name(node);
         if (name.size() == 0) return;
 
@@ -799,7 +940,9 @@ public struct Generator {
         var kind_label = get_kind_label(kind);
         var access = node.getAccessSpecifier();
 
-        html.append_view("<div class='node' id='");
+        html.append_view("<div class='node ");
+        if (access != AccessSpecifier.Public) html.append_view("non-public ");
+        html.append_view("' id='");
         html.append_view(name);
         html.append_view("'>");
         
@@ -811,7 +954,15 @@ public struct Generator {
         html.append_view("</span> ");
         html.append_view("<span class='node-title'>");
         html.append_view(name);
-        html.append_view("</span></div>");
+        html.append_view("</span>");
+        
+        if(true){
+            var encoded_loc = node.getEncodedLocation();
+            var loc_data = self.ctx.decodeLocation(encoded_loc);
+            self.render_github_link(abs_path, loc_data.lineStart, html);
+        }
+        
+        html.append_view("</div>");
 
         // Signature with highlighting
         html.append_view("<div class='signature'>");
@@ -976,13 +1127,15 @@ public struct Generator {
         html.append_view("</div>");
  
         // Comment
-        var encoded_loc = node.getEncodedLocation();
-        var loc_data = self.ctx.decodeLocation(encoded_loc);
-        var comment = find_comment_before(tokens, loc_data.lineStart);
-        if (comment.size() > 0) {
-            html.append_view("<div class='comment'>");
-            html.append_view(self.clean_comment(comment).to_view());
-            html.append_view("</div>");
+        if(true) {
+            var encoded_loc = node.getEncodedLocation();
+            var loc_data = self.ctx.decodeLocation(encoded_loc);
+            var comment = find_comment_before(tokens, loc_data.lineStart);
+            if (comment.size() > 0) {
+                html.append_view("<div class='comment'>");
+                process_doc_comment(comment, html);
+                html.append_view("</div>");
+            }
         }
  
         // Recursion for members
@@ -992,7 +1145,7 @@ public struct Generator {
             if (children != null && children.size() > 0) {
                 html.append_view("<div class='nested-container'>");
                 for (var i = 0u; i < children.size(); i++) {
-                    self.document_node(children.get(i), html, tokens, rel_root);
+                    self.document_node(children.get(i), html, tokens, rel_root, abs_path);
                 }
                 html.append_view("</div>");
             }
@@ -1009,7 +1162,9 @@ public struct Generator {
             } else if (kind == ASTNodeKind.InterfaceDecl) {
                 funcs = (node as *InterfaceDefinition).getFunctions();
             } else if (kind == ASTNodeKind.VariantDecl) {
-                members = (node as *VariantDefinition).getMembers();
+                var def = node as *VariantDefinition;
+                funcs = def.getFunctions();
+                members = def.getMembers();
             } else if (kind == ASTNodeKind.UnionDecl) {
                 var def = node as *UnionDef;
                 funcs = def.getFunctions();
@@ -1025,7 +1180,10 @@ public struct Generator {
                 if (def != null) funcs = def.getFunctions();
             } else if (kind == ASTNodeKind.GenericVariantDecl) {
                 var def = (node as *GenericVariantDecl).getMasterImpl();
-                if (def != null) members = def.getMembers();
+                if (def != null) {
+                    funcs = def.getFunctions();
+                    members = def.getMembers();
+                }
             } else if (kind == ASTNodeKind.GenericUnionDecl) {
                 var def = (node as *GenericUnionDecl).getMasterImpl();
                 if (def != null) {
@@ -1038,12 +1196,12 @@ public struct Generator {
                 html.append_view("<div class='nested-container'>");
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.document_node(members.get(i), html, tokens, rel_root);
+                        self.document_node(members.get(i), html, tokens, rel_root, abs_path);
                     }
                 }
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.document_node(funcs.get(i), html, tokens, rel_root);
+                        self.document_node(funcs.get(i), html, tokens, rel_root, abs_path);
                     }
                 }
                 html.append_view("</div>");
@@ -1054,8 +1212,8 @@ public struct Generator {
     }
 
     func clean_comment(&self, comment : std::string_view) : std::string {
-        // TODO: remove leading asterisks for block comments
-        return std::string(comment.data(), comment.size());
+        // This is now redundant as we have it at namespace level, but keep it for compat or move it
+        return clean_comment(comment);
     }
 
     func generate_index_html(&mut self) {
@@ -1065,7 +1223,7 @@ public struct Generator {
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
         
-        html.append_string(self.generate_sidebar(rel_root.to_view()));
+        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
         html.append_view("<div class='main-content'>");
         html.append_view("<div class='header'><h1>Chemical API Reference</h1></div>");
@@ -1136,6 +1294,26 @@ public struct Generator {
                 debug.style.display = debug.style.display === 'none' ? 'block' : 'none';
             }
 
+            function applyFilter() {
+                const publicOnly = document.getElementById('public-only').checked;
+                const nodes = document.querySelectorAll('.node, .top-level-sym');
+                nodes.forEach(n => {
+                    if (publicOnly && n.classList.contains('non-public')) {
+                        n.style.display = 'none';
+                    } else {
+                        n.style.display = '';
+                    }
+                });
+                localStorage.setItem('refgen-public-only', publicOnly);
+            }
+            
+            // Restore filter
+            const savedPublic = localStorage.getItem('refgen-public-only') === 'true';
+            if (document.getElementById('public-only')) {
+                document.getElementById('public-only').checked = savedPublic;
+                applyFilter();
+            }
+
             function searchSymbols() {
                 const query = document.getElementById('search-input').value.toLowerCase();
                 const results = document.getElementById('search-results');
@@ -1160,6 +1338,16 @@ public struct Generator {
                 }
             }
 
+            function toggleExpandAll(expand) {
+                const contents = document.querySelectorAll('.collapsible-content');
+                const btns = document.querySelectorAll('.collapse-btn');
+                contents.forEach(c => c.style.display = expand ? 'block' : 'none');
+                btns.forEach(b => {
+                    if (expand) b.classList.add('expanded');
+                    else b.classList.remove('expanded');
+                });
+            }
+
             // Close search on outside click
             document.addEventListener('click', (e) => {
                 const box = document.querySelector('.search-box');
@@ -1168,6 +1356,10 @@ public struct Generator {
                 }
             });
             </script>
+            <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({ startOnLoad: true, theme: savedTheme === 'dark' ? 'dark' : 'default' });
+            </script>
         """);
         // Replace REL_ROOT_VAR with actual rel_root
         var res = std::string("");
@@ -1175,14 +1367,15 @@ public struct Generator {
         var placeholder = std::string_view("${REL_ROOT_VAR}");
         var last_idx = 0u;
         while (true) {
-            var p_idx = raw.subview(last_idx, raw.size()).find(placeholder);
+            var sub = raw.subview(last_idx, raw.size());
+            var p_idx = sub.find(placeholder);
             if (p_idx == -1u) {
-                res.append_view(raw.subview(last_idx, raw.size()));
+                res.append_view(sub);
                 break;
             }
-            res.append_view(raw.subview(last_idx, p_idx - last_idx));
+            res.append_view(sub.subview(0, p_idx));
             res.append_view(rel_root);
-            last_idx = p_idx + placeholder.size();
+            last_idx = last_idx + p_idx + placeholder.size();
         }
         return res;
     }
@@ -1287,6 +1480,14 @@ public struct Generator {
             .extension-tag { 
                 background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; font-weight: 800; vertical-align: middle; margin-left: 8px;
             }
+            .git-link { 
+                font-size: 0.85rem; color: var(--text-muted); display: none; align-items: center; gap: 0.4rem;
+                padding: 4px 12px; border-radius: 8px; border: 1.5px solid var(--border); transition: all var(--transition);
+                margin-left: auto;
+            }
+            .git-link:hover { color: var(--accent); border-color: var(--accent); background: var(--code-bg); }
+            .node-header:hover .git-link, .header:hover .git-link { display: inline-flex; }
+            .git-icon { opacity: 0.8; }
             .nav-list { list-style: none; padding: 0; margin: 0; }
             .nav-list li { margin-bottom: 0.85rem; }
             .nav-list a { color: var(--text); font-weight: 500; font-size: 0.95rem; display: block; padding: 4px 0; }
@@ -1296,8 +1497,36 @@ public struct Generator {
             .breadcrumb a { color: var(--text-muted); }
             .breadcrumb a:hover { color: var(--accent); }
             
+            .symbols-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+            .symbols-header h3 { margin: 0; flex: 1; }
+            
+            .dependency-graph { 
+                margin: 2rem 0; padding: 2rem; background: var(--bg-card); 
+                border: 1px solid var(--border); border-radius: var(--radius);
+                box-shadow: var(--shadow);
+            }
+            .mermaid { background: transparent !important; }
+
+            .doc-main { margin-bottom: 1.5rem; font-style: normal; }
+            .doc-section { margin-top: 1.5rem; }
+            .doc-section h4 { margin: 1rem 0 0.5rem 0; color: var(--text-muted); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
+            .doc-list { list-style: none; padding: 0; margin: 0; }
+            .doc-list li { margin-bottom: 0.5rem; padding-left: 1rem; border-left: 2px solid var(--border); }
+            .doc-list b { color: var(--accent); }
+            
             .debug-toggle {
                 font-size: 0.8rem; opacity: 0.4; cursor: pointer; border: 1.5px solid var(--border); 
+            }
+            
+            /* Toggle Switch */
+            .filter-box { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; font-weight: 600; }
+            .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+            .switch input { opacity: 0; width: 0; height: 0; }
+            .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
+            .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+            input:checked + .slider { background-color: var(--accent); }
+            input:focus + .slider { box-shadow: 0 0 1px var(--accent); }
+            input:checked + .slider:before { transform: translateX(20px); }
                 background: none; color: var(--text); margin-top: 6rem; padding: 10px 20px; border-radius: 20px;
                 display: block; margin-left: auto; margin-right: auto; transition: all var(--transition);
             }

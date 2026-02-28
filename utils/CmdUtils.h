@@ -351,8 +351,14 @@ struct CmdOptions {
                     }
 
                     // set this option as current opt
-                    option = option_key;
-                    is_option_large_opt = is_large_opt;
+                    auto found = data.find(option_key);
+                    if (found != data.end() && found->second.type == CmdOptionType::NoValue) {
+                        put_option(option_key, is_large_opt, defOptValue);
+                        option = "";
+                    } else {
+                        option = option_key;
+                        is_option_large_opt = is_large_opt;
+                    }
 
                 } else {
                     if(option.empty()) {

@@ -488,60 +488,14 @@ int compiler_main(int argc, char *argv[]) {
         return chemical_clang_main2(subc);
     }
 #endif
- 
-    auto& run_cmd_opt = options.cmd_opt("run");
-    if(run_cmd_opt.has_multi_value()) {
-        auto run_args = run_cmd_opt.get_multi_opt_values();
-        if(run_args.empty()) {
-             std::cerr << rang::fg::red << "error: " << rang::fg::reset << "'run' subcommand requires at least one argument (file or module)" << std::endl;
-             return 1;
-        }
-
-        // The first argument is the target to run, subsequent are passed to it
-        std::string target(run_args[0]);
-        std::vector<std::string_view> exec_args;
-        for(size_t i = 1; i < run_args.size(); ++i) {
-            exec_args.push_back(run_args[i]);
-        }
-
-        auto compiler_exe_path = getExecutablePath();
-        auto mode = get_output_mode(options.option_new("mode", "m"), options.has_value("verbose", "v"));
-        
-        // Target can be local file (.lab, .mod) or remote (org/repo)
-        bool is_local = target.ends_with(".lab") || target.ends_with(".mod");
-        
-        // Implement the actual run logic in LabBuildCompiler
-        return LabBuildCompiler::run_invocation(compiler_exe_path, target, exec_args, mode, &options);
-    }
-
 
     auto verbose = options.has_value("verbose", "v");
 
-    if(options.has_value("help")) {
-        print_help();
-        return 0;
-    }
-
-    if(args.empty() && get_includes(options).empty()) {
-        std::cerr << rang::fg::red << "no input given\n\n" << rang::fg::reset;
-        print_usage();
-        return 1;
-    }
-
-#ifdef DEBUG
-    if(verbose) {
-        std::cout << "source_dir: " << PROJECT_SOURCE_DIR << std::endl;
-    }
-#endif
-
-    bool jit = options.has_value("jit", "jit");
-    auto& output = options.option_new("output", "o");
     auto& res = options.option_new("resources", "res");
-    auto& dash_c = options.option_new("", "c");
 
 #ifdef COMPILER_BUILD
 
-    auto get_resources_path = [&res, &argv]() -> std::string {
+    auto get_resources_path = [&res]() -> std::string {
         auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(getExecutablePath());
         if(resources_path.empty()) {
             std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
@@ -595,6 +549,27 @@ int compiler_main(int argc, char *argv[]) {
 #endif
     };
 
+    if(options.has_value("help")) {
+        print_help();
+        return 0;
+    }
+
+    // get run subcommand
+    auto& run_cmd_opt = options.cmd_opt("run");
+
+    // check if no input has been given
+    if(args.empty() && !run_cmd_opt.has_multi_value()) {
+        std::cerr << rang::fg::red << "no input given\n\n" << rang::fg::reset;
+        print_usage();
+        return 1;
+    }
+
+#ifdef DEBUG
+    if(verbose) {
+        std::cout << "source_dir: " << PROJECT_SOURCE_DIR << std::endl;
+    }
+#endif
+
 #ifdef COMPILER_BUILD
 
     // get and print target
@@ -620,6 +595,37 @@ int compiler_main(int argc, char *argv[]) {
     bool is64Bit = false;
 #endif
 #endif
+
+    if(run_cmd_opt.has_multi_value()) {
+        auto run_args = run_cmd_opt.get_multi_opt_values();
+        if(run_args.empty()) {
+            std::cerr << rang::fg::red << "error: " << rang::fg::reset << "'run' subcommand requires at least one argument (file or module)" << std::endl;
+            return 1;
+        }
+
+        // The first argument is the target to run, subsequent are passed to it
+        std::string target(run_args[0]);
+        std::vector<std::string_view> exec_args;
+        for(size_t i = 1; i < run_args.size(); ++i) {
+            exec_args.push_back(run_args[i]);
+        }
+
+        auto compiler_exe_path = getExecutablePath();
+        auto mode = get_output_mode(options.option_new("mode", "m"), options.has_value("verbose", "v"));
+
+        // Target can be local file (.lab, .mod) or remote (org/repo)
+        bool is_local = target.ends_with(".lab") || target.ends_with(".mod");
+
+        // creating compiler options
+        LabBuildCompilerOptions compiler_opts(compiler_exe_path, "", "build", is64Bit);
+
+        // Implement the actual run logic in LabBuildCompiler
+        return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, target, exec_args, mode, &options);
+    }
+
+    bool jit = options.has_value("jit", "jit");
+    auto& output = options.option_new("output", "o");
+    auto& dash_c = options.option_new("", "c");
 
     auto mode_opt = options.option_new("mode", "m");
     const auto mode = get_output_mode(mode_opt, verbose);

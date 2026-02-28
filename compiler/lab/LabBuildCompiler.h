@@ -490,6 +490,7 @@ public:
      * run invocation point, dispatches to local, remote or transformer run
      */
     static int run_invocation(
+        LabBuildCompilerOptions& options,
         const std::string& exe_path,
         const std::string& target,
         const std::vector<std::string_view>& args,

@@ -9,6 +9,47 @@ class SymbolResolver;
 
 extern "C" {
 
+    struct FuncDeclAttributesCBI {
+        int32_t specifier;
+        bool is_comptime;
+        bool is_compiler_decl;
+        uint8_t multi_func_index;
+        int32_t inline_strategy;
+        bool is_extern;
+        bool is_cpp_mangle;
+        bool deprecated;
+        bool is_implicit;
+        bool is_noReturn;
+        bool is_constructor_fn;
+        bool is_copy_fn;
+        bool is_delete_fn;
+        bool is_unsafe;
+        bool is_override;
+        bool has_usage;
+        bool no_mangle;
+        bool is_generated;
+        bool std_call;
+        bool dll_import;
+        bool dll_export;
+    };
+
+    struct InterfaceDefinitionAttrsCBI {
+        int32_t specifier;
+        bool has_implementation;
+        bool deprecated;
+        bool is_static;
+        bool is_no_mangle;
+        bool is_extern;
+    };
+
+    struct TypealiasDeclAttributesCBI {
+        int32_t specifier;
+        bool is_comptime;
+        bool deprecated;
+        bool is_no_mangle;
+        bool is_inlined;
+    };
+
     int ASTAnygetAnyKind(ASTAny* any);
 
     uint64_t ValuegetEncodedLocation(Value* value);
@@ -143,8 +184,26 @@ extern "C" {
 
     void EnumMembergetName(chem::string_view* view, EnumMember* member);
 
+    void VariantMembergetName(chem::string_view* view, VariantMember* member);
+
     void VariantDefinitiongetName(chem::string_view* view, VariantDefinition* def);
 
     void UnionDefinitiongetName(chem::string_view* view, UnionDef* def);
+
+    void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclaration* decl);
+
+    void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, InterfaceDefinition* def);
+
+    void TypealiasStatementgetAttributes(TypealiasDeclAttributesCBI* out, TypealiasStatement* stmt);
+
+    int ASTNodegetAccessSpecifier(ASTNode* node);
+
+    void TypealiasStatementgetName(chem::string_view* view, TypealiasStatement* stmt);
+
+    std::size_t GenericTypegetArgumentCount(GenericType* type);
+
+    BaseType* GenericTypegetArgumentType(GenericType* type, std::size_t index);
+
+    uint64_t GenericTypegetArgumentLocation(GenericType* type, std::size_t index);
 
 }

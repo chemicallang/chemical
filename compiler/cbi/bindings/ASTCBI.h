@@ -6,6 +6,7 @@
 #include "ast/base/ast_fwd.h"
 
 class SymbolResolver;
+class VariablesContainer;
 
 extern "C" {
 
@@ -198,6 +199,8 @@ extern "C" {
 
     void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, InterfaceDefinition* def);
 
+    void UnionDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, UnionDef* def);
+
     void TypealiasStatementgetAttributes(TypealiasDeclAttributesCBI* out, TypealiasStatement* stmt);
 
     int ASTNodegetAccessSpecifier(ASTNode* node);
@@ -209,5 +212,9 @@ extern "C" {
     BaseType* GenericTypegetArgumentType(GenericType* type, std::size_t index);
 
     uint64_t GenericTypegetArgumentLocation(GenericType* type, std::size_t index);
+
+    std::size_t VariablesContainergetInheritedCount(VariablesContainer* container);
+
+    void VariablesContainergetInheritedName(chem::string_view* out, VariablesContainer* container, std::size_t index);
 
 }

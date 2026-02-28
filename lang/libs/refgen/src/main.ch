@@ -3,7 +3,8 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
     printf("Refgen Transformer started\n");
 
     var output_dir = std::string("./docs");
-    var github_links = std::string("");
+    var github_links = false;
+    var git_ref = std::string("main");
     var no_search = false;
 
     // Basic argument parsing
@@ -20,12 +21,16 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
                 return 1;
             }
         } else if (arg.equals("--github-links")) {
+            github_links = true;
+            i++;
+            continue;
+        } else if (arg.equals("--git-ref")) {
             if (i + 1 < argc) {
-                github_links = std::string(argv[i+1]);
+                git_ref = std::string(argv[i+1]);
                 i += 2;
                 continue;
             } else {
-                printf("Error: --github-links requires an argument\n");
+                printf("Error: --git-ref requires an argument\n");
                 return 1;
             }
         } else if (arg.equals("--no-search")) {
@@ -58,7 +63,8 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
     var generator = refgen::Generator {
         output_dir = output_dir.copy(),
         ctx = ctx,
-        github_links = github_links.copy(),
+        github_links = github_links,
+        git_ref = git_ref.copy(),
         no_search = no_search,
         index = std::vector<refgen::SymbolInfo>()
     };

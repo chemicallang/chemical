@@ -802,11 +802,7 @@ void BaseDefMembergetName(chem::string_view* view, BaseDefMember* member) {
 }
 
 BaseType* BaseDefMembergetType(BaseDefMember* member) {
-    if (member->kind() == ASTNodeKind::StructMember) {
-        return static_cast<StructMember*>(member)->type;
-    }
-    // TODO handle other member types if needed
-    return nullptr;
+    return member->known_type();
 }
 
 std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def) {
@@ -896,6 +892,16 @@ void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, Interfac
     out->is_no_mangle = attrs.is_no_mangle;
     out->is_extern = attrs.is_extern;
 }
+ 
+void UnionDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, UnionDef* def) {
+    auto& attrs = def->attrs;
+    out->specifier = static_cast<int32_t>(attrs.specifier);
+    out->has_implementation = false;
+    out->deprecated = attrs.deprecated;
+    out->is_static = false;
+    out->is_no_mangle = attrs.is_no_mangle;
+    out->is_extern = false;
+}
 
 void TypealiasStatementgetAttributes(TypealiasDeclAttributesCBI* out, TypealiasStatement* stmt) {
     auto& attrs = stmt->attrs;
@@ -933,3 +939,11 @@ BaseType* GenericTypegetArgumentType(GenericType* type, std::size_t index) {
 uint64_t GenericTypegetArgumentLocation(GenericType* type, std::size_t index) {
     return type->types[index].encoded_location().encoded;
 }
+std::size_t VariablesContainergetInheritedCount(VariablesContainer* container) {
+    return container->inherited.size();
+}
+
+void VariablesContainergetInheritedName(chem::string_view* out, VariablesContainer* container, std::size_t index) {
+    *out = container->inherited[index].ref_type_name();
+}
+

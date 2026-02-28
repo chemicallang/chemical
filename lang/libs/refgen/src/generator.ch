@@ -237,7 +237,8 @@ public struct SymbolInfo {
 public struct Generator {
     var output_dir : std::string
     var ctx : *TransformerContext
-    var github_links : std::string
+    var github_links : bool
+    var git_ref : std::string
     var no_search : bool
     var index : std::vector<SymbolInfo>
 
@@ -415,6 +416,7 @@ public struct Generator {
     }
 
     func render_github_link(&self, abs_path : &std::string_view, html : &mut std::string) {
+        if (!self.github_links) return;
         var path = std::string(abs_path.data(), abs_path.size());
         var src_idx = path.to_view().find("src/");
         if (src_idx != -1u) {
@@ -426,11 +428,15 @@ public struct Generator {
                 if (slash_idx != -1u) {
                     var m_name = after_libs.subview(0, slash_idx);
                     if (is_native_module(m_name)) {
-                        html.append_view("<a class='git-link' href='https://github.com/chemical-lang/chemical/tree/main/lang/libs/");
+                        html.append_view("<a class='git-link' href='https://github.com/chemical-lang/chemical/tree/");
+                        html.append_view(self.git_ref.to_view());
+                        html.append_view("/lang/libs/");
                         html.append_view(m_name);
                         html.append_view("/src/");
                         html.append_view(rel_path);
-                        html.append_view("' target='_blank'>View on GitHub</a>");
+                        html.append_view("' target='_blank'>");
+                        html.append_view("<svg class='git-icon' viewBox='0 0 16 16' width='16' height='16'><path fill='currentColor' d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z'></path></svg>");
+                        html.append_view(" Source</a>");
                     }
                 }
             }
@@ -670,47 +676,8 @@ public struct Generator {
         html.append_view("</span></div>");
 
         // Signature with highlighting
-        var sig_raw = std::string("");
-        if (kind == ASTNodeKind.FunctionDecl) {
-            var decl = node as *FunctionDeclaration;
-            var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
-            decl.getAttributes(&mut attrs);
-            
-            if (attrs.is_comptime) sig_raw.append_view("comptime ");
-            if (attrs.is_extern) sig_raw.append_view("extern ");
-            sig_raw.append_view("func ");
-            sig_raw.append_view(name);
-            sig_raw.append_view("(");
-            var params = decl.get_params();
-            for (var i = 0u; i < params.size(); i++) {
-                if (i > 0) sig_raw.append_view(", ");
-                var param = params.get(i);
-                sig_raw.append_view(param.getName());
-                sig_raw.append_view(" : ");
-                // For signature highlighting we just want the text, we'll link later?
-                // Actually easier to just append to a string and then highlight
-                sig_raw.append_view("TYPE_PLACEHOLDER"); // We'll handle links manually or simplify
-            }
-            sig_raw.append_view(") : TYPE_RETURN");
-        } else if (kind == ASTNodeKind.InterfaceDecl) {
-             var def = node as *InterfaceDefinition;
-             var attrs = zeroed<InterfaceDefinitionAttrsCBI>();
-             def.getAttributes(&mut attrs);
-             if (attrs.is_static) sig_raw.append_view("static ");
-             sig_raw.append_view("interface ");
-             sig_raw.append_view(name);
-        } else if (kind == ASTNodeKind.NamespaceDecl) {
-             sig_raw.append_view("namespace ");
-             sig_raw.append_view(name);
-        } else {
-             sig_raw.append_view(kind_label);
-             sig_raw.append_view(" ");
-             sig_raw.append_view(name);
-        }
-
-        // Just use the simplified sig rendering for now but with helper
         html.append_view("<div class='signature'>");
-        // Re-implementing signature bit to include links
+        
         if (kind == ASTNodeKind.FunctionDecl) {
             var decl = node as *FunctionDeclaration;
             var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
@@ -730,11 +697,61 @@ public struct Generator {
             }
             html.append_view(") : ");
             self.render_type(decl.getReturnType(), html, rel_root);
+        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl) {
+            if (kind == ASTNodeKind.StructDecl) html.append_view("<span class='tok-kwd'>struct</span> ");
+            else if (kind == ASTNodeKind.InterfaceDecl) {
+                var it_attrs = zeroed<InterfaceDefinitionAttrsCBI>();
+                (node as *InterfaceDefinition).getAttributes(&mut it_attrs);
+                if (it_attrs.is_static) html.append_view("<span class='tok-kwd'>static</span> ");
+                html.append_view("<span class='tok-kwd'>interface</span> ");
+            } else if (kind == ASTNodeKind.VariantDecl) html.append_view("<span class='tok-kwd'>variant</span> ");
+            
+            html.append_view(name);
+            
+            var container = node as *VariablesContainer;
+            var inherited_count = container.getInheritedCount();
+            if (inherited_count > 0) {
+                html.append_view(" : ");
+                for (var i = 0u; i < inherited_count; i++) {
+                    if (i > 0) html.append_view(", ");
+                    html.append_view(container.getInheritedName(i));
+                }
+            }
+        } else if (kind == ASTNodeKind.EnumDecl) {
+            html.append_view("<span class='tok-kwd'>enum</span> ");
+            html.append_view(name);
+            html.append_view(" {");
+            var enum_decl = node as *EnumDeclaration;
+            var members = enum_decl.getMembers();
+            if (members != null && members.size() > 0) {
+                html.append_view("\n    ");
+                for (var i = 0u; i < members.size(); i++) {
+                    if (i > 0) html.append_view(",\n    ");
+                    html.append_view(members.get(i).getName());
+                }
+                html.append_view("\n");
+            }
+            html.append_view("}");
+        } else if (kind == ASTNodeKind.UnionDecl) {
+            html.append_view("<span class='tok-kwd'>union</span> ");
+            html.append_view(name);
+            html.append_view(" {");
+            var union_decl = node as *UnionDef;
+            var members = union_decl.getMembers();
+            if (members != null && members.size() > 0) {
+                html.append_view("\n    ");
+                for (var i = 0u; i < members.size(); i++) {
+                    if (i > 0) html.append_view("\n    ");
+                    var member = members.get(i);
+                    html.append_view(member.getName());
+                    html.append_view(" : ");
+                    self.render_type(member.getType(), html, rel_root);
+                }
+                html.append_view("\n");
+            }
+            html.append_view("}");
         } else if (kind == ASTNodeKind.NamespaceDecl) {
             html.append_view("<span class='tok-kwd'>namespace</span> ");
-            html.append_view(name);
-        } else if (kind == ASTNodeKind.StructDecl) {
-            html.append_view("<span class='tok-kwd'>struct</span> ");
             html.append_view(name);
         } else if (kind == ASTNodeKind.TypealiasStmt) {
             var stmt = node as *TypealiasStatement;
@@ -744,17 +761,17 @@ public struct Generator {
             self.render_type(stmt.getActualType(), html, rel_root);
         }
         html.append_view("</div>");
-
+ 
         // Comment
         var encoded_loc = node.getEncodedLocation();
         var loc_data = self.ctx.decodeLocation(encoded_loc);
         var comment = find_comment_before(tokens, loc_data.lineStart);
         if (comment.size() > 0) {
             html.append_view("<div class='comment'>");
-            html.append_view(highlight_chemical(self.clean_comment(comment).to_view()).to_view());
+            html.append_view(self.clean_comment(comment).to_view());
             html.append_view("</div>");
         }
-
+ 
         // Recursion for members
         if (kind == ASTNodeKind.NamespaceDecl) {
             var ns = node as *Namespace;
@@ -766,9 +783,12 @@ public struct Generator {
                 }
                 html.append_view("</div>");
             }
-        } else if (kind == ASTNodeKind.StructDecl) {
-            var def = node as *StructDefinition;
-            var funcs = def.getFunctions();
+        } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl || kind == ASTNodeKind.UnionDecl) {
+            var funcs : *mut VecRef<ASTNode> = null;
+            if (kind == ASTNodeKind.StructDecl) funcs = (node as *StructDefinition).getFunctions();
+            else if (kind == ASTNodeKind.InterfaceDecl) funcs = (node as *InterfaceDefinition).getFunctions();
+            else if (kind == ASTNodeKind.UnionDecl) funcs = (node as *UnionDef).getFunctions();
+            
             if (funcs != null && funcs.size() > 0) {
                 html.append_view("<div class='nested-container'>");
                 for (var i = 0u; i < funcs.size(); i++) {
@@ -988,7 +1008,7 @@ public struct Generator {
             .tok-com { color: var(--text-muted); font-style: italic; }
             .tok-fn { color: var(--accent); font-weight: 700; }
             
-            .comment { color: var(--text); font-size: 1.1rem; margin-top: 2rem; padding: 1rem 0; border-top: 1px solid var(--border); }
+            .comment { color: var(--text); font-size: 1.1rem; margin-top: 2rem; padding: 1rem 0; border-top: 1px solid var(--border); white-space: pre-wrap; }
             .comment h2, .comment h3 { border: none; margin-top: 1.5rem; padding: 0; }
             
             .theme-toggles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
@@ -1025,7 +1045,9 @@ public struct Generator {
             .git-link { 
                 font-size: 0.9rem; font-weight: 600; background: var(--accent); color: white !important;
                 padding: 6px 14px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                display: flex; align-items: center; gap: 6px;
             }
+            .git-icon { vertical-align: middle; }
             h2, h3 { margin-top: 4rem; border-bottom: 2px solid var(--border); padding-bottom: 0.75rem; font-weight: 800; letter-spacing: -0.025em; }
             
             .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }

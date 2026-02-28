@@ -689,7 +689,7 @@ public struct Generator {
         var mod = self.find_module(mod_name);
         if (mod == null) return std::string("");
         
-        var mermaid = std::string("graph TD\n");
+        var mermaid = std::string("graph LR\n");
         mermaid.append_view("    ");
         mermaid.append_view(mod_name);
         mermaid.append_view("[");
@@ -1379,7 +1379,16 @@ public struct Generator {
             </script>
             <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({ startOnLoad: true, theme: savedTheme === 'dark' ? 'dark' : 'default', flowchart: { useMaxWidth: true } });
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: "base",
+                themeVariables: {
+                    primaryColor: "var(--bg-card)",
+                    primaryTextColor: "var(--text)",
+                    lineColor: "var(--accent)",
+                    secondaryColor: "var(--code-bg)"
+                }
+            });
             </script>
         """);
         // Replace REL_ROOT_VAR with actual rel_root
@@ -1524,11 +1533,11 @@ public struct Generator {
             .dependency-graph { 
                 margin: 0.5rem 0 2rem 0; padding: 1rem 2rem; background: var(--bg-card); 
                 border: 1px solid var(--border); border-radius: var(--radius);
-                box-shadow: var(--shadow); overflow-x: auto; overflow-y: hidden;
+                box-shadow: var(--shadow); overflow: auto;
             }
             .dependency-graph h3 { margin-top: 0; padding-bottom: 0.5rem; border: none; }
             .mermaid { background: transparent !important; }
-            .mermaid svg { max-width: 100%; height: auto; display: block; }
+            .mermaid svg { overflow: visible !important; display: block; }
 
             .doc-main { margin-bottom: 1.5rem; font-style: normal; }
             .doc-section { margin-top: 1.5rem; }
@@ -1538,7 +1547,9 @@ public struct Generator {
             .doc-list b { color: var(--accent); }
             
             .debug-toggle {
-                font-size: 0.8rem; opacity: 0.4; cursor: pointer; border: 1.5px solid var(--border); 
+                font-size: 0.8rem; opacity: 0.4; cursor: pointer; border: 1.5px solid var(--border);
+                background: none; color: var(--text); margin-top: 6rem; padding: 10px 20px; border-radius: 20px;
+                display: block; margin-left: auto; margin-right: auto; transition: all var(--transition);
             }
             
             /* Toggle Switch */
@@ -1550,9 +1561,6 @@ public struct Generator {
             input:checked + .slider { background-color: var(--accent); }
             input:focus + .slider { box-shadow: 0 0 1px var(--accent); }
             input:checked + .slider:before { transform: translateX(20px); }
-                background: none; color: var(--text); margin-top: 6rem; padding: 10px 20px; border-radius: 20px;
-                display: block; margin-left: auto; margin-right: auto; transition: all var(--transition);
-            }
             .debug-toggle:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
             #debug-info { 
                 display: none; padding: 1.5rem; background: var(--code-bg); border-radius: var(--radius); 

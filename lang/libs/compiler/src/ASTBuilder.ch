@@ -306,7 +306,11 @@ public struct EmbeddedValue : Value {
 // The ASTNodes
 
 public struct BaseDefMember : ASTNode {
+
     func getName(&self) : string_view
+
+    func getType(&self) : *mut BaseType
+
 }
 
 public struct StructMemberInitializer : ASTNode {}
@@ -810,3 +814,8 @@ public comptime func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
         return intrinsics::wrap(builder.allocate_size(sizeof(T), alignof(T))) as *mut T
     }
 }
+public struct VariablesContainer : ASTNode {
+    func getInheritedCount(&self) : size_t
+    func getInheritedName(&self, index : size_t) : std::string_view
+}
+

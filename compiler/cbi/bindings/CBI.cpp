@@ -344,13 +344,15 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_InterfaceDefinitiongetFunctions", (void*) InterfaceDefinitiongetFunctions },
         { "compiler_EnumDeclarationgetMembers", (void*) EnumDeclarationgetMembers },
         { "compiler_VariantDefinitiongetMembers", (void*) VariantDefinitiongetMembers },
-        { "compiler_UnionDefinitiongetMembers", (void*) UnionDefinitiongetMembers },
-        { "compiler_UnionDefinitiongetFunctions", (void*) UnionDefinitiongetFunctions },
+        { "compiler_UnionDefgetMembers", (void*) UnionDefinitiongetMembers },
+        { "compiler_UnionDefgetFunctions", (void*) UnionDefinitiongetFunctions },
         { "compiler_FunctionDeclarationgetAttributes", (void*) FunctionDeclarationgetAttributes },
         { "compiler_InterfaceDefinitiongetAttributes", (void*) InterfaceDefinitiongetAttributes },
         { "compiler_TypealiasStatementgetAttributes", (void*) TypealiasStatementgetAttributes },
         { "compiler_ASTNodegetAccessSpecifier", (void*) ASTNodegetAccessSpecifier },
         { "compiler_TypealiasStatementgetName", (void*) TypealiasStatementgetName },
+        { "compiler_VariablesContainergetInheritedCount", (void*) VariablesContainergetInheritedCount },
+        { "compiler_VariablesContainergetInheritedName", (void*) VariablesContainergetInheritedName },
 };
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {

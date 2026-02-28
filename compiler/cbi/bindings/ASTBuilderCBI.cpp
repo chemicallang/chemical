@@ -906,6 +906,14 @@ void TypealiasStatementgetAttributes(TypealiasDeclAttributesCBI* out, TypealiasS
     out->is_inlined = attrs.is_inlined;
 }
 
+std::vector<BaseDefMember*>* UnionDefinitiongetMembers(UnionDef* def) {
+    return (std::vector<BaseDefMember*>*) &def->variables();
+}
+
+std::vector<ASTNode*>* UnionDefinitiongetFunctions(UnionDef* def) {
+    return (std::vector<ASTNode*>*) &def->functions();
+}
+
 int ASTNodegetAccessSpecifier(ASTNode* node) {
     return static_cast<int>(node->specifier());
 }

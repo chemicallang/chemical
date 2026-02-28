@@ -21,12 +21,12 @@ func find_comment_before(tokens : std::span<Token>, node_line : uint) : std::str
     while (true) {
         var tok = tokens.data() + idx;
         var tok_type = tok.type;
-        // Check for comment tokens (these values should be double checked against ChemicalTokenType)
-        if (tok_type == 140 || tok_type == 143) {
+        // Skip comment tokens, whitespace, and attributes
+        if (tok_type == ChemicalTokenType.SingleLineComment || tok_type == ChemicalTokenType.MultiLineComment) {
             comment_start = idx;
             if (idx == 0) break;
             idx--;
-        } else if (tok_type == 144 || tok_type == 145 || tok_type == 146) { // Whitespace/Newline
+        } else if (tok_type == ChemicalTokenType.Whitespace || tok_type == ChemicalTokenType.NewLine || tok_type == ChemicalTokenType.Annotation) { 
             if (idx == 0) break;
             idx--;
         } else {
@@ -57,8 +57,8 @@ func clean_comment(comment : std::string_view) : std::string {
             i += 2;
             continue;
         }
-        // Skip leading * on lines
-        if (data[i] == '*' && (i == 0 || data[i-1] == '\n' || (i > 0 && data[i-1] == ' '))) {
+        // Skip leading * on lines (improved for Javadoc style)
+        if (data[i] == '*' && (i == 0 || data[i-1] == '\n' || (i > 0 && data[i-1] == ' ' && (i == 1 || data[i-2] == '\n')))) {
             i++;
             if (i < len && data[i] == ' ') i++;
             continue;
@@ -67,6 +67,7 @@ func clean_comment(comment : std::string_view) : std::string {
         s.append(data[i]);
         i++;
     }
+    // Final trim of whitespace at start and end
     return s;
 }
 
@@ -111,14 +112,26 @@ func get_kind_label(kind : ASTNodeKind) : std::string_view {
     return std::string_view("declaration");
 }
 
+func is_native_module(mod_name : std::string_view) : bool {
+    // List of native modules based on d:\Programming\Cpp\zig-bootstrap\chemical\lang\libs
+    var natives = "|atomic|compiler|core|crashsave|css_cbi|css_ide|css_parser|cstd|docgen|fs|html_cbi|html_comp|html_ide|html_parser|ide|js_cbi|json|lab|md|md_cbi|minlsp|net|page|preact_cbi|react_cbi|refgen|solid_cbi|std|test|test_env|transformer|";
+    var search = std::string("|");
+    search.append_view(mod_name);
+    search.append_view("|");
+    return std::string(natives).to_view().contains(search.to_view());
+}
+
 func is_alphanum(c : char) : bool {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
 func highlight_chemical(code : std::string_view) : std::string {
-    var kwds = "func|var|const|struct|enum|namespace|public|private|if|else|while|for|return|break|continue|switch|case|default|import|using|as|in|true|false|null|defer|unsafe|impl|interface|union|bitfield|comptime|type|extend|trait|mut|self|Self|this|is|dyn|loop|new|destruct|dealloc|delete|provide|init|try|catch|throw|from|do|sizeof|alignof|protected|internal|any|void|alias|variant";
-    var types = "i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|char|int|long|float|double|uint|ulong|short|ushort|uchar";
-    
+    var kwds_view = std::string_view("func|var|const|struct|enum|namespace|public|private|if|else|while|for|return|break|continue|switch|case|default|import|using|as|in|true|false|null|defer|unsafe|impl|interface|union|bitfield|comptime|type|extend|trait|mut|self|Self|this|is|dyn|loop|new|destruct|dealloc|delete|provide|init|try|catch|throw|from|do|sizeof|alignof|protected|internal|any|void|alias|variant");
+    var types_view = std::string_view("i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|char|int|long|float|double|uint|ulong|short|ushort|uchar");
+
+    var kwds = kwds_view.data()
+    var types = types_view.data()
+
     var html = std::string("");
     var i = 0u;
     while (i < code.size()) {
@@ -181,8 +194,8 @@ func highlight_chemical(code : std::string_view) : std::string {
             // Very simple keyword/type check (substring search in list for speed)
             // In a real implementation we'd use a set or split the string
             var span_class = std::string_view("");
-            if (std::string(kwds).to_view().contains(word)) span_class = std::string_view("tok-kwd");
-            else if (std::string(types).to_view().contains(word)) span_class = std::string_view("tok-type");
+            if (kwds_view.contains(word)) span_class = std::string_view("tok-kwd");
+            else if (types_view.contains(word)) span_class = std::string_view("tok-type");
             
             if (!span_class.empty()) {
                 html.append_view("<span class='");
@@ -216,6 +229,7 @@ public struct SymbolInfo {
     var kind : ASTNodeKind
     var file_id : uint
     var mod_name : std::string
+    var parent_name : std::string
     var access : AccessSpecifier
     var encoded_loc : ubigint
 }
@@ -227,7 +241,7 @@ public struct Generator {
     var no_search : bool
     var index : std::vector<SymbolInfo>
 
-    func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view) {
+    func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view, parent_name : std::string_view) {
         var name = get_node_name(node);
         if (name.size() > 0) {
             self.index.push_back(SymbolInfo {
@@ -235,6 +249,7 @@ public struct Generator {
                 kind = node.getKind(),
                 file_id = file_id,
                 mod_name = std::string(mod_name.data(), mod_name.size()),
+                parent_name = std::string(parent_name.data(), parent_name.size()),
                 access = node.getAccessSpecifier(),
                 encoded_loc = node.getEncodedLocation()
             });
@@ -246,7 +261,7 @@ public struct Generator {
             var children = ns.get_body();
             if (children != null) {
                 for (var i = 0u; i < children.size(); i++) {
-                    self.index_node_recursive(children.get(i), file_id, mod_name);
+                    self.index_node_recursive(children.get(i), file_id, mod_name, name);
                 }
             }
         } else if (kind == ASTNodeKind.StructDecl) {
@@ -254,7 +269,7 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name);
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
                 }
             }
             // Members usually don't need top-level indexing for search unless they are special,
@@ -264,7 +279,7 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name);
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
                 }
             }
         }
@@ -285,7 +300,7 @@ public struct Generator {
             if (nodes == null) continue;
             
             for (var j = 0u; j < nodes.size(); j++) {
-                self.index_node_recursive(nodes.get(j), file_id, mod_name);
+                self.index_node_recursive(nodes.get(j), file_id, mod_name, std::string_view(""));
             }
         }
     }
@@ -337,24 +352,53 @@ public struct Generator {
         html.append_view(mod_name);
         html.append_view("</h1></div>");
 
-        html.append_view("<h3>Symbols in this module</h3><ul class='nav-list'>");
+        html.append_view("<h3>Symbols</h3><div class='symbol-tree'>");
+        
+        // Pass 1: Top-level symbols
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
-            if (sym.mod_name.to_view().equals(mod_name)) {
-                html.append_view("<li><a href='./");
+            if (sym.mod_name.to_view().equals(mod_name) && sym.parent_name.empty()) {
+                html.append_view("<div class='top-level-sym'>");
+                html.append_view("<a href='./");
                 var f_id = std::string("");
                 f_id.append_uinteger(sym.file_id as ubigint);
                 html.append_view(f_id.to_view());
                 html.append_view(".html#");
                 html.append_view(sym.name.to_view());
-                html.append_view("'>");
+                html.append_view("'><b>");
                 html.append_view(sym.name.to_view());
-                html.append_view("</a> <small>(");
+                html.append_view("</b></a> <small>(");
                 html.append_view(get_kind_label(sym.kind));
-                html.append_view(")</small></li>");
+                html.append_view(")</small>");
+
+                // Pass 2: Children of this symbol
+                var has_children = false;
+                for (var j = 0u; j < self.index.size(); j++) {
+                    var child = self.index.get_ptr(j);
+                    if (child.mod_name.to_view().equals(mod_name) && child.parent_name.to_view().equals(sym.name.to_view())) {
+                        if (!has_children) {
+                            html.append_view("<ul class='nav-list' style='margin-left: 1.5rem; margin-top: 0.5rem; border-left: 1px solid var(--border); padding-left: 1rem;'>");
+                            has_children = true;
+                        }
+                        html.append_view("<li><a href='./");
+                        var cf_id = std::string("");
+                        cf_id.append_uinteger(child.file_id as ubigint);
+                        html.append_view(cf_id.to_view());
+                        html.append_view(".html#");
+                        html.append_view(child.name.to_view());
+                        html.append_view("'>");
+                        html.append_view(child.name.to_view());
+                        html.append_view("</a> <small>(");
+                        html.append_view(get_kind_label(child.kind));
+                        html.append_view(")</small></li>");
+                    }
+                }
+                if (has_children) html.append_view("</ul>");
+                html.append_view("</div><hr style='border: 0; border-top: 1px solid var(--border); margin: 1rem 0;'>");
             }
         }
-        html.append_view("</ul></div></div>");
+        
+        html.append_view("</div></div></div>");
         html.append_string(self.get_js(rel_root.to_view()));
         html.append_view("</body></html>");
 
@@ -370,17 +414,40 @@ public struct Generator {
         }
     }
 
+    func render_github_link(&self, abs_path : &std::string_view, html : &mut std::string) {
+        var path = std::string(abs_path.data(), abs_path.size());
+        var src_idx = path.to_view().find("src/");
+        if (src_idx != -1u) {
+            var rel_path = path.to_view().subview(src_idx + 4, path.size());
+            var libs_idx = path.to_view().find("libs/");
+            if (libs_idx != -1u) {
+                var after_libs = path.to_view().subview(libs_idx + 5, path.size());
+                var slash_idx = after_libs.find("/");
+                if (slash_idx != -1u) {
+                    var m_name = after_libs.subview(0, slash_idx);
+                    if (is_native_module(m_name)) {
+                        html.append_view("<a class='git-link' href='https://github.com/chemical-lang/chemical/tree/main/lang/libs/");
+                        html.append_view(m_name);
+                        html.append_view("/src/");
+                        html.append_view(rel_path);
+                        html.append_view("' target='_blank'>View on GitHub</a>");
+                    }
+                }
+            }
+        }
+    }
+
     func generate_sidebar(&mut self, rel_root : &std::string_view) : std::string {
         var html = std::string("<div class='sidebar'>");
         html.append_view("<div class='search-box'><input type='text' id='search-input' placeholder='Search...' oninput='searchSymbols()'><div id='search-results'></div></div>");
         
-        html.append_view("<h2>Themes</h2><div class='theme-toggles'>");
+        html.append_view("<h3>Themes</h3><div class='theme-toggles'>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('light')\">Light</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('dark')\">Dark</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('paper')\">Paper</button>");
         html.append_view("</div>");
 
-        html.append_view("<h2>Modules</h2><ul class='nav-list'>");
+        html.append_view("<h3>Modules</h3><ul class='nav-list'>");
         var last_mod = std::string("");
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
@@ -407,15 +474,26 @@ public struct Generator {
         if (scope == null) return;
 
         var nodes = scope.getNodes();
-        if (nodes == null || nodes.size() == 0) return; // Skip empty files
+        if (nodes == null || nodes.size() == 0) return;
 
         var file_id = file_meta.getFileId();
         var tokens = self.ctx.getFileTokens(file_id);
-        var rel_root = get_relative_root(2); // mod/file.html -> 2 levels to root
+        var rel_root = get_relative_root(2);
+        var abs_path = file_meta.getAbsPath();
+
+        // Extract filename from abs_path
+        var filename = std::string_view("");
+        var last_slash = abs_path.find_last("/");
+        if (last_slash == -1u) last_slash = abs_path.find_last("\\");
+        if (last_slash != -1u) {
+            filename = abs_path.subview(last_slash + 1, abs_path.size());
+        } else {
+            filename = abs_path;
+        }
 
         var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>");
-        html.append_view(file_meta.getAbsPath());
-        html.append_view("</title><style>");
+        html.append_view(filename);
+        html.append_view(" - Chemical API</title><style>");
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
 
@@ -426,15 +504,17 @@ public struct Generator {
         // Breadcrumbs
         html.append_view("<div class='breadcrumb'><a href='");
         html.append_view(rel_root.to_view());
-        html.append_view("/index.html'>Home</a> / ");
+        html.append_view("/index.html'>Home</a> / <a href='./index.html'>");
         html.append_view(mod_name);
-        html.append_view(" / ");
-        html.append_view(file_meta.getAbsPath());
+        html.append_view("</a> / ");
+        html.append_view(filename);
         html.append_view("</div>");
 
-        html.append_view("<div class='header'><h1>File: ");
-        html.append_view(file_meta.getAbsPath());
-        html.append_view("</h1></div>");
+        html.append_view("<div class='header'><h1>");
+        html.append_view(filename);
+        html.append_view("</h1>");
+        self.render_github_link(abs_path, html);
+        html.append_view("</div>");
 
         var i = 0u;
         while (i < nodes.size()) {
@@ -443,16 +523,23 @@ public struct Generator {
             i++;
         }
 
+        // Debug Info section
+        html.append_view("<button class='debug-toggle' onclick='toggleDebug()'>Show Debug Info</button>");
+        html.append_view("<div id='debug-info' style='display:none;'>Generated from: ");
+        html.append_view(abs_path);
+        html.append_view("<br>File ID: ");
+        var f_id_str = std::string("");
+        f_id_str.append_uinteger(file_id as ubigint);
+        html.append_view(f_id_str.to_view());
+        html.append_view("</div>");
+
         html.append_view("</div></div>");
         html.append_string(self.get_js(rel_root.to_view()));
         html.append_view("</body></html>");
 
-        var out_file = std::string();
-        out_file.append_view(mod_dir);
+        var out_file = std::string(mod_dir.data(), mod_dir.size());
         out_file.append_view("/");
-        var file_id_str = std::string("");
-        file_id_str.append_uinteger(file_id as ubigint);
-        out_file.append_view(file_id_str.to_view());
+        out_file.append_view(f_id_str.to_view());
         out_file.append_view(".html");
 
         fs::write_text_file(out_file.data(), html.data() as *u8, html.size());
@@ -673,7 +760,7 @@ public struct Generator {
             var ns = node as *Namespace;
             var children = ns.get_body();
             if (children != null && children.size() > 0) {
-                html.append_view("<div class='nested' style='margin-left: 2rem; border-left: 2px solid var(--border); padding-left: 1rem;'>");
+                html.append_view("<div class='nested-container'>");
                 for (var i = 0u; i < children.size(); i++) {
                     self.document_node(children.get(i), html, tokens, rel_root);
                 }
@@ -683,13 +770,12 @@ public struct Generator {
             var def = node as *StructDefinition;
             var funcs = def.getFunctions();
             if (funcs != null && funcs.size() > 0) {
-                html.append_view("<div class='nested' style='margin-left: 2rem; border-left: 2px solid var(--border); padding-left: 1rem;'>");
+                html.append_view("<div class='nested-container'>");
                 for (var i = 0u; i < funcs.size(); i++) {
                     self.document_node(funcs.get(i), html, tokens, rel_root);
                 }
                 html.append_view("</div>");
             }
-            // TODO: document members too
         }
 
         html.append_view("</div>");
@@ -703,31 +789,32 @@ public struct Generator {
     func generate_index_html(&mut self) {
         var rel_root = std::string(".");
         var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
-        html.append_view("<title>API Documentation</title><style>");
+        html.append_view("<title>Chemical API Documentation</title><style>");
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
         
         html.append_string(self.generate_sidebar(rel_root.to_view()));
 
         html.append_view("<div class='main-content'>");
-        html.append_view("<div class='header'><h1>API Documentation</h1></div>");
-        html.append_view("<h2>Welcome to the Chemical API reference.</h2>");
-        html.append_view("<p>Use the sidebar to explore modules or the search bar to find specific symbols.</p>");
+        html.append_view("<div class='header'><h1>Chemical API Reference</h1></div>");
+        html.append_view("<p class='hero-text'>Explore professional documentation for the Chemical Language core libraries and standard modules.</p>");
         
-        html.append_view("<h3>Available Modules</h3><ul class='nav-list'>");
+        html.append_view("<div class='module-grid'>");
         var last_mod = std::string("");
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
             if (!sym.mod_name.equals(last_mod)) {
-                html.append_view("<li><a href='./");
+                html.append_view("<div class='module-card'>");
+                html.append_view("<div class='kind-badge'>Module</div>");
+                html.append_view("<br><br><a href='./");
                 html.append_view(sym.mod_name.to_view());
-                html.append_view("/index.html' style='font-size: 1.2rem; font-weight: 600;'>");
+                html.append_view("/index.html'>");
                 html.append_view(sym.mod_name.to_view());
-                html.append_view("</a></li>");
+                html.append_view("</a></div>");
                 last_mod = sym.mod_name.copy();
             }
         }
-        html.append_view("</ul></div></div>");
+        html.append_view("</div></div></div>");
         html.append_string(self.get_js(rel_root.to_view()));
         html.append_view("</body></html>");
 
@@ -772,6 +859,11 @@ public struct Generator {
             const savedTheme = localStorage.getItem('refgen-theme') || 'paper';
             document.documentElement.setAttribute('data-theme', savedTheme);
 
+            function toggleDebug() {
+                const debug = document.getElementById('debug-info');
+                debug.style.display = debug.style.display === 'none' ? 'block' : 'none';
+            }
+
             function searchSymbols() {
                 const query = document.getElementById('search-input').value.toLowerCase();
                 const results = document.getElementById('search-results');
@@ -784,6 +876,14 @@ public struct Generator {
                 results.innerHTML = matches.map(m => `<div><a href='${REL_ROOT_VAR}/${m.m}/${m.f}.html#${m.n}'>${m.n} <small>(${m.m})</small></a></div>`).join('');
                 results.style.display = 'block';
             }
+            
+            // Close search on outside click
+            document.addEventListener('click', (e) => {
+                const box = document.querySelector('.search-box');
+                if (box && !box.contains(e.target)) {
+                    document.getElementById('search-results').style.display = 'none';
+                }
+            });
             </script>
         """);
         // Replace REL_ROOT_VAR with actual rel_root
@@ -807,72 +907,135 @@ public struct Generator {
     func get_css(&self) : std::string_view {
         return """
             :root {
-                --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                --radius: 12px;
             }
+            * { box-sizing: border-box; scroll-behavior: smooth; }
             :root[data-theme='light'] {
-                --bg: #ffffff; --bg-card: #f9fafb; --border: #e5e7eb; --text: #111827; --text-muted: #4b5563; --accent: #2563eb; --code-bg: #f3f4f6;
+                --bg: #f8fafc; --bg-card: #ffffff; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --accent: #3b82f6; --code-bg: #f1f5f9; --btn-bg: #ffffff; --btn-text: #0f172a; --nested-bg: rgba(0,0,0,0.02);
             }
             :root[data-theme='dark'] {
-                --bg: #030712; --bg-card: #0f172a; --border: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --code-bg: #1e293b;
+                --bg: #020617; --bg-card: #0f172a; --border: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --code-bg: #1e293b; --btn-bg: #1e293b; --btn-text: #f8fafc; --nested-bg: rgba(255,255,255,0.02);
             }
             :root[data-theme='paper'] {
-                --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --code-bg: #e9e4d9;
+                --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --code-bg: #e9e4d9; --btn-bg: #fdfcf9; --btn-text: #433f38; --nested-bg: rgba(0,0,0,0.03);
             }
             body { 
                 font-family: 'Outfit', 'Inter', system-ui, sans-serif; 
                 background: var(--bg); color: var(--text); padding: 0; margin: 0; line-height: 1.6;
                 transition: background var(--transition), color var(--transition);
+                overflow-x: hidden;
             }
-            .layout { display: flex; min-height: 100vh; }
+            .layout { display: flex; min-height: 100vh; width: 100%; }
             .sidebar { 
-                width: 300px; background: var(--bg-card); border-right: 1px solid var(--border); 
-                padding: 2rem 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+                width: 320px; min-width: 320px; background: var(--bg-card); border-right: 1px solid var(--border); 
+                padding: 2.5rem 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; overflow-x: hidden;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.02);
             }
-            .main-content { flex: 1; padding: 2rem 4rem; max-width: 900px; }
+            .main-content { flex: 1; padding: 3rem 5rem; max-width: 1100px; margin: 0 auto; }
             .header { 
-                display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
-                padding-bottom: 1rem; border-bottom: 2px solid var(--border);
+                display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3rem;
+                padding-bottom: 1.5rem; border-bottom: 2px solid var(--border);
             }
-            .search-box { position: relative; margin-bottom: 2rem; }
+            .header h1 { font-size: 3rem; margin: 0; font-weight: 800; letter-spacing: -0.05em; color: var(--accent); }
+            .search-box { position: relative; margin-bottom: 3rem; }
             #search-input { 
-                width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px;
-                background: var(--bg); color: var(--text); outline: none;
+                width: 100%; padding: 0.85rem 1.25rem; border: 1.5px solid var(--border); border-radius: var(--radius);
+                background: var(--bg); color: var(--text); outline: none; transition: all var(--transition);
+                font-size: 1rem;
             }
+            #search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
             #search-results {
-                position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card);
-                border: 1px solid var(--border); border-radius: 8px; display: none; z-index: 1000;
-                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+                position: absolute; top: 105%; left: 0; right: 0; background: var(--bg-card);
+                border: 1px solid var(--border); border-radius: var(--radius); display: none; z-index: 1000;
+                box-shadow: var(--shadow-lg); max-height: 480px; overflow-y: auto; backdrop-filter: blur(8px);
             }
-            #search-results div { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
-            #search-results a { display: block; }
+            #search-results div { padding: 1rem; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+            #search-results div:hover { background: var(--code-bg); }
+            #search-results a { display: block; color: var(--text); font-weight: 600; }
+            
             .node { 
-                background: var(--bg-card); border: 1px solid var(--border); padding: 2rem; 
-                margin-bottom: 3rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                background: var(--bg-card); border: 1px solid var(--border); padding: 2.5rem; 
+                margin-bottom: 3rem; border-radius: 16px; box-shadow: var(--shadow);
+                position: relative; transition: transform var(--transition), box-shadow var(--transition);
             }
+            .node:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+            
+            .nested-container { 
+                margin-top: 1.5rem; padding: 1.5rem; border-radius: var(--radius);
+                background: var(--nested-bg); border-left: 4px solid var(--accent);
+                display: flex; flex-direction: column; gap: 2rem;
+            }
+            .nested-container .node { margin-bottom: 0; padding: 1.5rem; border-radius: 12px; }
+
             .kind-badge { 
-                background: var(--accent); color: white; padding: 2px 10px; border-radius: 4px; 
-                font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-right: 0.5rem;
+                background: var(--accent); color: white; padding: 4px 12px; border-radius: 6px; 
+                font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-right: 0.75rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
-            .attr-badge { border: 1px solid var(--accent); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; margin-right: 4px; }
-            .node-title { font-size: 2rem; font-weight: 800; margin: 0.5rem 0; }
+            .attr-badge { border: 1.5px solid var(--accent); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-right: 6px; }
+            .node-title { font-size: 2.15rem; font-weight: 800; margin: 0.75rem 0; color: var(--text); }
             .signature { 
-                font-family: 'JetBrains Mono', monospace; background: var(--code-bg); padding: 1rem;
-                border-radius: 8px; margin: 1.5rem 0; font-size: 0.95rem; border: 1px solid var(--border);
+                font-family: 'JetBrains Mono', monospace; background: var(--code-bg); padding: 1.25rem;
+                border-radius: 10px; margin: 2rem 0; font-size: 1rem; border: 1px solid var(--border);
+                overflow-x: auto; white-space: pre-wrap;
             }
-            .tok-kwd { color: #d73a49; font-weight: 600; }
-            .tok-type { color: #6f42c1; }
-            .tok-str { color: #032f62; }
+            .tok-kwd { color: #ef4444; font-weight: 700; }
+            .tok-type { color: #8b5cf6; }
+            .tok-str { color: #10b981; }
             .tok-com { color: var(--text-muted); font-style: italic; }
-            .comment { color: var(--text); font-size: 1.05rem; margin-top: 1.5rem; }
-            .theme-toggles { display: flex; gap: 0.5rem; }
+            .tok-fn { color: var(--accent); font-weight: 700; }
+            
+            .comment { color: var(--text); font-size: 1.1rem; margin-top: 2rem; padding: 1rem 0; border-top: 1px solid var(--border); }
+            .comment h2, .comment h3 { border: none; margin-top: 1.5rem; padding: 0; }
+            
+            .theme-toggles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
             .theme-btn { 
-                cursor: pointer; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card);
+                cursor: pointer; padding: 8px 16px; border: 1.5px solid var(--border); border-radius: 10px; 
+                background: var(--btn-bg); color: var(--btn-text); font-size: 0.9rem; font-weight: 600;
+                transition: all var(--transition);
             }
-            a { color: var(--accent); text-decoration: none; }
-            a:hover { text-decoration: underline; }
-            .nav-list { list-style: none; padding: 0; }
-            .nav-list li { margin-bottom: 0.5rem; }
-            .breadcrumb { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; }
+            .theme-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+            
+            a { color: var(--accent); text-decoration: none; transition: all 0.2s; }
+            a:hover { filter: brightness(1.2); }
+            
+            .nav-list { list-style: none; padding: 0; margin: 0; }
+            .nav-list li { margin-bottom: 0.85rem; }
+            .nav-list a { color: var(--text); font-weight: 500; font-size: 0.95rem; display: block; padding: 4px 0; }
+            .nav-list a:hover { color: var(--accent); padding-left: 4px; }
+            
+            .breadcrumb { font-size: 1rem; color: var(--text-muted); margin-bottom: 1rem; font-weight: 500; }
+            .breadcrumb a { color: var(--text-muted); }
+            .breadcrumb a:hover { color: var(--accent); }
+            
+            .debug-toggle {
+                font-size: 0.8rem; opacity: 0.4; cursor: pointer; border: 1.5px solid var(--border); 
+                background: none; color: var(--text); margin-top: 6rem; padding: 10px 20px; border-radius: 20px;
+                display: block; margin-left: auto; margin-right: auto; transition: all var(--transition);
+            }
+            .debug-toggle:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+            #debug-info { 
+                display: none; padding: 1.5rem; background: var(--code-bg); border-radius: var(--radius); 
+                font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin-top: 1.5rem; color: var(--text-muted);
+                border: 1px solid var(--border);
+            }
+            .git-link { 
+                font-size: 0.9rem; font-weight: 600; background: var(--accent); color: white !important;
+                padding: 6px 14px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            h2, h3 { margin-top: 4rem; border-bottom: 2px solid var(--border); padding-bottom: 0.75rem; font-weight: 800; letter-spacing: -0.025em; }
+            
+            .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+            .module-card { 
+                background: var(--bg-card); border: 1px solid var(--border); padding: 2rem; border-radius: 16px;
+                box-shadow: var(--shadow); transition: all var(--transition); text-align: center;
+            }
+            .module-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--accent); }
+            .module-card a { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+            .hero-text { font-size: 1.25rem; color: var(--text-muted); margin-bottom: 3rem; }
         """;
     }
 }

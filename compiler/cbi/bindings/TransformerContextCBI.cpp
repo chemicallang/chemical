@@ -70,6 +70,14 @@ void ModulegetFiles(ASTFileMetaDataSpanCBI* out, LabModule* self) {
     *out = ASTFileMetaDataSpanCBI { self->direct_files.data(), self->direct_files.size() };
 }
 
+std::size_t ModulegetFileCount(LabModule* self) {
+    return self->direct_files.size();
+}
+
+ASTFileMetaData* ModulegetFile(LabModule* self, unsigned int index) {
+    return &self->direct_files[index];
+}
+
 unsigned int FileMetaDatagetFileId(ASTFileMetaData* self) {
     return self->file_id;
 }

@@ -68,7 +68,7 @@ func get_node_name(node : *ASTNode) : std::string_view {
     } else if (kind == ASTNodeKind.UnionDecl) {
         return (node as *UnionDef).getName();
     }
-    return std::string_view("", 0);
+    return std::string_view("unknown");
 }
 
 // Get a kind label for documentation
@@ -115,12 +115,12 @@ public struct Generator {
             return;
         }
 
-        var files = module.getFiles();
-        var start = files.data()
-        const end = start + files.size()
-        while (start != end) {
-            self.generate_file_docs(start, mod_dir.to_view());
-            start++
+        var count = module.getFileCount();
+        var i = 0u;
+        while (i < count) {
+            var file_meta = module.getFile(i);
+            self.generate_file_docs(file_meta, mod_dir.to_view());
+            i++;
         }
     }
 

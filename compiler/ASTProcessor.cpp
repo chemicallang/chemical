@@ -879,6 +879,7 @@ bool ASTProcessor::import_chemical_files_direct_with_tokens(
         // copy the metadata into it
         *static_cast<ASTFileMetaData*>(ptr) = fileData;
         fileData.result = ptr;
+        ptr->result = ptr; // Ensure the result points to itself for CBI access
         // cache uses std::unique_ptr to destruct it
         // we must store in cache, otherwise we'll have a memory leak
         cache.emplace(file_id, ptr);

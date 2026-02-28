@@ -9,7 +9,7 @@ public struct TransformerContext {
 
     func getFlattenedModules(&self) : *mut VecRef<Module>
 
-    func getFileTokens(&self, fileId : uint) : *mut VecRef<Token>
+    func getFileTokens(&self, fileId : uint) : std::span<Token>
 
     func decodeLocation(&self, encoded : ubigint) : LocationData
 

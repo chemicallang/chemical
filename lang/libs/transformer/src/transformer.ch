@@ -7,7 +7,7 @@ public interface ASTFileMetaData {
 
 @compiler.interface
 public interface TransformerModule : Module {
-    func getFiles(&self) : *mut VecRef<ASTFileMetaData>
+    func getFiles(&self) : std::span<ASTFileMetaData>
 }
 
 @compiler.interface

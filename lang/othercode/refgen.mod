@@ -1,6 +1,5 @@
 module dummy
 
-import atomic
 import cstd
 import docgen
 import fs

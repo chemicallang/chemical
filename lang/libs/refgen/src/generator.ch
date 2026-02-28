@@ -521,13 +521,14 @@ public struct Generator {
         
         // Dependency Graph Visualization
         html.append_view("<div class='dependency-graph'>");
-        html.append_view("<h3>Module Dependencies</h3>");
+        html.append_view("<h3 style='margin-top:0;padding-bottom:0.5rem;border:none;'>Module Dependencies</h3>");
         html.append_view("<div class='mermaid'>");
         html.append_string(self.generate_dependency_graph(mod_name));
         html.append_view("</div></div>");
 
         html.append_view("<div class='symbols-header'>");
         html.append_view("<h3>Symbols</h3>");
+        html.append_view("<div class='filter-box' style='margin-bottom:0;'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider round'></span></label> <span>Public Only</span></div>");
         html.append_view("<button class='theme-btn' onclick='toggleExpandAll(true)'>Expand All</button>");
         html.append_view("<button class='theme-btn' onclick='toggleExpandAll(false)'>Collapse All</button>");
         html.append_view("</div><div class='symbol-tree'>");
@@ -644,27 +645,17 @@ public struct Generator {
         }
     }
 
-    func generate_dependency_graph(&mut self, mod_name : std::string_view) : std::string {
-        // We need to find the module in ctx.getFlattenedModules() and get its dependencies
+    func find_module(&self, name : std::string_view) : *TransformerModule {
         var deps = self.ctx.getFlattenedModules();
-        var mod : *TransformerModule = null;
         for (var i = 0u; i < deps.size(); i++) {
             var m = deps.get(i) as *TransformerModule;
-            if (m.getName().equals(mod_name)) {
-                mod = m;
-                break;
-            }
+            if (m.getName().equals(name)) return m;
         }
-        
-        if (mod == null) return std::string("");
-        
-        var mermaid = std::string("graph TD\n");
-        mermaid.append_view("    ");
-        mermaid.append_view(mod_name);
-        mermaid.append_view("[");
-        mermaid.append_view(mod_name);
-        mermaid.append_view("]\n");
-        
+        return null;
+    }
+
+    func add_module_deps(&self, mod : *TransformerModule, mermaid : &mut std::string, visited : &mut std::vector<std::string>) {
+        var mod_name = mod.getName();
         var d_count = mod.getDependencyCount();
         for (var i = 0u; i < d_count; i++) {
             var d = mod.getDependency(i);
@@ -676,7 +667,38 @@ public struct Generator {
             mermaid.append_view("[");
             mermaid.append_view(d_name);
             mermaid.append_view("]\n");
+            // Check if already visited to avoid infinite recursion
+            var already = false;
+            for (var j = 0u; j < visited.size(); j++) {
+                if (visited.get(j).to_view().equals(d_name)) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                visited.push_back(std::string(d_name.data(), d_name.size()));
+                var child_mod = self.find_module(d_name);
+                if (child_mod != null) {
+                    self.add_module_deps(child_mod, mermaid, visited);
+                }
+            }
         }
+    }
+
+    func generate_dependency_graph(&mut self, mod_name : std::string_view) : std::string {
+        var mod = self.find_module(mod_name);
+        if (mod == null) return std::string("");
+        
+        var mermaid = std::string("graph TD\n");
+        mermaid.append_view("    ");
+        mermaid.append_view(mod_name);
+        mermaid.append_view("[");
+        mermaid.append_view(mod_name);
+        mermaid.append_view("]\n");
+        
+        var visited = std::vector<std::string>();
+        visited.push_back(std::string(mod_name.data(), mod_name.size()));
+        self.add_module_deps(mod, mermaid, visited);
         return mermaid;
     }
 
@@ -694,8 +716,6 @@ public struct Generator {
         html.append_view("<button class='theme-btn' onclick=\"setTheme('paper')\">Paper</button>");
         html.append_view("</div>");
         
-        html.append_view("<h3>Filter</h3>");
-        html.append_view("<div class='filter-box'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider round'></span></label> <span>Public Only</span></div>");
 
         html.append_view("<h3>Modules</h3><ul class='nav-list'>");
         var last_mod = std::string("");
@@ -767,6 +787,7 @@ public struct Generator {
         // No line number for file header? Or line 1?
         self.render_github_link(abs_path, 1, html);
         html.append_view("</div>");
+        html.append_view("<div class='symbols-header'><h3>Declarations</h3><div class='filter-box' style='margin-bottom:0;'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider round'></span></label> <span>Public Only</span></div></div>");
 
         var i = 0u;
         while (i < nodes.size()) {
@@ -1358,7 +1379,7 @@ public struct Generator {
             </script>
             <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({ startOnLoad: true, theme: savedTheme === 'dark' ? 'dark' : 'default' });
+            mermaid.initialize({ startOnLoad: true, theme: savedTheme === 'dark' ? 'dark' : 'default', flowchart: { useMaxWidth: true } });
             </script>
         """);
         // Replace REL_ROOT_VAR with actual rel_root
@@ -1501,11 +1522,13 @@ public struct Generator {
             .symbols-header h3 { margin: 0; flex: 1; }
             
             .dependency-graph { 
-                margin: 2rem 0; padding: 2rem; background: var(--bg-card); 
+                margin: 0.5rem 0 2rem 0; padding: 1rem 2rem; background: var(--bg-card); 
                 border: 1px solid var(--border); border-radius: var(--radius);
-                box-shadow: var(--shadow);
+                box-shadow: var(--shadow); overflow-x: auto; overflow-y: hidden;
             }
+            .dependency-graph h3 { margin-top: 0; padding-bottom: 0.5rem; border: none; }
             .mermaid { background: transparent !important; }
+            .mermaid svg { max-width: 100%; height: auto; display: block; }
 
             .doc-main { margin-bottom: 1.5rem; font-style: normal; }
             .doc-section { margin-top: 1.5rem; }

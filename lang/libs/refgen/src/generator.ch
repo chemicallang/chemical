@@ -558,6 +558,7 @@ public struct Generator {
                 if (!is_public) html.append_view("non-public");
                 html.append_view("'>");
                 html.append_view("<div class='sym-header'>");
+                html.append_view("<div style='display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;'>");
                 html.append_view("<a href='./");
                 var f_id = std::string("");
                 f_id.append_uinteger(sym.file_id as ubigint);
@@ -585,6 +586,7 @@ public struct Generator {
                 if (sym.access != AccessSpecifier.Public) {
                     html.append_view("<span class='attr-badge' style='background: #64748b; color: white;'>Private</span>");
                 }
+                html.append_view("</div>");
                 
                 if (has_children) {
                     html.append_view("<button class='collapse-btn' onclick='toggleCollapse(this)'>&#9654;</button>");
@@ -651,7 +653,7 @@ public struct Generator {
                 if (slash_idx != -1u) {
                     var m_name = after_libs.subview(0, slash_idx);
                     if (is_native_module(m_name)) {
-                        html.append_view("<a class='git-link' href='https://github.com/chemical-lang/chemical/tree/");
+                        html.append_view("<a class='git-link' href='https://github.com/chemicallang/chemical/tree/");
                         html.append_view(self.git_ref.to_view());
                         html.append_view("/lang/libs/");
                         html.append_view(m_name);
@@ -663,7 +665,7 @@ public struct Generator {
                         html.append_view(l_str.to_view());
                         html.append_view("' target='_blank'>");
                         html.append_view("<svg class='git-icon' viewBox='0 0 16 16' width='16' height='16'><path fill='currentColor' d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z'></path></svg>");
-                        html.append_view(" Source</a>");
+                        html.append_view("</a>");
                     }
                 }
             }
@@ -995,31 +997,9 @@ public struct Generator {
         html.append_view("'>");
         
         // Header
-        html.append_view("<div class='node-header'>");
-        if (access == AccessSpecifier.Public) html.append_view("<span class='attr-badge'>Public</span>");
-
-        if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
-            var header_decl : *FunctionDeclaration = null;
-            if (kind == ASTNodeKind.FunctionDecl) {
-                header_decl = node as *FunctionDeclaration;
-            } else {
-                header_decl = (node as *GenericFuncDecl).getMasterImpl();
-            }
-            if (header_decl != null) {
-                var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
-                header_decl.getAttributes(&mut attrs);
-                if (attrs.is_constructor_fn) {
-                    if (attrs.is_implicit) html.append_view("<span class='attr-badge' style='background: #8b5cf6;'>Implicit Constructor</span>");
-                    else html.append_view("<span class='attr-badge' style='background: #10b981;'>Constructor</span>");
-                }
-                if (attrs.is_override) {
-                    html.append_view("<span class='attr-badge' style='background: #f59e0b;'>Override</span>");
-                }
-            }
-        }
-        html.append_view("<span class='kind-badge'>");
-        html.append_view(kind_label);
-        html.append_view("</span> ");
+        html.append_view("<div class='node-header' style='flex-direction: column; align-items: flex-start;'>");
+        
+        html.append_view("<div style='display: flex; justify-content: space-between; align-items: baseline; width: 100%;'>");
         html.append_view("<span class='node-title'>");
         html.append_view(name);
         html.append_view("</span>");
@@ -1031,6 +1011,40 @@ public struct Generator {
         }
         
         html.append_view("</div>");
+
+        html.append_view("<div style='display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; align-items: center;'>");
+
+        if (access == AccessSpecifier.Public) html.append_view("<span class='attr-badge'>Public</span>");
+
+        html.append_view("<span class='kind-badge' style='margin-right: 0;'>");
+        html.append_view(kind_label);
+        html.append_view("</span>");
+
+        if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
+            var header_decl : *FunctionDeclaration = null;
+            if (kind == ASTNodeKind.FunctionDecl) {
+                header_decl = node as *FunctionDeclaration;
+            } else {
+                header_decl = (node as *GenericFuncDecl).getMasterImpl();
+            }
+            if (header_decl != null) {
+                var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
+                header_decl.getAttributes(&mut attrs);
+
+                if (header_decl.isExtensionFn()) {
+                    html.append_view("<span class='extension-tag' style='margin-left: 0;'>Extension</span>");
+                }
+
+                if (attrs.is_constructor_fn) {
+                    if (attrs.is_implicit) html.append_view("<span class='attr-badge' style='background: #8b5cf6; border-color: #8b5cf6; color: white;'>Implicit Constructor</span>");
+                    else html.append_view("<span class='attr-badge' style='background: #10b981; border-color: #10b981; color: white;'>Constructor</span>");
+                }
+                if (attrs.is_override) {
+                    html.append_view("<span class='attr-badge' style='background: #f59e0b; border-color: #f59e0b; color: white;'>Override</span>");
+                }
+            }
+        }
+        html.append_view("</div></div>");
 
         // Signature with highlighting
         html.append_view("<div class='signature'>");
@@ -1050,10 +1064,6 @@ public struct Generator {
             var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
             decl.getAttributes(&mut attrs);
             
-            if (decl.isExtensionFn()) {
-                html.append_view("<div style='margin-bottom: 0.5rem;'><span class='extension-tag'>extension</span></div>");
-            }
-
             html.append_view("<span class='tok-kwd'>func</span> ");
             html.append_view(name);
             
@@ -1450,11 +1460,13 @@ public struct Generator {
             }
             
             function toggleCollapse(btn) {
-                const content = btn.parentElement.nextElementSibling;
-                if (content.style.display === 'none') {
+                const sym = btn.closest('.top-level-sym');
+                if (!sym) return;
+                const content = sym.querySelector('.collapsible-content');
+                if (content && content.style.display === 'none') {
                     content.style.display = 'block';
                     btn.classList.add('expanded');
-                } else {
+                } else if (content) {
                     content.style.display = 'none';
                     btn.classList.remove('expanded');
                 }
@@ -1567,6 +1579,7 @@ public struct Generator {
             #search-results div:hover { background: var(--code-bg); }
             #search-results a { display: block; color: var(--text); font-weight: 600; }
             
+            .node-header { padding-bottom: 0.5rem; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
             .node { 
                 background: var(--bg-card); border: 1px solid var(--border); padding: 2.5rem; 
                 margin-bottom: 3rem; border-radius: 16px; box-shadow: var(--shadow);
@@ -1583,10 +1596,10 @@ public struct Generator {
 
             .kind-badge { 
                 background: var(--accent); color: white; padding: 4px 12px; border-radius: 6px; 
-                font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-right: 0.75rem;
+                font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
-            .attr-badge { border: 1.5px solid var(--accent); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-right: 6px; }
+            .attr-badge { border: 1.5px solid var(--accent); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
             .node-title { font-size: 2.15rem; font-weight: 800; margin: 0.75rem 0; color: var(--text); }
             .signature { 
                 font-family: 'JetBrains Mono', monospace; background: var(--code-bg); padding: 1.25rem;
@@ -1616,13 +1629,12 @@ public struct Generator {
                 background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase; font-weight: 800; vertical-align: middle; margin-left: 8px;
             }
             .git-link { 
-                font-size: 0.85rem; color: var(--text-muted); display: none; align-items: center; gap: 0.4rem;
-                padding: 4px 12px; border-radius: 8px; border: 1.5px solid var(--border); transition: all var(--transition);
-                margin-left: auto;
+                color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;
+                padding: 6px; border-radius: 8px; border: 1.5px solid var(--border); transition: all var(--transition);
+                margin-left: auto; opacity: 0.4;
             }
-            .git-link:hover { color: var(--accent); border-color: var(--accent); background: var(--code-bg); }
-            .node-header:hover .git-link, .header:hover .git-link { display: inline-flex; }
-            .git-icon { opacity: 0.8; }
+            .git-link:hover, .node-header:hover .git-link, .header:hover .git-link { opacity: 1; border-color: var(--accent); background: var(--code-bg); color: var(--accent); }
+            .git-icon { opacity: 0.9; width: 18px; height: 18px; }
             .nav-list { list-style: none; padding: 0; margin: 0; }
             .nav-list li { margin-bottom: 0.85rem; }
             .nav-list a { color: var(--text); font-weight: 500; font-size: 0.95rem; display: block; padding: 4px 0; }
@@ -1672,12 +1684,6 @@ public struct Generator {
                 font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin-top: 1.5rem; color: var(--text-muted);
                 border: 1px solid var(--border);
             }
-            .git-link { 
-                font-size: 0.9rem; font-weight: 600; background: var(--accent); color: white !important;
-                padding: 6px 14px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                display: flex; align-items: center; gap: 6px;
-            }
-            .git-icon { vertical-align: middle; }
             h2, h3 { margin-top: 4rem; border-bottom: 2px solid var(--border); padding-bottom: 0.75rem; font-weight: 800; letter-spacing: -0.025em; }
             
             .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }

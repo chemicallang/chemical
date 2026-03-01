@@ -171,6 +171,8 @@ func get_node_name(node : *ASTNode) : std::string_view {
         return (node as *GenericInterfaceDecl).getMasterImpl().getName();
     } else if (kind == ASTNodeKind.GenericTypeParam) {
         return (node as *GenericTypeParameter).getName();
+    } else if (kind == ASTNodeKind.StructMember || kind == ASTNodeKind.VariantMember) {
+        return (node as *BaseDefMember).getName();
     }
     return std::string_view();
 }
@@ -193,6 +195,8 @@ func get_kind_label(kind : ASTNodeKind) : std::string_view {
         return std::string_view("union");
     } else if (kind == ASTNodeKind.TypealiasStmt) {
         return std::string_view("typealias");
+    } else if (kind == ASTNodeKind.StructMember || kind == ASTNodeKind.VariantMember) {
+        return std::string_view("member");
     }
     return std::string_view("declaration");
 }
@@ -1007,7 +1011,7 @@ public struct Generator {
         if(true){
             var encoded_loc = node.getEncodedLocation();
             var loc_data = self.ctx.decodeLocation(encoded_loc);
-            self.render_github_link(abs_path, loc_data.lineStart, html);
+            self.render_github_link(abs_path, loc_data.lineStart + 1, html);
         }
         
         html.append_view("</div>");
@@ -1159,6 +1163,36 @@ public struct Generator {
                     self.render_type(container.getInheritedType(i), html, rel_root);
                 }
             }
+            
+            var members : *mut VecRef<BaseDefMember> = null;
+            if (kind == ASTNodeKind.StructDecl) {
+                members = (node as *StructDefinition).getMembers();
+            } else if (kind == ASTNodeKind.GenericStructDecl) {
+                var d = (node as *GenericStructDecl).getMasterImpl();
+                if (d != null) members = d.getMembers();
+            } else if (kind == ASTNodeKind.VariantDecl) {
+                members = (node as *VariantDefinition).getMembers();
+            } else if (kind == ASTNodeKind.GenericVariantDecl) {
+                var d = (node as *GenericVariantDecl).getMasterImpl();
+                if (d != null) members = d.getMembers();
+            }
+            
+            if (members != null && members.size() > 0) {
+                html.append_view(" {\n");
+                for (var i = 0u; i < members.size(); i++) {
+                    var m = members.get(i);
+                    html.append_view("    <span class='tok-kwd'>var</span> ");
+                    html.append_view(m.getName());
+                    
+                    var mt = m.getType();
+                    if (mt != null) {
+                        html.append_view(" : ");
+                        self.render_type(mt, html, rel_root);
+                    }
+                    html.append_view("\n");
+                }
+                html.append_view("}");
+            }
         } else if (kind == ASTNodeKind.EnumDecl) {
             html.append_view("<span class='tok-kwd'>enum</span> ");
             html.append_view(name);
@@ -1201,6 +1235,15 @@ public struct Generator {
             html.append_view(name);
             html.append_view(" = ");
             self.render_type(stmt.getActualType(), html, rel_root);
+        } else if (kind == ASTNodeKind.StructMember || kind == ASTNodeKind.VariantMember) {
+            var member = node as *BaseDefMember;
+            html.append_view("<span class='tok-kwd'>var</span> ");
+            html.append_view(name);
+            var t = member.getType();
+            if (t != null) {
+                html.append_view(" : ");
+                self.render_type(t, html, rel_root);
+            }
         }
         html.append_view("</div>");
  
@@ -1270,13 +1313,8 @@ public struct Generator {
                 }
             }
             
-            if ((funcs != null && funcs.size() > 0) || (members != null && members.size() > 0)) {
+            if ((funcs != null && funcs.size() > 0)) {
                 html.append_view("<div class='nested-container'>");
-                if (members != null) {
-                    for (var i = 0u; i < members.size(); i++) {
-                        self.document_node(members.get(i), html, tokens, rel_root, abs_path);
-                    }
-                }
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
                         self.document_node(funcs.get(i), html, tokens, rel_root, abs_path);
@@ -1435,6 +1473,18 @@ public struct Generator {
                     } else {
                         n.style.display = '';
                     }
+                });
+                
+                const containers = document.querySelectorAll('.nested-container');
+                containers.forEach(c => {
+                    let hasVisible = false;
+                    for (let i = 0; i < c.children.length; i++) {
+                        if (c.children[i].style.display !== 'none') {
+                            hasVisible = true;
+                            break;
+                        }
+                    }
+                    c.style.display = hasVisible ? '' : 'none';
                 });
                 localStorage.setItem('refgen-public-only', publicOnly);
             }

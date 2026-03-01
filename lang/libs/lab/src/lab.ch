@@ -251,7 +251,7 @@ public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, packag
 }
 
 // a single .c file
-public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
     const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
@@ -260,7 +260,7 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
 }
 
 // a single .cpp file
-public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
     const mod = ctx.new_package(ModuleType.CPPFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
@@ -276,13 +276,13 @@ public func (ctx : &BuildContext) object_module(scope_name : &std::string_view, 
 }
 
 // directory module
-public func (ctx : &BuildContext) chemical_dir_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) chemical_dir_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     const mod = ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Library, scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;
 }
 
-public func (ctx : &BuildContext) directory_app_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) directory_app_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     const mod = ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Application, scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;
@@ -331,7 +331,7 @@ public func (ctx : &BuildContext) add_compiler_interfaces(mod : *mut Module, int
     }
 }
 
-public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, name : &std::string_view, dir_path : &std::string_view, dependencies : std::span<*Module>, interfaces : std::span<std::string_view>) : *mut Module {
+public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, name : &std::string_view, dir_path : &std::string_view, dependencies : std::span<*mut Module>, interfaces : std::span<std::string_view>) : *mut Module {
     var mod = ctx.chemical_dir_module(scope_name, name, dir_path, dependencies)
     ctx.add_compiler_interfaces(mod, interfaces)
     return mod;
@@ -349,7 +349,7 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
     }
 }
 
-public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     if(path.ends_with(".c")) {
         const mod = ctx.new_module_with_deps(ModuleType.CFile, PackageKind.Library, scope_name, name, dependencies);
         ctx.add_path(mod, path);

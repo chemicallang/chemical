@@ -3,6 +3,7 @@
 
 #include "GenericType.h"
 #include "LinkedType.h"
+#include <algorithm>
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
@@ -130,16 +131,47 @@ GenericType* GenericType::copy(ASTAllocator& allocator) {
     return gen;
 }
 
+bool GenericType::is_same(BaseType *pure_type) {
+    const auto other = pure_type->canonical();
+    if(other->kind() == BaseTypeKind::Generic) {
+        const auto other_gen = other->as_generic_type_unsafe();
+        // same declaration: compare type args pairwise
+        if(referenced->linked && other_gen->referenced->linked && referenced->linked == other_gen->referenced->linked) {
+            if (types.size() != other_gen->types.size()) return false;
+            const auto min_size = std::min(types.size(), other_gen->types.size());
+            for(unsigned i = 0; i < min_size; i++) {
+                BaseType* this_arg = types[i];
+                BaseType* other_arg = other_gen->types[i];
+                if(!this_arg->is_same(other_arg)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 bool GenericType::satisfies(BaseType *pure_type) {
-    return referenced->satisfies(pure_type);
-//    switch(pure_type->kind()) {
-//        case BaseTypeKind::Generic:
-//            return referenced->satisfies(pure_type->as_generic_type_unsafe()->referenced);
-//        case BaseTypeKind::Linked:
-//            return referenced->satisfies(pure_type);
-//        default:
-//            return false;
-//    }
+    const auto other = pure_type->canonical();
+    if(other->kind() == BaseTypeKind::Generic) {
+        const auto other_gen = other->as_generic_type_unsafe();
+        // same declaration: compare type args pairwise
+        if(referenced->linked && other_gen->referenced->linked && referenced->linked == other_gen->referenced->linked) {
+            const auto min_size = std::min(types.size(), other_gen->types.size());
+            for(unsigned i = 0; i < min_size; i++) {
+                BaseType* this_arg = types[i];
+                BaseType* other_arg = other_gen->types[i];
+                if(!this_arg->satisfies(other_arg)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+    // different declarations (inheritance) or non-generic other:
+    // delegate to LinkedType::satisfies which handles inheritance, interfaces, etc.
+    return referenced->satisfies(other);
 }
 
 ASTNode *GenericType::linked_node() {

@@ -45,9 +45,7 @@ public:
 
     ASTNode *linked_node() final;
 
-    bool is_same(BaseType *other) final {
-        return other->kind() == kind();
-    }
+    bool is_same(BaseType *other) final;
 
     bool satisfies(BaseType *type) final;
 

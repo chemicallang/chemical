@@ -298,7 +298,7 @@ public:
      */
     void shallow_copy_functions_into(MembersContainer& other, ASTAllocator& allocator) {
         other.functions_container.reserve(functions_container.size());
-        for(auto& func : functions_container) {
+        for(const auto func : functions_container) {
             switch(func->kind()) {
                 case ASTNodeKind::FunctionDecl:{
                     const auto func_copy = func->as_function_unsafe()->shallow_copy(allocator);

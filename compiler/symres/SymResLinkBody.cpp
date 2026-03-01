@@ -228,8 +228,9 @@ void link_assignable(SymResLinkBody& symRes, Value* lhs, BaseType* expected_type
 
 inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_type, bool assign) {
     if(assign && value->kind() == ValueKind::Identifier) {
+        const auto id = value->as_identifier_unsafe();
         symRes.expected_type = expected_type;
-        symRes.VisitVariableIdentifier(value->as_identifier_unsafe(), false);
+        symRes.VisitVariableIdentifier(id, false);
     } else {
         symRes.visit(value, expected_type);
     }

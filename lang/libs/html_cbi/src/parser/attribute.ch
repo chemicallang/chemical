@@ -58,7 +58,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                     AttributeValue : AttributeValue {
                         kind : AttributeValueKind.ChemicalValues
                     },
-                    values : std::vector<*Value>()
+                    values : std::vector<*mut Value>()
                 }
 
                 value.values.push(expr);

@@ -527,7 +527,7 @@ public struct Generator {
         html.append_view(mod_name);
         html.append_view(" Index</title><style>");
         html.append_view(self.get_css());
-        html.append_view("</style></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
         
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -799,7 +799,7 @@ public struct Generator {
         html.append_view(filename);
         html.append_view(" - Chemical API</title><style>");
         html.append_view(self.get_css());
-        html.append_view("</style></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
 
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -1337,7 +1337,7 @@ public struct Generator {
         var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><meta name='description' content='Chemical Language Core API Reference'>");
         html.append_view("<title>Chemical API Documentation</title><style>");
         html.append_view(self.get_css());
-        html.append_view("</style></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
         
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -1452,13 +1452,6 @@ public struct Generator {
         s.append_view("/search_index.js'></script>");
         s.append_view("""
             <script>
-            function setTheme(theme) {
-                document.documentElement.setAttribute('data-theme', theme);
-                localStorage.setItem('refgen-theme', theme);
-            }
-            const savedTheme = localStorage.getItem('refgen-theme') || 'paper';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-
             function toggleDebug() {
                 const debug = document.getElementById('debug-info');
                 debug.style.display = debug.style.display === 'none' ? 'block' : 'none';

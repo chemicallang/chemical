@@ -1,4 +1,4 @@
-module test_libs_runner
+application test_libs_runner
 
 source "main.ch"
 

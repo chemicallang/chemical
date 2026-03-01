@@ -36,8 +36,8 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
             },
             name : builder.allocate_view(id.value),
             isSelfClosing : isSelfClosing,
-            attributes : std::vector<*HtmlAttribute>(),
-            children : std::vector<*HtmlChild>(),
+            attributes : std::vector<*mut HtmlAttribute>(),
+            children : std::vector<*mut HtmlChild>(),
             loc : parser.getEncodedLocation(id)
         }
 

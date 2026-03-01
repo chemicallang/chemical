@@ -199,7 +199,14 @@ BaseType* BaseType::canonical() {
         }
         case BaseTypeKind::Generic: {
             const auto gen = as_generic_type_unsafe();
-            return gen->referenced->canonical();
+            const auto can = gen->referenced->canonical();
+            if(can->kind() == BaseTypeKind::Linked) {
+                // pointing to same declarations
+                if(can->as_linked_type_unsafe()->linked == gen->referenced->linked) {
+                    return this;
+                }
+            }
+            return can;
         }
         default:
             return this;

@@ -528,6 +528,16 @@ private:
     );
 
     /**
+     * it runs the job
+     */
+    int run_job(LabJob& final_job, const std::vector<std::string_view>& args, LabBuildContext& context);
+
+    /**
+     * run a native module, like docgen
+     */
+    int run_native_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);
+
+    /**
      * runs a remote module
      */
     int run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context);

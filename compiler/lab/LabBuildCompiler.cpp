@@ -3100,8 +3100,15 @@ int LabBuildCompiler::run_invocation(
             });
         }
     }
+
+    // 2. Is it a native module
+    if(target == "docgen") {
+        return compiler.do_allocating([&]() -> int {
+            return compiler.run_native_module(target, args, context);
+        });
+    }
     
-    // 2. Is it a local project?
+    // 3. Is it a local project?
     if (target.ends_with(".lab") || target.ends_with(".mod")) {
         return compiler.do_allocating([&]() -> int {
             compiler_opts.build_dir = resolve_sibling(target, "build");
@@ -3115,7 +3122,7 @@ int LabBuildCompiler::run_invocation(
 
     }
     
-    // 3. It's a remote module run
+    // 4. It's a remote module run
     return compiler.do_allocating([&]() -> int {
         return compiler.run_remote_module(target, args, context);
     });
@@ -3251,6 +3258,131 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
     return info;
 }
 
+int LabBuildCompiler::run_job(LabJob& final_job, const std::vector<std::string_view>& args, LabBuildContext& context) {
+    // disable caching, because it causes generation of .dat and partial 2c files
+    // we don't want these files being generated in the cache build directory
+    options->is_caching_enabled = false;
+    // disable build lab caching, we don't want to generate its .dat and partial 2c files
+    options->is_build_lab_caching_enabled = false;
+
+    // if remote imports succeeded, it must have lead to a single module
+    // the first one
+    if (final_job.dependencies.empty()) return 1;
+    auto mod = final_job.dependencies[0].module;
+
+    // clearing the remote imports from the final job
+    // we've downloaded them, we still use do_job
+    // do_job will again process remote imports, when we can just skip that
+    final_job.remote_imports.clear();
+
+    // since we are running it
+    // we should ensure its main function automatically gets no_mangle
+    mod->package_kind = PackageKind::Application;
+
+    // lets compile any cbi jobs user may have specified
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI) {
+            const auto job_result = do_job(job.get());
+            if(job_result != 0) {
+                return job_result;
+            }
+        }
+    }
+
+    // do the actual job
+    const auto job_result = do_job(&final_job);
+    if(job_result == 0) {
+        // removes downloaded sources + intermediate objects
+        fs::remove_all(final_job.build_dir.to_view());
+    } else {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "emitting executable, returned status code 1" << std::endl;
+    }
+
+    // get allocators
+    auto& _job_allocator = *job_allocator;
+    auto& _mod_allocator = *mod_allocator;
+    auto& _file_allocator = *file_allocator;
+
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    // end if compilation failed
+    if(job_result != 0) {
+        return job_result;
+    }
+
+    // Run the executable
+    return launch_process_and_wait(final_job.abs_path.data(), args);
+}
+
+int LabBuildCompiler::run_native_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
+
+    auto cache_dir = get_commands_cache_dir();
+    if (cache_dir.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine home directory for caching" << std::endl;
+        return 1;
+    }
+
+    // the target dir is where we should store executable
+    // inside target dir, create a build dir, which we should use for the build
+    std::string target_dir_rel = "chemicallang/";
+    target_dir_rel += target;
+    auto target_dir = resolve_rel_child_path_str(cache_dir, target_dir_rel);
+
+    // determine output path of the executable
+    auto outputPath = chem::string();
+    outputPath.append(target_dir);
+    outputPath.append("/");
+#ifdef _WIN32
+    outputPath.append("run.exe");
+#else
+    outputPath.append("run");
+#endif
+
+    // lets check if executable already exists and invoke it
+    // without downloading it
+    if(fs::exists(outputPath.to_view())) {
+        // executable already exists
+        return launch_process_and_wait(outputPath.data(), args);
+    }
+
+    // we will delete the build dir, this contains everything (remote modules, intermediate objects)
+    auto build_dir = resolve_rel_child_path_str(target_dir, "build");
+
+    // Ensure cache dir exists
+    fs::create_directories(build_dir);
+
+    // creating a executable job
+    LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
+    // this is where 'remote' directory will be created by process_remote_imports
+    // we use build_dir, since we want to delete the downloaded sources at the end
+    final_job.build_dir = chem::string(build_dir);
+    // setting the absolute path to the executable
+    final_job.abs_path.append(outputPath.to_view());
+
+    // building a path to module and creating LabModule* out of it
+    auto resolved = path_handler.resolve_native_lib(chem::string_view(target));
+#ifdef DEBUG
+    if(!fs::exists(resolved)) {
+        CHEM_THROW_RUNTIME("native module directory expected to exist");
+    }
+#endif
+    ModuleDependencyRecord record(resolved);
+    const auto mod = create_module_for_dependency(context, record, &final_job);
+    if(mod == nullptr) {
+        return 1;
+    }
+
+    // adding the dependency on the job
+    final_job.add_dependency(mod, nullptr);
+
+    // the actual running of the job
+    return run_job(final_job, args, context);
+
+}
+
 int LabBuildCompiler::run_remote_module(const std::string& target, const std::vector<std::string_view>& args, LabBuildContext& context) {
 
     auto cache_dir = get_commands_cache_dir();
@@ -3305,68 +3437,13 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
     import.requesters.push_back({ nullptr, sym_info });
     if (!add_remote_import(&final_job, import)) return 1;
 
-
     // this will process remote imports recursively, and add to the job
     if (process_remote_imports(context, &final_job) != 0) {
         return 1;
     }
 
-    // disable caching, because it causes generation of .dat and partial 2c files
-    // we don't want these files being generated in the cache build directory
-    options->is_caching_enabled = false;
-    // disable build lab caching, we don't want to generate its .dat and partial 2c files
-    options->is_build_lab_caching_enabled = false;
-
-    // if remote imports succeeded, it must have lead to a single module
-    // the first one
-    if (final_job.dependencies.empty()) return 1;
-    auto mod = final_job.dependencies[0].module;
-
-    // clearing the remote imports from the final job
-    // we've downloaded them, we still use do_job
-    // do_job will again process remote imports, when we can just skip that
-    final_job.remote_imports.clear();
-
-    // since we are running it
-    // we should ensure its main function automatically gets no_mangle
-    mod->package_kind = PackageKind::Application;
-
-    // lets compile any cbi jobs user may have specified
-    for(auto& job : context.executables) {
-        if(job->type == LabJobType::CBI) {
-            const auto job_result = do_job(job.get());
-            if(job_result != 0) {
-                return job_result;
-            }
-        }
-    }
-
-    // do the actual job
-    const auto job_result = do_job(&final_job);
-    if(job_result == 0) {
-        // removes downloaded sources + intermediate objects
-        fs::remove_all(build_dir);
-    } else {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "emitting executable, returned status code 1" << std::endl;
-    }
-
-    // get allocators
-    auto& _job_allocator = *job_allocator;
-    auto& _mod_allocator = *mod_allocator;
-    auto& _file_allocator = *file_allocator;
-
-    // clearing all allocations done in all the allocators
-    _job_allocator.clear();
-    _mod_allocator.clear();
-    _file_allocator.clear();
-
-    // end if compilation failed
-    if(job_result != 0) {
-        return job_result;
-    }
-
-    // Run the executable
-    return launch_process_and_wait(final_job.abs_path.data(), args);
+    // run the actual job
+    return run_job(final_job, args, context);
 
 }
 

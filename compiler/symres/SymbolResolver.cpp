@@ -273,18 +273,13 @@ void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, 
 void SymbolResolver::declare_function(const chem::string_view& name, FunctionDeclaration* decl, AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Private:
-        case AccessSpecifier::Protected:
             declare_private_function(name, decl);
             return;
         case AccessSpecifier::Public:
-            {
-                declare_exported_function(name, decl);
-                // TODO do we need to check for conflicts in top level runtime
-//                auto str = decl->runtime_name_str();
-//                declare_runtime(chem::string_view(str.data(), str.size()), decl);
-            }
+            declare_exported_function(name, decl);
             return;
         case AccessSpecifier::Internal:
+        case AccessSpecifier::Protected:
             declare_function(name, decl);
             return;
     }

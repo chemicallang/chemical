@@ -198,3 +198,7 @@ func argv_offset(argv : **char, offset : int) : **char {
 }
 
 }
+
+protected func main(argc : int, argv : **char) : int {
+    return docgen::main(argc, argv)
+}

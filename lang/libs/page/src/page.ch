@@ -279,6 +279,109 @@ public struct HtmlPage {
         pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script><script>window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }</script>"""))
     }
 
+    func defaultUniversalSetup(&mut self) {
+        pageHead.append_view(std::string_view("""<script>
+            window.$_ut = window.$_ut || ((e, x) => {
+                for(let i = 0; i < x.length; i++) e = e.children[x[i]];
+                return e;
+            });
+            window.$_u = window.$_u || {};
+            window.$_uq = window.$_uq || [];
+            window.$_ureg = window.$_ureg || ((name, comp) => {
+                window.$_u[name] = comp;
+                if(window.$_uf) window.$_uf();
+            });
+            window.$_ucn = window.$_ucn || ((name, props) => {
+                const comp = window.$_u[name];
+                if(!comp) return null;
+                return comp(props || {});
+            });
+            window.$_uf = window.$_uf || (() => {
+                if(!window.$_uq || !window.$_uq.length) return;
+                const next = [];
+                for(let i = 0; i < window.$_uq.length; i++) {
+                    const q = window.$_uq[i];
+                    const id = q[0];
+                    const name = q[1];
+                    const props = q[2] || {};
+                    const host = document.getElementById(id);
+                    const comp = window.$_u[name];
+                    if(!host || !comp) {
+                        next.push(q);
+                        continue;
+                    }
+                    const root = host.firstElementChild || host.firstChild;
+                    if(root && comp.__hydrate) {
+                        comp.__hydrate(root, props);
+                    } else if(comp) {
+                        const node = window.$_uc ? window.$_uc(comp, props) : comp(props);
+                        if(node) {
+                            host.innerHTML = "";
+                            host.appendChild(node);
+                        }
+                    }
+                }
+                window.$_uq = next;
+            });
+            if(document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", () => window.$_uf && window.$_uf(), { once: true });
+            } else {
+                window.$_uf();
+            }
+            window.$_um = window.$_um || ((e, comp, props) => {
+                const data = props || {};
+                const out = comp(data);
+                if(out == null) {
+                    e.remove();
+                    return;
+                }
+                if(out.nodeType) {
+                    e.replaceWith(out);
+                    return;
+                }
+                if(out.root && out.root.nodeType) {
+                    const root = out.root;
+                    e.replaceWith(root);
+                    if(out.initialize) out.initialize(root, data);
+                    return;
+                }
+                if(typeof out === "string" || out.html !== undefined) {
+                    const tpl = document.createElement("template");
+                    tpl.innerHTML = typeof out === "string" ? out : out.html;
+                    const root = tpl.content.firstElementChild || tpl.content.firstChild;
+                    if(!root) {
+                        e.remove();
+                        return;
+                    }
+                    e.replaceWith(root);
+                    if(out.initialize) out.initialize(root, data);
+                    return;
+                }
+                if(out && out.t !== undefined && window.$_urn) {
+                    e.replaceWith(window.$_urn(out));
+                    return;
+                }
+                e.remove();
+            });
+            window.$_uc = window.$_uc || ((factory, props) => {
+                const out = factory(props || {});
+                if(out == null) return null;
+                if(out.nodeType) return out;
+                if(out.root && out.root.nodeType) return out.root;
+                if(typeof out === "string" || out.html !== undefined) {
+                    const tpl = document.createElement("template");
+                    tpl.innerHTML = typeof out === "string" ? out : out.html;
+                    const root = tpl.content.firstElementChild || tpl.content.firstChild;
+                    if(!root) return null;
+                    if(out.initialize) out.initialize(root, props || {});
+                    return root;
+                }
+                if(out && out.t !== undefined && window.$_urn) return window.$_urn(out);
+                return null;
+            });
+        </script>"""))
+    }
+
     func asynchronousSolidSetup(&mut self) {
         pageHead.append_view(std::string_view("""<script type="module">
             import * as solid from 'https://esm.sh/solid-js@1.9.10';

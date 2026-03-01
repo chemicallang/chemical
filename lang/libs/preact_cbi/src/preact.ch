@@ -170,60 +170,18 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
             }
         }
     }
+
+    converter.str.append_view("if(!window.$_pu){window.$_pu=(compRef,props,...children)=>{const p=props?{...props}:{};if(children&&children.length){p.children=children.length===1?children[0]:children;}const U=(pp)=>{const ref=$_ph.useRef(null);$_ph.useLayoutEffect(()=>{const host=ref.current;if(!host)return;let stop=false;let h=0;const resolve=()=>{if(typeof compRef==='string'){if(window.$_u&&window.$_u[compRef])return window.$_u[compRef];if(window[compRef])return window[compRef];return null;}return compRef;};const mount=()=>{if(stop)return;const comp=resolve();if(!comp){h=(window.requestAnimationFrame?window.requestAnimationFrame(mount):setTimeout(mount,16));return;}let node=null;if(window.$_uc){node=window.$_uc(comp,pp||{});}else{const out=comp(pp||{});if(out&&out.nodeType)node=out;else if(out&&out.root&&out.root.nodeType){node=out.root;if(out.initialize)out.initialize(node,pp||{});}else if(typeof out==='string'||(out&&out.html!==undefined)){const tpl=document.createElement('template');tpl.innerHTML=typeof out==='string'?out:out.html;node=tpl.content.firstElementChild||tpl.content.firstChild;if(node&&out&&out.initialize)out.initialize(node,pp||{});}else if(out&&out.t!==undefined&&window.$_urn){node=window.$_urn(out);}}if(node){host.innerHTML='';host.appendChild(node);}else{host.innerHTML='';}};mount();return()=>{stop=true;if(window.cancelAnimationFrame&&window.requestAnimationFrame&&h)window.cancelAnimationFrame(h);else if(h)clearTimeout(h);};},[pp]);return $_p.h('span',{ref});};return $_p.h(U,p);};}")
     
-    // Convert to Preact VNode returning function
-    // function Component(props) { return h(...) }
-    
+    // Convert to Preact component function.
     converter.str.append_view("function ")
     converter.str.append_view(root.signature.name)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
-    converter.str.append_view(") { return ")
+    converter.str.append_view(") ")
     
     if(root.body != null) {
-        // Here we expect root.body (Block) to contain statements.
-        // But Preact components usually return a single expression (h(...)).
-        // If the user wrote `{ <div>...</div> }`, it's a block with expression statements.
-        // If they wrote `{ var x = 1; return <div>{x}</div> }`, we need to handle that.
-        // Standard component converter handles statements.
-        // We should just convert the block content. But last statement should be return?
-        // Or we wrap it?
-        // If we strictly follow "Function Component", user writes:
-        // #preact Func(props) { return <div/> }
-        // We just output the body logic.
-        
-        // Wait, standard JS `component` macro logic above puts `return $c_root` at end.
-        // For Preact, we don't return `root`. We return whatever the user code returns.
-        // So we should NOT append "return ...".
-        // Instead, we trust the user code to return something, OR if they just put an expression, we return it?
-        // JS functions need explicit return unless arrow implicit return.
-        // `#preact` uses `{ ... }` block. So explicit return is expected if typical JS.
-        // However, if we want to support `#preact Comp { <div/> }` (implicit return), we'd need to check block.
-        // Let's assume standard JS function body semantics for now: User must `return`.
-        // But wait, line 189 was: `converter.str.append_view(") { return ")`
-        // If I say `return`, then `convertJsNode(root.body)` (which outputs `{ ... }`) -> syntax error: `return { ... }`.
-        
-        // Correct logic:
-        // `function Name(props) `
-        // `convertJsNode(root.body)` (This handles the block braces if Block node is passed?)
-        // `JsBlock` conversion usually outputs `{ ... }`.
-        
-        // Let's check `convertJsNode` for Block.
-        // It outputs `{ ... }`.
-        
-        // So:
-        converter.str = std::string() // reset from above append_view attempt which was wrong
-        converter.put_chain_in() // clear buffer if any
-        
-        converter.str.append_view("function ")
-        converter.str.append_view(root.signature.name)
-        converter.str.append_view("(")
-        converter.str.append_view(root.signature.propsName)
-        converter.str.append_view(") ")
-        
         converter.convertJsNode(root.body)
-        
-        // No auto return for now. User must provide `return`.
     }
     
     converter.put_chain_in();

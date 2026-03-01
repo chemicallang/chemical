@@ -545,6 +545,48 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
+    if(element.componentSignature != null && element.componentSignature.mountStrategy == MountStrategy.Universal) {
+        converter.str.append_view("window.$_su(");
+        if(tagNameNode.kind == JsNodeKind.Identifier) {
+            converter.str.append_view("\"");
+            converter.str.append_view(tagName);
+            converter.str.append_view("\"");
+        } else {
+            converter.convertJsNode(tagNameNode);
+        }
+        converter.str.append_view(", {");
+        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+            if(i > 0) converter.str.append_view(", ");
+            const attrNode = element.opening.attributes.get(i)
+            if(attrNode.kind == JsNodeKind.JSXAttribute) {
+                const attr = attrNode as *mut JsJSXAttribute
+                converter.str.append_view("\"");
+                converter.str.append_view(attr.name);
+                converter.str.append_view("\": ");
+                converter.convertAttributeValue(attr, true);
+            } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                const spread = attrNode as *mut JsJSXSpreadAttribute
+                converter.str.append_view("...");
+                converter.convertJsNode(spread.argument);
+            }
+        }
+        converter.str.append_view("}");
+        if(!element.children.empty()) {
+            for(var i : uint = 0; i < element.children.size(); i++) {
+                converter.str.append_view(", ");
+                const child = element.children.get(i);
+                if(child.kind == JsNodeKind.JSXExpressionContainer) {
+                    const container = child as *mut JsJSXExpressionContainer;
+                    converter.convertJsNode(container.expression);
+                } else {
+                    converter.convertJsNode(child);
+                }
+            }
+        }
+        converter.str.append_view(")");
+        return;
+    }
+
     converter.str.append_view("$_s.createComponent(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {

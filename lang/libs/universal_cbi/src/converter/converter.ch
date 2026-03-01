@@ -581,7 +581,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
-    converter.str.append_view("$_r.createElement(");
+    converter.str.append_view("$_ur.createElement(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
         converter.str.append_view(tagName);
@@ -620,7 +620,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 }
 
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
-    converter.str.append_view("$_r.createElement(\"");
+    converter.str.append_view("$_ur.createElement(\"");
     converter.str.append_view(tagName);
     converter.str.append_view("\", {");
     
@@ -675,7 +675,7 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
 }
 
 func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFragment) {
-    converter.str.append_view("$_r.createElement($_r.Fragment, null");
+    converter.str.append_view("$_ur.createElement($_ur.Fragment, null");
     
     for(var i : uint = 0; i < fragment.children.size(); i++) {
          converter.str.append_view(", ");

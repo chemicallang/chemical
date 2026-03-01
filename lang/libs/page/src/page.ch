@@ -268,7 +268,7 @@ public struct HtmlPage {
     }
 
     func defaultPreactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c,p) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, p || {}), P); e.replaceWith(P); }</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c,p) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, p || {}), P); e.replaceWith(P); }; window.$_pu = window.$_pu || ((compRef, props, ...children) => { const pp = props ? { ...props } : {}; if(children && children.length) pp.children = children.length === 1 ? children[0] : children; const U = (p2) => { const ref = $_ph.useRef(null); $_ph.useLayoutEffect(() => { const host = ref.current; if(!host) return; let stop = false; let h = 0; const resolve = () => { if(typeof compRef === 'string') { if(window.$_u && window.$_u[compRef]) return window.$_u[compRef]; if(window[compRef]) return window[compRef]; return null; } return compRef; }; const mount = () => { if(stop) return; const comp = resolve(); if(!comp) { h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16); return; } const node = window.$_uc ? window.$_uc(comp, p2 || {}) : null; host.innerHTML = ''; if(node) host.appendChild(node); }; mount(); return () => { stop = true; if(window.cancelAnimationFrame && window.requestAnimationFrame && h) window.cancelAnimationFrame(h); else if(h) clearTimeout(h); }; }, [p2]); return $_p.h('span', { ref }); }; return $_p.h(U, pp); });</script>"""))
     }
 
     func defaultDevelopmentReactSetup(&mut self) {
@@ -379,6 +379,75 @@ public struct HtmlPage {
                 if(out && out.t !== undefined && window.$_urn) return window.$_urn(out);
                 return null;
             });
+            window.$_pu = window.$_pu || ((compRef, props, ...children) => {
+                const p = props ? { ...props } : {};
+                if(children && children.length) p.children = children.length === 1 ? children[0] : children;
+                const U = (pp) => {
+                    const ref = window.$_ph && window.$_ph.useRef ? window.$_ph.useRef(null) : { current: null };
+                    const effect = window.$_ph && window.$_ph.useLayoutEffect ? window.$_ph.useLayoutEffect : ((fn) => fn());
+                    effect(() => {
+                        const host = ref.current;
+                        if(!host) return;
+                        let stop = false;
+                        let h = 0;
+                        const resolve = () => {
+                            if(typeof compRef === "string") {
+                                if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
+                                if(window[compRef]) return window[compRef];
+                                return null;
+                            }
+                            return compRef;
+                        };
+                        const mount = () => {
+                            if(stop) return;
+                            const comp = resolve();
+                            if(!comp) {
+                                h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16);
+                                return;
+                            }
+                            const node = window.$_uc ? window.$_uc(comp, pp || {}) : null;
+                            host.innerHTML = "";
+                            if(node) host.appendChild(node);
+                        };
+                        mount();
+                        return () => {
+                            stop = true;
+                            if(window.cancelAnimationFrame && window.requestAnimationFrame && h) window.cancelAnimationFrame(h);
+                            else if(h) clearTimeout(h);
+                        };
+                    }, [p]);
+                    return window.$_p ? window.$_p.h("span", { ref }) : null;
+                };
+                return window.$_p ? window.$_p.h(U, p) : null;
+            });
+            window.$_su = window.$_su || ((compRef, props, ...children) => {
+                const p = props ? { ...props } : {};
+                if(children && children.length) p.children = children.length === 1 ? children[0] : children;
+                const host = document.createElement("span");
+                let stop = false;
+                let h = 0;
+                const resolve = () => {
+                    if(typeof compRef === "string") {
+                        if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
+                        if(window[compRef]) return window[compRef];
+                        return null;
+                    }
+                    return compRef;
+                };
+                const mount = () => {
+                    if(stop) return;
+                    const comp = resolve();
+                    if(!comp) {
+                        h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16);
+                        return;
+                    }
+                    const node = window.$_uc ? window.$_uc(comp, p) : null;
+                    host.innerHTML = "";
+                    if(node) host.appendChild(node);
+                };
+                mount();
+                return host;
+            });
         </script>"""))
     }
 
@@ -417,7 +486,7 @@ public struct HtmlPage {
     }
 
     func defaultSolidSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); }; window.$_su = window.$_su || ((compRef, props, ...children) => { const p = props ? { ...props } : {}; if(children && children.length) p.children = children.length === 1 ? children[0] : children; const host = document.createElement('span'); let stop = false; let h = 0; const resolve = () => { if(typeof compRef === 'string') { if(window.$_u && window.$_u[compRef]) return window.$_u[compRef]; if(window[compRef]) return window[compRef]; return null; } return compRef; }; const mount = () => { if(stop) return; const comp = resolve(); if(!comp) { h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16); return; } const node = window.$_uc ? window.$_uc(comp, p) : null; host.innerHTML = ''; if(node) host.appendChild(node); }; mount(); return host; });</script>"""))
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist

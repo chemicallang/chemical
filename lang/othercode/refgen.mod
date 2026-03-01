@@ -11,3 +11,4 @@ import std
 import test
 import test_env
 import lab
+import compiler

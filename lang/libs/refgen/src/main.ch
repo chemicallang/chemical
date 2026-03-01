@@ -6,6 +6,7 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
     var github_links = false;
     var git_ref = std::string("main");
     var no_search = false;
+    var base_url = std::string("https://api.chemicallang.com");
 
     // Basic argument parsing
     var i = 1;
@@ -37,6 +38,15 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
             no_search = true;
             i++;
             continue;
+        } else if (arg.equals("--base-url")) {
+            if (i + 1 < argc) {
+                base_url = std::string(argv[i+1]);
+                i += 2;
+                continue;
+            } else {
+                printf("Error: --base-url requires an argument\n");
+                return 1;
+            }
         }
         i++;
     }
@@ -66,7 +76,9 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
         github_links = github_links,
         git_ref = git_ref.copy(),
         no_search = no_search,
-        index = std::vector<refgen::SymbolInfo>()
+        base_url = base_url.copy(),
+        index = std::vector<refgen::SymbolInfo>(),
+        sidebar_cache = std::unordered_map<std::string, std::string>()
     };
 
     // Pass 1: Indexing

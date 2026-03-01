@@ -169,6 +169,8 @@ func get_node_name(node : *ASTNode) : std::string_view {
         return (node as *TypealiasStatement).getName();
     } else if (kind == ASTNodeKind.GenericInterfaceDecl) {
         return (node as *GenericInterfaceDecl).getMasterImpl().getName();
+    } else if (kind == ASTNodeKind.GenericTypeParam) {
+        return (node as *GenericTypeParameter).getName();
     }
     return std::string_view();
 }
@@ -311,6 +313,7 @@ public struct SymbolInfo {
     var name : std::string
     var kind : ASTNodeKind
     var file_id : uint
+    var filename : std::string
     var mod_name : std::string
     var parent_name : std::string
     var access : AccessSpecifier
@@ -323,16 +326,18 @@ public struct Generator {
     var github_links : bool
     var git_ref : std::string
     var no_search : bool
+    var base_url : std::string
     var index : std::vector<SymbolInfo>
     var sidebar_cache : std::unordered_map<std::string, std::string>
 
-    func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view, parent_name : std::string_view) {
+    func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view, parent_name : std::string_view, filename : std::string_view) {
         var name = get_node_name(node);
         if (name.size() > 0) {
             self.index.push_back(SymbolInfo {
                 name = std::string(name.data(), name.size()),
                 kind = node.getKind(),
                 file_id = file_id,
+                filename = std::string(filename.data(), filename.size()),
                 mod_name = std::string(mod_name.data(), mod_name.size()),
                 parent_name = std::string(parent_name.data(), parent_name.size()),
                 access = node.getAccessSpecifier(),
@@ -346,7 +351,7 @@ public struct Generator {
             var children = ns.get_body();
             if (children != null) {
                 for (var i = 0u; i < children.size(); i++) {
-                    self.index_node_recursive(children.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(children.get(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.StructDecl) {
@@ -354,13 +359,13 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                 }
             }
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.InterfaceDecl) {
@@ -368,7 +373,7 @@ public struct Generator {
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.VariantDecl) {
@@ -376,7 +381,7 @@ public struct Generator {
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.UnionDecl) {
@@ -384,13 +389,13 @@ public struct Generator {
             var members = def.getMembers();
             if (members != null) {
                 for (var i = 0u; i < members.size(); i++) {
-                    self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                 }
             }
             var funcs = def.getFunctions();
             if (funcs != null) {
                 for (var i = 0u; i < funcs.size(); i++) {
-                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                    self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                 }
             }
         } else if (kind == ASTNodeKind.GenericStructDecl) {
@@ -400,13 +405,13 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                     }
                 }
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -417,7 +422,7 @@ public struct Generator {
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -428,13 +433,13 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                     }
                 }
                 var members = def.getMembers();
                 if (members != null) {
                     for (var i = 0u; i < members.size(); i++) {
-                        self.index_node_recursive(members.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(members.get(i), file_id, mod_name, name, filename);
                     }
                 }
             }
@@ -445,13 +450,12 @@ public struct Generator {
                 var funcs = def.getFunctions();
                 if (funcs != null) {
                     for (var i = 0u; i < funcs.size(); i++) {
-                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name);
+                        self.index_node_recursive(funcs.get(i), file_id, mod_name, name, filename);
                     }
                 }
             }
         }
-        // Add more recursive containers if needed (variants, unions, etc.)
-    }
+    }    // Add more recursive containers if needed (variants, unions, etc.)
 
     public func index_module(&mut self, module : *TransformerModule) {
         var mod_name = module.getName();
@@ -459,6 +463,16 @@ public struct Generator {
         for (var i = 0u; i < count; i++) {
             var file_meta = module.getFile(i);
             var file_id = file_meta.getFileId();
+            var abs_path = file_meta.getAbsPath();
+            var filename = std::string_view("");
+            var last_slash = abs_path.find_last("/");
+            if (last_slash == -1u) last_slash = abs_path.find_last("\\");
+            if (last_slash != -1u) {
+                filename = abs_path.subview(last_slash + 1, abs_path.size());
+            } else {
+                filename = abs_path;
+            }
+
             var file_scope = file_meta.getFileScope();
             if (file_scope == null) continue;
             var scope = file_scope.getBody();
@@ -467,7 +481,7 @@ public struct Generator {
             if (nodes == null) continue;
             
             for (var j = 0u; j < nodes.size(); j++) {
-                self.index_node_recursive(nodes.get(j), file_id, mod_name, std::string_view(""));
+                self.index_node_recursive(nodes.get(j), file_id, mod_name, std::string_view(""), filename);
             }
         }
     }
@@ -503,7 +517,9 @@ public struct Generator {
 
     func generate_module_index(&mut self, mod_name : std::string_view, mod_dir : std::string_view) {
         var rel_root = get_relative_root(1);
-        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>");
+        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><meta name='description' content='Chemical API Documentation for module ");
+        html.append_view(mod_name);
+        html.append_view("'><title>");
         html.append_view(mod_name);
         html.append_view(" Index</title><style>");
         html.append_view(self.get_css());
@@ -550,9 +566,12 @@ public struct Generator {
                 html.append_view(sym.name.to_view());
                 html.append_view("'><b>");
                 html.append_view(sym.name.to_view());
-                html.append_view("</b></a> <small>(");
+                html.append_view("</a> <small>(");
                 html.append_view(get_kind_label(sym.kind));
                 html.append_view(")</small> ");
+                html.append_view("<span style='color: var(--text-muted); font-size: 0.8em; margin-left: 0.5rem;'>in <i>");
+                html.append_view(sym.filename.to_view());
+                html.append_view("</i></span> ");
                 
                 var has_children = false;
                 for (var j = 0u; j < self.index.size(); j++) {
@@ -611,11 +630,17 @@ public struct Generator {
         if (!self.no_search) {
             self.generate_search_index();
         }
+        self.generate_sitemap();
     }
 
     func render_github_link(&self, abs_path : &std::string_view, line : uint, html : &mut std::string) {
         if (!self.github_links) return;
-        var path = std::string(abs_path.data(), abs_path.size());
+        var path_win = std::string(abs_path.data(), abs_path.size());
+        var path = path_win.copy();
+        for (var i = 0u; i < path.size(); i++) {
+            if(path.get(i) == '\\') path.set(i, '/');
+        }
+
         var src_idx = path.to_view().find("src/");
         if (src_idx != -1u) {
             var rel_path = path.to_view().subview(src_idx + 4, path.size());
@@ -762,7 +787,9 @@ public struct Generator {
             filename = abs_path;
         }
 
-        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>");
+        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><meta name='description' content='Chemical API Documentation for ");
+        html.append_view(filename);
+        html.append_view("'><title>");
         html.append_view(filename);
         html.append_view(" - Chemical API</title><style>");
         html.append_view(self.get_css());
@@ -970,6 +997,26 @@ public struct Generator {
         // Header
         html.append_view("<div class='node-header'>");
         if (access == AccessSpecifier.Public) html.append_view("<span class='attr-badge'>Public</span>");
+
+        if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
+            var header_decl : *FunctionDeclaration = null;
+            if (kind == ASTNodeKind.FunctionDecl) {
+                header_decl = node as *FunctionDeclaration;
+            } else {
+                header_decl = (node as *GenericFuncDecl).getMasterImpl();
+            }
+            if (header_decl != null) {
+                var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
+                header_decl.getAttributes(&mut attrs);
+                if (attrs.is_constructor_fn) {
+                    if (attrs.is_implicit) html.append_view("<span class='attr-badge' style='background: #8b5cf6;'>Implicit Constructor</span>");
+                    else html.append_view("<span class='attr-badge' style='background: #10b981;'>Constructor</span>");
+                }
+                if (attrs.is_override) {
+                    html.append_view("<span class='attr-badge' style='background: #f59e0b;'>Override</span>");
+                }
+            }
+        }
         html.append_view("<span class='kind-badge'>");
         html.append_view(kind_label);
         html.append_view("</span> ");
@@ -1003,6 +1050,10 @@ public struct Generator {
             var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
             decl.getAttributes(&mut attrs);
             
+            if (decl.isExtensionFn()) {
+                html.append_view("<div style='margin-bottom: 0.5rem;'><span class='extension-tag'>extension</span></div>");
+            }
+
             html.append_view("<span class='tok-kwd'>func</span> ");
             html.append_view(name);
             
@@ -1032,10 +1083,6 @@ public struct Generator {
             }
             html.append_view(") : ");
             self.render_type(decl.getReturnType(), html, rel_root);
-
-            if (decl.isExtensionFn()) {
-                html.append_view(" <span class='extension-tag'>extension</span>");
-            }
         } else if (kind == ASTNodeKind.StructDecl || kind == ASTNodeKind.InterfaceDecl || kind == ASTNodeKind.VariantDecl || 
                    kind == ASTNodeKind.GenericStructDecl || kind == ASTNodeKind.GenericInterfaceDecl || kind == ASTNodeKind.GenericVariantDecl ||
                    kind == ASTNodeKind.GenericUnionDecl || kind == ASTNodeKind.UnionDecl) {
@@ -1239,7 +1286,7 @@ public struct Generator {
 
     func generate_index_html(&mut self) {
         var rel_root = std::string(".");
-        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
+        var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><meta name='description' content='Chemical Language Core API Reference'>");
         html.append_view("<title>Chemical API Documentation</title><style>");
         html.append_view(self.get_css());
         html.append_view("</style></head><body><div class='layout'>");
@@ -1295,6 +1342,60 @@ public struct Generator {
         var out_file = self.output_dir.copy();
         out_file.append_view("/search_index.js");
         fs::write_text_file(out_file.data(), js.data() as *u8, js.size());
+    }
+
+    func generate_sitemap(&mut self) {
+        var xml = std::string("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        xml.append_view("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+
+        var added_files = std::unordered_map<std::string, bool>();
+
+        for (var i = 0u; i < self.index.size(); i++) {
+            var sym = self.index.get_ptr(i);
+            
+            var f_id_str = std::string("");
+            f_id_str.append_uinteger(sym.file_id as ubigint);
+            
+            var rel_path = std::string(sym.mod_name.to_view());
+            rel_path.append_view("/");
+            rel_path.append_view(f_id_str.to_view());
+            rel_path.append_view(".html");
+
+            var b_url = self.base_url.to_view();
+            var has_slash = false;
+            if (b_url.size() > 0 && b_url.data()[b_url.size() - 1] as char == '/') has_slash = true;
+
+            if (!added_files.contains(rel_path.copy())) {
+                added_files.insert(rel_path.copy(), true);
+                xml.append_view("  <url>\n    <loc>");
+                xml.append_view(self.base_url.to_view());
+                if (!has_slash) xml.append_view("/");
+                xml.append_view(rel_path.to_view());
+                xml.append_view("</loc>\n  </url>\n");
+            }
+            
+            var mod_path = std::string(sym.mod_name.to_view());
+            mod_path.append_view("/index.html");
+            if (!added_files.contains(mod_path.copy())) {
+                added_files.insert(mod_path.copy(), true);
+                xml.append_view("  <url>\n    <loc>");
+                xml.append_view(self.base_url.to_view());
+                if (!has_slash) xml.append_view("/");
+                xml.append_view(mod_path.to_view());
+                xml.append_view("</loc>\n  </url>\n");
+            }
+        }
+        
+        xml.append_view("  <url>\n    <loc>");
+        xml.append_view(self.base_url.to_view());
+        var b_url = self.base_url.to_view();
+        if (b_url.size() > 0 && b_url.data()[b_url.size() - 1] as char != '/') xml.append_view("/");
+        xml.append_view("index.html</loc>\n  </url>\n");
+        xml.append_view("</urlset>");
+
+        var out_file = self.output_dir.copy();
+        out_file.append_view("/sitemap.xml");
+        fs::write_text_file(out_file.data(), xml.data() as *u8, xml.size());
     }
 
     func get_js(&self, rel_root : &std::string_view) : std::string {
@@ -1423,11 +1524,15 @@ public struct Generator {
                 --bg: #f8fafc; --bg-card: #ffffff; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --accent: #3b82f6; --code-bg: #f1f5f9; --btn-bg: #ffffff; --btn-text: #0f172a; --nested-bg: rgba(0,0,0,0.02);
             }
             :root[data-theme='dark'] {
-                --bg: #020617; --bg-card: #0f172a; --border: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --code-bg: #1e293b; --btn-bg: #1e293b; --btn-text: #f8fafc; --nested-bg: rgba(255,255,255,0.02);
+                --bg: #0b0f19; --bg-card: #111827; --border: #1f2937; --text: #f3f4f6; --text-muted: #9ca3af; --accent: #60a5fa; --code-bg: #1f2937; --btn-bg: #1f2937; --btn-text: #f3f4f6; --nested-bg: rgba(255,255,255,0.03);
             }
             :root[data-theme='paper'] {
                 --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --code-bg: #e9e4d9; --btn-bg: #fdfcf9; --btn-text: #433f38; --nested-bg: rgba(0,0,0,0.03);
             }
+            ::-webkit-scrollbar { width: 10px; height: 10px; }
+            ::-webkit-scrollbar-track { background: var(--bg); }
+            ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+            ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
             body { 
                 font-family: 'Outfit', 'Inter', system-ui, sans-serif; 
                 background: var(--bg); color: var(--text); padding: 0; margin: 0; line-height: 1.6;

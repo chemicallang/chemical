@@ -7,7 +7,8 @@ public enum MountStrategy {
     Default,
     Preact,
     React,
-    Solid
+    Solid,
+    Universal
 }
 
 public struct ComponentSignature {
@@ -16,4 +17,6 @@ public struct ComponentSignature {
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
     var mountStrategy : MountStrategy = MountStrategy.Default
+    var universalTemplate : std::string_view
+    var universalInit : std::string_view
 }

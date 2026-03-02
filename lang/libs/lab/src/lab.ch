@@ -446,8 +446,36 @@ public func (ctx : &BuildContext) bitcode_path(job : *mut LabJob, mod : *mut Mod
 
 public namespace lab {
 
+    func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
+        if(len == 0) return -1;
+        var i : int = len as int - 1;
+        while(i >= 0) {
+            // printf("checking %c against %c and %c \n", str[i], value, value2)
+            if(str[i] == value || str[i] == value2) {
+                return i;
+            }
+            // printf("found not\n");
+            i--;
+        }
+        return -1;
+    }
+
+    func parent_path(str : std::string_view) : std::string {
+        var final = std::string()
+        var pos : int
+        comptime if(def.windows) {
+            pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
+        } else {
+            pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
+        }
+        if(pos > 0) {
+            final.append_with_len(str.data(), (pos + 1) as size_t)
+        }
+        return final;
+    }
+
     public func curr_dir_of(path : *char, len : size_t) : std::string {
-        return fs::parent_path(std::string_view(path, len))
+        return parent_path(std::string_view(path, len))
     }
 
     public comptime func curr_dir() : std::string {

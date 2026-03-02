@@ -2889,7 +2889,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // lets create the job for jit of build.lab/chemical.mod file
     LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir), options->def_out_mode);
-    LabBuildContext::initialize_job(&build_job, options);;
+    LabBuildContext::initialize_job(&build_job, options);
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(
@@ -3356,6 +3356,8 @@ int LabBuildCompiler::run_native_module(const std::string& target, const std::ve
 
     // creating a executable job
     LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
+    LabBuildContext::initialize_job(&final_job, options);
+
     // this is where 'remote' directory will be created by process_remote_imports
     // we use build_dir, since we want to delete the downloaded sources at the end
     final_job.build_dir = chem::string(build_dir);
@@ -3425,6 +3427,7 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
     // creating a executable job
     LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
+    LabBuildContext::initialize_job(&final_job, options);
     // this is where 'remote' directory will be created by process_remote_imports
     // we use build_dir, since we want to delete the downloaded sources at the end
     final_job.build_dir = chem::string(build_dir);
@@ -3548,6 +3551,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     // the cbi job for the transformer module
     // created so we can store remote imports here
     LabJobCBI transformer_job(chem::string("main"), options->out_mode);
+    LabBuildContext::initialize_job(&transformer_job, options);
 
     // It's a remote transformer, download it
     auto cache_dir = get_transformers_cache_dir();
@@ -3640,6 +3644,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // creating a job for the target
     LabJob other_job(LabJobType::ProcessingOnly, chem::string("target"), options->out_mode);
+    LabBuildContext::initialize_job(&other_job, options);
     other_job.build_dir = chem::string(build_dir_path);
 
     // disable caching, we must always reparse for a transformation job

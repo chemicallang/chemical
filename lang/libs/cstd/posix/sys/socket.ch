@@ -7,5 +7,5 @@ public func socketpair(
     __domain : int,
     __type : int,
     __protocol : int,
-     __fds : int[2]
+     __fds : [2]int
 ) : int

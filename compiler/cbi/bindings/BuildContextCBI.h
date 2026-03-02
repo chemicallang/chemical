@@ -6,6 +6,7 @@
 #include "std/chem_string.h"
 #include "std/chem_string_view.h"
 #include <cstddef>
+#include <cstdint>
 
 class LabBuildContext;
 

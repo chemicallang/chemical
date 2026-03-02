@@ -518,7 +518,7 @@ public struct HtmlPage {
 
     func writeToFile(&self, path : &std::string_view) {
         var completePage = toString();
-        fs::write_to_file(path.data(), completePage.data())
+        fs::write_text_file(path.data(), completePage.data() as *u8, completePage.size())
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
@@ -535,7 +535,7 @@ public struct HtmlPage {
 
         // writing only html to route
         var htmlPage = htmlPageToString(name)
-        fs::write_to_file(htmlFile.data(), htmlPage.data())
+        fs::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size())
 
         // {name}.css
         if(!pageCss.empty()) {
@@ -543,7 +543,7 @@ public struct HtmlPage {
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
-            fs::write_to_file(cssFile.data(), pageCss.data())
+            fs::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size())
         }
 
         // {name}_head.js
@@ -552,7 +552,7 @@ public struct HtmlPage {
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
-            fs::write_to_file(jsHeadFile.data(), pageHeadJs.data())
+            fs::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size())
         }
 
         // {name}.js
@@ -561,7 +561,7 @@ public struct HtmlPage {
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".css")
-            fs::write_to_file(jsFile.data(), pageJs.data())
+            fs::write_text_file(jsFile.data(), pageJs.data() as *u8, pageJs.size())
         }
 
     }

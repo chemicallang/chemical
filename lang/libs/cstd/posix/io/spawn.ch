@@ -6,7 +6,7 @@
 comptime const seget_n = 16
 
 public struct __sigset_t {
-    var __val : ulong[seget_n];
+    var __val : [seget_n]ulong;
 }
 
 public type sigset_t = __sigset_t
@@ -25,7 +25,7 @@ public struct posix_spawnattr_t {
     var __sp : sched_param;
     var __policy : int;
     var __cgroup : int;
-    var __pad : int[15];
+    var __pad : [15]int;
 }
 
 public struct posix_spawn_file_actions_t {

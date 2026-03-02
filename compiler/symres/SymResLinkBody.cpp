@@ -1527,6 +1527,7 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     if(node->root) {
         node->root->declare_extended_in_linker(linker);
     } else {
+        node->declare_extended_in_linker(linker);
         SymbolResolverShadowDeclarer declarer(linker);
         for(const auto child : node->nodes) {
             declare_node(declarer, child, AccessSpecifier::Private);

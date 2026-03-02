@@ -74,7 +74,7 @@ if(def.windows) {
         var st_atime : timespec;		/* Time of last access.  */
         var st_mtime : timespec;		/* Time of last modification.  */
         var st_ctime : timespec;		/* Time of last status change.  */
-        var __glibc_reserved : __syscall_slong_t[3];
+        var __glibc_reserved : [3]__syscall_slong_t;
     }
 
 }

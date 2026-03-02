@@ -813,8 +813,10 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
 
 ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent) {
     switch(parent->kind()) {
-        case ValueKind::Identifier:
-            return parent->as_identifier_unsafe()->linked->child(resolver, name);
+        case ValueKind::Identifier: {
+            const auto id = parent->as_identifier_unsafe();
+            return id->linked->child(resolver, name);
+        }
         case ValueKind::AccessChain:
             return provide_child(resolver, parent->as_access_chain_unsafe()->values.back(), name, type_parent);
         default:

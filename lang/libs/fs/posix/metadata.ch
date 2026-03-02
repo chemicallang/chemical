@@ -2,7 +2,7 @@ public namespace fs {
 
 using std::Result;
 
-func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
+public func metadata(path : *char) : Result<Metadata, FsError> {
     var st : Stat;
     var r = lstat(path, &mut st);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
@@ -17,10 +17,6 @@ func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     m.created = st.st_ctime.tv_sec as i64;
     m.perms = (st.st_mode & 0x1FF) as u32;
     return Result.Ok(m);
-}
-
-func metadata(path : *char) : Result<Metadata, FsError> {
-    return metadata_native(path)
 }
 
 }

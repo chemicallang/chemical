@@ -15,7 +15,7 @@ public struct statvfs {
     var f_flag : ulong;
     var f_namemax : ulong;
     var f_type : uint;
-    var __f_spare : int[5];
+    var __f_spare : [5]int;
 };
 
 public namespace fs {

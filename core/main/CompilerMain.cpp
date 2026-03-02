@@ -604,7 +604,7 @@ int compiler_main(int argc, char *argv[]) {
         }
 
         // The first argument is the target to run, subsequent are passed to it
-        std::string target(run_args[0]);
+        std::string file_or_mod(run_args[0]);
         std::vector<std::string_view> exec_args;
         for(size_t i = 1; i < run_args.size(); ++i) {
             exec_args.push_back(run_args[i]);
@@ -614,13 +614,13 @@ int compiler_main(int argc, char *argv[]) {
         auto mode = get_output_mode(options.option_new("mode", "m"), options.has_value("verbose", "v"));
 
         // Target can be local file (.lab, .mod) or remote (org/repo)
-        bool is_local = target.ends_with(".lab") || target.ends_with(".mod");
+        bool is_local = file_or_mod.ends_with(".lab") || file_or_mod.ends_with(".mod");
 
         // creating compiler options
-        LabBuildCompilerOptions compiler_opts(compiler_exe_path, "", "build", is64Bit);
+        LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, "build", is64Bit);
 
         // Implement the actual run logic in LabBuildCompiler
-        return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, target, exec_args, mode, &options);
+        return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, file_or_mod, exec_args, mode, &options);
     }
 
     bool jit = options.has_value("jit", "jit");

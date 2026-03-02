@@ -138,4 +138,32 @@ public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_
     return Result.Ok(pos);
 }
 
+func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
+    if(len == 0) return -1;
+    var i : int = len as int - 1;
+    while(i >= 0) {
+        // printf("checking %c against %c and %c \n", str[i], value, value2)
+        if(str[i] == value || str[i] == value2) {
+            return i;
+        }
+        // printf("found not\n");
+        i--;
+    }
+    return -1;
+}
+
+public func parent_path_view(str : std::string_view) : std::string {
+    var final = std::string()
+    var pos : int
+    comptime if(def.windows) {
+        pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
+    } else {
+        pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
+    }
+    if(pos > 0) {
+        final.append_with_len(str.data(), (pos + 1) as size_t)
+    }
+    return final;
+}
+
 }

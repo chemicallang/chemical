@@ -363,10 +363,10 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
 </html>""");
     
     // Ensure parent dir exists
-    var parent = fs::parent_path(output_path.to_view());
+    var parent = fs::parent_path_view(output_path.to_view());
     mkdir_p(parent.to_view());
-    
-    fs::write_to_file(output_path.data(), html.data());
+
+    fs::write_text_file(output_path.data(), html.data() as *u8, html.size());
 }
 
 
@@ -469,8 +469,8 @@ public func generate(config : DocConfig, summary : *Summary) {
     var js_content = std::string("window.searchIndex = ");
     js_content.append_view(gen.search_index.to_view());
     js_content.append_view(";");
-    
-    fs::write_to_file(index_path.data(), js_content.data());
+
+    fs::write_text_file(index_path.data(), js_content.data() as *u8, js_content.size());
     printf("Generated search index at %s\n", index_path.c_str());
 
     // Copy custom index if provided

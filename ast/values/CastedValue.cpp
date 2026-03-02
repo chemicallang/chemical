@@ -18,7 +18,7 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
     if(!eval) {
         return nullptr;
     }
-    const auto pure = getType()->pure_type(scope.allocator);
+    const auto pure = getType()->canonical();
     const auto pure_kind = pure->kind();
     switch(pure_kind) {
         case BaseTypeKind::IntN: {
@@ -44,6 +44,10 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                         scope, str, ptrType->type
                     );
                 }
+                case ValueKind::WrapValue:
+                    // currently we shouldn't error out here, we use this
+                    // maybe in the future, we should verify the underlying value
+                    return eval;
                 default:
                     scope.error("unknown value being casted to a pointer", this);
                     return eval;

@@ -107,10 +107,11 @@ void BasicParser::consumeNewLines() {
     }
 }
 
-void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data) {
+void BasicParser::parseModuleFile(ASTAllocator& allocator, ASTAllocator& jobAllocator, ModuleFileData& data) {
     auto& nodes = data.scope.body.nodes;
     consumeNewLines();
-    const auto pkg_def = parseModuleDefinition(allocator, data);
+    // module definition is stored on job allocator
+    const auto pkg_def = parseModuleDefinition(jobAllocator, data);
     if(pkg_def) {
         consumeToken(TokenType::SemiColonSym);
     } else {

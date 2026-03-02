@@ -365,6 +365,7 @@ public:
     static bool import_chemical_mod_file(
             ASTAllocator& fileAllocator,
             ASTAllocator& modAllocator,
+            ASTAllocator& jobAllocator,
             LocationManager& loc_man,
             ModuleFileData& data,
             unsigned int fileId,
@@ -378,6 +379,7 @@ public:
     static bool import_chemical_mod_file(
             ASTAllocator& fileAllocator,
             ASTAllocator& modAllocator,
+            ASTAllocator& jobAllocator,
             LocationManager& loc_man,
             ModuleFileData& data,
             unsigned int fileId,

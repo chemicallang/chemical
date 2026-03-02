@@ -2079,7 +2079,7 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     modFileData.module_name = module_name;
 
     // import the file into result (lex and parse)
-    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
 
     // print the result
     ASTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePath, "Parser");
@@ -2120,31 +2120,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto verbose = options->verbose;
 
     if(verbose) {
-        std::cout << "[lab] " << "getting the module declaration from '" << modFilePathView << '\'' << std::endl;
-    }
-
-    // determining the scope and module name from the .mod file
-    const auto each_buf_size = 80;
-    char temp_scope_name[each_buf_size];
-    char temp_module_name[each_buf_size];
-    size_t scope_name_size = 0;
-    size_t mod_name_size = 0;
-    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePathView);
-
-    // determining the module scope name and module name
-    chem::string_view scope_name(temp_scope_name, scope_name_size);
-    chem::string_view module_name(temp_module_name, mod_name_size);
-
-//    if(errorMsg == nullptr) {
-//        const auto module = context.storage.find_module(scope_name, module_name);
-//        if(module != nullptr) {
-//            return module;
-//        }
-//    } else {
-//        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePathView << "' because of error '" << errorMsg << '\'' << std::endl;
-//    }
-
-    if(verbose) {
         std::cout << "[lab] " << "parsing mod file '" << modFilePathView << '\'' << std::endl;
     }
 
@@ -2155,12 +2130,8 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     ASTFileMetaData meta(modFileId, nullptr, std::move(modFilePath__));
     ModuleFileData modFileData(meta);
 
-    // set those module names
-    modFileData.scope_name = scope_name;
-    modFileData.module_name = module_name;
-
     // import the file into result (lex and parse)
-    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePathView);
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, *job_allocator, loc_man, modFileData, modFileId, modFilePathView);
 
     // printing the diagnostics for the file
     Diagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
@@ -2172,7 +2143,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     }
 
     // create a new module
-    const auto module = context.new_module(scope_name, module_name, modFileData.package_kind);
+    const auto module = context.new_module(modFileData.scope_name, modFileData.module_name, modFileData.package_kind);
 
     // get all the sources
     for(auto& src : modFileData.sources_list) {
@@ -2212,7 +2183,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                 switch(linkLib.kind) {
                     case ModFileLinkLibKind::Name: {
                         std::lock_guard<std::mutex> lock(job_mutex);
-                        job->link_libs.emplace_back(chem::string(linkLib.name));
+                        job->link_libs.emplace_back(linkLib.name);
                         break;
                     }
                     case ModFileLinkLibKind::File:
@@ -2230,8 +2201,18 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
 
+    // its very important we separate the process of determining dependencies
+    // and then calling create_module_for_dependency
+    // create_module_for_dependency can invalidate module allocator
+    // which is where we store the parsed nodes
+    std::vector<ModuleDependencyRecord> determined_dependencies;
+
+    // pre-reserve, memory
+    auto& import_nodes = modFileData.scope.body.nodes;
+    determined_dependencies.reserve(import_nodes.size());
+
     // based on imports figures out which modules have been imported
-    for(const auto node : modFileData.scope.body.nodes) {
+    for(const auto node : import_nodes) {
         if(node->kind() != ASTNodeKind::ImportStmt) {
             break;
         }
@@ -2244,14 +2225,22 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
             error_out(loc_man, node->encoded_location(), chem::string_view(result.error_message));
             return nullptr;
         }
+        // put into determined dependencies
+        determined_dependencies.emplace_back(std::move(result.directory_path));
+    }
+
+    // at last we call create_module_for_dependency
+    // because it will most likely invalidate modFileData, we must do this carefully
+    for(auto& dep : determined_dependencies) {
         // get the module pointer
         // we must build their build.lab or chemical.mod into a LabModule*
-        auto record = ModuleDependencyRecord{std::move(result.directory_path)};
-        const auto modDependency = create_module_for_dependency(context, record, job);
+        const auto modDependency = create_module_for_dependency(context, dep, job);
         if(modDependency == nullptr) {
             return nullptr;
         }
-        stmt->setResult(modDependency);
+        // setting result to import statement is not required
+        // stmt->setResult(modDependency);
+        // the modFileData is getting disposed
         module->add_dependency(modDependency);
     }
 

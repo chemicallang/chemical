@@ -21,7 +21,6 @@
 #include <fstream>
 #include <span>
 #include "compiler/lab/mod_conv/ModToLabConverter.h"
-#include "parser/utils/ParseModDecl.h"
 #include "compiler/lab/timestamp/Timestamp.h"
 #include "std/chem_string_view_fast.h"
 #include "TargetConditionAPI.h"
@@ -1173,6 +1172,10 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     return 0;
 }
 
+inline std::string get_mod_dir(const std::string_view& build_dir, LabModule* mod) {
+    return resolve_rel_child_path_str(build_dir, mod->format('.'));
+}
+
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto use_tcc = compiler->use_tcc(job_type);
@@ -1773,6 +1776,25 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         return 1;
     }
 
+    // check if user wants to generate llvm ir or assembly for every module
+    // we do this for debugging sometimes, very convenient
+    if(options->out_ll_all) {
+        for(const auto mod : dependencies) {
+            if(mod->llvm_ir_path.empty()) {
+                auto mod_dir = get_mod_dir(mods_dir, mod);
+                mod->llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
+            }
+        }
+    }
+    if(options->out_asm_all) {
+        for(const auto mod : dependencies) {
+            if(mod->asm_path.empty()) {
+                auto mod_dir = get_mod_dir(mods_dir, mod);
+                mod->asm_path.append(resolve_rel_child_path_str(mod_dir, "asm.s"));
+            }
+        }
+    }
+
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 
@@ -2056,30 +2078,14 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     LocationManager loc_man;
     ASTAllocator allocator(10000); // using 10kb batches
 
-    // determining the scope and module name from the .mod file
-    const auto each_buf_size = 80;
-    char temp_scope_name[each_buf_size];
-    char temp_module_name[each_buf_size];
-    size_t scope_name_size = 0;
-    size_t mod_name_size = 0;
-    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePath.view());
-
-    // determining the module scope name and module name
-    chem::string_view scope_name(temp_scope_name, scope_name_size);
-    chem::string_view module_name(temp_module_name, mod_name_size);
-
     // module file data
     auto filePathStr__ = modFilePath.str(); // two underscores at the end so hard to access (moved)
     auto modFileId = loc_man.encodeFile(filePathStr__);
     ASTFileMetaData meta(modFileId, nullptr, std::move(filePathStr__));
     ModuleFileData modFileData(meta);
 
-    // set those module names
-    modFileData.scope_name = scope_name;
-    modFileData.module_name = module_name;
-
     // import the file into result (lex and parse)
-    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
 
     // print the result
     ASTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePath, "Parser");
@@ -2131,7 +2137,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     ModuleFileData modFileData(meta);
 
     // import the file into result (lex and parse)
-    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, *job_allocator, loc_man, modFileData, modFileId, modFilePathView);
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePathView);
 
     // printing the diagnostics for the file
     Diagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");

@@ -425,11 +425,11 @@ public func (ctx : &BuildContext) build_llvm_ir_path(job_name : &std::string_vie
 }
 
 public func (ctx : &BuildContext) build_asm_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view) : std::string {
-    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("mod_asm.s"))
+    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("asm.s"))
 }
 
 public func (ctx : &BuildContext) build_bitcode_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view) : std::string {
-    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("mod_bitcode.bc"))
+    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("bitcode.bc"))
 }
 
 public func (ctx : &BuildContext) llvm_ir_path(job : *mut LabJob, mod : *mut Module) : std::string {

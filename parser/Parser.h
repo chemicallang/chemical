@@ -204,7 +204,7 @@ public:
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */
-    void parseModuleFile(ASTAllocator& allocator, ASTAllocator& jobAllocator, ModuleFileData& data);
+    void parseModuleFile(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
      * parse a string

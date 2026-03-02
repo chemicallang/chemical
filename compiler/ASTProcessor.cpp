@@ -732,7 +732,7 @@ bool ASTProcessor::import_mod_file_as_lab(
 
     // importing .mod file into data
     ModuleFileData data(meta);
-    auto importModFileRes = import_chemical_mod_file(file_allocator, file_allocator, job_allocator, loc_man, data, modFileId, modFile, inp_source);
+    auto importModFileRes = import_chemical_mod_file(file_allocator, file_allocator, loc_man, data, modFileId, modFile, inp_source);
     if(!importModFileRes) {
         return false;
     }
@@ -1135,7 +1135,6 @@ bool ASTProcessor::import_chemical_file_with_tokens(
 bool ASTProcessor::import_chemical_mod_file(
         ASTAllocator& fileAllocator,
         ASTAllocator& modAllocator,
-        ASTAllocator& jobAllocator,
         LocationManager& loc_man,
         ModuleFileData& data,
         unsigned int fileId,
@@ -1165,7 +1164,7 @@ bool ASTProcessor::import_chemical_mod_file(
     // setting file scope as parent of all nodes parsed
     parser.parent_node = &data.scope;
 
-    parser.parseModuleFile(modAllocator, jobAllocator, data);
+    parser.parseModuleFile(modAllocator, data);
 
     data.diagnostics = std::move(parser.diagnostics);
 
@@ -1176,7 +1175,6 @@ bool ASTProcessor::import_chemical_mod_file(
 bool ASTProcessor::import_chemical_mod_file(
         ASTAllocator& fileAllocator,
         ASTAllocator& modAllocator,
-        ASTAllocator& jobAllocator,
         LocationManager& loc_man,
         ModuleFileData& data,
         unsigned int fileId,
@@ -1193,7 +1191,7 @@ bool ASTProcessor::import_chemical_mod_file(
         std::cerr << rang::fg::reset << std::endl;
         return false;
     }
-    return import_chemical_mod_file(fileAllocator, modAllocator, jobAllocator, loc_man, data, fileId, abs_path, &inp_source);
+    return import_chemical_mod_file(fileAllocator, modAllocator, loc_man, data, fileId, abs_path, &inp_source);
 }
 
 void ASTProcessor::declare_before_translation(

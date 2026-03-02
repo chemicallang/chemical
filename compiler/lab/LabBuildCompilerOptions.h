@@ -96,17 +96,27 @@ public:
     bool def_assertions_on = false;
 
 #ifdef COMPILER_BUILD
+
     /**
      * no pie flag allows to control PIE, we simply pass the flag to clang when linking, if enabled
      */
     bool no_pie = false;
-#endif
 
-#ifdef COMPILER_BUILD
     /**
      * should the lld be used directly
      */
     bool use_lld = false;
+
+    /**
+     * output .ll file for each module
+     */
+    bool out_ll_all = false;
+
+    /**
+     * output assembly for each module
+     */
+    bool out_asm_all = false;
+
 #endif
 
 

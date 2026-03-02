@@ -508,8 +508,6 @@ set(COMMON_SOURCES
         compiler/processor/ModuleDependencyRecord.h
         compiler/symres/SymResScopeKind.h
         compiler/processor/ASTFileResult.h
-        parser/utils/ParseModDecl.cpp
-        parser/utils/ParseModDecl.h
         server/model/ASTResult.h
         server/model/LexResult.h
         compiler/cbi/model/Model.h

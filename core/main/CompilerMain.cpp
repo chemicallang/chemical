@@ -249,7 +249,12 @@ LabModule* create_module(std::vector<std::unique_ptr<LabModule>>& modules, const
     return mod;
 }
 
-void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& module, std::vector<std::unique_ptr<LabModule>>& dependencies) {
+void set_options_for_main_job(
+        CmdOptions& options,
+        LabJob& job,
+        LabModule& module,
+        std::vector<std::unique_ptr<LabModule>>& dependencies
+) {
 
     // set the build directory for the job
     const auto build_dir = options.option_new("build-dir");
@@ -259,24 +264,6 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
 
     take_include_options(module, options);
     take_linked_libs(job, options);
-
-    auto start = dependencies.size(); // where additional modules begin
-
-    // setting output for ll, bc, obj and asm files for corresponding modules
-    const auto has_ll = options.has_value("out-ll-all");
-    const auto has_asm = options.has_value("out-asm-all");
-    const auto size = dependencies.size();
-    while(start < size) {
-        const auto mod = dependencies[start].get();
-        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_view(), mod->name.to_view());
-        if(has_ll) {
-            mod->llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
-        }
-        if(has_asm) {
-            mod->asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
-        }
-        start++;
-    }
 
 }
 
@@ -520,6 +507,8 @@ int compiler_main(int argc, char *argv[]) {
         opts->use_tcc = options.has_value("use-tcc", "use-tcc");
         opts->use_lld = options.has_value("use-lld", "use-lld");
         opts->use_mod_obj_format = !options.has_value("use-bc", "use-bitcode");
+        opts->out_ll_all = options.has_value("out-ll-all");
+        opts->out_asm_all = options.has_value("out-asm-all");
 #endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         auto mode_opt = options.option_new("plugin-mode", "pm");
@@ -842,19 +831,6 @@ int compiler_main(int argc, char *argv[]) {
     auto link_libs = options.data.find("library")->second.get_multi_opt_values();
     for(auto& lib : link_libs) {
         job.link_libs.emplace_back(chem::string::make_view(lib));
-    }
-
-    // checking if user requires ll, asm output at default location for the module
-    const auto has_ll = options.has_value("out-ll-all");
-    const auto has_asm = options.has_value("out-asm-all");
-    if(has_ll || has_asm) {
-        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_view(), module.name.to_view());
-        if (has_ll) {
-            module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
-        }
-        if (has_asm) {
-            module.asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
-        }
     }
 
     if(dash_c.has_value() || !bin_out.has_value()) {

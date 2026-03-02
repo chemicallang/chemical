@@ -63,7 +63,7 @@ public struct OpenOptions {
 
 public struct File {
     if(def.windows) {
-        struct { var handle : void*; } win;
+        struct { var handle : *mut void; } win;
     } else {
         struct { var fd : int; } unix;
     }

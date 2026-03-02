@@ -3343,7 +3343,7 @@ int LabBuildCompiler::run_native_module(const std::string& target, const std::ve
 
     // lets check if executable already exists and invoke it
     // without downloading it
-    if(fs::exists(outputPath.to_view())) {
+    if(options->is_caching_enabled && fs::exists(outputPath.to_view())) {
         // executable already exists
         return launch_process_and_wait(outputPath.data(), args);
     }
@@ -3414,7 +3414,7 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
     // lets check if executable already exists and invoke it
     // without downloading it
-    if(fs::exists(outputPath.to_view())) {
+    if(options->is_caching_enabled && fs::exists(outputPath.to_view())) {
         // executable already exists
         return launch_process_and_wait(outputPath.data(), args);
     }

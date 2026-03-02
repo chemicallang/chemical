@@ -618,6 +618,7 @@ int compiler_main(int argc, char *argv[]) {
 
         // creating compiler options
         LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, "build", is64Bit);
+        prepare_options(&compiler_opts);
 
         // Implement the actual run logic in LabBuildCompiler
         return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, file_or_mod, exec_args, mode, &options);

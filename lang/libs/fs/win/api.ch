@@ -75,7 +75,7 @@ public func GetFullPathNameW(
     lpFileName : LPCWSTR,
     nBufferLength : DWORD,
     lpBuffer : LPWSTR,
-    lpFilePart : LPWSTR*
+    lpFilePart : *LPWSTR
 ) : DWORD
 
 @dllimport
@@ -209,8 +209,8 @@ struct _WIN32_FIND_DATAW {
     var nFileSizeLow : DWORD;
     var dwReserved0 : DWORD;
     var dwReserved1 : DWORD;
-    var cFileName : WCHAR[MAX_PATH];
-    var cAlternateFileName : WCHAR[14];
+    var cFileName : [MAX_PATH]WCHAR;
+    var cAlternateFileName : [14]WCHAR;
 }
 
 public type WIN32_FIND_DATAW = _WIN32_FIND_DATAW

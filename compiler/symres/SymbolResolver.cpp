@@ -41,7 +41,7 @@ UnresolvedDecl* SymbolResolver::get_unresolved_decl() {
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
     error(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
-    error(previous) << "symbol has a conflict";
+    warn(previous) << "symbol has a conflict";
 }
 
 bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* node) {
@@ -208,7 +208,7 @@ void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *n
         }
         // error out, symbol now allowed to be shadowed
         error(node) << "symbol with name '" << name << "' already exists";
-        error(previous->activeNode) << "symbol has a conflict";
+        warn(previous->activeNode) << "symbol has a conflict";
         // shadow the symbol, why shadow ? so errors consider user's intention to shadow
         table.declare(name, node);
     }
@@ -224,7 +224,7 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
     const auto previous = table.declare_no_shadow(name, node);
     if(previous) {
         error(node) << "symbol with name '" << name << "' already exists";
-        error(previous) << "symbol has a conflict";
+        warn(previous) << "symbol has a conflict";
         // shadow the symbol
         table.declare(name, node);
     }

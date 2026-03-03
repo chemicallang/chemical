@@ -634,7 +634,7 @@ bool FunctionTypeBody::mark_moved_value(
         return false;
     }
     const auto linked_def = linked_node->as_members_container_unsafe();
-    if(linked_def->is_shallow_copyable()) {
+    if(linked_def->destructor_func() == nullptr) {
         return false;
     }
     bool final = false;

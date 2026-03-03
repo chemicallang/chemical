@@ -2127,42 +2127,6 @@ void ThrowStatement::code_gen(Codegen &gen) {
     CHEM_THROW_RUNTIME("[UNIMPLEMENTED]");
 }
 
-//bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
-//    return value->requires_memcpy_ref_struct(known_type);
-//}
-
-//llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
-////    const auto pure = known_type->pure_type(allocator);
-//    if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
-//        if(!llvm_ptr) {
-//            const auto allocaInst = builder->CreateAlloca(type, nullptr);
-//            di.instr(allocaInst, value);
-//            llvm_ptr = allocaInst;
-//        }
-//        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr), value->encoded_location());
-//        return llvm_ptr;
-//    }
-//    return nullptr;
-//}
-
-llvm::Value* Codegen::memcpy_shallow_copy(BaseType* known_type, Value* value, llvm::Value* llvm_value) {
-    // is referencing another struct, that is non movable and must be mem copied into the pointer
-    const auto kind = value->val_kind();
-    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && value->as_access_chain_unsafe()->values.back()->as_func_call() == nullptr)) {
-        const auto node = known_type->get_direct_linked_node();
-        if(node && node->is_shallow_copyable()) {
-            const auto type = llvm_value->getType();
-            const auto alloc = builder->CreateAlloca(type);
-            di.instr(alloc, value->encoded_location());
-            memcpy_struct(type, alloc, llvm_value, value->encoded_location());
-            return alloc;
-        } else {
-            return llvm_value;
-        }
-    }
-    return llvm_value;
-}
-
 bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     auto linked = known_type->get_direct_linked_canonical_node();

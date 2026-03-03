@@ -249,8 +249,4 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
         has_destructor = true;
         create_def_destructor(allocator, diagnoser, returnNode, is_extern());
     }
-    if(!has_destructor) {
-        // we make the struct copyable by default, if it doesn't have any destructor
-        attrs.is_copy = true;
-    }
 }

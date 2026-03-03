@@ -376,7 +376,7 @@ EnumDeclaration* BaseType::get_direct_linked_enum() {
 
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && (direct_ref_struct->is_shallow_copyable() || direct_ref_struct->destructor_func())) {
+    if(direct_ref_struct && direct_ref_struct->destructor_func()) {
         return direct_ref_struct;
     } else {
         return nullptr;
@@ -385,7 +385,7 @@ StructDefinition* BaseType::get_direct_linked_movable_struct() {
 
 StructDefinition* BaseType::get_direct_non_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && !direct_ref_struct->is_shallow_copyable() && direct_ref_struct->destructor_func() == nullptr) {
+    if(direct_ref_struct && direct_ref_struct->destructor_func() == nullptr) {
         return direct_ref_struct;
     } else {
         return nullptr;

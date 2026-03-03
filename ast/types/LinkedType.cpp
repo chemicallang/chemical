@@ -16,7 +16,7 @@ uint64_t LinkedType::byte_size(TargetData& data) {
 }
 
 bool is_struct_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {
-    if(reference && !linked->as_struct_def_unsafe()->is_shallow_copyable()) {
+    if(reference && linked->as_struct_def_unsafe()->destructor_func()) {
         return false;
     }
     if (linked == other_linked) {
@@ -28,7 +28,7 @@ bool is_struct_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool ref
 }
 
 bool is_variant_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {
-    if(reference & !linked->as_variant_def_unsafe()->is_shallow_copyable()) {
+    if(reference && linked->as_variant_def_unsafe()->destructor_func()) {
         return false;
     }
     if (linked == other_linked) {

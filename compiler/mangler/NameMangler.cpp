@@ -296,7 +296,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
             if(interface->is_static()) {
                 mangle_non_func(stream, interface);
             } else {
-                ExtendableMembersContainerNode* container = (interface->active_user && decl->has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
+                ExtendableMembersContainerNode* container = interface->active_user ? (ExtendableMembersContainerNode*) interface->active_user : interface;
                 mangle_non_func(stream, container);
             };
             break;
@@ -307,8 +307,8 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
             if(interface && interface->is_static()) {
                 mangle_non_func(stream, interface);
             } else {
-                ExtendableMembersContainerNode* container = decl->has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
-                mangle_non_func(stream, container);
+                // ExtendableMembersContainerNode* container = decl->has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
+                mangle_non_func(stream, def);
             }
             break;
         }

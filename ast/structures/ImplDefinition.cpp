@@ -123,14 +123,14 @@ void ImplDefinition::code_gen(Codegen &gen) {
         for (const auto function: instantiated_functions()) {
             function->code_gen_body(gen);
         }
-        if(!linked->is_static()) {
+        if(linked->generates_vtable()) {
             linked->create_global_vtable(gen, this, struct_type, false);
         }
     } else {
         for (auto& function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);
         }
-        if (linked && !linked->is_static() && struct_def) {
+        if (linked && linked->generates_vtable() && struct_def) {
             linked->llvm_global_vtable(gen, struct_def);
         }
     }
@@ -152,7 +152,7 @@ void ImplDefinition::code_gen_external_declare(Codegen &gen) {
             function->code_gen_external_declare(gen, AccessSpecifier::Public);
         }
         // just declare the global vtable for this primitive impl Again.
-        if(!interface->is_static()) {
+        if(interface->generates_vtable()) {
             interface->create_global_vtable(gen, this, struct_type, true);
         }
     }

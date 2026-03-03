@@ -971,6 +971,7 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     if(!type) return nullptr;
     const auto interface = getDynInterfaceDef(type);
     if(!interface) return nullptr;
+    if(!interface->generates_vtable()) return nullptr;
     const auto linked = value->getType();
     if(linked->isStructLikeType()) {
         const auto def = linked->get_direct_linked_struct();

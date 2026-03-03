@@ -3545,7 +3545,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
     }
     if(!is_static) {
         def->active_user = nullptr;
-        if(!external_declare) {
+        if(!external_declare && def->generates_vtable()) {
             create_v_table_type(visitor, def);
         }
 
@@ -3582,7 +3582,9 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
                     def->active_user = nullptr;
 
                     // create the v table for each implementation
-                    create_v_table(visitor, def, linked_struct);
+                    if(def->generates_vtable()) {
+                        create_v_table(visitor, def, linked_struct);
+                    }
 
 
                     // setting it true, that vtable implementation exists

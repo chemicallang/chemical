@@ -1015,8 +1015,39 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     linker.scope_end();
 }
 
+bool is_object_safe(InterfaceDefinition* node) {
+    // determining if the interface is object safe
+    for(const auto func_node : node->functions()) {
+        switch(func_node->kind()) {
+            case ASTNodeKind::FunctionDecl:{
+                const auto func = func_node->as_function_unsafe();
+                if(func->returnType->get_direct_linked_node() == node) {
+                    return false;
+                }
+                for(const auto param : func->params) {
+                    if(param->type->get_direct_linked_node() == node) {
+                        return false;
+                    }
+                }
+                continue;
+            }
+            case ASTNodeKind::GenericFuncDecl:
+                // if it contains generics, we consider the interface
+                return false;
+            default:
+                continue;
+        }
+    }
+    return true;
+}
+
 void TopLevelLinkSignature::VisitInterfaceDecl(InterfaceDefinition* node) {
     LinkMembersContainer(node, node->specifier());
+    // user may have overridden it using an annotation in that case we must not check
+    // by default every interface is by default object safe, that's the only time we check
+    if(!node->is_non_dynamic() && !is_object_safe(node)) {
+        node->set_object_safe(false);
+    }
 }
 
 void BeforeLinkSignature::VisitNamespaceDecl(Namespace* node) {

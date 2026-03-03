@@ -90,16 +90,6 @@ impl SeparateInterfaceForPoint for Point {
     }
 }
 
-interface DirectlyCallableInterface {
-    func give_num() : int
-}
-
-impl DirectlyCallableInterface {
-    func give_num() : int {
-        return 98722;
-    }
-}
-
 type PPoint = *Point
 
 func sum_ppoint(p : PPoint) : int {
@@ -335,9 +325,6 @@ func test_nodes() {
     })
     test("can call functions declared below call", () => {
         return declared_below() == 1;
-    })
-    test("can call interface declared functions directly - 3", () => {
-        return DirectlyCallableInterface.give_num() == 98722;
     })
     test("call interface method from overridden struct value", () => {
          var p = Point {

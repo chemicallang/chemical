@@ -739,7 +739,10 @@ int compiler_main(int argc, char *argv[]) {
     // if not empty, this file will be removed at the end
     std::string_view temporary_obj;
 
+    // creating a module for the files user asked us to compile
     LabModule module(LabModuleType::Files, chem::string(""), chem::string("main"));
+    // we expect the main function to be in one of the files
+    module.package_kind = PackageKind::Application;
 
     // setting extra files to emit, like ll, bc, obj, asm (absolute paths)
     auto& ll_out = options.option_new("out-ll");

@@ -20,9 +20,7 @@ void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDecla
         active_user = use.first;
         auto found = user.find(func);
         if(found == user.end()) {
-            if(func->has_self_param()) {
-                func->code_gen_declare(gen, this);
-            }
+            func->code_gen_declare(gen, this);
             user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
         } else {
             // impl probably came first and basically set the function pointer
@@ -32,9 +30,6 @@ void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDecla
 }
 
 void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
-    if(!func->has_self_param()) {
-        return;
-    }
     for(auto& use : users) {
         auto llvm_itr = use.second.find(func);
         if(llvm_itr == use.second.end()) {
@@ -54,11 +49,6 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
 }
 
 void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
-    if(!decl->has_self_param() && (attrs.has_implementation || !users.empty())) {
-        decl->code_gen_declare(gen, this);
-        decl->code_gen_body(gen, this);
-        return;
-    }
     code_gen_for_users(gen, decl);
 }
 
@@ -78,11 +68,6 @@ void InterfaceDefinition::code_gen_declare(Codegen &gen) {
             }
         }
     } else {
-        for (auto& func: instantiated_functions()) {
-            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
-                func->code_gen_declare(gen, this);
-            }
-        }
         for (const auto& function: instantiated_functions()) {
             code_gen_declare_for_users(gen, function);
         }
@@ -93,12 +78,6 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
     if(is_static()) {
         // nothing to be done at the moment (unsure)
     } else {
-        for (auto& func: instantiated_functions()) {
-            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
-                // func->code_gen_declare(gen, this);
-                func->code_gen_body(gen, this);
-            }
-        }
         for (const auto& function: instantiated_functions()) {
             code_gen_for_users(gen, function);
         }
@@ -113,13 +92,6 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
     if(is_static()) {
         extendable_external_declare(gen);
     } else {
-        // for functions that don't take a self parameter, we just straight up declare them
-        // because they have already been generated in other module
-        for (auto& func: instantiated_functions()) {
-            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
-                func->code_gen_external_declare(gen);
-            }
-        }
         // for each function:
         // we find their users, which contain function pointers, if function pointer exists, we declare the function
         // if no function pointer exists, we have to assume no implementation exists, and generate as usual, so users can override it
@@ -128,17 +100,15 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
                 auto& user = users[use.first];
                 active_user = use.first;
                 auto found = user.find(func);
-                if (func->has_self_param()) {
-                    if(found == user.end()) {
-                        // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
-                        func->code_gen_declare(gen, this);
-                        func->code_gen_body(gen, this);
-                    } else {
-                        // since function pointer exists
-                        // however because the function is from other module, this function pointer is invalid in this module
-                        // we must declare the function and reset the function pointer for the user
-                        func->code_gen_external_declare(gen);
-                    }
+                if(found == user.end()) {
+                    // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
+                    func->code_gen_declare(gen, this);
+                    func->code_gen_body(gen, this);
+                } else {
+                    // since function pointer exists
+                    // however because the function is from other module, this function pointer is invalid in this module
+                    // we must declare the function and reset the function pointer for the user
+                    func->code_gen_external_declare(gen);
                 }
                 user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
             }

@@ -66,12 +66,6 @@ struct StructDeclAttributes {
     bool is_abstract = false;
 
     /**
-     * when marked with copy annotation, this struct is easy to copy, because it will be shallow
-     * copies everywhere
-     */
-    bool is_copy = false;
-
-    /**
      * is no mangle means, module name won't be added to this struct
      */
     bool is_no_mangle = false;
@@ -193,14 +187,6 @@ public:
 
     inline void set_abstract(bool value) {
         attrs.is_abstract = value;
-    }
-
-    inline bool is_shallow_copyable() {
-        return attrs.is_copy;
-    }
-
-    inline void set_shallow_copyable(bool value) {
-        attrs.is_copy = value;
     }
 
     inline bool is_no_mangle() {

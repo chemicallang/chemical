@@ -18,8 +18,6 @@ struct UnionDeclAttributes {
 
     bool anonymous = false;
 
-    bool is_copy = false;
-
     bool is_no_mangle = false;
 
 };
@@ -90,14 +88,6 @@ public:
 
     inline void set_anonymous(bool value) {
         attrs.anonymous = value;
-    }
-
-    inline bool is_shallow_copyable() {
-        return attrs.is_copy;
-    }
-
-    inline void set_shallow_copyable(bool value) {
-        attrs.is_copy = value;
     }
 
     inline bool is_no_mangle() {

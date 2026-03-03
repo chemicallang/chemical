@@ -35,6 +35,10 @@ struct Pair {
 
 }
 
+func take_pair_reference(p : &Pair) : int {
+    return p.a + p.b + 1
+}
+
 struct IntPair {
     var pair : Pair
 }
@@ -552,6 +556,10 @@ func test_structs() {
     test("translation for automatic initialization of contained struct works", () => {
         var c = container_def_init_82773 {}
         return c.c.c == 877
+    })
+    test("struct sent to references without type is resolved correctly according to expected type", () => {
+        var s = take_pair_reference({ a : 10, b : 23 })
+        return s == 34
     })
 
 }

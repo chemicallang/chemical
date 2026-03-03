@@ -85,11 +85,6 @@ public:
     ctpl::thread_pool pool;
 
     /**
-     * when given, we check for any command line options that configure the code generator
-     */
-    CmdOptions* cmd = nullptr;
-
-    /**
      * dependencies having build.lab have a function that return the LabModule*
      * instead of parsing the build.lab again and running it, we reuse this module
      * pointer
@@ -168,13 +163,6 @@ public:
             LabBuildCompilerOptions* options,
             int nThreads
     );
-
-    /**
-     * set the cmd options to allow checking for any command line options given to configure the code generation process
-     */
-    void set_cmd_options(CmdOptions* ptr) {
-        cmd = ptr;
-    }
 
     /**
      * sets the following allocators
@@ -494,8 +482,7 @@ public:
         const std::string& exe_path,
         const std::string& target,
         const std::vector<std::string_view>& args,
-        OutputMode mode,
-        CmdOptions* cmd_options
+        OutputMode mode
     );
 
     /**

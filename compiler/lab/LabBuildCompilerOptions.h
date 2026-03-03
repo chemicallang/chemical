@@ -117,6 +117,16 @@ public:
      */
     bool out_asm_all = false;
 
+    /**
+     * no unwind tables, cleaner output in llvm ir files
+     */
+    bool fno_unwind_tables = false;
+
+    /**
+     * similarly no asynchronous unwind tables
+     */
+     bool fno_asynchronous_unwind_tables = false;
+
 #endif
 
 

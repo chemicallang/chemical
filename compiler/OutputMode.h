@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 /**
  * You select the release or debug mode by giving this command line parameter
  * -mode value
@@ -10,7 +12,7 @@
  * Release modes allow you to change properties quickly for code generation, The parameters customized
  * by release mode, may have more customized commands separately
  */
-enum class OutputMode : int {
+enum class OutputMode : uint8_t {
 
     /**
      * The debug mode, which also contains debug information, about the executable

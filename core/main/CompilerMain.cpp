@@ -509,6 +509,9 @@ int compiler_main(int argc, char *argv[]) {
         opts->use_mod_obj_format = !options.has_value("use-bc", "use-bitcode");
         opts->out_ll_all = options.has_value("out-ll-all");
         opts->out_asm_all = options.has_value("out-asm-all");
+        opts->fno_unwind_tables = options.has_value("", "fno-unwind-tables");
+        opts->fno_asynchronous_unwind_tables = options.has_value("", "fno-asynchronous-unwind-tables");
+        opts->no_pie = options.has_value("no-pie", "no-pie");
 #endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         auto mode_opt = options.option_new("plugin-mode", "pm");
@@ -610,7 +613,7 @@ int compiler_main(int argc, char *argv[]) {
         prepare_options(&compiler_opts);
 
         // Implement the actual run logic in LabBuildCompiler
-        return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, file_or_mod, exec_args, mode, &options);
+        return LabBuildCompiler::run_invocation(compiler_opts, compiler_exe_path, file_or_mod, exec_args, mode);
     }
 
     bool jit = options.has_value("jit", "jit");
@@ -655,7 +658,6 @@ int compiler_main(int argc, char *argv[]) {
         CompilerBinder binder(compiler_exe_path);
         LocationManager loc_man;
         LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
-        compiler.set_cmd_options(&options);
 
         // Prepare compiler options
         compiler_opts.out_mode = mode;
@@ -726,7 +728,6 @@ int compiler_main(int argc, char *argv[]) {
     CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
-    compiler.set_cmd_options(&options);
 
     // set default compiler options
     // we disable cache (because its command line invocation)

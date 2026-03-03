@@ -293,6 +293,14 @@ void annot_handler_allow_zeroed(Parser* parser, ASTNode* node, std::vector<Value
     }
 }
 
+void annot_handler_non_dyn(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if (node->kind() == ASTNodeKind::InterfaceDecl) {
+        node->as_interface_def_unsafe()->set_non_dynamic(true);
+    } else {
+        parser->error("attribute @non_dyn can only be applied to interfaces");
+    }
+}
+
 void annot_handler_never_destructed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(node->kind() == ASTNodeKind::VarInitStmt) {
         node->as_var_init_unsafe()->set_never_destructed(true);
@@ -341,6 +349,7 @@ void AnnotationController::initialize() {
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
             { "allow_zeroed", { annot_handler_allow_zeroed, "allow_zeroed", AnnotationDefType::Handler } },
+            { "non_dyn", { annot_handler_non_dyn, "non_dyn", AnnotationDefType::Handler } },
 
             // single marker annotations
             {"test.before_each", { .policy = SingleMarkerMultiplePolicy::Override, .name = "test.before_each", .type = AnnotationDefType::SingleMarker }},

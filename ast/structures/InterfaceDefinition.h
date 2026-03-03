@@ -47,6 +47,18 @@ struct InterfaceDefinitionAttrs {
      */
     bool is_extern = false;
 
+    /**
+     * every interface is by default object safe
+     * unless user sets it explicitly or we check it during sym res
+     */
+    bool object_safe = true;
+
+    /**
+     * an interface can be made explicitly non dynamic
+     * like the Drop trait, which allows us to prevent dynamic usage
+     */
+    bool non_dyn = false;
+
 };
 
 static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
@@ -163,6 +175,26 @@ public:
 
     inline void set_extern(bool value) {
         attrs.is_extern = value;
+    }
+
+    inline bool is_object_safe() {
+        return attrs.object_safe;
+    }
+
+    inline void set_object_safe(bool value) {
+        attrs.object_safe = value;
+    }
+
+    inline bool is_non_dynamic() {
+        return attrs.non_dyn;
+    }
+
+    inline void set_non_dynamic(bool value) {
+        attrs.non_dyn = value;
+    }
+
+    inline bool generates_vtable() {
+        return is_object_safe() && !is_non_dynamic() && !is_static();
     }
 
     InterfaceDefinition* shallow_copy(ASTAllocator& allocator) {

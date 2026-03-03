@@ -84,7 +84,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
         if (!declare) {
             for (auto& inherits: inherited) {
                 const auto interface = inherits.type->get_direct_linked_interface();
-                if (interface && !interface->is_static()) {
+                if (interface && interface->generates_vtable()) {
                     interface->llvm_global_vtable(gen, this);
                 }
             }

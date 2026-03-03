@@ -1623,6 +1623,12 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
 
         const auto impl_decl = impl_node->as_extendable_members_container_unsafe();
 
+#ifdef DEBUG
+        if(!interface->generates_vtable()) {
+            CHEM_THROW_RUNTIME("interface doesn't generate vtable");
+        }
+#endif
+
         // get the vtable pointer
         const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
 

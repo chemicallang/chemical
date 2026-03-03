@@ -3322,5 +3322,19 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
 void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {
     visit(value->getType());
     visit(value->value);
-    // TODO: must verify that an implementation exists
+    // checking if the interface can be used with dynamic value
+    const auto node = value->getType()->referenced->get_direct_linked_canonical_node();
+    if(node->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto interface = node->as_interface_def_unsafe();
+        if(interface->is_non_dynamic()) {
+            linker.error(value) << "interface with name '" << interface->name_view() << "' is set to non-dynamic explicitly, it cannot be used dynamically";
+            linker.warn(interface) << "non dynamic interface being used with dynamic value";
+        }
+        if(!interface->is_object_safe()) {
+            linker.error(value) << "interface with name '" << interface->name_view() << "' is not object safe and therefore cannot be used with dynamic value";
+            linker.warn(interface) << "non object-safe interface being used with dynamic value";
+        }
+        // TODO: must verify that an implementation exists
+    }
+
 }

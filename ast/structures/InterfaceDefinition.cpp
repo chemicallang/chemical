@@ -81,9 +81,11 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
         for (const auto& function: instantiated_functions()) {
             code_gen_for_users(gen, function);
         }
-        // generating vtables for each user struct
-        for(auto& user : users) {
-            llvm_build_vtable(gen, user.first);
+        if(generates_vtable()) {
+            // generating vtables for each user struct
+            for (auto& user: users) {
+                llvm_build_vtable(gen, user.first);
+            }
         }
     }
 }
@@ -114,11 +116,13 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
             }
             active_user = nullptr;
         }
-        // now we regenerate the vtables, for which vtables exist we declare them, otherwise we rebuilt vtables
-        for(auto& use : users) {
-            auto found = vtable_pointers.find(use.first);
-            // we found the vtable, we must redeclare it in this module otherwise we regenerate it
-            create_global_vtable(gen, use.first, found != vtable_pointers.end());
+        if(generates_vtable()) {
+            // now we regenerate the vtables, for which vtables exist we declare them, otherwise we rebuilt vtables
+            for (auto& use: users) {
+                auto found = vtable_pointers.find(use.first);
+                // we found the vtable, we must redeclare it in this module otherwise we regenerate it
+                create_global_vtable(gen, use.first, found != vtable_pointers.end());
+            }
         }
     }
 }

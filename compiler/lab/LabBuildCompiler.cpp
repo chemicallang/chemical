@@ -1757,11 +1757,9 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
-    if(cmd) {
-        code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
-        code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
-        code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
-    }
+    code_gen_options.fno_unwind_tables = options->fno_unwind_tables;
+    code_gen_options.fno_asynchronous_unwind_tables = options->fno_asynchronous_unwind_tables;
+    code_gen_options.no_pie = options->no_pie;
     Codegen gen(code_gen_options, binder, global, mangler, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
@@ -3054,8 +3052,7 @@ int LabBuildCompiler::run_invocation(
     const std::string& compiler_exe_path,
     const std::string& target,
     const std::vector<std::string_view>& args,
-    OutputMode mode,
-    CmdOptions* cmd_options
+    OutputMode mode
 ) {
     bool is64Bit = true; // assume 64 bit for now, should be passed from options if possible
 #ifdef _WIN32
@@ -3072,7 +3069,6 @@ int LabBuildCompiler::run_invocation(
     CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
-    compiler.set_cmd_options(cmd_options);
     
     LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, compiler.binder);
     

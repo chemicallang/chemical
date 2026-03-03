@@ -1942,6 +1942,11 @@ bool Codegen::set_drop_flag_for_node(ASTNode* node, bool flag, SourceLocation lo
 }
 
 bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
+    const auto t = getType();
+    if(t->get_destructor() == nullptr) {
+        // because value is not destructible, no point in moving
+        return true;
+    }
     const auto value = this;
     switch(value->kind()) {
         case ValueKind::AccessChain: {
@@ -2170,7 +2175,7 @@ bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Valu
             const auto container = linked->as_members_container_unsafe();
             // we will always have to memcpy the struct into the location
             memcpy_struct(value->llvm_type(*this), memory_pointer, value->llvm_value(*this), value->encoded_location());
-            if(!container->is_shallow_copyable()) {
+            if(container->has_destructor()) {
                 // however if struct is not shallow copyable, we must also set the drop flag to false so it won't be dropped
                 if(!value->set_drop_flag_for_moved_ref(*this)) {
                     warn("couldn't set the drop flag to false for moved value", value);

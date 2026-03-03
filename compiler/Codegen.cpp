@@ -1172,9 +1172,7 @@ void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
         if(current_function) {
             if (value == nullptr && !current_function->getReturnType()->isVoidTy()) {
                 warn("dev: creating a return void when the function's return is something else", location);
-            } else if(value != nullptr && current_function->getReturnType()->isVoidTy()) {
-                warn("dev: creating a return with value when the function's return is void", location);
-            } else if (value != nullptr && current_function->getReturnType()->getTypeID() != value->getType()->getTypeID()) {
+            } else if (value && current_function->getReturnType()->getTypeID() != value->getType()->getTypeID()) {
                 warn("dev: return value type is different than the function's return type", location);
             }
         }

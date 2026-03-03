@@ -3235,7 +3235,12 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             structValue->setType(new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
             return;
         }
-        structValue->setType(exp_type);
+        const auto canon = exp_type->canonical();
+        if(canon->kind() == BaseTypeKind::Reference) {
+            structValue->setType(canon->as_reference_type_unsafe()->type);
+        } else {
+            structValue->setType(exp_type);
+        }
     }
     if(!structValue->resolve_container(linker.genericInstantiator, !linker.generic_context)) {
         return;

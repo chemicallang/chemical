@@ -3207,8 +3207,8 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
     }
 }
 
-bool isParentConstructorOf(FunctionDeclaration* decl, StructValue* structVal) {
-    if(!decl->is_constructor_fn()) return false;
+bool isParentMethodOf(FunctionDeclaration* decl, StructValue* structVal) {
+    // if(!decl->is_constructor_fn()) return false;
     const auto p = decl->parent();
     const auto other_p = structVal->linked_extendable();
     switch(p->kind()) {
@@ -3216,7 +3216,7 @@ bool isParentConstructorOf(FunctionDeclaration* decl, StructValue* structVal) {
             return p->as_gen_struct_def_unsafe()->master_impl == other_p;
         case ASTNodeKind::GenericVariantDecl:
             return p->as_gen_variant_decl_unsafe()->master_impl == other_p;
-        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::GenericUnionDecl:
             return p->as_gen_union_decl_unsafe()->master_impl == other_p;
         default:
             return p == other_p;
@@ -3248,7 +3248,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
         const auto curr_func = linker.current_func_type->as_function();
-        if(curr_func == nullptr || !isParentConstructorOf(curr_func, structValue)) {
+        if(curr_func == nullptr || !isParentMethodOf(curr_func, structValue)) {
             linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
         }
     }

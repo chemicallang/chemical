@@ -475,8 +475,8 @@ void replace_is_value_value(IsValue* container, Value* value, ASTAllocator& allo
 }
 
 void GenericInstantiator::VisitIsValue(IsValue* value) {
-    RecursiveVisitor<GenericInstantiator>::VisitIsValue(value);
     replace_is_value_value(value, value->value, getAllocator());
+    RecursiveVisitor<GenericInstantiator>::VisitIsValue(value);
 }
 
 void GenericInstantiator::VisitComptimeValue(ComptimeValue* value) {
@@ -583,7 +583,18 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t it
             CHEM_THROW_RUNTIME("no type for generic parameter exists");
         }
 #endif
-        param->set_active_type(types[i]);
+        const auto t = types[i];
+        switch(t->kind()) {
+            case BaseTypeKind::Linked:
+                table.declare(param->identifier, t->as_linked_type_unsafe()->linked);
+                break;
+            case BaseTypeKind::Generic:
+                table.declare(param->identifier, t->as_generic_type_unsafe()->referenced->linked);
+                break;
+            default:
+                break;
+        }
+        param->set_active_type(t);
         i++;
     }
 }

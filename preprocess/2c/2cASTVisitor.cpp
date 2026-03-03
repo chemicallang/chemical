@@ -3379,10 +3379,14 @@ void vtable_type_name(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
 
 void vtable_func_type(ToCAstVisitor& visitor, FunctionDeclaration* func, const chem::string_view& func_name, const chem::string_view& self_name) {
     func_type_with_id_no_params(visitor, func, func_name);
-    visitor.write("void*");
-    visitor.space();
-    visitor.write(self_name);
-    func_type_params(visitor, func, 1, true);
+    if(self_name.empty()) {
+        func_type_params(visitor, func, 0, false);
+    } else {
+        visitor.write("void*");
+        visitor.space();
+        visitor.write(self_name);
+        func_type_params(visitor, func, 1, true);
+    }
     visitor.write(')');
 }
 
@@ -3400,10 +3404,8 @@ void v_table_func_types_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
     // type pointers
     for(auto& func : interface->instantiated_functions()) {
         auto self_param = func->get_self_param();
-        if(self_param) {
-            vtable_func_type(visitor, func, self_param->name);
-            visitor.write(';');
-        }
+        vtable_func_type(visitor, func, (self_param ? self_param->name : chem::string_view()));
+        visitor.write(';');
     }
 }
 
@@ -3433,23 +3435,20 @@ void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
         }
     }
     for (auto& func: interface->instantiated_functions()) {
-        auto self_param = func->get_self_param();
-        if(self_param) {
-            visitor.new_line_and_indent();
+        visitor.new_line_and_indent();
 
-            visitor.write('(');
-            vtable_func_type(visitor, func, "", self_param->name);
-            visitor.write(')');
-            visitor.write(' ');
+        visitor.write('(');
+        const auto self_param = func->get_self_param();
+        vtable_func_type(visitor, func, "", (self_param ? self_param->name : chem::string_view("")));
+        visitor.write(')');
+        visitor.write(' ');
 
-            const auto prev_user = interface->active_user;
-            interface->active_user = definition;
-            visitor.mangle(func);
-            interface->active_user = prev_user;
+        const auto prev_user = interface->active_user;
+        interface->active_user = definition;
+        visitor.mangle(func);
+        interface->active_user = prev_user;
 
-            visitor.write(',');
-
-        }
+        visitor.write(',');
     }
 }
 
@@ -3537,11 +3536,11 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
                 visitor.store_static_interface_for_stub_impl(def);
             }
         } else {
-            for (auto& func: def->instantiated_functions()) {
-                if(!func->has_self_param()) {
-                    declare_contained_func(this, func, false);
-                }
-            }
+//            for (auto& func: def->instantiated_functions()) {
+//                if(!func->has_self_param()) {
+//                    declare_contained_func(this, func, false);
+//                }
+//            }
         }
     }
     if(!is_static) {
@@ -3578,9 +3577,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
                     auto& use = user;
                     def->active_user = use.first;
                     for (auto& func: def->instantiated_functions()) {
-                        if (func->has_self_param()) {
-                            declare_contained_func(this, func, false, use.first);
-                        }
+                        declare_contained_func(this, func, false, use.first);
                     }
                     def->active_user = nullptr;
 
@@ -4773,6 +4770,10 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
         result = comp_time.value();
     } else {
         const auto linked = isValue->type->get_direct_linked_node();
+//        if(linked == nullptr) {
+//            error(isValue) << "linked is nullptr";
+//            return;
+//        }
         if(linked->kind() == ASTNodeKind::VariantMember) {
             const auto mem = linked->as_variant_member_unsafe();
             const auto var = mem->parent();

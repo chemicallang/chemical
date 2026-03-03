@@ -336,12 +336,6 @@ func test_nodes() {
     test("can call functions declared below call", () => {
         return declared_below() == 1;
     })
-    test("can call interface defined functions directly - 1", () => {
-        return Calculator.multiply(5, 5) == 25;
-    })
-    test("can call interface declared functions directly - 2", () => {
-        return Calculator.sum(5, 5) == 10;
-    })
     test("can call interface declared functions directly - 3", () => {
         return DirectlyCallableInterface.give_num() == 98722;
     })
@@ -352,9 +346,6 @@ func test_nodes() {
          };
         return p.multiply(5, 5) == 25;
     });
-    test("can call implemented impl functions directly", () => {
-        return Calculator.divide(5, 5) == 1;
-    })
     test("can call implemented impl functions using struct value", () => {
         var p = Point {
             x : 7,

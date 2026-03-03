@@ -61,9 +61,7 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
                 const auto func_ptr = func->known_func(gen);
                 if(func_ptr == nullptr) {
                     // impl probably came before the interface, so now we declare it before interface
-                    if(func->has_self_param()) {
-                        func->code_gen_declare(gen, linked);
-                    }
+                    func->code_gen_declare(gen, linked);
                     auto& use = linked->users[struct_def];
                     const auto new_func_ptr = func->get_llvm_data(gen);
                     use[func] = { new_func_ptr, false };

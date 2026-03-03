@@ -37,6 +37,25 @@ public:
     }
 };
 
+class MapSymbolDeclarerNoOverride : public NodeSymbolDeclarer<MapSymbolDeclarerNoOverride> {
+public:
+    std::unordered_map<chem::string_view, ASTNode*>& map;
+    ASTDiagnoser& diagnoser;
+    inline MapSymbolDeclarerNoOverride(
+            ASTDiagnoser& diagnoser,
+            std::unordered_map<chem::string_view, ASTNode*>& map
+        ) : map(map), diagnoser(diagnoser) {
+
+    }
+    inline void declare(const chem::string_view& sym, ASTNode* node) {
+        auto [it, inserted] = map.try_emplace(sym, node);
+        if (!inserted) {
+            diagnoser.error(node) << "symbol with name '" << sym << "' already exists";
+            diagnoser.warn(it->second) << "symbol has a conflict";
+        }
+    }
+};
+
 class SymbolResolverFileLvlDeclarer : public NodeSymbolDeclarer<SymbolResolverFileLvlDeclarer> {
 public:
     SymbolResolver& resolver;

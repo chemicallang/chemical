@@ -220,8 +220,10 @@ void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
             for (auto& node: ns->nodes) {
                 visit(node);
             }
-            // TODO we must check for duplicate symbols being declared in root_extended
-            ns->put_in_extended(root->extended);
+            MapSymbolDeclarerNoOverride declarer(linker, root->extended);
+            for(const auto node : ns->nodes) {
+                ::declare_node(declarer, node, AccessSpecifier::Private);
+            }
             linker.scope_end();
         } else {
             linker.dup_sym_error(ns->name(), previous, ns);

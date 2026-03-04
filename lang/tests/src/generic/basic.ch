@@ -323,6 +323,32 @@ func get_an_int_and_ret_it(value : int) : int {
     return value;
 }
 
+interface NonObjectSafeCreationCall {
+    func make() : Self
+}
+
+struct generic_id_repl_Creator1 : NonObjectSafeCreationCall {
+    var a : int
+    var b : int
+    @override
+    func make() : generic_id_repl_Creator1 {
+        return { a : 11, b : 22 }
+    }
+}
+
+struct generic_id_repl_Creator2 : NonObjectSafeCreationCall {
+    var a : int
+    var b : int
+    @override
+    func make() : generic_id_repl_Creator2 {
+        return { a : 234, b : 432 }
+    }
+}
+
+func <T : NonObjectSafeCreationCall> generic_identifier_replacement_test() : T {
+    return T::make()
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -665,5 +691,13 @@ func test_basic_generics() {
     })
     test("inferred type is preferred over default type", () => {
         return get_an_int_and_ret_it(give_me_size_of_this_gen_kinda()) == 4
+    })
+    test("generic identifier replacement succeeds - 1", () => {
+        var obj = generic_identifier_replacement_test<generic_id_repl_Creator1>()
+        return obj.a == 11 && obj.b == 22
+    })
+    test("generic identifier replacement succeeds - 2", () => {
+        var obj = generic_identifier_replacement_test<generic_id_repl_Creator2>()
+        return obj.a == 234 && obj.b == 432
     })
 }

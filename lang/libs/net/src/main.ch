@@ -436,7 +436,7 @@ public namespace http {
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
                 // case-insensitive compare using manual loop
-                if(strcasecmp(p.first.data(), name) == 0) { return std::Option.Some<std::string>(p.second) }
+                if(strcasecmp(p.first.data(), name) == 0) { return std::Option.Some<std::string>(p.second.copy()) }
                 i = i + 1u;
             }
             return std::Option.None<std::string>();
@@ -965,10 +965,9 @@ public namespace http {
                 var ptr = buf.as_ptr();
                 var req_opt = parse_request_from_bytes(ptr, crlfpos, s);
                 if(req_opt is std::Option.Some) {
-                    var Some(req) = req_opt else unreachable;
                     // consume header bytes
                     buf.consume(crlfpos);
-                    return std::Option.Some<Request>(req);
+                    return std::Option.Some<Request>(req_opt.take());
                 } else { return std::Option.None<Request>() }
             }
             // no full header yet: read more
@@ -1084,14 +1083,14 @@ public namespace web {
 
         func use_middleware(&mut self, m: Middleware) { middlewares.push_back(m) }
 
-        func match_route(&self, method: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : std::Option<Handler> {
+        func match_route(&self, method: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : *Route {
             var i = 0u;
             while(i < routes.size()) {
                 var r = routes.get_ptr(i);
                 if(r.method.equals_with_len(method.data(), method.size())) {
                     // match pattern vs path
                     if(match_pattern(r.pattern, path, params_out)) {
-                        return std::Option.Some<Handler>(r.handler)
+                        return r
                     } else {
                         // printf("route path doesn't match, want %s, has pattern %s\n", path.data(), r.pattern.data());
                     }
@@ -1101,7 +1100,7 @@ public namespace web {
                 i = i + 1u;
             }
             // printf("no route matched, return\n");
-            return std::Option.None<Handler>();
+            return null
         }
 
         // apply middlewares to a handler and return final handler
@@ -1229,18 +1228,17 @@ public namespace server {
             // printf("handle_conn: method='%s' path='%s'\n", req.method.data(), req.path.data());
 
             var params = std::vector<std::pair<std::string,std::string>>();
-            var hopt = self.router.match_route(req.method, req.path, &mut params);
+            var route = self.router.match_route(req.method, req.path, &mut params);
 
             var resw = http.ResponseWriter(s);
 
             // printf("handle_conn: total headers in response writer = %d\n", resw.headers.headers.size());
 
-            if (hopt is std::Option.Some) {
-                var Some(handler) = hopt else unreachable;
+            if (route != null) {
                 // printf("handle_conn: invoking handler for socket=%d\n", s);
 
                 // call the handler with the actual Request object
-                handler(req_opt.take(), resw);
+                route.handler(req_opt.take(), resw);
 
                 // printf("handle_conn: handler returned for socket=%d\n", s);
             } else {
@@ -1415,12 +1413,11 @@ public namespace server {
                              
                              // Route
                              var params = std::vector<std::pair<std::string,std::string>>();
-                             var hopt = self.router.match_route(req.method, req.path, &mut params);
+                             var route = self.router.match_route(req.method, req.path, &mut params);
                              var resw = http.ResponseWriter(s);
                              
-                             if (hopt is std::Option.Some) {
-                                 var Some(handler) = hopt else unreachable;
-                                 handler(req_opt.take(), resw);
+                             if (route != null) {
+                                 route.handler(req_opt.take(), resw);
                              } else {
                                  resw.status = 404u;
                                  resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));

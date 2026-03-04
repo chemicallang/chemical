@@ -402,7 +402,7 @@ public:
     }
 
     inline bool is_auto_called_func() {
-        return is_delete_fn() || is_copy_fn() || is_constructor_fn();
+        return is_delete_fn() || is_constructor_fn();
     }
 
     /**
@@ -481,8 +481,6 @@ public:
     void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
     void ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
-
-    void ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
     void ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 

@@ -134,11 +134,6 @@ FunctionDeclaration* BaseType::get_destructor() {
     return container ? container->destructor_func() : nullptr;
 }
 
-FunctionDeclaration* BaseType::get_copy_fn() {
-    auto container = get_members_container();
-    return container ? container->copy_func() : nullptr;
-}
-
 bool BaseType::requires_destructor() {
     if(kind() == BaseTypeKind::CapturingFunction) {
         return as_capturing_func_type_unsafe()->instance_type->requires_destructor();
@@ -156,24 +151,6 @@ bool BaseType::requires_destructor() {
                 return ((UnnamedStruct*) node)->requires_destructor();
             case ASTNodeKind::TypealiasStmt:
                 return ((TypealiasStatement*) node)->actual_type->requires_destructor();
-            default:
-                return false;
-        }
-    }
-}
-
-bool BaseType::requires_copy_fn() {
-    auto node = get_direct_linked_node();
-    if(!node) return false;
-    auto node_kind = node->kind();
-    if(ASTNode::isMembersContainer(node_kind)) {
-        return ((MembersContainer*) node)->copy_func() != nullptr;
-    } else {
-        switch(node_kind) {
-            case ASTNodeKind::VariantMember:
-                return ((VariantMember*) node)->requires_copy_fn();
-            case ASTNodeKind::UnnamedStruct:
-                return ((UnnamedStruct*) node)->requires_copy_fn();
             default:
                 return false;
         }

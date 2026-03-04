@@ -245,26 +245,6 @@ void annot_handler_cpp(Parser* parser, ASTNode* node, std::vector<Value*>& args)
     }
 }
 
-void annot_handler_copy(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    switch(node->kind()) {
-        case ASTNodeKind::FunctionDecl:
-            node->as_function_unsafe()->set_copy_fn(true);
-            return;
-        default:
-            parser->error("unexpected copy annotation");
-    }
-}
-
-void annot_handler_clone(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    switch(node->kind()) {
-        case ASTNodeKind::FunctionDecl:
-            node->as_function_unsafe()->set_copy_fn(true);
-            return;
-        default:
-            parser->error("unexpected clone annotation");
-    }
-}
-
 void annot_handler_static(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto interface = node->as_interface_def();
     if(interface) {
@@ -343,8 +323,6 @@ void AnnotationController::initialize() {
             { "maxalign", { annot_handler_maxalign, "maxalign", AnnotationDefType::Handler } },
             { "no_return", { annot_handler_no_return, "no_return", AnnotationDefType::Handler } },
             { "cpp", { annot_handler_cpp, "cpp", AnnotationDefType::Handler } },
-            { "copy", { annot_handler_copy, "copy", AnnotationDefType::Handler } },
-            { "clone", { annot_handler_clone, "clone", AnnotationDefType::Handler } },
             { "static", { annot_handler_static, "static", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },

@@ -10,10 +10,8 @@ var vec_destruct_called = 0;
 
 struct VecDestructibleChild {
     var i : int
-    @implicit
-    @copy
-    func copy(&mut self, other : &self) {
-        i = other.i
+    func copy(&self) : VecDestructibleChild {
+        return { i : i }
     }
     @delete
     func delete(&self) {

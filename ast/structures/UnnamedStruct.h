@@ -37,15 +37,6 @@ public:
         return unnamed;
     }
 
-    bool requires_copy_fn() {
-        for(const auto var : variables()) {
-            if(var->known_type()->requires_copy_fn()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     bool requires_destructor() {
         for(const auto var : variables()) {
             if(var->known_type()->requires_destructor()) {

@@ -269,11 +269,6 @@ public:
     bool any_member_has_destructor();
 
     /**
-     * checks if this struct type requires a copy function
-     */
-    bool any_member_has_copy_func();
-
-    /**
      * does struct has any destructor ?
      */
     inline bool has_destructor() {
@@ -337,11 +332,6 @@ public:
     FunctionDeclaration* destructor_func();
 
     /**
-     * will provide the move function if there's one
-     */
-    FunctionDeclaration* copy_func();
-
-    /**
      * insert the given function into this members container
      */
     void insert_func(FunctionDeclaration* decl);
@@ -381,11 +371,6 @@ public:
     FunctionDeclaration* create_destructor(ASTAllocator& allocator, ASTNode* returnNode, bool is_extern);
 
     /**
-     * create the copy function and put it into functions
-     */
-    FunctionDeclaration* create_copy_fn(ASTAllocator& allocator, ASTNode* returnNode);
-
-    /**
      * creates a default constructor, report errors in given diagnoser, this is a helper function
      * the container name here is the name of the struct and not the function
      */
@@ -395,11 +380,6 @@ public:
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode, bool is_extern);
-
-    /**
-     * create default copy function, report errors in given diagnoser, this is a helper function
-     */
-    FunctionDeclaration* create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
     /**
      * insert a function that can have same name for multiple declarations

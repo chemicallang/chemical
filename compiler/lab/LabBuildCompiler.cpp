@@ -3047,6 +3047,13 @@ std::string LabBuildCompiler::get_commands_cache_dir() {
     return resolve_rel_child_path_str(chemical_dir, "commands");
 }
 
+std::unordered_map<std::string_view, bool> get_native_map() {
+    return std::unordered_map<std::string_view, bool> {
+            { "docgen", true },
+            { "server", true }
+    };
+}
+
 int LabBuildCompiler::run_invocation(
     LabBuildCompilerOptions& compiler_opts,
     const std::string& compiler_exe_path,
@@ -3093,10 +3100,13 @@ int LabBuildCompiler::run_invocation(
     }
 
     // 2. Is it a native module
-    if(target == "docgen") {
-        return compiler.do_allocating([&]() -> int {
-            return compiler.run_native_module(target, args, context);
-        });
+    {
+        auto native_map = get_native_map();
+        if(native_map.contains(target)) {
+            return compiler.do_allocating([&]() -> int {
+                return compiler.run_native_module(target, args, context);
+            });
+        }
     }
     
     // 3. Is it a local project?

@@ -737,26 +737,6 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
-    if(decl && decl->is_copy_fn()) {
-        if(!grandparent) {
-            const auto g = get_parent_from(parent_val);
-            const auto grandpa = build_parent_chain(parent_val, gen.allocator);
-            grandparent = grandpa->llvm_value(gen, nullptr);
-            if(!grandparent) {
-                gen.error("couldn't figure out struct on which copy function is being called", this);
-                return NullValue::null_llvm_value(gen);
-            }
-            if (g && g->val_kind() == ValueKind::FunctionCall) {
-                destructibles.emplace_back(grandpa, grandparent);
-            }
-        }
-        auto data = decl->llvm_func(gen);
-        args.emplace_back(grandparent);
-        const auto callInstr = gen.builder->CreateCall(data, args);
-        gen.di.instr(callInstr, this);
-        return returnedValue;
-    }
-
     // auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 

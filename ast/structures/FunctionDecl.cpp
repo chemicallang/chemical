@@ -484,10 +484,6 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         code_gen_constructor(gen, def);
         return;
     }
-    if(is_copy_fn()) {
-        code_gen_copy_fn(gen, def);
-        return;
-    }
     if(is_delete_fn()) {
         code_gen_destructor(gen, def);
         return;
@@ -505,10 +501,6 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, InterfaceDefinition* def) 
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     if(!exists_at_runtime()) {
-        return;
-    }
-    if(is_copy_fn()) {
-        code_gen_copy_fn(gen, def);
         return;
     }
     if(is_delete_fn()) {
@@ -608,37 +600,6 @@ void code_gen_process_members(
     }
 }
 
-void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
-    auto func = llvm_func(gen);
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // copy calls to members
-    code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
-        const auto decl = mem_def->copy_func();
-        if(!decl) {
-            return;
-        }
-        auto selfArg = func->getArg(0);
-        auto otherArg = func->getArg(1);
-        std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-        auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), selfArg, idxList, index);
-        idxList.pop_back();
-        auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), otherArg, idxList, index);
-        const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), { element_ptr, other_element_ptr });
-        gen.di.instr(callInstr, location);
-    });
-
-    // generate user body
-    func_body_gen_no_scope(this, gen);
-
-    // end the function scope
-    gen.di.end_function_scope();
-
-}
-
 llvm::Value* variant_struct_pointer(
         Codegen &gen,
         llvm::Value* variant_ptr,
@@ -693,67 +654,6 @@ void process_members_calling_fns(
     }
 
     gen.SetInsertPoint(end_block);
-}
-
-void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def) {
-
-    auto func = llvm_func(gen);
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // get args
-    auto allocaInst = func->getArg(0);
-    auto otherInst = func->getArg(1);
-
-    // storing the type integer
-    auto other_type = gen.builder->CreateGEP(def->llvm_type(gen), otherInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-    auto this_type = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-
-    const auto loaded = gen.builder->CreateLoad(gen.builder->getInt32Ty(), other_type);
-    gen.di.instr(loaded, body_location());
-
-    const auto storeInst = gen.builder->CreateStore(loaded, this_type);
-    gen.di.instr(storeInst, body_location());
-
-    // processing members to call copy functions on members
-    process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem)-> bool {
-        return mem->requires_copy_fn();
-    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
-        auto otherArg = func->getArg(1);
-        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent());
-        auto index = -1;
-        for(auto& param : mem->values) {
-            index++;
-            auto linked = param.second->type->linked_node();
-            if(linked) {
-                auto container = linked->as_members_container();
-                if(container) {
-                    auto def = mem->parent();
-                    auto decl = container->copy_func();
-                    std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-                    auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
-                    idxList.pop_back();
-                    auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), other_struct_pointer, idxList, index);
-                    const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), { element_ptr, other_element_ptr });
-                    gen.di.instr(callInst, location);
-                }
-            }
-        }
-    });
-
-    const auto retInstr = gen.builder->CreateRetVoid();
-    gen.di.instr(retInstr, body_location());
-
-    // generate the body
-    if(body.has_value() && !body->nodes.empty()) {
-        func_body_gen_no_scope(this, gen);
-    }
-
-    // end the function scope
-    gen.di.end_function_scope();
-
 }
 
 void initialize_def_struct_values(

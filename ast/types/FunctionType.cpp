@@ -47,9 +47,7 @@ void llvm_func_param_types_into(
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
     if(returnType->isStructLikeType()) {
-        if(!decl || (!decl->is_copy_fn())) {
-            paramTypes.emplace_back(gen.builder->getPtrTy());
-        }
+        paramTypes.emplace_back(gen.builder->getPtrTy());
     }
     // capturing lambdas gets a struct passed to them which contain captured data
     if(isCapturing) {
@@ -207,12 +205,7 @@ bool FunctionType::has_explicit_params() {
 unsigned FunctionType::c_or_llvm_arg_start_index() {
     const auto offset = isExtensionFn() ? 1 : 0;
     if(returnType->isStructLikeType()) {
-        auto func = as_function();
-        if(func && func->is_copy_fn()) {
-            return 0 + offset;
-        } else {
-            return 1 + offset;
-        }
+        return 1 + offset;
     } else {
         return 0 + offset;
     }

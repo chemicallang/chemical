@@ -1205,7 +1205,7 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
                 linker.comptime_context = true;
             }
             link_seq(*this, node->body.value());
-            if(!node->is_copy_fn() && node->returnType->canonical()->kind() != BaseTypeKind::Void) {
+            if(node->returnType->canonical()->kind() != BaseTypeKind::Void) {
                 verify_has_return(linker, node->body.value(), node->encoded_location());
             }
             linker.comptime_context = false;

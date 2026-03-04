@@ -234,9 +234,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             func->ensure_destructor(allocator, diagnoser, returnNode);
             has_destructor = true;
         }
-        if(func->is_copy_fn()) {
-            func->ensure_copy_fn(allocator, diagnoser, returnNode);
-        }
     }
     if(!has_def_constructor && !is_extern() && all_members_def_constructible()) {
         if(create_def_constructor_checking(allocator, diagnoser, name_view(), returnNode)) {

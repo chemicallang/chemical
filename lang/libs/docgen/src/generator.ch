@@ -4,6 +4,7 @@ public struct HtmlGenerator {
     var config : *DocConfig
     var summary : *Summary
     var search_index : std::string
+    var generated_urls : std::vector<std::string>
 }
 
 func highlight_wrapper(lang : std::string_view, code : std::string_view) : std::string {
@@ -413,6 +414,9 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
             // Generate Page
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
             
+            // Add to Sitemap list (the relative URL as seen on web)
+            gen.generated_urls.push_back(out_rel.copy());
+
             // Add to Search Index
             if(gen.search_index.size() > 1) { // Not first item (has '[')
                 gen.search_index.append_view(",");
@@ -448,11 +452,44 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
     }
 }
 
+func generate_sitemap(config : &DocConfig, urls : &std::vector<std::string>) {
+    var sitemap_path = config.build_dir.copy();
+    sitemap_path.append_view("/sitemap.xml");
+
+    var xml = std::string("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    xml.append_view("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+
+    var i = 0u;
+    while(i < urls.size()) {
+        xml.append_view("  <url>\n    <loc>");
+        
+        // Base URL might or might not have trailing slash
+        xml.append_view(config.base_url.to_view());
+        if(!config.base_url.ends_with("/")) {
+            xml.append('/');
+        }
+        
+        xml.append_view(urls.get(i).to_view());
+        xml.append_view("</loc>\n  </url>\n");
+        i++;
+    }
+    
+    xml.append_view("</urlset>\n");
+
+    fs::write_text_file(sitemap_path.data(), xml.data() as *u8, xml.size());
+    printf("Generated sitemap at %s\n", sitemap_path.c_str());
+}
+
 public func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
     fs::mkdir(config.build_dir.data());
     
-    var gen = HtmlGenerator { config : &config, summary : summary, search_index : std::string("[") };
+    var gen = HtmlGenerator { 
+        config : &config, 
+        summary : summary, 
+        search_index : std::string("["),
+        generated_urls : std::vector<std::string>()
+    };
     
     var i = 0u;
     while(i < summary.items.size()) {
@@ -525,6 +562,11 @@ public func generate(config : DocConfig, summary : *Summary) {
                 printf("Error: Could not copy logo file from %s\n", logo_src.c_str());
             }
         }
+    }
+
+    // Generate Sitemap if base_url is provided
+    if (config.base_url.size() > 0) {
+        generate_sitemap(config, gen.generated_urls);
     }
 }
 

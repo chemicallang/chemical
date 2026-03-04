@@ -132,22 +132,18 @@ void Codegen::external_declare_nodes(std::vector<ASTNode*>& nodes_vec) {
     }
 }
 
-void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
+void external_implement_declare_node(Codegen& gen, ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::GenericFuncDecl:
         case ASTNodeKind::GenericStructDecl:
         case ASTNodeKind::GenericUnionDecl:
         case ASTNodeKind::GenericInterfaceDecl:
         case ASTNodeKind::GenericVariantDecl:
-            if(declare) {
-                node->code_gen_declare(gen);
-            } else {
-                node->code_gen(gen);
-            }
+            node->code_gen_declare(gen);
             return;
         case ASTNodeKind::NamespaceDecl:
             for(const auto child_node : node->as_namespace_unsafe()->nodes) {
-                external_implement_node(gen, child_node, declare);
+                external_implement_declare_node(gen, child_node);
             }
             return;
         case ASTNodeKind::IfStmt:{
@@ -158,7 +154,7 @@ void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
             const auto scope = stmt->computed_scope.value();
             if(scope) {
                 for(const auto child : scope->nodes) {
-                    external_implement_node(gen, child, declare);
+                    external_implement_declare_node(gen, child);
                 }
             }
             return;
@@ -169,11 +165,7 @@ void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
             // gotta handle the generic functions inside the structs
             for(const auto func : node->as_members_container_unsafe()->functions()) {
                 if(func->kind() == ASTNodeKind::GenericFuncDecl) {
-                    if(declare) {
-                        func->code_gen_declare(gen);
-                    } else {
-                        func->code_gen(gen);
-                    }
+                    func->code_gen_declare(gen);
                 }
             }
             return;
@@ -182,15 +174,59 @@ void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
     }
 }
 
+void external_implement_node(Codegen& gen, ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            node->code_gen(gen);
+            return;
+        case ASTNodeKind::NamespaceDecl:
+            for(const auto child_node : node->as_namespace_unsafe()->nodes) {
+                external_implement_node(gen, child_node);
+            }
+            return;
+        case ASTNodeKind::IfStmt:{
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(!stmt->computed_scope.has_value()) {
+                return;
+            }
+            const auto scope = stmt->computed_scope.value();
+            if(scope) {
+                for(const auto child : scope->nodes) {
+                    external_implement_node(gen, child);
+                }
+            }
+            return;
+        }
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+            // gotta handle the generic functions inside the structs
+            for(const auto func : node->as_members_container_unsafe()->functions()) {
+                if(func->kind() == ASTNodeKind::GenericFuncDecl) {
+                    func->code_gen(gen);
+                }
+            }
+            return;
+        default:
+            return;
+    }
+}
+
+void Codegen::external_implement_declare_nodes(std::vector<ASTNode*>& nodes) {
+    auto& gen = *this;
+    for(const auto node : nodes) {
+        external_implement_declare_node(gen, node);
+    }
+}
+
 void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
     auto& gen = *this;
-    // first declare
     for(const auto node : nodes) {
-        external_implement_node(gen, node, true);
-    }
-    // then implement
-    for(const auto node : nodes) {
-        external_implement_node(gen, node, false);
+        external_implement_node(gen, node);
     }
 }
 

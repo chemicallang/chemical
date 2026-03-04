@@ -434,7 +434,7 @@ public namespace http {
         func get(&self, name: *char) : std::Option<std::string> {
             var i = 0u;
             while(i < headers.size()) {
-                var p = *headers.get_ptr(i);
+                var p = headers.get_ptr(i);
                 // case-insensitive compare using manual loop
                 if(strcasecmp(p.first.data(), name) == 0) { return std::Option.Some<std::string>(p.second) }
                 i = i + 1u;

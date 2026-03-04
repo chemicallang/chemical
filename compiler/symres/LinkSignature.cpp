@@ -758,14 +758,17 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
             func->FunctionType::data.signature_resolved = true;
         }
     }
-    // since these instantiations were created before link_signature
-    // they don't have any generated functions like default constructor / destructor
+    // now we must generate functions, this is required
+    // because some generic members can be destructible, in that case
+    // a destructor must be generated
     for(const auto inst : node->instantiations) {
-        // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
+        // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module allocator
         inst->generate_functions(*linker.ast_allocator, linker, inst);
     }
-    // now we generate functions in the master implementation
-    // every instantiation after this would contain these functions
+    // we must generate functions for master as well
+    // because user can call the constructor of master implementation, which should be available
+    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
+    // similarly for default constructor
     node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
@@ -854,14 +857,17 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
             func->FunctionType::data.signature_resolved = true;
         }
     }
-    // since these instantiations were created before link_signature
-    // they don't have any generated functions like default constructor / destructor
+    // now we must generate functions, this is required
+    // because some generic members can be destructible, in that case
+    // a destructor must be generated
     for(const auto inst : node->instantiations) {
         // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
         inst->generate_functions(*linker.ast_allocator, linker, inst);
     }
-    // now we generate functions in the master implementation
-    // every instantiation after this would contain these functions
+    // we must generate functions for master as well
+    // because user can call the constructor of master implementation, which should be available
+    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
+    // similarly for default constructor
     node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 

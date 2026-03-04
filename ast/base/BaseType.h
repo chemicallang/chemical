@@ -293,19 +293,9 @@ public:
     FunctionDeclaration* get_destructor();
 
     /**
-     * does thi type has a copy function
-     */
-    FunctionDeclaration* get_copy_fn();
-
-    /**
      * is destructor required
      */
     bool requires_destructor();
-
-    /**
-     * is a copy function required
-     */
-    bool requires_copy_fn();
 
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node

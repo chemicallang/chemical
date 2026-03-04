@@ -363,15 +363,6 @@ bool VariantMember::requires_destructor() {
     return false;
 }
 
-bool VariantMember::requires_copy_fn() {
-    for(auto& value : values) {
-        if(value.second->type->requires_copy_fn()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool VariantCaseVariable::is_generic_param() {
     const auto linked = member_param->type->linked_node();
     return linked != nullptr && linked->as_generic_type_param() != nullptr;

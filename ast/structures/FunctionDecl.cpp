@@ -899,11 +899,6 @@ void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser&
     check_self_param(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
-    returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
-    check_self_other_params(diagnoser, this, def);
-}
-
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
     check_self_other_params(diagnoser, this, def);

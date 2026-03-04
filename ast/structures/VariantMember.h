@@ -81,8 +81,6 @@ public:
 
     bool requires_destructor();
 
-    bool requires_copy_fn();
-
     BaseType* known_type() {
         return parent()->known_type();
     }

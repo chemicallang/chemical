@@ -65,21 +65,42 @@ public namespace web {
         // split into segments by '/'
         var pseg = split_segments(pattern);
         var tseg = split_segments(path);
-        if(pseg.size() != tseg.size()) { return false }
+        
         var i = 0u;
         while(i < pseg.size()) {
             var ps = pseg.get_ptr(i);
-            var ts = tseg.get_ptr(i);
+            
             if(ps.size() > 0 && ps.get(0) == ':' ) {
-                // param
+                // Check for greedy wildcard
+                if (ps.get(ps.size() - 1u) == '*') {
+                    var key = ps.substring(1, ps.size() - 1u);
+                    var val = std::string();
+                    var j = i;
+                    while (j < tseg.size()) {
+                        if (j > i) val.append('/');
+                        val.append_string(tseg.get_ref(j));
+                        j++;
+                    }
+                    params_out.push_back(std::pair<std::string,std::string>{ first : key, second : val });
+                    return true; // Match completed greedily
+                }
+                
+                // Normal param match: must have corresponding target segment
+                if (i >= tseg.size()) return false;
+                var ts = tseg.get_ptr(i);
                 var key = ps.substring(1, ps.size());
                 params_out.push_back(std::pair<std::string,std::string>{ first : key, second : ts.copy() });
             } else {
-                if(!ps.equals_with_len(ts.data(), ts.size())) { return false }
+                // Static segment match
+                if (i >= tseg.size()) return false;
+                var ts = tseg.get_ptr(i);
+                if(!ps.equals_with_len(ts.data(), ts.size())) return false;
             }
             i = i + 1u;
         }
-        return true;
+        
+        // Final check: if no greedy wildcard was used, segment counts must match
+        return i == tseg.size();
     }
 
     public func split_segments(s: &std::string) : std::vector<std::string> {

@@ -1687,13 +1687,19 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
         const auto total_args = call->values.size();
         while (i < total_args) {
             auto arg = call->values[i];
+            const auto argType = arg->getType()->canonical();
+            if(argType->kind() == BaseTypeKind::Reference) {
+                i++;
+                continue;
+            }
             auto param = func_type->func_param_for_arg_at(i);
+            const auto param_type = param->type->canonical();
             // passing a function call or struct value to a reference, whereas the struct is destructible
-            if (param->type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+            if (param_type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
                 const auto container = arg->getType()->get_members_container();
                 if (container && container->destructor_func() != nullptr) {
                     // struct has a destructor, we must allocate a reference, so it can set it to us
-                    visitor.visit(param->type->as_reference_type_unsafe()->type);
+                    visitor.visit(param_type->as_reference_type_unsafe()->type);
                     visitor.write('*');
                     visitor.space();
                     auto temp_name = visitor.get_local_temp_var_name();
@@ -2272,10 +2278,12 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
         if(func_type) {
             const auto arg = val;
+            const auto argType = arg->getType()->canonical();
             const auto param = func_type->func_param_for_arg_at(i);
+            const auto param_type = param->type->canonical();
             // passing a function call or struct value to a reference, whereas the struct is destructible
-            if (param->type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-                const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+            if (param_type->kind() == BaseTypeKind::Reference && argType->kind() != BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+                const auto container = param_type->as_reference_type_unsafe()->type->get_members_container();
                 if (container) {
                     const auto destr = container->destructor_func();
                     if (destr) {

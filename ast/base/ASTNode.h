@@ -993,6 +993,14 @@ public:
     }
 
     /**
+     * return if this is a scope
+     */
+    inline BlockScope* as_block_scope_unsafe() {
+        CHECK_CAST(ASTNodeKind::Block);
+        return (BlockScope*) this;
+    }
+
+    /**
      * return if this is a file scope
      */
     inline FileScope* as_file_scope_unsafe() {

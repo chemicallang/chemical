@@ -4482,6 +4482,13 @@ void ToCAstVisitor::VisitScope(Scope *scope) {
     visit_scope(scope, destructor.destruct_jobs.size());
 }
 
+void ToCAstVisitor::VisitBlockScope(BlockScope* node) {
+    Scope scope(node->parent(), node->encoded_location());
+    scope.nodes = std::move(node->nodes);
+    VisitScope(&scope);
+    node->nodes = std::move(scope.nodes);
+}
+
 void ToCAstVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
     write("union ");
     write('{');

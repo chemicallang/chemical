@@ -59,6 +59,7 @@ enum class ASTNodeKind : uint8_t {
     UnnamedUnion,
 
     Scope,
+    Block,
     UnsafeBlock,
 
     FunctionParam,

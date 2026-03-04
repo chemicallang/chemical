@@ -46,6 +46,7 @@ public enum ASTNodeKind {
     UnnamedUnion,
 
     Scope,
+    Block,
     UnsafeBlock,
 
     FunctionParam,

@@ -155,6 +155,8 @@ public:
 
     void VisitScope(Scope* node);
 
+    void VisitBlockScope(BlockScope* node);
+
     void VisitLoopBlock(LoopBlock* node);
 
     void VisitUnionDecl(UnionDef* node);

@@ -10,6 +10,7 @@
 #include "ast/statements/DeallocStmt.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/ComptimeBlock.h"
+#include "ast/structures/BlockScope.h"
 #include "ast/values/CastedValue.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/AliasStmt.h"
@@ -143,8 +144,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
 
 ASTNode* parseBlockStmt(Parser& parser, ASTAllocator& allocator) {
     const auto loc = parser.loc_single(parser.token);
-    const auto block = parser.parseNestedBraceBlock("scope", allocator);
-    const auto scope = new (allocator.allocate<Scope>()) Scope(nullptr, loc);
+    auto block = parser.parseNestedBraceBlock("scope", allocator);
+    const auto scope = new (allocator.allocate<BlockScope>()) BlockScope(nullptr, loc);
     if(block.has_value()) {
         scope->set_parent(block->parent());
         scope->nodes = std::move(block->nodes);

@@ -320,9 +320,6 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
             func->ensure_destructor(allocator, diagnoser, returnNode);
             has_destructor = true;
         }
-        if(func->is_copy_fn()) {
-            func->ensure_copy_fn(allocator, diagnoser, returnNode);
-        }
     }
     if(!has_destructor && any_member_has_destructor()) {
         has_destructor = true;

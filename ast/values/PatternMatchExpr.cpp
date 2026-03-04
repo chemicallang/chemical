@@ -150,12 +150,13 @@ llvm::Type* PatternMatchExpr::llvm_type(Codegen &gen) {
 VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto type = expression->getType();
     if(!type) {
-        diagnoser.error("couldn't resolve linked declaration", expression);
+        diagnoser.error("unknown type for expression", expression);
         return nullptr;
     }
-    const auto linked_node = type->get_linked_canonical_node();
+    // disallow pointers, only direct or referenced variants are allowed
+    const auto linked_node = type->get_linked_canonical_node(true, false);
     if(!linked_node) {
-        diagnoser.error("couldn't resolve linked declaration", expression);
+        diagnoser.error("couldn't resolve variant from given expression, expression must be of type variant or reference to a variant", expression);
         return nullptr;
     }
     if(linked_node->kind() == ASTNodeKind::VariantDecl) {

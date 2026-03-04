@@ -21,7 +21,7 @@ func mkdir_p(path : std::string_view) {
     }
 }
 
-public func build_docs(root_path : *char, output_path : *char, index_path : *char, syntax_args : *char, explicit_output : bool, favicon : *char, logo : *char, description : *char, author : *char, keywords : *char) : int {
+public func build_docs(root_path : *char, output_path : *char, index_path : *char, syntax_args : *char, explicit_output : bool, favicon : *char, logo : *char, description : *char, author : *char, keywords : *char, base_url : *char) : int {
     var root_str = std::string(root_path);
     var summary_path = std::string();
     var base_dir = std::string();
@@ -67,6 +67,7 @@ public func build_docs(root_path : *char, output_path : *char, index_path : *cha
         root_path : base_dir.copy(),
         build_dir : std::string(),
         site_name : summary.title.copy(),
+        base_url : (if(base_url != null) std::string(base_url) else std::string()),
         index_path : (if(index_path != null) std::string(index_path) else std::string()),
         syntax_highlights : std::vector<std::string>(),
         favicon_path : (if(favicon != null) std::string(favicon) else std::string()),
@@ -114,7 +115,7 @@ public func build_docs(root_path : *char, output_path : *char, index_path : *cha
 
 public func main(argc : int, argv : **char) : int {
     if(argc < 2) {
-        printf("Usage: docgen <root_dir> [-o output_dir] [--index index.html] [--syntax-highlight list] [--favicon path] [--logo path] [--description text] [--author name] [--keywords keywords]\n");
+        printf("Usage: docgen <root_dir> [-o output_dir] [--index index.html] [--syntax-highlight list] [--favicon path] [--logo path] [--description text] [--author name] [--keywords keywords] [--base-url url]\n");
         return 1;
     }
     
@@ -128,6 +129,7 @@ public func main(argc : int, argv : **char) : int {
     var description : *char = null;
     var author : *char = null;
     var keywords : *char = null;
+    var base_url : *char = null;
 
     var i = 2;
     while(i < argc) {
@@ -174,6 +176,11 @@ public func main(argc : int, argv : **char) : int {
                 keywords = *argv_offset(argv, i + 1);
                 i++;
             }
+        } else if(arg.equals("--base-url")) {
+            if(i + 1 < argc) {
+                base_url = *argv_offset(argv, i + 1);
+                i++;
+            }
         } else {
             // Assume it's output dir if not a flag and not already set
              if(!explicit_output) { 
@@ -184,7 +191,7 @@ public func main(argc : int, argv : **char) : int {
         i++;
     }
     
-    return build_docs(root, output, index_file, syntax_args, explicit_output, favicon, logo, description, author, keywords);
+    return build_docs(root, output, index_file, syntax_args, explicit_output, favicon, logo, description, author, keywords, base_url);
 }
 
 func argv_offset(argv : **char, offset : int) : **char {

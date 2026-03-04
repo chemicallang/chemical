@@ -27,11 +27,8 @@ struct ImpCopyObj {
 
     var i : int
 
-    @implicit
-    @copy
-    func copy(&mut self, other : &self) {
-        i = other.i
-        copy_called++;
+    func copy(&mut self) : ImpCopyObj {
+        return { i : i }
     }
 
     @delete
@@ -45,9 +42,8 @@ struct CopyObj {
 
     var i : int
 
-    @copy
-    func copy(&mut self, other : &self) {
-        i = other.i
+    func copy(&mut self) : CopyObj {
+        return { i : i }
     }
 
 }

@@ -564,7 +564,7 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
 void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false, FunctionParam* self_void_ptr = nullptr) {
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->isStructLikeType();
     auto func = decl->as_function();
-    if((is_struct_return || (func && func->is_constructor_fn())) && !(func && func->is_copy_fn())) {
+    if(is_struct_return || (func && func->is_constructor_fn())) {
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -4069,37 +4069,6 @@ inline void call_variant_member_delete_fn(ToCAstVisitor& visitor, VariantMember*
     }
 }
 
-void variant_member_pre_move_fn_gen(
-    ToCAstVisitor& visitor,
-    VariantMember* member,
-    FunctionDeclaration* func,
-    MembersContainer* mem_def,
-    VariantMemberParam* mem_param
-) {
-    // copy func call
-    visitor.new_line_and_indent();
-    visitor.mangle(func);
-    visitor.write('(');
-
-    // writing the self arg
-    visitor.write("&self->");
-    visitor.write(member->name);
-    visitor.write('.');
-    visitor.write(mem_param->name);
-    visitor.write(", ");
-
-    // writing the other arg
-    visitor.write('&');
-    visitor.write(visitor.current_func_type->params[1]->name);
-    visitor.write("->");
-    visitor.write(member->name);
-    visitor.write('.');
-    visitor.write(mem_param->name);
-
-    visitor.write(')');
-    visitor.write(';');
-}
-
 typedef void(VariantMemberProcessFn)(
         ToCAstVisitor& visitor,
         VariantMember* member,
@@ -4129,15 +4098,6 @@ void process_variant_member_using(
     }
 }
 
-void call_variant_member_copy_fn(
-    ToCAstVisitor& visitor,
-    VariantMember* member
-) {
-    process_variant_member_using(visitor, member, [](MembersContainer* container) -> FunctionDeclaration* {
-        return container->copy_func();
-    },variant_member_pre_move_fn_gen);
-}
-
 void process_variant_members_using(
     ToCAstVisitor& visitor,
     ExtendableMembersContainerNode* def,
@@ -4163,58 +4123,6 @@ void process_variant_members_using(
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();
     visitor.write('}');
-}
-
-void write_type_assignment_in_variant_copy(ToCAstVisitor& visitor, FunctionDeclaration* func) {
-    // setting type to the other param
-    // self->__chx__vt_621827 = other->__chx__vt_621827
-    visitor.new_line_and_indent();
-    visitor.write(func->params[0]->name);
-    visitor.write("->");
-    visitor.write(variant_type_variant_name);
-    visitor.write(" = ");
-    visitor.write(func->params[1]->name);
-    visitor.write("->");
-    visitor.write(variant_type_variant_name);
-    visitor.write(';');
-}
-
-void call_struct_members_pre_move_fn(
-        ToCAstVisitor& visitor,
-        MembersContainer* mem_def,
-        FunctionDeclaration* func,
-        const chem::string_view& member_name
-) {
-    visitor.new_line_and_indent();
-    visitor.mangle(func);
-    visitor.write('(');
-    // writing the self arg
-    visitor.write("&self->");
-    visitor.write(member_name);
-    visitor.write(", ");
-    // writing the other arg
-    visitor.write('&');
-    visitor.write(visitor.current_func_type->params[1]->name);
-    visitor.write("->");
-    visitor.write(member_name);
-    visitor.write(')');
-    visitor.write(';');
-}
-
-void call_struct_members_copy_fn(
-        ToCAstVisitor& visitor,
-        BaseType* mem_type,
-        const chem::string_view& member_name
-) {
-    if (mem_type->isStructLikeType()) {
-        const auto linked = mem_type->linked_node();
-        auto mem_def = linked->as_members_container();
-        auto func = mem_def->copy_func();
-        if (!func) {
-            return;
-        }
-        call_struct_members_pre_move_fn(visitor, mem_def, func, member_name);
-    }
 }
 
 void process_struct_members_using(
@@ -4324,7 +4232,6 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.write(';');
     }
     const auto is_destructor = decl->is_delete_fn();
-    const auto is_copy_fn = decl->is_copy_fn();
     const bool has_cleanup_block = is_destructor;
     std::string cleanup_block_name;
     if(has_cleanup_block) {
@@ -4335,14 +4242,6 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     const auto variant_def = def ? def->as_variant_def() : nullptr;
     unsigned begin = visitor.destructor.destruct_jobs.size();
     visitor.destructor.queue_destruct_decl_params(decl);
-    if(is_copy_fn) {
-        if(struc_def) {
-            process_struct_members_using(visitor, struc_def, call_struct_members_copy_fn);
-        } else if(variant_def) {
-            write_type_assignment_in_variant_copy(visitor, decl);
-            process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
-        }
-    }
     if(decl->is_generated_fn()) {
         initialize_def_struct_values_constructor(visitor, decl);
     }
@@ -5639,33 +5538,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             // handling comptime functions
             const auto value = evaluated_func_val(*this, func_decl, call);
             visit(value);
-            return;
-        } else if(func_decl->is_copy_fn()) {
-            // handling copy function specially
-            auto found = local_allocated.find(call);
-            if(found != local_allocated.end()) {
-                auto temp_name = chem::string_view(found->second);
-                // write function name
-                write("(*({ ");
-                visit(call->parent_val);
-                write("(&");
-                write(temp_name);
-                write(", ");
-#ifdef DEBUG
-                if(func_decl->params.size() != 2) {
-                    CHEM_THROW_RUNTIME("expected copy function to have two parameters");
-                }
-#endif
-                const auto till_grandpa = build_parent_chain(call->parent_val, allocator);
-                write_self_arg(*this, till_grandpa, call, func_decl->params[0]);
-                write("); &");
-                write(temp_name);
-                write("; }))");
-            } else {
-#ifdef DEBUG
-                CHEM_THROW_RUNTIME("expected an allocation of struct for copy function call");
-#endif
-            }
             return;
         }
     }

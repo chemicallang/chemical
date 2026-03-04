@@ -1087,7 +1087,7 @@ public namespace web {
         func match_route(&self, method: &std::string, path: &std::string, params_out: *mut std::vector<std::pair<std::string,std::string>>) : std::Option<Handler> {
             var i = 0u;
             while(i < routes.size()) {
-                var r = *routes.get_ptr(i);
+                var r = routes.get_ptr(i);
                 if(r.method.equals_with_len(method.data(), method.size())) {
                     // match pattern vs path
                     if(match_pattern(r.pattern, path, params_out)) {

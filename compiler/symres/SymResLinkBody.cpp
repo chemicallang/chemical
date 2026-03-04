@@ -2726,11 +2726,24 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
         linker.warn("de-referencing a pointer in safe context is prohibited", value);
     }
+    const auto exp_type = expected_type;
     visit(value->getValue());
     // determining the type for this dereference value
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
     if(!value->determine_type(typeBuilder)) {
         linker.error("couldn't determine type for de-referencing", value);
+    }
+    // check we are not de-referencing into a destructible struct
+    const auto container = value->getType()->get_members_container();
+    if(container && container->has_destructor()) {
+        // check if expected type is a reference
+        if(exp_type) {
+            const auto can = exp_type->canonical();
+            if(can->kind() == BaseTypeKind::Reference) {
+                return;
+            }
+        }
+        linker.error(value) << "de-referencing a pointer to destructible struct is not allowed";
     }
 }
 
@@ -3083,15 +3096,18 @@ void SymResLinkBody::VisitNotValue(NotValue* value) {
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
-    // TODO: maybe pattern match expression should be a node
     // currently we emplace a void type
     // as expression is only used as a statement
-    expr->setType(linker.comptime_scope.typeBuilder.getVoidType());
+    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    expr->setType(typeBuilder.getVoidType());
     // linking pattern match expression
     const auto expression = expr->expression;
     auto& elseExpression = expr->elseExpression;
     auto& param_names = expr->param_names;
-    visit(expression);
+    // we use a reference to void type here, because user can dereference a pointer in the expression
+    // we shouldn't error out when de-referencing a destructible struct (which we do)
+    ReferenceType dummy_ref(typeBuilder.getVoidType(), !expr->is_const);
+    visit(expression, &dummy_ref);
     const auto child_member = expr->find_member_from_expr(linker.allocator, linker);
     if(!child_member) {
         return;

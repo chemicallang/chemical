@@ -1,6 +1,21 @@
 public namespace core {
 public namespace ops {
 
+// The Big Three
+
+public interface Default {
+    func make() : Self
+}
+
+public interface Clone {
+    func clone(&self) : Self
+}
+
+@non_dyn
+public interface Delete {
+    func delete(&mut self);
+}
+
 // Arithmetic
 
 // +

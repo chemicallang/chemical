@@ -641,9 +641,6 @@ bool FunctionTypeBody::mark_moved_value(
             }
             return false;
         }
-        if(expected_node->kind() == ASTNodeKind::GenericTypeParam) {
-            return mark_moved_value(&value, diagnoser);
-        }
         switch(value.kind()) {
             case ValueKind::Identifier:
                 if(!is_movable(value.as_identifier_unsafe())) {
@@ -662,6 +659,9 @@ bool FunctionTypeBody::mark_moved_value(
             }
             default:
                 break;
+        }
+        if(expected_node->kind() == ASTNodeKind::GenericTypeParam) {
+            return mark_moved_value(&value, diagnoser);
         }
         if (expected_node == (ASTNode*) linked_def) {
             final = mark_moved_value(&value, diagnoser);

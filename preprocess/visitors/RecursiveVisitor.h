@@ -25,6 +25,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/LoopBlock.h"
+#include "ast/structures/BlockScope.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/FunctionParam.h"
@@ -136,6 +137,12 @@ public:
     }
 
     void VisitScope(Scope *scope) {
+        for(auto& node : scope->nodes) {
+            visit_it(node);
+        }
+    }
+
+    void VisitBlockScope(BlockScope *scope) {
         for(auto& node : scope->nodes) {
             visit_it(node);
         }

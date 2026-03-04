@@ -9,6 +9,7 @@
 #include "ast/statements/AccessChainNode.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/structures/BlockScope.h"
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/IfValue.h"
@@ -216,6 +217,13 @@ inline void interpret(InterpretScope& scope, Scope* body) {
     interpret(scope, body->nodes, body->stoppedInterpretOnce);
 }
 
+inline void interpret(InterpretScope& scope, BlockScope* body) {
+    // TODO: stoppedInterpretOnce flag should be removed from Scope
+    // TODO: BlockScope never stops, even if a return happens in the body
+    bool stopped = false; // never stops
+    interpret(scope, body->nodes, stopped);
+}
+
 Value* evaluate(InterpretScope& scope, Scope* body) {
     auto& nodes = body->nodes;
     if(nodes.size() > 1) {
@@ -291,6 +299,9 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::Scope:
             ::interpret(*this, node->as_scope_unsafe());
+            break;
+        case ASTNodeKind::Block:
+            ::interpret(*this, node->as_block_scope_unsafe());
             break;
         default:
             break;

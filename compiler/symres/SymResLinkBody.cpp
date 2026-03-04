@@ -1545,6 +1545,14 @@ void SymResLinkBody::VisitScope(Scope* node) {
     }
 }
 
+void SymResLinkBody::VisitBlockScope(BlockScope* node) {
+    linker.scope_start();
+    for (const auto child: node->nodes) {
+        visit(child);
+    }
+    linker.scope_end();
+}
+
 void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
     link_seq(*this, node->body);
 

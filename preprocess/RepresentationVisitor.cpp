@@ -466,6 +466,19 @@ void RepresentationVisitor::VisitScope(Scope *scope) {
     top_level_node = prev;
 }
 
+void RepresentationVisitor::VisitBlockScope(BlockScope* scope) {
+    write("{");
+    new_line_and_indent();
+    indentation_level += 1;
+    for(const auto node : scope->nodes) {
+        new_line_and_indent();
+        visit(node);
+    }
+    indentation_level -= 1;
+    new_line_and_indent();
+    write("}");
+}
+
 bool RepresentationVisitor::write(AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Private:

@@ -603,6 +603,7 @@ set(COMMON_SOURCES
         compiler/lab/PackageKind.h
         compiler/lab/transformer/TransformerContext.h
         compiler/cbi/bindings/TransformerContextCBI.cpp
+        ast/structures/BlockScope.h
 )
 
 # Chemical LSP Executable Target

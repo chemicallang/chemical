@@ -181,6 +181,9 @@ public:
     inline void VisitScope(Scope* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitBlockScope(BlockScope* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitUnsafeBlock(UnsafeBlock* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -654,6 +657,9 @@ public:
             case ASTNodeKind::Scope:
                 static_cast<Derived*>(this)->VisitScope((Scope*) node);
                 return;
+            case ASTNodeKind::Block:
+                static_cast<Derived*>(this)->VisitBlockScope((BlockScope*) node);
+                return;
             case ASTNodeKind::UnsafeBlock:
                 static_cast<Derived*>(this)->VisitUnsafeBlock((UnsafeBlock*) node);
                 return;
@@ -1068,6 +1074,9 @@ public:
     inline void VisitByPtrTypeNoNullCheck(Scope* node) {
         static_cast<Derived*>(this)->VisitScope(node);
     }
+    inline void VisitByPtrTypeNoNullCheck(BlockScope* node) {
+        static_cast<Derived*>(this)->VisitBlockScope(node);
+    }
     inline void VisitByPtrTypeNoNullCheck(UnsafeBlock* node) {
         static_cast<Derived*>(this)->VisitUnsafeBlock(node);
     }
@@ -1309,5 +1318,7 @@ public:
     inline void visit(Scope& scope) {
         static_cast<Derived*>(this)->VisitScope(&scope);
     }
-
+    inline void visit(BlockScope& scope) {
+        static_cast<Derived*>(this)->VisitBlockScope(&scope);
+    }
 };

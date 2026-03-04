@@ -78,6 +78,8 @@ class InterfaceDefinition;
 
 class Scope;
 
+class BlockScope;
+
 class ChildrenMapNode;
 
 class FileScope;

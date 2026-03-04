@@ -222,6 +222,8 @@ public:
 
     void VisitScope(Scope* node);
 
+    void VisitBlockScope(BlockScope* node);
+
     void VisitUnsafeBlock(UnsafeBlock* node);
 
     void VisitFunctionParam(FunctionParam* node);

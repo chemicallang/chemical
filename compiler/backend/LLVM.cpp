@@ -45,6 +45,7 @@
 #include "ast/values/AlignOfValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/structures/Namespace.h"
+#include "ast/structures/BlockScope.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
@@ -2104,6 +2105,13 @@ void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
 
 void Scope::code_gen(Codegen &gen) {
     code_gen(gen, gen.destruct_nodes.size());
+}
+
+void BlockScope::code_gen(Codegen &gen) {
+    Scope scope(parent(), encoded_location());
+    scope.nodes = std::move(nodes);
+    scope.code_gen(gen);
+    nodes = std::move(scope.nodes);
 }
 
 void Scope::gen_declare_top_level(Codegen &gen) {

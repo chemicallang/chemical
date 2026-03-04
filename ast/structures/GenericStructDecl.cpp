@@ -73,6 +73,9 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
+        // generate default functions
+        impl->generate_functions(allocator, diagnoser, impl);
+
     } else if(signature_linked) {
 
         // indexes of containers need not be copied
@@ -86,6 +89,9 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         auto ptr = impl;
         const auto span = std::span<StructDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
+
+        // generate default functions
+        impl->generate_functions(allocator, diagnoser, impl);
 
     }
 

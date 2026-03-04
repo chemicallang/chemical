@@ -337,6 +337,12 @@ public:
      * this will implement these imported nodes, please note first declare the external module, then
      * declare current module, only then you can implement the external module
      */
+    void external_implement_declare_nodes(std::vector<ASTNode*>& nodes);
+
+    /**
+     * this will implement these imported nodes, please note first declare the external module, then
+     * declare current module, only then you can implement the external module
+     */
     void external_implement_nodes(std::vector<ASTNode*>& nodes);
 
     /**

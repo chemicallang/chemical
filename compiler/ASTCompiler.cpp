@@ -46,6 +46,26 @@ void ASTProcessor::code_gen_compile(
     }
 }
 
+void ASTProcessor::code_gen_external_implement_declare(
+        Codegen& gen,
+        std::vector<ASTNode*>& nodes_vec,
+        const std::string_view& abs_path
+) {
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
+    }
+    gen.external_implement_declare_nodes(nodes_vec);
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "ExtDeclare", abs_path, &bm_results);
+    }
+    if(!gen.diagnostics.empty()) {
+        gen.print_diagnostics(chem::string_view(abs_path), "ExtDeclare");
+        gen.diagnostics.clear();
+    }
+}
+
 void ASTProcessor::code_gen_external_implement(
         Codegen& gen,
         std::vector<ASTNode*>& nodes_vec,
@@ -210,6 +230,38 @@ int ASTProcessor::compile_module(
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();
 
+    }
+
+    // we will implement declare the direct dependencies of this module
+    for(const auto dep : dependencies) {
+        for(auto& metaFile : dep->direct_files) {
+            if(metaFile.result != nullptr) {
+                auto& file = *metaFile.result;
+                auto& body = file.unit.scope.body;
+
+                // this is probably a different module, so we'll declare the file (if not declared)
+                if(gen.di.isEnabled) {
+
+                    // start the di compile unit
+                    gen.di.start_di_compile_unit(file.diCompileUnit);
+
+                    // declare external nodes
+                    code_gen_external_implement_declare(gen, body.nodes, file.abs_path);
+
+                    // end the di compile unit scope
+                    gen.di.end_di_compile_unit();
+
+                } else {
+
+                    // declare external nodes
+                    code_gen_external_implement_declare(gen, body.nodes, file.abs_path);
+
+                }
+
+            } else {
+                CHEM_THROW_RUNTIME("result is null");
+            }
+        }
     }
 
     // we will implement the direct dependencies of this module

@@ -75,6 +75,9 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
+        // generate default functions
+        impl->generate_functions(allocator, diagnoser, impl);
+
     } else if(signature_linked) {
 
         // indexes of containers need not be copied
@@ -88,6 +91,9 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         auto ptr = impl;
         const auto span = std::span<VariantDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
+
+        // generate default functions
+        impl->generate_functions(allocator, diagnoser, impl);
 
     }
 

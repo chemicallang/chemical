@@ -552,6 +552,15 @@ public:
     );
 
     /**
+     * external implement declare
+     */
+    void code_gen_external_implement_declare(
+            Codegen& gen,
+            std::vector<ASTNode*>& nodes,
+            const std::string_view& abs_path
+    );
+
+    /**
      * external implement is called upon nodes that are imported from other modules
      * when importing nodes from other modules, first other module nodes are declared, then
      * current module nodes are declared and then we compile/implement imported nodes

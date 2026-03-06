@@ -291,7 +291,7 @@ void FileInputSource::fallback_read(const std::filesystem::path& path, uint64_t 
         BOOL ok = ReadFile(fh, buf.get() + offset, thisRead, &read, nullptr);
         if (!ok) {
             CloseHandle(fh);
-            CHEM_THROW_SYSTEM(GetLastError(), "system", std::system_category(), "ReadFile failed in fallback");
+            CHEM_THROW_SYSTEM(GetLastError(), "system", std::system_category().name(), "ReadFile failed in fallback");
         }
         offset += read;
         if (read == 0) break; // EOF

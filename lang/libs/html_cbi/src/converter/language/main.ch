@@ -159,6 +159,48 @@ func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
 }
 
+func (converter : &mut ASTConverter) is_html_entity(text : std::string_view, index : uint) : bool {
+    if (index + 2 >= text.size()) return false;
+    if (text.data()[index] != '&') return false;
+
+    var i = index + 1;
+    if (text.data()[i] == '#') {
+        i++;
+        if (i < text.size() && (text.data()[i] == 'x' || text.data()[i] == 'X')) {
+            i++;
+            // Hex entity: &#x...;
+            var start = i;
+            while (i < text.size() && i - start < 8) {
+                const c = text.data()[i];
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+                    i++;
+                } else break;
+            }
+            return (i > start && i < text.size() && text.data()[i] == ';');
+        } else {
+            // Decimal entity: &#...;
+            var start = i;
+            while (i < text.size() && i - start < 8) {
+                const c = text.data()[i];
+                if (c >= '0' && c <= '9') {
+                    i++;
+                } else break;
+            }
+            return (i > start && i < text.size() && text.data()[i] == ';');
+        }
+    } else {
+        // Named entity: &...;
+        var start = i;
+        while (i < text.size() && i - start < 32) {
+            const c = text.data()[i];
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+                i++;
+            } else break;
+        }
+        return (i > start && i < text.size() && text.data()[i] == ';');
+    }
+}
+
 func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
     var i = 0u;
     var str = &mut converter.str
@@ -167,7 +209,13 @@ func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
         if (c1 < 0x80) {
             const c = c1 as char;
             switch(c) {
-                '&' => str.append_view("&amp;")
+                '&' => {
+                    if (converter.is_html_entity(text, i)) {
+                        str.append('&');
+                    } else {
+                        str.append_view("&amp;");
+                    }
+                }
                 '<' => str.append_view("&lt;")
                 '>' => str.append_view("&gt;")
                 '"' => str.append_view("&quot;")

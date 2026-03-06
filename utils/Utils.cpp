@@ -559,7 +559,10 @@ bool add_to_PATH(const std::string& new_path, bool for_system) {
     }
 
     // Remove trailing null characters
-    old_path_value.erase(std::find(old_path_value.begin(), old_path_value.end(), '\0'), old_path_value.end());
+    auto pos = old_path_value.find('\0');
+    if (pos != std::string::npos) {
+        old_path_value.erase(pos);
+    }
 
     // Append the new path to the existing PATH
     std::string new_path_value = old_path_value + ";" + new_path;

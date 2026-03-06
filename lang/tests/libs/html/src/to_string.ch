@@ -345,3 +345,12 @@ public func putting_elements_in_head_works(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringHeadOnly(), "<link rel=\"stylesheet\" src=\"file.css\"/>")
 }
+
+@test
+public func html_entities_preserved(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>The <span>Chemical</span>&nbsp;Programming Language</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>The <span>Chemical</span>&nbsp;Programming Language</div>");
+}

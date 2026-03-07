@@ -687,6 +687,15 @@ public:
         currentBlock = nullptr;
         currentBlockOffset = 0;
         currentBlockCapacity = 0;
+        // Reset all buckets to avoid stale pointers and indices.
+        for (auto& bucket : buckets) {
+            bucket.key = "";
+            bucket.hash = 0;
+            bucket.activeNode = nullptr;
+            bucket.index = -1;
+            bucket.next = nullptr;
+            bucket.collision = nullptr;
+        }
     }
 
     /**

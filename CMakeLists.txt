@@ -14,13 +14,9 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# use default out/host or out-win/host folder if cmake prefix path is not given
+# use default out/host
 if (NOT DEFINED CMAKE_PREFIX_PATH)
-    if (WIN32)
-        set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out-win/host")
-    else ()
-        set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out/host")
-    endif ()
+    set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/out/host")
 endif ()
 
 # We copied this from Zig CMakeLists
@@ -83,10 +79,13 @@ include(cmake/CompilerOptions.cmake)
 # find these packages
 if(BUILD_COMPILER)
 
+    # Allow overriding LLVM version (default is 17)
+    set(LLVM_VERSION "18" CACHE STRING "LLVM version to use")
+
     # Find llvm,clang,lld packages
-    find_package(llvm 17)
-    find_package(clang 17)
-    find_package(lld 17)
+    find_package(llvm ${LLVM_VERSION})
+    find_package(clang ${LLVM_VERSION})
+    find_package(lld ${LLVM_VERSION})
 
     # Check if CLANG_LIBRARIES contains NOTFOUND
     if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")

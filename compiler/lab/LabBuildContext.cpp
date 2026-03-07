@@ -150,7 +150,7 @@ LabJob* LabBuildContext::build_exe(
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
-#ifdef _WINDOWS
+#ifdef _WIN32
     exe_path += ".exe";
 #endif
     exe->abs_path.append(exe_path);
@@ -165,7 +165,7 @@ LabJob* LabBuildContext::run_jit_exe(
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
-#ifdef _WINDOWS
+#ifdef _WIN32
     exe_path += ".exe";
 #endif
     exe->abs_path.append(exe_path);

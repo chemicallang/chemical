@@ -167,6 +167,155 @@ jobs:
           name: windows-${{ matrix.arch }}-lsp.zip
           path: chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
 
+  build-windows-mingw:
+    name: Build on Windows MinGW (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, 'releaseIt')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+            msystem: MINGW64
+            llvm_asset: windows-mingw-x64.zip
+          - arch: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            llvm_asset: windows-mingw-arm64.zip
+    steps:
+      - name: Checkout chemical repository
+        uses: actions/checkout@v4
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical
+          submodules: recursive
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            base-devel
+            git
+            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-toolchain
+            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-cmake
+            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-ninja
+
+      - name: Download prebuilt LLVM (MinGW)
+        shell: msys2 {0}
+        run: |
+          url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          echo "Downloading LLVM from $url"
+          curl -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
+          unzip -o llvm.zip
+
+      - name: Configure Chemical Project
+        shell: msys2 {0}
+        run: |
+          cd chemical
+          mkdir -p out/build
+          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+
+      - name: Run configure script
+        shell: msys2 {0}
+        run: |
+          cd chemical
+          ./scripts/configure.sh --arch ${{ matrix.arch }}
+
+      - name: Build Compiler Targets
+        shell: msys2 {0}
+        run: |
+          cd chemical
+          cmake --build out/build --config Release --target Compiler
+          cmake --build out/build --config Release --target TCCCompiler
+          cmake --build out/build --config Release --target ChemicalLsp
+
+      - name: Run release packaging
+        shell: msys2 {0}
+        run: |
+          cd chemical
+          ./scripts/release.sh --windows
+
+      - name: Rename Windows MinGW release files
+        shell: msys2 {0}
+        run: |
+          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-${{ matrix.arch }}.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
+
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const releasesResponse = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
+
+      - name: Check if windows-mingw-${{ matrix.arch }}.zip exists in latest release
+        id: check_windows_mingw
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const filenames = [
+                `windows-mingw-${{ matrix.arch }}.zip`,
+                `windows-mingw-${{ matrix.arch }}-tcc.zip`,
+                `windows-mingw-${{ matrix.arch }}-lsp.zip`
+            ];
+            const exists = release.assets.some(asset => filenames.includes(asset.name));
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload release artifacts
+        if: steps.check_windows_mingw.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: |
+            chemical/out/release/windows-mingw-${{ matrix.arch }}.zip
+            chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
+            chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save windows-mingw-${{ matrix.arch }}.zip as artifact if already exists
+        if: steps.check_windows_mingw.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-${{ matrix.arch }}.zip
+          path: chemical/out/release/windows-mingw-${{ matrix.arch }}.zip
+
+      - name: Save windows-mingw-${{ matrix.arch }}-tcc.zip as artifact if already exists
+        if: steps.check_windows_mingw.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-${{ matrix.arch }}-tcc.zip
+          path: chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
+
+      - name: Save windows-mingw-${{ matrix.arch }}-lsp.zip as artifact if already exists
+        if: steps.check_windows_mingw.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-${{ matrix.arch }}-lsp.zip
+          path: chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
+
   build-linux:
     name: Build on Linux (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}

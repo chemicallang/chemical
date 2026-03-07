@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  LLVM_RELEASE_TAG: "v2"
+  LLVM_RELEASE_TAG: "cb-llvm17"
 
 jobs:
   build-windows:

@@ -1547,13 +1547,13 @@ bool save_as_file_type(
             createTargetTransformInfoWrapperPass(target_machine.getTargetIRAnalysis()));
 
     if (dest_obj) {
-        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_obj, nullptr, CGFT_ObjectFile)) {
+        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_obj, nullptr, CodeGenFileType::ObjectFile)) {
             *error_message = strdup("TargetMachine can't emit an object file");
             return true;
         }
     }
     if (dest_asm) {
-        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_asm, nullptr, CGFT_AssemblyFile)) {
+        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_asm, nullptr, CodeGenFileType::AssemblyFile)) {
             *error_message = strdup("TargetMachine can't emit an assembly file");
             return true;
         }

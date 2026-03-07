@@ -545,14 +545,14 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
 
 AccessSpecifier to_specifier(clang::Linkage linkage) {
     switch(linkage) {
-        case clang::NoLinkage:
-        case clang::VisibleNoLinkage:
+        case clang::Linkage::None:
+        case clang::Linkage::VisibleNone:
             return AccessSpecifier::Private;
-        case clang::ModuleLinkage:
-        case clang::InternalLinkage:
+        case clang::Linkage::Module:
+        case clang::Linkage::Internal:
             return AccessSpecifier::Internal;
-        case clang::ExternalLinkage:
-        case clang::UniqueExternalLinkage:
+        case clang::Linkage::External:
+        case clang::Linkage::UniqueExternal:
         default:
             return AccessSpecifier::Public;
     }

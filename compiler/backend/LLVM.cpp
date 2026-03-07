@@ -223,7 +223,7 @@ llvm::Type *GenericType::llvm_param_type(Codegen &gen) {
 }
 
 llvm::Type *StringType::llvm_type(Codegen &gen) {
-    return gen.builder->getInt8PtrTy();
+    return gen.builder->getPtrTy();
 }
 
 llvm::Type *StructType::llvm_type(Codegen &gen) {
@@ -513,7 +513,7 @@ llvm::Type *StringValue::llvm_type(Codegen &gen) {
     if(is_array) {
         return llvm::ArrayType::get(gen.builder->getInt8Ty(), length);
     } else {
-        return gen.builder->getInt8PtrTy();
+        return gen.builder->getPtrTy();
     }
 }
 

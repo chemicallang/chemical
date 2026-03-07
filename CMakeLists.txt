@@ -1,9 +1,14 @@
 ﻿# CMakeList.txt : CMake project for chemical, include path and define
 # project specific logic here.
 #
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 message("CMake version: ${CMAKE_VERSION}")
 project("chemical" VERSION 0.0.31)
+
+if(MSVC)
+    # Ensure static linking for MSVC runtime
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)
@@ -831,20 +836,7 @@ if(BUILD_COMPILER)
     target_compile_options(Compiler PRIVATE ${NO_RTTI})
 endif()
 
-if (MSVC)
-    # Force “Multi-threaded static CRT” everywhere:
-    #   – In Debug builds → /MTd
-    #   – In Release/RelWithDebInfo/MinSizeRel → /MT
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
-
-if (WIN32)
-    # Linking Compiler executable statically is necessary because of LLVM
-    # we link everything else statically on windows anyway
-    if(BUILD_COMPILER)
-        target_compile_options(Compiler PRIVATE "/MT")
-    endif()
-elseif(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE)
     # Statically link C++ runtime + libgcc
     if(BUILD_COMPILER)
         target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)

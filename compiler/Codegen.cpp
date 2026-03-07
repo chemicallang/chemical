@@ -1845,7 +1845,7 @@ int clang_link_objects(
         str.append(lib.to_view());
     }
 
-#if defined(_WINDOWS)
+#if defined(_WIN32)
     if(bin_out.ends_with(".dll")) {
         clang_flags.emplace_back("-shared");
     }

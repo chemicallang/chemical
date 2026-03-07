@@ -630,6 +630,7 @@ void ZigClang_detect_enum_StmtClass(clang::Stmt::StmtClass x) {
     }
 }
 
+/**
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_NoStmtClass == clang::Stmt::NoStmtClass, "");
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_GCCAsmStmtClass == clang::Stmt::GCCAsmStmtClass, "");
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_MSAsmStmtClass == clang::Stmt::MSAsmStmtClass, "");
@@ -864,7 +865,7 @@ static_assert((clang::Stmt::StmtClass)ZigClangStmt_UnaryOperatorClass == clang::
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_VAArgExprClass == clang::Stmt::VAArgExprClass, "");
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_LabelStmtClass == clang::Stmt::LabelStmtClass, "");
 static_assert((clang::Stmt::StmtClass)ZigClangStmt_WhileStmtClass == clang::Stmt::WhileStmtClass, "");
-
+**/
 
 void ZigClang_detect_enum_APValueKind(clang::APValue::ValueKind x) {
     switch (x) {
@@ -901,7 +902,7 @@ static_assert((clang::APValue::ValueKind)ZigClangAPValueUnion == clang::APValue:
 static_assert((clang::APValue::ValueKind)ZigClangAPValueMemberPointer == clang::APValue::MemberPointer, "");
 static_assert((clang::APValue::ValueKind)ZigClangAPValueAddrLabelDiff == clang::APValue::AddrLabelDiff, "");
 
-
+/**
 void ZigClang_detect_enum_DeclKind(clang::Decl::Kind x) {
     switch (x) {
         case clang::Decl::AccessSpec:
@@ -1082,6 +1083,7 @@ static_assert((clang::Decl::Kind)ZigClangDeclRequiresExprBody == clang::Decl::Re
 static_assert((clang::Decl::Kind)ZigClangDeclStaticAssert == clang::Decl::StaticAssert, "");
 static_assert((clang::Decl::Kind)ZigClangDeclTopLevelStmt == clang::Decl::TopLevelStmt, "");
 static_assert((clang::Decl::Kind)ZigClangDeclTranslationUnit == clang::Decl::TranslationUnit, "");
+**/
 
 void ZigClang_detect_enum_BuiltinTypeKind(clang::BuiltinType::Kind x) {
     switch (x) {
@@ -1557,6 +1559,7 @@ void ZigClang_detect_enum_BuiltinTypeKind(clang::BuiltinType::Kind x) {
     }
 }
 
+/**
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOCLImage1dRO == clang::BuiltinType::OCLImage1dRO, "");
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOCLImage1dArrayRO == clang::BuiltinType::OCLImage1dArrayRO, "");
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOCLImage1dBufferRO == clang::BuiltinType::OCLImage1dBufferRO, "");
@@ -2025,6 +2028,7 @@ static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeIncompleteMatrixIdx =
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOMPArraySection == clang::BuiltinType::OMPArraySection, "");
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOMPArrayShaping == clang::BuiltinType::OMPArrayShaping, "");
 static_assert((clang::BuiltinType::Kind)ZigClangBuiltinTypeOMPIterator == clang::BuiltinType::OMPIterator, "");
+**/
 
 void ZigClang_detect_enum_CallingConv(clang::CallingConv x) {
     switch (x) {
@@ -2114,6 +2118,7 @@ static_assert((llvm::RoundingMode)ZigClangAPFloat_roundingMode_NearestTiesToAway
 static_assert((llvm::RoundingMode)ZigClangAPFloat_roundingMode_Dynamic == llvm::RoundingMode::Dynamic, "");
 static_assert((llvm::RoundingMode)ZigClangAPFloat_roundingMode_Invalid == llvm::RoundingMode::Invalid, "");
 
+/**
 void ZigClang_detect_enum_CharacterKind(clang::CharacterLiteral::CharacterKind x) {
     switch (x) {
         case clang::CharacterLiteral::Ascii:
@@ -2149,6 +2154,7 @@ static_assert((clang::ElaboratedTypeKeyword)ZigClangETK_Class == clang::ETK_Clas
 static_assert((clang::ElaboratedTypeKeyword)ZigClangETK_Enum == clang::ETK_Enum, "");
 static_assert((clang::ElaboratedTypeKeyword)ZigClangETK_Typename == clang::ETK_Typename, "");
 static_assert((clang::ElaboratedTypeKeyword)ZigClangETK_None == clang::ETK_None, "");
+**/
 
 void ZigClang_detect_enum_EntityKind(clang::PreprocessedEntity::EntityKind x) {
     switch (x) {

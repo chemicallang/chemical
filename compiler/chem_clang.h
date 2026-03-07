@@ -308,6 +308,7 @@ enum ZigClangTypeClass {
     ZigClangType_ExtVector,
 };
 
+/**
 enum ZigClangStmtClass {
     ZigClangStmt_NoStmtClass,
     ZigClangStmt_GCCAsmStmtClass,
@@ -544,6 +545,7 @@ enum ZigClangStmtClass {
     ZigClangStmt_LabelStmtClass,
     ZigClangStmt_WhileStmtClass,
 };
+**/
 
 enum ZigClangCK {
     ZigClangCK_Dependent,
@@ -703,6 +705,7 @@ enum ZigClangDeclKind {
     ZigClangDeclTranslationUnit,
 };
 
+/**
 enum ZigClangBuiltinTypeKind {
     ZigClangBuiltinTypeOCLImage1dRO,
     ZigClangBuiltinTypeOCLImage1dArrayRO,
@@ -1173,6 +1176,7 @@ enum ZigClangBuiltinTypeKind {
     ZigClangBuiltinTypeOMPArrayShaping,
     ZigClangBuiltinTypeOMPIterator,
 };
+**/
 
 enum ZigClangCallingConv {
     ZigClangCallingConv_C,
@@ -1247,6 +1251,7 @@ enum ZigClangStringLiteral_StringKind {
     ZigClangStringLiteral_StringKind_UTF32,
 };
 
+/**
 enum ZigClangCharacterLiteral_CharacterKind {
     ZigClangCharacterLiteral_CharacterKind_Ascii,
     ZigClangCharacterLiteral_CharacterKind_Wide,
@@ -1254,6 +1259,7 @@ enum ZigClangCharacterLiteral_CharacterKind {
     ZigClangCharacterLiteral_CharacterKind_UTF16,
     ZigClangCharacterLiteral_CharacterKind_UTF32,
 };
+**/
 
 enum ZigClangVarDecl_TLSKind {
     ZigClangVarDecl_TLSKind_None,
@@ -1261,6 +1267,7 @@ enum ZigClangVarDecl_TLSKind {
     ZigClangVarDecl_TLSKind_Dynamic,
 };
 
+/**
 enum ZigClangElaboratedTypeKeyword {
     ZigClangETK_Struct,
     ZigClangETK_Interface,
@@ -1270,6 +1277,7 @@ enum ZigClangElaboratedTypeKeyword {
     ZigClangETK_Typename,
     ZigClangETK_None,
 };
+**/
 
 enum ZigClangPreprocessedEntity_EntityKind {
     ZigClangPreprocessedEntity_InvalidKind,

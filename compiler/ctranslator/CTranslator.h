@@ -12,6 +12,7 @@
 #include "compiler/chem_clang.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "ordered_map.h"
+#include "clang/AST/Type.h"
 #include "core/diag/Diagnostic.h"
 
 class CTranslator;
@@ -86,7 +87,7 @@ public:
      * enum BuiltinType::Kind, this enum is used as an index on this vector
      * last enum entry is being used as size of the vector
      */
-    std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(ZigClangBuiltinTypeOMPIterator + 1);
+    std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(clang::BuiltinType::LastKind + 1);
 
     /**
      * these allow indexing decl kind enum, to provide functions that can make nodes

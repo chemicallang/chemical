@@ -1062,7 +1062,7 @@ static void performWriteOperation(ArchiveOperation Operation,
   }
 
   Error E =
-      writeArchive(ArchiveName, NewMembersP ? *NewMembersP : NewMembers, Symtab,
+      writeArchive(ArchiveName, NewMembersP ? *NewMembersP : NewMembers, llvm::SymtabWritingMode::NormalSymtab,
                    Kind, Deterministic, Thin, std::move(OldArchiveBuf));
   failIfError(std::move(E), ArchiveName);
 }

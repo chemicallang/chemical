@@ -137,10 +137,6 @@ extern "C" {
 
     bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string_view* name);
 
-    int AppBuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window);
-
-    void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data);
-
     int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr);
 
     int BuildContextinvoke_ranlib(LabBuildContext* self, StringViewSpan* string_arr);

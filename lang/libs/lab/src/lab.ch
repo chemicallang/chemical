@@ -311,12 +311,6 @@ public struct ImportRepo {
 @compiler.interface
 public interface AppBuildContext : BuildContext {
 
-    // launch an executable at the path
-    func launch_executable (&self, path : &std::string_view, same_window : bool) : int;
-
-    // something you'd want to be invoked when lab build has finished
-    func on_finished (&self, lambda : (data : *void) => void, data : *void) : void;
-
 }
 
 public func (ctx : &BuildContext) add_compiler_interfaces(mod : *mut Module, interfaces : std::span<std::string_view>) {

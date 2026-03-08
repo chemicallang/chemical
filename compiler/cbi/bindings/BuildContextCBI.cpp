@@ -172,19 +172,6 @@ bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string_view*
     }
 }
 
-int AppBuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window) {
-    auto copied = absolute_path(path->view());
-    if(same_window) {
-        copied = '\"' + copied + '\"';
-    }
-    return launch_executable(copied.data(), same_window);
-}
-
-void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data) {
-    self->on_finished = lambda;
-    self->on_finished_data = data;
-}
-
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
     std::vector<chem::string> arr;

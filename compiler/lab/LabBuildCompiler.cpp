@@ -2906,6 +2906,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 int LabBuildCompiler::build_lab_file_no_alloc(
     LabBuildContext& context,
     const std::string_view& path,
+    const std::string_view& outputPath,
     LabJob*& out_run_job
 ) {
 
@@ -2948,13 +2949,26 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     // call the root build.lab build's function
     out_run_job = build(&context);
 
+    // we must set the -o to this job
+    if (out_run_job != nullptr) {
+        out_run_job->abs_path.clear();
+        out_run_job->abs_path.append(outputPath);
+    }
+
+    // the status for the main job
     int job_result = 0;
 
     // generating outputs (executables)
     for(auto& exe : context.executables) {
 
-        job_result = do_job(exe.get());
-        if(job_result != 0) {
+        // do the job
+        const auto result = do_job(exe.get());
+        if (exe.get() == out_run_job) {
+            job_result = result;
+        }
+
+        // check if job is optional and we need to quit on failure
+        if(job_result != 0 && !exe->optional_job) {
             std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code " << job_result << rang::fg::reset << std::endl;
             break;
         }
@@ -3199,7 +3213,7 @@ int LabBuildCompiler::run_local_project(
     if(is_lab_file) {
         if (is_lab_file_app_level(this, target)) {
             LabJob* run_job;
-            const auto result = build_lab_file_no_alloc(context, target, run_job);
+            const auto result = build_lab_file_no_alloc(context, target, outputPath.to_view(), run_job);
             if (result != 0) {
                 return result;
             }

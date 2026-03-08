@@ -86,4 +86,9 @@ extern "C" {
         return &self->target_data;
     }
 
+    void LabJobsetAbsPath(LabJob* self, chem::string_view* path) {
+        self->abs_path.clear();
+        self->abs_path.append(*path);
+    }
+
 }

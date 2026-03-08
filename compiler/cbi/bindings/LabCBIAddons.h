@@ -39,4 +39,7 @@ extern "C" {
     int LabJobgetMode(LabJob* self);
     TargetData* LabJobgetTarget(LabJob* self);
 
+    // setters
+    void LabJobsetAbsPath(LabJob* self, chem::string_view* view);
+
 }

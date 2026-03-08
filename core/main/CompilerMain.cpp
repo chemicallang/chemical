@@ -697,7 +697,7 @@ int compiler_main(int argc, char *argv[]) {
 
         if(is_lab_file) {
             // building the lab file
-            const auto result = compiler.build_lab_file(context, args[0]);
+            const auto result = compiler.build_lab_file(context, args[0], output.value());
             return result;
         } else {
             // building the mod file

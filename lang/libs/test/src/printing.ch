@@ -229,7 +229,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
             /* Test header line */
             const status_color = if(s.has_failed) col_red() else col_green();
             const status_text = if(s.has_failed) "FAIL" else "PASS";
-            printf("  %s- %s%s%s%s", col_reset(), col_bold(), fn_name, col_reset(), col_reset());
+            printf("  %s- %s%s%s%s", status_color, col_bold(), fn_name, col_reset(), col_reset());
 
             /* Print function id only when present and less than INT_MAX/2 */
             // NOTE: using literal threshold 1073741823 (INT_MAX/2 on 32-bit int)
@@ -267,9 +267,6 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
                             print_log_multiline(get_stdout(), l.message.data())
                         }
                     }
-                } else {
-                    /* no logs */
-                    printf("     %s(no logs)%s\n", col_gray(), col_reset());
                 }
             }
 

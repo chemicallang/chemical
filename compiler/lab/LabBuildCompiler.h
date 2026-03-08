@@ -418,14 +418,20 @@ public:
     /**
      * will build the lab file
      */
-    int build_lab_file_no_alloc(LabBuildContext& context, const std::string_view& path);
+    int build_lab_file_no_alloc(
+        LabBuildContext& context,
+        const std::string_view& path,
+        LabJob*& out_run_job
+    );
 
     /**
      * will build the lab file
      */
     inline int build_lab_file(LabBuildContext& context, const std::string_view& path) {
         return do_allocating([&]() -> int {
-            return build_lab_file_no_alloc(context, path);
+            // we ignore the returned job
+            LabJob* out_run_job;
+            return build_lab_file_no_alloc(context, path, out_run_job);
         });
     }
 

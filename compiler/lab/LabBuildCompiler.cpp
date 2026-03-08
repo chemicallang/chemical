@@ -105,6 +105,16 @@ inline TCCMode to_tcc_mode(LabBuildCompilerOptions* options) {
     return to_tcc_mode(options->out_mode, options->debug_info);
 }
 
+static bool is_app_build_func(FunctionDeclaration* found) {
+    if(found->returnType->kind() == BaseTypeKind::Pointer) {
+        auto child_type = found->returnType->known_child_type();
+        if(child_type->linked_name() == "LabJob") {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->known_child_type();
@@ -2893,7 +2903,11 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-int LabBuildCompiler::build_lab_file_no_alloc(LabBuildContext& context, const std::string_view& path) {
+int LabBuildCompiler::build_lab_file_no_alloc(
+    LabBuildContext& context,
+    const std::string_view& path,
+    LabJob*& out_run_job
+) {
 
     // mkdir the build directory
     create_dir(options->build_dir);
@@ -2901,6 +2915,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(LabBuildContext& context, const st
     // get build lab file into a tcc state
     const auto state = built_lab_file(context, path, false);
     if(!state) {
+        out_run_job = nullptr;
         return 1;
     }
 
@@ -2918,9 +2933,10 @@ int LabBuildCompiler::build_lab_file_no_alloc(LabBuildContext& context, const st
     _file_allocator.clear();
 
     // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    auto build = (LabJob*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
         std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+        out_run_job = nullptr;
         return 1;
     }
 
@@ -2930,7 +2946,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(LabBuildContext& context, const st
     context.storage.clear();
 
     // call the root build.lab build's function
-    build(&context);
+    out_run_job = build(&context);
 
     int job_result = 0;
 
@@ -3140,6 +3156,43 @@ static int launch_process_and_wait(const char* exe_str, const std::vector<std::s
     return launch_process_and_wait(exe_str, argv.data(), argv.size() - 1);
 }
 
+bool is_lab_file_app_level(LabBuildCompiler* compiler, const std::string& target) {
+    // quickly parsing it to determine if its a app level build.lab file
+    ModuleScope modScope("", "", nullptr);
+    ASTFileResult labFileResult(0, target, &modScope);
+    const auto source = ASTProcessor::make_file_input_source(target.c_str(), labFileResult);
+    if (!source.has_value()){
+        return 1;
+    }
+    const auto result = ASTProcessor::parse_chemical_file(
+        labFileResult,
+        0,
+        target,
+        ((InputSource*) &source.value()),
+        compiler->loc_man,
+        compiler->controller,
+        compiler->binder,
+        compiler->type_builder,
+        *compiler->file_allocator,
+        *compiler->file_allocator,
+        *compiler->file_allocator,
+        false,
+        true
+    );
+    if (result != 0) {
+        return result;
+    }
+    for (const auto node : labFileResult.unit.scope.body.nodes) {
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            const auto decl = node->as_function_unsafe();
+            if (decl->name_view()== "build" && is_app_build_func(decl)) {
+                 return true;
+            }
+        }
+    }
+    return false;
+}
+
 int LabBuildCompiler::run_local_project(
         const std::string& target,
         chem::string outputPath,
@@ -3147,10 +3200,33 @@ int LabBuildCompiler::run_local_project(
         LabBuildContext& context
 ) {
 
+    const auto is_lab_file = target.ends_with(".lab");
+    if(is_lab_file) {
+        if (is_lab_file_app_level(this, target)) {
+            LabJob* run_job;
+            const auto result = build_lab_file_no_alloc(context, target, run_job);
+            if (result != 0) {
+                return result;
+            }
+            if (run_job == nullptr) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "build function must return a job to run";
+                return result;
+            } else {
+                if (run_job->type == LabJobType::Executable) {
+                    return launch_process_and_wait(run_job->abs_path.data(), args);
+                } else {
+                    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown type of job returned which cannot be ran";
+                    return result;
+                }
+            }
+        }
+    }
+
+    // running the module level build.lab or chemical.mod
     auto& opts = *options;
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(opts.build_dir), opts.out_mode);
     LabBuildContext::initialize_job(&final_job, &opts);
-    const auto result = build_module_build_file_no_alloc(context, target, &final_job, !target.ends_with(".lab"), true);
+    const auto result = build_module_build_file_no_alloc(context, target, &final_job, !is_lab_file, true);
     if (result == 0) {
         // Run the executable
         return launch_process_and_wait(final_job.abs_path.data(), args);

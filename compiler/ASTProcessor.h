@@ -329,6 +329,26 @@ public:
     );
 
     /**
+     * parse a chemical file fast
+     */
+    static bool parse_chemical_file(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& abs_path,
+            InputSource* source,
+            LocationManager& loc_man,
+            AnnotationController& controller,
+            CompilerBinder& binder,
+            TypeBuilder& typeBuilder,
+            ASTAllocator& file_allocator,
+            ASTAllocator& mod_allocator,
+            ASTAllocator& job_allocator,
+            bool use_job_allocator,
+            bool is64Bit,
+            bool benchmark = false
+    );
+
+    /**
      * import chemical file with absolute path to it
      * @return true if success importing file, false otherwise
      */

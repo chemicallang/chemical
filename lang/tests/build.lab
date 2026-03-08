@@ -50,8 +50,6 @@ struct JobAndContext {
     var job : *mut LabJob
 }
 
-var jc : JobAndContext
-
 var do_llvm_ir = true;
 var do_asm = false;
 var do_bc = true;
@@ -160,7 +158,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
 
 }
 
-func run_test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) {
+func test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *mut LabJob {
     const exe_name = std::string_view("chemical-libs-tests");
     const exe_job = ctx.build_exe(exe_name)
     ctx.set_environment_testing(exe_job, true)
@@ -201,30 +199,19 @@ func run_test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) {
         }
     }
     ctx.add_module(exe_job, testLibsRunner.build(ctx, exe_job))
-    jc.ctx = ctx;
-    jc.job = exe_job;
-    ctx.on_finished((data : *void) => {
-        const jx = data as *mut JobAndContext
-        if(jx.job.getStatus() == LabJobStatus.Success) {
-            jx.ctx.launch_executable(jx.job.getAbsPath(), true);
-        }
-    }, &jc);
+    return exe_job;
 }
 
-func build(ctx : *mut AppBuildContext) {
+func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     if(ctx.has_arg(std::string_view("test-libs"))) {
-        run_test_lib_exe(ctx, std::string_view("all"))
-        return;
+        return test_lib_exe(ctx, std::string_view("all"))
     } else if(ctx.has_arg(std::string_view("test-html"))) {
-        run_test_lib_exe(ctx, std::string_view("html"))
-        return;
+        return test_lib_exe(ctx, std::string_view("html"))
     } else if(ctx.has_arg(std::string_view("test-css"))) {
-        run_test_lib_exe(ctx, std::string_view("css"))
-        return;
+        return test_lib_exe(ctx, std::string_view("css"))
     } else if(ctx.has_arg(std::string_view("test-js"))) {
-        run_test_lib_exe(ctx, std::string_view("js"))
-        return;
+        return test_lib_exe(ctx, std::string_view("js"))
     }
 
     const debug = true;
@@ -296,7 +283,7 @@ func build(ctx : *mut AppBuildContext) {
         ctx.add_module(job, get_main_module(ctx, job))
         ctx.define(job, definition);
         if(do_one_job) {
-            return;
+            return null;
         }
     }
 
@@ -308,14 +295,6 @@ func build(ctx : *mut AppBuildContext) {
     ctx.add_module(exe_job, get_main_module(ctx, exe_job))
 
     ctx.define(exe_job, definition);
-    jc.ctx = ctx;
-    jc.job = exe_job;
-    ctx.on_finished((data : *void) => {
-        const jx = data as *mut JobAndContext
-        if(jx.job.getStatus() == LabJobStatus.Success) {
-            jx.ctx.launch_executable(jx.job.getAbsPath(), true);
-        }
-    }, &jc);
 
     // should be done at end, when directory for ext_module exists
     if(do_to_ch) {
@@ -325,5 +304,7 @@ func build(ctx : *mut AppBuildContext) {
         const input_file = lab::rel_path_to("ext/file.c")
         ctx.translate_file_to_chemical(input_file.to_view(), output_file.to_view());
     }
+
+    return exe_job;
 
 }

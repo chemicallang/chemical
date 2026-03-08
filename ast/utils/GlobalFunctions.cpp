@@ -1609,6 +1609,8 @@ public:
     //  file : *char,
     //  timeout : uint,
     //  retry : uint,
+    //  returns_bool : bool,
+    //  pass_on_crash : bool,
     //  benchmark : bool,
     //  lineNum : uint,
     //  charNum : uint
@@ -1740,6 +1742,10 @@ public:
                 }
                 const auto retryVal = new (allocator.allocate<IntNumValue>()) IntNumValue(retries, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("retry", StructMemberInitializer{"retry", retryVal});
+
+                // returns bool
+                const auto returnsBoolVal = new (allocator.allocate<BoolValue>()) BoolValue(decl->returnType->canonical()->kind() == BaseTypeKind::Bool, typeBuilder.getBoolType(), call->encoded_location());
+                value->values.emplace("returns_bool", StructMemberInitializer{"returns_bool", returnsBoolVal});
 
                 // pass on crash
                 const auto pass_on_crash = controller.is_marked(node.node, "test.pass_on_crash");

@@ -65,6 +65,7 @@ else()
   FIND_AND_ADD_CLANG_LIB(clangIndex)
   FIND_AND_ADD_CLANG_LIB(clangToolingCore)
   FIND_AND_ADD_CLANG_LIB(clangExtractAPI)
+  FIND_AND_ADD_CLANG_LIB(clangAPINotes)
   FIND_AND_ADD_CLANG_LIB(clangSupport)
 endif()
 

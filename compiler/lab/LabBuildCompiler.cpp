@@ -2966,11 +2966,6 @@ int LabBuildCompiler::build_lab_file_no_alloc(
 
     }
 
-    // running the on_finished lambda
-    if(job_result == 0 && context.on_finished) {
-        context.on_finished(context.on_finished_data);
-    }
-
     return job_result;
 
 }

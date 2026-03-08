@@ -128,16 +128,6 @@ public:
     JobAndModuleRelMap existance_cache;
 
     /**
-     * the lambda that will be called on exist
-     */
-    void(*on_finished)(void*) = nullptr;
-
-    /**
-     * the data pointer that'll be passed to on_finished at end
-     */
-    void* on_finished_data = nullptr;
-
-    /**
      * if import paths are to be used with aliases in them, we need a path handler
      */
     ImportPathHandler& handler;

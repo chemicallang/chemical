@@ -48,8 +48,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextremove_arg", (void*) BuildContextremove_arg },
         { "lab_BuildContextdefine", (void*) BuildContextdefine },
         { "lab_BuildContextundefine", (void*) BuildContextundefine },
-        { "lab_AppBuildContextlaunch_executable", (void*) AppBuildContextlaunch_executable },
-        { "lab_AppBuildContexton_finished", (void*) AppBuildContexton_finished },
         { "lab_BuildContextinvoke_dlltool", (void*) BuildContextinvoke_dlltool },
         { "lab_BuildContextinvoke_ranlib", (void*) BuildContextinvoke_ranlib },
         { "lab_BuildContextinvoke_lib", (void*) BuildContextinvoke_lib },

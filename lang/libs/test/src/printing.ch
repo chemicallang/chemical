@@ -229,7 +229,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
             /* Test header line */
             const status_color = if(s.has_failed) col_red() else col_green();
             const status_text = if(s.has_failed) "FAIL" else "PASS";
-            printf("  %s- %s%s%s%s", status_color, col_bold(), fn_name, col_reset(), col_reset());
+            printf("  %s- %s%s%s%s", col_reset(), col_bold(), fn_name, col_reset(), col_reset());
 
             /* Print function id only when present and less than INT_MAX/2 */
             // NOTE: using literal threshold 1073741823 (INT_MAX/2 on 32-bit int)
@@ -240,12 +240,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
                     printf(" (id %u)", s.fn.id as uint);
                 }
             }
-
-            printf("  ");
-            if(s.exitCode != 0) {
-                printf("[%s%u%s] ", status_color, s.exitCode as uint, col_reset());
-            }
-            printf("%s%s%s\n", status_color, status_text, col_reset());
+            printf("\n");
 
             /* Print logs, if any */
             if(config.display_logs) {
@@ -277,6 +272,12 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
                     printf("     %s(no logs)%s\n", col_gray(), col_reset());
                 }
             }
+
+            printf("    ");
+            if(s.exitCode != 0) {
+                printf("[%s%u%s] ", status_color, s.exitCode as uint, col_reset());
+            }
+            printf("%s%s%s\n", status_color, status_text, col_reset());
             /* Horizontal separator between tests */
             printf("\n");
         }

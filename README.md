@@ -94,31 +94,14 @@ These features should give you an idea about features I have worked on
 
 ## 🛠️ Build (From Source)
 
+For detailed instructions on building the Chemical Compiler for various platforms, IDEs, and scenarios, please see the [Building Chemical](lang/docs/build/BUILDING.md) guide.
+
 ### Requirements
 
 - 8–16 GB RAM
 - C++ toolchain (for LSP)
 - LLVM (for compiler)
 - CLion or other IDE
-
-### Building Tiny CC Based Compiler Project (easy, fast)
-
-1. Clone this repo
-2. Inside the repo, run `./scripts/configure.sh` (on windows, git bash must be installed)
-3. If you are not going to install llvm/clang/lld use -DBUILD_COMPILER=OFF when generating the project
-    - in CLion, Settings -> Build,Execution,Deployment -> Cmake -> Select CMake Profile put in Cmake Options -DBUILD_COMPILER=OFF 
-4. Open the repo in IDE (in CLion, you'll get automatic build configurations)
-
-LSP also depends on Tiny CC Based Compiler Project and is built similarly
-
-### Building LLVM Based Compiler Project (takes time)
-
-1. Clone `chemical-bootstrap` repo in this organization (contains LLVM/CLANG)
-2. Run build scripts (`./build.bat` / `./build`) (this builds LLVM)
-3. Inside it, clone this repo
-4. Open this repo directory in terminal
-5. Run the configure script using `./scripts/configure.sh` (on windows, bash must be installed, usually comes with git)
-6. Open the repo in CLion
 
 #### LSP
 

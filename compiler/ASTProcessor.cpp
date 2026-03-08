@@ -916,6 +916,103 @@ void ASTProcessor::print_file_results(ASTFileResult& result, const chem::string_
     auto moved2 = std::move(result.parse_diagnostics);
 }
 
+bool ASTProcessor::parse_chemical_file(
+        ASTFileResult& result,
+        unsigned int fileId,
+        const std::string_view& abs_path,
+        InputSource* inp_source,
+        LocationManager& loc_man,
+        AnnotationController& controller,
+        CompilerBinder& binder,
+        TypeBuilder& typeBuilder,
+        ASTAllocator& file_allocator,
+        ASTAllocator& mod_allocator,
+        ASTAllocator& job_allocator,
+        bool use_job_allocator,
+        bool is64Bit,
+        bool benchmark
+) {
+
+    result.abs_path = abs_path;
+    result.file_id = fileId;
+    result.private_symbol_range = { 0, 0 };
+    result.continue_processing = true;
+    result.diCompileUnit = nullptr;
+
+    auto& unit = result.unit;
+
+    Lexer lexer(std::string(abs_path), *inp_source, &binder, file_allocator);
+    std::vector<Token> tokens;
+
+    // actual lexing
+    if(benchmark) {
+        result.lex_benchmark.benchmark_begin();
+        lexer.getTokens(tokens);
+        result.lex_benchmark.benchmark_end();
+    } else {
+        lexer.getTokens(tokens);
+    }
+
+    const auto total_toks = tokens.size();
+    if(total_toks == 0) {
+        // empty file
+        return true;
+    } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
+        auto& last = tokens[total_toks - 1];
+        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
+    }
+
+    // move lexer diagnostics
+    if(!lexer.diagnoser.diagnostics.empty()) {
+        result.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+    }
+
+    // do not continue, if error occurs during lexing
+    if(lexer.diagnoser.has_errors) {
+        result.continue_processing = false;
+        return false;
+    }
+
+    // parse the file
+    Parser parser(
+            fileId,
+            abs_path,
+            tokens.data(),
+            loc_man,
+            controller,
+            job_allocator,
+            use_job_allocator ? job_allocator : mod_allocator,
+            typeBuilder,
+            is64Bit,
+            &binder
+    );
+
+    // setting file scope as parent of all nodes parsed
+    parser.parent_node = &result.unit.scope;
+
+    // actual parsing
+    if(benchmark) {
+        result.parse_benchmark.benchmark_begin();
+        parser.parse(unit.scope.body.nodes);
+        result.parse_benchmark.benchmark_end();
+    } else {
+        parser.parse(unit.scope.body.nodes);
+    }
+
+    // move parser diagnostics
+    if(!parser.diagnostics.empty()) {
+        result.parse_diagnostics = std::move(parser.diagnostics);
+    }
+
+    // continue
+    if(parser.has_errors) {
+        result.continue_processing = false;
+        return false;
+    } else {
+        return true;
+    }
+}
+
 bool ASTProcessor::import_chemical_file(
         ASTFileResult& result,
         unsigned int fileId,

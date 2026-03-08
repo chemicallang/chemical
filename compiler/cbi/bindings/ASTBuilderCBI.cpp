@@ -506,9 +506,9 @@ FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_v
     return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {returnType, location}, isVariadic, parent_node, location);
 }
 
-FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
+FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* decl, uint64_t location) {
     // TODO casting function type as parent node, this is wrong
-    return new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, (ASTNode*) decl, location);
+    return new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, decl, location);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
@@ -591,6 +591,10 @@ uint64_t ASTNodegetEncodedLocation(ASTNode* node) {
 
 int ASTNodegetKind(ASTNode* node) {
     return static_cast<int>(node->kind());
+}
+
+ASTNode* ASTNodegetParent(ASTNode* node) {
+    return node->parent();
 }
 
 ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name) {

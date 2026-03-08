@@ -64,6 +64,8 @@ extern "C" {
 
     int ASTNodegetKind(ASTNode* node);
 
+    ASTNode* ASTNodegetParent(ASTNode* node);
+
     ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name);
 
     int BaseTypegetKind(BaseType* type);

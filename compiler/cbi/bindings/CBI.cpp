@@ -270,6 +270,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ValuegetType", (void*) ValuegetType },
         { "compiler_ASTNodegetEncodedLocation", (void*) ASTNodegetEncodedLocation },
         { "compiler_ASTNodegetKind", (void*) ASTNodegetKind },
+        { "compiler_ASTNodegetParent", (void*) ASTNodegetParent },
         { "compiler_ASTNodechild", (void*) ASTNodechild },
         { "compiler_BaseTypegetKind", (void*) BaseTypegetKind },
         { "compiler_IntNTypeget_intn_type_kind", (void*) IntNTypeget_intn_type_kind },

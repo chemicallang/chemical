@@ -808,7 +808,7 @@ public struct ASTBuilder {
 
     func make_function(&self, name : &string_view, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
 
-    func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *mut FunctionParam
+    func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, parent_node : *mut ASTNode, location : ubigint) : *mut FunctionParam
 
     func make_generic_param(&self, name : &string_view, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *mut GenericTypeParameter
 

@@ -1,6 +1,3 @@
-// TODO: take it out
-const INFINITE = 0xffffff
-
 public struct TestFunction {
     var id : int
     var name : std::string_view
@@ -10,6 +7,7 @@ public struct TestFunction {
     var timeout : uint
     var retry : uint
     var pass_on_crash : bool
+    var returns_bool : bool
     var benchmark : bool
     var lineNum : uint
     var charNum : uint
@@ -119,6 +117,19 @@ struct TestRunnerConfig {
     var after_each : (env : &mut TestEnv) => void = null
 }
 
+func run_test_fn_ptr(env : &mut TestEnv, ptr : *void, ret_bool : bool) : bool {
+    if(ret_bool) {
+        type bool_fn_type = (env : &mut TestEnv) => bool
+        const fn_ptr = ptr as bool_fn_type
+        return fn_ptr(env);
+    } else {
+        type non_bool_fn_type = (env : &mut TestEnv) => void
+        const fn_ptr = ptr as non_bool_fn_type
+        fn_ptr(env);
+        return true;
+    }
+}
+
 func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
 
     var env = create_test_env(tfn, config);
@@ -127,11 +138,15 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
         config.before_each(env)
     }
 
+    var return_success : bool
     if(config.benchmark) {
         // TODO: benchmarking code here
-        tfn.ptr(env);
+        return_success = run_test_fn_ptr(env, tfn.ptr as *void, tfn.returns_bool)
     } else {
-        tfn.ptr(env);
+        return_success = run_test_fn_ptr(env, tfn.ptr as *void, tfn.returns_bool)
+    }
+    if(return_success == false) {
+        env.error("boolean test returned false");
     }
 
     if(config.after_each) {

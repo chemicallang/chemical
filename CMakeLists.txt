@@ -936,5 +936,15 @@ elseif(UNIX)
     endif()
 endif()
 
+# On Windows, copy libtcc.dll to the build directory at configure time
+# so executables can find it at runtime without manual copying.
+if(WIN32)
+    if(EXISTS ${LIBTCC_DIR}/libtcc.dll)
+        file(COPY ${LIBTCC_DIR}/libtcc.dll DESTINATION ${CMAKE_BINARY_DIR})
+    else()
+        message(WARNING "libtcc.dll not found at ${LIBTCC_DIR}/libtcc.dll. Run ./scripts/configure.sh to set it up.")
+    endif()
+endif()
+
 # Link Lsp
 target_link_libraries(ChemicalLsp ${LIBTCC_LIB} lsp)

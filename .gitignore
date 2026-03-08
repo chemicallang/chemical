@@ -11,3 +11,4 @@ lang/sample/compiled
 lang/compiled
 lang/tests/build
 lib/tcc
+build/mingw

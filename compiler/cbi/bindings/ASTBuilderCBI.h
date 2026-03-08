@@ -197,7 +197,7 @@ extern "C" {
 
     FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
 
-    FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location);
+    FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* parent_node, uint64_t location);
 
     GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location);
 

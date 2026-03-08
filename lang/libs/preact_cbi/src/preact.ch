@@ -95,13 +95,13 @@ public func preact_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mu
     const root = value.getDataPtr() as *mut JsComponentDecl;
     const loc = value.getEncodedLocation();
 
+    const voidType = builder.make_void_type(loc);
+    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, value.getParent(), loc);
+
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
     const ref = builder.make_reference_type(linked as *mut BaseType, loc);
-    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, null, loc);
-    
-    const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, null, loc);
+    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
     
     funcDecl.get_params().push(param);
     funcDecl.add_body();
@@ -283,7 +283,7 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("preact"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, location);
+        const node = builder.make_embedded_node(std::string_view("preact"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
 
         const controller = parser.getAnnotationController();
 

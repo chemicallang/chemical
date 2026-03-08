@@ -19,8 +19,19 @@ if (NOT DEFINED CMAKE_PREFIX_PATH)
     set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/out/host")
 endif ()
 
-# We copied this from Zig CMakeLists
-set(ZIG_USE_LLVM_CONFIG ON) # linux build fails if we don't
+# Ensure cross-compiling toolchains can find libraries in our prefix path
+# (toolchain files restrict find_library/find_path to CMAKE_FIND_ROOT_PATH)
+list(APPEND CMAKE_FIND_ROOT_PATH "${CMAKE_PREFIX_PATH}")
+
+# Whether to use llvm config
+if (WIN32 AND NOT MSVC)
+    # The mingw build should NOT use llvm-config
+    set(ZIG_USE_LLVM_CONFIG OFF)
+else()
+    set(ZIG_USE_LLVM_CONFIG ON)
+endif()
+
+
 set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})

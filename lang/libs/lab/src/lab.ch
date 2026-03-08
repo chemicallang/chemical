@@ -66,6 +66,9 @@ public interface LabJob {
     func getTargetTriple(&self) : std::string_view
     func getMode(&self) : OutputMode
     func getTarget(&self) : &TargetData
+
+    // set absolute path
+    func setAbsPath(&self, path : std::string_view)
 }
 
 @no_init

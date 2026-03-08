@@ -61,6 +61,11 @@ struct LabJob {
     LabJobStatus status = LabJobStatus::Pending;
 
     /**
+     * if a job is optional, upon failure, we don't quit doing other jobs
+     */
+    bool optional_job = false;
+
+    /**
      * the target triple for every job can be different
      * and therefore is stored here, by default the target triple supplied via
      * the command line is used here, or default system target (if not supplied)

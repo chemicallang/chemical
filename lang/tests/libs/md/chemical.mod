@@ -1,6 +1,6 @@
 module md_lib_test
 
-source "test.ch"
+source "src"
 
 import std
 import test_env

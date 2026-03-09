@@ -194,7 +194,7 @@ func test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *mut 
             ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, reactTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, preactTestMod.build(ctx, exe_job))
-            ctx.add_module(exe_job, preactTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, solidTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, universalTestMod.build(ctx, exe_job))
         }
     }

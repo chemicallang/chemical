@@ -96,12 +96,12 @@ public func solid_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut
     const loc = value.getEncodedLocation();
 
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, value.getParent(), true, null, loc);
+    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, value.getParent(), loc);
 
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
     const ref = builder.make_reference_type(linked as *mut BaseType, loc);
-    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, funcDecl, false, null, loc);
+    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
     
     funcDecl.get_params().push(param);
     funcDecl.add_body();

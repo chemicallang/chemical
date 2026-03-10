@@ -305,6 +305,9 @@ public struct HtmlPage {
                 for(let i = 0; i < x.length; i++) e = e.children[x[i]];
                 return e;
             });
+            window.$_ur={Fragment:{},createElement:(t,p,...c)=>({t,p:p||{},c})};window.$_urn=(v)=>{if(v==null||v===false||v===true)return document.createTextNode('');if(v.nodeType)return v;if(v.subscribe&&v.value!==undefined){const n=document.createTextNode(''+v.value);v.subscribe((x)=>n.textContent=''+x);return n;}if(Array.isArray(v)){const f=document.createDocumentFragment();for(let i=0;i<v.length;i++)f.appendChild(window.$_urn(v[i]));return f;}if(typeof v==='string'||typeof v==='number')return document.createTextNode(''+v);if(v&&v.t!==undefined){if(v.t===window.$_ur.Fragment){const f=document.createDocumentFragment();for(let i=0;i<v.c.length;i++)f.appendChild(window.$_urn(v.c[i]));return f;}if(typeof v.t==='function'){return window.$_urn(v.t({...v.p,children:v.c}));}const e=document.createElement(v.t);const props=v.p||{};for(const k in props){const pv=props[k];if(k.startsWith('on')&&typeof pv==='function'){e.addEventListener(k.substring(2).toLowerCase(),pv);}else if(pv&&pv.subscribe&&pv.value!==undefined){if(k in e)e[k]=pv.value;else e.setAttribute(k,''+pv.value);pv.subscribe((x)=>{if(k in e)e[k]=x;else e.setAttribute(k,''+x);});}else if(k==='className'){e.setAttribute('class',pv);}else if(pv!==false&&pv!=null){if(k in e)e[k]=pv;else e.setAttribute(k,''+pv);}}for(let i=0;i<v.c.length;i++)e.appendChild(window.$_urn(v.c[i]));return e;}return document.createTextNode(''+v);};
+            window.$_us=(v)=>{let val=v;const subs=[];return{get value(){return val;},set value(n){val=n;for(let i=0;i<subs.length;i++)subs[i](val);},subscribe(fn){subs.push(fn);}};};
+            window.$_r=window.$_r||window.$_ur;
             window.$_u = window.$_u || {};
             window.$_uq = window.$_uq || [];
             window.$_ureg = window.$_ureg || ((name, comp) => {
@@ -398,6 +401,66 @@ public struct HtmlPage {
                 }
                 if(out && out.t !== undefined && window.$_urn) return window.$_urn(out);
                 return null;
+            });
+            window.$_ru = window.$_ru || ((compRef, props, ...children) => {
+                const p = props ? { ...props } : {};
+                if(children && children.length) p.children=children.length === 1 ? children[0] : children;
+                const U = (pp) => {
+                    const ref = $_r.useRef(null);
+                    $_r.useLayoutEffect(()=>{
+                        const host = ref.current;
+                        if(!host) return;
+                        let stop = false;
+                        let h = 0;
+                        const resolve = () => {
+                            if(typeof compRef === 'string') {
+                                if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
+                                if(window[compRef]) return window[compRef];
+                                return null;
+                            }
+                            return compRef;
+                        };
+                        const mount = () => {
+                            if(stop) return;
+                            const comp = resolve();
+                            if(!comp) {
+                                h = (window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount,16));
+                                return;
+                            }
+                            let node=null;
+                            if(window.$_uc) {
+                                node=window.$_uc(comp, pp || {});
+                            } else {
+                                const out=comp(pp || {});
+                                if(out && out.nodeType) node=out; else if(out && out.root && out.root.nodeType) {
+                                    node=out.root;
+                                    if(out.initialize) out.initialize(node,pp || {});
+                                }else if(typeof out === 'string' || (out && out.html !== undefined)) {
+                                    const tpl=document.createElement('template');
+                                    tpl.innerHTML = typeof out === 'string' ? out : out.html;
+                                    node = tpl.content.firstElementChild || tpl.content.firstChild;
+                                    if(node && out && out.initialize) out.initialize(node, pp || {});
+                                }else if(out && out.t !== undefined && window.$_urn){
+                                    node = window.$_urn(out);
+                                }
+                            }
+                            if(node) {
+                                host.innerHTML = '';
+                                host.appendChild(node);
+                            } else {
+                                host.innerHTML = '';
+                            }
+                        };
+                        mount();
+                        return ()=>{
+                            stop=true;
+                            if(window.cancelAnimationFrame&&window.requestAnimationFrame&&h) window.cancelAnimationFrame(h);
+                            else if(h) clearTimeout(h);
+                        };
+                    },[pp]);
+                    return $_r.createElement('span', { ref });
+                };
+                return $_r.createElement(U,p);
             });
             window.$_pu = window.$_pu || ((compRef, props, ...children) => {
                 const p = props ? { ...props } : {};
@@ -506,7 +569,7 @@ public struct HtmlPage {
     }
 
     func defaultSolidSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); }; window.$_su = window.$_su || ((compRef, props, ...children) => { const p = props ? { ...props } : {}; if(children && children.length) p.children = children.length === 1 ? children[0] : children; const host = document.createElement('span'); let stop = false; let h = 0; const resolve = () => { if(typeof compRef === 'string') { if(window.$_u && window.$_u[compRef]) return window.$_u[compRef]; if(window[compRef]) return window[compRef]; return null; } return compRef; }; const mount = () => { if(stop) return; const comp = resolve(); if(!comp) { h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16); return; } const node = window.$_uc ? window.$_uc(comp, p) : null; host.innerHTML = ''; if(node) host.appendChild(node); }; mount(); return host; });</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };"""))
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist

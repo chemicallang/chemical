@@ -171,8 +171,6 @@ public func solid_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
         }
     }
 
-    converter.str.append_view("if(!window.$_su){window.$_su=(compRef,props,...children)=>{const p=props?{...props}:{};if(children&&children.length){p.children=children.length===1?children[0]:children;}const host=document.createElement('span');let stop=false;let h=0;const resolve=()=>{if(typeof compRef==='string'){if(window.$_u&&window.$_u[compRef])return window.$_u[compRef];if(window[compRef])return window[compRef];return null;}return compRef;};const mount=()=>{if(stop)return;const comp=resolve();if(!comp){h=(window.requestAnimationFrame?window.requestAnimationFrame(mount):setTimeout(mount,16));return;}let node=null;if(window.$_uc){node=window.$_uc(comp,p);}else{const out=comp(p);if(out&&out.nodeType)node=out;else if(out&&out.root&&out.root.nodeType){node=out.root;if(out.initialize)out.initialize(node,p);}else if(typeof out==='string'||(out&&out.html!==undefined)){const tpl=document.createElement('template');tpl.innerHTML=typeof out==='string'?out:out.html;node=tpl.content.firstElementChild||tpl.content.firstChild;if(node&&out&&out.initialize)out.initialize(node,p);}else if(out&&out.t!==undefined&&window.$_urn){node=window.$_urn(out);}}host.innerHTML='';if(node)host.appendChild(node);};mount();return host;};}")
-    
     // Convert to Solid component function.
     converter.str.append_view("function ")
     converter.str.append_view(root.signature.name)

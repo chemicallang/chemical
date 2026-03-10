@@ -108,7 +108,6 @@ public func solid_component_props(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }function solid_lib_test_ComponentProps(props) { return $_s.createComponent(solid_lib_test_Greeting, {\"text\": \"hi\"}); }");
 }
 
-/**
 #solid TernaryTest(cond) {
     return <div>{cond ? <span>a</span> : <span>b</span>}</div>
 }
@@ -119,7 +118,6 @@ public func solid_ternary_test(env : &mut TestEnv) {
     #html { <TernaryTest /> }
     view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `)); }");
 }
-**/
 
 #solid MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>

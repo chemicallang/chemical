@@ -737,13 +737,6 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 public func universal_initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;
-    new (ptr) JsLexer {
-        lb_count : 0,
-        chemical_mode : false,
-        jsx_depth : 0,
-        in_jsx_tag : 0,
-        jsx_brace_count : 0,
-        tag_mode_stack : 0
-    }
+    new (ptr) JsLexer { }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

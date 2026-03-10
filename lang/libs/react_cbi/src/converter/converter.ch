@@ -477,7 +477,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.str.append_view("window.$_ru(");
         if(tagNameNode.kind == JsNodeKind.Identifier) {
             converter.str.append_view("\"");
-            converter.str.append_view(tagName);
+            get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, converter.str);
             converter.str.append_view("\"");
         } else {
             converter.convertJsNode(tagNameNode);
@@ -512,7 +512,11 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view("$_r.createElement(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
-        converter.str.append_view(tagName);
+        if(element.componentSignature != null) {
+            get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, converter.str);
+        } else {
+            converter.str.append_view(tagName);
+        }
     } else {
         converter.convertJsNode(tagNameNode);
     }

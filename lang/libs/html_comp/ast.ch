@@ -20,3 +20,19 @@ public struct ComponentSignature {
     var universalTemplate : std::string_view
     var universalInit : std::string_view
 }
+
+public func get_module_scoped_name(functionNode : *mut ASTNode, name : std::string_view, str : &mut std::string) {
+    if(functionNode != null) {
+        const modScope = functionNode.getModScope();
+        if(modScope != null) {
+            const scopeName = modScope.getScopeName();
+            if(!scopeName.empty()) {
+                str.append_view(scopeName);
+                str.append('_');
+            }
+            str.append_view(modScope.getModuleName());
+            str.append('_');
+        }
+    }
+    str.append_view(name);
+}

@@ -620,7 +620,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("<div id=\"");
         s.append_view(idStr.view());
         s.append_view("\" data-u-comp=\"");
-        s.append_view(signature.name);
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
         s.append_view("\">");
         s.append_view(signature.universalTemplate);
         s.append_view("</div>");
@@ -630,7 +630,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         js.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
         js.append_view(idStr.view());
         js.append_view("','");
-        js.append_view(signature.name);
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);
         js.append_view("',{");
         const attrs = element.attributes.size();
         for(var i : uint = 0; i < attrs; i++) {
@@ -660,7 +660,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("<div id=\"");
         s.append_view(idStr.view());
         s.append_view("\" data-u-comp=\"");
-        s.append_view(signature.name);
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
         s.append_view("\"></div>");
         converter.emit_append_html_from_str(*s);
 
@@ -668,7 +668,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         js.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
         js.append_view(idStr.view());
         js.append_view("','");
-        js.append_view(signature.name);
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);
         js.append_view("',{");
         const attrs = element.attributes.size();
         for(var i : uint = 0; i < attrs; i++) {
@@ -694,27 +694,27 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     if(signature.mountStrategy == MountStrategy.Preact) {
         // Preact Mount Strategy
         s.append_view("$_pm(document.currentScript, ")
-        s.append_view(signature.name)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.React) {
         // React Mount Strategy
         s.append_view("$_rm(document.currentScript, ")
-        s.append_view(signature.name)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.Solid) {
         // Solid Mount Strategy
         s.append_view("$_sm(document.currentScript, ")
-        s.append_view(signature.name)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.Universal) {
         // Universal Mount Strategy (HTML-first, no framework dependency)
         s.append_view("$_um(document.currentScript, ")
-        s.append_view(signature.name)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
         s.append_view(", {")
     } else {
         // Default Mount Strategy
         s.append_view("$_dm(document.currentScript, ")
-        s.append_view(signature.name)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
         s.append_view(", {")
     }
     

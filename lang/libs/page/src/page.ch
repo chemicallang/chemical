@@ -11,6 +11,26 @@ public struct HtmlPage {
 
     var pageHeadJs : std::string
 
+    func getHead(&self) : std::string_view {
+        return pageHead.to_view()
+    }
+
+    func getHtml(&self) : std::string_view {
+        return pageHtml.to_view();
+    }
+
+    func getCss(&self) : std::string_view {
+        return pageCss.to_view()
+    }
+
+    func getJs(&self) : std::string_view {
+        return pageJs.to_view()
+    }
+
+    func getHeadJs(&self) : std::string_view {
+        return pageHeadJs.to_view()
+    }
+
     // we track which classes are done through this unordered map
     // TODO using ubigint, instead need to use size_t
     var doneClasses : std::unordered_map<ubigint, bool>

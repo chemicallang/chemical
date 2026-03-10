@@ -22,7 +22,11 @@ public func preact_symResNode(resolver : *mut SymbolResolver, node : *mut Embedd
 public func preact_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare(comp.signature.name, node);
+    if (comp.signature.access == AccessSpecifier.Public) {
+        resolver.declare_exported(comp.signature.name, node);
+    } else {
+        resolver.declare(comp.signature.name, node);
+    }
 }
 
 func fix_support_page_node(
@@ -261,7 +265,8 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
             propsName : propsName,
             params : params,
             functionNode : null,
-            mountStrategy : MountStrategy.Preact // Important: Set mount strategy
+            mountStrategy : MountStrategy.Preact, // Important: Set mount strategy
+            access : spec
         },
         body : null,
         support : SymResSupport {}, 

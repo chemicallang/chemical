@@ -17,6 +17,7 @@ public struct ComponentSignature {
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
     var mountStrategy : MountStrategy = MountStrategy.Default
+    var access : AccessSpecifier = AccessSpecifier.Private
     var universalTemplate : std::string_view
     var universalInit : std::string_view
 }

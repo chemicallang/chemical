@@ -94,9 +94,10 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         }
         '}' => {
             if(js.lb_count == 1) {
+                js.lb_count = 0;
                 js.reset();
                 lexer.unsetUserLexer();
-            } else {
+            } else if(js.lb_count > 1) {
                 js.lb_count--;
             }
             

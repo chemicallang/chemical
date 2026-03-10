@@ -141,6 +141,7 @@ func (converter : &mut JsConverter) containsFunctionCall(node : *mut JsNode) : b
         JsNodeKind.JSXExpressionContainer => {
             return converter.containsFunctionCall((node as *mut JsJSXExpressionContainer).expression);
         }
+        JsNodeKind.JSXElement, JsNodeKind.JSXFragment => return true;
         default => return false;
     }
 }

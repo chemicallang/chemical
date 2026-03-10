@@ -108,7 +108,6 @@ public func react_component_props(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function react_lib_test_Greeting(props) { return $_r.createElement(\"span\", {}, ` Hello `); }function react_lib_test_ComponentProps(props) { return $_r.createElement(react_lib_test_Greeting, {\"text\": \"hi\"}); }");
 }
 
-/**
 #react TernaryTest(cond) {
     return <div>{cond ? <span>a</span> : <span>b</span>}</div>
 }
@@ -117,9 +116,8 @@ public func react_component_props(env : &mut TestEnv) {
 public func react_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function TernaryTest(cond) { return $_r.createElement(\"div\", {}, cond ? $_r.createElement(\"span\", {}, ` a `) : $_r.createElement(\"span\", {}, ` b `)); }");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_TernaryTest(cond) { return $_r.createElement(\"div\", {}, cond ? $_r.createElement(\"span\", {}, ` a `) : $_r.createElement(\"span\", {}, ` b `)); }");
 }
-**/
 
 #react MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>

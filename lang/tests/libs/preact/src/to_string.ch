@@ -108,7 +108,6 @@ public func preact_component_props(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }function preact_lib_test_ComponentProps(props) { return $_p.h(preact_lib_test_Greeting, {\"text\": \"hi\"}); }");
 }
 
-/**
 #preact TernaryTest(cond) {
     return <div>{cond ? <span>a</span> : <span>b</span>}</div>
 }
@@ -117,9 +116,8 @@ public func preact_component_props(env : &mut TestEnv) {
 public func preact_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function TernaryTest(cond) { return $_p.h(\"div\", {}, cond ? $_p.h(\"span\", {}, ` a `) : $_p.h(\"span\", {}, ` b `)); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_TernaryTest(cond) { return $_p.h(\"div\", {}, cond ? $_p.h(\"span\", {}, ` a `) : $_p.h(\"span\", {}, ` b `)); }");
 }
-**/
 
 #preact MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>

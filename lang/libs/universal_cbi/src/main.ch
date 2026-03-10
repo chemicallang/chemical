@@ -162,7 +162,11 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 // /> Self-closing!
                 // If we are in_jsx_tag, and we see />, then we should decrement depth because we incremented at <.
                 if(js.in_jsx_tag == 1) {
-                    if(js.jsx_depth > 0) js.jsx_depth--;
+                    if(js.jsx_depth > 0) {
+                        js.jsx_depth--;
+                        js.jsx_brace_count = (js.jsx_brace_stack & 0xFF) as int;
+                        js.jsx_brace_stack >>= 8;
+                    }
                     // Note: we don't change in_jsx_tag here, > will do it.
                 }
                 // Return /
@@ -304,9 +308,15 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(is_jsx) {
                  if(is_closing) {
                      // </
-                     if(js.jsx_depth > 0) js.jsx_depth--;
+                     if(js.jsx_depth > 0) {
+                         js.jsx_depth--;
+                         js.jsx_brace_count = (js.jsx_brace_stack & 0xFF) as int;
+                         js.jsx_brace_stack >>= 8;
+                     }
                  } else {
                      // <...
+                     js.jsx_brace_stack = (js.jsx_brace_stack << 8) | (js.jsx_brace_count as ubigint);
+                     js.jsx_brace_count = 0;
                      js.jsx_depth++;
                  }
                  js.in_jsx_tag = 1;
@@ -356,15 +366,15 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             // String literal
             // TODO: handle escaping
             // For now simple string
-             // provider.read_string_literal(c);
-             // We don't have read_string_literal exposed maybe?
-             // html_cbi uses read_double_quoted_value
-             if(c == '"') {
-                 provider.read_double_quoted_value();
-             } else {
-                 provider.read_single_quoted_value();
-             }
-             return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+            // provider.read_string_literal(c);
+            // We don't have read_string_literal exposed maybe?
+            // html_cbi uses read_double_quoted_value
+            if(c == '"') {
+                provider.read_double_quoted_value();
+            } else {
+                provider.read_single_quoted_value();
+            }
+            return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
         }
         default => {
             if(isalpha(c as int) || c == '_') {

@@ -82,7 +82,7 @@ func strip_js_string_quotes(value : std::string_view) : std::string_view {
         const first = value.get(0);
         const last = value.get(value.size() - 1);
         if((first == '"' || first == '\'' || first == '`') && first == last) {
-            return value.subview(1, value.size() - 2);
+            return value.subview(1, value.size() - 1);
         }
     }
     return value;

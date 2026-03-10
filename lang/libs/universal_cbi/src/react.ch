@@ -22,7 +22,11 @@ public func universal_symResNode(resolver : *mut SymbolResolver, node : *mut Emb
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare(comp.signature.name, node);
+    if (comp.signature.access == AccessSpecifier.Public) {
+        resolver.declare_exported(comp.signature.name, node);
+    } else {
+        resolver.declare(comp.signature.name, node);
+    }
 }
 
 struct UniversalStateDecl {
@@ -691,7 +695,8 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
             propsName : propsName,
             params : params,
             functionNode : null,
-            mountStrategy : MountStrategy.Universal // Important: Set mount strategy
+            mountStrategy : MountStrategy.Universal, // Important: Set mount strategy
+            access : spec
         },
         body : null,
         support : SymResSupport {}, 

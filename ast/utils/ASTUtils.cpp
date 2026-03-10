@@ -141,7 +141,7 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
 
 FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* expected_type, ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto location = arg->encoded_location();
-    auto& id_view = decl->identifier.identifier;
+    auto& id_view = decl->identifier;
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);
     id->linked = decl;

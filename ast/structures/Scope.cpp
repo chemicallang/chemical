@@ -34,12 +34,10 @@ void top_level_dedupe(std::vector<ASTNode*>& nodes) {
     int i = ((int) nodes_size) - 1;
     while(i >= 0) {
         auto node = nodes[i];
-        const auto node_id = node->get_located_id();
-        if(node_id) {
-            if(dedupe.find(node_id->identifier) == dedupe.end()) {
-                reverse_nodes.emplace_back(node);
-                dedupe[node_id->identifier] = i;
-            }
+        const auto node_id = node->get_node_identifier();
+        if(!node_id.empty() && dedupe.contains(node_id)) {
+            reverse_nodes.emplace_back(node);
+            dedupe[node_id] = i;
         }
         i--;
     }

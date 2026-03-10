@@ -25,7 +25,7 @@ extern "C" {
 
     void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn);
 
-    EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
+    EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, int spec, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
 
     EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, NodeSpan* chemical_nodes, ValueSpan* chemical_values, uint64_t location);
 
@@ -179,7 +179,7 @@ extern "C" {
 
     //ThrowStatement* ASTBuildermake_throw_stmt(ASTBuilder* builder, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location);
 
-    TypealiasStatement* ASTBuildermake_typealias_stmt(ASTBuilder* builder, chem::string_view* identifier, uint64_t name_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    TypealiasStatement* ASTBuildermake_typealias_stmt(ASTBuilder* builder, chem::string_view* identifier, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location);
 
@@ -189,13 +189,13 @@ extern "C" {
 
     DoWhileLoop* ASTBuildermake_do_while_loop(ASTBuilder* builder, Value* condition, ASTNode* parent_node, uint64_t location);
 
-    EnumDeclaration* ASTBuildermake_enum_decl(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    EnumDeclaration* ASTBuildermake_enum_decl(ASTBuilder* builder, chem::string_view* name, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     EnumMember* ASTBuildermake_enum_member(ASTBuilder* builder, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location);
 
     ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location);
 
-    FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
+    FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
 
     FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* parent_node, uint64_t location);
 
@@ -205,21 +205,21 @@ extern "C" {
 
     ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location);
 
-    InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    StructDefinition* ASTBuildermake_struct_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    StructDefinition* ASTBuildermake_struct_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     StructMember* ASTBuildermake_struct_member(ASTBuilder* builder, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    UnionDef* ASTBuildermake_union_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    UnionDef* ASTBuildermake_union_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     UnsafeBlock* ASTBuildermake_unsafe_block(ASTBuilder* builder, ASTNode* node, uint64_t location);
 
     WhileLoop* ASTBuildermake_while_loop(ASTBuilder* builder, Value* condition, ASTNode* node, uint64_t location);
 
-    VariantDefinition* ASTBuildermake_variant_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* node, uint64_t location);
+    VariantDefinition* ASTBuildermake_variant_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* node, uint64_t location);
 
     VariantMember* ASTBuildermake_variant_member(ASTBuilder* builder, chem::string_view* name, VariantDefinition* parent_node, uint64_t location);
 

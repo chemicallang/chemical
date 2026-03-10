@@ -42,7 +42,7 @@ Position Parser::end_pos(Token* token) {
     return { token->position.line, (unsigned int) (token->position.character + token->value.size()) };
 }
 
-LocatedIdentifier Parser::loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos) {
+chem::string_view Parser::loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos) {
     const auto value_size = value.size();
     auto allocated = allocator.allocate_str(value.data(), value_size);
     return { chem::string_view(allocated, value_size) };

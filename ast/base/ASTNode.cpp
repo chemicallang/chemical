@@ -68,7 +68,7 @@
 #include "compiler/Codegen.h"
 #endif
 
-LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier) {
+chem::string_view ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier) {
     const auto size = identifier.size();
     const auto ptr = allocator.allocate_str(identifier.data(), size);
 #ifdef LSP_BUILD
@@ -80,7 +80,7 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 
 VarInitStatement* default_build_lab_build_flag(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent) {
     const auto buildFlagValue = new (allocator.allocate<BoolValue>()) BoolValue(true, builder.getBoolType(), ZERO_LOC);
-    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_should_build")), {builder.getBoolType(), ZERO_LOC}, buildFlagValue, parent, ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, chem::string_view("__chx_should_build"), {builder.getBoolType(), ZERO_LOC}, buildFlagValue, parent, ZERO_LOC);
     return stmt;
 }
 
@@ -91,7 +91,7 @@ VarInitStatement* default_build_lab_cached_ptr(ASTAllocator& allocator, TypeBuil
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
 
     const auto buildPtrValue = new (allocator.allocate<NullValue>()) NullValue(builder.getNullPtrType(), ZERO_LOC);
-    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_cached_build")), {ptrModNmdType, ZERO_LOC}, buildPtrValue, parent, ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, chem::string_view("__chx_cached_build"), {ptrModNmdType, ZERO_LOC}, buildPtrValue, parent, ZERO_LOC);
     return stmt;
 }
 
@@ -102,7 +102,7 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
 
     // creating the function decl
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), {ptrModNmdType, ZERO_LOC}, false, parent, ZERO_LOC, AccessSpecifier::Public, false);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(chem::string_view("get"), {ptrModNmdType, ZERO_LOC}, false, parent, ZERO_LOC, AccessSpecifier::Public, false);
 
     // the type for the *BuildContext
     const auto buildContextNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("BuildContext"));
@@ -288,40 +288,42 @@ MembersContainer* ASTNode::get_master_members_container() {
     }
 }
 
-LocatedIdentifier* ASTNode::get_located_id() {
+chem::string_view ASTNode::get_node_identifier() {
     switch(kind()) {
-        case ASTNodeKind::VarInitStmt:
-            return as_var_init_unsafe()->get_located_id();
-        case ASTNodeKind::TypealiasStmt:
-            return as_typealias_unsafe()->get_located_id();
-        case ASTNodeKind::EnumDecl:
-            return as_enum_decl_unsafe()->get_located_id();
-        case ASTNodeKind::FunctionDecl:
-            return as_function_unsafe()->get_located_id();
-        case ASTNodeKind::GenericFuncDecl:
-            return as_gen_func_decl_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::InterfaceDecl:
-            return as_interface_def_unsafe()->get_located_id();
-        case ASTNodeKind::GenericTypeDecl:
-            return as_gen_type_decl_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::GenericStructDecl:
-            return as_gen_struct_def_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::GenericUnionDecl:
-            return as_gen_union_decl_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::GenericInterfaceDecl:
-            return as_gen_interface_decl_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::GenericVariantDecl:
-            return as_gen_variant_decl_unsafe()->master_impl->get_located_id();
-        case ASTNodeKind::StructDecl:
-            return as_struct_def_unsafe()->get_located_id();
-        case ASTNodeKind::UnionDecl:
-            return as_union_def_unsafe()->get_located_id();
-        case ASTNodeKind::VariantDecl:
-            return as_variant_def_unsafe()->get_located_id();
-        case ASTNodeKind::NamespaceDecl:
-            return as_namespace_unsafe()->get_located_id();
-        default:
-            return nullptr;
+    case ASTNodeKind::VarInitStmt:
+        return as_var_init_unsafe()->name_view();
+    case ASTNodeKind::TypealiasStmt:
+        return as_typealias_unsafe()->name_view();
+    case ASTNodeKind::EnumDecl:
+        return as_enum_decl_unsafe()->name_view();
+    case ASTNodeKind::FunctionDecl:
+        return as_function_unsafe()->name_view();
+    case ASTNodeKind::GenericFuncDecl:
+        return as_gen_func_decl_unsafe()->master_impl->name_view();
+    case ASTNodeKind::InterfaceDecl:
+        return as_interface_def_unsafe()->name_view();
+    case ASTNodeKind::GenericTypeDecl:
+        return as_gen_type_decl_unsafe()->master_impl->name_view();
+    case ASTNodeKind::GenericStructDecl:
+        return as_gen_struct_def_unsafe()->master_impl->name_view();
+    case ASTNodeKind::GenericUnionDecl:
+        return as_gen_union_decl_unsafe()->master_impl->name_view();
+    case ASTNodeKind::GenericInterfaceDecl:
+        return as_gen_interface_decl_unsafe()->master_impl->name_view();
+    case ASTNodeKind::GenericVariantDecl:
+        return as_gen_variant_decl_unsafe()->master_impl->name_view();
+    case ASTNodeKind::StructDecl:
+        return as_struct_def_unsafe()->name_view();
+    case ASTNodeKind::UnionDecl:
+        return as_union_def_unsafe()->name_view();
+    case ASTNodeKind::VariantDecl:
+        return as_variant_def_unsafe()->name_view();
+    case ASTNodeKind::NamespaceDecl:
+        return as_namespace_unsafe()->name_view();
+    case ASTNodeKind::EmbeddedNode:
+        return as_embedded_node_unsafe()->name_view();
+    default:
+        return nullptr;
     }
 }
 
@@ -368,6 +370,8 @@ LoopASTNode* ASTNode::get_loop_node_above() {
 AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
     const auto k = kind();
     switch(k) {
+        case ASTNodeKind::EmbeddedNode:
+            return as_embedded_node_unsafe()->specifier();
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->specifier();
         case ASTNodeKind::GenericTypeDecl:

@@ -58,13 +58,13 @@ struct ErrorMsg {
     unsigned offset; // byte offset into source
 };
 
-LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, const llvm::StringRef& identifier) {
+chem::string_view ZERO_LOC_ID(BatchAllocator& allocator, const llvm::StringRef& identifier) {
     const auto size = identifier.size();
     const auto ptr = allocator.allocate_str(identifier.data(), size);
 #ifdef LSP_BUILD
-    return { chem::string_view(ptr, size), ZERO_LOC };
+    return chem::string_view(ptr, size);
 #else
-    return { chem::string_view(ptr, size) };
+    return chem::string_view(ptr, size);
 #endif
 }
 
@@ -395,8 +395,8 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     if(type_kind == BaseTypeKind::Linked) {
         const auto linked_type = (LinkedType*) type;
         const auto linked = linked_type->linked;
-        const auto node_id = linked->get_located_id();
-        if(node_id && node_id->identifier == to_view(decl->getName())) {
+        const auto node_id = linked->get_node_identifier();
+        if(!node_id.empty() && node_id == to_view(decl->getName())) {
             return nullptr;
         }
 

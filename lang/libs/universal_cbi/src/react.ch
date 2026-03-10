@@ -20,7 +20,6 @@ public func universal_symResNode(resolver : *mut SymbolResolver, node : *mut Emb
 
 @no_mangle
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
     if (comp.signature.access == AccessSpecifier.Public) {
         resolver.declare_exported(comp.signature.name, node);
@@ -497,7 +496,7 @@ public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, value : 
     const loc = value.getEncodedLocation();
 
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, value.getParent(), loc);
+    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, value.getParent(), loc);
 
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
@@ -717,7 +716,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("universal"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
+        const node = builder.make_embedded_node(spec, std::string_view("universal"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
 
         const controller = parser.getAnnotationController();
 

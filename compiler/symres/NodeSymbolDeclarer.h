@@ -9,7 +9,6 @@
 #include "ast/structures/Namespace.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/GenericFuncDecl.h"
-#include "ast/base/LocatedIdentifier.h"
 #include "ast/structures/If.h"
 #include "SymbolResolver.h"
 
@@ -137,11 +136,9 @@ void declare_node(NodeSymbolDeclarer<T>& declarer, ASTNode* node, AccessSpecifie
             break;
         }
         default:{
-            const auto id = node->get_located_id();
-            if(id) {
-                if(node->specifier() >= at_least_spec) {
-                    declarer.casted_declare(id->identifier, node);
-                }
+            const auto id = node->get_node_identifier();
+            if(!id.empty() && node->specifier() >= at_least_spec) {
+                declarer.casted_declare(id, node);
             }
             break;
         }
@@ -198,11 +195,9 @@ void declare_node_no_ns(NodeSymbolDeclarer<T>& declarer, ASTNode* node, AccessSp
             break;
         }
         default:{
-            const auto id = node->get_located_id();
-            if(id) {
-                if(node->specifier() >= at_least_spec) {
-                    declarer.casted_declare(id->identifier, node);
-                }
+            const auto id = node->get_node_identifier();
+            if(!id.empty() && node->specifier() >= at_least_spec) {
+                declarer.casted_declare(id, node);
             }
             break;
         }

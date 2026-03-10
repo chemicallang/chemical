@@ -38,21 +38,13 @@ public:
      * constructor
      */
     VariantDefinition(
-        LocatedIdentifier identifier,
+        chem::string_view identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl, parent_node, location),
         ref_type(this), attrs(specifier, false, false, false, false) {
     }
-
-    /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &identifier;
-    }
-
 
     AccessSpecifier specifier() {
         return attrs.specifier;

@@ -24,8 +24,6 @@ class ExtensionFunction;
 
 class FunctionDeclaration;
 
-struct LocatedIdentifier;
-
 class Value;
 
 class ASTNode;
@@ -203,10 +201,6 @@ public:
     }
 
     virtual LambdaFunction* as_lambda() {
-        return nullptr;
-    }
-
-    virtual LocatedIdentifier* get_func_name_id() {
         return nullptr;
     }
 

@@ -116,20 +116,13 @@ public:
      * constructor
      */
     InterfaceDefinition(
-            LocatedIdentifier identifier,
+            chem::string_view identifier,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, parent_node, location),
         attrs(specifier, false, false, false), linked_type(this) {
 
-    }
-
-    /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &identifier;
     }
 
     [[nodiscard]]

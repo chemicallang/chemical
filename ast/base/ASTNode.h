@@ -18,8 +18,6 @@ class ChildResolver;
 
 class SymbolResolver;
 
-struct LocatedIdentifier;
-
 class FunctionParam;
 
 class BaseType;
@@ -318,10 +316,9 @@ public:
     std::string representation();
 
     /**
-     * get located id
-     * @return id if the node declares a identifier otherwise null pointer
+     * this gets the node identifier, best try
      */
-    LocatedIdentifier* get_located_id();
+    chem::string_view get_node_identifier();
 
     /**
      * return if this is a variables container

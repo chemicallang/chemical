@@ -120,7 +120,7 @@ public func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) :
     // No brace needed, parse until #endmd
     var root = parseMdRoot(parser, builder);
     const nodes_arr : []*mut ASTNode = []
-    const node = builder.make_embedded_node(std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+    const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
     // Consume #endmd token
     if(parser.getToken().type == MdTokenType.EndMd as int) {
         parser.increment();

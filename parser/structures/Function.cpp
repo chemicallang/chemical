@@ -260,7 +260,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     // because generics don't check whether the type being used with it is valid in another module
     auto& allocator = global_allocator;
 
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(""), { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("", { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
     annotate(decl);
 
     if(is_comptime) {

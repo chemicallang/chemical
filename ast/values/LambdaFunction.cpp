@@ -75,7 +75,7 @@ void LambdaFunction::generate_captured_destructor(Codegen &gen) {
     PointerType ptrType(&voidType, true);
     FunctionParam functionParam("self", TypeLoc(&ptrType, ZERO_LOC), 0, nullptr, false, nullptr, ZERO_LOC);
     FunctionDeclaration funcDecl(
-            LocatedIdentifier("lambda_cap_destr"),
+            chem::string_view("lambda_cap_destr"),
             TypeLoc(&voidType, ZERO_LOC),
             false,
             nullptr,

@@ -12,9 +12,18 @@ typedef BaseType*(EmbeddedNodeKnownTypeFunc)(EmbeddedNode* value);
 
 typedef ASTNode*(EmbeddedNodeChildResolutionFunc)(EmbeddedNode* value, chem::string_view* name);
 
+struct EmbeddedNodeAttributes {
+
+    AccessSpecifier specifier = AccessSpecifier::Internal;
+
+};
 
 class EmbeddedNode : public ASTNode {
 public:
+    /**
+     * the attributes for this embedded node
+     */
+    EmbeddedNodeAttributes attrs;
 
     /**
      * the name corresponds to the hook, for example #html has 'html' as name
@@ -55,6 +64,7 @@ public:
      * constructor
      */
     EmbeddedNode(
+            AccessSpecifier specifier,
             chem::string_view name,
             void* data_ptr,
             EmbeddedNodeKnownTypeFunc* known_type_fn,
@@ -62,9 +72,23 @@ public:
             ASTNode* parent_node,
             SourceLocation loc
     ) : ASTNode(ASTNodeKind::EmbeddedNode, parent_node, loc), name(name), data_ptr(data_ptr),
-        known_type_fn(known_type_fn), child_res_fn(child_res_fn)
+        known_type_fn(known_type_fn), child_res_fn(child_res_fn), attrs(specifier)
     {
 
+    }
+
+    /**
+     * get the name view of this node
+     */
+    inline chem::string_view name_view() {
+        return name;
+    }
+
+    /**
+     * get the access specifier for this embedded node
+     */
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
     }
 
     /**
@@ -72,6 +96,7 @@ public:
      */
     EmbeddedNode* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<EmbeddedNode>()) EmbeddedNode(
+                specifier(),
                 name,
                 data_ptr,
                 known_type_fn,

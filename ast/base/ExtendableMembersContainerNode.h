@@ -13,13 +13,13 @@ public:
     /**
      * the identifier of the container
      */
-    LocatedIdentifier identifier;
+    chem::string_view identifier;
 
     /**
      * constructor
      */
     ExtendableMembersContainerNode(
-        LocatedIdentifier identifier,
+        chem::string_view identifier,
         ASTNodeKind k,
         ASTNode* parent,
         SourceLocation location
@@ -31,7 +31,7 @@ public:
      * get the name of the container
      */
     inline const chem::string_view& name_view() const {
-        return identifier.identifier;
+        return identifier;
     }
 
     /**

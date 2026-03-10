@@ -304,6 +304,14 @@ public struct UShortValue : Value {}
 
 public struct ValueNode : ASTNode {}
 
+public struct ModuleScope : ASTNode {
+
+    func getScopeName(&self) : std::string_view
+
+    func getModuleName(&self) : std::string_view
+
+}
+
 public struct VariableIdentifier : ChainValue {}
 
 public struct EmbeddedValue : Value {

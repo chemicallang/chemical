@@ -38,6 +38,7 @@
 #include "ast/statements/Import.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/ModuleScope.h"
 #include "ast/statements/Return.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LiteralType.h"
@@ -87,6 +88,7 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericTypeParameter.h"
+#include "ast/structures/ModuleScope.h"
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
 #ifdef LSP_BUILD
@@ -690,6 +692,14 @@ void StructValueadd_value(StructValue* structValue, chem::string_view* name, Val
 void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable) {
     // TODO remove this method
     variantCase->identifier_list.emplace_back(variable);
+}
+
+void ModuleScopegetScopeName(chem::string_view* name, ModuleScope* scope) {
+    *name = scope->scope_name;
+}
+
+void ModuleScopegetModuleName(chem::string_view* name, ModuleScope* scope) {
+    *name = scope->module_name;
 }
 
 std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {

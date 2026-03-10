@@ -12,3 +12,14 @@ public struct ASTNode {
     func getAccessSpecifier(&self) : AccessSpecifier
 
 }
+
+public func (node : &mut ASTNode) getModScope() : *mut ModuleScope {
+    const p = node.getParent();
+    if(p == null) {
+        return null;
+    } else if(p.getKind() == ASTNodeKind.ModuleScope) {
+        return p as *mut ModuleScope
+    } else {
+        return p.getModScope()
+    }
+}

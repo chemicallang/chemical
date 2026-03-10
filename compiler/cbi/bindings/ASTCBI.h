@@ -118,6 +118,10 @@ extern "C" {
 
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);
 
+    void ModuleScopegetScopeName(chem::string_view* name, ModuleScope* scope);
+
+    void ModuleScopegetModuleName(chem::string_view* name, ModuleScope* scope);
+
     std::vector<ASTNode*>* ScopegetNodes(Scope* scope);
 
     std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop);

@@ -1023,9 +1023,9 @@ void write_as_it_is(RepresentationVisitor& visitor, LinkedType* type) {
 
 void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
     if(type->linked) {
-        const auto id = type->linked->get_located_id();
-        if (id) {
-            write(id->identifier);
+        const auto id = type->linked->get_node_identifier();
+        if (!id.empty()) {
+            write(id);
         } else if (type->linked->kind() == ASTNodeKind::GenericTypeParam) {
             write(type->linked->as_generic_type_param_unsafe()->identifier);
         } else {

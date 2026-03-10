@@ -6,7 +6,6 @@
 
 #include "ast/base/BaseType.h"
 #include "ast/base/ASTNode.h"
-#include "ast/base/LocatedIdentifier.h"
 #include "std/chem_string_view.h"
 
 struct LinkedTypeAttrs {
@@ -63,12 +62,7 @@ public:
     }
 
     inline chem::string_view linked_name() {
-        const auto id = linked->get_located_id();
-        if(id) {
-            return id->identifier;
-        } else {
-            return "";
-        }
+        return linked->get_node_identifier();
     }
 
 #ifdef COMPILER_BUILD

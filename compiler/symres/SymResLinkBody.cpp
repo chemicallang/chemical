@@ -544,8 +544,8 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
             linker.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
-        const auto& name_view = linked->get_located_id()->identifier;
-        linker.declare_or_shadow(name_view, linked);
+        const auto& name_view = linked->get_node_identifier();
+        if (!name_view.empty()) linker.declare_or_shadow(name_view, linked);
     }
 }
 

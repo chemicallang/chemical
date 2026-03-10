@@ -14,7 +14,6 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/types/LinkedType.h"
 #include "ast/base/TypeLoc.h"
-#include "ast/base/LocatedIdentifier.h"
 #include <unordered_map>
 
 struct EnumDeclAttributes {
@@ -29,7 +28,7 @@ class EnumDeclaration : public ASTNode {
 public:
 
     EnumDeclAttributes attrs;
-    LocatedIdentifier located_id; ///< The name of the enum.
+    chem::string_view located_id; ///< The name of the enum.
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
     TypeLoc underlying_type;
 
@@ -52,7 +51,7 @@ public:
      * @param values The values of the enum.
      */
     EnumDeclaration(
-            LocatedIdentifier name_id,
+            chem::string_view name_id,
             TypeLoc underlying_type,
             ASTNode* parent_node,
             SourceLocation location,
@@ -62,15 +61,8 @@ public:
 
     }
 
-    /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &located_id;
-    }
-
     inline const chem::string_view& name_view() {
-        return located_id.identifier;
+        return located_id;
     }
 
     inline bool deprecated() {

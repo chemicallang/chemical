@@ -21,7 +21,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
 #include "ast/base/Annotation.h"
-#include "ast/base/LocatedIdentifier.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "ast/base/TypeLoc.h"
 #include "compiler/cbi/model/CBIFunctionType.h"
@@ -417,12 +416,12 @@ public:
     /**
      * get a located identifier
      */
-    LocatedIdentifier loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos);
+    chem::string_view loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos);
 
     /**
      * get a located identifier
      */
-    inline LocatedIdentifier loc_id(BatchAllocator& allocator, Token* token) {
+    inline chem::string_view loc_id(BatchAllocator& allocator, Token* token) {
         return loc_id(allocator, token->value, token->position);
     }
 

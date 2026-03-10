@@ -5,7 +5,7 @@
 #include "ast/base/AnnotableNode.h"
 #include <unordered_map>
 #include "ast/base/AccessSpecifier.h"
-#include "ast/base/LocatedIdentifier.h"
+#include "std/chem_string_view.h"
 
 struct NamespaceDeclAttributes {
 
@@ -39,7 +39,7 @@ struct NamespaceDeclAttributes {
 class Namespace : public ASTNode {
 public:
 
-    LocatedIdentifier identifier;
+    chem::string_view identifier;
     std::vector<ASTNode*> nodes;
     std::unordered_map<chem::string_view, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
@@ -49,7 +49,7 @@ public:
      * constructor
      */
     Namespace(
-        LocatedIdentifier identifier,
+        chem::string_view identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
@@ -60,24 +60,17 @@ public:
     }
 
     /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &identifier;
-    }
-
-    /**
      * get the name of the node
      */
     inline chem::string_view name() {
-        return identifier.identifier;
+        return identifier;
     }
 
     /**
      * get the name of the node
      */
     inline chem::string_view name_view() {
-        return identifier.identifier;
+        return identifier;
     }
 
     inline AccessSpecifier specifier() {

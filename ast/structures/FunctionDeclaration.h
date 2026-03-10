@@ -18,7 +18,6 @@
 #include "ast/base/AnnotableNode.h"
 #include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
-#include "ast/base/LocatedIdentifier.h"
 #include <unordered_map>
 
 class ExtendableMembersContainerNode;
@@ -178,7 +177,7 @@ public:
     /**
      * the name of the function is stored inside
      */
-    LocatedIdentifier identifier;
+    chem::string_view identifier;
     /**
      * optional body
      */
@@ -204,7 +203,7 @@ public:
      * constructor
      */
     FunctionDeclaration(
-            LocatedIdentifier identifier,
+            chem::string_view identifier,
             TypeLoc returnType,
             bool isVariadic,
             ASTNode* parent_node,
@@ -215,13 +214,6 @@ public:
     )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, signature_resolved),
          identifier(identifier),
          attrs(specifier, false, false, 0, InlineStrategy::None, false, false, false, false, false, false, false, false, false, false, false, false, false) {
-    }
-
-    /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &identifier;
     }
 
     inline AccessSpecifier specifier() {
@@ -249,20 +241,20 @@ public:
         attrs.specifier = specifier;
     }
 
-    inline void set_identifier(LocatedIdentifier id) {
-        identifier = std::move(id);
+    inline void set_identifier(chem::string_view id) {
+        identifier = id;
     }
 
     inline const chem::string_view& name_view() {
-        return identifier.identifier;
+        return identifier;
     }
 
     inline const chem::string_view name_view() const {
-        return identifier.identifier;
+        return identifier;
     }
 
     inline const std::string name_str() const {
-        return identifier.identifier.str();
+        return identifier.str();
     }
 
     inline uint8_t multi_func_index() {
@@ -468,10 +460,6 @@ public:
 
     inline bool is_linkage_public() {
         return ::is_linkage_public(specifier());
-    }
-
-    LocatedIdentifier* get_func_name_id() final {
-        return &identifier;
     }
 
     void make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def);

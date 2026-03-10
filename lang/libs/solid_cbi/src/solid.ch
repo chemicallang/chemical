@@ -100,7 +100,7 @@ public func solid_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut
     const loc = value.getEncodedLocation();
 
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, value.getParent(), loc);
+    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, value.getParent(), loc);
 
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
@@ -286,7 +286,7 @@ public func solid_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("solid"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
+        const node = builder.make_embedded_node(spec, std::string_view("solid"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
 
         const controller = parser.getAnnotationController();
 

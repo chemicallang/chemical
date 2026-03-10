@@ -90,14 +90,6 @@
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/structures/ModuleScope.h"
 
-constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
-#ifdef LSP_BUILD
-    return { identifier };
-#else
-    return { identifier };
-#endif
-}
-
 void* ASTBuilderallocate_with_cleanup(ASTBuilder* builder, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
     return (void*) builder->allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
 }
@@ -128,8 +120,9 @@ void take_chemical_nodes(std::vector<ASTNode*>& nodes, NodeSpan* chemical_nodes)
     }
 }
 
-EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location) {
+EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, int spec, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location) {
     const auto node = new (builder->allocate<EmbeddedNode>()) EmbeddedNode(
+            static_cast<AccessSpecifier>(spec),
             *name,
             data_ptr,
             (EmbeddedNodeKnownTypeFunc*) known_type_fn,
@@ -471,8 +464,8 @@ ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, F
 //    return new (builder->allocate<ThrowStatement>()) ThrowStatement(value, decl, parent_node, location);
 //}
 
-TypealiasStatement* ASTBuildermake_typealias_stmt(ASTBuilder* builder, chem::string_view* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), { actual_type, id_loc }, parent_node, location, specifier);
+TypealiasStatement* ASTBuildermake_typealias_stmt(ASTBuilder* builder, chem::string_view* identifier, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<TypealiasStatement>()) TypealiasStatement(*identifier, { actual_type, location }, parent_node, location, specifier);
 }
 
 UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {
@@ -480,7 +473,7 @@ UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, AS
 }
 
 VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, LOC_ID(*identifier, id_loc), {type, location}, value, parent_node, location, specifier);
+    return new (builder->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, *identifier, {type, location}, value, parent_node, location, specifier);
 }
 
 // TODO scope needs a children method to get the nodes PtrVec
@@ -492,8 +485,8 @@ DoWhileLoop* ASTBuildermake_do_while_loop(ASTBuilder* builder, Value* condition,
     return new (builder->allocate<DoWhileLoop>()) DoWhileLoop(condition, parent_node, location);
 }
 
-EnumDeclaration* ASTBuildermake_enum_decl(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), {underlying_type, location}, parent_node, location, specifier);
+EnumDeclaration* ASTBuildermake_enum_decl(ASTBuilder* builder, chem::string_view* name, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<EnumDeclaration>()) EnumDeclaration(*name, {underlying_type, location}, parent_node, location, specifier);
 }
 
 EnumMember* ASTBuildermake_enum_member(ASTBuilder* builder, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {
@@ -504,8 +497,8 @@ ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initiali
     return new (builder->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, parent_node, location);
 }
 
-FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {returnType, location}, isVariadic, parent_node, location);
+FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(*name, {returnType, location}, isVariadic, parent_node, location);
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* decl, uint64_t location) {
@@ -525,24 +518,24 @@ ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface
     return new (builder->allocate<ImplDefinition>()) ImplDefinition({interface_type, location}, {struct_type, location}, parent_node, location);
 }
 
-InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
+InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<InterfaceDefinition>()) InterfaceDefinition(*name, parent_node, location, specifier);
 }
 
-Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<Namespace>()) Namespace(LOC_ID(*name, name_location), parent_node, location, specifier);
+Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<Namespace>()) Namespace(*name, parent_node, location, specifier);
 }
 
-StructDefinition* ASTBuildermake_struct_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<StructDefinition>()) StructDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
+StructDefinition* ASTBuildermake_struct_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<StructDefinition>()) StructDefinition(*name, parent_node, location, specifier);
 }
 
 StructMember* ASTBuildermake_struct_member(ASTBuilder* builder, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<StructMember>()) StructMember(*name, {type, location}, defValue, parent_node, location, isConst, specifier);
 }
 
-UnionDef* ASTBuildermake_union_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<UnionDef>()) UnionDef(LOC_ID(*name, name_location), parent_node, location, specifier);
+UnionDef* ASTBuildermake_union_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<UnionDef>()) UnionDef(*name, parent_node, location, specifier);
 }
 
 UnsafeBlock* ASTBuildermake_unsafe_block(ASTBuilder* builder, ASTNode* node, uint64_t location) {
@@ -553,8 +546,8 @@ WhileLoop* ASTBuildermake_while_loop(ASTBuilder* builder, Value* condition, ASTN
     return new (builder->allocate<WhileLoop>()) WhileLoop(condition, node, location);
 }
 
-VariantDefinition* ASTBuildermake_variant_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
-    return new (builder->allocate<VariantDefinition>()) VariantDefinition(LOC_ID(*name, name_location), node, location, specifier);
+VariantDefinition* ASTBuildermake_variant_def(ASTBuilder* builder, chem::string_view* name, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
+    return new (builder->allocate<VariantDefinition>()) VariantDefinition(*name, node, location, specifier);
 }
 
 VariantMember* ASTBuildermake_variant_member(ASTBuilder* builder, chem::string_view* name, VariantDefinition* parent_node, uint64_t location) {
@@ -911,15 +904,15 @@ void FunctionDeclarationgetName(chem::string_view* view, FunctionDeclaration* de
 }
 
 void StructDefinitiongetName(chem::string_view* view, StructDefinition* def) {
-    *view = def->identifier.identifier;
+    *view = def->identifier;
 }
 
 void InterfaceDefinitiongetName(chem::string_view* view, InterfaceDefinition* def) {
-    *view = def->identifier.identifier;
+    *view = def->identifier;
 }
 
 void NamespacegetName(chem::string_view* view, Namespace* ns) {
-    *view = ns->identifier.identifier;
+    *view = ns->identifier;
 }
 
 void EnumDeclarationgetName(chem::string_view* view, EnumDeclaration* decl) {
@@ -931,11 +924,11 @@ void EnumMembergetName(chem::string_view* view, EnumMember* member) {
 }
 
 void VariantDefinitiongetName(chem::string_view* view, VariantDefinition* def) {
-    *view = def->identifier.identifier;
+    *view = def->identifier;
 }
 
 void UnionDefinitiongetName(chem::string_view* view, UnionDef* def) {
-    *view = def->identifier.identifier;
+    *view = def->identifier;
 }
 
 void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclaration* decl) {

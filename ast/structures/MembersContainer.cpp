@@ -883,7 +883,7 @@ void MembersContainer::insert_functions(const std::initializer_list<FunctionDecl
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name, ASTNode* returnNode) {
     const auto loc = encoded_location();
     const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(returnNode);
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), {returnType, loc}, false, this, loc);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("make", {returnType, loc}, false, this, loc);
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_is_generated_fn(true);
     decl->set_constructor_fn(true);
@@ -894,7 +894,7 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator, ASTNode* returnNode, bool is_extern) {
     const auto loc = encoded_location();
     const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), returnType, false, this, loc);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("delete", returnType, false, this, loc);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(returnNode), true), loc }, 0, nullptr, true, decl, loc));
     decl->set_is_generated_fn(true);
     decl->set_delete_fn(true);

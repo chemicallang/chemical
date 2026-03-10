@@ -4,7 +4,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/structures/FileScope.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
-#include "ast/base/LocatedIdentifier.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
@@ -94,10 +93,7 @@ void NameMangler::mangle_no_parent(BufferedWriter& stream, ASTNode* node) {
             break;
         }
         default:
-            const auto id = node->get_located_id();
-            if(id) {
-                stream << id->identifier;
-            }
+            stream << node->get_node_identifier();
             break;
     }
 }
@@ -163,8 +159,8 @@ inline void mangle_till_file(NameMangler& mangler, BufferedWriter& stream, ASTNo
         case ASTNodeKind::FunctionDecl:
             return;
         default:{
-            const auto id = node->get_located_id();
-            if(id) {
+            const auto id = node->get_node_identifier();
+            if(!id.empty()) {
                 mangle_till_file(mangler, stream, node->parent());
                 mangler.mangle_no_parent(stream, node);
             }
@@ -174,8 +170,8 @@ inline void mangle_till_file(NameMangler& mangler, BufferedWriter& stream, ASTNo
 }
 
 bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
-    const auto id = node->get_located_id();
-    if(id) {
+    const auto id = node->get_node_identifier();
+    if(!id.empty()) {
         write_mangle_parent_of(*this, stream, node);
         mangle_no_parent(stream, node);
         return true;

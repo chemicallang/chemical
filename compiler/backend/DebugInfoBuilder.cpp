@@ -131,8 +131,8 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, ASTNode* node, bool replaceable) 
             return replaceable ? di.create_replaceable_type(def) : di.create_struct_type(def);
         }
         default:
-            const auto locId = node->get_located_id();
-            return di.builder->createUnspecifiedType(locId ? to_ref(locId->identifier) : "UNSPECIFIED");
+            const auto locId = node->get_node_identifier();
+            return di.builder->createUnspecifiedType(!locId.empty() ? to_ref(locId) : "UNSPECIFIED");
     }
 }
 

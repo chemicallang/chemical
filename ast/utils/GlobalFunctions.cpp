@@ -160,7 +160,7 @@ namespace InterpretVector {
     };
 
     InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
-            ZERO_LOC_ID("constructor"),
+            "constructor",
             {&node->selfType, ZERO_LOC},
             false,
             node,
@@ -181,7 +181,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorSize::InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            ZERO_LOC_ID("size"),
+            "size",
             {cache.getIntType(), ZERO_LOC},
             false,
             node,
@@ -199,7 +199,7 @@ namespace InterpretVector {
 
     // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            ZERO_LOC_ID("get"),
+            "get",
             {&returnLinkedType, ZERO_LOC},
             false,
             node,
@@ -226,7 +226,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorPush::InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            ZERO_LOC_ID("push"),
+            "push",
             {cache.getVoidType(), ZERO_LOC},
             false,
             node,
@@ -246,7 +246,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorRemove::InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            ZERO_LOC_ID("remove"),
+            "remove",
             {cache.getVoidType(), ZERO_LOC},
             false,
             node,
@@ -273,7 +273,7 @@ namespace InterpretVector {
     InterpretVectorNode::InterpretVectorNode(
             TypeBuilder& cache,
             ASTNode* parent_node
-    ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ): StructDefinition("vector", parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(cache, this), getFn(cache, this), pushFn(cache, this), removeFn(cache, this),
         typeParam("T", nullptr, this, 0, ZERO_LOC),
         selfType(this), selfReference(&selfType, ZERO_LOC)
@@ -291,7 +291,7 @@ public:
     std::ostringstream ostring;
     RepresentationVisitor visitor;
 
-    explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node, LocatedIdentifier identifier) : FunctionDeclaration(
+    explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node, chem::string_view identifier) : FunctionDeclaration(
             identifier,
             {cache.getVoidType(), ZERO_LOC},
             true,
@@ -306,7 +306,7 @@ public:
         params = { &param };
     };
 
-    inline explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, ZERO_LOC_ID("print")) {
+    inline explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, "print") {
 
     }
 
@@ -328,7 +328,7 @@ public:
 
 class InterpretPrintLn : public InterpretPrint {
 public:
-    inline explicit InterpretPrintLn(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, ZERO_LOC_ID("println")) {
+    inline explicit InterpretPrintLn(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, "println") {
 
     }
     Value* call(InterpretScope *call_scope, ASTAllocator &allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -345,7 +345,7 @@ public:
     RepresentationVisitor visitor;
 
     explicit InterpretToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("to_string"),
+            "to_string",
             {cache.getStringType(), ZERO_LOC},
             true,
             parent_node,
@@ -401,7 +401,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretSize(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("size"),
+            "size",
             {cache.getU64Type(), ZERO_LOC},
             false,
             parent_node,
@@ -524,7 +524,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretWrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("wrap"),
+            "wrap",
             {cache.getRuntimeAnyType(), ZERO_LOC},
             true,
             parent_node,
@@ -553,7 +553,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretUnwrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("unwrap"),
+            "unwrap",
             {cache.getAnyType(), ZERO_LOC},
             true,
             parent_node,
@@ -581,7 +581,7 @@ public:
     PointerType ptrType;
 
     explicit InterpretRetStructPtr(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("return_struct"),
+            "return_struct",
             {&ptrType, ZERO_LOC},
             true,
             parent_node,
@@ -603,7 +603,7 @@ class InterpretCompilerVersion : public FunctionDeclaration {
 public:
 
     explicit InterpretCompilerVersion(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("version"),
+            "version",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -624,7 +624,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretSupports(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("supports"),
+            "supports",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -663,7 +663,7 @@ class InterpretIsTcc : public FunctionDeclaration {
 public:
 
     explicit InterpretIsTcc(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("is_tcc_based"),
+            "is_tcc_based",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -686,7 +686,7 @@ class InterpretIsClang : public FunctionDeclaration {
 public:
 
     explicit InterpretIsClang(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("is_clang"),
+            "is_clang",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -709,7 +709,7 @@ class InterpretGetRawLocation : public FunctionDeclaration {
 public:
 
     explicit InterpretGetRawLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_raw_location"),
+            "get_raw_location",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -729,7 +729,7 @@ class InterpretGetRawLocOf : public FunctionDeclaration {
 public:
 
     explicit InterpretGetRawLocOf(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_raw_loc_of"),
+            "get_raw_loc_of",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -757,7 +757,7 @@ public:
     U64Type uIntType;
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
-            ZERO_LOC_ID("get_line_no"),
+            "get_line_no",
             {&uIntType, ZERO_LOC},
             false,
             nullptr,
@@ -778,7 +778,7 @@ class InterpretGetCharacterNo : public FunctionDeclaration {
 public:
 
     explicit InterpretGetCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_char_no"),
+            "get_char_no",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -808,7 +808,7 @@ class InterpretGetCallerLineNo : public FunctionDeclaration {
 public:
 
     explicit InterpretGetCallerLineNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_caller_line_no"),
+            "get_caller_line_no",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -835,7 +835,7 @@ class InterpretGetCallerCharacterNo : public FunctionDeclaration {
 public:
 
     explicit InterpretGetCallerCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_caller_char_no"),
+            "get_caller_char_no",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -864,7 +864,7 @@ public:
     FunctionParam param;
 
     explicit InterpretGetCallLoc(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-            ZERO_LOC_ID("get_call_loc"),
+            "get_call_loc",
             {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
@@ -905,7 +905,7 @@ public:
     FunctionParam param;
 
     explicit InterpretDecodeLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
-        ZERO_LOC_ID("decode_location"),
+        "decode_location",
         {cache.getAnyType(), ZERO_LOC},
         false,
         parent,
@@ -972,7 +972,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretDefined(TypeBuilder& cache) : FunctionDeclaration(
-            ZERO_LOC_ID("defined"),
+            "defined",
             {cache.getBoolType(), ZERO_LOC},
             false,
             nullptr,
@@ -1003,7 +1003,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretError(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("error"),
+            "error",
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -1026,7 +1026,7 @@ public:
 class InterpretSatisfies : public FunctionDeclaration {
 public:
     explicit InterpretSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("satisfies"),
+            "satisfies",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1054,7 +1054,7 @@ public:
 class InterpretIs : public FunctionDeclaration {
 public:
     explicit InterpretIs(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("is"),
+            "is",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1086,7 +1086,7 @@ public:
     FunctionParam valueParam2;
 
     explicit InterpretValueSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("value_satisfies"),
+            "value_satisfies",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1127,7 +1127,7 @@ public:
     FunctionParam valueParam2;
 
     explicit InterpretIsSameType(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("is_same_type"),
+            "is_same_type",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1170,7 +1170,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("isNull"),
+            "isNull",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1197,7 +1197,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNotNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("isNotNull"),
+            "isNotNull",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -1222,7 +1222,7 @@ public:
     FunctionParam sourceValueParam;
 
     explicit InterpretMemCopy(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("copy"),
+            "copy",
             {cache.getNullPtrType(), ZERO_LOC},
             false,
             parent_node,
@@ -1251,7 +1251,7 @@ class InterpretGetTarget : public FunctionDeclaration {
 public:
 
     explicit InterpretGetTarget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_target"),
+            "get_target",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1275,7 +1275,7 @@ public:
     FunctionParam locParam;
 
     explicit InterpretGetLocFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_loc_file_path"),
+            "get_loc_file_path",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1307,7 +1307,7 @@ class InterpretGetBuildDir : public FunctionDeclaration {
 public:
 
     explicit InterpretGetBuildDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_build_dir"),
+            "get_build_dir",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1331,7 +1331,7 @@ class InterpretGetCurrentFilePath : public FunctionDeclaration {
 public:
 
     explicit InterpretGetCurrentFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_current_file_path"),
+            "get_current_file_path",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1353,7 +1353,7 @@ class InterpretGetModuleScope : public FunctionDeclaration {
 public:
 
     explicit InterpretGetModuleScope(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_module_scope"),
+            "get_module_scope",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1380,7 +1380,7 @@ class InterpretGetModuleName : public FunctionDeclaration {
 public:
 
     explicit InterpretGetModuleName(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_module_name"),
+            "get_module_name",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1407,7 +1407,7 @@ class InterpretGetModuleDir : public FunctionDeclaration {
 public:
 
     explicit InterpretGetModuleDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_module_dir"),
+            "get_module_dir",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -1441,7 +1441,7 @@ public:
     FunctionParam nameParam;
 
     explicit InterpretGetChildFunction(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_child_fn"),
+            "get_child_fn",
             {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
@@ -1491,7 +1491,7 @@ public:
     RepresentationVisitor visitor;
 
     explicit InterpretTypeToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("type_to_string"),
+            "type_to_string",
             {cache.getStringType(), ZERO_LOC},
             true,
             parent_node,
@@ -1526,7 +1526,7 @@ public:
     FunctionParam param;
 
     explicit InterpretForget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("forget"),
+            "forget",
             {cache.getVoidType(), ZERO_LOC},
             true,
             parent_node,
@@ -1556,7 +1556,7 @@ public:
     FunctionParam nameParam;
 
     explicit InterpretGetSingleMarkedDeclPointer(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-        ZERO_LOC_ID("get_single_marked_decl_ptr"),
+        "get_single_marked_decl_ptr",
         {cache.getAnyType(), ZERO_LOC},
         false,
         parent_node,
@@ -1617,7 +1617,7 @@ public:
     // }
 
     explicit InterpretGetTests(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_tests"),
+            "get_tests",
             {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
@@ -1782,7 +1782,7 @@ public:
         TypeBuilder& cache,
         ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("get_lambda_fn_ptr"),
+            "get_lambda_fn_ptr",
             {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
@@ -1816,7 +1816,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("get_lambda_cap_ptr"),
+            "get_lambda_cap_ptr",
             {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
@@ -1851,7 +1851,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("get_lambda_cap_destructor"),
+            "get_lambda_cap_destructor",
             {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
@@ -1885,7 +1885,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("sizeof_lambda_captured"),
+            "sizeof_lambda_captured",
             {cache.getU64Type(), ZERO_LOC},
             true,
             parent_node,
@@ -1920,7 +1920,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("alignof_lambda_captured"),
+            "alignof_lambda_captured",
             {cache.getU64Type(), ZERO_LOC},
             false,
             parent_node,
@@ -1952,7 +1952,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("destruct_call_site"),
+            "destruct_call_site",
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -1977,7 +1977,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("get_backend_name"),
+            "get_backend_name",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -2007,7 +2007,7 @@ public:
         TypeBuilder& cache,
         ASTNode* parent_node
     ) : FunctionDeclaration(
-        ZERO_LOC_ID("emit"),
+        "emit",
         {cache.getBoolType(), ZERO_LOC},
         false,
         parent_node,
@@ -2043,7 +2043,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("raw"),
+            "raw",
             {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
@@ -2078,7 +2078,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("multiple"),
+            "multiple",
             {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
@@ -2112,7 +2112,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("get_libs_dir"),
+            "get_libs_dir",
             {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
@@ -2314,7 +2314,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("expr_str_block_value"),
+            "expr_str_block_value",
             {cache.getI32Type(), ZERO_LOC},
             true,
             parent_node,
@@ -2504,7 +2504,7 @@ public:
 
         // initializing the struct using a var init
         const auto init = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
-            false, false, ZERO_LOC_ID("__chx_sev"), nullptr, first, parent_node, loc
+            false, false, "__chx_sev", nullptr, first, parent_node, loc
         );
         blkValue->scope.nodes.emplace_back(init);
 
@@ -2567,7 +2567,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_fence"),
+            "atomic_fence",
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -2610,7 +2610,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_load"),
+            "atomic_load",
             {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
@@ -2655,7 +2655,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_store"),
+            "atomic_store",
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -2705,7 +2705,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_cmp_exch_weak"),
+            "atomic_cmp_exch_weak",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -2759,7 +2759,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_cmp_exch_strong"),
+            "atomic_cmp_exch_strong",
             {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
@@ -2812,7 +2812,7 @@ public:
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("atomic_op"),
+            "atomic_op",
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -2868,7 +2868,7 @@ public:
     explicit LLVMNamespace(
             TypeBuilder& cache,
             ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("llvm"), parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace("llvm", parent_node, ZERO_LOC, AccessSpecifier::Public),
         atomicFence(cache, this), atomicLoad(cache, this), atomicStore(cache, this),
         atomicCmpExchWeak(cache, this), atomicCmpExchStrong(cache, this), atomicOperation(cache, this)
     {
@@ -2888,7 +2888,7 @@ public:
     explicit MemNamespace(
             TypeBuilder& cache,
             ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(cache, this) {
+    ) : Namespace("mem", parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(cache, this) {
         set_compiler_decl(true);
         nodes = { &memCopyFn };
     }
@@ -2904,7 +2904,7 @@ public:
     explicit PtrNamespace(
             TypeBuilder& cache,
             ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace("ptr", parent_node, ZERO_LOC, AccessSpecifier::Public),
         isNullFn(cache, this), isNotNullFn(cache, this)
     {
         set_compiler_decl(true);
@@ -2981,7 +2981,7 @@ public:
 
     IntrinsicsNamespace(
             TypeBuilder& cache
-    ) : Namespace(ZERO_LOC_ID("intrinsics"), nullptr, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace("intrinsics", nullptr, ZERO_LOC, AccessSpecifier::Public),
         llvmNamespace(cache, this), memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
@@ -3015,7 +3015,7 @@ class DefDecl : public StructDefinition {
 public:
 
     DefDecl() : StructDefinition(
-            ZERO_LOC_ID("Def"), nullptr, ZERO_LOC, AccessSpecifier::Public
+            "Def", nullptr, ZERO_LOC, AccessSpecifier::Public
     ) {
         set_compiler_decl(true);
     }
@@ -3040,7 +3040,7 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), TypeLoc(defValue.getRefType(), ZERO_LOC), &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, false, "def", TypeLoc(defValue.getRefType(), ZERO_LOC), &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.set_compiler_decl(true);
     }
 

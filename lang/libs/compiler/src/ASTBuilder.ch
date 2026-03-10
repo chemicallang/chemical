@@ -601,6 +601,7 @@ public struct ASTBuilder {
     func createType(&self, value : *mut Value) : *mut BaseType
 
     func make_embedded_node(&self,
+        spec : AccessSpecifier,
         name : &std::string_view,
         data_ptr : *void,
         known_type_fn : EmbeddedNodeKnownTypeFunc,
@@ -798,7 +799,7 @@ public struct ASTBuilder {
 
     //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 
-    func make_typealias_stmt(&self, identifier : &string_view, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut TypealiasStatement
+    func make_typealias_stmt(&self, identifier : &string_view, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut TypealiasStatement
 
     func make_using_stmt(&self, chain : *AccessChain, parent_node : *ASTNode, is_namespace : bool, location : ubigint) : *mut UsingStmt
 
@@ -808,13 +809,13 @@ public struct ASTBuilder {
 
     func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut DoWhileLoop
 
-    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, underlying_type : *mut IntNType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut EnumDeclaration
+    func make_enum_decl(&self, name : &string_view, underlying_type : *mut IntNType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut EnumDeclaration
 
     func make_enum_member(&self, name : &string_view, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *mut EnumMember
 
     func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *mut ForLoop
 
-    func make_function(&self, name : &string_view, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
+    func make_function(&self, name : &string_view, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
 
     func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, parent_node : *mut ASTNode, location : ubigint) : *mut FunctionParam
 
@@ -824,21 +825,21 @@ public struct ASTBuilder {
 
     func make_impl_def(&self, interface_type : *BaseType, struct_type : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut ImplDefinition
 
-    func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut InterfaceDefinition
+    func make_interface_def(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut InterfaceDefinition
 
-    func make_namespace(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut Namespace
+    func make_namespace(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut Namespace
 
-    func make_struct_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructDefinition
+    func make_struct_def(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructDefinition
 
     func make_struct_member(&self, name : &string_view, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructMember
 
-    func make_union_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut UnionDef
+    func make_union_def(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut UnionDef
 
     func make_unsafe_block(&self, node : *ASTNode, location : ubigint) : *mut UnsafeBlock
 
     func make_while_loop(&self, condition : *Value, node : *ASTNode, location : ubigint) : *mut WhileLoop
 
-    func make_variant_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *mut VariantDefinition
+    func make_variant_def(&self, name : &string_view, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *mut VariantDefinition
 
     func make_variant_member(&self, name : &string_view, parent_node : *VariantDefinition, location : ubigint) : *mut VariantMember
 

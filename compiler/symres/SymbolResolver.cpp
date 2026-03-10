@@ -389,9 +389,9 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
     for(const auto node : nodes) {
         const auto requested_specifier = node->specifier();
         const auto specifier = restrict_public ? requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier :  requested_specifier;
-        auto id = node->get_located_id();
-        if(id && specifier != AccessSpecifier::Private) {
-            declare_node(id->identifier, node, specifier, true);
+        auto id = node->get_node_identifier();
+        if(!id.empty() && specifier != AccessSpecifier::Private) {
+            declare_node(id, node, specifier, true);
         }
     }
     print_diagnostics(chem::string_view(path), "SymRes");

@@ -5,7 +5,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 #include "ast/base/TypeLoc.h"
-#include "ast/base/LocatedIdentifier.h"
 
 struct TypealiasDeclAttributes {
 
@@ -43,7 +42,7 @@ public:
 
     TypealiasDeclAttributes attrs;
     // before equal
-    LocatedIdentifier located_id;
+    chem::string_view located_id;
     // after equal
     TypeLoc actual_type;
     /**
@@ -63,7 +62,7 @@ public:
      * constructor
      */
     TypealiasStatement(
-            LocatedIdentifier identifier,
+            chem::string_view identifier,
             TypeLoc actual_type,
             ASTNode* parent_node,
             SourceLocation location,
@@ -95,13 +94,6 @@ public:
         );
         stmt->attrs = attrs;
         return stmt;
-    }
-
-    /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &located_id;
     }
 
     inline bool is_comptime() {
@@ -137,7 +129,7 @@ public:
     }
 
     inline const chem::string_view& name_view() const {
-        return located_id.identifier;
+        return located_id;
     }
 
     inline std::string name_str() const {

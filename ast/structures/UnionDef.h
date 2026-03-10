@@ -33,7 +33,7 @@ public:
 #endif
 
     UnionDef(
-        LocatedIdentifier identifier,
+        chem::string_view identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
@@ -41,18 +41,6 @@ public:
         attrs(specifier, false, false, false, false), linked_type(this) {
 
     }
-
-    /**
-    * get the name of node
-    */
-    inline LocatedIdentifier* get_located_id() {
-        return &identifier;
-    }
-
-
-//    std::string union_name_str() final {
-//        return name_view().str();
-//    }
 
     inline AccessSpecifier specifier() {
         return attrs.specifier;

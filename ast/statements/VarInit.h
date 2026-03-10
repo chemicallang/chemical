@@ -13,7 +13,6 @@
 #include "ast/base/TypeLoc.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/GlobalInterpretScope.h"
-#include "ast/base/LocatedIdentifier.h"
 #include "std/except.h"
 
 struct VarInitAttributes {
@@ -98,7 +97,7 @@ public:
 
     // TODO do not store the decl_scope here
     InterpretScope *decl_scope = nullptr;
-    LocatedIdentifier located_id; ///< The identifier being initialized.
+    chem::string_view located_id; ///< The identifier being initialized.
     TypeLoc type;
     Value* value; ///< The value being assigned to the identifier.
 
@@ -117,7 +116,7 @@ public:
     constexpr VarInitStatement(
             bool is_const,
             bool is_reference,
-            LocatedIdentifier identifier,
+            chem::string_view identifier,
             TypeLoc type,
             Value* value,
             ASTNode* parent_node,
@@ -144,24 +143,17 @@ public:
     }
 
     /**
-     * get the name of node
-     */
-    inline LocatedIdentifier* get_located_id() {
-        return &located_id;
-    }
-
-    /**
      * get the name view
      */
     inline const chem::string_view& name_view() {
-        return located_id.identifier;
+        return located_id;
     }
 
     /**
      * get the name / identifier of the declaration
      */
     inline const chem::string_view& id_view() {
-        return located_id.identifier;
+        return located_id;
     }
 
     /**

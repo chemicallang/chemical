@@ -8,7 +8,7 @@ public func preact_element_in_html_works(env : &mut TestEnv) {
     #html {
         <Greeting />
     }
-    string_equals(env, page.toStringHtmlOnly(), "<script>$_pm(document.currentScript, Greeting, {});</script>");
+    string_equals(env, page.toStringHtmlOnly(), "<script>$_pm(document.currentScript, preact_lib_test_Greeting, {});</script>");
 }
 
 @test
@@ -17,7 +17,7 @@ public func preact_element_in_html_works_head_js(env : &mut TestEnv) {
     #html {
         <Greeting />
     }
-    view_equals(env, page.getHeadJs(), "function Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }");
 }
 
 #preact EmptyElement(props) {
@@ -28,7 +28,7 @@ public func preact_element_in_html_works_head_js(env : &mut TestEnv) {
 public func preact_empty_element(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <EmptyElement /> }
-    view_equals(env, page.getHeadJs(), "function EmptyElement(props) { return $_p.h(\"span\", {}); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_EmptyElement(props) { return $_p.h(\"span\", {}); }");
 }
 
 #preact ElementChild(props) {
@@ -39,7 +39,7 @@ public func preact_empty_element(env : &mut TestEnv) {
 public func preact_element_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ElementChild /> }
-    view_equals(env, page.getHeadJs(), "function ElementChild(props) { return $_p.h(\"div\", {}, $_p.h(\"span\", {})); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ElementChild(props) { return $_p.h(\"div\", {}, $_p.h(\"span\", {})); }");
 }
 
 #preact PropsTest(props) {
@@ -50,7 +50,7 @@ public func preact_element_child(env : &mut TestEnv) {
 public func preact_props_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PropsTest /> }
-    view_equals(env, page.getHeadJs(), "function PropsTest(props) { return $_p.h(\"div\", {\"id\": \"myId\", \"className\": \"foo\"}); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_PropsTest(props) { return $_p.h(\"div\", {\"id\": \"myId\", \"className\": \"foo\"}); }");
 }
 
 #preact NumericProp(props) {
@@ -61,7 +61,7 @@ public func preact_props_test(env : &mut TestEnv) {
 public func preact_numeric_prop(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <NumericProp /> }
-    view_equals(env, page.getHeadJs(), "function NumericProp(props) { return $_p.h(\"div\", {\"tabIndex\": 1}); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_NumericProp(props) { return $_p.h(\"div\", {\"tabIndex\": 1}); }");
 }
 
 #preact SpreadProps(props) {
@@ -72,7 +72,7 @@ public func preact_numeric_prop(env : &mut TestEnv) {
 public func preact_spread_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SpreadProps /> }
-    view_equals(env, page.getHeadJs(), "function SpreadProps(props) { return $_p.h(\"div\", {...props}); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_SpreadProps(props) { return $_p.h(\"div\", {...props}); }");
 }
 
 #preact FragmentTest(props) {
@@ -83,7 +83,7 @@ public func preact_spread_props(env : &mut TestEnv) {
 public func preact_fragment_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <FragmentTest /> }
-    view_equals(env, page.getHeadJs(), "function FragmentTest(props) { return $_p.h($_p.Fragment, null, $_p.h(\"span\", {})); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_FragmentTest(props) { return $_p.h($_p.Fragment, null, $_p.h(\"span\", {})); }");
 }
 
 #preact ComponentChild(props) {
@@ -94,7 +94,7 @@ public func preact_fragment_test(env : &mut TestEnv) {
 public func preact_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
-    view_equals(env, page.getHeadJs(), "function Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }function ComponentChild(props) { return $_p.h(\"div\", {}, $_p.h(Greeting, {})); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }function preact_lib_test_ComponentChild(props) { return $_p.h(\"div\", {}, $_p.h(preact_lib_test_Greeting, {})); }");
 }
 
 #preact ComponentProps(props) {
@@ -105,7 +105,7 @@ public func preact_component_child(env : &mut TestEnv) {
 public func preact_component_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentProps /> }
-    view_equals(env, page.getHeadJs(), "function Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }function ComponentProps(props) { return $_p.h(Greeting, {\"text\": \"hi\"}); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }function preact_lib_test_ComponentProps(props) { return $_p.h(preact_lib_test_Greeting, {\"text\": \"hi\"}); }");
 }
 
 /**
@@ -129,7 +129,7 @@ public func preact_ternary_test(env : &mut TestEnv) {
 public func preact_map_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MapTest /> }
-    view_equals(env, page.getHeadJs(), "function MapTest(items) { return $_p.h(\"ul\", {}, items.map((i) => $_p.h(\"li\", {}, i))); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_MapTest(items) { return $_p.h(\"ul\", {}, items.map((i) => $_p.h(\"li\", {}, i))); }");
 }
 
 #preact EventTest(props) {
@@ -140,5 +140,5 @@ public func preact_map_test(env : &mut TestEnv) {
 public func preact_event_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <EventTest /> }
-    view_equals(env, page.getHeadJs(), "function EventTest(props) { return $_p.h(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_EventTest(props) { return $_p.h(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }");
 }

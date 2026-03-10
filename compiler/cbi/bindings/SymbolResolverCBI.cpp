@@ -14,3 +14,7 @@ ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name) {
 void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
     resolver->declare(*name, node);
 }
+
+void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
+    resolver->declare_exported(*name, node);
+}

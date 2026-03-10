@@ -7,4 +7,6 @@ public interface SymbolResolver : ASTDiagnoser {
 
     func declare(&self, view : &std::string_view, node : *mut ASTNode)
 
+    func declare_exported(&self, view : &std::string_view, node : *mut ASTNode)
+
 }

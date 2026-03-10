@@ -378,6 +378,7 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetAnnotationController", (void*) SymbolResolvergetAnnotationController},
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
+        {"compiler_SymbolResolverdeclare_exported", (void*) SymbolResolverdeclare_exported},
 };
 
 const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {

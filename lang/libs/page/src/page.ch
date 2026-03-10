@@ -301,12 +301,80 @@ public struct HtmlPage {
 
     func defaultUniversalSetup(&mut self) {
         pageHead.append_view(std::string_view("""<script>
+            // Utility to traverse DOM children by path
             window.$_ut = window.$_ut || ((e, x) => {
                 for(let i = 0; i < x.length; i++) e = e.children[x[i]];
                 return e;
             });
-            window.$_ur={Fragment:{},createElement:(t,p,...c)=>({t,p:p||{},c})};window.$_urn=(v)=>{if(v==null||v===false||v===true)return document.createTextNode('');if(v.nodeType)return v;if(v.subscribe&&v.value!==undefined){const n=document.createTextNode(''+v.value);v.subscribe((x)=>n.textContent=''+x);return n;}if(Array.isArray(v)){const f=document.createDocumentFragment();for(let i=0;i<v.length;i++)f.appendChild(window.$_urn(v[i]));return f;}if(typeof v==='string'||typeof v==='number')return document.createTextNode(''+v);if(v&&v.t!==undefined){if(v.t===window.$_ur.Fragment){const f=document.createDocumentFragment();for(let i=0;i<v.c.length;i++)f.appendChild(window.$_urn(v.c[i]));return f;}if(typeof v.t==='function'){return window.$_urn(v.t({...v.p,children:v.c}));}const e=document.createElement(v.t);const props=v.p||{};for(const k in props){const pv=props[k];if(k.startsWith('on')&&typeof pv==='function'){e.addEventListener(k.substring(2).toLowerCase(),pv);}else if(pv&&pv.subscribe&&pv.value!==undefined){if(k in e)e[k]=pv.value;else e.setAttribute(k,''+pv.value);pv.subscribe((x)=>{if(k in e)e[k]=x;else e.setAttribute(k,''+x);});}else if(k==='className'){e.setAttribute('class',pv);}else if(pv!==false&&pv!=null){if(k in e)e[k]=pv;else e.setAttribute(k,''+pv);}}for(let i=0;i<v.c.length;i++)e.appendChild(window.$_urn(v.c[i]));return e;}return document.createTextNode(''+v);};
-            window.$_us=(v)=>{let val=v;const subs=[];return{get value(){return val;},set value(n){val=n;for(let i=0;i<subs.length;i++)subs[i](val);},subscribe(fn){subs.push(fn);}};};
+
+            // Universal Runtime: createElement and Node creation
+            window.$_ur = {
+                Fragment: {},
+                createElement: (t, p, ...c) => ({ t, p: p || {}, c })
+            };
+
+            window.$_urn = (v) => {
+                if(v == null || v === false || v === true) return document.createTextNode('');
+                if(v.nodeType) return v;
+                if(v.subscribe && v.value !== undefined) {
+                    const n = document.createTextNode('' + v.value);
+                    v.subscribe((x) => n.textContent = '' + x);
+                    return n;
+                }
+                if(Array.isArray(v)) {
+                    const f = document.createDocumentFragment();
+                    for(let i = 0; i < v.length; i++) f.appendChild(window.$_urn(v[i]));
+                    return f;
+                }
+                if(typeof v === 'string' || typeof v === 'number') return document.createTextNode('' + v);
+                if(v && v.t !== undefined) {
+                    if(v.t === window.$_ur.Fragment) {
+                        const f = document.createDocumentFragment();
+                        for(let i = 0; i < v.c.length; i++) f.appendChild(window.$_urn(v.c[i]));
+                        return f;
+                    }
+                    if(typeof v.t === 'function') {
+                        return window.$_urn(v.t({ ...v.p, children: v.c }));
+                    }
+                    const e = document.createElement(v.t);
+                    const props = v.p || {};
+                    for(const k in props) {
+                        const pv = props[k];
+                        if(k.startsWith('on') && typeof pv === 'function') {
+                            e.addEventListener(k.substring(2).toLowerCase(), pv);
+                        } else if(pv && pv.subscribe && pv.value !== undefined) {
+                            if(k in e) e[k] = pv.value;
+                            else e.setAttribute(k, '' + pv.value);
+                            pv.subscribe((x) => {
+                                if(k in e) e[k] = x;
+                                else e.setAttribute(k, '' + x);
+                            });
+                        } else if(k === 'className') {
+                            e.setAttribute('class', pv);
+                        } else if(pv !== false && pv != null) {
+                            if(k in e) e[k] = pv;
+                            else e.setAttribute(k, '' + pv);
+                        }
+                    }
+                    for(let i = 0; i < v.c.length; i++) e.appendChild(window.$_urn(v.c[i]));
+                    return e;
+                }
+                return document.createTextNode('' + v);
+            };
+
+            // State management
+            window.$_us = (v) => {
+                let val = v;
+                const subs = [];
+                return {
+                    get value() { return val; },
+                    set value(n) {
+                        val = n;
+                        for(let i = 0; i < subs.length; i++) subs[i](val);
+                    },
+                    subscribe(fn) { subs.push(fn); }
+                };
+            };
             window.$_r=window.$_r||window.$_ur;
             window.$_u = window.$_u || {};
             window.$_uq = window.$_uq || [];
@@ -643,7 +711,7 @@ public struct HtmlPage {
             const jsFile = std::string(path.data(), path.size())
             jsFile.append('/');
             jsFile.append_view(name)
-            jsFile.append_view(".css")
+            jsFile.append_view(".js")
             fs::write_text_file(jsFile.data(), pageJs.data() as *u8, pageJs.size())
         }
 

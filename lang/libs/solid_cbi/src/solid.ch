@@ -173,7 +173,7 @@ public func solid_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
 
     // Convert to Solid component function.
     converter.str.append_view("function ")
-    converter.str.append_view(root.signature.name)
+    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
     converter.str.append_view(") ")

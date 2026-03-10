@@ -22,4 +22,6 @@ extern "C" {
 
     void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
+    void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
+
 }

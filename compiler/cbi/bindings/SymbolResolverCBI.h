@@ -6,6 +6,8 @@
 
 class ASTNode;
 
+class Value;
+
 class SymbolResolver;
 
 class SymResLinkBody;
@@ -47,8 +49,12 @@ extern "C" {
 
     SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor);
 
-    void SymResLinkBodyvisitNode(SymResLinkBody* visitor, EmbeddedNode* node);
+    void SymResLinkBodyvisitNode(SymResLinkBody* visitor, ASTNode* node);
 
-    void SymResLinkBodyvisitValue(SymResLinkBody* visitor, EmbeddedValue* value);
+    void SymResLinkBodyvisitValue(SymResLinkBody* visitor, Value* value);
+
+    void SymResLinkBodyvisitEmbeddedNode(SymResLinkBody* visitor, EmbeddedNode* node);
+
+    void SymResLinkBodyvisitEmbeddedValue(SymResLinkBody* visitor, EmbeddedValue* value);
 
 }

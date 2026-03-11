@@ -1,6 +1,6 @@
 @no_mangle
 public func js_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    visitor.visitNode(node)
+    visitor.visitEmbeddedNode(node)
     const resolver = visitor.getSymbolResolver();
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsRoot;
@@ -34,7 +34,7 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 
 @no_mangle
 public func js_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
-    visitor.visitValue(value)
+    visitor.visitEmbeddedValue(value)
     const resolver = visitor.getSymbolResolver();
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut JsRoot;

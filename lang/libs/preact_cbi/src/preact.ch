@@ -36,7 +36,7 @@ public func preact_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
     resolver.declare_or_shadow(std::string_view("page"), param)
 
     // visit the body
-    visitor.visitNode(node)
+    visitor.visitEmbeddedNode(node)
 
     // resolve components
     sym_res_components(root.components, resolver)

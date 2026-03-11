@@ -1630,17 +1630,9 @@ void SymResLinkBody::VisitPlacementNewNode(PlacementNewNode* node) {
 }
 
 void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
-    for(const auto child_node : node->chemical_nodes) {
-        linker.scope_start();
-        visit(child_node);
-        linker.scope_end();
-    }
-    for(const auto child_val : node->chemical_values) {
-        visit(child_val);
-    }
     auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResNode);
     if(found) {
-        ((EmbeddedNodeSymbolResolveFunc) found)(&linker, node);
+        ((EmbeddedNodeSymbolResolveFunc) found)(this, node);
     } else {
         linker.error(node) << "couldn't find symbol resolve method for embedded node with name '" << node->name << "'";
     }
@@ -2450,17 +2442,9 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
-    for(const auto child_node : value->chemical_nodes) {
-        linker.scope_start();
-        visit(child_node);
-        linker.scope_end();
-    }
-    for(const auto child_val : value->chemical_values) {
-        visit(child_val);
-    }
     auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResValue);
     if(found) {
-        ((EmbeddedValueSymbolResolveFunc) found)(&linker, value);
+        ((EmbeddedValueSymbolResolveFunc) found)(this, value);
     } else {
         linker.error(value) << "couldn't find symbol resolve method for embedded value with name '" << value->name << "'";
     }

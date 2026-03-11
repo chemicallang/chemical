@@ -8,6 +8,11 @@ class ASTNode;
 
 class SymbolResolver;
 
+class SymResLinkBody;
+
+class EmbeddedNode;
+class EmbeddedValue;
+
 class AnnotationController;
 
 namespace chem {
@@ -23,5 +28,13 @@ extern "C" {
     void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
     void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
+
+    // SymResLinkBody
+
+    SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor);
+
+    void SymResLinkBodyvisitNode(SymResLinkBody* visitor, EmbeddedNode* node);
+
+    void SymResLinkBodyvisitValue(SymResLinkBody* visitor, EmbeddedValue* value);
 
 }

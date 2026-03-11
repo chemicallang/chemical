@@ -6,7 +6,9 @@ public func preact_symResSigNode(resolver : *mut SymbolResolver, node : *mut Emb
 }
 
 @no_mangle
-public func preact_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public func preact_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+    visitor.visitNode(node)
+    const resolver = visitor.getSymbolResolver();
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsComponentDecl;
 
@@ -22,11 +24,7 @@ public func preact_symResNode(resolver : *mut SymbolResolver, node : *mut Embedd
 public func preact_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    if (comp.signature.access == AccessSpecifier.Public) {
-        resolver.declare_exported(comp.signature.name, node);
-    } else {
-        resolver.declare(comp.signature.name, node);
-    }
+    resolver.declare(comp.signature.name, node);
 }
 
 func fix_support_page_node(
@@ -199,6 +197,13 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
     return null;
 }
 
+public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
+    const comp = node.getDataPtr() as *mut JsComponentDecl;
+    if (comp.signature.access == AccessSpecifier.Public) {
+        fn(obj, comp.signature.name, node)
+    }
+}
+
 @no_mangle
 public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
     
@@ -286,7 +291,7 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(spec, std::string_view("preact"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
+        const node = builder.make_top_level_embedded_node(spec, std::string_view("preact"), comp, node_known_type_func, node_child_res_func, cross_mod_sym_decl_proxy_fn, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), parser.getParentNode(), location);
 
         const controller = parser.getAnnotationController();
 

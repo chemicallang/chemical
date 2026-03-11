@@ -135,6 +135,22 @@ EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, int spec, chem::
     return node;
 }
 
+TopLevelEmbeddedNode* ASTBuildermake_top_level_embedded_node(ASTBuilder* builder, int spec, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, void* cmsdpf, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location) {
+        const auto node = new (builder->allocate<TopLevelEmbeddedNode>()) TopLevelEmbeddedNode(
+            static_cast<AccessSpecifier>(spec),
+            *name,
+            data_ptr,
+            (EmbeddedNodeKnownTypeFunc*) known_type_fn,
+            (EmbeddedNodeChildResolutionFunc*) child_res_fn,
+            (CrossModuleSymbolDeclarerProxyFn*) cmsdpf,
+            parent_node,
+            location
+    );
+    take_chemical_nodes(node->chemical_nodes, chemical_nodes);
+    take_chemical_values(node->chemical_values, chemical_values);
+    return node;
+}
+
 EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, NodeSpan* chemical_nodes, ValueSpan* chemical_values, uint64_t location) {
     const auto value = new (builder->allocate<EmbeddedValue>()) EmbeddedValue(
             *name,

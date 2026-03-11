@@ -1,5 +1,7 @@
 @no_mangle
-public func css_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public func css_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+    visitor.visitNode(node)
+    const resolver = visitor.getSymbolResolver();
     const loc = node.getEncodedLocation()
     const root = node.getDataPtr() as *mut CSSOM;
     sym_res_root(root, resolver, loc)
@@ -31,7 +33,9 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 }
 
 @no_mangle
-public func css_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
+public func css_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
+    visitor.visitValue(value)
+    const resolver = visitor.getSymbolResolver();
     const loc = value.getEncodedLocation();
     const root = value.getDataPtr() as *mut CSSOM;
     sym_res_root(root, resolver, loc)

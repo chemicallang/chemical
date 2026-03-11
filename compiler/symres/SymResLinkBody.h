@@ -53,7 +53,7 @@ public:
         VisitNodeNoNullCheck(node);
     }
     inline void visit(BaseDefMember* node) {
-        VisitNodeNoNullCheck(node);
+        VisitNodeNoNullCheck((ASTNode*) node);
     }
     inline void visit(Value* value) {
         expected_type = nullptr;

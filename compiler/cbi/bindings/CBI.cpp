@@ -151,6 +151,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
         { "compiler_ASTBuilderstore_cleanup", (void*) ASTBuilderstore_cleanup },
         { "compiler_ASTBuildermake_embedded_node", (void*) ASTBuildermake_embedded_node },
+        { "compiler_ASTBuildermake_top_level_embedded_node", (void*) ASTBuildermake_top_level_embedded_node },
         { "compiler_ASTBuildermake_embedded_value", (void*) ASTBuildermake_embedded_value },
         { "compiler_ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
         { "compiler_ASTBuildermake_array_type", (void*) ASTBuildermake_array_type },
@@ -379,6 +380,9 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
         {"compiler_SymbolResolverdeclare_exported", (void*) SymbolResolverdeclare_exported},
+        {"compiler_SymResLinkBodygetSymbolResolver", (void*) SymResLinkBodygetSymbolResolver},
+        {"compiler_SymResLinkBodyvisitNode", (void*) SymResLinkBodyvisitNode},
+        {"compiler_SymResLinkBodyvisitValue", (void*) SymResLinkBodyvisitValue},
 };
 
 const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {

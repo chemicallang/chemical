@@ -589,6 +589,10 @@ public type EmbeddedNodeKnownTypeFunc = (value : *EmbeddedNode) => *BaseType
 
 public type EmbeddedNodeChildResolutionFunc = (value : *EmbeddedNode, name : &std::string_view) => *ASTNode
 
+public type CrossModuleSymbolDeclarerFn = (obj : *mut void, name : &std::string_view, node : *mut ASTNode) => void
+
+public type CrossModuleSymbolDeclarerProxyFn = (obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) => void
+
 @compiler.interface
 public struct ASTBuilder {
 
@@ -606,6 +610,19 @@ public struct ASTBuilder {
         data_ptr : *void,
         known_type_fn : EmbeddedNodeKnownTypeFunc,
         child_res_fn : EmbeddedNodeChildResolutionFunc,
+        chemical_nodes : std::span<*mut ASTNode>,
+        chemical_values : std::span<*mut Value>,
+        parent_node : *ASTNode,
+        location : ubigint
+    ) : *mut EmbeddedNode
+
+    func make_top_level_embedded_node(&self,
+        spec : AccessSpecifier,
+        name : &std::string_view,
+        data_ptr : *void,
+        known_type_fn : EmbeddedNodeKnownTypeFunc,
+        child_res_fn : EmbeddedNodeChildResolutionFunc,
+        cmsdpf : CrossModuleSymbolDeclarerProxyFn,
         chemical_nodes : std::span<*mut ASTNode>,
         chemical_values : std::span<*mut Value>,
         parent_node : *ASTNode,

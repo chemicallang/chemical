@@ -573,6 +573,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.JSXExpressionContainer => {
              var container = node as *mut JsJSXExpressionContainer
+             if(converter.target == BufferType.HTML) {
+                 if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
+                     converter.convertChemicalValue(container.expression as *mut JsChemicalValue);
+                 }
+                 return;
+             }
              if(container.expression != null) {
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
@@ -683,7 +689,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // This should go to pageJs.
         const oldTarget = converter.target;
         converter.target = BufferType.JavaScript;
-        converter.str.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
+        converter.str.append_view("window.$_uq.push(['");
         converter.str.append_view(idStr.to_view());
         converter.str.append_view("','");
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);

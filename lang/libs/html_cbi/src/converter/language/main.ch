@@ -629,7 +629,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         converter.emit_append_html_from_str(*s);
 
         var js = std::string();
-        js.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
+        js.append_view("window.$_uq.push(['");
         js.append_view(idStr.view());
         js.append_view("','");
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);
@@ -732,7 +732,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         converter.emit_append_html_from_str(converter.str);
 
         var js = std::string();
-        js.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
+        js.append_view("window.$_uq.push(['");
         js.append_view(idStr.view());
         js.append_view("','");
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);

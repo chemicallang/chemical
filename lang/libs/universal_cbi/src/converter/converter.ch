@@ -753,19 +753,27 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     
     converter.str.append_view(", {");
     
+    var attrCount = 0u;
     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-        if(i > 0) converter.str.append_view(", ");
         const attrNode = element.opening.attributes.get(i)
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
+            if(attrCount > 0) converter.str.append_view(", ");
             const attr = attrNode as *mut JsJSXAttribute
+            var name = attr.name;
+            if(name.equals("class")) name = std::string_view("className");
+            else if(name.equals("for")) name = std::string_view("htmlFor");
+
             converter.str.append_view("\"");
-            converter.str.append_view(attr.name);
+            converter.str.append_view(name);
             converter.str.append_view("\": ");
             converter.convertAttributeValue(attr);
+            attrCount++;
         } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+            if(attrCount > 0) converter.str.append_view(", ");
             const spread = attrNode as *mut JsJSXSpreadAttribute
             converter.str.append_view("...");
             converter.convertJsNode(spread.argument);
+            attrCount++;
         }
     }
     

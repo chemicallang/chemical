@@ -121,6 +121,7 @@ void Parser::parseIfStatement(
             auto exprBlock2 = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
             if(exprBlock2.has_value()) {
                 statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
+                consumeNewLines();
             } else {
                 return;
             }

@@ -8,5 +8,5 @@ func button_styles(page : &mut HtmlPage) : *char {
 }
 
 public #universal Button(props) {
-    return <button class={${button_styles(page)}}>Hello Darkness</button>
+    return <button {...props} class={${button_styles(page)}}>Hello Darkness</button>
 }

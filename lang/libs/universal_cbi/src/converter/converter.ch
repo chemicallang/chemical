@@ -697,7 +697,30 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                 converter.str.append_view("\"");
                 converter.str.append_view(attr.name);
                 converter.str.append_view("\":");
-                converter.convertAttributeValue(attr);
+                // Emit attribute value — quote ChemicalValue/ExpressiveString if it's a string type
+                if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                    const cont = attr.value as *mut JsJSXExpressionContainer;
+                    if(cont.expression != null && cont.expression.kind == JsNodeKind.ChemicalValue) {
+                        const cv = cont.expression as *mut JsChemicalValue;
+                        const cvType = cv.value.getType();
+                        const isStr = cvType != null && (cvType.getKind() == BaseTypeKind.String ||
+                            (cvType.getKind() == BaseTypeKind.Pointer) ||
+                            (cvType.getKind() == BaseTypeKind.ExpressiveString));
+                        if(isStr) {
+                            // Emit as: "+chemValue+"
+                            converter.str.append_view("\"");
+                            converter.put_chain_in();
+                            converter.put_chemical_value_in(cv.value);
+                            converter.str.append_view("\"");
+                        } else {
+                            converter.convertAttributeValue(attr);
+                        }
+                    } else {
+                        converter.convertAttributeValue(attr);
+                    }
+                } else {
+                    converter.convertAttributeValue(attr);
+                }
                 first = false;
             }
         }
@@ -752,6 +775,24 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view(")");
 }
 
+func (converter : &mut JsConverter) make_append_attributes_spread_call(spreadExpr : *mut JsNode) {
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("append_html_attributes_spread"), support.appendHtmlAttributesSpreadFn, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    // The spread argument is a C++ value that comes from JsChemicalValue
+    // We need to wrap the JSX spread argument expression.
+    // It should be an identifier or member expression that the C++ side can call with.
+    // We emit it as a void call wrapper.
+    // For now we will do nothing — proper impl requires value from Chemical land.
+    // TODO: pass the actual spread chemical value once the JSX spread argument
+    //       resolves to a C++ struct with an append_html_attributes method.
+    converter.vec.push(call as *mut ASTNode)
+}
+
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
     if(converter.target == BufferType.HTML) {
         converter.str.append('<');
@@ -759,6 +800,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
         
         var classValueNodes = std::vector<*mut JsNode>();
         var otherAttrs = std::vector<*mut JsJSXAttribute>();
+        var hasSpreads = false;
         
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
             const attrNode = element.opening.attributes.get(i);
@@ -769,6 +811,8 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
                 } else {
                     otherAttrs.push(attr);
                 }
+            } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                hasSpreads = true;
             }
         }
         
@@ -793,7 +837,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
             converter.str.append('\"');
         }
         
-        // Emit other attributes
+        // Emit other named attributes
         for(var i : uint = 0; i < otherAttrs.size(); i++) {
             const attr = otherAttrs.get(i);
             converter.str.append(' ');
@@ -812,6 +856,40 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
                     converter.put_chain_in();
                 }
                 converter.str.append('\"');
+            }
+        }
+        
+        // Finish tag opening (no self-closing yet, need spreads first)
+        if(element.opening.selfClosing && !hasSpreads) {
+            converter.str.append_view(" />");
+            converter.put_chain_in();
+            return;
+        }
+        
+        // Flush name + known attrs so far, then handle spreads
+        if(hasSpreads) {
+            converter.put_chain_in();
+            // Emit each spread as page.append_html_attributes_spread(expr)
+            for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+                const attrNode = element.opening.attributes.get(i);
+                if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                    const spread = attrNode as *mut JsJSXSpreadAttribute;
+                    const builder = converter.builder;
+                    const location = intrinsics::get_raw_location();
+                    const support = converter.support;
+                    // Only emit spread call if the page API supports it
+                    if(support.appendHtmlAttributesSpreadFn != null &&
+                       spread.argument != null && spread.argument.kind == JsNodeKind.ChemicalValue) {
+                        const cv = spread.argument as *mut JsChemicalValue;
+                        var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+                        var fnId = builder.make_identifier(std::string_view("append_html_attributes_spread"), support.appendHtmlAttributesSpreadFn, false, location);
+                        const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, fnId ]), location);
+                        var call = builder.make_function_call_node(chain, converter.parent, location);
+                        call.get_args().push(cv.value);
+                        converter.vec.push(call as *mut ASTNode);
+                    }
+                    // else: fallback — spread not supported yet or non-Chemical value
+                }
             }
         }
         

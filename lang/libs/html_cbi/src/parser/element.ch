@@ -80,9 +80,6 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
         while(true) {
             var child = htmlParser.parseElementChild(parser, builder);
             if(child != null) {
-                if(isComponent) {
-                    parser.error("Passing children to components in #html blocks is not supported.");
-                }
                 element.children.push(child)
             } else {
                 break;

@@ -592,23 +592,24 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     // 1. Generate the hash based on component name
     const hash = signature.functionNode.getEncodedLocation()
     
-    // 2. Generate the if(page.require_component(hash)) block
-    var requireCall = converter.make_require_component_call(hash as size_t)
-    var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
-    var body = ifStmt.get_body()
-    
-    // Inside if: page.set_component_hash(hash)
-    body.push(converter.make_set_component_hash_call(hash as size_t))
-    
-    // Inside if: ComponentFunction(page)
-    var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
-    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-    var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
-    call.get_args().push(pageId as *mut Value)
-    body.push(call as *mut ASTNode)
-    
-    converter.vec.push(ifStmt as *mut ASTNode)
-    
+    // 2. For non-Universal strategies, generate the if(page.require_component(hash)) block
+    //    which includes set_component_hash + ComponentFunction(page).
+    //    For Universal, we handle ordering manually: div open -> function call -> div close.
+    if(signature.mountStrategy != MountStrategy.Universal) {
+        var requireCall = converter.make_require_component_call(hash as size_t)
+        var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
+        var body = ifStmt.get_body()
+        body.push(converter.make_set_component_hash_call(hash as size_t))
+        
+        var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+        call.get_args().push(pageId as *mut Value)
+        body.push(call as *mut ASTNode)
+        
+        converter.vec.push(ifStmt as *mut ASTNode)
+    }
+
     // 3. Generate script block
     var s = &mut converter.str
     if(signature.mountStrategy == MountStrategy.Universal && !signature.universalTemplate.empty()) {
@@ -622,6 +623,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("\" data-u-comp=\"");
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
         s.append_view("\">");
+
         s.append_view(signature.universalTemplate);
         s.append_view("</div>");
         converter.emit_append_html_from_str(*s);
@@ -646,6 +648,54 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 js.append_view("true")
             }
         }
+        // Append children as a static HTML string prop
+        if(!element.children.empty()) {
+            if(attrs > 0) js.append_view(",");
+            js.append_view("\"children\":\"");
+            // Collect static text/element children directly into childHtml
+            var childHtml = std::string();
+            for(var ci : uint = 0; ci < element.children.size(); ci++) {
+                const ch = element.children.get(ci);
+                if(ch.kind == HtmlChildKind.Text) {
+                    const txt = ch as *mut HtmlText;
+                    childHtml.append_view(txt.value);
+                } else if(ch.kind == HtmlChildKind.Element) {
+                    const el = ch as *mut HtmlElement;
+                    childHtml.append('<');
+                    childHtml.append_view(el.name);
+                    // attributes
+                    for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
+                        const attr2 = el.attributes.get(ai);
+                        childHtml.append(' ');
+                        childHtml.append_view(attr2.name);
+                        if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
+                            const tv = attr2.value as *mut TextAttributeValue;
+                            childHtml.append_view("=");
+                            childHtml.append_view(tv.text);
+                        }
+                    }
+                    if(el.isSelfClosing) {
+                        childHtml.append_view("/>");
+                    } else {
+                        childHtml.append('>');
+                        // TODO: recurse children if needed
+                        childHtml.append_view("</");
+                        childHtml.append_view(el.name);
+                        childHtml.append('>');
+                    }
+                }
+            }
+            // Escape childHtml for JS string: replace " -> \" and \ -> \\
+            var ci2 : uint = 0;
+            while(ci2 < childHtml.size()) {
+                const c = childHtml.data()[ci2];
+                if(c == '\"') { js.append_view("\\\""); }
+                else if(c == '\\') { js.append_view("\\\\"); }
+                else { js.append(c); }
+                ci2++;
+            }
+            js.append('\"');
+        }
         js.append_view("}]);if(window.$_uf)window.$_uf();");
         converter.emit_append_js_from_str(js);
         return;
@@ -657,12 +707,29 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         idStr.append_view("u");
         idStr.append_uinteger(element.loc);
 
+        // Emit: <div id="..."> 
         s.append_view("<div id=\"");
         s.append_view(idStr.view());
         s.append_view("\" data-u-comp=\"");
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
-        s.append_view("\"></div>");
+        s.append_view("\">");
         converter.emit_append_html_from_str(*s);
+        
+        // Call ComponentFunction(page) to write the component's HTML and register its JS
+        var reqCall = converter.make_require_component_call(hash as size_t)
+        var ifStmt2 = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
+        var ifBody = ifStmt2.get_body()
+        ifBody.push(converter.make_set_component_hash_call(hash as size_t))
+        var compBase = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+        var compPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var compCall = builder.make_function_call_node(compBase as *mut ChainValue, converter.parent, location)
+        compCall.get_args().push(compPageId as *mut Value)
+        ifBody.push(compCall as *mut ASTNode)
+        converter.vec.push(ifStmt2 as *mut ASTNode)
+        
+        // Emit: </div>
+        converter.str.append_view("</div>");
+        converter.emit_append_html_from_str(converter.str);
 
         var js = std::string();
         js.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
@@ -683,6 +750,56 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             } else {
                 js.append_view("true")
             }
+        }
+        // Append children as a static HTML string prop
+        if(!element.children.empty()) {
+            if(attrs > 0) js.append_view(",");
+            js.append_view("\"children\":\"");
+            for(var ci : uint = 0; ci < element.children.size(); ci++) {
+                const ch = element.children.get(ci);
+                if(ch.kind == HtmlChildKind.Text) {
+                    const txt = ch as *mut HtmlText;
+                    var ci2 : uint = 0;
+                    while(ci2 < txt.value.size()) {
+                        const c = txt.value.data()[ci2];
+                        if(c == '\"') { js.append_view("\\\""); }
+                        else if(c == '\\') { js.append_view("\\\\"); }
+                        else { js.append(c); }
+                        ci2++;
+                    }
+                } else if(ch.kind == HtmlChildKind.Element) {
+                    const el = ch as *mut HtmlElement;
+                    js.append('<');
+                    js.append_view(el.name);
+                    for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
+                        const attr2 = el.attributes.get(ai);
+                        js.append(' ');
+                        js.append_view(attr2.name);
+                        if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
+                            const tv = attr2.value as *mut TextAttributeValue;
+                            js.append_view("=\\\"");
+                            // escape attribute value
+                            var vi : uint = 2;
+                            while(vi < tv.text.size() - 1) {
+                                const vc = tv.text.data()[vi];
+                                if(vc == '\"') js.append_view("\\\"");
+                                else js.append(vc);
+                                vi++;
+                            }
+                            js.append_view("\\\"");
+                        }
+                    }
+                    if(el.isSelfClosing) {
+                        js.append_view("/>");
+                    } else {
+                        js.append('>');
+                        js.append_view("</");
+                        js.append_view(el.name);
+                        js.append('>');
+                    }
+                }
+            }
+            js.append('\"');
         }
         js.append_view("}]);if(window.$_uf)window.$_uf();");
         converter.emit_append_js_from_str(js);

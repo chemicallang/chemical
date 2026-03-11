@@ -18,4 +18,5 @@ public struct SymResSupport {
 
     var requireComponentFn : *mut ASTNode = null
     var setComponentHashFn : *mut ASTNode = null
+    var appendHtmlAttributesSpreadFn : *mut ASTNode = null
 }

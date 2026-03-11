@@ -21,6 +21,18 @@ void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, AS
     resolver->declare(*name, node);
 }
 
+void SymbolResolverdeclare_or_shadow(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
+    resolver->declare_or_shadow(*name, node);
+}
+
+void SymbolResolverscope_start(SymbolResolver* resolver) {
+    resolver->scope_start();
+}
+
+void SymbolResolverscope_end(SymbolResolver* resolver) {
+    resolver->scope_end();
+}
+
 void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
     resolver->declare_exported(*name, node);
 }

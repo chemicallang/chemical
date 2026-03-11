@@ -7,7 +7,6 @@ public func react_symResSigNode(resolver : *mut SymbolResolver, node : *mut Embe
 
 @no_mangle
 public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
-    visitor.visitNode(node)
     const resolver = visitor.getSymbolResolver();
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsComponentDecl;
@@ -16,8 +15,6 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     if(root.htmlPageNode == null) {
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
-
-    sym_res_components(root.components, resolver)
 
     const builder = resolver.getJobBuilder();
 
@@ -31,6 +28,21 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
 
     funcDecl.get_params().push(param);
     funcDecl.add_body();
+
+    // start a scope to store symbols
+    resolver.scope_start();
+
+    // declare the page param
+    resolver.declare_or_shadow(std::string_view("page"), param)
+
+    // visit the body
+    visitor.visitNode(node)
+
+    // resolve components
+    sym_res_components(root.components, resolver)
+
+    // end the scope
+    resolver.scope_end();
 
     // fixing support
     root.support.pageNode = param as *mut ASTNode

@@ -36,7 +36,7 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     resolver.declare_or_shadow(std::string_view("page"), param)
 
     // visit the body
-    visitor.visitNode(node)
+    visitor.visitEmbeddedNode(node)
 
     // resolve components
     sym_res_components(root.components, resolver)

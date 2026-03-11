@@ -389,6 +389,8 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymResLinkBodygetSymbolResolver", (void*) SymResLinkBodygetSymbolResolver},
         {"compiler_SymResLinkBodyvisitNode", (void*) SymResLinkBodyvisitNode},
         {"compiler_SymResLinkBodyvisitValue", (void*) SymResLinkBodyvisitValue},
+        {"compiler_SymResLinkBodyvisitEmbeddedNode", (void*) SymResLinkBodyvisitEmbeddedNode},
+        {"compiler_SymResLinkBodyvisitEmbeddedValue", (void*) SymResLinkBodyvisitEmbeddedValue},
 };
 
 const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {

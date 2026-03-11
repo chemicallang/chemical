@@ -41,7 +41,15 @@ SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor) {
     return &visitor->linker;
 }
 
-void SymResLinkBodyvisitNode(SymResLinkBody* visitor, EmbeddedNode* node) {
+void SymResLinkBodyvisitNode(SymResLinkBody* visitor, ASTNode* node) {
+    visitor->visit(node);
+}
+
+void SymResLinkBodyvisitValue(SymResLinkBody* visitor, Value* value) {
+    visitor->visit(value);
+}
+
+void SymResLinkBodyvisitEmbeddedNode(SymResLinkBody* visitor, EmbeddedNode* node) {
     auto& linker = visitor->linker;
     for(const auto child_node : node->chemical_nodes) {
         linker.scope_start();
@@ -53,7 +61,7 @@ void SymResLinkBodyvisitNode(SymResLinkBody* visitor, EmbeddedNode* node) {
     }
 }
 
-void SymResLinkBodyvisitValue(SymResLinkBody* visitor, EmbeddedValue* value) {
+void SymResLinkBodyvisitEmbeddedValue(SymResLinkBody* visitor, EmbeddedValue* value) {
     auto& linker = visitor->linker;
     for(const auto child_node : value->chemical_nodes) {
         linker.scope_start();

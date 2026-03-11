@@ -551,28 +551,119 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view(")");
 }
 
-func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
+ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
     converter.str.append_view("$_r.createElement(\"");
     converter.str.append_view(tagName);
-    converter.str.append_view("\", {");
+    converter.str.append_view("\", ");
     
-     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-        if(i > 0) converter.str.append_view(", ");
-        const attrNode = element.opening.attributes.get(i)
+    var hasSpread = false;
+    var attrMap = std::vector<*mut JsJSXAttribute>();
+    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+        const attrNode = element.opening.attributes.get(i);
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
-            const attr = attrNode as *mut JsJSXAttribute
-            converter.str.append_view("\"");
-            converter.str.append_view(attr.name);
-            converter.str.append_view("\": ");
-            converter.convertAttributeValue(attr);
-        } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-             const spread = attrNode as *mut JsJSXSpreadAttribute
-            converter.str.append_view("...");
-            converter.convertJsNode(spread.argument);
+            attrMap.push(attrNode as *mut JsJSXAttribute);
+        } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+            hasSpread = true;
         }
     }
-    
-    converter.str.append_view("}");
+
+    if(hasSpread) {
+        converter.str.append_view("$_r.mergeProps(");
+        var first = true;
+        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+            const attrNode = element.opening.attributes.get(i);
+            if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                if(!first) converter.str.append_view(", ");
+                const spread = attrNode as *mut JsJSXSpreadAttribute;
+                converter.convertJsNode(spread.argument);
+                first = false;
+            }
+        }
+        if(!attrMap.empty()) {
+            if(!first) converter.str.append_view(", ");
+            converter.str.append_view("{");
+            
+            var classes = std::vector<*mut JsJSXAttribute>();
+            var others = std::vector<*mut JsJSXAttribute>();
+            for(var i : uint = 0; i < attrMap.size(); i++) {
+                const attr = attrMap.get(i);
+                if(attr.name.equals("class") || attr.name.equals("className")) classes.push(attr);
+                else others.push(attr);
+            }
+
+            var propFirst = true;
+            if(!classes.empty()) {
+                converter.str.append_view("\"className\": ");
+                if(classes.size() > 1) {
+                    converter.str.append_view("[");
+                    for(var i : uint = 0; i < classes.size(); i++) {
+                        if(i > 0) converter.str.append_view(", ");
+                        converter.convertAttributeValue(classes.get(i));
+                    }
+                    converter.str.append_view("].join(' ')");
+                } else {
+                    converter.convertAttributeValue(classes.get(0));
+                }
+                propFirst = false;
+            }
+
+            for(var i : uint = 0; i < others.size(); i++) {
+                const attr = others.get(i);
+                if(!propFirst) converter.str.append_view(", ");
+                var name = attr.name;
+                if(name.equals("for")) name = std::string_view("htmlFor");
+                
+                converter.str.append_view("\"");
+                converter.str.append_view(name);
+                converter.str.append_view("\": ");
+                converter.convertAttributeValue(attr);
+                propFirst = false;
+            }
+            converter.str.append_view("}");
+        }
+        converter.str.append_view(")");
+    } else {
+        converter.str.append_view("{");
+        
+        var classes = std::vector<*mut JsJSXAttribute>();
+        var others = std::vector<*mut JsJSXAttribute>();
+        for(var i : uint = 0; i < attrMap.size(); i++) {
+            const attr = attrMap.get(i);
+            if(attr.name.equals("class") || attr.name.equals("className")) classes.push(attr);
+            else others.push(attr);
+        }
+
+        var propFirst = true;
+        if(!classes.empty()) {
+            converter.str.append_view("\"className\": ");
+            if(classes.size() > 1) {
+                converter.str.append_view("[");
+                for(var i : uint = 0; i < classes.size(); i++) {
+                    if(i > 0) converter.str.append_view(", ");
+                    converter.convertAttributeValue(classes.get(i));
+                }
+                converter.str.append_view("].join(' ')");
+            } else {
+                converter.convertAttributeValue(classes.get(0));
+            }
+            propFirst = false;
+        }
+
+        for(var i : uint = 0; i < others.size(); i++) {
+            const attr = others.get(i);
+            if(!propFirst) converter.str.append_view(", ");
+            var name = attr.name;
+            if(name.equals("class")) name = std::string_view("className");
+            else if(name.equals("for")) name = std::string_view("htmlFor");
+
+            converter.str.append_view("\"");
+            converter.str.append_view(name);
+            converter.str.append_view("\": ");
+            converter.convertAttributeValue(attr);
+            propFirst = false;
+        }
+        converter.str.append_view("}");
+    }
     
     if(!element.children.empty()) {
         for(var i : uint = 0; i < element.children.size(); i++) {

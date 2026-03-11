@@ -715,9 +715,9 @@ public struct ASTBuilder {
 
     func make_long_type(&self, location : ubigint) : *mut LongType
 
-    func make_ptr_type(&self, child_type : *BaseType, location : ubigint) : *mut PointerType
+    func make_ptr_type(&self, child_type : *BaseType, is_mutable : bool, location : ubigint) : *mut PointerType
 
-    func make_reference_type(&self, child_type : *BaseType, location : ubigint) : *mut ReferenceType
+    func make_reference_type(&self, child_type : *BaseType, is_mutable : bool, location : ubigint) : *mut ReferenceType
 
     func make_string_type(&self, location : ubigint) : *mut StringType
 

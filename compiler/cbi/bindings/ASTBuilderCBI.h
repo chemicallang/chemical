@@ -54,9 +54,9 @@ extern "C" {
 
     LiteralType* ASTBuildermake_literal_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
 
-    PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
+    PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, bool is_mutable, uint64_t location);
 
-    ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
+    ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, bool is_mutable, uint64_t location);
 
     CharType* ASTBuilderget_char_type(ASTBuilder* builder);
     ShortType* ASTBuilderget_short_type(ASTBuilder* builder);

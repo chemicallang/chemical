@@ -22,7 +22,7 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
 
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
-    const ref = builder.make_reference_type(linked as *mut BaseType, loc);
+    const ref = builder.make_reference_type(linked as *mut BaseType, true, loc);
     const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
 
     funcDecl.get_params().push(param);

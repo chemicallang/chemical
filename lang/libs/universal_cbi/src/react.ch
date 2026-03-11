@@ -540,6 +540,8 @@ func fix_support_page_node(
     if(appendHtmlFloatFn == null) return false;
     const appendHtmlDoubleFn = page.child("append_html_double");
     if(appendHtmlDoubleFn == null) return false;
+    // Optional: append_html_attributes_spread may not exist yet
+    const appendHtmlAttributesSpreadFn = page.child("append_html_attributes_spread");
 
     const requireComponentFn = page.child("require_component");
     if(requireComponentFn == null) {
@@ -569,6 +571,7 @@ func fix_support_page_node(
     support.appendHtmlUIntFn = appendHtmlUIntFn;
     support.appendHtmlFloatFn = appendHtmlFloatFn;
     support.appendHtmlDoubleFn = appendHtmlDoubleFn;
+    support.appendHtmlAttributesSpreadFn = appendHtmlAttributesSpreadFn;
 
     return true
 }

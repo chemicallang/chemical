@@ -232,12 +232,12 @@ LiteralType* ASTBuildermake_literal_type(ASTBuilder* builder, BaseType* child_ty
     return new (builder->allocate<LiteralType>()) LiteralType(child_type);
 }
 
-PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
-    return new (builder->allocate<PointerType>()) PointerType(child_type, false);
+PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, bool is_mutable, uint64_t location) {
+    return new (builder->allocate<PointerType>()) PointerType(child_type, is_mutable);
 }
 
-ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
-    return new (builder->allocate<ReferenceType>()) ReferenceType(child_type, false);
+ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, bool is_mutable, uint64_t location) {
+    return new (builder->allocate<ReferenceType>()) ReferenceType(child_type, is_mutable);
 }
 
 StringType* ASTBuildermake_string_type(ASTBuilder* builder, uint64_t location) {

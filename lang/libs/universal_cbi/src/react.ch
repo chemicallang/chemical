@@ -664,10 +664,10 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
     converter.str.append_view("(");
     converter.str.append_view(root.signature.propsName);
-    converter.str.append_view("){");
+    converter.str.append_view(")");
     
     if(!root.signature.universalTemplate.empty()) {
-        converter.str.append_view("const tpl=document.createElement('template');tpl.innerHTML='");
+        converter.str.append_view("{const tpl=document.createElement('template');tpl.innerHTML='");
         append_escaped_single_quoted(converter.str, root.signature.universalTemplate);
         converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
         get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);

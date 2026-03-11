@@ -699,37 +699,89 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
     converter.str.append_view("{");
     
     var attrCount = 0;
+    var classes = std::vector<*mut JsJSXAttribute>();
+    var others = std::vector<*mut JsJSXAttribute>();
     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-        const attrNode = element.opening.attributes.get(i)
+        const attrNode = element.opening.attributes.get(i);
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
-            if(attrCount > 0) converter.str.append_view(", ");
-            const attr = attrNode as *mut JsJSXAttribute
-            
-            var expr = attr.value;
+            const attr = attrNode as *mut JsJSXAttribute;
+            if(attr.name.equals("class") || attr.name.equals("className")) classes.push(attr);
+            else others.push(attr);
+        }
+    }
+
+    if(!classes.empty()) {
+        var anyReactive = false;
+        for(var i : uint = 0; i < classes.size(); i++) {
+            var expr = classes.get(i).value;
             if(expr != null && expr.kind == JsNodeKind.JSXExpressionContainer) expr = (expr as *mut JsJSXExpressionContainer).expression;
+            if(expr != null && converter.containsFunctionCall(expr)) { anyReactive = true; break; }
+        }
 
-            var isEventHandler = attr.name.size() > 2 && attr.name.get(0) == 'o' && attr.name.get(1) == 'n' && attr.name.get(2) >= 'A' && attr.name.get(3) <= 'Z';
-            var alreadyFunc = expr != null && (expr.kind == JsNodeKind.ArrowFunction || expr.kind == JsNodeKind.FunctionDecl);
-
-            if(!isEventHandler && !alreadyFunc && expr != null && converter.containsFunctionCall(expr)) {
-                converter.str.append_view("get [\"");
-                converter.str.append_view(attr.name);
-                converter.str.append_view("\"]() { return ");
-                converter.convertJsNode(expr);
-                converter.str.append_view("; }");
-            } else {
-                converter.str.append_view("\"");
-                converter.str.append_view(attr.name);
-                converter.str.append_view("\": ");
+        if(anyReactive) {
+            converter.str.append_view("get [\"class\"]() { return [");
+            for(var i : uint = 0; i < classes.size(); i++) {
+                if(i > 0) converter.str.append_view(", ");
+                var expr = classes.get(i).value;
+                if(expr != null && expr.kind == JsNodeKind.JSXExpressionContainer) expr = (expr as *mut JsJSXExpressionContainer).expression;
                 if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
             }
-            attrCount++;
-        } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-            converter.str.append_view("}, ");
-            const spread = attrNode as *mut JsJSXSpreadAttribute
-            converter.convertJsNode(spread.argument);
-            converter.str.append_view(", {");
-            attrCount = 0;
+            converter.str.append_view("].join(' '); }, ");
+        } else {
+            converter.str.append_view("\"class\": ");
+            if(classes.size() > 1) {
+                converter.str.append_view("[");
+                for(var i : uint = 0; i < classes.size(); i++) {
+                    if(i > 0) converter.str.append_view(", ");
+                    var expr = classes.get(i).value;
+                    if(expr != null && expr.kind == JsNodeKind.JSXExpressionContainer) expr = (expr as *mut JsJSXExpressionContainer).expression;
+                    if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
+                }
+                converter.str.append_view("].join(' '), ");
+            } else {
+                var expr = classes.get(0).value;
+                if(expr != null && expr.kind == JsNodeKind.JSXExpressionContainer) expr = (expr as *mut JsJSXExpressionContainer).expression;
+                if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
+                converter.str.append_view(", ");
+            }
+        }
+        attrCount++;
+    }
+
+    for(var i : uint = 0; i < others.size(); i++) {
+        const attr = others.get(i)
+        
+        var expr = attr.value;
+        if(expr != null && expr.kind == JsNodeKind.JSXExpressionContainer) expr = (expr as *mut JsJSXExpressionContainer).expression;
+
+        var isEventHandler = attr.name.size() > 2 && attr.name.get(0) == 'o' && attr.name.get(1) == 'n' && attr.name.get(2) >= 'A' && attr.name.get(3) <= 'Z';
+        var alreadyFunc = expr != null && (expr.kind == JsNodeKind.ArrowFunction || expr.kind == JsNodeKind.FunctionDecl);
+
+        if(attrCount > 0) converter.str.append_view(", ");
+
+        if(!isEventHandler && !alreadyFunc && expr != null && converter.containsFunctionCall(expr)) {
+            converter.str.append_view("get [\"");
+            converter.str.append_view(attr.name);
+            converter.str.append_view("\"]() { return ");
+            converter.convertJsNode(expr);
+            converter.str.append_view("; }");
+        } else {
+            converter.str.append_view("\"");
+            converter.str.append_view(attr.name);
+            converter.str.append_view("\": ");
+            if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
+        }
+        attrCount++;
+    }
+    
+    // Spread attributes handling
+    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+        if(element.opening.attributes.get(i).kind == JsNodeKind.JSXSpreadAttribute) {
+             converter.str.append_view("}, ");
+             const spread = element.opening.attributes.get(i) as *mut JsJSXSpreadAttribute
+             converter.convertJsNode(spread.argument);
+             converter.str.append_view(", {");
+             attrCount = 0;
         }
     }
     

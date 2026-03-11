@@ -1,3 +1,7 @@
+enum BufferType {
+    JavaScript,
+    HTML
+}
 
 struct JsConverter {
     var builder : *mut ASTBuilder
@@ -7,7 +11,9 @@ struct JsConverter {
     var str : std::string
     var jsx_parent : std::string_view
     var t_counter : int = 0
+    var id_counter : int = 0
     var state_vars : std::vector<std::string_view>
+    var target : BufferType = BufferType.JavaScript
 }
 
 func (converter : &mut JsConverter) append_hex(val : uint) {
@@ -106,32 +112,34 @@ func (converter : &mut JsConverter) make_set_component_hash_call(hash : size_t) 
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var value = builder.make_ubigint_value(hash, location)
-    return converter.make_value_call_with(value, std::string_view("set_component_hash"), converter.support.setComponentHashFn)
+    return converter.make_value_call_with(value, std::string_view("set_component_hash"), converter.support.setComponentHashFn, converter.support.setComponentHashFn)
 }
 
 
-func (converter : &mut JsConverter) make_char_chain(value : char) : *mut FunctionCallNode {
+func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, jsFnPtr : *mut ASTNode, htmlFnPtr : *mut ASTNode) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     
-    var name = std::string_view("append_js_char")
-    var fnPtr = converter.support.appendHeadJsCharFn
+    var name : std::string_view
+    var fnPtr : *mut ASTNode
+    if(converter.target == BufferType.JavaScript) {
+        name = fn_name
+        fnPtr = jsFnPtr
+    } else {
+        // Map append_js_... to append_html_...
+        if(fn_name.equals(view("append_js_char_ptr"))) name = view("append_html_char_ptr");
+        else if(fn_name.equals(view("append_js_char"))) name = view("append_html_char");
+        else if(fn_name.equals(view("append_js_integer"))) name = view("append_html_integer");
+        else if(fn_name.equals(view("append_js_uinteger"))) name = view("append_html_uinteger");
+        else if(fn_name.equals(view("append_js_float"))) name = view("append_html_float");
+        else if(fn_name.equals(view("append_js_double"))) name = view("append_html_double");
+        else name = fn_name; // fallback
+        
+        fnPtr = htmlFnPtr
+    }
 
     var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
-    var call = builder.make_function_call_node(chain, converter.parent, location)
-    var args = call.get_args();
-    const char_val = builder.make_char_value(value, location);
-    args.push(char_val)
-    return call;
-}
-
-func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
-    const builder = converter.builder
-    const location = intrinsics::get_raw_location();
-    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
@@ -140,36 +148,45 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
 }
 
 func (converter : &mut JsConverter) make_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_char_ptr"), converter.support.appendHeadJsCharPtrFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_char_ptr"), converter.support.appendHeadJsCharPtrFn, converter.support.appendHtmlCharPtrFn)
 }
 
 func (converter : &mut JsConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_char"), converter.support.appendHeadJsCharFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_char"), converter.support.appendHeadJsCharFn, converter.support.appendHtmlCharFn)
 }
 
 func (converter : &mut JsConverter) make_integer_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_integer"), converter.support.appendHeadJsIntFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_integer"), converter.support.appendHeadJsIntFn, converter.support.appendHtmlIntFn)
 }
 
 func (converter : &mut JsConverter) make_uinteger_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_uinteger"), converter.support.appendHeadJsUIntFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_uinteger"), converter.support.appendHeadJsUIntFn, converter.support.appendHtmlUIntFn)
 }
 
 func (converter : &mut JsConverter) make_float_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_float"), converter.support.appendHeadJsFloatFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_float"), converter.support.appendHeadJsFloatFn, converter.support.appendHtmlFloatFn)
 }
 
 func (converter : &mut JsConverter) make_double_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_double"), converter.support.appendHeadJsDoubleFn)
+    return converter.make_value_call_with(value, std::string_view("append_js_double"), converter.support.appendHeadJsDoubleFn, converter.support.appendHtmlDoubleFn)
 }
 
 func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : size_t) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var name = std::string_view("append_js")
     
-    var id = builder.make_identifier(name, converter.support.appendHeadJsFn, false, location);
+    var name : std::string_view
+    var fnPtr : *mut ASTNode
+    if(converter.target == BufferType.JavaScript) {
+        name = std::string_view("append_js")
+        fnPtr = converter.support.appendHeadJsFn
+    } else {
+        name = std::string_view("append_html")
+        fnPtr = converter.support.appendHtmlFn
+    }
+    
+    var id = builder.make_identifier(name, fnPtr, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
@@ -191,6 +208,29 @@ func (converter : &mut JsConverter) put_chain_in() {
     const call = converter.make_value_call(val, converter.str.size());
     converter.vec.push(call as *mut ASTNode);
     converter.str.clear();
+}
+
+func (converter : &mut JsConverter) put_char_chain(value : char) {
+    const location = intrinsics::get_raw_location();
+    var base = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    
+    var name : std::string_view
+    var fnPtr : *mut ASTNode
+    if(converter.target == BufferType.JavaScript) {
+        name = std::string_view("append_js_char")
+        fnPtr = converter.support.appendHeadJsCharFn
+    } else {
+        name = std::string_view("append_html_char")
+        fnPtr = converter.support.appendHtmlCharFn
+    }
+
+    var id = converter.builder.make_identifier(name, fnPtr, false, location);
+    const chain = converter.builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = converter.builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    const char_val = converter.builder.make_char_value(value, location);
+    args.push(char_val)
+    converter.vec.push(call as *mut ASTNode)
 }
 
 
@@ -252,6 +292,19 @@ func (converter : &mut JsConverter) put_by_type(type : *mut BaseType, value : *m
         }
         BaseTypeKind.Double => {
             converter.put_wrapped_chemical_double_value_in(value)
+        }
+        BaseTypeKind.ExpressiveString => {
+            if(value.getKind() == ValueKind.ExpressiveString) {
+                const exprString = value as *mut ExpressiveString
+                const values = exprString.getValues()
+                const size = values.size()
+                var i = 0u;
+                while(i < size) {
+                    const ptr = values.get(i)
+                    converter.put_by_type(ptr.getType(), ptr);
+                    i++;
+                }
+            }
         }
         default => {
             converter.put_wrapped_chemical_value_in(value);
@@ -542,9 +595,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.JSXText => {
              var text = node as *mut JsJSXText
-             converter.str.append_view("` "); // Use backticks to support multi-line strings
-             converter.escapeJs(text.value);
-             converter.str.append_view(" `");
+             if(converter.target == BufferType.HTML) {
+                 converter.escapeHtml(text.value);
+                 converter.put_chain_in();
+             } else {
+                 converter.str.append_view("` "); // Use backticks to support multi-line strings
+                 converter.escapeJs(text.value);
+                 converter.str.append_view(" `");
+             }
         }
         default => {
         }
@@ -581,6 +639,77 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
+    if(converter.target == BufferType.HTML) {
+        if(element.componentSignature == null) {
+             // Fallback to JS if no signature (maybe partial match or dynamic?)
+             return;
+        }
+        
+        const signature = element.componentSignature;
+        const hash = signature.functionNode.getEncodedLocation();
+
+        // Marker for hydration
+        var idStr = std::string();
+        idStr.append_view("u");
+        idStr.append_uinteger(element.loc);
+        
+        converter.str.append_view("<div id=\"");
+        converter.str.append_view(idStr.to_view());
+        converter.str.append_view("\" data-u-comp=\"");
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+        converter.str.append_view("\">");
+        converter.put_chain_in();
+
+        // 1. Emit the require/if check and C++ call for SSR
+        // This makes it work like html_cbi's components.
+        var requireCall = converter.make_require_component_call(hash as size_t)
+        var ifStmt = converter.builder.make_if_stmt(requireCall as *mut Value, converter.parent, intrinsics::get_raw_location())
+        var body = ifStmt.get_body()
+        
+        body.push(converter.make_set_component_hash_call(hash as size_t))
+        
+        var base = converter.builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, intrinsics::get_raw_location())
+        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
+        var call = converter.builder.make_function_call_node(base as *mut ChainValue, converter.parent, intrinsics::get_raw_location())
+        call.get_args().push(pageId as *mut Value)
+        
+        // Push props (this is tricky, we need to convert JSX attributes to C++ struct initializer)
+        // For now, only passing page.
+        
+        body.push(call as *mut ASTNode)
+        converter.vec.push(ifStmt as *mut ASTNode)
+        
+        // 2. Emit hydration entry for JS
+        // This should go to pageJs.
+        const oldTarget = converter.target;
+        converter.target = BufferType.JavaScript;
+        converter.str.append_view("window.$_uq=window.$_uq||[];window.$_uq.push(['");
+        converter.str.append_view(idStr.to_view());
+        converter.str.append_view("','");
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+        converter.str.append_view("',{");
+        var first = true;
+        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+            const attrNode = element.opening.attributes.get(i);
+            if(attrNode.kind == JsNodeKind.JSXAttribute) {
+                if(!first) converter.str.append(',');
+                const attr = attrNode as *mut JsJSXAttribute;
+                converter.str.append_view("\"");
+                converter.str.append_view(attr.name);
+                converter.str.append_view("\":");
+                converter.convertAttributeValue(attr);
+                first = false;
+            }
+        }
+        converter.str.append_view("}]);if(window.$_uf)window.$_uf();");
+        converter.put_chain_in();
+        converter.target = oldTarget;
+
+        converter.str.append_view("</div>");
+        converter.put_chain_in();
+        return;
+    }
+
     converter.str.append_view("$_ur.createElement(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
@@ -624,27 +753,140 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 }
 
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
+    if(converter.target == BufferType.HTML) {
+        converter.str.append('<');
+        converter.str.append_view(tagName);
+        
+        var classValueNodes = std::vector<*mut JsNode>();
+        var otherAttrs = std::vector<*mut JsJSXAttribute>();
+        
+        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+            const attrNode = element.opening.attributes.get(i);
+            if(attrNode.kind == JsNodeKind.JSXAttribute) {
+                const attr = attrNode as *mut JsJSXAttribute;
+                if(attr.name.equals("class") || attr.name.equals("className")) {
+                    if(attr.value != null) classValueNodes.push(attr.value);
+                } else {
+                    otherAttrs.push(attr);
+                }
+            }
+        }
+        
+        // Emit class attribute if any
+        if(!classValueNodes.empty()) {
+            converter.str.append_view(" class=\"");
+            for(var i : uint = 0; i < classValueNodes.size(); i++) {
+                if(i > 0) converter.str.append(' ');
+                const valNode = classValueNodes.get(i);
+                if(valNode.kind == JsNodeKind.Literal) {
+                    const lit = valNode as *mut JsLiteral;
+                    var s = lit.value;
+                    if(s.size() >= 2 && (s.get(0) == '"' || s.get(0) == '\'')) s = s.subview(1, s.size() - 2);
+                    converter.escapeHtml(s);
+                } else if(valNode.kind == JsNodeKind.JSXExpressionContainer) {
+                    const cont = valNode as *mut JsJSXExpressionContainer;
+                    converter.put_chain_in();
+                    converter.convertJsNode(cont.expression);
+                    converter.put_chain_in();
+                }
+            }
+            converter.str.append('\"');
+        }
+        
+        // Emit other attributes
+        for(var i : uint = 0; i < otherAttrs.size(); i++) {
+            const attr = otherAttrs.get(i);
+            converter.str.append(' ');
+            converter.str.append_view(attr.name);
+            if(attr.value != null) {
+                converter.str.append_view("=\"");
+                if(attr.value.kind == JsNodeKind.Literal) {
+                    const lit = attr.value as *mut JsLiteral;
+                    var s = lit.value;
+                    if(s.size() >= 2 && (s.get(0) == '"' || s.get(0) == '\'')) s = s.subview(1, s.size() - 2);
+                    converter.escapeHtml(s);
+                } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                    const cont = attr.value as *mut JsJSXExpressionContainer;
+                    converter.put_chain_in();
+                    converter.convertJsNode(cont.expression);
+                    converter.put_chain_in();
+                }
+                converter.str.append('\"');
+            }
+        }
+        
+        if(element.opening.selfClosing) {
+            converter.str.append_view(" />");
+        } else {
+            converter.str.append('>');
+            for(var i : uint = 0; i < element.children.size(); i++) {
+                converter.convertJsNode(element.children.get(i));
+            }
+            converter.str.append_view("</");
+            converter.str.append_view(tagName);
+            converter.str.append('>');
+        }
+        converter.put_chain_in();
+        return;
+    }
+
     converter.str.append_view("$_ur.createElement(\"");
     converter.str.append_view(tagName);
-    converter.str.append_view("\", {");
+    converter.str.append_view("\", ");
     
+     var hasSpread = false;
+     var attrMap = std::vector<*mut JsJSXAttribute>();
      for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-        if(i > 0) converter.str.append_view(", ");
-        const attrNode = element.opening.attributes.get(i)
-        if(attrNode.kind == JsNodeKind.JSXAttribute) {
-            const attr = attrNode as *mut JsJSXAttribute
-            converter.str.append_view("\"");
-            converter.str.append_view(attr.name);
-            converter.str.append_view("\": ");
-            converter.convertAttributeValue(attr);
-        } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-             const spread = attrNode as *mut JsJSXSpreadAttribute
-            converter.str.append_view("...");
-            converter.convertJsNode(spread.argument);
-        }
-    }
-    
-    converter.str.append_view("}");
+         const attrNode = element.opening.attributes.get(i);
+         if(attrNode.kind == JsNodeKind.JSXAttribute) {
+             attrMap.push(attrNode as *mut JsJSXAttribute);
+         } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+             hasSpread = true;
+         }
+     }
+
+     if(hasSpread) {
+         // Use merge helper $_um
+         converter.str.append_view("$_um(");
+         var first = true;
+         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+             const attrNode = element.opening.attributes.get(i);
+             if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                 if(!first) converter.str.append_view(", ");
+                 const spread = attrNode as *mut JsJSXSpreadAttribute;
+                 converter.convertJsNode(spread.argument);
+                 first = false;
+             }
+         }
+         // Group static/named attributes into an object for merging
+         if(!attrMap.empty()) {
+             if(!first) converter.str.append_view(", ");
+             converter.str.append_view("{");
+             for(var i : uint = 0; i < attrMap.size(); i++) {
+                 if(i > 0) converter.str.append_view(", ");
+                 const attr = attrMap.get(i);
+                 converter.str.append_view("\"");
+                 converter.str.append_view(attr.name);
+                 converter.str.append_view("\": ");
+                 converter.convertAttributeValue(attr);
+             }
+             converter.str.append_view("}");
+         }
+         converter.str.append_view(")");
+     } else {
+         converter.str.append_view("{");
+         var first = true;
+         for(var i : uint = 0; i < attrMap.size(); i++) {
+             const attr = attrMap.get(i);
+             if(!first) converter.str.append_view(", ");
+             converter.str.append_view("\"");
+             converter.str.append_view(attr.name);
+             converter.str.append_view("\": ");
+             converter.convertAttributeValue(attr);
+             first = false;
+         }
+         converter.str.append_view("}");
+     }
     
     if(!element.children.empty()) {
         for(var i : uint = 0; i < element.children.size(); i++) {
@@ -679,12 +921,108 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
 }
 
 func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFragment) {
+    if(converter.target == BufferType.HTML) {
+        for(var i : uint = 0; i < fragment.children.size(); i++) {
+             converter.convertJsNode(fragment.children.get(i));
+        }
+        return;
+    }
+
     converter.str.append_view("$_ur.createElement($_ur.Fragment, null");
     
     for(var i : uint = 0; i < fragment.children.size(); i++) {
-         converter.str.append_view(", ");
-         converter.convertJsNode(fragment.children.get(i));
+          converter.str.append_view(", ");
+          converter.convertJsNode(fragment.children.get(i));
     }
     
     converter.str.append_view(")");
+}
+
+func (converter : &mut JsConverter) is_html_entity(text : std::string_view, index : uint) : bool {
+    if (index + 2 >= text.size()) return false;
+    if (text.data()[index] != '&') return false;
+
+    var i = index + 1;
+    if (text.data()[i] == '#') {
+        i++;
+        if (i < text.size() && (text.data()[i] == 'x' || text.data()[i] == 'X')) {
+            i++;
+            var start = i;
+            while (i < text.size() && i - start < 8) {
+                const c = text.data()[i];
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) i++;
+                else break;
+            }
+            return (i > start && i < text.size() && text.data()[i] == ';');
+        } else {
+            var start = i;
+            while (i < text.size() && i - start < 8) {
+                const c = text.data()[i];
+                if (c >= '0' && c <= '9') i++;
+                else break;
+            }
+            return (i > start && i < text.size() && text.data()[i] == ';');
+        }
+    } else {
+        var start = i;
+        while (i < text.size() && i - start < 32) {
+            const c = text.data()[i];
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) i++;
+            else break;
+        }
+        return (i > start && i < text.size() && text.data()[i] == ';');
+    }
+}
+
+func (converter : &mut JsConverter) escapeHtml(text : std::string_view) {
+    var i = 0u;
+    var str = &mut converter.str
+    while(i < text.size()) {
+        const c1 = (text.data()[i] as uint) & 0xFF;
+        if (c1 < 0x80) {
+            const c = c1 as char;
+            switch(c) {
+                '&' => {
+                    if (converter.is_html_entity(text, i)) str.append('&');
+                    else str.append_view("&amp;");
+                }
+                '<' => str.append_view("&lt;")
+                '>' => str.append_view("&gt;")
+                '"' => str.append_view("&quot;")
+                '\'' => str.append_view("&#39;")
+                default => str.append(c)
+            }
+            i++;
+        } else if ((c1 & 0xE0) == 0xC0) {
+            if (i + 1 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x1F) << 6) | (c2 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 2;
+            } else { i++; }
+        } else if ((c1 & 0xF0) == 0xE0) {
+            if (i + 2 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 3;
+            } else { i++; }
+        } else if ((c1 & 0xF8) == 0xF0) {
+            if (i + 3 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const c4 = (text.data()[i+3] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x07) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 4;
+            } else { i++; }
+        } else { i++; }
+    }
 }

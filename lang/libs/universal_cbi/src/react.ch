@@ -276,10 +276,14 @@ func render_universal_jsx(
             out.append('<');
             out.append_view(tagName);
 
+            var classes = std::string();
+            var attributesToEmit = std::vector<*mut JsJSXAttribute>();
+
             for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
                 const attrNode = element.opening.attributes.get(i);
                 if(attrNode == null || attrNode.kind != JsNodeKind.JSXAttribute) continue;
                 const attr = attrNode as *mut JsJSXAttribute;
+                
                 if(is_event_attr_name(attr.name)) {
                     if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
@@ -292,6 +296,37 @@ func render_universal_jsx(
                     }
                     continue;
                 }
+
+                if(attr.name.equals("class")) {
+                    if(attr.value != null) {
+                        if(!classes.empty()) classes.append(' ');
+                        if(attr.value.kind == JsNodeKind.Literal) {
+                            classes.append_view(strip_js_string_quotes((attr.value as *mut JsLiteral).value));
+                        } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                            const container = attr.value as *mut JsJSXExpressionContainer;
+                            if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
+                                classes.append_view(strip_js_string_quotes((container.expression as *mut JsLiteral).value));
+                            } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
+                                const id = container.expression as *mut JsIdentifier;
+                                if(has_state(states, id.value)) {
+                                    classes.append_view(find_state_init_text(states, id.value));
+                                } else { return false; }
+                            } else { return false; }
+                        } else { return false; }
+                    }
+                } else {
+                    attributesToEmit.push(attr);
+                }
+            }
+
+            if(!classes.empty()) {
+                out.append_view(" class=\"");
+                escape_html_append(out, classes.to_view());
+                out.append('"');
+            }
+
+            for(var i : uint = 0; i < attributesToEmit.size(); i++) {
+                const attr = attributesToEmit.get(i);
                 out.append(' ');
                 out.append_view(attr.name);
                 if(attr.value != null) {
@@ -302,18 +337,14 @@ func render_universal_jsx(
                     } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
                         if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
-                            const id = container.expression as *mut JsIdentifier;
-                            if(has_state(states, id.value)) {
-                                escape_html_append(out, find_state_init_text(states, id.value));
-                            } else {
-                                return false;
-                            }
+                             const id = container.expression as *mut JsIdentifier;
+                             if(has_state(states, id.value)) {
+                                 escape_html_append(out, find_state_init_text(states, id.value));
+                             } else { return false; }
                         } else if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
-                            const lit = container.expression as *mut JsLiteral;
-                            escape_html_append(out, strip_js_string_quotes(lit.value));
-                        } else {
-                            return false;
-                        }
+                             const lit = container.expression as *mut JsLiteral;
+                             escape_html_append(out, strip_js_string_quotes(lit.value));
+                        } else { return false; }
                     }
                     out.append('"');
                 }
@@ -495,6 +526,21 @@ func fix_support_page_node(
         return false;
     }
 
+    const appendHtmlFn = page.child("append_html");
+    if(appendHtmlFn == null) return false;
+    const appendHtmlCharFn = page.child("append_html_char");
+    if(appendHtmlCharFn == null) return false;
+    const appendHtmlCharPtrFn = page.child("append_html_char_ptr");
+    if(appendHtmlCharPtrFn == null) return false;
+    const appendHtmlIntFn = page.child("append_html_integer");
+    if(appendHtmlIntFn == null) return false;
+    const appendHtmlUIntFn = page.child("append_html_uinteger");
+    if(appendHtmlUIntFn == null) return false;
+    const appendHtmlFloatFn = page.child("append_html_float");
+    if(appendHtmlFloatFn == null) return false;
+    const appendHtmlDoubleFn = page.child("append_html_double");
+    if(appendHtmlDoubleFn == null) return false;
+
     const requireComponentFn = page.child("require_component");
     if(requireComponentFn == null) {
         return false;
@@ -515,6 +561,14 @@ func fix_support_page_node(
     support.appendHeadJsUIntFn = appendHeadJsUIntFn;
     support.appendHeadJsFloatFn = appendHeadJsFloatFn;
     support.appendHeadJsDoubleFn = appendHeadJsDoubleFn;
+
+    support.appendHtmlFn = appendHtmlFn;
+    support.appendHtmlCharFn = appendHtmlCharFn;
+    support.appendHtmlCharPtrFn = appendHtmlCharPtrFn;
+    support.appendHtmlIntFn = appendHtmlIntFn;
+    support.appendHtmlUIntFn = appendHtmlUIntFn;
+    support.appendHtmlFloatFn = appendHtmlFloatFn;
+    support.appendHtmlDoubleFn = appendHtmlDoubleFn;
 
     return true
 }
@@ -583,49 +637,61 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         }
     }
 
-    if(!root.signature.universalTemplate.empty()) {
-        converter.str.append_view("function ")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view("(")
-        converter.str.append_view(root.signature.propsName)
-        converter.str.append_view("){const tpl=document.createElement('template');tpl.innerHTML='")
-        append_escaped_single_quoted(converter.str, root.signature.universalTemplate)
-        converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view(".__hydrate(n,")
-        converter.str.append_view(root.signature.propsName)
-        converter.str.append_view("||{});return n;}")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view(".__template='")
-        append_escaped_single_quoted(converter.str, root.signature.universalTemplate)
-        converter.str.append_view("';")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view(".__hydrate=(root,")
-        converter.str.append_view(root.signature.propsName)
-        converter.str.append_view(")=>{")
-        converter.str.append_view(root.signature.universalInit)
-        converter.str.append_view("};")
-        converter.str.append_view("if(window.$_ureg)window.$_ureg('")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view("',")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view(");")
-    } else {
-        converter.str.append_view("function ")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view("(")
-        converter.str.append_view(root.signature.propsName)
-        converter.str.append_view(") ")
-        if(root.body != null) {
-            converter.convertJsNode(root.body)
+    if(root.body != null && root.body.kind == JsNodeKind.Block) {
+        const block = root.body as *mut JsBlock;
+        const returned = find_returned_jsx(block);
+        if(returned != null) {
+            // 1. Perform SSR (emit to pageHtml buffer)
+            converter.target = BufferType.HTML;
+            converter.convertJsNode(returned);
+            converter.put_chain_in();
+            
+            // 2. Perform hydration script emission (emit to pageJs buffer)
+            // The JsJSXComponent conversion inside convertJsNode(returned) already 
+            // emits hydration for child components.
+            // We just need to make sure the ROOT of THIS component also hydrates if needed.
+            // Actually, the Component itself is a target of hydration in the parent.
         }
-        converter.str.append_view("if(window.$_ureg)window.$_ureg('")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view("',")
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
-        converter.str.append_view(");")
     }
+
+    // Still need to emit the JS function definition for this component
+    // so it can be used for hydration from other places.
+    converter.target = BufferType.JavaScript;
+    converter.str.append_view("function ");
+    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+    converter.str.append_view("(");
+    converter.str.append_view(root.signature.propsName);
+    converter.str.append_view("){");
     
+    if(!root.signature.universalTemplate.empty()) {
+        converter.str.append_view("const tpl=document.createElement('template');tpl.innerHTML='");
+        append_escaped_single_quoted(converter.str, root.signature.universalTemplate);
+        converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
+        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+        converter.str.append_view(".__hydrate(n,");
+        converter.str.append_view(root.signature.propsName);
+        converter.str.append_view("||{});return n;}");
+    } else {
+        if(root.body != null) {
+            converter.convertJsNode(root.body);
+        } else {
+             converter.str.append_view("return document.createTextNode('');}");
+        }
+    }
+
+    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+    converter.str.append_view(".__hydrate=(root,");
+    converter.str.append_view(root.signature.propsName);
+    converter.str.append_view(")=>{");
+    converter.str.append_view(root.signature.universalInit);
+    converter.str.append_view("};");
+    
+    converter.str.append_view("if(window.$_ureg)window.$_ureg('");
+    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+    converter.str.append_view("',");
+    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+    converter.str.append_view(");");
+
     converter.put_chain_in();
     
     return root.signature.functionNode as *mut ASTNode;

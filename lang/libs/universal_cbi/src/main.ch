@@ -6,32 +6,8 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             js.lb_count++;
         } else if(nested.type == ChemicalTokenType.RBrace) {
             js.lb_count--;
-            // If we drop back to the level where we started chemical mode?
-            // Wait, ${ starts chemical mode.
-            // { -> lb_count 1 (macro start)
-            // ${ -> lb_count 1 (still 1?) No, ${ should probably act like an opening brace for counting?
-            // If we treat ${ as {.
-            // But getEmbeddedToken returns tokens.
-            // If we are in chemical mode, we are parsing chemical code.
-            // We need to know when to stop.
-            // We stop when we hit the closing brace matching the opening brace of the interpolation.
-            // But ${ uses { as the opener.
-            // So if we increment lb_count on ${, we should decrement on }.
-            
-            // Let's say:
-            // #js { ... ${ ... } ... }
-            // { -> lb=1
-            // ${ -> lb=2 (chemical mode on)
-            // } -> lb=1 (chemical mode off)
-            // } -> lb=0 (macro end)
-            
-            if(js.lb_count == 1) {
-                 // This means we closed the chemical block (assuming we started at 1 and went to 2)
-                 // Wait, if we are at lb=1, we are back to JS mode?
-                 // If we started chemical mode at lb=1 (transition to 2).
-                 // Then when we drop to 1, we are done.
-                 js.chemical_mode = false;
-                 return Token { type : JsTokenType.RBrace as int, value : view("}"), position : nested.position }
+            if(js.lb_count == js.chem_start_lb) {
+                js.chemical_mode = false;
             }
         }
         return nested;
@@ -73,8 +49,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         '$' => {
             if(provider.peek() == '{') {
                 provider.readCharacter(); // consume {
-                js.lb_count++;
+                js.chem_start_lb = js.lb_count;
                 js.chemical_mode = true;
+                js.lb_count++;
                 return Token { type : JsTokenType.ChemicalStart as int, value : view("${"), position : position }
             }
             // Treat as identifier start or just $

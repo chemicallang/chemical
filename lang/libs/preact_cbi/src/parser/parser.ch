@@ -431,7 +431,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         } else {
             jsParser.dyn_values.push(val)
         }
-        if(!parser.increment_if(JsTokenType.RBrace as int)) {
+        if(!parser.increment_if(ChemicalTokenType.RBrace as int)) {
             parser.error("expected } after chemical value");
         }
         var chem = builder.allocate<JsChemicalValue>()

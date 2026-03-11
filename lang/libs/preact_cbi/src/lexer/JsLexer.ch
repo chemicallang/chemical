@@ -1,5 +1,6 @@
 public struct JsLexer {
     var lb_count : int = 0
+    var chem_start_lb : int = 0
     var chemical_mode : bool = false
     var jsx_depth : int = 0
     var in_jsx_tag : int = 0 // 0: false, 1: true

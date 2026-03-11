@@ -24,6 +24,8 @@ class EmbeddedValue;
 
 class SymbolResolver;
 
+class SymResLinkBody;
+
 /**
  * the function that is called to initialize lexer for the user lexer
  */
@@ -88,13 +90,13 @@ typedef void(*EmbeddedValueSymResLinkSignature)(SymbolResolver* resolver, Embedd
  * symbol resolve function is called to provide linking with different nodes during symbol resolution
  * for example html macro uses it to find methods to call during replacement
  */
-typedef void(*EmbeddedNodeSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedNode* value);
+typedef void(*EmbeddedNodeSymbolResolveFunc)(SymResLinkBody* visitor, EmbeddedNode* value);
 
 /**
  * symbol resolve function is called to provide linking with different nodes during symbol resolution
  * for example html macro uses it to find methods to call during replacement
  */
-typedef bool(*EmbeddedValueSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedValue* value);
+typedef bool(*EmbeddedValueSymbolResolveFunc)(SymResLinkBody* visitor, EmbeddedValue* value);
 
 /**
  * replacement function is called to provide ast node that would finally generate code for this

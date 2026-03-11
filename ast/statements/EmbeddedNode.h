@@ -16,6 +16,8 @@ struct EmbeddedNodeAttributes {
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
 
+    bool top_level = false;
+
 };
 
 class EmbeddedNode : public ASTNode {
@@ -63,16 +65,17 @@ public:
     /**
      * constructor
      */
-    EmbeddedNode(
+    constexpr EmbeddedNode(
             AccessSpecifier specifier,
             chem::string_view name,
             void* data_ptr,
             EmbeddedNodeKnownTypeFunc* known_type_fn,
             EmbeddedNodeChildResolutionFunc* child_res_fn,
             ASTNode* parent_node,
-            SourceLocation loc
+            SourceLocation loc,
+            bool top_level = false
     ) : ASTNode(ASTNodeKind::EmbeddedNode, parent_node, loc), name(name), data_ptr(data_ptr),
-        known_type_fn(known_type_fn), child_res_fn(child_res_fn), attrs(specifier)
+        known_type_fn(known_type_fn), child_res_fn(child_res_fn), attrs(specifier, top_level)
     {
 
     }
@@ -126,6 +129,37 @@ public:
 
 #endif
 
+};
 
+typedef void(CrossModuleSymbolDeclarerFn)(void* obj, chem::string_view* name, ASTNode* node);
+
+typedef void(CrossModuleSymbolDeclarerProxyFn)(void* obj, EmbeddedNode* node, CrossModuleSymbolDeclarerFn* fn, int at_least_spec);
+
+class TopLevelEmbeddedNode : public EmbeddedNode {
+public:
+
+    CrossModuleSymbolDeclarerProxyFn* proxy_fn;
+
+    TopLevelEmbeddedNode(
+        AccessSpecifier specifier,
+        chem::string_view name,
+        void* data_ptr,
+        EmbeddedNodeKnownTypeFunc* known_type_fn,
+        EmbeddedNodeChildResolutionFunc* child_res_fn,
+        CrossModuleSymbolDeclarerProxyFn* proxy_fn,
+        ASTNode* parent_node,
+        SourceLocation loc
+    ) : EmbeddedNode(
+        specifier,
+        name,
+        data_ptr,
+        known_type_fn,
+        child_res_fn,
+        parent_node,
+        loc,
+        true
+    ), proxy_fn(proxy_fn) {
+
+    }
 
 };

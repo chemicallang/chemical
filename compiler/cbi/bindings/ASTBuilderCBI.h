@@ -13,6 +13,7 @@ class ASTBuilder;
 class BatchAllocator;
 class ASTAllocator;
 class TypeBuilder;
+class TopLevelEmbeddedNode;
 
 struct NodeSpan {
     ASTNode** ptr;
@@ -26,6 +27,8 @@ extern "C" {
     void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn);
 
     EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, int spec, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
+
+    TopLevelEmbeddedNode* ASTBuildermake_top_level_embedded_node(ASTBuilder* builder, int spec, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, void* cmsdpf, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
 
     EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, NodeSpan* chemical_nodes, ValueSpan* chemical_values, uint64_t location);
 

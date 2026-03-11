@@ -7,6 +7,7 @@
 #include "ast/statements/Export.h"
 #include "ast/structures/ModuleScope.h"
 #include "ast/structures/Namespace.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/If.h"
@@ -132,6 +133,16 @@ void declare_node(NodeSymbolDeclarer<T>& declarer, ASTNode* node, AccessSpecifie
             const auto decl = node->as_gen_func_decl_unsafe();
             if(!decl->master_impl->isExtensionFn() && decl->master_impl->specifier() >= at_least_spec) {
                 declarer.casted_declare(decl->name_view(), decl);
+            }
+            break;
+        }
+        case ASTNodeKind::EmbeddedNode: {
+            const auto em = node->as_embedded_node_unsafe();
+            if (em->attrs.top_level) {
+                const auto declare_proxy = [](void* obj, chem::string_view* name, ASTNode* node) {
+                    ((NodeSymbolDeclarer<T>*) obj)->casted_declare(*name, node);
+                };
+                ((TopLevelEmbeddedNode*) em)->proxy_fn((void*) &declarer, em, declare_proxy, static_cast<int>(at_least_spec));
             }
             break;
         }

@@ -52,10 +52,10 @@ public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) 
 }
 
 @no_mangle
-public func md_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
+public func md_symResValue(visitor : *mut SymResLinkBody, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut MdRoot;
-    sym_res_root(root, resolver, loc)
+    sym_res_root(root, visitor.getSymbolResolver(), loc)
     return true;
 }
 
@@ -91,10 +91,10 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 }
 
 @no_mangle
-public func md_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public func md_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut MdRoot;
-    sym_res_root(root, resolver, loc)
+    sym_res_root(root, visitor.getSymbolResolver(), loc)
 }
 
 @no_mangle

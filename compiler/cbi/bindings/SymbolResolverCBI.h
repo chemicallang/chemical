@@ -10,6 +10,8 @@ class SymbolResolver;
 
 class SymResLinkBody;
 
+class ASTBuilder;
+
 class EmbeddedNode;
 class EmbeddedValue;
 
@@ -28,6 +30,12 @@ extern "C" {
     void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
     void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
+
+    void SymbolResolvergetJobBuilder(ASTBuilder* out_builder, SymbolResolver* resolver);
+
+    void SymbolResolvergetModBuilder(ASTBuilder* out_builder, SymbolResolver* resolver);
+
+    void SymbolResolvergetFileBuilder(ASTBuilder* out_builder, SymbolResolver* resolver);
 
     // SymResLinkBody
 

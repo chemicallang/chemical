@@ -598,6 +598,9 @@ public struct ASTBuilder {
 
     var allocator : *mut BatchAllocator
 
+    // type builder is supported through functions on this builder
+    var typeBuilder : *mut void
+
     func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void;
 
     func store_cleanup(&self, obj : *void, cleanup_fn : (obj : *void) => void);

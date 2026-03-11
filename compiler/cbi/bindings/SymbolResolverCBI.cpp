@@ -1,10 +1,13 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "./SymbolResolverCBI.h"
+
+#include "ast/base/GlobalInterpretScope.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/symres/SymResLinkBody.h"
 #include "ast/statements/EmbeddedNode.h"
 #include "ast/values/EmbeddedValue.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 
 AnnotationController* SymbolResolvergetAnnotationController(SymbolResolver* resolver) {
     return &resolver->controller;
@@ -48,4 +51,16 @@ void SymResLinkBodyvisitValue(SymResLinkBody* visitor, EmbeddedValue* value) {
     for(const auto child_val : value->chemical_values) {
         visitor->visit(child_val);
     }
+}
+
+void SymbolResolvergetJobBuilder(ASTBuilder* out_builder, SymbolResolver* resolver) {
+    new (out_builder) ASTBuilder { resolver->ast_allocator, resolver->comptime_scope.typeBuilder };
+}
+
+void SymbolResolvergetModBuilder(ASTBuilder* out_builder, SymbolResolver* resolver) {
+    new (out_builder) ASTBuilder { resolver->mod_allocator, resolver->comptime_scope.typeBuilder };
+}
+
+void SymbolResolvergetFileBuilder(ASTBuilder* out_builder, SymbolResolver* resolver) {
+    new (out_builder) ASTBuilder { &resolver->allocator, resolver->comptime_scope.typeBuilder };
 }

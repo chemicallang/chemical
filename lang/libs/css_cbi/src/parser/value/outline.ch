@@ -29,6 +29,14 @@ func (cssParser : &mut CSSParser) parseOutline(
                 }
                 has_length = true;
             }
+            TokenType.LBrace, TokenType.DollarLBrace => {
+                if(!has_length) {
+                    cssParser.parseLength(parser, builder, outline.width);
+                    has_length = true;
+                } else {
+                    cssParser.parseCSSColor(parser, builder, outline.color);
+                }
+            }
             TokenType.Identifier => {
                 if(token.value.equals("var")) {
                     parser.increment();

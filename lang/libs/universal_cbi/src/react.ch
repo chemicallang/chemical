@@ -10,8 +10,6 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     // TODO: we must introduce the page symbol here, if user asked
     const resolver = visitor.getSymbolResolver();
 
-
-
     visitor.visitNode(node)
 
     const loc = node.getEncodedLocation();
@@ -23,6 +21,26 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     }
 
     sym_res_components(root.components, resolver)
+
+    const builder = resolver.getJobBuilder()
+
+    const voidType = builder.make_void_type(loc);
+    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, node.getParent(), loc);
+
+    // func name(page : &mut HtmlPage) : void
+    const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
+    const ref = builder.make_reference_type(linked as *mut BaseType, loc);
+    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
+
+    funcDecl.get_params().push(param);
+    funcDecl.add_body();
+
+    // fixing support
+    root.support.pageNode = param as *mut ASTNode
+    fix_support_page_node(root.support, root.support.pageNode, loc)
+
+    root.signature.functionNode = funcDecl;
+
 }
 
 @no_mangle
@@ -496,25 +514,7 @@ func fix_support_page_node(
 @no_mangle
 public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
-    const loc = value.getEncodedLocation();
-
-    const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, value.getParent(), loc);
-
-    // func name(page : &mut HtmlPage) : void
-    const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
-    const ref = builder.make_reference_type(linked as *mut BaseType, loc);
-    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
-    
-    funcDecl.get_params().push(param);
-    funcDecl.add_body();
-
-    // fixing support
-    root.support.pageNode = param as *mut ASTNode
-    fix_support_page_node(root.support, root.support.pageNode, loc)
-
-    root.signature.functionNode = funcDecl;
-    return funcDecl as *mut ASTNode;
+    return root.signature.functionNode as *mut ASTNode;
 }
 
 @no_mangle

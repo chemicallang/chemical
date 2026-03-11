@@ -1,8 +1,7 @@
 @no_mangle
-public func preact_symResSigNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    // this is where signature should be resolved
-    // like signature of function
-    // declare the node here as well so others 
+public func preact_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
+   // no type or value is included in this node which requires resolution at link signature
+   // other than HtmlPage type, how are we are comfortable resolving that after
 }
 
 @no_mangle

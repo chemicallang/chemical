@@ -45,6 +45,42 @@ void sym_res_before_signature(SymbolResolver& resolver, Scope* scope) {
     }
 }
 
+SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visitor) {
+    return &visitor->linker;
+}
+
+void SymResLinkSignaturevisitNode(TopLevelLinkSignature* visitor, ASTNode* node) {
+    visitor->visit(node);
+}
+
+void SymResLinkSignaturevisitValue(TopLevelLinkSignature* visitor, Value* value) {
+    visitor->visit(value);
+}
+
+void SymResLinkSignaturevisitEmbeddedNode(TopLevelLinkSignature* visitor, EmbeddedNode* node) {
+    auto& linker = visitor->linker;
+    for(const auto child_node : node->chemical_nodes) {
+        linker.scope_start();
+        visitor->visit(child_node);
+        linker.scope_end();
+    }
+    for(const auto child_val : node->chemical_values) {
+        visitor->visit(child_val);
+    }
+}
+
+void SymResLinkSignaturevisitEmbeddedValue(TopLevelLinkSignature* visitor, EmbeddedValue* value) {
+    auto& linker = visitor->linker;
+    for(const auto child_node : value->chemical_nodes) {
+        linker.scope_start();
+        visitor->visit(child_node);
+        linker.scope_end();
+    }
+    for(const auto child_val : value->chemical_values) {
+        visitor->visit(child_val);
+    }
+}
+
 void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
     visitor.visit(scope);
@@ -378,34 +414,18 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
 }
 
 void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
-    for(const auto child_node : node->chemical_nodes) {
-        linker.scope_start();
-        visit(child_node);
-        linker.scope_end();
-    }
-    for(const auto child_val : node->chemical_values) {
-        visit(child_val);
-    }
     auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResLinkSignatureNode);
     if(found) {
-        ((EmbeddedNodeSymResLinkSignature) found)(&linker, node);
+        ((EmbeddedNodeSymResLinkSignature) found)(this, node);
     } else {
         linker.error(node) << "couldn't find link signature method for embedded node with name '" << node->name << "'";
     }
 }
 
 void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
-    for(const auto child_node : value->chemical_nodes) {
-        linker.scope_start();
-        visit(child_node);
-        linker.scope_end();
-    }
-    for(const auto child_val : value->chemical_values) {
-        visit(child_val);
-    }
     auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResLinkSignatureValue);
     if(found) {
-        ((EmbeddedValueSymResLinkSignature) found)(&linker, value);
+        ((EmbeddedValueSymResLinkSignature) found)(this, value);
     } else {
         linker.error(value) << "couldn't find link signature method for embedded value with name '" << value->name << "'";
     }

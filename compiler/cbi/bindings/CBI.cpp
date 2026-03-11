@@ -15,6 +15,7 @@
 #include "ASTDiagnoserCBI.h"
 #include "AnnotationControllerCBI.h"
 #include "TransformerContextCBI.h"
+#include "compiler/symres/LinkSignatureAPI.h"
 
 #ifdef LSP_BUILD
 #include "compiler/cbi/bindings/lsp/LSPHooks.h"
@@ -386,6 +387,15 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetJobBuilder", (void*) SymbolResolvergetJobBuilder},
         {"compiler_SymbolResolvergetModBuilder", (void*) SymbolResolvergetModBuilder},
         {"compiler_SymbolResolvergetFileBuilder", (void*) SymbolResolvergetFileBuilder},
+
+        // sym res link signature
+        {"compiler_SymResLinkSignaturegetSymbolResolver", (void*) SymResLinkSignaturegetSymbolResolver},
+        {"compiler_SymResLinkSignaturevisitNode", (void*) SymResLinkSignaturevisitNode},
+        {"compiler_SymResLinkSignaturevisitValue", (void*) SymResLinkSignaturevisitValue},
+        {"compiler_SymResLinkSignaturevisitEmbeddedNode", (void*) SymResLinkSignaturevisitEmbeddedNode},
+        {"compiler_SymResLinkSignaturevisitEmbeddedValue", (void*) SymResLinkSignaturevisitEmbeddedValue},
+
+        // sym res link body
         {"compiler_SymResLinkBodygetSymbolResolver", (void*) SymResLinkBodygetSymbolResolver},
         {"compiler_SymResLinkBodyvisitNode", (void*) SymResLinkBodyvisitNode},
         {"compiler_SymResLinkBodyvisitValue", (void*) SymResLinkBodyvisitValue},

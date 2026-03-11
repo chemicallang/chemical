@@ -11,6 +11,7 @@ class Value;
 class SymbolResolver;
 
 class SymResLinkBody;
+class TopLevelLinkSignature;
 
 class ASTBuilder;
 

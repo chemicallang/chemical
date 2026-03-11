@@ -24,3 +24,15 @@ void sym_res_signature(SymbolResolver& resolver, Scope* scope);
  * must run after link signature
  */
 void sym_res_after_signature(SymbolResolver& resolver, Scope* scope);
+
+class TopLevelLinkSignature;
+
+SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visitor);
+
+void SymResLinkSignaturevisitNode(TopLevelLinkSignature* visitor, ASTNode* node);
+
+void SymResLinkSignaturevisitValue(TopLevelLinkSignature* visitor, Value* value);
+
+void SymResLinkSignaturevisitEmbeddedNode(TopLevelLinkSignature* visitor, EmbeddedNode* node);
+
+void SymResLinkSignaturevisitEmbeddedValue(TopLevelLinkSignature* visitor, EmbeddedValue* value);

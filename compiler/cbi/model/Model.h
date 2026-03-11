@@ -26,6 +26,8 @@ class SymbolResolver;
 
 class SymResLinkBody;
 
+class TopLevelLinkSignature;
+
 /**
  * the function that is called to initialize lexer for the user lexer
  */
@@ -79,12 +81,12 @@ typedef void(*EmbeddedNodeSymResDeclareTopLevel)(SymbolResolver* resolver, Embed
 /**
  * during link signature this method is called to link the signature of an embedded node
  */
-typedef void(*EmbeddedNodeSymResLinkSignature)(SymbolResolver* resolver, EmbeddedNode* node);
+typedef void(*EmbeddedNodeSymResLinkSignature)(TopLevelLinkSignature* visitor, EmbeddedNode* node);
 
 /**
  * during link signature this method is called to link the signature of an embedded value
  */
-typedef void(*EmbeddedValueSymResLinkSignature)(SymbolResolver* resolver, EmbeddedValue* value);
+typedef void(*EmbeddedValueSymResLinkSignature)(TopLevelLinkSignature* visitor, EmbeddedValue* value);
 
 /**
  * symbol resolve function is called to provide linking with different nodes during symbol resolution

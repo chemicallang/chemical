@@ -100,6 +100,10 @@ public struct HtmlPage {
         pageCss.append_with_len(value, len);
     }
 
+    func append_css_view(&mut self, value : &std::string_view) {
+        pageCss.append_with_len(value.data(), value.size())
+    }
+
     func require_css_hash(&self, hash : size_t) : bool {
         return !doneClasses.contains(hash)
     }
@@ -204,10 +208,42 @@ public struct HtmlPage {
         pageHeadJs.append_double(value, 3)
     }
 
-    func toString(&self) : std::string {
+    func appendHtmlTagStart(str : &mut std::string, lang : std::string_view = "", htmlClass : std::string_view = "") {
+        if(htmlClass.empty() && lang.empty()) {
+            str.append_view("<html>")
+        } else if(htmlClass.empty()) {
+            str.append_view("<html lang=\"")
+            str.append_view(lang)
+            str.append_view("\">")
+        } else if(lang.empty()) {
+            str.append_view("<html class=\"")
+            str.append_view(htmlClass)
+            str.append_view("\">")
+        } else {
+            str.append_view("<html lang=\"")
+            str.append_view(lang)
+            str.append_view("\" class=\"")
+            str.append_view(htmlClass)
+            str.append_view("\">")
+        }
+    }
+
+    func appendBodyTagStart(str : &mut std::string, bodyClass : std::string_view = "") {
+        if(bodyClass.empty()) {
+            str.append_view("<body>")
+        } else {
+            str.append_view("<body class=\"")
+            str.append_view(bodyClass)
+            str.append_view("\">")
+        }
+    }
+
+    func toString(&self, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + pageJs.size() + 100)
-        str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
+        str.append_view(std::string_view("<!DOCTYPE html>"))
+        appendHtmlTagStart(str, lang, htmlClass)
+        str.append_view("<head>")
         str.append_string(pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<style>"))
@@ -219,7 +255,8 @@ public struct HtmlPage {
             str.append_string(pageHeadJs)
             str.append_view(std::string_view("</script>"))
         }
-        str.append_view(std::string_view("</head><body>"))
+        str.append_view(std::string_view("</head>"))
+        appendBodyTagStart(str, bodyClass)
         str.append_string(pageHtml)
         if(!pageJs.empty()) {
             str.append_view(std::string_view("<script>"))
@@ -641,10 +678,12 @@ public struct HtmlPage {
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist
-    func htmlPageToString(&self, name : &std::string_view) : std::string {
+    func htmlPageToString(&self, name : &std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageHtml.size() + 128)
-        str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
+        str.append_view(std::string_view("<!DOCTYPE html>"))
+        appendHtmlTagStart(str, lang, htmlClass)
+        str.append_view("<head>")
         str.append_string(pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<link rel=\"stylesheet\" href=\""));
@@ -656,7 +695,8 @@ public struct HtmlPage {
             str.append_view(name)
             str.append_view(std::string_view("_head.js\"></script>"));
         }
-        str.append_view(std::string_view("</head><body>"))
+        str.append_view(std::string_view("</head>"))
+        appendBodyTagStart(str, bodyClass)
         str.append_string(pageHtml)
         if(!pageJs.empty()) {
             str.append_view(std::string_view("<script src=\""));
@@ -673,7 +713,7 @@ public struct HtmlPage {
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
-    func writeToDirectory(&self, path : &std::string_view, name : &std::string_view) {
+    func writeToDirectory(&self, path : &std::string_view, name : &std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") {
 
         // TODO only if not exists
         fs::mkdir(path.data());
@@ -685,7 +725,7 @@ public struct HtmlPage {
         htmlFile.append_char_ptr(".html")
 
         // writing only html to route
-        var htmlPage = htmlPageToString(name)
+        var htmlPage = htmlPageToString(name, lang, htmlClass, bodyClass)
         fs::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size())
 
         // {name}.css

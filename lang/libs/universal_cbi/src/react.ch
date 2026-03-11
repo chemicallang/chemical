@@ -674,6 +674,13 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         converter.str.append_view(".__hydrate(n,");
         converter.str.append_view(root.signature.propsName);
         converter.str.append_view("||{});return n;}");
+
+        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
+        converter.str.append_view(".__hydrate=(root,");
+        converter.str.append_view(root.signature.propsName);
+        converter.str.append_view(")=>{");
+        converter.str.append_view(root.signature.universalInit);
+        converter.str.append_view("};");
     } else {
         if(root.body != null) {
             converter.convertJsNode(root.body);
@@ -681,13 +688,6 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
              converter.str.append_view("return document.createTextNode('');}");
         }
     }
-
-    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-    converter.str.append_view(".__hydrate=(root,");
-    converter.str.append_view(root.signature.propsName);
-    converter.str.append_view(")=>{");
-    converter.str.append_view(root.signature.universalInit);
-    converter.str.append_view("};");
     
     converter.str.append_view("if(window.$_ureg)window.$_ureg('");
     get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);

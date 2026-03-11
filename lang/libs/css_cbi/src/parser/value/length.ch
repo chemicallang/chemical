@@ -145,6 +145,7 @@ func (cssParser : &mut CSSParser) parseLengthInto(
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
                 length.value = builder.allocate_view(view2)
+                length.kind = CSSLengthKind.Variable
                 return true;
             } else {
                 length.value = std::string_view("")
@@ -177,6 +178,7 @@ func (cssParser: &mut CSSParser) parseNumberInto(
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
                 length.value = builder.allocate_view(view2)
+                length.kind = CSSLengthKind.Variable
                 return true;
             } else {
                 length.value = std::string_view("")
@@ -215,6 +217,7 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
                 length.value = builder.allocate_view(view2)
+                length.kind = CSSLengthKind.Variable
                 return true;
             } else {
                 length.value = std::string_view("")

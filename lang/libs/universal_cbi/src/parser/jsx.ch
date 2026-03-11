@@ -31,7 +31,7 @@ func (jsParser : &mut JsParser) parseJSXAttribute(parser : *mut Parser, builder 
     var name = std::string_view();
     const idToken = parser.getToken();
     const attrLoc : ubigint = parser.getEncodedLocation(idToken);
-    if(idToken.type == JsTokenType.Identifier as int) {
+    if(idToken.type == JsTokenType.Identifier as int || idToken.type == JsTokenType.Class as int) {
          name = builder.allocate_view(idToken.value);
          parser.increment();
          // Handle namespaced attributes ns:attr ?

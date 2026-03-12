@@ -96,6 +96,12 @@ struct UniversalAttrBinding {
     var path : std::string_view
 }
 
+struct UniversalNestedBinding {
+    var componentName : std::string_view
+    var path : std::string_view
+    var propsExpr : std::string_view
+}
+
 func is_event_attr_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
 }
@@ -227,6 +233,116 @@ func get_prop_access_path(builder : *mut ASTBuilder, node : *mut JsNode, propsNa
     return view("");
 }
 
+func find_jsx_attribute(element : *mut JsJSXElement, name : std::string_view) : *mut JsJSXAttribute {
+    if(element == null) return null;
+    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+        const attrNode = element.opening.attributes.get(i);
+        if(attrNode == null || attrNode.kind != JsNodeKind.JSXAttribute) continue;
+        const attr = attrNode as *mut JsJSXAttribute;
+        if(attr.name.equals(name)) return attr;
+    }
+    return null;
+}
+
+func resolve_nested_prop_as_text(
+    builder : *mut ASTBuilder,
+    element : *mut JsJSXElement,
+    propPath : std::string_view,
+    propsName : std::string_view,
+    states : &std::vector<UniversalStateDecl>,
+    outText : &mut std::string_view,
+    outPropAccess : &mut std::string_view,
+    outChem : &mut *mut Value
+) : int {
+    if(propPath.empty()) return 0;
+    var dotPos : uint = 0;
+    while(dotPos < propPath.size() && propPath.data()[dotPos] != '.') dotPos++;
+    const attrName = if(dotPos == propPath.size()) propPath else std::string_view(propPath.data(), dotPos);
+    const attr = find_jsx_attribute(element, attrName);
+    if(attr == null || attr.value == null) return 0;
+    if(attr.value.kind == JsNodeKind.Literal) {
+        const lit = attr.value as *mut JsLiteral;
+        outText = strip_js_string_quotes(lit.value);
+        return 1;
+    }
+    if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+        const container = attr.value as *mut JsJSXExpressionContainer;
+        const expr = container.expression;
+        if(expr == null) return 0;
+        if(expr.kind == JsNodeKind.Literal) {
+            const lit = expr as *mut JsLiteral;
+            outText = strip_js_string_quotes(lit.value);
+            return 1;
+        }
+        if(expr.kind == JsNodeKind.Identifier) {
+            const id = expr as *mut JsIdentifier;
+            if(has_state(states, id.value)) {
+                outText = find_state_init_text(states, id.value);
+                return 1;
+            }
+        }
+        if(expr.kind == JsNodeKind.MemberAccess) {
+            const p = get_prop_access_path(builder, expr, propsName);
+            if(!p.empty()) {
+                outPropAccess = p;
+                return 2;
+            }
+        }
+        if(expr.kind == JsNodeKind.ChemicalValue) {
+            const cv = expr as *mut JsChemicalValue;
+            outChem = cv.value;
+            return 3;
+        }
+    }
+    return 0;
+}
+
+func build_nested_props_expr(
+    builder : *mut ASTBuilder,
+    element : *mut JsJSXElement,
+    states : &std::vector<UniversalStateDecl>
+) : std::string_view {
+    if(element == null) return view("{}");
+    var s = std::string();
+    s.append_view("{");
+    var first = true;
+    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+        const attrNode = element.opening.attributes.get(i);
+        if(attrNode == null) continue;
+        if(attrNode.kind == JsNodeKind.JSXAttribute) {
+            const attr = attrNode as *mut JsJSXAttribute;
+            if(!first) s.append_view(",");
+            first = false;
+            s.append_view(attr.name);
+            s.append_view(":");
+            if(attr.value == null) {
+                s.append_view("true");
+            } else if(attr.value.kind == JsNodeKind.Literal) {
+                const lit = attr.value as *mut JsLiteral;
+                s.append_view(lit.value);
+            } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                const container = attr.value as *mut JsJSXExpressionContainer;
+                const expr = container.expression;
+                if(expr != null) {
+                    s.append_view(js_node_to_source(builder, expr, states));
+                } else {
+                    s.append_view("true");
+                }
+            } else {
+                s.append_view("true");
+            }
+        } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+            const spread = attrNode as *mut JsJSXSpreadAttribute;
+            if(!first) s.append_view(",");
+            first = false;
+            s.append_view("...");
+            s.append_view(js_node_to_source(builder, spread.argument, states));
+        }
+    }
+    s.append_view("}");
+    return builder.allocate_view(s.to_view());
+}
+
 func (converter : &mut JsConverter) flush_text(out : &mut std::vector<TemplateToken>) {
     if(!converter.str.empty()) {
         out.push(TemplateToken { kind : TemplateTokenKind.Text, value : converter.builder.allocate_view(converter.str.to_view()) });
@@ -281,6 +397,7 @@ func render_universal_jsx(
     eventBindings : &mut std::vector<UniversalEventBinding>,
     propBindings : &mut std::vector<UniversalPropTextBinding>,
     attrBindings : &mut std::vector<UniversalAttrBinding>,
+    nestedBindings : &mut std::vector<UniversalNestedBinding>,
     out : &mut std::vector<TemplateToken>,
     propsName : std::string_view,
     converter : &mut JsConverter
@@ -369,13 +486,13 @@ func render_universal_jsx(
                 if(child == null) continue;
                 if(child.kind == JsNodeKind.JSXElement) {
                     const childPath = build_child_path(builder, path, childElementIndex);
-                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) {
+                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) {
                         return false;
                     }
                     childElementIndex++;
                 } else if(child.kind == JsNodeKind.JSXExpressionContainer) {
                     const childPath = build_child_path(builder, path, childElementIndex);
-                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) {
+                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) {
                         return false;
                     }
                     const cont = child as *mut JsJSXExpressionContainer;
@@ -384,7 +501,7 @@ func render_universal_jsx(
                         if(has_state(states, id.value)) childElementIndex++;
                     }
                 } else {
-                    if(!render_universal_jsx(builder, child, path, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) {
+                    if(!render_universal_jsx(builder, child, path, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) {
                         return false;
                     }
                 }
@@ -397,6 +514,92 @@ func render_universal_jsx(
             const tagNode = element.opening.tagName as *mut JsIdentifier;
             const tagName = tagNode.value;
             if(!is_native_tag(tagName)) {
+                if(element.componentSignature != null && element.componentSignature.mountStrategy == MountStrategy.Universal && !element.componentSignature.universalTemplate.empty()) {
+                    converter.flush_text(out);
+                    var compName = std::string();
+                    get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, compName);
+                    const propsExpr = build_nested_props_expr(builder, element, states);
+                    nestedBindings.push(UniversalNestedBinding {
+                        componentName : builder.allocate_view(compName.to_view()),
+                        path : path,
+                        propsExpr : propsExpr
+                    });
+
+                    // Inline the universal template of the nested component
+                    for(var i : uint = 0; i < element.componentSignature.universalTemplate.size(); i++) {
+                        const tok = element.componentSignature.universalTemplate.get(i);
+                        if(tok.kind == TemplateTokenKind.Text) {
+                            converter.str.append_view(tok.value);
+                        } else if(tok.kind == TemplateTokenKind.PropAccess) {
+                            if(tok.value.equals("children")) {
+                                var childElementIndex : uint = 0;
+                                for(var ci : uint = 0; ci < element.children.size(); ci++) {
+                                    const ch = element.children.get(ci);
+                                    if(ch == null) continue;
+                                    if(ch.kind == JsNodeKind.JSXElement) {
+                                        const childPath = build_child_path(builder, path, childElementIndex);
+                                        if(!render_universal_jsx(builder, ch, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
+                                        childElementIndex++;
+                                    } else if(ch.kind == JsNodeKind.JSXExpressionContainer) {
+                                        const childPath = build_child_path(builder, path, childElementIndex);
+                                        if(!render_universal_jsx(builder, ch, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
+                                        const cont = ch as *mut JsJSXExpressionContainer;
+                                        if(cont.expression != null && cont.expression.kind == JsNodeKind.Identifier) {
+                                            const id = cont.expression as *mut JsIdentifier;
+                                            if(has_state(states, id.value)) childElementIndex++;
+                                        }
+                                    } else {
+                                        if(!render_universal_jsx(builder, ch, path, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
+                                    }
+                                }
+                            } else {
+                                var txt = view("");
+                                var propPath = view("");
+                                var chem : *mut Value = null;
+                                const kind = resolve_nested_prop_as_text(builder, element, tok.value, propsName, states, txt, propPath, chem);
+                                if(kind == 1 && !txt.empty()) {
+                                    converter.str.append_view(txt);
+                                } else if(kind == 2 && !propPath.empty()) {
+                                    converter.flush_text(out);
+                                    out.push(TemplateToken { kind : TemplateTokenKind.PropAccess, value : propPath });
+                                } else if(kind == 3 && chem != null) {
+                                    converter.flush_text(out);
+                                    out.push(TemplateToken { kind : TemplateTokenKind.ChemicalValue, chemicalValue : chem });
+                                }
+                            }
+                        } else if(tok.kind == TemplateTokenKind.MergedAttribute) {
+                            if(tok.mergedAttr == null) continue;
+                            var merged = builder.allocate<MergedAttribute>();
+                            new (merged) MergedAttribute { name : tok.mergedAttr.name, segments : std::vector<MergedAttrSegment>() };
+                            for(var si : uint = 0; si < tok.mergedAttr.segments.size(); si++) {
+                                const seg = tok.mergedAttr.segments.get(si);
+                                if(seg.kind == MergedAttrSegmentKind.Text) {
+                                    merged.segments.push(seg);
+                                } else if(seg.kind == MergedAttrSegmentKind.PropAccess) {
+                                    var txt2 = view("");
+                                    var propPath2 = view("");
+                                    var chem2 : *mut Value = null;
+                                    const kind2 = resolve_nested_prop_as_text(builder, element, seg.value, propsName, states, txt2, propPath2, chem2);
+                                    if(kind2 == 1 && !txt2.empty()) {
+                                        merged.segments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt2, chemicalValue : null });
+                                    } else if(kind2 == 2 && !propPath2.empty()) {
+                                        merged.segments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : propPath2, chemicalValue : null });
+                                    } else if(kind2 == 3 && chem2 != null) {
+                                        merged.segments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.ChemicalValue, value : view(""), chemicalValue : chem2 });
+                                    }
+                                } else if(seg.kind == MergedAttrSegmentKind.ChemicalValue) {
+                                    merged.segments.push(seg);
+                                }
+                            }
+                            converter.flush_text(out);
+                            out.push(TemplateToken { kind : TemplateTokenKind.MergedAttribute, mergedAttr : merged });
+                        } else if(tok.kind == TemplateTokenKind.ChemicalValue) {
+                            converter.flush_text(out);
+                            out.push(TemplateToken { kind : TemplateTokenKind.ChemicalValue, chemicalValue : tok.chemicalValue });
+                        }
+                    }
+                    return true;
+                }
                 converter.flush_text(out);
                 out.push(TemplateToken { kind : TemplateTokenKind.NestedComponent, jsxElement : element as *mut void });
                 return true;
@@ -547,18 +750,18 @@ func render_universal_jsx(
                 if(child == null) continue;
                 if(child.kind == JsNodeKind.JSXElement) {
                     const childPath = build_child_path(builder, path, childElementIndex);
-                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) return false;
+                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
                     childElementIndex++;
                 } else if(child.kind == JsNodeKind.JSXExpressionContainer) {
                     const childPath = build_child_path(builder, path, childElementIndex);
-                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) return false;
+                    if(!render_universal_jsx(builder, child, childPath, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
                     const cont = child as *mut JsJSXExpressionContainer;
                     if(cont.expression != null && cont.expression.kind == JsNodeKind.Identifier) {
                         const id = cont.expression as *mut JsIdentifier;
                         if(has_state(states, id.value)) childElementIndex++;
                     }
                 } else {
-                    if(!render_universal_jsx(builder, child, path, states, textBindings, eventBindings, propBindings, attrBindings, out, propsName, converter)) return false;
+                    if(!render_universal_jsx(builder, child, path, states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, out, propsName, converter)) return false;
                 }
             }
 
@@ -638,6 +841,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     var eventBindings = std::vector<UniversalEventBinding>();
     var propBindings = std::vector<UniversalPropTextBinding>();
     var attrBindings = std::vector<UniversalAttrBinding>();
+    var nestedBindings = std::vector<UniversalNestedBinding>();
     var tokens = std::vector<TemplateToken>();
 
     var tmpSupport = SymResSupport {}
@@ -652,7 +856,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         state_vars : std::vector<std::string_view>()
     }
 
-    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, attrBindings, tokens, comp.signature.propsName, converter)) {
+    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, tokens, comp.signature.propsName, converter)) {
         return;
     }
     converter.flush_text(tokens);
@@ -719,6 +923,18 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view("if(h) el.setAttribute('");
         init.append_view(attr.name);
         init.append_view("', v);}");
+    }
+    for(var i : uint = 0; i < nestedBindings.size(); i++) {
+        const nb = nestedBindings.get(i);
+        init.append_view("{const c=(window.$_u&&window.$_u['");
+        init.append_view(nb.componentName);
+        init.append_view("'])||window['");
+        init.append_view(nb.componentName);
+        init.append_view("'];if(c&&c.__hydrate){c.__hydrate($_ut(root,");
+        init.append_view(nb.path);
+        init.append_view("),");
+        init.append_view(nb.propsExpr);
+        init.append_view(");}}");
     }
     for(var i : uint = 0; i < eventBindings.size(); i++) {
         const e = eventBindings.get(i);

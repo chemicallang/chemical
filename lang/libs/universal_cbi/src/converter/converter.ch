@@ -628,12 +628,12 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                          (cvType.getKind() == BaseTypeKind.ExpressiveString));
                      if(isStr) {
                          converter.str.append('"');
-                         converter.convertJsNode(attr.value);
+                         converter.put_chain_in();
+                         converter.put_chemical_value_in(cv.value);
                          converter.str.append('"');
                          return;
                      }
                  }
-                 // ... (existing state/prop logic)
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
                      if(converter.is_state_var(id.value)) {

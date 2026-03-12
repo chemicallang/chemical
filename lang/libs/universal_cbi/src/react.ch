@@ -360,18 +360,24 @@ func render_universal_jsx(
 
                 if(attr.name.equals("class")) {
                     if(attr.value != null) {
-                        if(!classes.empty()) classes.append(' ');
                         if(attr.value.kind == JsNodeKind.Literal) {
+                            if(!classes.empty()) classes.append(' ');
                             classes.append_view(strip_js_string_quotes((attr.value as *mut JsLiteral).value));
                         } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                             const container = attr.value as *mut JsJSXExpressionContainer;
                             if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
+                                if(!classes.empty()) classes.append(' ');
                                 classes.append_view(strip_js_string_quotes((container.expression as *mut JsLiteral).value));
                             } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
                                 const id = container.expression as *mut JsIdentifier;
                                 if(has_state(states, id.value)) {
+                                    if(!classes.empty()) classes.append(' ');
                                     classes.append_view(find_state_init_text(states, id.value));
-                                } else { return false; }
+                                } else {
+                                    attributesToEmit.push(attr);
+                                }
+                            } else if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
+                                attributesToEmit.push(attr);
                             } else { return false; }
                         } else { return false; }
                     }

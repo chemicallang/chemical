@@ -121,6 +121,53 @@ func strip_js_string_quotes(value : std::string_view) : std::string_view {
     return value;
 }
 
+func append_css_key(out : &mut std::string, key : std::string_view) : bool {
+    var k = key;
+    if(k.size() >= 2) {
+        const first = k.get(0);
+        const last = k.get(k.size() - 1);
+        if((first == '"' || first == '\'' || first == '`') && first == last) {
+            k = k.subview(1, k.size() - 1);
+        }
+    }
+    if(k.empty()) return false;
+    if(k.size() >= 2 && k.get(0) == '-' && k.get(1) == '-') {
+        out.append_view(k);
+        return true;
+    }
+    for(var i : uint = 0; i < k.size(); i++) {
+        var c = k.get(i);
+        if(c >= 'A' && c <= 'Z') {
+            out.append('-');
+            c = c + 32;
+        }
+        out.append(c);
+    }
+    return true;
+}
+
+func try_build_style_object_text(
+    builder : *mut ASTBuilder,
+    obj : *mut JsObjectLiteral,
+    outText : &mut std::string_view
+) : bool {
+    if(obj == null) return false;
+    var s = std::string();
+    for(var i : uint = 0; i < obj.properties.size(); i++) {
+        const prop = obj.properties.get(i);
+        if(prop.value == null) return false;
+        if(prop.value.kind != JsNodeKind.Literal) return false;
+        const lit = prop.value as *mut JsLiteral;
+        const valText = strip_js_string_quotes(lit.value);
+        if(s.size() > 0) s.append_view("; ");
+        if(!append_css_key(s, prop.key)) return false;
+        s.append_view(": ");
+        s.append_view(valText);
+    }
+    outText = builder.allocate_view(s.to_view());
+    return true;
+}
+
 func find_state_init_text(states : &std::vector<UniversalStateDecl>, name : std::string_view) : std::string_view {
     for(var i : uint = 0; i < states.size(); i++) {
         const st = states.get(i);
@@ -378,6 +425,11 @@ func render_universal_jsx(
                             const lit = container.expression as *mut JsLiteral;
                             const txt = strip_js_string_quotes(lit.value);
                             if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                        } else if(isStyle && container.expression != null && container.expression.kind == JsNodeKind.ObjectLiteral) {
+                            const obj = container.expression as *mut JsObjectLiteral;
+                            var cssText = view("");
+                            if(!try_build_style_object_text(builder, obj, cssText)) return false;
+                            if(!cssText.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : cssText, chemicalValue : null });
                         } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
                             const id = container.expression as *mut JsIdentifier;
                             if(has_state(states, id.value)) {

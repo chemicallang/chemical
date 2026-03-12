@@ -175,7 +175,13 @@ public func solid_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
                 
                 thenBody.push(converter.make_set_component_hash_call(hash))
                 
-                var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+                var targetNode = signature.functionNode as *mut FunctionDeclaration;
+                var targetName = signature.name;
+                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
+                    targetNode = signature.jsEmitFunctionNode;
+                    targetName = signature.jsEmitFunctionNode.getName();
+                }
+                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
                 var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
                 call.get_args().push(pageId as *mut Value)
@@ -283,6 +289,7 @@ public func solid_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
             propsName : propsName,
             params : params,
             functionNode : null,
+            jsEmitFunctionNode : null,
             mountStrategy : MountStrategy.Solid, // Important: Set mount strategy
             access : spec
         },

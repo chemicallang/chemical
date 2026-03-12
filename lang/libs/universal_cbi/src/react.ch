@@ -60,7 +60,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     root.signature.functionNode = funcDecl;
 
-    compute_universal_template(&mut builder, root);
+    compute_universal_template(&mut builder, root, &mut root.support);
 }
 
 @no_mangle
@@ -300,7 +300,8 @@ func resolve_nested_prop_as_text(
 func build_nested_props_expr(
     builder : *mut ASTBuilder,
     element : *mut JsJSXElement,
-    states : &std::vector<UniversalStateDecl>
+    states : &std::vector<UniversalStateDecl>,
+    support : *mut SymResSupport
 ) : std::string_view {
     if(element == null) return view("{}");
     var s = std::string();
@@ -324,7 +325,7 @@ func build_nested_props_expr(
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;
                 if(expr != null) {
-                    s.append_view(js_node_to_source(builder, expr, states));
+                    s.append_view(js_node_to_source(builder, expr, states, support));
                 } else {
                     s.append_view("true");
                 }
@@ -336,7 +337,7 @@ func build_nested_props_expr(
             if(!first) s.append_view(",");
             first = false;
             s.append_view("...");
-            s.append_view(js_node_to_source(builder, spread.argument, states));
+            s.append_view(js_node_to_source(builder, spread.argument, states, support));
         }
     }
     s.append_view("}");
@@ -353,12 +354,12 @@ func (converter : &mut JsConverter) flush_text(out : &mut std::vector<TemplateTo
 func js_node_to_source(
     builder : *mut ASTBuilder,
     node : *mut JsNode,
-    states : &std::vector<UniversalStateDecl>
+    states : &std::vector<UniversalStateDecl>,
+    support : *mut SymResSupport
 ) : std::string_view {
-    var tmpSupport = SymResSupport {}
     var tmpConv = JsConverter {
         builder : builder,
-        support : &mut tmpSupport,
+        support : support,
         vec : null,
         parent : null,
         str : std::string(),
@@ -518,7 +519,7 @@ func render_universal_jsx(
                     converter.flush_text(out);
                     var compName = std::string();
                     get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, compName);
-                    const propsExpr = build_nested_props_expr(builder, element, states);
+                    const propsExpr = build_nested_props_expr(builder, element, states, converter.support);
                     nestedBindings.push(UniversalNestedBinding {
                         componentName : builder.allocate_view(compName.to_view()),
                         path : path,
@@ -629,7 +630,7 @@ func render_universal_jsx(
                 if(is_event_attr_name(attr.name)) {
                     if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
-                        const handler = js_node_to_source(builder, container.expression, states);
+                        const handler = js_node_to_source(builder, container.expression, states, converter.support);
                         eventBindings.push(UniversalEventBinding {
                             eventName : event_attr_to_dom_event(builder, attr.name),
                             path : path,
@@ -802,7 +803,12 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
     return null;
 }
 
-func collect_states(builder : *mut ASTBuilder, block : *mut JsBlock, outStates : &mut std::vector<UniversalStateDecl>) {
+func collect_states(
+    builder : *mut ASTBuilder,
+    block : *mut JsBlock,
+    outStates : &mut std::vector<UniversalStateDecl>,
+    support : *mut SymResSupport
+) {
     for(var i : uint = 0; i < block.statements.size(); i++) {
         const stmt = block.statements.get(i);
         if(stmt == null || stmt.kind != JsNodeKind.VarDecl) continue;
@@ -811,7 +817,7 @@ func collect_states(builder : *mut ASTBuilder, block : *mut JsBlock, outStates :
         var initExpr = view("undefined");
         var initText = view("");
         if(decl.value != null) {
-            initExpr = js_node_to_source(builder, decl.value, outStates);
+            initExpr = js_node_to_source(builder, decl.value, outStates, support);
             if(decl.value.kind == JsNodeKind.Literal) {
                 const lit = decl.value as *mut JsLiteral;
                 initText = builder.allocate_view(strip_js_string_quotes(lit.value));
@@ -827,12 +833,12 @@ func collect_states(builder : *mut ASTBuilder, block : *mut JsBlock, outStates :
     }
 }
 
-func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsComponentDecl) {
+func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsComponentDecl, tmpSupport : *mut SymResSupport) {
     if(comp == null || comp.body == null || comp.body.kind != JsNodeKind.Block) return;
     const block = comp.body as *mut JsBlock;
 
     var states = std::vector<UniversalStateDecl>();
-    collect_states(builder, block, states);
+    collect_states(builder, block, states, tmpSupport);
 
     const returned = find_returned_jsx(block);
     if(returned == null) return;
@@ -844,10 +850,9 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     var nestedBindings = std::vector<UniversalNestedBinding>();
     var tokens = std::vector<TemplateToken>();
 
-    var tmpSupport = SymResSupport {}
     var converter = JsConverter {
         builder : builder,
-        support : &mut tmpSupport,
+        support : tmpSupport,
         vec : null,
         parent : null,
         str : std::string(),

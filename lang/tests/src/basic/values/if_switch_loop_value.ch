@@ -6,7 +6,29 @@ struct nd_isl_int_container {
 comptime const isl_int_container_sel_first = true
 comptime const isl_int_container_sel_second = true
 
+@direct_init
+struct if_val_view {
+    var d : int
+    @make
+    func make() {
+        return if_val_view { d : 10 }
+    }
+}
+
+func if_val_view_param_conditional_if(cond : bool, v : if_val_view) : if_val_view {
+    var second = if(cond) v else if_val_view()
+    return second;
+}
+
 func test_if_switch_loop_value() {
+    test("constructible values inside if conditionals work - 1", () => {
+        var x = if_val_view_param_conditional_if(true, if_val_view{ d : 98 })
+        return x.d == 98
+    })
+    test("constructible values inside if conditionals work - 2", () => {
+        var x = if_val_view_param_conditional_if(false, if_val_view{ d : 98 })
+        return x.d == 10
+    })
     test("different integer types in if value works", () => {
         var first = 234324u64
         var condition = true

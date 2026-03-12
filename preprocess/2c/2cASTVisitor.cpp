@@ -6692,7 +6692,7 @@ void ToCAstVisitor::VisitExpressiveString(ExpressiveString* value) {
 }
 
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
-    visit(node->value);
+    accept_mutating_value(node->value->getType(), node->value);
 }
 
 void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {

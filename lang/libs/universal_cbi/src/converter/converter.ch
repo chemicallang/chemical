@@ -7,6 +7,7 @@ struct JsConverter {
     var builder : *mut ASTBuilder
     var support : *mut SymResSupport
     var vec : *mut VecRef<ASTNode>
+    var tokens : *mut std::vector<TemplateToken> = null
     var parent : *mut ASTNode
     var str : std::string
     var jsx_parent : std::string_view
@@ -14,6 +15,12 @@ struct JsConverter {
     var id_counter : int = 0
     var state_vars : std::vector<std::string_view>
     var target : BufferType = BufferType.JavaScript
+}
+
+func (converter : &mut JsConverter) flush_template_text() {
+    if(converter.tokens == null || converter.str.empty()) return;
+    converter.tokens.push(TemplateToken { kind : TemplateTokenKind.Text, value : converter.builder.allocate_view(converter.str.to_view()) });
+    converter.str.clear();
 }
 
 func (converter : &mut JsConverter) append_hex(val : uint) {
@@ -317,6 +324,11 @@ func (converter : &mut JsConverter) put_chemical_value_in(value : *mut Value) {
 }
 
 func (converter : &mut JsConverter) convertChemicalValue(chem : *mut JsChemicalValue) {
+    if(converter.tokens != null) {
+        converter.flush_template_text();
+        converter.tokens.push(TemplateToken { kind : TemplateTokenKind.ChemicalValue, chemicalValue : chem.value });
+        return;
+    }
     converter.put_chain_in()
     converter.put_chemical_value_in(chem.value)
 }

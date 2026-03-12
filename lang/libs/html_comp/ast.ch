@@ -17,7 +17,26 @@ public enum TemplateTokenKind {
     ChemicalValue,
     Children,
     NestedComponent,
-    Spread
+    Spread,
+    MergedAttribute
+}
+
+public enum MergedAttrSegmentKind {
+    Text,
+    PropAccess,
+    ChemicalValue,
+    SpreadAttr
+}
+
+public struct MergedAttrSegment {
+    var kind : MergedAttrSegmentKind
+    var value : std::string_view
+    var chemicalValue : *mut Value = null
+}
+
+public struct MergedAttribute {
+    var name : std::string_view
+    var segments : std::vector<MergedAttrSegment>
 }
 
 public struct TemplateToken {
@@ -25,6 +44,7 @@ public struct TemplateToken {
     var value : std::string_view
     var chemicalValue : *mut Value = null
     var jsxElement : *mut void = null
+    var mergedAttr : *mut MergedAttribute = null
 }
 
 public struct ComponentSignature {

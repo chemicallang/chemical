@@ -331,20 +331,24 @@ func render_universal_jsx(
             converter.str.append('<');
             converter.str.append_view(tagName);
 
-            var classes = std::string();
-            var attributesToEmit = std::vector<*mut JsJSXAttribute>();
+            var classSegments = std::vector<MergedAttrSegment>();
+            var styleSegments = std::vector<MergedAttrSegment>();
+            var hasSpread = false;
 
             for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
                 const attrNode = element.opening.attributes.get(i);
                 if(attrNode == null) continue;
                 if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                    hasSpread = true;
+                    classSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
+                    styleSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
                     converter.flush_text(out);
                     out.push(TemplateToken { kind : TemplateTokenKind.Spread });
                     continue;
                 }
                 if(attrNode.kind != JsNodeKind.JSXAttribute) continue;
                 const attr = attrNode as *mut JsJSXAttribute;
-                
+
                 if(is_event_attr_name(attr.name)) {
                     if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
@@ -358,42 +362,46 @@ func render_universal_jsx(
                     continue;
                 }
 
-                if(attr.name.equals("class")) {
-                    if(attr.value != null) {
-                        if(attr.value.kind == JsNodeKind.Literal) {
-                            if(!classes.empty()) classes.append(' ');
-                            classes.append_view(strip_js_string_quotes((attr.value as *mut JsLiteral).value));
-                        } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
-                            const container = attr.value as *mut JsJSXExpressionContainer;
-                            if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
-                                if(!classes.empty()) classes.append(' ');
-                                classes.append_view(strip_js_string_quotes((container.expression as *mut JsLiteral).value));
-                            } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
-                                const id = container.expression as *mut JsIdentifier;
-                                if(has_state(states, id.value)) {
-                                    if(!classes.empty()) classes.append(' ');
-                                    classes.append_view(find_state_init_text(states, id.value));
-                                } else {
-                                    attributesToEmit.push(attr);
-                                }
-                            } else if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
-                                attributesToEmit.push(attr);
+                const isClass = attr.name.equals("class") || attr.name.equals("className");
+                const isStyle = attr.name.equals("style");
+
+                if(isClass || isStyle) {
+                    if(attr.value == null) continue;
+                    var target = if(isClass) &mut classSegments else &mut styleSegments;
+                    if(attr.value.kind == JsNodeKind.Literal) {
+                        const lit = attr.value as *mut JsLiteral;
+                        const txt = strip_js_string_quotes(lit.value);
+                        if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                    } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                        const container = attr.value as *mut JsJSXExpressionContainer;
+                        if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
+                            const lit = container.expression as *mut JsLiteral;
+                            const txt = strip_js_string_quotes(lit.value);
+                            if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                        } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
+                            const id = container.expression as *mut JsIdentifier;
+                            if(has_state(states, id.value)) {
+                                const initText = find_state_init_text(states, id.value);
+                                if(!initText.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : initText, chemicalValue : null });
+                            } else {
+                                const propPath = get_prop_access_path(builder, container.expression, propsName);
+                                if(!propPath.empty() && !propPath.equals("children")) {
+                                    target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : propPath, chemicalValue : null });
+                                } else { return false; }
+                            }
+                        } else if(container.expression != null && container.expression.kind == JsNodeKind.MemberAccess) {
+                            const propPath = get_prop_access_path(builder, container.expression, propsName);
+                            if(!propPath.empty()) {
+                                target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : propPath, chemicalValue : null });
                             } else { return false; }
+                        } else if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
+                            const cv = container.expression as *mut JsChemicalValue;
+                            target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.ChemicalValue, value : view(""), chemicalValue : cv.value });
                         } else { return false; }
-                    }
-                } else {
-                    attributesToEmit.push(attr);
+                    } else { return false; }
+                    continue;
                 }
-            }
 
-            if(!classes.empty()) {
-                converter.str.append_view(" class=\"");
-                escape_html_append(converter.str, classes.to_view());
-                converter.str.append('"');
-            }
-
-            for(var i : uint = 0; i < attributesToEmit.size(); i++) {
-                const attr = attributesToEmit.get(i);
                 converter.str.append(' ');
                 converter.str.append_view(attr.name);
                 if(attr.value != null) {
@@ -432,6 +440,22 @@ func render_universal_jsx(
                         } else { return false; }
                     }
                     converter.str.append('"');
+                }
+            }
+
+            if(!classSegments.empty() || !styleSegments.empty() || hasSpread) {
+                converter.flush_text(out);
+                if(!classSegments.empty() || hasSpread) {
+                    var mergedClass = builder.allocate<MergedAttribute>();
+                    new (mergedClass) MergedAttribute { name : view("class"), segments : std::vector<MergedAttrSegment>() };
+                    for(var i : uint = 0; i < classSegments.size(); i++) mergedClass.segments.push(classSegments.get(i));
+                    out.push(TemplateToken { kind : TemplateTokenKind.MergedAttribute, mergedAttr : mergedClass });
+                }
+                if(!styleSegments.empty() || hasSpread) {
+                    var mergedStyle = builder.allocate<MergedAttribute>();
+                    new (mergedStyle) MergedAttribute { name : view("style"), segments : std::vector<MergedAttrSegment>() };
+                    for(var i : uint = 0; i < styleSegments.size(); i++) mergedStyle.segments.push(styleSegments.get(i));
+                    out.push(TemplateToken { kind : TemplateTokenKind.MergedAttribute, mergedAttr : mergedStyle });
                 }
             }
             converter.str.append('>');

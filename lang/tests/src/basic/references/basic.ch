@@ -2,6 +2,19 @@ struct ReferencableStruct {
     var i : int
 }
 
+@direct_init
+struct AssignableReferencableStruct {
+    var i : int
+    @make
+    func make(i : int) {
+        return AssignableReferencableStruct { i : i }
+    }
+}
+
+func assign_to_ref_struct(r : &mut AssignableReferencableStruct) {
+    r = AssignableReferencableStruct(9873)
+}
+
 func take_ref(r : &ReferencableStruct) : int {
     return r.i;
 }
@@ -105,6 +118,11 @@ struct RefGiveStruct {
 }
 
 func test_references() {
+    test("assignment to passed mutable reference via constructor works", () => {
+        var j = AssignableReferencableStruct(22)
+        assign_to_ref_struct(j)
+        return j.i == 9873
+    })
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
         return take_int_ref(i) == 3;

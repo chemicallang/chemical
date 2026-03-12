@@ -234,7 +234,10 @@ func (converter : &mut ASTConverter) merged_attr_should_emit(element : *mut Html
                 if(attr != null && attr.value != null) return true;
             }
             MergedAttrSegmentKind.SpreadAttr => {
-                const attr = find_attribute(element, merged.name);
+                var attr = find_attribute(element, merged.name);
+                if(attr == null && merged.name.equals(view("class"))) {
+                    attr = find_attribute(element, view("className"));
+                }
                 if(attr != null && attr.value != null) return true;
             }
         }
@@ -276,7 +279,10 @@ func (converter : &mut ASTConverter) emit_merged_attribute(element : *mut HtmlEl
                 hasValue = true;
             }
             MergedAttrSegmentKind.SpreadAttr => {
-                const attr = find_attribute(element, merged.name);
+                var attr = find_attribute(element, merged.name);
+                if(attr == null && merged.name.equals(view("class"))) {
+                    attr = find_attribute(element, view("className"));
+                }
                 if(attr == null || attr.value == null) continue;
                 switch(attr.value.kind) {
                     AttributeValueKind.Text, AttributeValueKind.Number => {

@@ -2153,6 +2153,10 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
+    if (type->isReferenceCanonical() && !Value::isValueKindRValue(assign->value->val_kind()) && !is_value_param_pointer_like(assign->value)) {
+        // special case, accept_mutating_value writes a & thinking a reference needs to pass
+        visitor.write('*');
+    }
     accept_movable_ref_value(visitor, type, assign->value);
 
 }

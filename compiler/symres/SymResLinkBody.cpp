@@ -428,11 +428,11 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     const auto lhsType = lhs->getType();
 
-    if(lhsType->isReferenceCanonical()) {
+    visit(value, lhsType);
+
+    if(lhsType->isReferenceCanonical() && value->getType()->isReferenceCanonical()) {
         linker.error("you cannot re-assign a reference", lhs);
     }
-
-    visit(value, lhsType);
 
     // first we check if the value is mutable
     // immutable values cannot be used (even in operator overloading)

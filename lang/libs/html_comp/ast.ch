@@ -11,6 +11,18 @@ public enum MountStrategy {
     Universal
 }
 
+public enum TemplateTokenKind {
+    Text,
+    PropAccess,
+    ChemicalValue
+}
+
+public struct TemplateToken {
+    var kind : TemplateTokenKind
+    var value : std::string_view
+    var chemicalValue : *mut Value = null
+}
+
 public struct ComponentSignature {
     var name : std::string_view
     var propsName : std::string_view
@@ -18,7 +30,7 @@ public struct ComponentSignature {
     var functionNode : *mut FunctionDeclaration = null
     var mountStrategy : MountStrategy = MountStrategy.Default
     var access : AccessSpecifier = AccessSpecifier.Private
-    var universalTemplate : std::string_view
+    var universalTemplate : std::vector<TemplateToken>
     var universalInit : std::string_view
 }
 

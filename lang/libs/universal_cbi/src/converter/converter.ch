@@ -620,6 +620,20 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
          if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
              const container = attr.value as *mut JsJSXExpressionContainer
              if(container.expression != null) {
+                 if(container.expression.kind == JsNodeKind.ChemicalValue) {
+                     const cv = container.expression as *mut JsChemicalValue;
+                     const cvType = cv.value.getType();
+                     const isStr = cvType != null && (cvType.getKind() == BaseTypeKind.String ||
+                         (cvType.getKind() == BaseTypeKind.Pointer) ||
+                         (cvType.getKind() == BaseTypeKind.ExpressiveString));
+                     if(isStr) {
+                         converter.str.append('"');
+                         converter.convertJsNode(attr.value);
+                         converter.str.append('"');
+                         return;
+                     }
+                 }
+                 // ... (existing state/prop logic)
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
                      if(converter.is_state_var(id.value)) {

@@ -959,7 +959,10 @@ bool ASTProcessor::parse_chemical_file(
         return true;
     } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
         auto& last = tokens[total_toks - 1];
-        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
+        std::string errStr = "unexpected token with value '";
+        errStr.append(last.value.view());
+        errStr.append("'");
+        lexer.diagnoser.diagnostic(chem::string_view(errStr), chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
     }
 
     // move lexer diagnostics
@@ -1049,7 +1052,10 @@ bool ASTProcessor::import_chemical_file(
         return true;
     } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
         auto& last = tokens[total_toks - 1];
-        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
+        std::string errStr = "unexpected token with value '";
+        errStr.append(last.value.view());
+        errStr.append("'");
+        lexer.diagnoser.diagnostic(chem::string_view(errStr), chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
     }
 
     // move lexer diagnostics
@@ -1142,7 +1148,10 @@ bool ASTProcessor::import_chemical_file_with_tokens(
         return true;
     } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
         auto& last = tokens[total_toks - 1];
-        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
+        std::string errStr = "unexpected token with value '";
+        errStr.append(last.value.view());
+        errStr.append("'");
+        lexer.diagnoser.diagnostic(chem::string_view(errStr), chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
     }
 
     // comments will be disposed as soon as input source dies

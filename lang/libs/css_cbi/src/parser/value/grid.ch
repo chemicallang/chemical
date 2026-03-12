@@ -3,6 +3,15 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
+
+    {
+        const token = parser.getToken()
+        if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return;
+        }
+    }
+
     var vals = builder.allocate<CSSMultipleValues>()
     new (vals) CSSMultipleValues {
         values : std::vector<CSSValue>()

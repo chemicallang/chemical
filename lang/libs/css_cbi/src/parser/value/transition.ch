@@ -226,6 +226,9 @@ func (cssParser : &mut CSSParser) parseTransition(
             transition = nextTransition
         } else if(token.type == TokenType.Semicolon) {
             break;
+        } else if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return;
         } else {
             parser.error("unknown token encountered");
             break;

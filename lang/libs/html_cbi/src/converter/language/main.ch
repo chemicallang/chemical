@@ -139,6 +139,80 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     return call;
 }
 
+func strip_js_string_quotes(value : std::string_view) : std::string_view {
+    if(value.size() >= 2) {
+        const first = value.data()[0];
+        const last = value.data()[value.size() - 1];
+        if((first == '"' || first == '\'' || first == '`') && first == last) {
+            return std::string_view(value.data() + 1, value.size() - 2);
+        }
+    }
+    return value;
+}
+
+func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut HtmlAttribute {
+    for(var i : uint = 0; i < element.attributes.size(); i++) {
+        const attr = element.attributes.get(i);
+        if(attr.name.equals(name)) return attr;
+    }
+    return null;
+}
+
+func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlElement, path : std::string_view) {
+    const builder = converter.builder
+    const loc = intrinsics::get_raw_location()
+    
+    var dotPos : uint = 0;
+    while(dotPos < path.size() && path.data()[dotPos] != '.') dotPos++;
+
+    var attrName = if(dotPos == path.size()) path else std::string_view(path.data(), dotPos);
+    
+    var attr = find_attribute(element, attrName);
+    if(attr == null) return;
+    
+    if(attr.value == null) return;
+    
+    if(dotPos == path.size()) {
+        switch(attr.value.kind) {
+            AttributeValueKind.Text, AttributeValueKind.Number => {
+                const val = attr.value as *mut TextAttributeValue;
+                converter.str.append_view(strip_js_string_quotes(val.text));
+            }
+            AttributeValueKind.Chemical => {
+                const val = attr.value as *mut ChemicalAttributeValue;
+                converter.put_chemical_value_in(val.value);
+            }
+            AttributeValueKind.ChemicalValues => {
+                const val = attr.value as *mut ChemicalAttributeValues;
+                for(var i : uint = 0; i < val.values.size(); i++) {
+                    converter.put_chemical_value_in(val.values.get(i));
+                }
+            }
+        }
+    } else {
+        if(attr.value.kind == AttributeValueKind.Chemical) {
+            const val = attr.value as *mut ChemicalAttributeValue;
+            var current : *mut Value = val.value;
+            
+            var remStart = dotPos + 1;
+            while(remStart < path.size()) {
+                var nextDot = remStart;
+                while(nextDot < path.size() && path.data()[nextDot] != '.') nextDot++;
+                
+                var part = std::string_view(path.data() + remStart, nextDot - remStart);
+                
+                var id = builder.make_identifier(part, null, false, loc);
+                const chain = builder.make_access_chain(std::span<*mut ChainValue>([ current as *mut ChainValue, id as *mut ChainValue ]), loc)
+                current = chain as *mut Value;
+                
+                if(nextDot == path.size()) break;
+                remStart = nextDot + 1;
+            }
+            converter.put_chemical_value_in(current);
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) is_string_type(type : *mut BaseType) : bool {
     const kind = type.getKind()
     if(kind == BaseTypeKind.String) return true;
@@ -624,7 +698,18 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
         s.append_view("\">");
 
-        s.append_view(signature.universalTemplate);
+        for(var i : uint = 0; i < signature.universalTemplate.size(); i++) {
+            const tok = signature.universalTemplate.get(i);
+            if(tok.kind == TemplateTokenKind.Text) {
+                s.append_view(tok.value);
+            } else if(tok.kind == TemplateTokenKind.PropAccess) {
+                converter.emit_append_html_from_str(*s);
+                converter.resolve_and_put_prop(element, tok.value);
+            } else if(tok.kind == TemplateTokenKind.ChemicalValue) {
+                converter.emit_append_html_from_str(*s);
+                converter.put_chemical_value_in(tok.chemicalValue);
+            }
+        }
         s.append_view("</div>");
         converter.emit_append_html_from_str(*s);
 

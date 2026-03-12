@@ -14,13 +14,16 @@ public enum MountStrategy {
 public enum TemplateTokenKind {
     Text,
     PropAccess,
-    ChemicalValue
+    ChemicalValue,
+    Children,
+    NestedComponent
 }
 
 public struct TemplateToken {
     var kind : TemplateTokenKind
     var value : std::string_view
     var chemicalValue : *mut Value = null
+    var jsxElement : *mut void = null
 }
 
 public struct ComponentSignature {

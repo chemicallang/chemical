@@ -15,7 +15,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
 
-    const builder = resolver.getJobBuilder()
+    var builder = resolver.getJobBuilder()
 
     const voidType = builder.make_void_type(loc);
     const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, node.getParent(), loc);
@@ -49,6 +49,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     root.signature.functionNode = funcDecl;
 
+    compute_universal_template(&mut builder, root);
 }
 
 @no_mangle
@@ -267,11 +268,15 @@ func render_universal_jsx(
                 const propPath = get_prop_access_path(builder, container.expression, propsName);
                 if(!propPath.empty()) {
                     converter.flush_text(out);
-                    out.push(TemplateToken { kind : TemplateTokenKind.PropAccess, value : propPath });
+                    if(propPath.equals("children")) {
+                        out.push(TemplateToken { kind : TemplateTokenKind.Children });
+                    } else {
+                        out.push(TemplateToken { kind : TemplateTokenKind.PropAccess, value : propPath });
+                    }
                     return true;
                 }
                 
-                // Check for chemical value (if we can detect it here, or maybe it's already a regular expression)
+                // Check for chemical value
                 if(container.expression.kind == JsNodeKind.ChemicalValue) {
                     converter.flush_text(out);
                     const cv = container.expression as *mut JsChemicalValue;
@@ -317,7 +322,11 @@ func render_universal_jsx(
             if(element.opening.tagName == null || element.opening.tagName.kind != JsNodeKind.Identifier) return false;
             const tagNode = element.opening.tagName as *mut JsIdentifier;
             const tagName = tagNode.value;
-            if(!is_native_tag(tagName)) return false;
+            if(!is_native_tag(tagName)) {
+                converter.flush_text(out);
+                out.push(TemplateToken { kind : TemplateTokenKind.NestedComponent, jsxElement : element as *mut void });
+                return true;
+            }
 
             converter.str.append('<');
             converter.str.append_view(tagName);
@@ -389,8 +398,10 @@ func render_universal_jsx(
                              } else {
                                  const propPath = get_prop_access_path(builder, container.expression, propsName);
                                  if(!propPath.empty()) {
-                                     converter.flush_text(out);
-                                     out.push(TemplateToken { kind : TemplateTokenKind.PropAccess, value : propPath });
+                                     if(!propPath.equals("children")) {
+                                         converter.flush_text(out);
+                                         out.push(TemplateToken { kind : TemplateTokenKind.PropAccess, value : propPath });
+                                     }
                                  } else { return false; }
                              }
                         } else if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
@@ -451,8 +462,22 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
         const stmt = block.statements.get(i);
         if(stmt != null && stmt.kind == JsNodeKind.Return) {
             const ret = stmt as *mut JsReturn;
-            if(ret.value != null && (ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment)) {
+            if(ret.value == null) return null;
+            if(ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment) {
                 return ret.value;
+            }
+            if(ret.value.kind == JsNodeKind.Identifier) {
+                const id = ret.value as *mut JsIdentifier;
+                // Search for the declaration of this identifier in the same block
+                for(var j : uint = 0; j < i; j++) {
+                    const prev = block.statements.get(j);
+                    if(prev != null && prev.kind == JsNodeKind.VarDecl) {
+                        const decl = prev as *mut JsVarDecl;
+                        if(decl.name.equals(id.value) && decl.value != null && (decl.value.kind == JsNodeKind.JSXElement || decl.value.kind == JsNodeKind.JSXFragment)) {
+                            return decl.value;
+                        }
+                    }
+                }
             }
         }
     }
@@ -879,7 +904,6 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     if(parser.getToken().type == JsTokenType.LBrace as int) {
         var body = jsParser.parseBlock(parser, builder);
         comp.body = body;
-        compute_universal_template(builder, comp);
         
         const nodes_arr : []*mut ASTNode = []
         

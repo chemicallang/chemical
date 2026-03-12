@@ -655,6 +655,16 @@ func (converter : &mut ASTConverter) emit_append_js_from_str(s : &mut std::strin
     converter.emit_append_js_call(value, size)
 }
 
+func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement) {
+    var i : uint = 0;
+    var s = element.children.size();
+    while(i < s) {
+        var nested_child = element.children.get(i)
+        converter.convertHtmlChild(nested_child)
+        i++;
+    }
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
     // 0. Flush any pending HTML
     converter.put_chain_in()
@@ -708,6 +718,13 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             } else if(tok.kind == TemplateTokenKind.ChemicalValue) {
                 converter.emit_append_html_from_str(*s);
                 converter.put_chemical_value_in(tok.chemicalValue);
+            } else if(tok.kind == TemplateTokenKind.Children) {
+                converter.emit_append_html_from_str(*s);
+                converter.convertChildren(element);
+            } else if(tok.kind == TemplateTokenKind.NestedComponent) {
+                // TODO: Support nested components in Universal templates
+                converter.emit_append_html_from_str(*s);
+                s.append_view("<!-- Nested component not supported yet in Universal SSR -->");
             }
         }
         s.append_view("</div>");
@@ -1031,13 +1048,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             str.append('>')
 
             // doing children
-            var i : uint = 0;
-            var s = element.children.size();
-            while(i < s) {
-                var nested_child = element.children.get(i)
-                converter.convertHtmlChild(nested_child)
-                i++;
-            }
+            converter.convertChildren(element);
 
             if(!element.isSelfClosing) {
                 str.append('<')

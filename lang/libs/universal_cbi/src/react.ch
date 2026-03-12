@@ -28,6 +28,17 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     funcDecl.get_params().push(param);
     funcDecl.add_body();
 
+    // Create helper function to emit the universal component JS into pageJs
+    var emitName = std::string();
+    emitName.append_view(root.signature.name);
+    emitName.append_view("__emit_js");
+    const emitView = builder.allocate_view(emitName.to_view());
+    const emitDecl = builder.make_function(emitView, voidType as *mut BaseType, false, true, node.getParent(), loc);
+    const emitParam = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, emitDecl, loc);
+    emitDecl.get_params().push(emitParam);
+    emitDecl.add_body();
+    root.signature.jsEmitFunctionNode = emitDecl;
+
     // start a scope to store symbols
     resolver.scope_start();
 
@@ -671,6 +682,54 @@ func append_escaped_single_quoted(out : &mut std::string, value : std::string_vi
     }
 }
 
+func append_universal_component_js(
+    converter : &mut JsConverter,
+    comp : *mut JsComponentDecl
+) {
+    if(comp == null) return;
+    const signature = &mut comp.signature;
+
+    converter.str.append_view("function ");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+    converter.str.append_view("(");
+    converter.str.append_view(signature.propsName);
+    converter.str.append_view(")");
+
+    if(!signature.universalTemplate.empty()) {
+        converter.str.append_view("{const tpl=document.createElement('template');tpl.innerHTML='");
+        for(var i : uint = 0; i < signature.universalTemplate.size(); i++) {
+            const tok = signature.universalTemplate.get(i);
+            if(tok.kind == TemplateTokenKind.Text) {
+                append_escaped_single_quoted(converter.str, tok.value);
+            }
+        }
+        converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+        converter.str.append_view(".__hydrate(n,");
+        converter.str.append_view(signature.propsName);
+        converter.str.append_view("||{});return n;}");
+
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+        converter.str.append_view(".__hydrate=(root,");
+        converter.str.append_view(signature.propsName);
+        converter.str.append_view(")=>{");
+        converter.str.append_view(signature.universalInit);
+        converter.str.append_view("};");
+    } else {
+        if(comp.body != null) {
+            converter.convertJsNode(comp.body);
+        } else {
+            converter.str.append_view("return document.createTextNode('');}");
+        }
+    }
+
+    converter.str.append_view("if(window.$_ureg)window.$_ureg('");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+    converter.str.append_view("',");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+    converter.str.append_view(");");
+}
+
 func fix_support_page_node(
     support : &mut SymResSupport,
     page : *mut ASTNode,
@@ -815,7 +874,13 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
                 
                 thenBody.push(converter.make_set_component_hash_call(hash))
                 
-                var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+                var targetNode = signature.functionNode as *mut FunctionDeclaration;
+                var targetName = signature.name;
+                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
+                    targetNode = signature.jsEmitFunctionNode;
+                    targetName = signature.jsEmitFunctionNode.getName();
+                }
+                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
                 var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
                 call.get_args().push(pageId as *mut Value)
@@ -824,6 +889,21 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
                 converter.vec.push(ifStmt as *mut ASTNode)
             }
         }
+    }
+
+    if(root.signature.jsEmitFunctionNode != null) {
+        const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
+        converter.put_chain_in()
+        var selfReq = converter.make_require_component_call(selfHash)
+        var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
+        var selfBody = selfIf.get_body()
+        selfBody.push(converter.make_set_component_hash_call(selfHash))
+        var emitBase = builder.make_identifier(root.signature.jsEmitFunctionNode.getName(), root.signature.jsEmitFunctionNode as *mut ASTNode, false, location)
+        var emitPage = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
+        emitCall.get_args().push(emitPage as *mut Value)
+        selfBody.push(emitCall as *mut ASTNode)
+        converter.vec.push(selfIf as *mut ASTNode)
     }
 
     if(root.body != null && root.body.kind == JsNodeKind.Block) {
@@ -843,52 +923,31 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         }
     }
 
-    // Still need to emit the JS function definition for this component
-    // so it can be used for hydration from other places.
-    converter.target = BufferType.JavaScript;
-    converter.str.append_view("function ");
-    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-    converter.str.append_view("(");
-    converter.str.append_view(root.signature.propsName);
-    converter.str.append_view(")");
-    
-    if(!root.signature.universalTemplate.empty()) {
-        converter.str.append_view("{const tpl=document.createElement('template');tpl.innerHTML='");
-        for(var i : uint = 0; i < root.signature.universalTemplate.size(); i++) {
-            const tok = root.signature.universalTemplate.get(i);
-            if(tok.kind == TemplateTokenKind.Text) {
-                append_escaped_single_quoted(converter.str, tok.value);
-            }
+    if(root.signature.jsEmitFunctionNode != null) {
+        const emitBody = root.signature.jsEmitFunctionNode.add_body();
+        var emitSupport = root.support;
+        var emitConverter = JsConverter {
+            builder : builder,
+            support : &mut emitSupport,
+            vec : emitBody,
+            parent : root.signature.jsEmitFunctionNode as *mut ASTNode,
+            str : std::string(),
+            jsx_parent : view(""),
+            t_counter : 0,
+            state_vars : std::vector<std::string_view>()
         }
-        converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-        converter.str.append_view(".__hydrate(n,");
-        converter.str.append_view(root.signature.propsName);
-        converter.str.append_view("||{});return n;}");
-
-        get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-        converter.str.append_view(".__hydrate=(root,");
-        converter.str.append_view(root.signature.propsName);
-        converter.str.append_view(")=>{");
-        converter.str.append_view(root.signature.universalInit);
-        converter.str.append_view("};");
-    } else {
-        if(root.body != null) {
-            converter.convertJsNode(root.body);
-        } else {
-             converter.str.append_view("return document.createTextNode('');}");
-        }
+        emitConverter.target = BufferType.JavaScript;
+        append_universal_component_js(emitConverter, root);
+        emitConverter.put_chain_in();
     }
-    
-    converter.str.append_view("if(window.$_ureg)window.$_ureg('");
-    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-    converter.str.append_view("',");
-    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-    converter.str.append_view(");");
 
-    converter.put_chain_in();
-    
-    return root.signature.functionNode as *mut ASTNode;
+    var scope = builder.make_scope(root.signature.functionNode.getParent(), location);
+    var scope_nodes = scope.getNodes();
+    if(root.signature.jsEmitFunctionNode != null) {
+        scope_nodes.push(root.signature.jsEmitFunctionNode as *mut ASTNode);
+    }
+    scope_nodes.push(root.signature.functionNode as *mut ASTNode);
+    return scope;
 }
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
@@ -972,6 +1031,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
             propsName : propsName,
             params : params,
             functionNode : null,
+            jsEmitFunctionNode : null,
             mountStrategy : MountStrategy.Universal, // Important: Set mount strategy
             access : spec
         },

@@ -162,6 +162,20 @@ func is_mergeable_attr_name(name : std::string_view) : bool {
     return name.equals(view("class")) || name.equals(view("className")) || name.equals(view("style"));
 }
 
+func append_escaped_single_quoted(out : &mut std::string, value : std::string_view) {
+    for(var i : uint = 0; i < value.size(); i++) {
+        const c = value.get(i);
+        switch(c) {
+            '\\' => out.append_view("\\\\")
+            '\'' => out.append_view("\\'")
+            '\n' => out.append_view("\\n")
+            '\r' => out.append_view("\\r")
+            '\t' => out.append_view("\\t")
+            default => out.append(c)
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlElement, path : std::string_view) {
     const builder = converter.builder
     const loc = intrinsics::get_raw_location()
@@ -813,9 +827,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     // 1. Generate the hash based on component name
     const hash = signature.functionNode.getEncodedLocation()
     
-    // 2. For non-Universal strategies, generate the if(page.require_component(hash)) block
-    //    which includes set_component_hash + ComponentFunction(page).
-    //    For Universal, we handle ordering manually: div open -> function call -> div close.
+    // 2. Generate the if(page.require_component(hash)) block to emit component JS.
     if(signature.mountStrategy != MountStrategy.Universal) {
         var requireCall = converter.make_require_component_call(hash as size_t)
         var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
@@ -834,6 +846,19 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     // 3. Generate script block
     var s = &mut converter.str
     if(signature.mountStrategy == MountStrategy.Universal && !signature.universalTemplate.empty()) {
+        if(signature.jsEmitFunctionNode != null) {
+            var reqCall = converter.make_require_component_call(hash as size_t)
+            var ifStmt = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
+            var ifBody = ifStmt.get_body()
+            ifBody.push(converter.make_set_component_hash_call(hash as size_t))
+            var emitName = signature.jsEmitFunctionNode.getName();
+            var emitBase = builder.make_identifier(emitName, signature.jsEmitFunctionNode as *mut ASTNode, false, location)
+            var emitPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+            var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
+            emitCall.get_args().push(emitPageId as *mut Value)
+            ifBody.push(emitCall as *mut ASTNode)
+            converter.vec.push(ifStmt as *mut ASTNode)
+        }
         // HTML-first universal path: emit pre-rendered markup now and queue hydration in page JS.
         var idStr = std::string();
         idStr.append_view("u");
@@ -947,6 +972,19 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     }
 
     if(signature.mountStrategy == MountStrategy.Universal) {
+        if(signature.jsEmitFunctionNode != null) {
+            var reqCall = converter.make_require_component_call(hash as size_t)
+            var ifStmt = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
+            var ifBody = ifStmt.get_body()
+            ifBody.push(converter.make_set_component_hash_call(hash as size_t))
+            var emitName = signature.jsEmitFunctionNode.getName();
+            var emitBase = builder.make_identifier(emitName, signature.jsEmitFunctionNode as *mut ASTNode, false, location)
+            var emitPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+            var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
+            emitCall.get_args().push(emitPageId as *mut Value)
+            ifBody.push(emitCall as *mut ASTNode)
+            converter.vec.push(ifStmt as *mut ASTNode)
+        }
         // Universal fallback path: queue mount by component name so definition order does not matter.
         var idStr = std::string();
         idStr.append_view("u");
@@ -960,17 +998,12 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("\">");
         converter.emit_append_html_from_str(*s);
         
-        // Call ComponentFunction(page) to write the component's HTML and register its JS
-        var reqCall = converter.make_require_component_call(hash as size_t)
-        var ifStmt2 = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
-        var ifBody = ifStmt2.get_body()
-        ifBody.push(converter.make_set_component_hash_call(hash as size_t))
+        // Call ComponentFunction(page) to write the component's HTML
         var compBase = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
         var compPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var compCall = builder.make_function_call_node(compBase as *mut ChainValue, converter.parent, location)
         compCall.get_args().push(compPageId as *mut Value)
-        ifBody.push(compCall as *mut ASTNode)
-        converter.vec.push(ifStmt2 as *mut ASTNode)
+        converter.vec.push(compCall as *mut ASTNode)
         
         // Emit: </div>
         converter.str.append_view("</div>");

@@ -665,6 +665,38 @@ func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement)
     }
 }
 
+func (converter : &mut ASTConverter) emit_append_html_attributes_spread(element : *mut HtmlElement) {
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    
+    // Spread all attributes of the call site as HTML attributes
+    for(var i : uint = 0; i < element.attributes.size(); i++) {
+        const attr = element.attributes.get(i);
+        // We skip 'children' as it's handled by TemplateTokenKind.Children
+        if(attr.name.equals(view("children"))) continue;
+        
+        var s = std::string();
+        s.append(' ');
+        s.append_view(attr.name);
+        if(attr.value != null && attr.value.kind == AttributeValueKind.Text) {
+            const val = attr.value as *mut TextAttributeValue;
+            s.append_view("=\"");
+            s.append_view(val.text);
+            s.append('\"');
+            converter.emit_append_html_from_str(s);
+        } else if(attr.value != null && attr.value.kind == AttributeValueKind.Chemical) {
+            s.append_view("=\"");
+            converter.emit_append_html_from_str(s);
+            const val = attr.value as *mut ChemicalAttributeValue;
+            converter.put_chemical_value_in(val.value);
+            converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
+        } else if(attr.value == null) {
+            // boolean attribute
+            converter.emit_append_html_from_str(s);
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
     // 0. Flush any pending HTML
     converter.put_chain_in()
@@ -722,9 +754,12 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 converter.emit_append_html_from_str(*s);
                 converter.convertChildren(element);
             } else if(tok.kind == TemplateTokenKind.NestedComponent) {
-                // TODO: Support nested components in Universal templates
+                // ... (existing placeholder)
                 converter.emit_append_html_from_str(*s);
                 s.append_view("<!-- Nested component not supported yet in Universal SSR -->");
+            } else if(tok.kind == TemplateTokenKind.Spread) {
+                converter.emit_append_html_from_str(*s);
+                converter.emit_append_html_attributes_spread(element);
             }
         }
         s.append_view("</div>");

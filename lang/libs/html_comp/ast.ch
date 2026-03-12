@@ -16,7 +16,8 @@ public enum TemplateTokenKind {
     PropAccess,
     ChemicalValue,
     Children,
-    NestedComponent
+    NestedComponent,
+    Spread
 }
 
 public struct TemplateToken {

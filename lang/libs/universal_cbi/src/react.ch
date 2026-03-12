@@ -336,7 +336,13 @@ func render_universal_jsx(
 
             for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
                 const attrNode = element.opening.attributes.get(i);
-                if(attrNode == null || attrNode.kind != JsNodeKind.JSXAttribute) continue;
+                if(attrNode == null) continue;
+                if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                    converter.flush_text(out);
+                    out.push(TemplateToken { kind : TemplateTokenKind.Spread });
+                    continue;
+                }
+                if(attrNode.kind != JsNodeKind.JSXAttribute) continue;
                 const attr = attrNode as *mut JsJSXAttribute;
                 
                 if(is_event_attr_name(attr.name)) {
@@ -460,22 +466,20 @@ func render_universal_jsx(
 func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
     for(var i : uint = 0; i < block.statements.size(); i++) {
         const stmt = block.statements.get(i);
-        if(stmt != null && stmt.kind == JsNodeKind.Return) {
-            const ret = stmt as *mut JsReturn;
-            if(ret.value == null) return null;
-            if(ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment) {
-                return ret.value;
-            }
-            if(ret.value.kind == JsNodeKind.Identifier) {
-                const id = ret.value as *mut JsIdentifier;
-                // Search for the declaration of this identifier in the same block
-                for(var j : uint = 0; j < i; j++) {
-                    const prev = block.statements.get(j);
-                    if(prev != null && prev.kind == JsNodeKind.VarDecl) {
-                        const decl = prev as *mut JsVarDecl;
-                        if(decl.name.equals(id.value) && decl.value != null && (decl.value.kind == JsNodeKind.JSXElement || decl.value.kind == JsNodeKind.JSXFragment)) {
-                            return decl.value;
-                        }
+        if(stmt == null || stmt.kind != JsNodeKind.Return) continue;
+        const ret = stmt as *mut JsReturn;
+        if(ret.value == null) continue;
+        if(ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment) {
+            return ret.value;
+        }
+        if(ret.value.kind == JsNodeKind.Identifier) {
+            const id = ret.value as *mut JsIdentifier;
+            for(var j : uint = 0; j < i; j++) {
+                const prev = block.statements.get(j);
+                if(prev != null && prev.kind == JsNodeKind.VarDecl) {
+                    const decl = prev as *mut JsVarDecl;
+                    if(decl.name.equals(id.value) && decl.value != null && (decl.value.kind == JsNodeKind.JSXElement || decl.value.kind == JsNodeKind.JSXFragment)) {
+                        return decl.value;
                     }
                 }
             }

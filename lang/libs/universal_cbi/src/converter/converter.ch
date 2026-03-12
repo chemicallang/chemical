@@ -744,7 +744,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                 first = false;
             }
         }
-        converter.str.append_view("}]);if(window.$_uf)window.$_uf();");
+        converter.str.append_view("}]);");
         converter.put_chain_in();
         converter.target = oldTarget;
 

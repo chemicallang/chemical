@@ -173,6 +173,12 @@ func (cssParser : &mut CSSParser) parseFontFamily(
     value : &mut CSSValue
 ) {
 
+    const token = parser.getToken()
+    if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
+        cssParser.parseChemValueAfterLBrace(parser, builder, value)
+        return;
+    }
+
     var family = builder.allocate<CSSFontFamily>();
     new (family) CSSFontFamily()
 

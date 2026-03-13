@@ -35,7 +35,7 @@ public func expressive_strings_work(env : &mut TestEnv) {
     var page = HtmlPage()
     var first = "first"
     #html {
-        <div>{`hello {first} world`}</div>
+        <div>{`hello ${first} world`}</div>
     }
     string_equals(env, page.toStringHtmlOnly(), "<div>hello first world</div>");
 }

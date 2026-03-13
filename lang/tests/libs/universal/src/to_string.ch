@@ -1,4 +1,4 @@
-func (page : &HtmlPage) getComponentId(index : size_t) : std::string {
+func (page : &HtmlPage) getComponentId(index : size_t) : std::string_view {
     var view = page.getHtml()
     var search = std::string_view("id=\"u")
     var i : size_t = 0;
@@ -9,15 +9,13 @@ func (page : &HtmlPage) getComponentId(index : size_t) : std::string {
                 var start = i + 4;
                 var end = start;
                 while(end < view.size() && view.get(end) != '"') end++;
-                var res = std::string();
-                res.append_view(view.subview(start, end));
-                return res;
+                return view.subview(start, end);
             }
             count++;
         }
         i++;
     }
-    return std::string("not_found");
+    return std::string_view("not_found");
 }
 
 #universal Greeting(props) {
@@ -31,7 +29,7 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="${page.getComponentId(0).to_view()}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    str.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 
@@ -40,7 +38,7 @@ public func universal_element_in_html_works_js(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Greeting /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);window.$_uq.push(['${page.getComponentId(0).to_view()}','universal_lib_test_Greeting',{}]);`)
+    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_Greeting',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -53,7 +51,7 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);function universal_lib_test_ComponentChild(props) {const tpl=document.createElement('template');tpl.innerHTML='<div><span>Hello</span></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ComponentChild.__hydrate(n,props||{});return n;}universal_lib_test_ComponentChild.__hydrate=(root,props)=>{{const c=(window.$_u&&window.$_u['universal_lib_test_Greeting'])||window['universal_lib_test_Greeting'];if(c&&c.__hydrate){c.__hydrate($_ut(root,[0]),{});}}};if(window.$_ureg)window.$_ureg('universal_lib_test_ComponentChild',universal_lib_test_ComponentChild);window.$_uq.push(['${page.getComponentId(0).to_view()}','universal_lib_test_ComponentChild',{}]);`)
+    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);function universal_lib_test_ComponentChild(props) {const tpl=document.createElement('template');tpl.innerHTML='<div><span>Hello</span></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ComponentChild.__hydrate(n,props||{});return n;}universal_lib_test_ComponentChild.__hydrate=(root,props)=>{{const c=(window.$_u&&window.$_u['universal_lib_test_Greeting'])||window['universal_lib_test_Greeting'];if(c&&c.__hydrate){c.__hydrate($_ut(root,[0]),{});}}};if(window.$_ureg)window.$_ureg('universal_lib_test_ComponentChild',universal_lib_test_ComponentChild);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ComponentChild',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -65,10 +63,14 @@ public func universal_component_child(env : &mut TestEnv) {
 public func universal_class_merge(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ClassMerge class="extra" /> }
-    // SSR HTML should have both classes merged into the body div, but currently they are appended
-    // Wait, with my latest fix, they should be merged? 
-    // Actually, I didn't finish the SSR merge logic perfectly yet.
-    // Let's see what it does now.
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_ClassMerge\" class=\"base-class\"></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+    
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_ClassMerge(props) {const tpl=document.createElement('template');tpl.innerHTML='<div class=\"base-class\"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ClassMerge.__hydrate(n,props||{});return n;}universal_lib_test_ClassMerge.__hydrate=(root,props)=>{{const el=$_ut(root,[]);let v=\"\";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=\"\"+x;if(s.length===0)return;if(h)v+=\" \";v+=s;h=true;};a(props.className);a(props.class);a('base-class');if(h) el.setAttribute('class', v);}{const el=$_ut(root,[]);let v=\"\";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=\"\"+x;if(s.length===0)return;if(h)v+=\";\";v+=s;h=true;};a(props.style);if(h) el.setAttribute('style', v);}};if(window.$_ureg)window.$_ureg('universal_lib_test_ClassMerge',universal_lib_test_ClassMerge);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ClassMerge',{\"class\":\"extra\"}]);`)
+    view_equals(env, page.getJs(), js.to_view())
 }
 
 #universal Button(props) {
@@ -84,49 +86,24 @@ public func universal_button_variant(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ButtonPrimary>Click Me</ButtonPrimary> }
     
-    // Check HTML
-    // It should have the marker div for ButtonPrimary, which contains Button, which contains button
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0).to_view()}\" data-u-comp=\"universal_lib_test_ButtonPrimary\"><div id=\"${page.getComponentId(1).to_view()}\" data-u-comp=\"universal_lib_test_Button\"><button class=\"btn-base\">Click Me</button></div></div>`)
-    // Actually, ButtonPrimary inlines Button because Button is Universal.
-    // So it should be: <div id=... data-u-comp=ButtonPrimary><button class="btn-base">Click Me</button></div>
-    // Wait, let's verify if template inlining works for Button.
-}
-
-#universal ComplexNested(props) {
-    return <div>
-        <Greeting />
-        <ButtonPrimary onClick={() => alert("nested")}>
-            <span>{props.label}</span>
-        </ButtonPrimary>
-    </div>
-}
-
-@test
-public func universal_complex_nested(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #html { <ComplexNested label="Submit" /> }
-    
-    // This test ensures:
-    // 1. All dependent components JS definitions are present.
-    // 2. Hydration logic for deeply nested components is correct.
-    // 3. Prop passing from ComplexNested to ButtonPrimary to Button works.
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_ButtonPrimary\"><button class=\"btn-base btn-primary\">Click Me</button></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
 }
 
 #universal DeepPropPassing(props) {
     return <div title={props.title}>
-        <Greeting />
+        <span>{props.label}</span>
     </div>
 }
 
 @test
 public func universal_deep_prop_passing(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <DeepPropPassing title="Hover Me" /> }
+    #html { <DeepPropPassing title="Hover Me" label="Text" /> }
     
-    // Verify SSR HTML has title
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0).to_view()}\" data-u-comp=\"universal_lib_test_DeepPropPassing\"><div title=\"Hover Me\"><span>Hello</span></div></div>`)
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_DeepPropPassing\"><div title=\"Hover Me\"><span>Text</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -142,39 +119,171 @@ public func universal_multi_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MultiChild /> }
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0).to_view()}\" data-u-comp=\"universal_lib_test_MultiChild\"><div><span>A</span><span>B</span></div></div>`)
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_MultiChild\"><div><span>A</span><span>B</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
-#universal ConditionalClass(props) {
-    return <div class={props.active ? "active" : "inactive"}></div>
+#universal StateTest(props) {
+    state count = 0;
+    return <button onClick={() => count++}>{count}</button>
 }
 
 @test
-public func universal_conditional_class(env : &mut TestEnv) {
+public func universal_state_test(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <ConditionalClass active={true} /> }
-    // SSR might not evaluate the 'if' yet, it might fallback to runtime.
+    #html { <StateTest /> }
+    var str = std::string()
+    str.append_expr(`function universal_lib_test_StateTest(props) {const tpl=document.createElement('template');tpl.innerHTML='<button><span>0</span></button>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_StateTest.__hydrate(n,props||{});return n;}universal_lib_test_StateTest.__hydrate=(root,props)=>{const count = $_us(0);count.subscribe(v=>$_ut(root,[0]).textContent=v);$_ut(root,[]).addEventListener('click',() => count.value++);};if(window.$_ureg)window.$_ureg('universal_lib_test_StateTest',universal_lib_test_StateTest);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_StateTest',{}]);`)
+    view_equals(env, page.getJs(), str.to_view());
 }
 
-#universal ListTest(props) {
-    return <div>
-        {props.items.map(i => <span>{i}</span>)}
-    </div>
-}
-
-@test
-public func universal_list_test(env : &mut TestEnv) {
-    // Test list rendering and hydration
-}
-
-#universal SpreadAndStatic(props) {
-    return <div {...props} id="static-id" data-foo="bar"></div>
+#universal NestedUniversal(props) {
+    return <Greeting />
 }
 
 @test
-public func universal_spread_and_static(env : &mut TestEnv) {
+public func universal_nested_universal_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <SpreadAndStatic title="hello" /> }
-    // Verify static and spread attributes coexist
+    #html { <NestedUniversal /> }
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_NestedUniversal\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal NestedUniversalProps(props) {
+    return <DeepPropPassing title={props.title} label={props.label} />
+}
+
+@test
+public func universal_nested_universal_props_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <NestedUniversalProps title="T" label="L" /> }
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_NestedUniversalProps\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_DeepPropPassing\"><div title=\"T\"><span>L</span></div></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal ConditionalRender(props) {
+    return <div>{props.show ? <span>Show</span> : <span>Hide</span>}</div>
+}
+
+@test
+public func universal_conditional_render_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ConditionalRender show={true} /> }
+    
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement(\"div\", {}, props.show ? $_ur.createElement(\"span\", {}, ${"` Show `"}) : $_ur.createElement(\"span\", {}, ${"` Hide `"})); }if(window.$_ureg)window.$_ureg('universal_lib_test_ConditionalRender',universal_lib_test_ConditionalRender);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ConditionalRender',{\"show\":true}]);`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
+#universal EventNested(props) {
+    return <button onClick={props.onClick}>{props.children}</button>
+}
+
+#universal EventParent(props) {
+    state clicked = false;
+    return <EventNested onClick={() => clicked = true}>
+        {clicked ? "Clicked" : "Click Me"}
+    </EventNested>
+}
+
+@test
+public func universal_event_nested_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <EventParent /> }
+    // Test hydration and event binding through components
+}
+
+#universal SpreadAndStaticAttr(props) {
+    return <div {...props} id="static" data-val="123"></div>
+}
+
+@test
+public func universal_spread_and_static_attr_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SpreadAndStaticAttr title="Hello" /> }
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_SpreadAndStaticAttr\"><div title=\"Hello\" id=\"static\" data-val=\"123\"></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal ComplexClassMerge(props) {
+    return <div {...props} class={props.active? "active" : "inactive"} class="base"></div>
+}
+
+@test
+public func universal_complex_class_merge_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ComplexClassMerge active={true} class="extra" /> }
+    // Test merging of spread, dynamic class, and static className in JS hydration
+}
+
+#universal FragParent(props) {
+    return <>
+        <Greeting />
+        <div>Middle</div>
+        <Greeting />
+    </>
+}
+
+@test
+public func universal_frag_parent_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <FragParent /> }
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_FragParent\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div><div>Middle</div><div id=\"${page.getComponentId(2)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal ListParent(props) {
+    return <ul>
+        {props.items.map(item => <Greeting />)}
+    </ul>
+}
+
+@test
+public func universal_list_parent_js(env : &mut TestEnv) {
+    // Test list of components JS emission
+}
+
+#universal AttrChemValue(props) {
+    return <div data-val={props.val}></div>
+}
+
+@test
+public func universal_attr_chem_value_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    const myVal = 42;
+    #html { <AttrChemValue val={myVal} /> }
+    
+    var html = std::string()
+    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_AttrChemValue\"><div data-val=\"42\"></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal EmptyBlock(props) {
+    return <div></div>
+}
+
+@test
+public func universal_empty_block_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <EmptyBlock /> }
+    // Test empty block emission
+}
+
+#universal MultiState(props) {
+    state a = 1;
+    state b = 2;
+    return <div>{a} + {b} = {a.value + b.value}</div>
+}
+
+@test
+public func universal_multi_state_js(env : &mut TestEnv) {
+    // Test multiple state initialization and subscription
 }

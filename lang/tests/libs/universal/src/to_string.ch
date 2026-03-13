@@ -74,7 +74,7 @@ public func universal_element_child(env : &mut TestEnv) {
 }
 
 #universal PropsTest(props) {
-    return <div id="myId" className="foo"></div>
+    return <div id="myId" class="foo"></div>
 }
 
 @test
@@ -82,7 +82,7 @@ public func universal_props_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PropsTest /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_PropsTest(props){const tpl=document.createElement('template');tpl.innerHTML='<div id=\"myId\" className=\"foo\"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_PropsTest.__hydrate(n,props||{});return n;}universal_lib_test_PropsTest.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_PropsTest',universal_lib_test_PropsTest);window.$_uq.push(['${page.getComponentId()}','universal_lib_test_PropsTest',{}]);`)
+    str.append_expr(`function universal_lib_test_PropsTest(props){const tpl=document.createElement('template');tpl.innerHTML='<div id=\"myId\" class=\"foo\"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_PropsTest.__hydrate(n,props||{});return n;}universal_lib_test_PropsTest.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_PropsTest',universal_lib_test_PropsTest);window.$_uq.push(['${page.getComponentId()}','universal_lib_test_PropsTest',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 

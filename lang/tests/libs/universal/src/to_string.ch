@@ -1,3 +1,8 @@
+func (page : &HtmlPage) getComponentId() : std::string_view {
+    var view = page.getHtml()
+    return view.subview(9u, 9u + 20u)
+}
+
 #universal Greeting(props) {
     return <span>Hello</span>
 }
@@ -8,7 +13,9 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
     #html {
         <Greeting />
     }
-    string_equals(env, page.toStringHtmlOnly(), """<div id="u3449757589519204369" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>""");
+    var str = std::string();
+    str.append_expr(`<div id="{page.getComponentId()}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    view_equals(env, page.getHtml(), str.to_view());
 }
 
 @test
@@ -17,7 +24,7 @@ public func universal_element_in_html_works_head_js(env : &mut TestEnv) {
     #html {
         <Greeting />
     }
-    string_equals(env, page.toStringHeadJsOnly(), "");
+    view_equals(env, page.getHeadJs(), "");
 }
 
 @test

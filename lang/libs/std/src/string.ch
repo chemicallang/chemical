@@ -789,6 +789,13 @@ public struct string : Hashable, Eq {
         return std::string_view(data(), size())
     }
 
+    // TODO: unstable, no interface involved, signature not stable
+    // TODO: no verification of signature
+    // TODO: hardcoded type StringStream, generic function support required
+    func stream(&self, s : &mut StringStream) {
+        s.writeStr(data(), size())
+    }
+
     @delete
     func delete(&mut self) {
         if(state == '2') {

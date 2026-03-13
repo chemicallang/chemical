@@ -652,18 +652,39 @@ func render_universal_jsx(
                     if(attr.value.kind == JsNodeKind.Literal) {
                         const lit = attr.value as *mut JsLiteral;
                         const txt = strip_js_string_quotes(lit.value);
-                        if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                        if(!txt.empty()) {
+                            target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                            converter.str.append(' ');
+                            converter.str.append_view(attr.name);
+                            converter.str.append_view("=\"");
+                            escape_html_append(converter.str, txt);
+                            converter.str.append('"');
+                        }
                     } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
                         if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
                             const lit = container.expression as *mut JsLiteral;
                             const txt = strip_js_string_quotes(lit.value);
-                            if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                            if(!txt.empty()) {
+                                target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
+                                converter.str.append(' ');
+                                converter.str.append_view(attr.name);
+                                converter.str.append_view("=\"");
+                                escape_html_append(converter.str, txt);
+                                converter.str.append('"');
+                            }
                         } else if(isStyle && container.expression != null && container.expression.kind == JsNodeKind.ObjectLiteral) {
                             const obj = container.expression as *mut JsObjectLiteral;
                             var cssText = view("");
                             if(!try_build_style_object_text(builder, obj, cssText)) return false;
-                            if(!cssText.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : cssText, chemicalValue : null });
+                            if(!cssText.empty()) {
+                                target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : cssText, chemicalValue : null });
+                                converter.str.append(' ');
+                                converter.str.append_view(attr.name);
+                                converter.str.append_view("=\"");
+                                escape_html_append(converter.str, cssText);
+                                converter.str.append('"');
+                            }
                         } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
                             const id = container.expression as *mut JsIdentifier;
                             if(has_state(states, id.value)) {
@@ -986,6 +1007,7 @@ func append_universal_component_js(
     converter.str.append_view("(");
     converter.str.append_view(signature.propsName);
     converter.str.append_view(")");
+    converter.str.append(' ');
 
     if(!signature.universalTemplate.empty()) {
         converter.str.append_view("{const tpl=document.createElement('template');tpl.innerHTML='");

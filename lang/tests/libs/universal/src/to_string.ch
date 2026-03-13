@@ -316,6 +316,6 @@ public func test_simple_button_works(env : &mut TestEnv) {
     var page = HtmlPage()
     my_button_primary_html(page)
     var html = std::string()
-    html.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="dc_1 dc_2">Hello</button></div>`)
+    html.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="my_class dc_2 dc_1">Hello</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

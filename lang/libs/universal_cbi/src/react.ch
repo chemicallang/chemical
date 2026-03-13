@@ -621,8 +621,9 @@ func render_universal_jsx(
                 if(attrNode == null) continue;
                 if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
                     hasSpread = true;
-                    classSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
-                    styleSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
+                    classSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : view("class"), chemicalValue : null });
+                    classSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : view("className"), chemicalValue : null });
+                    styleSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.PropAccess, value : view("style"), chemicalValue : null });
                     converter.flush_text(out);
                     out.push(TemplateToken { kind : TemplateTokenKind.Spread });
                     continue;
@@ -753,6 +754,11 @@ func render_universal_jsx(
                 }
             }
             converter.str.append('>');
+
+            if (hasSpread) {
+                converter.flush_text(out);
+                out.push(TemplateToken { kind : TemplateTokenKind.Children });
+            }
 
             var childElementIndex : uint = 0;
             for(var i : uint = 0; i < element.children.size(); i++) {

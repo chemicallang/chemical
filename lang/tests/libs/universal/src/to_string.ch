@@ -304,9 +304,10 @@ func dummy_class_2(page : &mut HtmlPage) : *char {
     return <MyButton {...props} class={${dummy_class_2(page)}}>{props.children}</MyButton>
 }
 
-// TODO: doesn't work, because page in the universal component links with function param
+// TODO: doesn't work in llvm, because page in the universal component links with function param
 // when inlined, the page should be relinked with the variable page present below, which isn't a reference
 // so c translation can take a pointer, currently this won't work in llvm anyway
+// currently works in c translation, because it gets translated quickly
 func my_button_primary_html(page : &mut HtmlPage) {
     #html { <MyButtonPrimary class="my_class">Hello</MyButtonPrimary> }
 }

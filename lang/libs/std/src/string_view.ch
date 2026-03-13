@@ -129,6 +129,13 @@ public namespace std {
             return fnv1_hash_view(self) as uint
         }
 
+        // TODO: unstable, no interface involved, signature not stable
+        // TODO: no verification of signature
+        // TODO: hardcoded type StringStream, generic function support required
+        func stream(&self, s : &mut StringStream) {
+            s.writeStr(_data, _size)
+        }
+
     }
 
 }

@@ -32,7 +32,8 @@ func sym_res_components(
         }
 
         var embedded = compNode as *mut EmbeddedNode;
-        var signature = embedded.getDataPtr() as *mut ComponentSignature;
+        var comp = embedded.getDataPtr() as *mut JsComponentDecl;
+        var signature = &mut comp.signature;
         element.componentSignature = signature;
 
         for (var j : uint = 0; j < signature.params.size(); j += 1) {

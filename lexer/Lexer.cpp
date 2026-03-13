@@ -609,11 +609,14 @@ std::optional<bool> read_backtick_string(SourceProvider& provider) {
                         break;
                 }
                 continue;
-            case '{':
-                // does not consume the '{'
-                return false;
             case '\0':
                 return std::nullopt;
+            case '$':
+                if (provider.peek_ahead(1) == '{') {
+                    // does not consume the '${'
+                    return false;
+                }
+                // intentional fall-through
             default:
                 provider.increment();
                 continue;
@@ -760,11 +763,7 @@ Token Lexer::getNextToken() {
         case '\0':
             return Token(TokenType::EndOfFile, { "", 0 }, pos);
         case '{':
-            if(str_expr) {
-                return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
-            } else {
-                return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
-            }
+            return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
         case '}':
             if(str_expr) {
                 auto ended_ = read_backtick_string(provider);
@@ -835,7 +834,17 @@ Token Lexer::getNextToken() {
         case ';':
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
         case '$':
-            return Token(TokenType::DollarSym, view_str(DollarCStr), pos);
+            if(str_expr) {
+#ifdef DEBUG
+                if (provider.peek() != '{') {
+                    CHEM_THROW_RUNTIME("expected a '{' for full string expr start,s lexer put in an unexpected state");
+                }
+#endif
+                provider.increment();
+                return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
+            } else {
+                return Token(TokenType::DollarSym, view_str(DollarCStr), pos);
+            }
         case '?':
             return Token(TokenType::QuestionMarkSym, view_str(QuestionMarkCStr), pos);
         case '@': {
@@ -939,15 +948,19 @@ Token Lexer::getNextToken() {
         }
         case '`': {
             switch(provider.peek()) {
-                case '{':
-                    provider.increment();
-                    // string expression found
-                    if(str_expr) {
-                        diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
-                    } else {
-                        str_expr = true;
+                case '$': {
+                    if (provider.peek() == '{') {
+                        provider.increment();
+                        // string expression found
+                        if(str_expr) {
+                            diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                        } else {
+                            str_expr = true;
+                        }
+                        return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
                     }
-                    return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
+                    // intentional fall through, $ is a character in a string
+                }
                 default:
                     // single line string
                     const auto start = provider.current_data();

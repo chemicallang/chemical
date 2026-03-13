@@ -234,6 +234,15 @@ public:
     }
 
     /**
+     * peek ahead as much as you want
+     */
+    [[nodiscard]]
+    inline char peek_ahead(const unsigned int a) const noexcept {
+        const auto d = data_ + a;
+        return d < end_ ? *d : '\0';
+    }
+
+    /**
      * peaks a unsigned char to read
      */
     [[nodiscard]]

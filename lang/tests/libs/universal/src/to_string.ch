@@ -14,7 +14,7 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="{page.getComponentId()}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    str.append_expr(`<div id="${page.getComponentId()}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 

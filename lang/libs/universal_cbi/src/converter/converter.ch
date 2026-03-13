@@ -347,6 +347,22 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view(lit.value);
             }
         }
+        JsNodeKind.FunctionDecl => {
+             var func = node as *mut JsFunctionDecl
+             if(func.is_async) converter.str.append_view("async ");
+             converter.str.append_view("function ");
+             if(func.is_generator) converter.str.append('*');
+             if(!func.name.empty()) {
+                 converter.str.append_view(func.name);
+             }
+             converter.str.append_view("(");
+             for(var i : uint = 0; i < func.params.size(); i++) {
+                 if(i > 0) converter.str.append_view(", ");
+                 converter.str.append_view(func.params.get(i));
+             }
+             converter.str.append_view(") ");
+             converter.convertJsNode(func.body);
+        }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
             if(converter.is_state_var(id.value)) {

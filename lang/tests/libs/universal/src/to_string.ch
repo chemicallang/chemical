@@ -287,3 +287,35 @@ public func universal_empty_block_js(env : &mut TestEnv) {
 public func universal_multi_state_js(env : &mut TestEnv) {
     // Test multiple state initialization and subscription
 }
+
+func dummy_class_1(page : &mut HtmlPage) : *char {
+    return "dc_1"
+}
+
+func dummy_class_2(page : &mut HtmlPage) : *char {
+    return "dc_2"
+}
+
+#universal MyButton(props) {
+    return <button {...props} class={${dummy_class_1(page)}}>{props.children}</button>
+}
+
+#universal MyButtonPrimary(props) {
+    return <MyButton {...props} class={${dummy_class_2(page)}}>{props.children}</MyButton>
+}
+
+// TODO: doesn't work, because page in the universal component links with function param
+// when inlined, the page should be relinked with the variable page present below, which isn't a reference
+// so c translation can take a pointer, currently this won't work in llvm anyway
+func my_button_primary_html(page : &mut HtmlPage) {
+    #html { <MyButtonPrimary class="my_class">Hello</MyButtonPrimary> }
+}
+
+@test
+public func test_simple_button_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    my_button_primary_html(page)
+    var html = std::string()
+    html.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="dc_1 dc_2">Hello</button></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}

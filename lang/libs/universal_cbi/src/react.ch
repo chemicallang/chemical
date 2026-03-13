@@ -654,11 +654,6 @@ func render_universal_jsx(
                         const txt = strip_js_string_quotes(lit.value);
                         if(!txt.empty()) {
                             target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
-                            converter.str.append(' ');
-                            converter.str.append_view(attr.name);
-                            converter.str.append_view("=\"");
-                            escape_html_append(converter.str, txt);
-                            converter.str.append('"');
                         }
                     } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                         const container = attr.value as *mut JsJSXExpressionContainer;
@@ -667,11 +662,6 @@ func render_universal_jsx(
                             const txt = strip_js_string_quotes(lit.value);
                             if(!txt.empty()) {
                                 target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
-                                converter.str.append(' ');
-                                converter.str.append_view(attr.name);
-                                converter.str.append_view("=\"");
-                                escape_html_append(converter.str, txt);
-                                converter.str.append('"');
                             }
                         } else if(isStyle && container.expression != null && container.expression.kind == JsNodeKind.ObjectLiteral) {
                             const obj = container.expression as *mut JsObjectLiteral;
@@ -679,11 +669,6 @@ func render_universal_jsx(
                             if(!try_build_style_object_text(builder, obj, cssText)) return false;
                             if(!cssText.empty()) {
                                 target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : cssText, chemicalValue : null });
-                                converter.str.append(' ');
-                                converter.str.append_view(attr.name);
-                                converter.str.append_view("=\"");
-                                escape_html_append(converter.str, cssText);
-                                converter.str.append('"');
                             }
                         } else if(container.expression != null && container.expression.kind == JsNodeKind.Identifier) {
                             const id = container.expression as *mut JsIdentifier;
@@ -1141,6 +1126,78 @@ public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, value : 
     return root.signature.functionNode as *mut ASTNode;
 }
 
+func emit_child_component_js_calls(
+    builder : *mut ASTBuilder,
+    parent : *mut ASTNode,
+    components : &std::vector<*mut JsJSXElement>,
+    support : &mut SymResSupport,
+    vec : *mut VecRef<ASTNode>,
+    emitted : &mut std::vector<size_t>,
+    location : ubigint
+) {
+    for(var i : uint = 0; i < components.size(); i++) {
+        const element = components.get(i);
+        if(element.componentSignature != null) {
+            const signature = element.componentSignature;
+            const hash = signature.functionNode.getEncodedLocation() as size_t;
+            
+            var already_emitted = false;
+            for(var j : uint = 0; j < emitted.size(); j++) {
+                if(emitted.get(j) == hash) {
+                    already_emitted = true;
+                    break;
+                }
+            }
+            
+            if(!already_emitted) {
+                emitted.push(hash);
+                
+                var requireCall = make_require_component_call_static(builder, support, hash, location)
+                var ifStmt = builder.make_if_stmt(requireCall as *mut Value, parent, location)
+                var thenBody = ifStmt.get_body()
+                
+                thenBody.push(make_set_component_hash_call_static(builder, support, hash, parent, location))
+                
+                var targetNode = signature.functionNode as *mut FunctionDeclaration;
+                var targetName = signature.name;
+                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
+                    targetNode = signature.jsEmitFunctionNode;
+                    targetName = signature.jsEmitFunctionNode.getName();
+                }
+                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
+                var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
+                var call = builder.make_function_call_node(base as *mut ChainValue, parent, location)
+                call.get_args().push(pageId as *mut Value)
+                thenBody.push(call as *mut ASTNode)
+                
+                vec.push(ifStmt as *mut ASTNode)
+            }
+        }
+    }
+}
+
+func make_require_component_call_static(builder : *mut ASTBuilder, support : &mut SymResSupport, hash : size_t, location : ubigint) : *mut FunctionCall {
+    var value = builder.make_ubigint_value(hash, location)
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_value(chain, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func make_set_component_hash_call_static(builder : *mut ASTBuilder, support : &mut SymResSupport, hash : size_t, parent : *mut ASTNode, location : ubigint) : *mut FunctionCallNode {
+    var value = builder.make_ubigint_value(hash, location)
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("set_component_hash"), support.setComponentHashFn, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, parent, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
 @no_mangle
 public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
@@ -1162,56 +1219,15 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     const location = intrinsics::get_raw_location()
     
     var emitted = std::vector<size_t>();
-    
-    for(var i : uint = 0; i < root.components.size(); i++) {
-        const element = root.components.get(i);
-        if(element.componentSignature != null) {
-            const signature = element.componentSignature;
-            const hash = signature.functionNode.getEncodedLocation() as size_t;
-            
-            var already_emitted = false;
-            for(var j : uint = 0; j < emitted.size(); j++) {
-                if(emitted.get(j) == hash) {
-                    already_emitted = true;
-                    break;
-                }
-            }
-            
-            if(!already_emitted) {
-                emitted.push(hash);
-                
-                converter.put_chain_in()
-                
-                var requireCall = converter.make_require_component_call(hash)
-                var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
-                var thenBody = ifStmt.get_body()
-                
-                thenBody.push(converter.make_set_component_hash_call(hash))
-                
-                var targetNode = signature.functionNode as *mut FunctionDeclaration;
-                var targetName = signature.name;
-                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
-                    targetNode = signature.jsEmitFunctionNode;
-                    targetName = signature.jsEmitFunctionNode.getName();
-                }
-                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
-                var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-                var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
-                call.get_args().push(pageId as *mut Value)
-                thenBody.push(call as *mut ASTNode)
-                
-                converter.vec.push(ifStmt as *mut ASTNode)
-            }
-        }
-    }
+    emit_child_component_js_calls(builder, root.signature.functionNode as *mut ASTNode, root.components, support, body, emitted, location);
 
     if(root.signature.jsEmitFunctionNode != null) {
         const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
         converter.put_chain_in()
-        var selfReq = converter.make_require_component_call(selfHash)
+        var selfReq = make_require_component_call_static(builder, support, selfHash, location)
         var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
         var selfBody = selfIf.get_body()
-        selfBody.push(converter.make_set_component_hash_call(selfHash))
+        selfBody.push(make_set_component_hash_call_static(builder, support, selfHash, converter.parent, location))
         var emitBase = builder.make_identifier(root.signature.jsEmitFunctionNode.getName(), root.signature.jsEmitFunctionNode as *mut ASTNode, false, location)
         var emitPage = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
@@ -1240,6 +1256,10 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     if(root.signature.jsEmitFunctionNode != null) {
         const emitBody = root.signature.jsEmitFunctionNode.add_body();
         var emitSupport = root.support;
+        
+        var emitted_js = std::vector<size_t>();
+        emit_child_component_js_calls(builder, root.signature.jsEmitFunctionNode as *mut ASTNode, root.components, emitSupport, emitBody, emitted_js, location);
+
         var emitConverter = JsConverter {
             builder : builder,
             support : &mut emitSupport,

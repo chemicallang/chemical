@@ -1,7 +1,7 @@
 @no_mangle
 public func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
     // no type or value is included in this node which requires resolution at link signature
-    // other than HtmlPage type, how are we are comfortable resolving that after
+    // other than HtmlPage type, however we are comfortable resolving that after
 }
 
 @no_mangle

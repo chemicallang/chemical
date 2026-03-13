@@ -154,6 +154,30 @@ var func_ptr : () => int // Function pointer
 var ref : &int          // Reference to int
 ```
 
+#### How to take a pointer of an object
+
+Use `&obj` or `&mut obj` to take a pointer or mutable pointer respectively
+in chemical, Its unlike Rust and more like C++
+
+```ch
+func i_take_ptr(ptr : *mut Point) {}
+func i_send_ptr(p : Point) {
+    i_take_ptr(&mut p)
+}
+```
+
+#### How to take a reference
+
+In Chemical, References are implicit, just like in C++, you just pass the object and reference
+is automatically taken
+
+```ch
+func i_take_ref(ptr : &mut Point) {}
+func i_send_ref(p : Point) {
+    i_take_ref(p)
+}
+```
+
 #### Arrays
 ```chemical
 var arr : [10]int       // Fixed-size array

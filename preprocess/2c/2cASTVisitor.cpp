@@ -5954,7 +5954,7 @@ void default_initialize_inherited(ToCAstVisitor& visitor, VariablesContainer* de
     }
 }
 
-void default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
+bool default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
 
     const auto cons = def->default_constructor_func();
     if(cons && !cons->is_generated_fn()) {
@@ -6009,6 +6009,7 @@ void default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembers
                 visitor.accept_mutating_value(var->known_type(), defValue);
             } else {
                 visitor.error(loc) << "no default value present for '" << var->name << "' in struct value";
+                return false;
             }
         }
 
@@ -6019,6 +6020,8 @@ void default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembers
 
         has_value_before = true;
     }
+
+    return true;
 
 }
 
@@ -6107,7 +6110,10 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                         write(var->name);
                         write(" = ");
                         bool child_has_value_before = false;
-                        default_initialize_struct_non_inh(*this, child_def, child_has_value_before, val->encoded_location());
+                        const auto could_def_init = default_initialize_struct_non_inh(*this, child_def, child_has_value_before, val->encoded_location());
+                        if (!could_def_init) {
+                            error(val->encoded_location()) << "couldn't default initialize member '" << var->name << "', no value exists for it in struct value";
+                        }
                     } else {
                         error(val->encoded_location()) << "no default value present for '" << var->name << "' in struct value";
                     }

@@ -228,13 +228,13 @@ public struct ExpressiveString : Value {
 
 }
 
-public struct FunctionCall : ChainValue {
+public struct FunctionCall : Value {
 
     func get_args(&self) : *mut VecRef<Value>;
 
 }
 
-public struct IndexOperator : ChainValue {
+public struct IndexOperator : Value {
 
     func get_idx_ptr(&self) : *mut *mut Value
 
@@ -312,7 +312,7 @@ public struct ModuleScope : ASTNode {
 
 }
 
-public struct VariableIdentifier : ChainValue {}
+public struct VariableIdentifier : Value {}
 
 public struct EmbeddedValue : Value {
 
@@ -723,9 +723,9 @@ public struct ASTBuilder {
 
     func make_void_type(&self, location : ubigint) : *mut VoidType
 
-    func make_access_chain(&self, values : &std::span<*mut ChainValue>, location : ubigint) : *mut AccessChain
+    func make_access_chain(&self, values : &std::span<*mut Value>, location : ubigint) : *mut AccessChain
 
-    func make_access_chain_node(&self, values : &std::span<*mut ChainValue>, parent_node : *mut ASTNode, location : ubigint) : *mut AccessChainNode
+    func make_access_chain_node(&self, values : &std::span<*mut Value>, parent_node : *mut ASTNode, location : ubigint) : *mut AccessChainNode
 
     func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *mut ValueWrapperNode
 

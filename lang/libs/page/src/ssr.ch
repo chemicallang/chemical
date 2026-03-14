@@ -1,15 +1,29 @@
+public struct SsrText {
+    var data : *char
+    var size : u64
+    func equals(&self, other : &std::string_view) : bool {
+        return size == other.size() && strncmp(data, other.data(), size) == 0;
+    }
+}
+
+public struct MultipleAttributeValues {
+    var data : *SsrAttributeValue
+    var size : u64
+}
+
 public variant SsrAttributeValue {
 	Boolean(value : bool)
 	Char(value : char)
     UInteger(value : ubigint)
 	Integer(value : bigint)
-	Double(value : double, precision : int)
-    Text(value : std::string_view)
+	Double(value : double, precision : int = 2)
+    Text(value : SsrText)
+    Multiple(value : MultipleAttributeValues)
 	Spread(value : SsrAttributeList)
 }
 
 public struct SsrAttribute {
-    var name : std::string_view
+    var name : SsrText
     var value : SsrAttributeValue
 }
 
@@ -18,7 +32,7 @@ public struct SsrAttributeList {
 	var size : u64
 }
 
-func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue) {
+func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool) {
     switch(attrVal) {
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
@@ -27,7 +41,16 @@ func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeV
         UInteger(value) => output.append_uinteger(value)
         Integer(value) => output.append_integer(value)
         Double(value, precision) => output.append_double(value, precision)
-        Text(value) => output.append_view(value)
+        Text(value) => output.append_with_len(value.data, value.size)
+        Multiple(value) => {
+            var curr = value.data
+            const end = curr + value.size
+            while(curr != end) {
+                writePrimitiveAttrValue(output, *curr)
+                cur++
+                if(space_multiple && curr != end) { output.append(' '); }
+            }
+        }
         Spread(value) => {} // Unreachable for primitive values
     }
 }
@@ -60,7 +83,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
-                    output.append_view(d.name)
+                    output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
                     writePrimitiveAttrValue(page.pageHtml, d.value)
                     output.append_view("\" ")
@@ -120,7 +143,7 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                     if (!*is_first) output.append_view(", ")
                     *is_first = false
 
-                    output.append_view(d.name)
+                    output.append_with_len(d.name.data, d.name.size)
                     output.append_view(":\"")
                     writePrimitiveAttrValue(page.pageJs, d.value)
                     output.append('"')

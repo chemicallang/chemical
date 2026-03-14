@@ -96,6 +96,8 @@ AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {
         const auto is_mutable = consumeToken(TokenType::MutKw);
+        // TODO: this further allows parsing addr of, we shouldn't do that
+        //  syntax like && would become possible
         auto chain = parseAccessChainOrAddrOf(allocator, true);
         if (chain) {
             return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, is_mutable, loc_single(token1));

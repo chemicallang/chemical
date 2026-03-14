@@ -336,12 +336,13 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
         const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
 
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
+
             const attr = attrNode as *mut JsJSXAttribute;
             attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attr.name, location));
 
             if(attr.value == null) {
                 const boolVal = builder.make_bool_value(true, location);
-                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal as *mut Value));
+                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
             } else if(attr.value.kind == JsNodeKind.Literal) {
                 const lit = attr.value as *mut JsLiteral;
                 const text = strip_js_string_quotes(lit.value);
@@ -355,6 +356,17 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                     }
                 }
             }
+        } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute){
+            const attr = attrNode as *mut JsJSXSpreadAttribute
+            // TODO: currently we only support spreading props (the real argument passed)
+            //  we automatically spread props when user spreads any object
+            //  we should check whether its a javascript object, or the props being passed from the current function
+            const params = converter.current_func.get_params()
+            const propsParam = params.get(1)
+            const spread_props = builder.make_identifier("props", propsParam, false, location);
+
+            attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
+            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), spread_props));
         }
         attrValues.push(attrStructVal as *mut Value);
     }

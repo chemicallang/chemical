@@ -87,7 +87,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         str : std::string(),
         jsx_parent : view(""),
         t_counter : 0,
-        state_vars : std::vector<std::string_view>()
+        state_vars : std::vector<std::string_view>(),
+        current_func : root.signature.functionNode
     }
 
     const location = intrinsics::get_raw_location()
@@ -119,7 +120,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
                 str : std::string(),
                 jsx_parent : view(""),
                 t_counter : 0,
-                state_vars : std::vector<std::string_view>()
+                state_vars : std::vector<std::string_view>(),
+                current_func : root.signature.functionNode
             }
             jsConv.target = BufferType.JavaScript;
             append_universal_component_js(jsConv, root);

@@ -112,8 +112,7 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
     }
 
     // construct the struct of MultipleAttributeValues
-    const multiAttrValuesNode = builder.make_linked_type("MultipleAttributeValues", converter.multipleAttributeValueNode, location);
-    const multiAttrStructVal = builder.make_struct_value(multiAttrValuesNode, converter.parent, location)
+    const multiAttrStructVal = builder.make_struct_value(converter.multipleAttributeValueNode, location)
 
     multiAttrStructVal.add_value("data", ssrAttrValArr)
     multiAttrStructVal.add_value("size", builder.make_ubigint_value(size, location))

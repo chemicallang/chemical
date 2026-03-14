@@ -55,6 +55,8 @@ public:
 
     bool primitive() final;
 
+    bool resolve_container(ASTNode* node);
+
     bool resolve_container(
             GenericInstantiatorAPI& instantiator,
             BaseType* containerType,

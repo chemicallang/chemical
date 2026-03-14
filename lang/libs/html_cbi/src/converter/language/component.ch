@@ -59,10 +59,10 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             const attr = element.attributes.get(i)
 
             // constructing a ssr text for the attribute name
-            const attrStructVal = builder.make_struct_value(ssrAttrLinkedType, converter.parent, location)
+            const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
 
             // constructing a ssr text val for the name value
-            const nameStructVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location)
+            const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
             nameStructVal.add_value(std::string_view("data"), builder.make_string_value(attr.name, location))
             nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
             attrStructVal.add_value(std::string_view("name"), nameStructVal)
@@ -82,7 +82,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             } else {
                 // constructing a ssr text val for the name value
                 var chemAttrValue = attrValue as *mut TextAttributeValue
-                const textStructVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location)
+                const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
                 textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text, location))
                 textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
 
@@ -103,8 +103,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
         // creating a struct value for ssr attribute list
         const ssrAttributeListNode = converter.support.ssrAttributeListNode
-        const ssrAttributeListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), ssrAttributeListNode, location)
-        const structValue = builder.make_struct_value(ssrAttributeListNodeType, converter.parent, location)
+        const structValue = builder.make_struct_value(ssrAttributeListNode, location)
 
         // now lets add value for the data (going to be the array), and size
         structValue.add_value(std::string_view("data"), arrayValue)

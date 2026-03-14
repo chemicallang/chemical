@@ -306,8 +306,7 @@ func (converter : &mut JsConverter) escapeHtml(text : std::string_view) {
 
 func (converter : &mut JsConverter) make_ssr_text(val : std::string_view, location : ubigint) : *mut Value {
     const builder = converter.builder;
-    const ssrTextLinkedType = builder.make_linked_type(std::string_view("SsrText"), converter.support.ssrTextLinkedNode, location);
-    const structVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location);
+    const structVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
     structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
     structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
     return structVal as *mut Value;
@@ -334,7 +333,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
         const attrNode = attributes.get(i);
         if(attrNode == null) continue;
 
-        const attrStructVal = builder.make_struct_value(ssrAttrLinkedType, converter.parent, location);
+        const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
 
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
             const attr = attrNode as *mut JsJSXAttribute;
@@ -360,8 +359,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
         attrValues.push(attrStructVal as *mut Value);
     }
 
-    const ssrAttributeListType = builder.make_linked_type(std::string_view("SsrAttributeList"), support.ssrAttributeListNode, location);
-    const listStruct = builder.make_struct_value(ssrAttributeListType, converter.parent, location);
+    const listStruct = builder.make_struct_value(support.ssrAttributeListNode, location);
     listStruct.add_value(std::string_view("data"), arrayValue as *mut Value);
     listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(attributes.size(), location));
     return listStruct as *mut Value;

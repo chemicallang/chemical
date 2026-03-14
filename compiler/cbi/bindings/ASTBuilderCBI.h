@@ -144,7 +144,7 @@ extern "C" {
 
     StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view* value, uint64_t location);
 
-    StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, ASTNode* parent_node, uint64_t location);
+    StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, ASTNode* ref, uint64_t location);
 
     IntNumValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location);
 

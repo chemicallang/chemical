@@ -126,8 +126,7 @@ func build_nested_props_expr(
     builder : *mut ASTBuilder,
     element : *mut JsJSXElement,
     states : &std::vector<UniversalStateDecl>,
-    support : *mut SymResSupport,
-    tokens : *mut std::vector<TemplateToken>
+    support : *mut SymResSupport
 ) : std::string_view {
     if(element == null) return view("{}");
     var s = std::string();
@@ -151,7 +150,7 @@ func build_nested_props_expr(
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;
                 if(expr != null) {
-                    s.append_view(js_node_to_source(builder, expr, states, support, tokens));
+                    s.append_view(js_node_to_source(builder, expr, states, support));
                 } else {
                     s.append_view("true");
                 }
@@ -163,7 +162,7 @@ func build_nested_props_expr(
             if(!first) s.append_view(",");
             first = false;
             s.append_view("...");
-            s.append_view(js_node_to_source(builder, spread.argument, states, support, tokens));
+            s.append_view(js_node_to_source(builder, spread.argument, states, support));
         }
     }
     s.append_view("}");

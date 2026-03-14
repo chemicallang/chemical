@@ -1,22 +1,13 @@
-func (converter : &mut JsConverter) flush_text(out : &mut std::vector<TemplateToken>) {
-    if(!converter.str.empty()) {
-        out.push(TemplateToken { kind : TemplateTokenKind.Text, value : converter.builder.allocate_view(converter.str.to_view()) });
-        converter.str.clear();
-    }
-}
-
 func js_node_to_source(
     builder : *mut ASTBuilder,
     node : *mut JsNode,
     states : &std::vector<UniversalStateDecl>,
-    support : *mut SymResSupport,
-    tokens : *mut std::vector<TemplateToken>
+    support : *mut SymResSupport
 ) : std::string_view {
     var tmpConv = JsConverter {
         builder : builder,
         support : support,
         vec : null,
-        tokens : tokens,
         parent : null,
         str : std::string(),
         jsx_parent : view(""),

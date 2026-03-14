@@ -1,6 +1,18 @@
 struct SymResSupport {
 
+    var ssrAttrLinkedNode : *mut ASTNode = null
+
+    var ssrTextLinkedNode : *mut ASTNode = null
+
+    var ssrAttributeValueNode : *mut ASTNode = null
+
+    var multipleAttributeValueNode : *mut ASTNode = null
+
+    var ssrAttributeListNode : *mut ASTNode = null
+
     var pageNode : *mut ASTNode = null
+
+    // Page Children
 
     var appendHtmlCharFn : *mut ASTNode = null
 

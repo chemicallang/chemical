@@ -4,6 +4,43 @@ func sym_res_root(
     loc : ubigint
 ) : bool {
 
+    const ssrAttrLinkedNode = resolver.find("SsrAttribute");
+    if(ssrAttrLinkedNode == null) {
+        resolver.error("couldn't find 'SsrAttribute' node", loc);
+        return false;
+    }
+
+    const ssrTextLinkedNode = resolver.find("SsrText");
+    if(ssrTextLinkedNode == null) {
+        resolver.error("couldn't find 'SsrText' node", loc);
+        return false;
+    }
+
+    const ssrAttributeValueNode = resolver.find("SsrAttributeValue");
+    if(ssrAttributeValueNode == null) {
+        resolver.error("couldn't find 'SsrAttributeValue' node", loc);
+        return false;
+    }
+
+    const multipleAttributeValueNode = resolver.find("MultipleAttributeValues");
+    if(multipleAttributeValueNode == null) {
+        resolver.error("couldn't find 'MultipleAttributeValues' node", loc);
+        return false;
+    }
+
+    const ssrAttributeListNode = resolver.find("SsrAttributeList");
+    if(ssrAttributeListNode == null) {
+        resolver.error("couldn't find 'SsrAttributeList' node", loc);
+        return false;
+    }
+
+    var support = &mut root.support
+    support.ssrAttrLinkedNode = ssrAttrLinkedNode
+    support.ssrTextLinkedNode = ssrTextLinkedNode
+    support.ssrAttributeValueNode = ssrAttributeValueNode
+    support.multipleAttributeValueNode = multipleAttributeValueNode
+    support.ssrAttributeListNode = ssrAttributeListNode
+
     const page = resolver.find("page");
     if(page == null) {
         resolver.error("couldn't find page variable", loc);
@@ -52,7 +89,6 @@ func sym_res_root(
         return false;
     }
 
-    var support = &mut root.support
     support.pageNode = page;
     support.appendHtmlCharFn = appendHtmlCharFn
     support.appendHtmlCharPtrFn = appendHtmlCharPtrFn

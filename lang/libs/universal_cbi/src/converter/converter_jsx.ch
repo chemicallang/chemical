@@ -76,6 +76,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
 
+        // TODO: convert attributes
         // Push props (this is tricky, we need to convert JSX attributes to C++ struct initializer)
         // For now, only passing page.
 

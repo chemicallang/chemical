@@ -124,7 +124,7 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
     switch(type.getKind()) {
         BaseTypeKind.Bool => {
             // bool value
-            return converter.wrapArgAttrValueVariantCall(builder, "Bool", value);
+            return converter.wrapArgAttrValueVariantCall(builder, "Boolean", value);
         }
         BaseTypeKind.IntN => {
             const intN = type as *mut IntNType;

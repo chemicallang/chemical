@@ -138,7 +138,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 
             const funcId = builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location);
             const chain = builder.make_access_chain(std::span<*mut Value>([ pageId, funcId ]), location);
-            var callHeader = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);
+            var callHeader = builder.make_function_call_node(chain, converter.parent, location);
             var headerStr = std::string("$_um(document.currentScript, '");
             get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, headerStr);
             headerStr.append_view("', {");

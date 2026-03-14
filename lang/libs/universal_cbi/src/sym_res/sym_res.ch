@@ -15,11 +15,6 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
 
-    // resolution of required types and functions for code generation
-    root.support.pageNode = param as *mut ASTNode
-    resolve_page_children(resolver, root.support, root.support.pageNode, loc)
-    sym_res_support(resolver, root.support);
-
     var builder = resolver.getJobBuilder()
 
     // creating the component function
@@ -32,6 +27,12 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     const params = funcDecl.get_params();
     const param = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
     params.push(param);
+
+    // resolution of required types and functions for code generation
+    root.support.pageNode = param as *mut ASTNode;
+    resolve_page_children(resolver, root.support, root.support.pageNode, loc);
+    sym_res_support(resolver, root.support);
+
     // the second param for the function, attrs : SsrAttributeList
     const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
     const param2 = builder.make_function_param(std::string_view("attrs"), attrListNodeType, 1, null, false, funcDecl, loc);

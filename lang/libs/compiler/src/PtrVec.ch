@@ -10,6 +10,8 @@ public interface PtrVec {
 
     func _erase(&mut self, i : uint);
 
+    func _data(&self) : **void
+
     func _size(&self) : size_t;
 
 }
@@ -30,6 +32,10 @@ public struct VecRef<T> : private PtrVec {
 
     func erase(&mut self, i : uint) {
         _erase(i);
+    }
+
+    func data(&self) : **mut T {
+        return _data() as **mut T;
     }
 
     func size(&self) : size_t {

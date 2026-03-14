@@ -145,6 +145,7 @@ const std::pair<chem::string_view, void*> PtrVecSymMap[] = {
         { "compiler_PtrVec_size", (void*) PtrVec_size },
         { "compiler_PtrVec_set", (void*) PtrVec_set },
         { "compiler_PtrVec_erase", (void*) PtrVec_erase },
+        { "compiler_PtrVec_data", (void*) PtrVec_data },
         { "compiler_PtrVec_push", (void*) PtrVec_push },
 };
 

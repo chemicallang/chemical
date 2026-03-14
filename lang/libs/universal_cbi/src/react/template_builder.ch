@@ -72,8 +72,8 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     var converter = JsConverter {
         builder : builder,
         support : tmpSupport,
-        vec : null,
-        parent : null,
+        vec : comp.signature.functionNode.get_body(),
+        parent : comp.signature.functionNode as *mut ASTNode,
         str : std::string(),
         jsx_parent : view(""),
         t_counter : 0,
@@ -170,6 +170,5 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view(");");
     }
 
-    comp.signature.universalTemplate = tokens;
     comp.signature.universalInit = builder.allocate_view(init.to_view());
 }

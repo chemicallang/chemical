@@ -177,13 +177,9 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
                 
                 var targetNode = signature.functionNode as *mut FunctionDeclaration;
                 var targetName = signature.name;
-                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
-                    targetNode = signature.jsEmitFunctionNode;
-                    targetName = signature.jsEmitFunctionNode.getName();
-                }
                 var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-                var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+                var call = builder.make_function_call_node(base, converter.parent, location)
                 call.get_args().push(pageId as *mut Value)
                 thenBody.push(call as *mut ASTNode)
                 
@@ -289,7 +285,6 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
             propsName : propsName,
             params : params,
             functionNode : null,
-            jsEmitFunctionNode : null,
             mountStrategy : MountStrategy.Preact, // Important: Set mount strategy
             access : spec
         },

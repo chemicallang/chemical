@@ -32,7 +32,7 @@ public struct SsrAttributeList {
 	var size : u64
 }
 
-func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool) {
+func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool = false) {
     switch(attrVal) {
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
@@ -47,7 +47,7 @@ func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeV
             const end = curr + value.size
             while(curr != end) {
                 writePrimitiveAttrValue(output, *curr)
-                cur++
+                curr++
                 if(space_multiple && curr != end) { output.append(' '); }
             }
         }

@@ -5,44 +5,25 @@ func append_universal_component_js(
     if(comp == null) return;
     const signature = &mut comp.signature;
 
-    converter.str.append_view("function ");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-    converter.str.append_view("(");
-    converter.str.append_view(signature.propsName);
-    converter.str.append_view(")");
-    converter.str.append(' ');
+    // We generate the JS function definition once per page
+    const hash = signature.functionNode.getEncodedLocation() as size_t;
 
-    if(!signature.universalTemplate.empty()) {
-        converter.str.append_view("{const tpl=document.createElement('template');tpl.innerHTML='");
-        for(var i : uint = 0; i < signature.universalTemplate.size(); i++) {
-            const tok = signature.universalTemplate.get(i);
-            if(tok.kind == TemplateTokenKind.Text) {
-                append_escaped_single_quoted(converter.str, tok.value);
-            }
-        }
-        converter.str.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-        converter.str.append_view(".__hydrate(n,");
-        converter.str.append_view(signature.propsName);
-        converter.str.append_view("||{});return n;}");
+    var out = &mut converter.str;
+    out.append_view("function ");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    out.append_view("(");
+    out.append_view(signature.propsName);
+    out.append_view(") ");
 
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-        converter.str.append_view(".__hydrate=(root,");
-        converter.str.append_view(signature.propsName);
-        converter.str.append_view(")=>{");
-        converter.str.append_view(signature.universalInit);
-        converter.str.append_view("};");
+    if(comp.body != null) {
+        converter.convertJsNode(comp.body);
     } else {
-        if(comp.body != null) {
-            converter.convertJsNode(comp.body);
-        } else {
-            converter.str.append_view("return document.createTextNode('');}");
-        }
+        out.append_view("{return document.createTextNode('');}");
     }
 
-    converter.str.append_view("if(window.$_ureg)window.$_ureg('");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-    converter.str.append_view("',");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-    converter.str.append_view(");");
+    out.append_view("\nwindow.$_ureg('");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    out.append_view("',");
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    out.append_view(");");
 }

@@ -7,7 +7,6 @@ struct JsConverter {
     var builder : *mut ASTBuilder
     var support : *mut SymResSupport
     var vec : *mut VecRef<ASTNode>
-    var tokens : *mut std::vector<TemplateToken> = null
     var parent : *mut ASTNode
     var str : std::string
     var jsx_parent : std::string_view

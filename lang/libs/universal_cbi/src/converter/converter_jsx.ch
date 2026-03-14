@@ -73,7 +73,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         var base = converter.builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, intrinsics::get_raw_location())
         var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
-        var call = converter.builder.make_function_call_node(base as *mut ChainValue, converter.parent, intrinsics::get_raw_location())
+        var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
 
         // Push props (this is tricky, we need to convert JSX attributes to C++ struct initializer)
@@ -184,24 +184,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     }
 
     converter.str.append_view(")");
-}
-
-func (converter : &mut JsConverter) make_append_attributes_spread_call(spreadExpr : *mut JsNode) {
-    const builder = converter.builder;
-    const location = intrinsics::get_raw_location();
-    const support = converter.support;
-    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    var id = builder.make_identifier(std::string_view("append_html_attributes_spread"), support.appendHtmlAttributesSpreadFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
-    var call = builder.make_function_call_node(chain, converter.parent, location)
-    // The spread argument is a C++ value that comes from JsChemicalValue
-    // We need to wrap the JSX spread argument expression.
-    // It should be an identifier or member expression that the C++ side can call with.
-    // We emit it as a void call wrapper.
-    // For now we will do nothing — proper impl requires value from Chemical land.
-    // TODO: pass the actual spread chemical value once the JSX spread argument
-    //       resolves to a C++ struct with an append_html_attributes method.
-    converter.vec.push(call as *mut ASTNode)
 }
 
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
@@ -325,7 +307,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
                         const cv = spread.argument as *mut JsChemicalValue;
                         var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
                         var fnId = builder.make_identifier(std::string_view("set_attributes_spread"), support.appendHtmlAttributesSpreadFn, false, location);
-                        const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, fnId ]), location);
+                        const chain = builder.make_access_chain(std::span<*mut Value>([ base, fnId ]), location);
                         var call = builder.make_function_call_node(chain, converter.parent, location);
                         call.get_args().push(cv.value);
                         converter.vec.push(call as *mut ASTNode);

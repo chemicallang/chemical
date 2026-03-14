@@ -19,6 +19,10 @@ void PtrVec_erase(std::vector<void*>* vec, unsigned int i) {
     vec->erase(vec->begin() + i);
 }
 
+void** PtrVec_data(std::vector<void*>* vec) {
+    return vec->data();
+}
+
 std::size_t PtrVec_size(std::vector<void*>* vec) {
     return vec->size();
 }

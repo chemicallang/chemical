@@ -20,11 +20,6 @@ struct UniversalPropTextBinding {
     var path : std::string_view
 }
 
-struct UniversalAttrBinding {
-    var attr : *mut MergedAttribute
-    var path : std::string_view
-}
-
 struct UniversalNestedBinding {
     var componentName : std::string_view
     var path : std::string_view

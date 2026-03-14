@@ -1,9 +1,3 @@
-func (converter : &mut JsConverter) flush_template_text() {
-    if(converter.tokens == null || converter.str.empty()) return;
-    converter.tokens.push(TemplateToken { kind : TemplateTokenKind.Text, value : converter.builder.allocate_view(converter.str.to_view()) });
-    converter.str.clear();
-}
-
 func (converter : &mut JsConverter) append_hex(val : uint) {
     const hex = "0123456789ABCDEF"
     if (val == 0) {
@@ -89,7 +83,7 @@ func (converter : &mut JsConverter) make_require_component_call(hash : size_t) :
     const support = converter.support;
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -128,7 +122,7 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
     }
 
     var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -175,7 +169,7 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     }
 
     var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -213,7 +207,7 @@ func (converter : &mut JsConverter) put_char_chain(value : char) {
     }
 
     var id = converter.builder.make_identifier(name, fnPtr, false, location);
-    const chain = converter.builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = converter.builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = converter.builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     const char_val = converter.builder.make_char_value(value, location);

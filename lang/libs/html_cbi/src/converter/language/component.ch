@@ -6,6 +6,9 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     const location = intrinsics::get_raw_location()
     const signature = element.componentSignature
 
+    // the output string
+    var s = &mut converter.str
+
     // 1. Generate the hash based on component name
     const hash = signature.functionNode.getEncodedLocation()
 
@@ -33,7 +36,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // var attrs = [ SsrAttribute { name : SsrText { data : "", size : 0 }, value : SsrAttributeValue.Text(SsrText { data : "", size : 0 }) } ]
 
         // the ssr attribute linked type
-        cont ssrAttrLinkedNode = converter.support.ssrAttrLinkedNode
+        const ssrAttrLinkedNode = converter.support.ssrAttrLinkedNode
         const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), ssrAttrLinkedNode, location)
 
         // the ssr text linked type
@@ -47,11 +50,12 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         var attrValConv = AttrValueConverter {
             pageNode : converter.support.pageNode,
             ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
-            multipleAttributeValueNode : converter.support.multipleAttributeValueNode
+            multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
+            parent : converter.parent
         }
 
         // constructing ssr attributes
-        for(var i = 0; i < element.attributes.size); i++) {
+        for(var i = 0u; i < element.attributes.size(); i++) {
             const attr = element.attributes.get(i)
 
             // constructing a ssr text for the attribute name
@@ -67,18 +71,19 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             const attrValue = attr.value;
             if(attrValue.kind == AttributeValueKind.Chemical) {
                 var chemAttrValue = attrValue as *mut ChemicalAttributeValue
-                var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value)
+                var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
 
                 attrStructVal.add_value(std::string_view("value"), attrValueVal);
             } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
-                const multiVal = converter.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
+                var chemAttrValue = attrValue as *mut ChemicalAttributeValues
+                const multiVal = attrValConv.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
+                attrStructVal.add_value(std::string_view("value"), multiVal);
 
-                attrStructVal.add_value(std::string_view("value"), attrValueVal);
             } else {
                 // constructing a ssr text val for the name value
                 var chemAttrValue = attrValue as *mut TextAttributeValue
                 const textStructVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location)
-                textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text.name, location))
+                textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text, location))
                 textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
 
                 attrStructVal.add_value(std::string_view("value"), textStructVal);

@@ -28,10 +28,10 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
             var fnName = std::string_view("getWritableValue")
             const writeFn = node.child(fnName)
             if(writeFn == null) {
-                return convert_to_attr_value(builder, type, value)
+                return converter.convert_to_attr_value(builder, type, value)
             }
             if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                return convert_to_attr_value(builder, type, value)
+                return converter.convert_to_attr_value(builder, type, value)
             }
             const location = intrinsics::get_raw_location();
             var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
@@ -46,28 +46,28 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
         ASTNodeKind.TypealiasStmt => {
             const stmt = node as *mut TypealiasStatement
             const actual_type = stmt.getActualType();
-            return convert_to_attr_value(builder, actual_type, value);
+            return converter.convert_to_attr_value(builder, actual_type, value);
         }
         default => {
-            return convert_to_attr_value(builder, type, value);
+            return converter.convert_to_attr_value(builder, type, value);
         }
     }
 }
 
-func (converter : &mut AttrValueConverter) convert_ref_node_attr(builder : *mut ASTBuilder, node : *mut ASTNode, type : *mut BaseType, value : *mut Value) {
+func (converter : &mut AttrValueConverter) convert_ref_node_attr(builder : *mut ASTBuilder, node : *mut ASTNode, type : *mut BaseType, value : *mut Value) : *mut Value {
     switch(node.getKind()) {
         ASTNodeKind.TypealiasStmt => {
             const stmt = node as *mut TypealiasStatement
             const actual_type = stmt.getActualType();
-            return convert_attr_ref_child_type(builder, actual_type, value);
+            return converter.convert_attr_ref_child_type(builder, actual_type, value);
         }
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            return convert_node_attr_value(builder, type, node, value)
+            return converter.convert_node_attr_value(builder, type, node, value)
         }
         default => {
             const loc = intrinsics::get_raw_location();
-            const deref = converter.builder.make_dereference_value(value, type, loc);
-            return convert_to_attr_value(builder, type, deref);
+            const deref = builder.make_dereference_value(value, type, loc);
+            return converter.convert_to_attr_value(builder, type, deref);
         }
     }
 }
@@ -77,18 +77,18 @@ func (converter : &mut AttrValueConverter) convert_attr_ref_child_type(builder :
         BaseTypeKind.Linked => {
             const linked = childType as *mut LinkedType;
             const node = linked.getLinkedNode();
-            return convert_ref_node_attr(builder, node, childType, value)
+            return converter.convert_ref_node_attr(builder, node, childType, value)
         }
         BaseTypeKind.Generic => {
             const generic = childType as *mut GenericType;
             const linked = generic.getLinkedType();
             const node = linked.getLinkedNode();
-            return convert_ref_node_attr(builder, node, childType, value)
+            return converter.convert_ref_node_attr(builder, node, childType, value)
         }
         default => {
             const loc = intrinsics::get_raw_location();
-            const deref = converter.builder.make_dereference_value(value, childType, loc);
-            return convert_to_attr_value(builder, childType deref);
+            const deref = builder.make_dereference_value(value, childType, loc);
+            return converter.convert_to_attr_value(builder, childType, deref);
         }
     }
 }
@@ -97,7 +97,7 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
     builder : *mut ASTBuilder,
     start : **mut Value,
     size : ubigint
-) {
+) : *mut Value {
     // construct an array value, array of SsrAttributeValue
     var location = intrinsics::get_raw_location();
     var attrValueType = builder.make_linked_type("SsrAttributeValue", converter.ssrAttributeValueNode, location)
@@ -156,26 +156,28 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
                 return converter.convert_multiple_attr_values(builder, values.data(), values.size())
             } else {
                 // TODO: error out, cannot handle comptime functions that return expressive strings yet !
+                return null;
             }
         }
         BaseTypeKind.Linked => {
             const linked = type as *mut LinkedType;
             const node = linked.getLinkedNode();
-            return convert_node_attr_value(builder, type, node, value);
+            return converter.convert_node_attr_value(builder, type, node, value);
         }
         BaseTypeKind.Generic => {
             const generic = type as *mut GenericType;
             const linked = generic.getLinkedType();
             const node = linked.getLinkedNode();
-            return convert_node_attr_value(builder, type, node, value);
+            return converter.convert_node_attr_value(builder, type, node, value);
         }
         BaseTypeKind.Reference => {
             const refType = type as *mut ReferenceType
             const childType = refType.getChildType()
-            return convert_attr_ref_child_type(builder, childType, value)
+            return converter.convert_attr_ref_child_type(builder, childType, value)
         }
         default => {
-            converter.put_wrapped_chemical_value_in(value);
+            // TODO: check this branch
+            return value;
         }
     }
 }

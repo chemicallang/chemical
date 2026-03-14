@@ -16,6 +16,8 @@ extern "C" {
 
     void PtrVec_erase(std::vector<void*>* vec, unsigned int i);
 
+    void** PtrVec_data(std::vector<void*>* vec);
+
     std::size_t PtrVec_size(std::vector<void*>* vec);
 
 }

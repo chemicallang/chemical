@@ -22,10 +22,6 @@ func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut 
     return null;
 }
 
-func is_mergeable_attr_name(name : std::string_view) : bool {
-    return name.equals(view("class")) || name.equals(view("className")) || name.equals(view("style"));
-}
-
 func append_escaped_single_quoted(out : &mut std::string, value : std::string_view) {
     for(var i : uint = 0; i < value.size(); i++) {
         const c = value.get(i);
@@ -93,106 +89,6 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
             converter.put_chemical_value_in(current);
         }
     }
-}
-
-func (converter : &mut ASTConverter) merged_attr_should_emit(element : *mut HtmlElement, merged : *mut MergedAttribute) : bool {
-    if(merged == null) return false;
-    for(var i : uint = 0; i < merged.segments.size(); i++) {
-        const seg = merged.segments.get(i);
-        switch(seg.kind) {
-            MergedAttrSegmentKind.Text => {
-                if(!seg.value.empty()) return true;
-            }
-            MergedAttrSegmentKind.ChemicalValue => { return true; }
-            MergedAttrSegmentKind.PropAccess => {
-                var dotPos : uint = 0;
-                while(dotPos < seg.value.size() && seg.value.data()[dotPos] != '.') dotPos++;
-                var attrName = if(dotPos == seg.value.size()) seg.value else std::string_view(seg.value.data(), dotPos);
-                const attr = find_attribute(element, attrName);
-                if(attr != null && attr.value != null) return true;
-            }
-            MergedAttrSegmentKind.SpreadAttr => {
-                var attr = find_attribute(element, merged.name);
-                if(attr == null && merged.name.equals(view("class"))) {
-                    attr = find_attribute(element, view("className"));
-                }
-                if(attr != null && attr.value != null) return true;
-            }
-        }
-    }
-    return false;
-}
-
-func (converter : &mut ASTConverter) emit_merged_attribute(element : *mut HtmlElement, merged : *mut MergedAttribute) {
-    if(merged == null) return;
-    if(!converter.merged_attr_should_emit(element, merged)) return;
-
-    var sep = if(merged.name.equals(view("style"))) ';' else ' ';
-
-    var s = &mut converter.str;
-    s.append(' ');
-    s.append_view(merged.name);
-    s.append_view("=\"");
-
-    var hasValue = false;
-    for(var i : uint = 0; i < merged.segments.size(); i++) {
-        const seg = merged.segments.get(i);
-        switch(seg.kind) {
-            MergedAttrSegmentKind.Text => {
-                if(seg.value.empty()) continue;
-                if(hasValue) s.append(sep);
-                converter.escapeHtml(seg.value);
-                hasValue = true;
-            }
-            MergedAttrSegmentKind.PropAccess => {
-                if(hasValue) s.append(sep);
-                converter.emit_append_html_from_str(*s);
-                converter.resolve_and_put_prop(element, seg.value);
-                hasValue = true;
-            }
-            MergedAttrSegmentKind.ChemicalValue => {
-                if(hasValue) s.append(sep);
-                converter.emit_append_html_from_str(*s);
-                converter.put_chemical_value_in(seg.chemicalValue);
-                hasValue = true;
-            }
-            MergedAttrSegmentKind.SpreadAttr => {
-                var attr = find_attribute(element, merged.name);
-                if(attr == null && merged.name.equals(view("class"))) {
-                    attr = find_attribute(element, view("className"));
-                }
-                if(attr == null || attr.value == null) continue;
-                switch(attr.value.kind) {
-                    AttributeValueKind.Text, AttributeValueKind.Number => {
-                        const val = attr.value as *mut TextAttributeValue;
-                        const txt = strip_js_string_quotes(val.text);
-                        if(txt.empty()) continue;
-                        if(hasValue) s.append(sep);
-                        converter.escapeHtml(txt);
-                        hasValue = true;
-                    }
-                    AttributeValueKind.Chemical => {
-                        if(hasValue) s.append(sep);
-                        converter.emit_append_html_from_str(*s);
-                        const val = attr.value as *mut ChemicalAttributeValue;
-                        converter.put_chemical_value_in(val.value);
-                        hasValue = true;
-                    }
-                    AttributeValueKind.ChemicalValues => {
-                        const vals = attr.value as *mut ChemicalAttributeValues;
-                        for(var vi : uint = 0; vi < vals.values.size(); vi++) {
-                            if(hasValue) s.append(sep);
-                            converter.emit_append_html_from_str(*s);
-                            converter.put_chemical_value_in(vals.values.get(vi));
-                            hasValue = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    s.append('\"');
 }
 
 func (converter : &mut ASTConverter) is_string_type(type : *mut BaseType) : bool {
@@ -458,39 +354,6 @@ func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement)
         var nested_child = element.children.get(i)
         converter.convertHtmlChild(nested_child)
         i++;
-    }
-}
-
-func (converter : &mut ASTConverter) emit_append_html_attributes_spread(element : *mut HtmlElement) {
-    const builder = converter.builder;
-    const location = intrinsics::get_raw_location();
-    
-    // Spread all attributes of the call site as HTML attributes
-    for(var i : uint = 0; i < element.attributes.size(); i++) {
-        const attr = element.attributes.get(i);
-        // We skip 'children' as it's handled by TemplateTokenKind.Children
-        if(attr.name.equals(view("children"))) continue;
-        if(is_mergeable_attr_name(attr.name)) continue;
-        
-        var s = std::string();
-        s.append(' ');
-        s.append_view(attr.name);
-        if(attr.value != null && attr.value.kind == AttributeValueKind.Text) {
-            const val = attr.value as *mut TextAttributeValue;
-            s.append_view("=\"");
-            s.append_view(strip_js_string_quotes(val.text));
-            s.append('\"');
-            converter.emit_append_html_from_str(s);
-        } else if(attr.value != null && attr.value.kind == AttributeValueKind.Chemical) {
-            s.append_view("=\"");
-            converter.emit_append_html_from_str(s);
-            const val = attr.value as *mut ChemicalAttributeValue;
-            converter.put_chemical_value_in(val.value);
-            converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
-        } else if(attr.value == null) {
-            // boolean attribute
-            converter.emit_append_html_from_str(s);
-        }
     }
 }
 

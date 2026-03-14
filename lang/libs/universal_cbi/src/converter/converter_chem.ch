@@ -81,11 +81,6 @@ func (converter : &mut JsConverter) put_chemical_value_in(value : *mut Value) {
 }
 
 func (converter : &mut JsConverter) convertChemicalValue(chem : *mut JsChemicalValue) {
-    if(converter.tokens != null) {
-        converter.flush_template_text();
-        converter.tokens.push(TemplateToken { kind : TemplateTokenKind.ChemicalValue, chemicalValue : chem.value });
-        return;
-    }
     converter.put_chain_in()
     converter.put_chemical_value_in(chem.value)
 }

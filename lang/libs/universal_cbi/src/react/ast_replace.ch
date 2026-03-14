@@ -44,7 +44,7 @@ func emit_child_component_js_calls(
                 }
                 var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
-                var call = builder.make_function_call_node(base as *mut ChainValue, parent, location)
+                var call = builder.make_function_call_node(base as *mut Value, parent, location)
                 call.get_args().push(pageId as *mut Value)
                 thenBody.push(call as *mut ASTNode)
 
@@ -58,7 +58,7 @@ func make_require_component_call_static(builder : *mut ASTBuilder, support : &mu
     var value = builder.make_ubigint_value(hash, location)
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -69,7 +69,7 @@ func make_set_component_hash_call_static(builder : *mut ASTBuilder, support : &m
     var value = builder.make_ubigint_value(hash, location)
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("set_component_hash"), support.setComponentHashFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, parent, location)
     var args = call.get_args();
     args.push(value)
@@ -108,7 +108,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         selfBody.push(make_set_component_hash_call_static(builder, support, selfHash, converter.parent, location))
         var emitBase = builder.make_identifier(root.signature.jsEmitFunctionNode.getName(), root.signature.jsEmitFunctionNode as *mut ASTNode, false, location)
         var emitPage = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
+        var emitCall = builder.make_function_call_node(emitBase as *mut Value, converter.parent, location)
         emitCall.get_args().push(emitPage as *mut Value)
         selfBody.push(emitCall as *mut ASTNode)
         converter.vec.push(selfIf as *mut ASTNode)
@@ -118,39 +118,61 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         const block = root.body as *mut JsBlock;
         const returned = find_returned_jsx(block);
         if(returned != null) {
-            // 1. Perform SSR (emit to pageHtml buffer)
+            // 1. SSR HTML emission
             converter.target = BufferType.HTML;
             converter.convertJsNode(returned);
             converter.put_chain_in();
 
-            // 2. Perform hydration script emission (emit to pageJs buffer)
-            // The JsJSXComponent conversion inside convertJsNode(returned) already
-            // emits hydration for child components.
-            // We just need to make sure the ROOT of THIS component also hydrates if needed.
-            // Actually, the Component itself is a target of hydration in the parent.
+            // 2. JS definition emission (protected by require_component)
+            const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
+            var selfReq = make_require_component_call_static(builder, support, selfHash, location)
+            var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
+            var selfBody = selfIf.get_body()
+            selfBody.push(make_set_component_hash_call_static(builder, support, selfHash, converter.parent, location))
+            
+            var jsConv = JsConverter {
+                builder : builder,
+                support : &mut support,
+                vec : selfBody,
+                parent : selfIf as *mut ASTNode,
+                str : std::string(),
+                jsx_parent : view(""),
+                t_counter : 0,
+                state_vars : std::vector<std::string_view>()
+            }
+            jsConv.target = BufferType.JavaScript;
+            append_universal_component_js(jsConv, root);
+            jsConv.put_chain_in();
+            
+            converter.vec.push(selfIf as *mut ASTNode);
+
+            // 3. Hydration call (on every call site)
+            // page.append_js("$_um(document.currentScript, 'MyComp', {")
+            // renderJsAttrs(page, attrs)
+            // page.append_js("});")
+            
+            // We'll generate these calls as AST nodes.
+            var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+            var appendJsFn = support.appendHeadJsCharPtrFn; // Use append_js if available
+            
+            var callHeader = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendJsCharPtrFn, false, location), converter.parent, location);
+            callHeader.get_args().push(pageId as *mut Value);
+            var headerStr = std::string("$_um(document.currentScript, '");
+            get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, headerStr);
+            headerStr.append_view("', {");
+            callHeader.get_args().push(builder.make_string_value(builder.allocate_view(headerStr.to_view()), location));
+            converter.vec.push(callHeader as *mut ASTNode);
+
+            var callAttrs = builder.make_function_call_node(builder.make_identifier(std::string_view("renderJsAttrs"), support.renderJsAttrsNode, false, location), converter.parent, location);
+            callAttrs.get_args().push(pageId as *mut Value);
+            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), null, false, location)); // Use param attrs
+            converter.vec.push(callAttrs as *mut ASTNode);
+
+            var callTail = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendJsCharPtrFn, false, location), converter.parent, location);
+            callTail.get_args().push(pageId as *mut Value);
+            callTail.get_args().push(builder.make_string_value(view("});"), location));
+            converter.vec.push(callTail as *mut ASTNode);
         }
-    }
-
-    if(root.signature.jsEmitFunctionNode != null) {
-        const emitBody = root.signature.jsEmitFunctionNode.add_body();
-        var emitSupport = root.support;
-
-        var emitted_js = std::vector<size_t>();
-        emit_child_component_js_calls(builder, root.signature.jsEmitFunctionNode as *mut ASTNode, root.components, emitSupport, emitBody, emitted_js, location);
-
-        var emitConverter = JsConverter {
-            builder : builder,
-            support : &mut emitSupport,
-            vec : emitBody,
-            parent : root.signature.jsEmitFunctionNode as *mut ASTNode,
-            str : std::string(),
-            jsx_parent : view(""),
-            t_counter : 0,
-            state_vars : std::vector<std::string_view>()
-        }
-        emitConverter.target = BufferType.JavaScript;
-        append_universal_component_js(emitConverter, root);
-        emitConverter.put_chain_in();
     }
 
     var scope = builder.make_scope(root.signature.functionNode.getParent(), location);

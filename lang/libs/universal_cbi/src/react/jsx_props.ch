@@ -123,13 +123,16 @@ func resolve_nested_prop_as_text(
 }
 
 func build_nested_props_expr(
-    builder : *mut ASTBuilder,
+    converter : &mut JsConverter,
     element : *mut JsJSXElement,
-    states : &std::vector<UniversalStateDecl>,
-    support : *mut SymResSupport
-) : std::string_view {
-    if(element == null) return view("{}");
-    var s = std::string();
+    states : &std::vector<UniversalStateDecl>
+) {
+    if(element == null) {
+        converter.str.append_view("{}");
+        return;
+    }
+    const builder = converter.builder;
+    var s = &mut converter.str;
     s.append_view("{");
     var first = true;
     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
@@ -150,7 +153,7 @@ func build_nested_props_expr(
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;
                 if(expr != null) {
-                    s.append_view(js_node_to_source(builder, expr, states, support));
+                    converter.convertJsNode(expr);
                 } else {
                     s.append_view("true");
                 }
@@ -162,9 +165,8 @@ func build_nested_props_expr(
             if(!first) s.append_view(",");
             first = false;
             s.append_view("...");
-            s.append_view(js_node_to_source(builder, spread.argument, states, support));
+            converter.convertJsNode(spread.argument);
         }
     }
     s.append_view("}");
-    return builder.allocate_view(s.to_view());
 }

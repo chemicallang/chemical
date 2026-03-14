@@ -144,9 +144,14 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             callHeader.get_args().push(builder.make_string_value(builder.allocate_view(headerStr.to_view()), location));
             converter.vec.push(callHeader as *mut ASTNode);
 
-            var callAttrs = builder.make_function_call_node(builder.make_identifier(std::string_view("renderJsAttrs"), support.renderJsAttrsNode, false, location), converter.parent, location);
+            var callAttrs = builder.make_function_call_node(builder.make_identifier(std::string_view("renderJsAttrs"), support.renderJsAttrs, false, location), converter.parent, location);
             callAttrs.get_args().push(pageId as *mut Value);
-            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), null, false, location)); // Use param attrs
+
+            const curr_func_params = root.signature.functionNode.get_params();
+            // this points to the current function param attributes
+            const second_param = curr_func_params.get(1)
+
+            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), second_param, false, location)); // Use param attrs
             converter.vec.push(callAttrs as *mut ASTNode);
 
             var callTail = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);

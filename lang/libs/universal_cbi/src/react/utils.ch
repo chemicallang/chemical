@@ -82,3 +82,18 @@ func append_escaped_single_quoted(out : &mut std::string, value : std::string_vi
         }
     }
 }
+
+func build_child_path(builder : *mut ASTBuilder, parentPath : std::string_view, childIndex : uint) : std::string_view {
+    var p = std::string();
+    if(parentPath.size() <= 2) {
+        p.append_view("[");
+        p.append_integer(childIndex as bigint);
+        p.append_view("]");
+    } else {
+        p.append_view(parentPath.subview(0, parentPath.size() - 1));
+        p.append_view(",");
+        p.append_integer(childIndex as bigint);
+        p.append_view("]");
+    }
+    return builder.allocate_view(p.to_view());
+}

@@ -37,7 +37,6 @@ func collect_states(
         var initExpr = view("undefined");
         var initText = view("");
         if(decl.value != null) {
-            initExpr = js_node_to_source(builder, decl.value, outStates, support);
             if(decl.value.kind == JsNodeKind.Literal) {
                 const lit = decl.value as *mut JsLiteral;
                 initText = builder.allocate_view(strip_js_string_quotes(lit.value));

@@ -155,11 +155,25 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const renderHtmlAttrs = resolver.find("renderHtmlAttrs")
+    if(renderHtmlAttrs == null) {
+        resolver.error("couldn't find 'renderHtmlAttrs' node", loc);
+        return false;
+    }
+
+    const renderJsAttrs = resolver.find("renderJsAttrs")
+    if(renderJsAttrs == null) {
+        resolver.error("couldn't find 'renderJsAttrs' node", loc);
+        return false;
+    }
+
     support.ssrAttrLinkedNode = ssrAttrLinkedNode
     support.ssrTextLinkedNode = ssrTextLinkedNode
     support.ssrAttributeValueNode = ssrAttributeValueNode
     support.multipleAttributeValueNode = multipleAttributeValueNode
     support.ssrAttributeListNode = ssrAttributeListNode
+    support.renderHtmlAttrs = renderHtmlAttrs
+    support.renderJsAttrs = renderJsAttrs
 
     return true;
 

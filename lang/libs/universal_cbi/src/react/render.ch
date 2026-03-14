@@ -83,7 +83,7 @@ func render_universal_jsx(
                         converter.str.append_view("$_ur.createElement(");
                         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
                         converter.str.append_view(", ");
-                        converter.str.append_view(build_nested_props_expr(builder, element, states, converter.support));
+                        build_nested_props_expr(converter, element, states);
                         converter.str.append_view(")");
                     }
                     return true;
@@ -101,7 +101,7 @@ func render_universal_jsx(
                     converter.put_chemical_value_in(chem.value);
                 }
             } else {
-                converter.str.append_view(js_node_to_source(builder, container.expression, states, converter.support));
+                converter.convertJsNode(container.expression);
             }
             return true;
         }

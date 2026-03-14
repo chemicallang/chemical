@@ -190,143 +190,32 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
     if(converter.target == BufferType.HTML) {
         converter.str.append('<');
         converter.str.append_view(tagName);
+        converter.str.append(' ');
+        converter.put_chain_in();
 
-        var classSegments = std::vector<MergedAttrSegment>();
-        var styleSegments = std::vector<MergedAttrSegment>();
-        var otherAttrs = std::vector<*mut JsJSXAttribute>();
-        var hasSpreads = false;
+        const builder = converter.builder;
+        const location = intrinsics::get_raw_location();
+        const support = converter.support;
 
-        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            const attrNode = element.opening.attributes.get(i);
-            if(attrNode.kind == JsNodeKind.JSXAttribute) {
-                const attr = attrNode as *mut JsJSXAttribute;
-                const isClass = attr.name.equals("class") || attr.name.equals("className");
-                const isStyle = attr.name.equals("style");
+        // Use render.ch's build_ssr_attributes logic but adapted for this context
+        // Actually, build_ssr_attributes should be a method on JsConverter
+        const attrs = converter.build_ssr_attributes(element);
+        var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+        var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), support.renderHtmlAttrs, false, location), converter.parent, location);
+        call.get_args().push(pageId as *mut Value);
+        call.get_args().push(attrs);
+        converter.vec.push(call as *mut ASTNode);
 
-                if(isClass || isStyle) {
-                    if(attr.value == null) continue;
-                    var target = if(isClass) &mut classSegments else &mut styleSegments;
-                    if(attr.value.kind == JsNodeKind.Literal) {
-                        const lit = attr.value as *mut JsLiteral;
-                        const txt = strip_js_string_quotes(lit.value);
-                        if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
-                    } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
-                        const container = attr.value as *mut JsJSXExpressionContainer;
-                        if(container.expression != null && container.expression.kind == JsNodeKind.Literal) {
-                            const lit = container.expression as *mut JsLiteral;
-                            const txt = strip_js_string_quotes(lit.value);
-                            if(!txt.empty()) target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.Text, value : txt, chemicalValue : null });
-                        } else if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
-                            const cv = container.expression as *mut JsChemicalValue;
-                            target.push(MergedAttrSegment { kind : MergedAttrSegmentKind.ChemicalValue, value : view(""), chemicalValue : cv.value });
-                        }
-                    }
-                } else {
-                    otherAttrs.push(attr);
-                }
-            } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-                hasSpreads = true;
-                classSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
-                styleSegments.push(MergedAttrSegment { kind : MergedAttrSegmentKind.SpreadAttr, value : view(""), chemicalValue : null });
-            }
+        converter.str.append('>');
+        converter.put_chain_in();
+
+        for(var i : uint = 0; i < element.children.size(); i++) {
+            converter.convertJsNode(element.children.get(i));
         }
 
-        // SSR Attribute Emission
-        for(var i : uint = 0; i < otherAttrs.size(); i++) {
-            const attr = otherAttrs.get(i);
-            converter.str.append(' ');
-            converter.str.append_view(attr.name);
-            if(attr.value != null) {
-                converter.str.append_view("=\"");
-                if(attr.value.kind == JsNodeKind.Literal) {
-                    const lit = attr.value as *mut JsLiteral;
-                    var s = lit.value;
-                    if(s.size() >= 2 && (s.get(0) == '"' || s.get(0) == '\'')) s = s.subview(1, s.size() - 2);
-                    converter.escapeHtml(s);
-                } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
-                    const cont = attr.value as *mut JsJSXExpressionContainer;
-                    converter.put_chain_in();
-                    converter.convertJsNode(cont.expression);
-                    converter.put_chain_in();
-                }
-                converter.str.append('\"');
-            }
-        }
-
-        if(!classSegments.empty()) {
-            converter.str.append_view(" class=\"");
-            for(var i : uint = 0; i < classSegments.size(); i++) {
-                const seg = classSegments.get(i);
-                if(seg.kind == MergedAttrSegmentKind.Text) {
-                    if(i > 0) converter.str.append(' ');
-                    converter.escapeHtml(seg.value);
-                } else if(seg.kind == MergedAttrSegmentKind.ChemicalValue) {
-                    if(i > 0) converter.str.append(' ');
-                    converter.put_chain_in();
-                    converter.put_chemical_value_in(seg.chemicalValue);
-                    converter.put_chain_in();
-                }
-            }
-            converter.str.append('"');
-        }
-
-        if(!styleSegments.empty()) {
-            converter.str.append_view(" style=\"");
-            for(var i : uint = 0; i < styleSegments.size(); i++) {
-                const seg = styleSegments.get(i);
-                if(seg.kind == MergedAttrSegmentKind.Text) {
-                    if(i > 0) converter.str.append(';');
-                    converter.escapeHtml(seg.value);
-                } else if(seg.kind == MergedAttrSegmentKind.ChemicalValue) {
-                    if(i > 0) converter.str.append(';');
-                    converter.put_chain_in();
-                    converter.put_chemical_value_in(seg.chemicalValue);
-                    converter.put_chain_in();
-                }
-            }
-            converter.str.append('"');
-        }
-
-        if(element.opening.selfClosing && !hasSpreads) {
-            converter.str.append_view(" />");
-            converter.put_chain_in();
-            return;
-        }
-
-        if(hasSpreads) {
-            converter.put_chain_in();
-            for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-                const attrNode = element.opening.attributes.get(i);
-                if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-                    const spread = attrNode as *mut JsJSXSpreadAttribute;
-                    const builder = converter.builder;
-                    const location = intrinsics::get_raw_location();
-                    const support = converter.support;
-                    if(support.appendHtmlAttributesSpreadFn != null &&
-                       spread.argument != null && spread.argument.kind == JsNodeKind.ChemicalValue) {
-                        const cv = spread.argument as *mut JsChemicalValue;
-                        var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-                        var fnId = builder.make_identifier(std::string_view("set_attributes_spread"), support.appendHtmlAttributesSpreadFn, false, location);
-                        const chain = builder.make_access_chain(std::span<*mut Value>([ base, fnId ]), location);
-                        var call = builder.make_function_call_node(chain, converter.parent, location);
-                        call.get_args().push(cv.value);
-                        converter.vec.push(call as *mut ASTNode);
-                    }
-                }
-            }
-        }
-
-        if(element.opening.selfClosing) {
-            converter.str.append_view(" />");
-        } else {
-            converter.str.append('>');
-            for(var i : uint = 0; i < element.children.size(); i++) {
-                converter.convertJsNode(element.children.get(i));
-            }
-            converter.str.append_view("</");
-            converter.str.append_view(tagName);
-            converter.str.append('>');
-        }
+        converter.str.append_view("</");
+        converter.str.append_view(tagName);
+        converter.str.append('>');
         converter.put_chain_in();
         return;
     }

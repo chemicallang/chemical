@@ -303,3 +303,66 @@ func (converter : &mut JsConverter) escapeHtml(text : std::string_view) {
         } else { i++; }
     }
 }
+
+func (converter : &mut JsConverter) make_ssr_text(val : std::string_view, location : ubigint) : *mut Value {
+    const builder = converter.builder;
+    const ssrTextLinkedType = builder.make_linked_type(std::string_view("SsrText"), converter.support.ssrTextLinkedNode, location);
+    const structVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location);
+    structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
+    structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
+    return structVal as *mut Value;
+}
+
+func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXElement) : *mut Value {
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), support.ssrAttrLinkedNode, location);
+    const arrayValue = builder.make_array_value(ssrAttrLinkedType, location);
+    const attrValues = arrayValue.get_values();
+
+    var attrValConv = AttrValueConverter {
+        pageNode : support.pageNode,
+        ssrAttributeValueNode : support.ssrAttributeValueNode,
+        multipleAttributeValueNode : support.multipleAttributeValueNode,
+        parent : converter.parent
+    }
+
+    const attributes = &element.opening.attributes;
+    for(var i : uint = 0; i < attributes.size(); i++) {
+        const attrNode = attributes.get(i);
+        if(attrNode == null) continue;
+
+        const attrStructVal = builder.make_struct_value(ssrAttrLinkedType, converter.parent, location);
+
+        if(attrNode.kind == JsNodeKind.JSXAttribute) {
+            const attr = attrNode as *mut JsJSXAttribute;
+            attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attr.name, location));
+
+            if(attr.value == null) {
+                const boolVal = builder.make_bool_value(true, location);
+                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal as *mut Value));
+            } else if(attr.value.kind == JsNodeKind.Literal) {
+                const lit = attr.value as *mut JsLiteral;
+                const text = strip_js_string_quotes(lit.value);
+                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(text, location)));
+            } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                const container = attr.value as *mut JsJSXExpressionContainer;
+                if(container.expression != null) {
+                    if(container.expression.kind == JsNodeKind.ChemicalValue) {
+                        const chem = container.expression as *mut JsChemicalValue;
+                        attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
+                    }
+                }
+            }
+        }
+        attrValues.push(attrStructVal as *mut Value);
+    }
+
+    const ssrAttributeListType = builder.make_linked_type(std::string_view("SsrAttributeList"), support.ssrAttributeListNode, location);
+    const listStruct = builder.make_struct_value(ssrAttributeListType, converter.parent, location);
+    listStruct.add_value(std::string_view("data"), arrayValue as *mut Value);
+    listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(attributes.size(), location));
+    return listStruct as *mut Value;
+}

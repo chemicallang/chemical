@@ -312,6 +312,16 @@ func (converter : &mut JsConverter) make_ssr_text(val : std::string_view, locati
     return structVal as *mut Value;
 }
 
+func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut JsLiteral, attrValConv : &mut AttrValueConverter, location : ubigint) : *mut Value {
+    const val = lit.value;
+    const builder = converter.builder;
+    if(val.equals("true")) return attrValConv.wrapArgAttrValueVariantCall(builder, "Boolean", builder.make_bool_value(true, location));
+    if(val.equals("false")) return attrValConv.wrapArgAttrValueVariantCall(builder, "Boolean", builder.make_bool_value(false, location));
+    
+    const text = strip_js_string_quotes(val);
+    return attrValConv.wrapArgAttrValueVariantCall(builder, "Text", converter.make_ssr_text(text, location));
+}
+
 func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXElement) : *mut Value {
     const builder = converter.builder;
     const location = intrinsics::get_raw_location();
@@ -344,16 +354,22 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 const boolVal = builder.make_bool_value(true, location);
                 attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
             } else if(attr.value.kind == JsNodeKind.Literal) {
-                const lit = attr.value as *mut JsLiteral;
-                const text = strip_js_string_quotes(lit.value);
-                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(text, location)));
+                attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(attr.value as *mut JsLiteral, attrValConv, location));
             } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 if(container.expression != null) {
                     if(container.expression.kind == JsNodeKind.ChemicalValue) {
                         const chem = container.expression as *mut JsChemicalValue;
                         attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
+                    } else if(container.expression.kind == JsNodeKind.Literal) {
+                        attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
+                    } else {
+                        // Fallback for other expressions to avoid "value not given" error.
+                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
                     }
+                } else {
+                    const boolVal = builder.make_bool_value(true, location);
+                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
                 }
             }
         } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute){

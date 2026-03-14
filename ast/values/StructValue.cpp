@@ -441,6 +441,41 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
+bool StructValue::resolve_container(ASTNode* found) {
+    switch (found->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            return false;
+        case ASTNodeKind::GenericUnionDecl:
+            return false;
+        case ASTNodeKind::UnnamedUnion:
+            container = found->as_unnamed_union_unsafe();
+            return true;
+        case ASTNodeKind::UnionDecl:
+            definition = found->as_union_def_unsafe();
+            container = definition;
+            return true;
+        case ASTNodeKind::UnnamedStruct:
+            container = found->as_unnamed_struct_unsafe();
+            return true;
+        case ASTNodeKind::StructDecl:
+            definition = found->as_struct_def_unsafe();
+            container = definition;
+            return true;
+        case ASTNodeKind::StructType:
+            container = (StructType*) found;
+            return true;
+        case ASTNodeKind::UnionType:
+            container = (UnionType*) found;
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            return resolve_container(found->as_typealias_unsafe()->actual_type->get_direct_linked_node());
+        default:
+            definition = found->as_extendable_member_container();
+            container = definition;
+            return false;
+    }
+}
+
 bool StructValue::resolve_container(
         GenericInstantiatorAPI& instantiator,
         BaseType* containerType,

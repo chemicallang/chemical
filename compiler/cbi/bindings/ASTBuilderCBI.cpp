@@ -396,9 +396,12 @@ StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view*
     return new (builder->allocate<StringValue>()) StringValue(*value, builder->typeBuilder.getStringType(), location);
 }
 
-StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, ASTNode* parent_node, uint64_t location) {
-    // TODO do not take parent_node as parameter
-    return new (builder->allocate<StructValue>()) StructValue(ref, location);
+StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, ASTNode* found, uint64_t location) {
+    const auto structVal = new (builder->allocate<StructValue>()) StructValue(found->known_type(), location);
+    if (!structVal->resolve_container(found)) {
+        return nullptr;
+    }
+    return structVal;
 }
 
 IntNumValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location) {

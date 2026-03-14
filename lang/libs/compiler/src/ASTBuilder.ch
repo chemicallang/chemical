@@ -781,7 +781,11 @@ public struct ASTBuilder {
 
     func make_string_value(&self, value : &string_view, location : ubigint) : *mut StringValue
 
-    func make_struct_value(&self, ref : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut StructValue
+    // the node can be a struct decl, union decl
+    // the node can also be a unnamed union, unnamed struct
+    // the node must not be a generic struct or union
+    // if fails, returns null
+    func make_struct_value(&self, node : *ASTNode, location : ubigint) : *mut StructValue
 
     func make_ubigint_value(&self, value : ubigint, location : ubigint) : *mut UBigIntValue
 

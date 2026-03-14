@@ -31,7 +31,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     // resolution of required types and functions for code generation
     root.support.pageNode = param as *mut ASTNode;
     resolve_page_children(resolver, root.support, root.support.pageNode, loc);
-    sym_res_support(resolver, root.support);
+    sym_res_support(resolver, root.support, loc);
 
     // the second param for the function, attrs : SsrAttributeList
     const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);

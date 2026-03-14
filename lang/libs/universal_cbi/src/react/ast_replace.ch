@@ -38,10 +38,6 @@ func emit_child_component_js_calls(
 
                 var targetNode = signature.functionNode as *mut FunctionDeclaration;
                 var targetName = signature.name;
-                if(signature.mountStrategy == MountStrategy.Universal && signature.jsEmitFunctionNode != null) {
-                    targetNode = signature.jsEmitFunctionNode;
-                    targetName = signature.jsEmitFunctionNode.getName();
-                }
                 var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
                 var call = builder.make_function_call_node(base as *mut Value, parent, location)
@@ -99,21 +95,6 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     var emitted = std::vector<size_t>();
     emit_child_component_js_calls(builder, root.signature.functionNode as *mut ASTNode, root.components, support, body, emitted, location);
 
-    if(root.signature.jsEmitFunctionNode != null) {
-        const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
-        converter.put_chain_in()
-        var selfReq = make_require_component_call_static(builder, support, selfHash, location)
-        var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
-        var selfBody = selfIf.get_body()
-        selfBody.push(make_set_component_hash_call_static(builder, support, selfHash, converter.parent, location))
-        var emitBase = builder.make_identifier(root.signature.jsEmitFunctionNode.getName(), root.signature.jsEmitFunctionNode as *mut ASTNode, false, location)
-        var emitPage = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var emitCall = builder.make_function_call_node(emitBase as *mut Value, converter.parent, location)
-        emitCall.get_args().push(emitPage as *mut Value)
-        selfBody.push(emitCall as *mut ASTNode)
-        converter.vec.push(selfIf as *mut ASTNode)
-    }
-
     if(root.body != null && root.body.kind == JsNodeKind.Block) {
         const block = root.body as *mut JsBlock;
         const returned = find_returned_jsx(block);
@@ -155,7 +136,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
             var appendJsFn = support.appendHeadJsCharPtrFn; // Use append_js if available
             
-            var callHeader = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendJsCharPtrFn, false, location), converter.parent, location);
+            var callHeader = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);
             callHeader.get_args().push(pageId as *mut Value);
             var headerStr = std::string("$_um(document.currentScript, '");
             get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, headerStr);
@@ -168,7 +149,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), null, false, location)); // Use param attrs
             converter.vec.push(callAttrs as *mut ASTNode);
 
-            var callTail = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendJsCharPtrFn, false, location), converter.parent, location);
+            var callTail = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);
             callTail.get_args().push(pageId as *mut Value);
             callTail.get_args().push(builder.make_string_value(view("});"), location));
             converter.vec.push(callTail as *mut ASTNode);
@@ -177,9 +158,6 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 
     var scope = builder.make_scope(root.signature.functionNode.getParent(), location);
     var scope_nodes = scope.getNodes();
-    if(root.signature.jsEmitFunctionNode != null) {
-        scope_nodes.push(root.signature.jsEmitFunctionNode as *mut ASTNode);
-    }
     scope_nodes.push(root.signature.functionNode as *mut ASTNode);
     return scope;
 }

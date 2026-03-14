@@ -135,9 +135,10 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             // We'll generate these calls as AST nodes.
             var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
             var appendJsFn = support.appendHeadJsCharPtrFn; // Use append_js if available
-            
+
+            const funcId = builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location);
+            const chain = builder.make_access_chain(std::span<*mut Value>([ pageId, funcId ]), location);
             var callHeader = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);
-            callHeader.get_args().push(pageId as *mut Value);
             var headerStr = std::string("$_um(document.currentScript, '");
             get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, headerStr);
             headerStr.append_view("', {");
@@ -154,8 +155,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), second_param, false, location)); // Use param attrs
             converter.vec.push(callAttrs as *mut ASTNode);
 
-            var callTail = builder.make_function_call_node(builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location), converter.parent, location);
-            callTail.get_args().push(pageId as *mut Value);
+            var callTail = builder.make_function_call_node(chain, converter.parent, location);
             callTail.get_args().push(builder.make_string_value(view("});"), location));
             converter.vec.push(callTail as *mut ASTNode);
         }

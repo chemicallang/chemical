@@ -65,7 +65,7 @@ func (converter : &mut ASTConverter) make_call_inside(value : *mut Value, fn_nam
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ value as *mut ChainValue, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ value as *mut Value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(base)
@@ -131,7 +131,7 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
         node = converter.support.appendHtmlFn
     }
     var id = builder.make_identifier(name, node, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -220,7 +220,7 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
                 var part = std::string_view(path.data() + remStart, nextDot - remStart);
                 
                 var id = builder.make_identifier(part, null, false, loc);
-                const chain = builder.make_access_chain(std::span<*mut ChainValue>([ current as *mut ChainValue, id as *mut ChainValue ]), loc)
+                const chain = builder.make_access_chain(std::span<*mut Value>([ current as *mut Value, id as *mut Value ]), loc)
                 current = chain as *mut Value;
                 
                 if(nextDot == path.size()) break;
@@ -458,7 +458,7 @@ func (converter : &mut ASTConverter) make_require_component_call(hash : size_t) 
     const support = converter.support;
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -726,7 +726,7 @@ func (converter : &mut ASTConverter) emit_append_html_call(value : *mut Value, l
     var name = if (converter.in_head) std::string_view("append_head") else std::string_view("append_html")
     var fnPtr = if (converter.in_head) support.appendHeadFn else support.appendHtmlFn
     var id = builder.make_identifier(name, fnPtr, false, location)
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base as *mut ChainValue, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base as *mut Value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     
     var args = call.get_args()
@@ -753,7 +753,7 @@ func (converter : &mut ASTConverter) emit_append_js_call(value : *mut Value, len
 
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
     var id = builder.make_identifier(std::string_view("append_js"), support.appendJsFn, false, location)
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base as *mut ChainValue, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base as *mut Value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
 
     var args = call.get_args()
@@ -778,7 +778,7 @@ func (converter : &mut ASTConverter) make_js_value_call_with(value : *mut Value,
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -1009,111 +1009,98 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         
         var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+        var call = builder.make_function_call_node(base as *mut Value, converter.parent, location)
         call.get_args().push(pageId as *mut Value)
         body.push(call as *mut ASTNode)
         
         converter.vec.push(ifStmt as *mut ASTNode)
     }
 
-    // 3. Generate script block
-    var s = &mut converter.str
-    if(signature.mountStrategy == MountStrategy.Universal && !signature.universalTemplate.empty()) {
-        if(signature.jsEmitFunctionNode != null) {
-            var reqCall = converter.make_require_component_call(hash as size_t)
-            var ifStmt = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
-            var ifBody = ifStmt.get_body()
-            ifBody.push(converter.make_set_component_hash_call(hash as size_t))
-            var emitName = signature.jsEmitFunctionNode.getName();
-            var emitBase = builder.make_identifier(emitName, signature.jsEmitFunctionNode as *mut ASTNode, false, location)
-            var emitPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-            var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
-            emitCall.get_args().push(emitPageId as *mut Value)
-            ifBody.push(emitCall as *mut ASTNode)
-            converter.vec.push(ifStmt as *mut ASTNode)
-        }
-        // HTML-first universal path: emit pre-rendered markup now and queue hydration in page JS.
-        var idStr = std::string();
-        idStr.append_view("u");
-        idStr.append_uinteger(element.loc);
-
-        s.append_view("<div id=\"");
-        s.append_view(idStr.view());
-        s.append_view("\" data-u-comp=\"");
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
-        s.append_view("\">");
-
-        for(var i : uint = 0; i < signature.universalTemplate.size(); i++) {
-            const tok = signature.universalTemplate.get(i);
-            if(tok.kind == TemplateTokenKind.Text) {
-                s.append_view(tok.value);
-            } else if(tok.kind == TemplateTokenKind.PropAccess) {
-                converter.emit_append_html_from_str(*s);
-                converter.resolve_and_put_prop(element, tok.value);
-            } else if(tok.kind == TemplateTokenKind.ChemicalValue) {
-                converter.emit_append_html_from_str(*s);
-                converter.put_chemical_value_in(tok.chemicalValue);
-            } else if(tok.kind == TemplateTokenKind.Children) {
-                converter.emit_append_html_from_str(*s);
-                converter.convertChildren(element);
-            } else if(tok.kind == TemplateTokenKind.NestedComponent) {
-                // ... (existing placeholder)
-                converter.emit_append_html_from_str(*s);
-                s.append_view("<!-- Nested component not supported yet in Universal SSR -->");
-            } else if(tok.kind == TemplateTokenKind.MergedAttribute) {
-                converter.emit_append_html_from_str(*s);
-                converter.emit_merged_attribute(element, tok.mergedAttr);
-            } else if(tok.kind == TemplateTokenKind.Spread) {
-                converter.emit_append_html_from_str(*s);
-                converter.emit_append_html_attributes_spread(element);
-            }
-        }
-        s.append_view("</div>");
-        converter.emit_append_html_from_str(*s);
-
-        converter.emit_universal_queue(element, signature, idStr);
-        return;
-    }
-
+    // special case for universal component rendering
+    // it just requires a single function call with the props
     if(signature.mountStrategy == MountStrategy.Universal) {
-        if(signature.jsEmitFunctionNode != null) {
-            var reqCall = converter.make_require_component_call(hash as size_t)
-            var ifStmt = builder.make_if_stmt(reqCall as *mut Value, converter.parent, location)
-            var ifBody = ifStmt.get_body()
-            ifBody.push(converter.make_set_component_hash_call(hash as size_t))
-            var emitName = signature.jsEmitFunctionNode.getName();
-            var emitBase = builder.make_identifier(emitName, signature.jsEmitFunctionNode as *mut ASTNode, false, location)
-            var emitPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-            var emitCall = builder.make_function_call_node(emitBase as *mut ChainValue, converter.parent, location)
-            emitCall.get_args().push(emitPageId as *mut Value)
-            ifBody.push(emitCall as *mut ASTNode)
-            converter.vec.push(ifStmt as *mut ASTNode)
-        }
-        // Universal fallback path: queue mount by component name so definition order does not matter.
-        var idStr = std::string();
-        idStr.append_view("u");
-        idStr.append_uinteger(element.loc);
 
-        // Emit: <div id="..."> 
-        s.append_view("<div id=\"");
-        s.append_view(idStr.view());
-        s.append_view("\" data-u-comp=\"");
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s);
-        s.append_view("\">");
-        converter.emit_append_html_from_str(*s);
-        
+        // lets construct a var decl array of attributes
+        // var attrs = [ SsrAttribute { name : SsrText { data : "", size : 0 }, value : SsrAttributeValue.Text(SsrText { data : "", size : 0 }) } ]
+
+        // the ssr attribute linked type
+        cont ssrAttrLinkedNode = null // TODO resolve this at symres
+        const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), ssrAttrLinkedNode, location)
+
+        // the ssr text linked type
+        const ssrTextLinkedNode = null // TODO resolve this at symres
+        const ssrTextLinkedType = builder.make_linked_type(std::string_view("SsrText"), ssrTextLinkedNode, location)
+
+        // creating an array value for the attributes
+        const arrayValue = builder.make_array_value(ssrAttrLinkedType, location)
+        const attrValues = arrayValue.get_values()
+
+        var attrValConv = AttrValueConverter {
+            pageNode : converter.support.pageNode,
+            ssrAttributeValueNode : null, // TODO resolve this at symres
+            multipleAttributeValueNode : null // TODO resolve this at symres
+        }
+
+        // constructing ssr attributes
+        for(var i = 0; i < element.attributes.size); i++) {
+            const attr = element.attributes.get(i)
+
+            // constructing a ssr text for the attribute name
+            const attrStructVal = builder.make_struct_value(ssrAttrLinkedType, converter.parent, location)
+
+            // constructing a ssr text val for the name value
+            const nameStructVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location)
+            nameStructVal.add_value(std::string_view("data"), builder.make_string_value(attr.name, location))
+            nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
+            attrStructVal.add_value(std::string_view("name"), nameStructVal)
+
+            // constructing a ssr value
+            const attrValue = attr.value;
+            if(attrValue.kind == AttributeValueKind.Chemical) {
+                var chemAttrValue = attrValue as *mut ChemicalAttributeValue
+                var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value)
+
+                attrStructVal.add_value(std::string_view("value"), attrValueVal);
+            } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
+                const multiVal = converter.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
+
+                attrStructVal.add_value(std::string_view("value"), attrValueVal);
+            } else {
+                // constructing a ssr text val for the name value
+                var chemAttrValue = attrValue as *mut TextAttributeValue
+                const textStructVal = builder.make_struct_value(ssrTextLinkedType, converter.parent, location)
+                textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text.name, location))
+                textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
+
+                attrStructVal.add_value(std::string_view("value"), textStructVal);
+            }
+
+            // putting the attribute struct val into the array
+            attrValues.push(attrStructVal)
+
+        }
+
         // Call ComponentFunction(page) to write the component's HTML
         var compBase = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
         var compPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var compCall = builder.make_function_call_node(compBase as *mut ChainValue, converter.parent, location)
-        compCall.get_args().push(compPageId as *mut Value)
-        converter.vec.push(compCall as *mut ASTNode)
-        
-        // Emit: </div>
-        converter.str.append_view("</div>");
-        converter.emit_append_html_from_str(converter.str);
+        var compCall = builder.make_function_call_node(compBase as *mut Value, converter.parent, location)
+        const args = compCall.get_args();
+        args.push(compPageId as *mut Value)
 
-        converter.emit_universal_queue(element, signature, idStr);
+        // creating a struct value for ssr attribute list
+        const ssrAttributeListNode = null // TODO
+        const ssrAttributeListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), ssrAttributeListNode, location)
+        const structValue = builder.make_struct_value(ssrAttributeListNodeType, converter.parent, location)
+
+        // now lets add value for the data (going to be the array), and size
+        structValue.add_value(std::string_view("data"), arrayValue)
+        structValue.add_value(std::string_view("size"), builder.make_ubigint_value(element.attributes.size(), location))
+
+        // make the struct value the second argument
+        args.push(structValue)
+
+        // put the call in the vec
+        converter.vec.push(compCall as *mut ASTNode)
         return;
     }
 

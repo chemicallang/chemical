@@ -68,13 +68,11 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     var propBindings = std::vector<UniversalPropTextBinding>();
     var attrBindings = std::vector<UniversalAttrBinding>();
     var nestedBindings = std::vector<UniversalNestedBinding>();
-    var tokens = std::vector<TemplateToken>();
 
     var converter = JsConverter {
         builder : builder,
         support : tmpSupport,
         vec : null,
-        tokens : &mut tokens,
         parent : null,
         str : std::string(),
         jsx_parent : view(""),
@@ -82,10 +80,9 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         state_vars : std::vector<std::string_view>()
     }
 
-    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, tokens, comp.signature.propsName, converter)) {
+    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, attrBindings, nestedBindings, comp.signature.propsName, converter)) {
         return;
     }
-    converter.flush_text(tokens);
 
     var init = std::string();
     for(var i : uint = 0; i < states.size(); i++) {

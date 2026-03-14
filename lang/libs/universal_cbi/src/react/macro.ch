@@ -79,7 +79,6 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
             propsName : propsName,
             params : params,
             functionNode : null,
-            jsEmitFunctionNode : null,
             mountStrategy : MountStrategy.Universal, // Important: Set mount strategy
             access : spec
         },

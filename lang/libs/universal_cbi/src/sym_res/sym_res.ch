@@ -15,29 +15,32 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
 
+    // resolution of required types and functions for code generation
+    root.support.pageNode = param as *mut ASTNode
+    resolve_page_children(resolver, root.support, root.support.pageNode, loc)
+    sym_res_support(resolver, root.support);
+
     var builder = resolver.getJobBuilder()
 
+    // creating the component function
+    // func name(page : &mut HtmlPage, attrs : SsrAttributeList) : void
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, node.getParent(), loc);
-
-    // func name(page : &mut HtmlPage) : void
+    const funcDecl = builder.make_function(root.signature.name, voidType, false, true, node.getParent(), loc);
+    // the first param for the function, page : &mut HtmlPage
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
-    const ref = builder.make_reference_type(linked as *mut BaseType, true, loc);
-    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, funcDecl, loc);
-
-    funcDecl.get_params().push(param);
+    const ref = builder.make_reference_type(linked, true, loc);
+    const params = funcDecl.get_params();
+    const param = builder.make_function_param(std::string_view("page"), ref, 0, null, false, funcDecl, loc);
+    params.push(param);
+    // the second param for the function, attrs : SsrAttributeList
+    const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
+    const param2 = builder.make_function_param(std::string_view("attrs"), attrListNodeType, 1, null, false, funcDecl, loc);
+    params.push(param2)
+    // add a body
     funcDecl.add_body();
 
-    // Create helper function to emit the universal component JS into pageJs
-    var emitName = std::string();
-    emitName.append_view(root.signature.name);
-    emitName.append_view("__emit_js");
-    const emitView = builder.allocate_view(emitName.to_view());
-    const emitDecl = builder.make_function(emitView, voidType as *mut BaseType, false, true, node.getParent(), loc);
-    const emitParam = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, emitDecl, loc);
-    emitDecl.get_params().push(emitParam);
-    emitDecl.add_body();
-    root.signature.jsEmitFunctionNode = emitDecl;
+    // set the function to signature, so we can actually access it later
+    root.signature.functionNode = funcDecl;
 
     // start a scope to store symbols
     resolver.scope_start();
@@ -53,12 +56,6 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     // end the scope
     resolver.scope_end();
-
-    // fixing support
-    root.support.pageNode = param as *mut ASTNode
-    fix_support_page_node(root.support, root.support.pageNode, loc)
-
-    root.signature.functionNode = funcDecl;
 
     compute_universal_template(&mut builder, root, &mut root.support);
 }

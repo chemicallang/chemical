@@ -7,6 +7,7 @@
 #include <memory>
 #include "ast/base/Value.h"
 #include "ast/base/TypeLoc.h"
+#include "ordered_map.h"
 #include "ast/structures/StructDefinition.h"
 #include "StructMemberInitializer.h"
 #include "ast/statements/VarInit.h"
@@ -26,7 +27,7 @@ private:
 
 public:
 
-    std::unordered_map<chem::string_view, StructMemberInitializer> values;
+    tsl::ordered_map<chem::string_view, StructMemberInitializer> values;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
@@ -93,7 +94,7 @@ public:
 
     Value *evaluated_value(InterpretScope &scope) final;
 
-    void declare_default_values(std::unordered_map<chem::string_view, StructMemberInitializer> &into, InterpretScope &scope);
+    void declare_default_values(tsl::ordered_map<chem::string_view, StructMemberInitializer> &into, InterpretScope &scope);
 
     StructValue *copy(ASTAllocator& allocator) final;
 

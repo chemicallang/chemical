@@ -604,7 +604,7 @@ void StructValue::set_child_value(InterpretScope& scope, const chem::string_view
         std::cerr << "unresolved child by name '" + name.str() + "' in struct";
         return;
     }
-    ptr->second.value = value;
+    ptr.value().value = value;
 }
 
 Value *StructValue::evaluated_value(InterpretScope &scope) {
@@ -631,7 +631,7 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
 }
 
 void StructValue::declare_default_values(
-        std::unordered_map<chem::string_view, StructMemberInitializer> &into,
+        tsl::ordered_map<chem::string_view, StructMemberInitializer> &into,
         InterpretScope &scope
 ) {
     for (const auto field : definition->variables()) {

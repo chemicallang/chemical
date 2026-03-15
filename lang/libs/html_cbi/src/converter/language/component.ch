@@ -104,7 +104,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                     textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text, location))
                     textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
 
-                    attrStructVal.add_value(std::string_view("value"), textStructVal);
+                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
                 }
 
                 // putting the attribute struct val into the array

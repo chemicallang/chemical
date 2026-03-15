@@ -43,56 +43,9 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         const ssrTextLinkedNode = converter.support.ssrTextLinkedNode
         const ssrTextLinkedType = builder.make_linked_type(std::string_view("SsrText"), ssrTextLinkedNode, location)
 
-        // creating an array value for the attributes
-        const arrayValue = builder.make_array_value(ssrAttrLinkedType, location)
-        const attrValues = arrayValue.get_values()
-
-        var attrValConv = AttrValueConverter {
-            pageNode : converter.support.pageNode,
-            ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
-            multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
-            parent : converter.parent
-        }
-
-        // constructing ssr attributes
-        for(var i = 0u; i < element.attributes.size(); i++) {
-            const attr = element.attributes.get(i)
-
-            // constructing a ssr text for the attribute name
-            const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
-
-            // constructing a ssr text val for the name value
-            const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
-            nameStructVal.add_value(std::string_view("data"), builder.make_string_value(attr.name, location))
-            nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
-            attrStructVal.add_value(std::string_view("name"), nameStructVal)
-
-            // constructing a ssr value
-            const attrValue = attr.value;
-            if(attrValue.kind == AttributeValueKind.Chemical) {
-                var chemAttrValue = attrValue as *mut ChemicalAttributeValue
-                var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
-
-                attrStructVal.add_value(std::string_view("value"), attrValueVal);
-            } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
-                var chemAttrValue = attrValue as *mut ChemicalAttributeValues
-                const multiVal = attrValConv.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
-                attrStructVal.add_value(std::string_view("value"), multiVal);
-
-            } else {
-                // constructing a ssr text val for the name value
-                var chemAttrValue = attrValue as *mut TextAttributeValue
-                const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
-                textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text, location))
-                textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
-
-                attrStructVal.add_value(std::string_view("value"), textStructVal);
-            }
-
-            // putting the attribute struct val into the array
-            attrValues.push(attrStructVal)
-
-        }
+        // creating a struct value for ssr attribute list
+        const ssrAttributeListNode = converter.support.ssrAttributeListNode
+        const structValue = builder.make_struct_value(ssrAttributeListNode, location)
 
         // Call ComponentFunction(page) to write the component's HTML
         var compBase = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
@@ -101,13 +54,68 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         const args = compCall.get_args();
         args.push(compPageId as *mut Value)
 
-        // creating a struct value for ssr attribute list
-        const ssrAttributeListNode = converter.support.ssrAttributeListNode
-        const structValue = builder.make_struct_value(ssrAttributeListNode, location)
+        if(element.attributes.empty()) {
 
-        // now lets add value for the data (going to be the array), and size
-        structValue.add_value(std::string_view("data"), arrayValue)
-        structValue.add_value(std::string_view("size"), builder.make_ubigint_value(element.attributes.size(), location))
+            // now lets add value for the data (going to be the array), and size
+            structValue.add_value(std::string_view("data"), builder.make_null_value(location))
+            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(0, location))
+
+        } else {
+            // creating an array value for the attributes
+            const arrayValue = builder.make_array_value(ssrAttrLinkedType, location)
+            const attrValues = arrayValue.get_values()
+
+            var attrValConv = AttrValueConverter {
+                pageNode : converter.support.pageNode,
+                ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
+                multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
+                parent : converter.parent
+            }
+
+            // constructing ssr attributes
+            for(var i = 0u; i < element.attributes.size(); i++) {
+                const attr = element.attributes.get(i)
+
+                // constructing a ssr text for the attribute name
+                const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
+
+                // constructing a ssr text val for the name value
+                const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
+                nameStructVal.add_value(std::string_view("data"), builder.make_string_value(attr.name, location))
+                nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
+                attrStructVal.add_value(std::string_view("name"), nameStructVal)
+
+                // constructing a ssr value
+                const attrValue = attr.value;
+                if(attrValue.kind == AttributeValueKind.Chemical) {
+                    var chemAttrValue = attrValue as *mut ChemicalAttributeValue
+                    var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
+
+                    attrStructVal.add_value(std::string_view("value"), attrValueVal);
+                } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
+                    var chemAttrValue = attrValue as *mut ChemicalAttributeValues
+                    const multiVal = attrValConv.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
+                    attrStructVal.add_value(std::string_view("value"), multiVal);
+
+                } else {
+                    // constructing a ssr text val for the name value
+                    var chemAttrValue = attrValue as *mut TextAttributeValue
+                    const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
+                    textStructVal.add_value(std::string_view("data"), builder.make_string_value(chemAttrValue.text, location))
+                    textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(chemAttrValue.text.size(), location))
+
+                    attrStructVal.add_value(std::string_view("value"), textStructVal);
+                }
+
+                // putting the attribute struct val into the array
+                attrValues.push(attrStructVal)
+
+            }
+
+            // now lets add value for the data (going to be the array), and size
+            structValue.add_value(std::string_view("data"), arrayValue)
+            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(element.attributes.size(), location))
+        }
 
         // make the struct value the second argument
         args.push(structValue)

@@ -36,12 +36,14 @@ func render_universal_jsx(
                     converter.str.append(' ');
                     converter.put_chain_in();
 
-                    const attrs = converter.build_ssr_attributes(element);
-                    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-                    var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), converter.support.renderHtmlAttrs, false, location), converter.parent, location);
-                    call.get_args().push(pageId as *mut Value);
-                    call.get_args().push(attrs);
-                    converter.vec.push(call as *mut ASTNode);
+                    if(!element.opening.attributes.empty()) {
+                        const attrs = converter.build_ssr_attributes(element);
+                        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+                        var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), converter.support.renderHtmlAttrs, false, location), converter.parent, location);
+                        call.get_args().push(pageId as *mut Value);
+                        call.get_args().push(attrs);
+                        converter.vec.push(call as *mut ASTNode);
+                    }
 
                     converter.str.append('>');
                     converter.put_chain_in();

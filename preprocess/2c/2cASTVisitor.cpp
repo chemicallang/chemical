@@ -992,6 +992,17 @@ bool isRef(ToCAstVisitor& visitor, Value* value) {
 
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value) {
     if(type) {
+        // struct member takes a pointer
+        // user writes a array value, array value can't write compound literal (it writes initializer list)
+        // so we convert it to compound literal
+        if (value->kind() == ValueKind::ArrayValue && type->kind() == BaseTypeKind::Pointer) {
+            const auto arrVal = value->as_array_value_unsafe();
+            auto& elem_type = arrVal->known_elem_type();
+            write('(');
+            visit(elem_type);
+            write("[]");
+            write(')');
+        }
         // capturing function type
         if(value->kind() == ValueKind::LambdaFunc) {
             const auto cap_type_canonical = type->canonical();

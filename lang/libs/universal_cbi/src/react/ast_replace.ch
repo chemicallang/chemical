@@ -94,7 +94,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     const location = intrinsics::get_raw_location()
 
     var emitted = std::vector<size_t>();
-    emit_child_component_js_calls(builder, root.signature.functionNode as *mut ASTNode, root.components, support, body, emitted, location);
+    // emit_child_component_js_calls(builder, root.signature.functionNode as *mut ASTNode, root.components, support, body, emitted, location);
 
     if(root.body != null && root.body.kind == JsNodeKind.Block) {
         const block = root.body as *mut JsBlock;

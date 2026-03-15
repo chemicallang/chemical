@@ -6199,6 +6199,9 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
             case ASTNodeKind::FunctionDecl:
                 mangle(linked->as_function_unsafe());
                 return;
+            case ASTNodeKind::FunctionParam:
+                write(linked->as_func_param_unsafe()->name);
+                return;
             case ASTNodeKind::VarInitStmt: {
                 const auto init = linked->as_var_init_unsafe();
                 if (init->is_comptime()) {

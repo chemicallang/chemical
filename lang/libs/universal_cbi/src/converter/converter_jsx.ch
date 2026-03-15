@@ -76,7 +76,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
         const attrs = converter.build_ssr_attributes(element);
-        call.get_args().push(attrs);
+        call.get_args().push(converter.builder.make_addr_of_value(attrs, intrinsics::get_raw_location()) as *mut Value);
         body.push(call as *mut ASTNode)
 
         converter.vec.push(ifStmt as *mut ASTNode)

@@ -41,7 +41,7 @@ func render_universal_jsx(
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                         var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), converter.support.renderHtmlAttrs, false, location), converter.parent, location);
                         call.get_args().push(pageId as *mut Value);
-                        call.get_args().push(attrs);
+                        call.get_args().push(builder.make_addr_of_value(attrs, location) as *mut Value);
                         converter.vec.push(call as *mut ASTNode);
                     }
 
@@ -79,7 +79,7 @@ func render_universal_jsx(
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                         var call = builder.make_function_call_node(builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location), converter.parent, location);
                         call.get_args().push(pageId as *mut Value);
-                        call.get_args().push(attrs);
+                        call.get_args().push(builder.make_addr_of_value(attrs, location) as *mut Value);
                         converter.vec.push(call as *mut ASTNode);
                     } else {
                         converter.str.append_view("$_ur.createElement(");

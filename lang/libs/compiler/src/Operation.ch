@@ -1,4 +1,5 @@
 public enum Operation {
+
     // Grouping and scope resolution operators
     Grouping,
     ScopeResolutionUnary,
@@ -77,4 +78,5 @@ public enum Operation {
     ANDWith,
     ExclusiveORWith,
     InclusiveORWith
+
 };

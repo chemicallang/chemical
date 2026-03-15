@@ -14,7 +14,7 @@
  */
 enum class Operation : uint8_t {
     // Grouping and scope resolution operators
-    Grouping = 1,
+    Grouping,
     ScopeResolutionUnary,
     ScopeResolutionBinary,
 

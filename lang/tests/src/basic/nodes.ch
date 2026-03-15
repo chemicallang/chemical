@@ -80,6 +80,10 @@ struct Point : Calculator {
 
 }
 
+struct PtrToPointStruct {
+    var ptr : *Point
+}
+
 interface SeparateInterfaceForPoint {
     func separate_sum_point(&self) : int
 }
@@ -414,6 +418,25 @@ func test_nodes() {
             }
         ]
         return arr[0].x == 3 && arr[0].y == 4 && arr[1].x == 5 && arr[1].y == 6;
+    })
+    test("can store an array into a pointer", () => {
+        // this checks that an array uses compound literal (convert initializer to compound literal)
+        // because its being passed to an array
+        var arrStruct = PtrToPointStruct {
+            ptr : [
+                Point {
+                    x : 3,
+                    y : 4
+                },
+                Point {
+                    x : 5,
+                    y : 6
+                }
+            ]
+        }
+        const first = arrStruct.ptr;
+        const second = first + 1;
+        return first.x == 3 && first.y == 4 && second.x == 5 && second.y == 6
     })
     test("extension functions work", () => {
         var p = Point {

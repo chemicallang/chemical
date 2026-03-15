@@ -54,7 +54,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // Marker for hydration
         var idStr = std::string();
         idStr.append_view("u");
-        idStr.append_uinteger(element.loc);
+        idStr.append_uinteger(hash);
 
         converter.str.append_view("<div id=\"");
         converter.str.append_view(idStr.to_view());
@@ -187,9 +187,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
     if(converter.target == BufferType.HTML) {
+
         converter.str.append('<');
         converter.str.append_view(tagName);
-        converter.str.append(' ');
         converter.put_chain_in();
 
         const builder = converter.builder;

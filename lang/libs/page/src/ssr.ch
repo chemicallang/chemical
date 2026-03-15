@@ -83,6 +83,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
+                    output.append(' ');
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
                     writePrimitiveAttrValue(page.pageHtml, d.value)
@@ -102,22 +103,22 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
 
     // 1. Render merged classes
     if (special.class_count > 0) {
-        output.append_view("class=\"")
+        output.append_view(" class=\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ') // Space-separated classes
             writePrimitiveAttrValue(page.pageHtml, *special.classes[i])
         }
-        output.append_view("\" ")
+        output.append_view("\"")
     }
 
     // 2. Render merged styles
     if (special.style_count > 0) {
-        output.append_view("style=\"")
+        output.append_view(" style=\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
             writePrimitiveAttrValue(page.pageJs, *special.styles[i])
         }
-        output.append_view("\" ")
+        output.append_view("\"")
     }
 }
 

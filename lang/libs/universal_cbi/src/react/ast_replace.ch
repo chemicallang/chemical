@@ -100,12 +100,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         const block = root.body as *mut JsBlock;
         const returned = find_returned_jsx(block);
         if(returned != null) {
-            // 1. SSR HTML emission
-            converter.target = BufferType.HTML;
-            converter.convertJsNode(returned);
-            converter.put_chain_in();
-
-            // 2. JS definition emission (protected by require_component)
+            // 1. JS definition emission (protected by require_component)
+            // This ALWAYS happens even if attrs is null, to ensure the component JS is available.
             const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
             var selfReq = make_require_component_call_static(builder, support, selfHash, location)
             var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
@@ -129,17 +125,28 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             
             converter.vec.push(selfIf as *mut ASTNode);
 
-            // 3. Hydration call (on every call site)
-            // page.append_js("$_um(document.currentScript, 'MyComp', {")
-            // renderJsAttrs(page, attrs)
-            // page.append_js("});")
-            
-            // We'll generate these calls as AST nodes.
-            var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-            var appendJsFn = support.appendHeadJsCharPtrFn; // Use append_js if available
+            // 2. Early return if attrs is null
+            // if(attrs == null) return;
+            const curr_func_params = root.signature.functionNode.get_params();
+            const second_param = curr_func_params.get(1);
+            var attrsId = builder.make_identifier(std::string_view("attrs"), second_param, false, location);
+            var nullVal = builder.make_null_value(location);
+            var condition = builder.make_expression_value(attrsId as *mut Value, nullVal as *mut Value, Operation.IsEqual, location);
+            var ifNullStmt = builder.make_if_stmt(condition as *mut Value, converter.parent, location);
+            var returnStmt = builder.make_return_stmt(null, null, converter.parent, location);
+            ifNullStmt.get_body().push(returnStmt as *mut ASTNode);
+            converter.vec.push(ifNullStmt as *mut ASTNode);
 
+            // 3. SSR HTML emission
+            converter.target = BufferType.HTML;
+            converter.convertJsNode(returned);
+            converter.put_chain_in();
+
+            // 4. Hydration call (on every call site)
+            var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
             const funcId = builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location);
             const chain = builder.make_access_chain(std::span<*mut Value>([ pageId, funcId ]), location);
+
             var callHeader = builder.make_function_call_node(chain, converter.parent, location);
             var headerStr = std::string("$_um(document.currentScript, '");
             get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, headerStr);
@@ -149,12 +156,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 
             var callAttrs = builder.make_function_call_node(builder.make_identifier(std::string_view("renderJsAttrs"), support.renderJsAttrs, false, location), converter.parent, location);
             callAttrs.get_args().push(pageId as *mut Value);
-
-            const curr_func_params = root.signature.functionNode.get_params();
-            // this points to the current function param attributes
-            const second_param = curr_func_params.get(1)
-
-            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), second_param, false, location)); // Use param attrs
+            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), second_param, false, location)); 
             converter.vec.push(callAttrs as *mut ASTNode);
 
             var callTail = builder.make_function_call_node(chain, converter.parent, location);

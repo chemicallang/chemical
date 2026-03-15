@@ -506,6 +506,15 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             }
         }
         converter.str.append_view(")");
+
+        // Call UniversalComponent(page, null) to ensure JS generation
+        var base = converter.builder.make_identifier(element.componentSignature.name, element.componentSignature.functionNode as *mut ASTNode, false, intrinsics::get_raw_location())
+        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
+        var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
+        call.get_args().push(pageId as *mut Value)
+        call.get_args().push(converter.builder.make_null_value(intrinsics::get_raw_location()))
+        converter.vec.push(call as *mut ASTNode)
+
         return;
     }
 

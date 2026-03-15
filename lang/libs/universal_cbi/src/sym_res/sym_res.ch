@@ -35,7 +35,8 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     // the second param for the function, attrs : SsrAttributeList
     const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
-    const param2 = builder.make_function_param(std::string_view("attrs"), attrListNodeType, 1, null, false, funcDecl, loc);
+    const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
+    const param2 = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
     params.push(param2)
     // add a body
     funcDecl.add_body();

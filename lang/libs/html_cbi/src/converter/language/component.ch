@@ -117,8 +117,8 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             structValue.add_value(std::string_view("size"), builder.make_ubigint_value(element.attributes.size(), location))
         }
 
-        // make the struct value the second argument
-        args.push(structValue)
+        // make the address of the struct value the second argument
+        args.push(builder.make_addr_of_value(structValue, location) as *mut Value)
 
         // put the call in the vec
         converter.vec.push(compCall as *mut ASTNode)

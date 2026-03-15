@@ -6073,6 +6073,8 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     nested_value = true;
     bool has_value_before = false;
     indentation_level += 1;
+
+    auto& variables = val->variables()->variables();
     for(auto& value : val->values) {
         if(has_value_before) {
             write(", ");
@@ -6089,7 +6091,6 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     }
 
     // default initialize the direct variables
-    auto& variables = val->variables()->variables();
     for(const auto var : variables) {
         auto found = val->values.find(var->name);
         if(found == val->values.end()) {

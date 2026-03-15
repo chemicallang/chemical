@@ -6,6 +6,8 @@ public struct JsComponentDecl {
     var dyn_values : std::vector<*mut Value>
     var components : std::vector<*mut JsJSXElement>
     var htmlPageNode : *ASTNode = null
+    var hydrationLogic : std::string_view = ""
+    var templateHtml : std::string_view = ""
 }
 
 public struct JsJSXAttribute {

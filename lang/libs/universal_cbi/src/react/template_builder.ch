@@ -1,28 +1,3 @@
-func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
-    for(var i : uint = 0; i < block.statements.size(); i++) {
-        const stmt = block.statements.get(i);
-        if(stmt == null || stmt.kind != JsNodeKind.Return) continue;
-        const ret = stmt as *mut JsReturn;
-        if(ret.value == null) continue;
-        if(ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment) {
-            return ret.value;
-        }
-        if(ret.value.kind == JsNodeKind.Identifier) {
-            const id = ret.value as *mut JsIdentifier;
-            for(var j : uint = 0; j < i; j++) {
-                const prev = block.statements.get(j);
-                if(prev != null && prev.kind == JsNodeKind.VarDecl) {
-                    const decl = prev as *mut JsVarDecl;
-                    if(decl.name.equals(id.value) && decl.value != null && (decl.value.kind == JsNodeKind.JSXElement || decl.value.kind == JsNodeKind.JSXFragment)) {
-                        return decl.value;
-                    }
-                }
-            }
-        }
-    }
-    return null;
-}
-
 func collect_states(
     builder : *mut ASTBuilder,
     block : *mut JsBlock,
@@ -75,14 +50,19 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         str : std::string(),
         jsx_parent : view(""),
         t_counter : 0,
-        state_vars : std::vector<std::string_view>()
+        state_vars : std::vector<std::string_view>(),
+        target : BufferType.HTML,
+        current_func : comp.signature.functionNode
     }
 
     if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, nestedBindings, comp.signature.propsName, converter)) {
         return;
     }
 
+    comp.templateHtml = builder.allocate_view(converter.str.to_view());
+
     var init = std::string();
+    init.append_view("{");
     for(var i : uint = 0; i < states.size(); i++) {
         const st = states.get(i);
         init.append_view("const ");
@@ -128,8 +108,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view(e.handlerExpr);
         init.append_view(");");
     }
+    init.append_view("}");
 
-    // TODO: universal Init doesn't exist in signature
-    // it was removed when template tokens were removed
-    // comp.signature.universalInit = builder.allocate_view(init.to_view());
+    comp.hydrationLogic = builder.allocate_view(init.to_view());
 }

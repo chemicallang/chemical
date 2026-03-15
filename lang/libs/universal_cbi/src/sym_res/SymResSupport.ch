@@ -34,5 +34,6 @@ public struct SymResSupport {
     // require component, set component hash
     var requireComponentFn : *mut ASTNode = null
     var setComponentHashFn : *mut ASTNode = null
+    var getNextUIdFn : *mut ASTNode = null
 
 }

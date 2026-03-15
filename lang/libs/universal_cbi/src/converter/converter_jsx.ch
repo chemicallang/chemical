@@ -44,27 +44,14 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
     if(converter.target == BufferType.HTML) {
         if(element.componentSignature == null) {
-             // Fallback to JS if no signature (maybe partial match or dynamic?)
              return;
         }
 
         const signature = element.componentSignature;
         const hash = signature.functionNode.getEncodedLocation();
 
-        // Marker for hydration
-        var idStr = std::string();
-        idStr.append_view("u");
-        idStr.append_uinteger(hash);
-
-        converter.str.append_view("<div id=\"");
-        converter.str.append_view(idStr.to_view());
-        converter.str.append_view("\" data-u-comp=\"");
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-        converter.str.append_view("\">");
-        converter.put_chain_in();
-
         // 1. Emit the require/if check and C++ call for SSR
-        // This makes it work like html_cbi's components.
+        // The component function itself will handle its own wrapping and hydration entry.
         var requireCall = converter.make_require_component_call(hash as size_t)
         var ifStmt = converter.builder.make_if_stmt(requireCall as *mut Value, converter.parent, intrinsics::get_raw_location())
         var body = ifStmt.get_body()
@@ -75,63 +62,12 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
+        
         const attrs = converter.build_ssr_attributes(element);
         call.get_args().push(converter.builder.make_addr_of_value(attrs, intrinsics::get_raw_location()) as *mut Value);
         body.push(call as *mut ASTNode)
 
         converter.vec.push(ifStmt as *mut ASTNode)
-
-        // 2. Emit hydration entry for JS
-        // This should go to pageJs.
-        const oldTarget = converter.target;
-        converter.target = BufferType.JavaScript;
-        converter.str.append_view("window.$_uq.push(['");
-        converter.str.append_view(idStr.to_view());
-        converter.str.append_view("','");
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-        converter.str.append_view("',{");
-        var first = true;
-        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            const attrNode = element.opening.attributes.get(i);
-            if(attrNode.kind == JsNodeKind.JSXAttribute) {
-                if(!first) converter.str.append(',');
-                const attr = attrNode as *mut JsJSXAttribute;
-                converter.str.append_view("\"");
-                converter.str.append_view(attr.name);
-                converter.str.append_view("\":");
-                // Emit attribute value — quote ChemicalValue/ExpressiveString if it's a string type
-                if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
-                    const cont = attr.value as *mut JsJSXExpressionContainer;
-                    if(cont.expression != null && cont.expression.kind == JsNodeKind.ChemicalValue) {
-                        const cv = cont.expression as *mut JsChemicalValue;
-                        const cvType = cv.value.getType();
-                        const isStr = cvType != null && (cvType.getKind() == BaseTypeKind.String ||
-                            (cvType.getKind() == BaseTypeKind.Pointer) ||
-                            (cvType.getKind() == BaseTypeKind.ExpressiveString));
-                        if(isStr) {
-                            // Emit as: "+chemValue+"
-                            converter.str.append_view("\"");
-                            converter.put_chain_in();
-                            converter.put_chemical_value_in(cv.value);
-                            converter.str.append_view("\"");
-                        } else {
-                            converter.convertAttributeValue(attr);
-                        }
-                    } else {
-                        converter.convertAttributeValue(attr);
-                    }
-                } else {
-                    converter.convertAttributeValue(attr);
-                }
-                first = false;
-            }
-        }
-        converter.str.append_view("}]);");
-        converter.put_chain_in();
-        converter.target = oldTarget;
-
-        converter.str.append_view("</div>");
-        converter.put_chain_in();
         return;
     }
 

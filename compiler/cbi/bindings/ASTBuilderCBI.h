@@ -186,7 +186,7 @@ extern "C" {
 
     UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location);
 
-    VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     Scope* ASTBuildermake_scope(ASTBuilder* builder, ASTNode* parent_node, uint64_t location);
 

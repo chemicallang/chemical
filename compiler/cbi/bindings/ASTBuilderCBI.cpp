@@ -491,7 +491,7 @@ UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, AS
     return new (builder->allocate<UsingStmt>()) UsingStmt(chain, parent_node, is_namespace, location);
 }
 
-VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, *identifier, {type, location}, value, parent_node, location, specifier);
 }
 

@@ -59,7 +59,6 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     // end the scope
     resolver.scope_end();
 
-    compute_universal_template(&mut builder, root, &mut root.support);
 }
 
 @no_mangle

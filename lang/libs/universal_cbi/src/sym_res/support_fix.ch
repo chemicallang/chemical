@@ -104,6 +104,13 @@ func resolve_page_children(
     support.requireComponentFn = requireComponentFn;
     support.setComponentHashFn = setComponentHashFn;
 
+    const getNextUIdFn = page.child("get_next_u_id");
+    if(getNextUIdFn == null) {
+        resolver.error("'get_next_u_id' function is required on 'page' for html to work", loc);
+        return false;
+    }
+    support.getNextUIdFn = getNextUIdFn;
+
     support.appendHeadJsFn = appendHeadJsFn
     support.appendHeadJsCharFn = appendHeadJsCharFn
     support.appendHeadJsCharPtrFn = appendHeadJsCharPtrFn

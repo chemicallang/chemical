@@ -40,6 +40,12 @@ public struct HtmlPage {
 
     var doneComponents : std::unordered_map<ubigint, bool>
 
+    var uIdCounter : ubigint = 0
+
+    func get_next_u_id(&mut self) : ubigint {
+        return uIdCounter++;
+    }
+
     func append_html(&mut self, value : *char, len : size_t) {
         pageHtml.append_with_len(value, len);
     }

@@ -10,6 +10,14 @@ public func <T> replace(value : &mut T, repl : T) : T {
     return temp;
 }
 
+public func <T> swap(a : &mut T, b : &mut T) {
+    var temp : T
+    memcpy(&mut temp, &a, sizeof(T))
+    memcpy(&mut a, &b, sizeof(T))
+    memcpy(&mut b, &temp, sizeof(T))
+    intrinsics::forget(temp)
+}
+
 public comptime const NPOS = (0 as size_t) - 1;
 
 func internal_view_find(me : &std::string_view, needle : &std::string_view) : size_t {

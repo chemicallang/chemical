@@ -75,11 +75,10 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
-
         const attrs = converter.build_ssr_attributes(element);
         call.get_args().push(attrs);
-
         body.push(call as *mut ASTNode)
+
         converter.vec.push(ifStmt as *mut ASTNode)
 
         // 2. Emit hydration entry for JS
@@ -197,14 +196,16 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
         const location = intrinsics::get_raw_location();
         const support = converter.support;
 
-        // Use render.ch's build_ssr_attributes logic but adapted for this context
-        // Actually, build_ssr_attributes should be a method on JsConverter
-        const attrs = converter.build_ssr_attributes(element);
-        var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-        var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), support.renderHtmlAttrs, false, location), converter.parent, location);
-        call.get_args().push(pageId as *mut Value);
-        call.get_args().push(attrs);
-        converter.vec.push(call as *mut ASTNode);
+        if(!element.opening.attributes.empty()) {
+            // Use render.ch's build_ssr_attributes logic but adapted for this context
+            // Actually, build_ssr_attributes should be a method on JsConverter
+            const attrs = converter.build_ssr_attributes(element);
+            var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+            var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), support.renderHtmlAttrs, false, location), converter.parent, location);
+            call.get_args().push(pageId as *mut Value);
+            call.get_args().push(attrs);
+            converter.vec.push(call as *mut ASTNode);
+        }
 
         converter.str.append('>');
         converter.put_chain_in();

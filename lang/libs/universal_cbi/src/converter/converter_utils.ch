@@ -388,9 +388,10 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 const params = converter.current_func.get_params()
                 const propsParam = params.get(1)
                 const spread_props = builder.make_identifier("props", propsParam, false, location);
+                const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
 
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
-                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), spread_props));
+                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
             }
             attrValues.push(attrStructVal as *mut Value);
         }

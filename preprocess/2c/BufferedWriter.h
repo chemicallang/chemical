@@ -64,6 +64,14 @@ public:
         if (owned_ && buf_) std::free(buf_);
     }
 
+    /**
+     * get the position
+     */
+    [[nodiscard]]
+    size_t getPosition() const noexcept {
+        return pos_;
+    }
+
     // Reserve at least new_capacity (may allocate). Returns true on success.
     bool reserve_total(size_t new_capacity) noexcept {
         if (new_capacity <= cap_) return true;

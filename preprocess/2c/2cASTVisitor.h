@@ -56,6 +56,11 @@ public:
     BufferedWriter writer;
 
     /**
+     * the place where last top level node ended, you can write to this position
+     */
+    size_t top_level_position = 0;
+
+    /**
      * this option is here to support struct initialization in tinyCC compiler
      * llvm uses the same approach whereby if a function returns a struct
      * we change it's return type to void and pass that struct as a pointer parameter to the function

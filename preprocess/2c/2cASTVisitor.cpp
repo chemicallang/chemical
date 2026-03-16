@@ -184,11 +184,12 @@ void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
 
 void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     // take out values like lambda from within functions
-    for(const auto node : nodes) {
-        declarer.visit(node);
-    }
+    //for(const auto node : nodes) {
+    //    declarer.visit(node);
+    //}
     // writing
     for(const auto node : nodes) {
+        top_level_position = writer.getPosition();
         visit(node);
     }
 }
@@ -405,6 +406,7 @@ void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) 
 
 void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
+        top_level_position = writer.getPosition();
         switch(node->kind()) {
             case ASTNodeKind::GenericFuncDecl:
                 external_implement_gen_func(*this, node->as_gen_func_decl_unsafe());
@@ -990,6 +992,10 @@ bool isRef(ToCAstVisitor& visitor, Value* value) {
     return type->canonical()->is_reference();
 }
 
+std::string implement_lambda(ToCAstVisitor& visitor, LambdaFunction *func);
+
+void write_lambda_call_site(ToCAstVisitor& visitor, LambdaFunction *func, const std::string& lamb_name);
+
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value) {
     if(type) {
         // struct member takes a pointer
@@ -1018,13 +1024,8 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
                             const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
                             const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
 
-                            auto aliases = declarer.aliases;
-                            auto found = aliases.find(value);
-                            if (found == aliases.end()) {
-                                write("[error: couldn't find lambda alias]");
-                                return;
-                            }
                             const auto lambdaFn = value->as_lambda_func_unsafe();
+                            auto lambda_name = implement_lambda(*this, lambdaFn);
 
                             const auto is_reference = cap_type_canonical->kind() == BaseTypeKind::Reference;
                             if(is_reference == false) {
@@ -1047,15 +1048,15 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
 
                             write(fat_pointer_type);
                             write("* ");
-                            write(found->second);
+                            write_str(lambda_name);
                             write("_pair");
                             write(" = ");
                             if (lambdaFn->captureList.empty()) {
                                 write("&(__chemical_fat_pointer__){");
-                                VisitLambdaFunction(lambdaFn);
+                                write_lambda_call_site(*this, lambdaFn, lambda_name);
                                 write(",NULL}");
                             } else {
-                                VisitLambdaFunction(lambdaFn);
+                                write_lambda_call_site(*this, lambdaFn, lambda_name);
                             }
                             write("; ");
 
@@ -2711,21 +2712,24 @@ void call_struct_member_delete_fn(
     visitor.write(';');
 }
 
-void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
-    RecursiveVisitor::VisitLambdaFunction(lamb);
+std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) {
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
-    lamb_name += std::to_string(lambda_num++);
+    lamb_name += std::to_string(visitor.declarer.lambda_num++);
+
+    // store the lambda alias
+    visitor.declarer.aliases[lamb] = lamb_name;
+
     if(!lamb->captureList.empty()) {
         visitor.new_line_and_indent();
         visitor.write("struct ");
-        std::string capture_struct_name = lamb_name + "_cap";
-        visitor.write(capture_struct_name);
+        visitor.write(lamb_name);
+        visitor.write("_cap");
         visitor.space();
         visitor.write('{');
         visitor.indentation_level += 1;
         for(auto& var : lamb->captureList) {
-            aliases[var] = capture_struct_name;
+            visitor.declarer.aliases[var] = lamb_name + "_cap";
             visitor.new_line_and_indent();
             visitor.visit(var->known_type());
             visitor.space();
@@ -2761,8 +2765,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     }
     visitor.new_line_and_indent();
     accept_func_return_with_name(visitor, lamb, chem::string_view(lamb_name.data(), lamb_name.size()), true);
-    aliases[lamb] = lamb_name;
-    write('(');
+    visitor.write('(');
     unsigned i = 0;
     // writing the captured struct as a parameter
     bool has_params_before = false;
@@ -2778,7 +2781,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         has_params_before = true;
     }
     func_type_params(visitor, lamb, i, has_params_before);
-    write(')');
+    visitor.write(')');
     auto prev_destroy_scope = visitor.destructor.destroy_current_scope;
     visitor.destructor.destroy_current_scope = true;
     auto previous_destruct_jobs = std::move(visitor.destructor.destruct_jobs);
@@ -2788,6 +2791,12 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     visitor.current_func_type = prev_func_type;
     visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor.destroy_current_scope = prev_destroy_scope;
+    return lamb_name;
+}
+
+void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
+    RecursiveVisitor::VisitLambdaFunction(lamb);
+    // write_lambda_function(visitor, lamb);
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
@@ -6595,60 +6604,78 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
     write("NULL");
 }
 
+std::string lambda_name_from_value(ToCAstVisitor& visitor, Value* value) {
+    auto& aliases = visitor.declarer.aliases;
+    auto found = visitor.declarer.aliases.find(value);
+    if(found == aliases.end()) {
+        return "extraction value not found";
+    }
+    return found->second;
+}
+
 void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
 
     const auto src = value->value;
-    auto& aliases = declarer.aliases;
-    auto found = declarer.aliases.find(src);
-    if(found == aliases.end()) {
-        return;
-    }
 
     switch(value->extractionKind) {
         case ExtractionKind::LambdaFnPtr:
-            write(found->second);
+            write_str(lambda_name_from_value(*this, src));
             write("_pair->first");
             break;
         case ExtractionKind::LambdaCapturedPtr:
-            write(found->second);
+            write_str(lambda_name_from_value(*this, src));
             write("_pair->second");
             break;
         case ExtractionKind::LambdaCapturedDestructor:{
+            if (src->kind() != ValueKind::LambdaFunc) {
+                write("extraction value source must be of lambda type");
+                return;
+            }
             const auto lamb = src->as_lambda_func_unsafe();
             if(lamb->captureList.empty()) {
                 write("NULL");
             } else {
-                write(found->second);
+                write_str(lambda_name_from_value(*this, lamb));
                 write("_cap_destr");
             }
             break;
         }
         case ExtractionKind::SizeOfLambdaCaptured: {
+            if (src->kind() != ValueKind::LambdaFunc) {
+                write("extraction value source must be of lambda type");
+                return;
+            }
             const auto lamb = src->as_lambda_func_unsafe();
             if(lamb->captureList.empty()) {
                 write('0');
             } else {
                 write("sizeof(");
                 write("struct ");
-                write(found->second);
+                write_str(lambda_name_from_value(*this, lamb));
                 write("_cap");
                 write(')');
             }
             break;
         }
         case ExtractionKind::AlignOfLambdaCaptured: {
+            if (src->kind() != ValueKind::LambdaFunc) {
+                write("extraction value source must be of lambda type");
+                return;
+            }
             const auto lamb = src->as_lambda_func_unsafe();
             if(lamb->captureList.empty()) {
                 write('0');
             } else {
                 write("_Alignof(");
                 write("struct ");
-                write(found->second);
+                write_str(lambda_name_from_value(*this, lamb));
                 write("_cap");
                 write(')');
             }
             break;
         }
+        case ExtractionKind::ReinterpretLLVMValue:
+            break;
     }
 }
 
@@ -6783,52 +6810,51 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
     visitor.write('}');
 }
 
-void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
-    auto found = declarer.aliases.find(func);
-    if(found != declarer.aliases.end()) {
-        if(!func->captureList.empty()) {
-            write('(');
-            write('&');
-            write('(');
-            write(fat_pointer_type);
-            write(')');
-            write('{');
-            write(found->second);
-            write(',');
-            if(func->captureList.empty()) {
-                write("NULL");
-            } else {
-//                 if(does_live_on_stack) {
-                    write("(&");
-                    write_captured_struct(*this, func, found->second);
-                    write(')');
-//                } else {
-//                    auto temp_var = get_local_temp_var_name();
-//                    write("({ struct ");
-//                    write(found->second);
-//                    write("_cap");
-//                    write("* ");
-//                    write(temp_var);
-//                    write(" = ");
-//                    write("malloc(sizeof(struct ");
-//                    write(found->second);
-//                    write("_cap)); *");
-//                    write(temp_var);
-//                    write(" = ");
-//                    write_captured_struct(*this, func, found->second);
-//                    write("; ");
-//                    write(temp_var);
-//                    write("; })");
-//                }
-            }
-            write('}');
-            write(')');
+std::string implement_lambda(ToCAstVisitor& visitor, LambdaFunction *func) {
+    // record the index
+    const auto index = visitor.writer.getPosition();
+    auto prev_indentation_level = visitor.indentation_level;
+    visitor.indentation_level = 0;
+    const auto prev_top_level_position = visitor.top_level_position;
+    auto lamb_name = write_lambda_function(visitor, func);
+    // moving the lambda function to top level
+    auto fromEnd = visitor.writer.getPosition();
+    const auto child_written = visitor.top_level_position - prev_top_level_position;
+    const auto updated_index = index + child_written;
+    visitor.writer.move_range(updated_index, fromEnd, visitor.top_level_position);
+    visitor.top_level_position += (fromEnd - updated_index);
+    visitor.indentation_level = prev_indentation_level;
+    return lamb_name;
+}
+
+void write_lambda_call_site(ToCAstVisitor& visitor, LambdaFunction *func, const std::string& lamb_name) {
+    // writing the call site
+    if(!func->captureList.empty()) {
+        visitor.write('(');
+        visitor.write('&');
+        visitor.write('(');
+        visitor.write(visitor.fat_pointer_type);
+        visitor.write(')');
+        visitor.write('{');
+        visitor.write_str(lamb_name);
+        visitor.write(',');
+        if(func->captureList.empty()) {
+            visitor.write("NULL");
         } else {
-            write(found->second);
+            visitor.write("(&");
+            write_captured_struct(visitor, func, lamb_name);
+            visitor.write(')');
         }
+        visitor.write('}');
+        visitor.write(')');
     } else {
-        write("[LambdaFunction_NOT_FOUND]");
+        visitor.write_str(lamb_name);
     }
+}
+
+void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
+    auto lamb_name = implement_lambda(*this, func);
+    write_lambda_call_site(*this, func, lamb_name);
 }
 
 void ToCAstVisitor::VisitAnyType(AnyType *any_type) {

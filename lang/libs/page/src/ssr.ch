@@ -4,6 +4,9 @@ public struct SsrText {
     func equals(&self, other : &std::string_view) : bool {
         return size == other.size() && strncmp(data, other.data(), size) == 0;
     }
+    func equals_text(&self, other : &SsrText) : bool {
+        return size == other.size && strncmp(data, other.data, size) == 0;
+    }
 }
 
 public struct MultipleAttributeValues {
@@ -12,6 +15,7 @@ public struct MultipleAttributeValues {
 }
 
 public variant SsrAttributeValue {
+    None()
 	Boolean(value : bool)
 	Char(value : char)
     UInteger(value : ubigint)
@@ -33,8 +37,28 @@ public struct SsrAttributeList {
 	var size : u64
 }
 
+public func getSsrAttributeValue(list : &SsrAttributeList, name : SsrText) : SsrAttributeValue {
+    var d = list.data
+    const end = d + list.size
+    while(d != end) {
+        if(d.name.equals_text(name)) {
+            // gets copied
+            return d.value;
+        } else if(d.value is SsrAttributeValue.Spread) {
+            var Spread(value) = d.value else unreachable;
+            const found = getSsrAttributeValue(value, name)
+            if(found !is SsrAttributeValue.None) {
+                return found;
+            }
+        }
+        d++;
+    }
+    return SsrAttributeValue.None()
+}
+
 func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool = false) {
     switch(attrVal) {
+        None() => {}
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
         }

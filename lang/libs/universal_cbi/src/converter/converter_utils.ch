@@ -375,6 +375,27 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
                         } else if(container.expression.kind == JsNodeKind.Literal) {
                             attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
+                        } else if(container.expression.kind == JsNodeKind.MemberAccess) {
+                            const mem = container.expression as *mut JsMemberAccess;
+                            var handled = false
+                            if(mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
+                                const params = converter.current_func.get_params();
+                                const propsParam = params.get(1);
+                                if(propsParam != null) {
+                                    const propsId = builder.make_identifier("props", propsParam, false, location);
+                                    const propsType = propsParam.getType();
+                                    const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
+                                    const nameVal = converter.make_ssr_text(mem.property, location);
+                                    const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
+                                    call.get_args().push(derefProps);
+                                    call.get_args().push(nameVal);
+                                    attrStructVal.add_value(std::string_view("value"), call);
+                                    handled = true
+                                }
+                            }
+                            if(!handled) {
+                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
+                            }
                         } else {
                             // Fallback for other expressions to avoid "value not given" error.
                             attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));

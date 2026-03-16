@@ -37,7 +37,7 @@ public struct SsrAttributeList {
 	var size : u64
 }
 
-public func getSsrAttributeValue(list : &SsrAttributeList, name : SsrText) : SsrAttributeValue {
+public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrAttributeValue {
     var d = list.data
     const end = d + list.size
     while(d != end) {
@@ -58,7 +58,9 @@ public func getSsrAttributeValue(list : &SsrAttributeList, name : SsrText) : Ssr
 
 func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool = false) {
     switch(attrVal) {
-        None() => {}
+        None() => {
+            output.append_view("null")   
+        }
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
         }
@@ -113,7 +115,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
                     writePrimitiveAttrValue(page.pageHtml, d.value)
-                    output.append_view("\" ")
+                    output.append_view("\"")
                 }
             }
         }

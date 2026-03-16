@@ -21,11 +21,8 @@ public:
 
     std::unordered_map<InterfaceDefinition*, InterfaceVTableTypeStatus> delayed_primitive_impls;
 
-    CValueDeclarationVisitor* value_visitor;
-
     CTopLevelDeclarationVisitor(
-            ToCAstVisitor& visitor,
-            CValueDeclarationVisitor* value_visitor
+            ToCAstVisitor& visitor
     );
 
     // this will not declare it's contained functions

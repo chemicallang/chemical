@@ -10,7 +10,6 @@
 #include "CTopLevelDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
-#include "CValueDeclVisitor.h"
 #include "CDestructionVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
@@ -150,12 +149,6 @@ public:
     std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
-     * this visitor takes out values like lambda from within functions
-     * to file level scope
-     */
-    CValueDeclarationVisitor declarer;
-
-    /**
      * top level declarations will be declared by this visitor
      * for example functions and structs, declared so can be used if declared below their usage
      */
@@ -200,6 +193,18 @@ public:
      * sometimes temporary var names are allocated
      */
     std::vector<std::string> allocated_temp_var_names;
+
+    /**
+     * values or nodes can be used as keys, where as strings can be used to store
+     * aliased names, which later can be accessed
+     */
+    std::unordered_map<void*, std::string> aliases;
+
+    /**
+     * a single unsigned int that can be used to track emitted lambdas
+     * used to assign lambda names
+     */
+    unsigned lambda_num = 0;
 
     /**
      * constructor

@@ -413,7 +413,6 @@ set(COMMON_SOURCES
         preprocess/2c/CBeforeStmtVisitor.h
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
-        preprocess/2c/CValueDeclVisitor.h
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h
         compiler/lab/BackendContext.h

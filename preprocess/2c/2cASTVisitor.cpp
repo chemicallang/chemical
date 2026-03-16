@@ -109,7 +109,6 @@
 #include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
-#include "CValueDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
 #include "compiler/cbi/model/ASTBuilder.h"
@@ -123,7 +122,7 @@ ToCAstVisitor::ToCAstVisitor(
     bool debug_info,
     bool minify
 ) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator),
-    declarer(*this), before_stmt(*this), after_stmt(*this), tld(*this, &declarer), destructor(*this),
+    before_stmt(*this), after_stmt(*this), tld(*this), destructor(*this),
     loc_man(manager), line_directives(debug_info), minify(minify), ASTDiagnoser(manager)
 {
 
@@ -391,13 +390,12 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
 
 void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) {
-    auto& declarer = visitor.declarer;
     auto& i = node->total_bodied_instantiations;
     const auto total = node->instantiations.size();
     while(i < total) {
         const auto inst = node->instantiations[i];
-        // apparently we have to take out lambda functions from the generic instantiations
-        declarer.VisitFunctionDecl(inst);
+        // new lambdas should be emitted here
+        visitor.top_level_position = visitor.writer.getPosition();
         // implement the function as usual
         func_decl_with_name(visitor, inst);
         i++;
@@ -1942,9 +1940,8 @@ void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
 }
 
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
-    ToCAstVisitor &visitor,
-    CValueDeclarationVisitor *value_visitor
-) : SubVisitor(visitor), value_visitor(value_visitor) {
+    ToCAstVisitor &visitor
+) : SubVisitor(visitor) {
 
 }
 
@@ -2715,10 +2712,10 @@ void call_struct_member_delete_fn(
 std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) {
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
-    lamb_name += std::to_string(visitor.declarer.lambda_num++);
+    lamb_name += std::to_string(visitor.lambda_num++);
 
     // store the lambda alias
-    visitor.declarer.aliases[lamb] = lamb_name;
+    visitor.aliases[lamb] = lamb_name;
 
     if(!lamb->captureList.empty()) {
         visitor.new_line_and_indent();
@@ -2729,7 +2726,7 @@ std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) 
         visitor.write('{');
         visitor.indentation_level += 1;
         for(auto& var : lamb->captureList) {
-            visitor.declarer.aliases[var] = lamb_name + "_cap";
+            visitor.aliases[var] = lamb_name + "_cap";
             visitor.new_line_and_indent();
             visitor.visit(var->known_type());
             visitor.space();
@@ -2792,23 +2789,6 @@ std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) 
     visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor.destroy_current_scope = prev_destroy_scope;
     return lamb_name;
-}
-
-void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
-    RecursiveVisitor::VisitLambdaFunction(lamb);
-    // write_lambda_function(visitor, lamb);
-}
-
-void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
-    for(const auto param : params) {
-        if(param->type->kind() == BaseTypeKind::Function && param->type->as_function_type()->isCapturing()) {
-            // do not declare capturing function types
-            continue;
-        }
-        if(param->type->kind() != BaseTypeKind::Function) {
-            value_visitor->visit(param);
-        }
-    }
 }
 
 void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc, unsigned declFuncParamStart = 0, unsigned retFuncParamStart = 0) {
@@ -3015,10 +2995,6 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     if(decl->is_comptime()) {
         return;
     }
-    declare_params(tld->value_visitor, decl->params);
-    if(decl->returnType->as_function_type() == nullptr) {
-        tld->value_visitor->visit(decl->returnType);
-    }
     tld->visitor.new_line_and_indent();
     declare_func_with_return(tld->visitor, decl);
     tld->visitor.write(';');
@@ -3028,17 +3004,13 @@ void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, Functio
     if(decl->is_comptime()) {
         return;
     }
-    declare_params(tld->value_visitor, decl->params);
-    if(decl->returnType->as_function_type() == nullptr) {
-        tld->value_visitor->visit(decl->returnType);
-    }
     tld->visitor.new_line_and_indent();
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     const auto func_parent = decl->parent();
     const auto is_static = decl->body.has_value() && !is_linkage_public(func_parent->specifier());
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
-        tld->value_visitor->write("static ");
+        tld->write("static ");
         accept_func_return(tld->visitor, decl_return_func_type->returnType);
         tld->write('(');
         func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, 0);
@@ -3152,12 +3124,6 @@ void CTopLevelDeclarationVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
     }
 }
 
-void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
-    if(decl->body.has_value() && !decl->is_comptime()) {
-        visit(&decl->body.value());
-    }
-}
-
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
     early_declare_type(visitor, stmt->actual_type, nullptr, true, true);
     visitor.new_line_and_indent();
@@ -3193,9 +3159,6 @@ void CTopLevelDeclarationVisitor::VisitNamespaceDecl(Namespace *ns) {
 }
 
 void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def) {
-    for(const auto mem : def->variables()) {
-        value_visitor->visit(mem);
-    }
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
     // will be declared later, so C responds with incomplete type
@@ -3243,9 +3206,6 @@ void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def
 }
 
 void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
-    for(const auto mem : def->variables()) {
-        value_visitor->visit(mem);
-    }
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
     // will be declared later, so C responds with incomplete type
@@ -3328,9 +3288,6 @@ void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* no
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* def) {
-    for(const auto mem : def->variables()) {
-        value_visitor->visit(mem);
-    }
     early_declare_container(visitor, def);
     visitor.new_line_and_indent();
     write("struct ");
@@ -3667,27 +3624,6 @@ void CTopLevelDeclarationVisitor::reset() {
 
 }
 
-void CValueDeclarationVisitor::VisitFunctionType(FunctionType *type) {
-    // TODO remove this method
-}
-
-void CValueDeclarationVisitor::VisitStructMember(StructMember *member) {
-    if(member->type->kind() != BaseTypeKind::Function) {
-        RecursiveVisitor::VisitStructMember(member);
-    }
-}
-
-void CValueDeclarationVisitor::VisitIfStmt(IfStatement *stmt) {
-    if(stmt->computed_scope.has_value()) {
-        auto scope = stmt->computed_scope.value();
-        if(scope) {
-            visit(scope);
-        }
-        return;
-    }
-    RecursiveVisitor::VisitIfStmt(stmt);
-}
-
 void declare_fat_pointer(ToCAstVisitor& visitor) {
     visitor.fat_pointer_type = "__chemical_fat_pointer__";
     visitor.write("typedef struct {");
@@ -3762,7 +3698,7 @@ void ToCAstVisitor::reset() {
     local_temp_var_i = 0;
     nested_value = false;
     return_redirect_block = "";
-    declarer.reset();
+    aliases.clear();
     tld.reset();
     before_stmt.reset();
     after_stmt.reset();
@@ -6235,8 +6171,8 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 break;
             }
             case ASTNodeKind::CapturedVariable:{
-                auto found = declarer.aliases.find(linked->as_captured_var_unsafe());
-                if(found == declarer.aliases.end()) {
+                auto found = aliases.find(linked->as_captured_var_unsafe());
+                if(found == aliases.end()) {
                     write("this->");
                 } else {
                     write("((struct ");
@@ -6605,8 +6541,8 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
 }
 
 std::string lambda_name_from_value(ToCAstVisitor& visitor, Value* value) {
-    auto& aliases = visitor.declarer.aliases;
-    auto found = visitor.declarer.aliases.find(value);
+    auto& aliases = visitor.aliases;
+    auto found = visitor.aliases.find(value);
     if(found == aliases.end()) {
         return "extraction value not found";
     }
@@ -7069,8 +7005,8 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             visit(linked.known_type());
             return;
         case ASTNodeKind::TypealiasStmt: {
-            auto alias = declarer.aliases.find(&linked);
-            if (alias != declarer.aliases.end()) {
+            auto alias = aliases.find(&linked);
+            if (alias != aliases.end()) {
                 write(alias->second);
                 return;
             }

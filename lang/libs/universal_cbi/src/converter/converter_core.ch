@@ -281,8 +281,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                               converter.parent,
                               location
                           );
-                          appendCall.get_args().push(builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location));
-                          appendCall.get_args().push(builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location));
+                          const dataIdNode = converter.support.childrenParamNode.child("data");
+                          const sizeIdNode = converter.support.childrenParamNode.child("size");
+                          const childrenDataAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
+                          const childrenSizeAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
+                          const appendCallParams = appendCall.get_args();
+                          appendCallParams.push(childrenDataAccess);
+                          appendCallParams.push(childrenSizeAccess);
                           
                           converter.vec.push(appendCall as *mut ASTNode);
                      }

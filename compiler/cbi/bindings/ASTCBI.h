@@ -114,6 +114,8 @@ extern "C" {
 
     std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc);
 
+    void StringValuegetValue(chem::string_view* out, StringValue* value);
+
     void StructValueadd_value(StructValue* structValue, chem::string_view* name, Value* initializer);
 
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);

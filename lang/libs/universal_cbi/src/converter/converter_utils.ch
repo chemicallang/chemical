@@ -304,12 +304,15 @@ func (converter : &mut JsConverter) escapeHtml(text : std::string_view) {
     }
 }
 
-func (converter : &mut JsConverter) make_ssr_text(val : std::string_view, location : ubigint) : *mut Value {
-    const builder = converter.builder;
-    const structVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+func make_ssr_text_val(builder : *mut ASTBuilder, val : &std::string_view, textNode : *mut ASTNode, location : ubigint) : *mut Value {
+    const structVal = builder.make_struct_value(textNode, location);
     structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
     structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
     return structVal as *mut Value;
+}
+
+func (converter : &mut JsConverter) make_ssr_text(val : &std::string_view, location : ubigint) : *mut Value {
+    return make_ssr_text_val(converter.builder, val, converter.support.ssrTextLinkedNode, location);
 }
 
 func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut JsLiteral, attrValConv : &mut AttrValueConverter, location : ubigint) : *mut Value {
@@ -341,6 +344,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
 
         var attrValConv = AttrValueConverter {
             pageNode : support.pageNode,
+            ssrTextNode : support.ssrTextLinkedNode,
             ssrAttributeValueNode : support.ssrAttributeValueNode,
             multipleAttributeValueNode : support.multipleAttributeValueNode,
             parent : converter.parent

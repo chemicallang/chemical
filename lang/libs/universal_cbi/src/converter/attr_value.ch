@@ -2,6 +2,8 @@ struct AttrValueConverter {
 
     var pageNode : *mut ASTNode
 
+    var ssrTextNode : *mut ASTNode
+
     var ssrAttributeValueNode : *mut ASTNode
 
     var multipleAttributeValueNode : *mut ASTNode
@@ -121,6 +123,12 @@ func (converter : &mut AttrValueConverter) convert_multiple_attr_values(
 }
 
 func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, value : *mut Value) : *mut Value {
+    if(value.getKind() == ValueKind.String) {
+        // optimized string value
+        var strVal = value as *mut StringValue
+        var textStructVal = make_ssr_text_val(builder, strVal.getValue(), converter.ssrTextNode, intrinsics::get_raw_location());
+        return converter.wrapArgAttrValueVariantCall(builder, "Text", textStructVal);
+    }
     switch(type.getKind()) {
         BaseTypeKind.Bool => {
             // bool value
@@ -174,9 +182,23 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
             const childType = refType.getChildType()
             return converter.convert_attr_ref_child_type(builder, childType, value)
         }
+        BaseTypeKind.Pointer => {
+            const ptrType = type as *mut PointerType
+            const childType = ptrType.getChildType();
+            if(childType.getKind() == BaseTypeKind.IntN) {
+                const intN = childType as *mut IntNType;
+                const kind = intN.get_intn_type_kind()
+                if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
+                    return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
+                }
+            }
+            // putting a pointer as integer
+            // a pointer to other than char, or uchar, we cannot handle it
+            return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+        }
         default => {
-            // TODO: check this branch
-            return value;
+            // unknown type of value being appended
+            return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
         }
     }
 }

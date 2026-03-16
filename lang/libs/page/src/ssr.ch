@@ -18,6 +18,7 @@ public variant SsrAttributeValue {
 	Integer(value : bigint)
 	Double(value : double, precision : int = 2)
     Text(value : SsrText)
+    PtrChar(value : *char)
     Multiple(value : MultipleAttributeValues)
 	Spread(value : SsrAttributeList)
 }
@@ -42,6 +43,7 @@ func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeV
         Integer(value) => output.append_integer(value)
         Double(value, precision) => output.append_double(value, precision)
         Text(value) => output.append_with_len(value.data, value.size)
+        PtrChar(value) => output.append_char_ptr(value)
         Multiple(value) => {
             var curr = value.data
             const end = curr + value.size

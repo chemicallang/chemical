@@ -697,6 +697,10 @@ std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc) {
     return &lambdaFunc->scope.nodes;
 }
 
+void StringValuegetValue(chem::string_view* out, StringValue* value) {
+    *out = value->value;
+}
+
 void StructValueadd_value(StructValue* structValue, chem::string_view* name, Value* initializer) {
     structValue->values.emplace(*name, StructMemberInitializer { *name, initializer });
 }

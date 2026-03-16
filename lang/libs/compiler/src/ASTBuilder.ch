@@ -274,7 +274,11 @@ public struct ShortValue : Value {}
 
 public struct SizeOfValue : Value {}
 
-public struct StringValue : Value {}
+public struct StringValue : Value {
+
+    func getValue(&self) : std::string_view
+
+}
 
 public struct StructValue : Value {
 

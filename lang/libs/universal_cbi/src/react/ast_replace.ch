@@ -131,7 +131,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             const second_param = curr_func_params.get(1);
             var attrsId = builder.make_identifier(std::string_view("attrs"), second_param, false, location);
             var nullVal = builder.make_null_value(location);
-            var condition = builder.make_expression_value(attrsId, nullVal, Operation.IsEqual, location);
+            var condition = builder.make_expression_value(attrsId, nullVal, Operation.IsEqual, builder.make_bool_type(), location);
             var ifNullStmt = builder.make_if_stmt(condition, converter.parent, location);
             var returnStmt = builder.make_return_stmt(null, null, converter.parent, location);
             ifNullStmt.get_body().push(returnStmt);

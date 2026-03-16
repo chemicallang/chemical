@@ -171,7 +171,7 @@ ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, i
     return new (builder->allocate<ArrayType>()) ArrayType({elem_type, location}, array_size);
 }
 
-BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location) {
+BoolType* ASTBuildermake_bool_type(ASTBuilder* builder) {
     return builder->typeBuilder.getBoolType();
 }
 
@@ -304,8 +304,8 @@ DoubleValue* ASTBuildermake_double_value(ASTBuilder* builder, double value, uint
     return new (builder->allocate<DoubleValue>()) DoubleValue(value, builder->typeBuilder.getDoubleType(), location);
 }
 
-Expression* ASTBuildermake_expression_value(ASTBuilder* builder, Value* first, Value* second, Operation op, uint64_t location) {
-    return new (builder->allocate<Expression>()) Expression(first, second, op, location);
+Expression* ASTBuildermake_expression_value(ASTBuilder* builder, Value* first, Value* second, Operation op, BaseType* type, uint64_t location) {
+    return new (builder->allocate<Expression>()) Expression(first, second, op, location, type);
 }
 
 FloatValue* ASTBuildermake_float_value(ASTBuilder* builder, float value, uint64_t location) {

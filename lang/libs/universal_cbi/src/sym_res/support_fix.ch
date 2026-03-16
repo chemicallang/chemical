@@ -127,6 +127,25 @@ func resolve_page_children(
     support.appendHtmlFloatFn = appendHtmlFloatFn;
     support.appendHtmlDoubleFn = appendHtmlDoubleFn;
 
+    const getHtmlSizeFn = page.child("get_html_size");
+    if(getHtmlSizeFn == null) {
+        resolver.error("'get_html_size' function is required on 'page' for html to work", loc);
+        return false;
+    }
+    const truncateHtmlFn = page.child("truncate_html");
+    if(truncateHtmlFn == null) {
+        resolver.error("'truncate_html' function is required on 'page' for html to work", loc);
+        return false;
+    }
+    const pageHtmlNode = page.child("pageHtml");
+    if(pageHtmlNode == null) {
+        resolver.error("'pageHtml' member is required on 'page' for html to work", loc);
+        return false;
+    }
+    support.getHtmlSizeFn = getHtmlSizeFn;
+    support.truncateHtmlFn = truncateHtmlFn;
+    support.pageHtmlNode = pageHtmlNode;
+
     return true
 }
 
@@ -181,6 +200,42 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.ssrAttributeListNode = ssrAttributeListNode
     support.renderHtmlAttrs = renderHtmlAttrs
     support.renderJsAttrs = renderJsAttrs
+
+    const stdNamespace = resolver.find("std")
+    if(stdNamespace == null) {
+        resolver.error("couldn't find 'std' namespace", loc);
+        return false;
+    }
+    const stringNode = stdNamespace.child("string")
+    if(stringNode == null) {
+        resolver.error("couldn't find 'std::string' node", loc);
+        return false;
+    }
+    const stringNodeMake = stringNode.child("empty_str");
+    if(stringNodeMake == null) {
+        resolver.error("couldn't find 'std::string::empty_str'", loc);
+        return false;
+    }
+    const appendWithLenFn = stringNode.child("append_with_len")
+    if(appendWithLenFn == null) {
+        resolver.error("'append_with_len' function is required on 'std::string'", loc);
+        return false;
+    }
+    const dataFn = stringNode.child("data")
+    if(dataFn == null) {
+        resolver.error("'data' function is required on 'std::string'", loc);
+        return false;
+    }
+    const sizeFn = stringNode.child("size")
+    if(sizeFn == null) {
+        resolver.error("'size' function is required on 'std::string'", loc);
+        return false;
+    }
+
+    support.stringNodeMake = stringNodeMake
+    support.appendWithLenFn = appendWithLenFn
+    support.dataFn = dataFn
+    support.sizeFn = sizeFn
 
     return true;
 

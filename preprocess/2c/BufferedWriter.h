@@ -124,6 +124,70 @@ public:
         }
     }
 
+    // --- Moves a range of text to a new index without reallocations ---
+    void move_range(size_t fromStart, size_t fromEnd, size_t index) noexcept {
+        // basic bounds checking
+        if (fromStart >= fromEnd || fromEnd > pos_ || index > pos_) return;
+
+        // moving to a location inside its own current range is effectively a no-op
+        if (index >= fromStart && index <= fromEnd) return;
+
+        size_t range_len = fromEnd - fromStart;
+
+        if (index < fromStart) {
+            // Moving Left
+            // Block M (shifts right): [index, fromStart)
+            // Block S (moves left):   [fromStart, fromEnd)
+            size_t m_len = fromStart - index;
+
+            // Buffer the smaller of the two blocks to save memory/copy overhead
+            if (m_len <= range_len) {
+                char stack_buf[1024];
+                char* temp = (m_len <= sizeof(stack_buf)) ? stack_buf : static_cast<char*>(std::malloc(m_len));
+
+                std::memcpy(temp, buf_ + index, m_len);
+                std::memmove(buf_ + index, buf_ + fromStart, range_len);
+                std::memcpy(buf_ + index + range_len, temp, m_len);
+
+                if (temp != stack_buf) std::free(temp);
+            } else {
+                char stack_buf[1024];
+                char* temp = (range_len <= sizeof(stack_buf)) ? stack_buf : static_cast<char*>(std::malloc(range_len));
+
+                std::memcpy(temp, buf_ + fromStart, range_len);
+                std::memmove(buf_ + index + range_len, buf_ + index, m_len);
+                std::memcpy(buf_ + index, temp, range_len);
+
+                if (temp != stack_buf) std::free(temp);
+            }
+        } else {
+            // Moving Right
+            // Block S (moves right):  [fromStart, fromEnd)
+            // Block M (shifts left):  [fromEnd, index)
+            size_t m_len = index - fromEnd;
+
+            if (range_len <= m_len) {
+                char stack_buf[1024];
+                char* temp = (range_len <= sizeof(stack_buf)) ? stack_buf : static_cast<char*>(std::malloc(range_len));
+
+                std::memcpy(temp, buf_ + fromStart, range_len);
+                std::memmove(buf_ + fromStart, buf_ + fromEnd, m_len);
+                std::memcpy(buf_ + fromStart + m_len, temp, range_len);
+
+                if (temp != stack_buf) std::free(temp);
+            } else {
+                char stack_buf[1024];
+                char* temp = (m_len <= sizeof(stack_buf)) ? stack_buf : static_cast<char*>(std::malloc(m_len));
+
+                std::memcpy(temp, buf_ + fromEnd, m_len);
+                std::memmove(buf_ + fromStart + m_len, buf_ + fromStart, range_len);
+                std::memcpy(buf_ + fromStart, temp, m_len);
+
+                if (temp != stack_buf) std::free(temp);
+            }
+        }
+    }
+
     // --- Appends (grow if necessary). Return true on success ---
     void append(const char* s, size_t n) noexcept {
         ensure_total_capacity_for(n);

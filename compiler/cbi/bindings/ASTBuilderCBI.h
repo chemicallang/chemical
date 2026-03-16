@@ -36,7 +36,7 @@ extern "C" {
 
     ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, int array_size, uint64_t location);
 
-    BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location);
+    BoolType* ASTBuildermake_bool_type(ASTBuilder* builder);
 
     DoubleType* ASTBuildermake_double_type(ASTBuilder* builder, uint64_t location);
 
@@ -108,7 +108,7 @@ extern "C" {
 
     DoubleValue* ASTBuildermake_double_value(ASTBuilder* builder, double value, uint64_t location);
 
-    Expression* ASTBuildermake_expression_value(ASTBuilder* builder, Value* first, Value* second, Operation op, uint64_t location);
+    Expression* ASTBuildermake_expression_value(ASTBuilder* builder, Value* first, Value* second, Operation op, BaseType* type, uint64_t location);
 
     FloatValue* ASTBuildermake_float_value(ASTBuilder* builder, float value, uint64_t location);
 

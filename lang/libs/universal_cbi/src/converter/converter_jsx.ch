@@ -65,6 +65,80 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         
         const attrs = converter.build_ssr_attributes(element);
         call.get_args().push(converter.builder.make_addr_of_value(attrs, intrinsics::get_raw_location()) as *mut Value);
+        // and now the children argument
+        // 1. Capture current HTML size
+        const location = intrinsics::get_raw_location();
+        const builder = converter.builder;
+        // var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+        
+        var getSizeCall = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ pageId as *mut Value, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+            location
+        );
+        var startIdxVar = builder.make_varinit_stmt(false, false, view("startIdx"), builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        body.push(startIdxVar as *mut ASTNode);
+
+        // 2. Render children
+        for(var i : uint = 0; i < element.children.size(); i++) {
+             converter.convertJsNode(element.children.get(i));
+        }
+
+        // 3. Extract range and truncate
+        var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+        var pageHtmlAccess = builder.make_access_chain(std::span<*mut Value>([ pageId2 as *mut Value, builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
+
+        var childrenHtmlVar = builder.make_varinit_stmt(false, false, view("childrenHtml"), null, 
+            builder.make_function_call_value(builder.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
+            AccessSpecifier.Internal, converter.parent, location);
+        body.push(childrenHtmlVar as *mut ASTNode);
+
+        var childrenHtmlId = builder.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
+        var appendCall = builder.make_function_call_node(
+            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
+            converter.parent,
+            location
+        );
+        var startIdxId = builder.make_identifier(view("startIdx"), startIdxVar as *mut ASTNode, false, location);
+        var dataCall = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            location
+        );
+        var sizeCall = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            location
+        );
+        
+        appendCall.get_args().push(builder.make_expression_value(dataCall as *mut Value, startIdxId as *mut Value, Operation.Addition, dataCall.getType(), location));
+        appendCall.get_args().push(builder.make_expression_value(sizeCall as *mut Value, startIdxId as *mut Value, Operation.Subtraction, sizeCall.getType(), location));
+        body.push(appendCall as *mut ASTNode);
+
+        var pageId3 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+        var truncateCall = builder.make_function_call_node(
+            builder.make_access_chain(std::span<*mut Value>([ pageId3 as *mut Value, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+            converter.parent,
+            location
+        );
+        truncateCall.get_args().push(builder.make_identifier(view("startIdx"), startIdxVar as *mut ASTNode, false, location));
+        body.push(truncateCall as *mut ASTNode);
+
+        // 4. Construct SsrText and pass as 3rd arg
+        const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+        // var childrenHtmlId = builder.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
+        
+        var dataCall2 = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            location
+        );
+        var sizeCall2 = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            location
+        );
+        
+        ssrTextStructVal.add_value("data", dataCall2);
+        ssrTextStructVal.add_value("size", sizeCall2);
+        
+        call.get_args().push(ssrTextStructVal as *mut Value);
+        
         body.push(call as *mut ASTNode)
 
         converter.vec.push(ifStmt as *mut ASTNode)

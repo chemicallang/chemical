@@ -60,4 +60,14 @@ struct SymResSupport {
 
     var setComponentHashFn : *mut ASTNode = null
 
+    // capture nodes
+    var pageHtmlNode : *mut ASTNode = null
+    var getHtmlSizeFn : *mut ASTNode = null
+    var truncateHtmlFn : *mut ASTNode = null
+    var stringNodeMake : *mut ASTNode = null
+    var appendWithLenFn : *mut ASTNode = null
+    var dataFn : *mut ASTNode = null
+    var sizeFn : *mut ASTNode = null
+    var childrenParamNode : *mut ASTNode = null
+
 }

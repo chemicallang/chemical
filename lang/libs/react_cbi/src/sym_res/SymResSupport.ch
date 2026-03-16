@@ -8,6 +8,9 @@ public struct SymResSupport {
     var appendHeadJsFloatFn : *mut ASTNode = null
     var appendHeadJsDoubleFn : *mut ASTNode = null
 
+    var ssrTextLinkedNode : *mut ASTNode = null
+    var ssrAttributeListNode : *mut ASTNode = null
+
     var requireComponentFn : *mut ASTNode = null
     var setComponentHashFn : *mut ASTNode = null
 }

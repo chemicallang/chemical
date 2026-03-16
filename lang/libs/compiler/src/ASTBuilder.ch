@@ -695,7 +695,7 @@ public struct ASTBuilder {
 
     // other types
 
-    func make_bool_type(&self, location : ubigint) : *mut BoolType
+    func make_bool_type(&self) : *mut BoolType
 
     func make_double_type(&self, location : ubigint) : *mut DoubleType
 
@@ -745,7 +745,7 @@ public struct ASTBuilder {
 
     func make_double_value(&self, value : double, location : ubigint) : *mut DoubleValue
 
-    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, location : ubigint) : *mut Expression
+    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, type : *mut BaseType, location : ubigint) : *mut Expression
 
     func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
 

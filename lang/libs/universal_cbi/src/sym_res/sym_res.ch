@@ -38,6 +38,11 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     const attrListPtrType = builder.make_ptr_type(attrListNodeType as *mut BaseType, false, loc);
     const param2 = builder.make_function_param(std::string_view("attrs"), attrListPtrType as *mut BaseType, 1, null, false, funcDecl, loc);
     params.push(param2)
+    // the third param for the function, children : SsrText
+    const childrenType = builder.make_linked_type(std::string_view("SsrText"), root.support.ssrTextLinkedNode, loc);
+    const param3 = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
+    params.push(param3)
+    root.support.childrenParamNode = param3 as *mut ASTNode;
     // add a body
     funcDecl.add_body();
 

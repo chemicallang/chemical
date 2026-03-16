@@ -47,6 +47,16 @@ public func preact_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
     root.support.pageNode = param as *mut ASTNode
     fix_support_page_node(root.support, root.support.pageNode, loc)
 
+    const ssrTextNode = resolver.find("SsrText")
+    if(ssrTextNode != null) {
+        root.support.ssrTextLinkedNode = ssrTextNode
+    }
+
+    const ssrAttrListNode = resolver.find("SsrAttributeList")
+    if(ssrAttrListNode != null) {
+        root.support.ssrAttributeListNode = ssrAttrListNode
+    }
+
     root.signature.functionNode = funcDecl;
 
 }

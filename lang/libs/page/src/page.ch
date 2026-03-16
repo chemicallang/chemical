@@ -74,6 +74,14 @@ public struct HtmlPage {
         pageHtml.append_double(value, 3)
     }
 
+    func get_html_size(&self) : ubigint {
+        return pageHtml.size();
+    }
+
+    func truncate_html(&mut self, size : ubigint) {
+        pageHtml.resize_unsafe(size);
+    }
+
     func append_head(&mut self, value : *char, len : size_t) {
         pageHead.append_with_len(value, len);
     }

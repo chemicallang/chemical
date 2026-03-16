@@ -513,6 +513,12 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId as *mut Value)
         call.get_args().push(converter.builder.make_null_value(intrinsics::get_raw_location()))
+        
+        // Pass empty SsrText as the 3rd argument
+        const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, intrinsics::get_raw_location());
+        ssrTextStructVal.add_value("data", converter.builder.make_null_value(intrinsics::get_raw_location()));
+        ssrTextStructVal.add_value("size", converter.builder.make_ubigint_value(0, intrinsics::get_raw_location()));
+        call.get_args().push(ssrTextStructVal as *mut Value)
         converter.vec.push(call as *mut ASTNode)
 
         return;

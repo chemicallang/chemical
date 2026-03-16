@@ -267,8 +267,25 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.JSXExpressionContainer => {
              var container = node as *mut JsJSXExpressionContainer
              if(converter.target == BufferType.HTML) {
-                 if(container.expression != null && container.expression.kind == JsNodeKind.ChemicalValue) {
-                     converter.convertChemicalValue(container.expression as *mut JsChemicalValue);
+                 if(container.expression != null) {
+                     if(container.expression.kind == JsNodeKind.ChemicalValue) {
+                         converter.convertChemicalValue(container.expression as *mut JsChemicalValue);
+                     } else if(converter.is_props_children(container.expression)) {
+                         const builder = converter.builder;
+                         const location = intrinsics::get_raw_location();
+                          var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+                          var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
+                          
+                          var appendCall = builder.make_function_call_node(
+                              builder.make_access_chain(std::span<*mut Value>([ pageId as *mut Value, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
+                              converter.parent,
+                              location
+                          );
+                          appendCall.get_args().push(builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location));
+                          appendCall.get_args().push(builder.make_access_chain(std::span<*mut Value>([ childrenId as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location));
+                          
+                          converter.vec.push(appendCall as *mut ASTNode);
+                     }
                  }
                  return;
              }
@@ -306,4 +323,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         default => {
         }
     }
+}
+
+func (converter : &mut JsConverter) is_props_children(node : *mut JsNode) : bool {
+    if(node == null || node.kind != JsNodeKind.MemberAccess) return false;
+    const mem = node as *mut JsMemberAccess;
+    if(mem.object == null || mem.object.kind != JsNodeKind.Identifier) return false;
+    const id = mem.object as *mut JsIdentifier;
+    return id.value.equals(view("props")) && mem.property.equals(view("children"));
 }

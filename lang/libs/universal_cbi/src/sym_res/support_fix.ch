@@ -193,6 +193,12 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const getSsrAttributeValueFn = resolver.find("getSsrAttributeValue")
+    if(getSsrAttributeValueFn == null) {
+        resolver.error("couldn't find 'getSsrAttributeValue' node", loc);
+        return false;
+    }
+
     support.ssrAttrLinkedNode = ssrAttrLinkedNode
     support.ssrTextLinkedNode = ssrTextLinkedNode
     support.ssrAttributeValueNode = ssrAttributeValueNode
@@ -200,6 +206,7 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.ssrAttributeListNode = ssrAttributeListNode
     support.renderHtmlAttrs = renderHtmlAttrs
     support.renderJsAttrs = renderJsAttrs
+    support.getSsrAttributeValueFn = getSsrAttributeValueFn
 
     const stdNamespace = resolver.find("std")
     if(stdNamespace == null) {

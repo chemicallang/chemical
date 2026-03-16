@@ -10,6 +10,7 @@ public struct SymResSupport {
     // ssr attribute rendering functions
     var renderHtmlAttrs : *mut ASTNode = null
     var renderJsAttrs : *mut ASTNode = null
+    var getSsrAttributeValueFn : *mut ASTNode = null
 
     var pageNode : *mut ASTNode = null
 

@@ -12,7 +12,7 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
             AttributeValueKind.Text, AttributeValueKind.Number => {
                 const value = attr.value as *mut TextAttributeValue
                 str.append('\"')
-                converter.escapeHtml(std::string_view(value.text.data() + 1, value.text.size() - 2))
+                converter.escapeHtml(strip_js_string_quotes(value.text))
                 str.append('\"')
             }
             AttributeValueKind.Chemical => {

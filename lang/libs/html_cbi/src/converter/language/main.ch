@@ -111,7 +111,7 @@ func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
 }
 
-func (converter : &mut ASTConverter) is_html_entity(text : std::string_view, index : uint) : bool {
+func is_html_entity(text : std::string_view, index : uint) : bool {
     if (index + 2 >= text.size()) return false;
     if (text.data()[index] != '&') return false;
 
@@ -153,16 +153,15 @@ func (converter : &mut ASTConverter) is_html_entity(text : std::string_view, ind
     }
 }
 
-func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
+func escape_html_append(str : &mut std::string, text : std::string_view) {
     var i = 0u;
-    var str = &mut converter.str
     while(i < text.size()) {
         const c1 = (text.data()[i] as uint) & 0xFF;
         if (c1 < 0x80) {
             const c = c1 as char;
             switch(c) {
                 '&' => {
-                    if (converter.is_html_entity(text, i)) {
+                    if (is_html_entity(text, i)) {
                         str.append('&');
                     } else {
                         str.append_view("&amp;");
@@ -209,6 +208,10 @@ func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
             i++;
         }
     }
+}
+
+func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
+    escape_html_append(converter.str, text);
 }
 
 

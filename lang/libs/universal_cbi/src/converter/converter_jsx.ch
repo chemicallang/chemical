@@ -50,13 +50,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         const signature = element.componentSignature;
         const hash = signature.functionNode.getEncodedLocation();
 
-        // 1. Emit the require/if check and C++ call for SSR
-        // The component function itself will handle its own wrapping and hydration entry.
-        var requireCall = converter.make_require_component_call(hash as size_t)
-        var ifStmt = converter.builder.make_if_stmt(requireCall as *mut Value, converter.parent, intrinsics::get_raw_location())
-        var body = ifStmt.get_body()
-
-        body.push(converter.make_set_component_hash_call(hash as size_t))
+        var body = converter.vec
 
         var base = converter.builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, intrinsics::get_raw_location())
         var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
@@ -65,23 +59,31 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         
         const attrs = converter.build_ssr_attributes(element);
         call.get_args().push(converter.builder.make_addr_of_value(attrs, intrinsics::get_raw_location()) as *mut Value);
-        // and now the children argument
-        // 1. Capture current HTML size
+
         const location = intrinsics::get_raw_location();
         const builder = converter.builder;
-        // var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-        
+
+        // if the children is empty, we pass empty ssr text
+        if(element.children.empty()) {
+            // 4. Construct SsrText and pass as 3rd arg
+            const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+            ssrTextStructVal.add_value("data", builder.make_null_value(location));
+            ssrTextStructVal.add_value("size", builder.make_ubigint_value(0, location));
+            call.get_args().push(ssrTextStructVal as *mut Value);
+            body.push(call as *mut ASTNode)
+            return;
+        }
+
+        // and now the children argument
+        // we render the children into page
+        // then take the page's html string and pass it to child component
+
         var getSizeCall = builder.make_function_call_value(
             builder.make_access_chain(std::span<*mut Value>([ pageId as *mut Value, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
             location
         );
         var startIdxVar = builder.make_varinit_stmt(false, false, view("startIdx"), builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
         body.push(startIdxVar as *mut ASTNode);
-
-        // 2. Render children
-        for(var i : uint = 0; i < element.children.size(); i++) {
-             converter.convertJsNode(element.children.get(i));
-        }
 
         // 3. Extract range and truncate
         var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
@@ -91,6 +93,11 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             builder.make_function_call_value(builder.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
             AccessSpecifier.Internal, converter.parent, location);
         body.push(childrenHtmlVar as *mut ASTNode);
+
+        // 2. Render children
+        for(var i : uint = 0; i < element.children.size(); i++) {
+             converter.convertJsNode(element.children.get(i));
+        }
 
         var childrenHtmlId = builder.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
         var appendCall = builder.make_function_call_node(
@@ -123,7 +130,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         // 4. Construct SsrText and pass as 3rd arg
         const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
-        // var childrenHtmlId = builder.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
         
         var dataCall2 = builder.make_function_call_value(
             builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
@@ -141,7 +147,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         
         body.push(call as *mut ASTNode)
 
-        converter.vec.push(ifStmt as *mut ASTNode)
         return;
     }
 

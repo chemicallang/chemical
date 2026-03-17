@@ -87,7 +87,7 @@ public func universal_button_variant(env : &mut TestEnv) {
     #html { <ButtonPrimary>Click Me</ButtonPrimary> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ButtonPrimary"><button class="btn-base btn-primary">Click Me</button></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ButtonPrimary"><button class="btn-primary btn-base">Click Me</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -327,4 +327,4 @@ public func universal_multiple_in_html(env : &mut TestEnv) {
     var str = std::string();
     str.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div><div id="u${page.getComponentId(1)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
-}
+}

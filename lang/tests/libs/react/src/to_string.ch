@@ -20,6 +20,28 @@ public func react_element_in_html_works_head_js(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function react_lib_test_Greeting(props) { return $_r.createElement(\"span\", {}, ` Hello `); }");
 }
 
+@test
+public func react_element_used_twice_in_html_creates_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Greeting /><Greeting />
+    }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_Greeting(props) { return $_r.createElement(\"span\", {}, ` Hello `); }");
+}
+
+#solid GreetingTwice(props) {
+    return <div><Greeting /><Greeting /></div>
+}
+
+@test
+public func react_component_used_twice_emits_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <GreetingTwice />
+    }
+    view_equals(env, page.getHeadJs(), """function react_lib_test_Greeting(props) { return $_r.createElement("span", {}, ` Hello `); }function react_lib_test_GreetingTwice(props) { return $_sh("div", {}, $_s.createComponent(react_lib_test_Greeting, {}), $_s.createComponent(react_lib_test_Greeting, {})); }""");
+}
+
 #react EmptyElement(props) {
     return <span />
 }

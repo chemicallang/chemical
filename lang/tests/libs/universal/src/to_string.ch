@@ -6,7 +6,7 @@ func (page : &HtmlPage) getComponentId(index : size_t) : std::string_view {
     while(i < view.size()) {
         if(view.subview(i, view.size()).starts_with(search)) {
             if(count == index) {
-                var start = i + 4;
+                var start = i + 5;
                 var end = start;
                 while(end < view.size() && view.get(end) != '"') end++;
                 return view.subview(start, end);
@@ -29,7 +29,7 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    str.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 
@@ -38,7 +38,7 @@ public func universal_element_in_html_works_js(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Greeting /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_Greeting',{}]);`)
+    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{},0);return n;}universal_lib_test_Greeting.__hydrate=(root,props,offset=0)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_Greeting',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -51,7 +51,7 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{});return n;}universal_lib_test_Greeting.__hydrate=(root,props)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);function universal_lib_test_ComponentChild(props) {const tpl=document.createElement('template');tpl.innerHTML='<div><span>Hello</span></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ComponentChild.__hydrate(n,props||{});return n;}universal_lib_test_ComponentChild.__hydrate=(root,props)=>{{const c=(window.$_u&&window.$_u['universal_lib_test_Greeting'])||window['universal_lib_test_Greeting'];if(c&&c.__hydrate){c.__hydrate($_ut(root,[0]),{});}}};if(window.$_ureg)window.$_ureg('universal_lib_test_ComponentChild',universal_lib_test_ComponentChild);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ComponentChild',{}]);`)
+    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{},0);return n;}universal_lib_test_Greeting.__hydrate=(root,props,offset=0)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);function universal_lib_test_ComponentChild(props) {const tpl=document.createElement('template');tpl.innerHTML='<div><span>Hello</span></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ComponentChild.__hydrate(n,props||{},0);return n;}universal_lib_test_ComponentChild.__hydrate=(root,props,offset=0)=>{{const c=(window.$_u&&window.$_u['universal_lib_test_Greeting'])||window['universal_lib_test_Greeting'];if(c&&c.__hydrate){c.__hydrate($_ut(root,[0],offset),{},0);}}};if(window.$_ureg)window.$_ureg('universal_lib_test_ComponentChild',universal_lib_test_ComponentChild);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ComponentChild',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -65,11 +65,11 @@ public func universal_class_merge(env : &mut TestEnv) {
     #html { <ClassMerge class="extra" /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_ClassMerge\" class=\"base-class\"></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ClassMerge" class="base-class"></div>`)
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ClassMerge(props) {const tpl=document.createElement('template');tpl.innerHTML='<div class=\"base-class\"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ClassMerge.__hydrate(n,props||{});return n;}universal_lib_test_ClassMerge.__hydrate=(root,props)=>{{const el=$_ut(root,[]);let v=\"\";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=\"\"+x;if(s.length===0)return;if(h)v+=\" \";v+=s;h=true;};a(props.className);a(props.class);a('base-class');if(h) el.setAttribute('class', v);}{const el=$_ut(root,[]);let v=\"\";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=\"\"+x;if(s.length===0)return;if(h)v+=\";\";v+=s;h=true;};a(props.style);if(h) el.setAttribute('style', v);}};if(window.$_ureg)window.$_ureg('universal_lib_test_ClassMerge',universal_lib_test_ClassMerge);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ClassMerge',{\"class\":\"extra\"}]);`)
+    js.append_expr(`function universal_lib_test_ClassMerge(props) {const tpl=document.createElement('template');tpl.innerHTML='<div class="base-class"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ClassMerge.__hydrate(n,props||{},0);return n;}universal_lib_test_ClassMerge.__hydrate=(root,props,offset=0)=>{{const el=$_ut(root,[],offset);let v="";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=""+x;if(s.length===0)return;if(h)v+=" ";v+=s;h=true;};a(props.className);a(props.class);a('base-class');if(h) el.setAttribute('class', v);}{const el=$_ut(root,[],offset);let v="";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=""+x;if(s.length===0)return;if(h)v+=";";v+=s;h=true;};a(props.style);if(h) el.setAttribute('style', v);}};if(window.$_ureg)window.$_ureg('universal_lib_test_ClassMerge',universal_lib_test_ClassMerge);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ClassMerge',{"class":"extra"}]);`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -87,7 +87,7 @@ public func universal_button_variant(env : &mut TestEnv) {
     #html { <ButtonPrimary>Click Me</ButtonPrimary> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_ButtonPrimary\"><button class=\"btn-base btn-primary\">Click Me</button></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ButtonPrimary"><button class="btn-base btn-primary">Click Me</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -103,7 +103,7 @@ public func universal_deep_prop_passing(env : &mut TestEnv) {
     #html { <DeepPropPassing title="Hover Me" label="Text" /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_DeepPropPassing\"><div title=\"Hover Me\"><span>Text</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_DeepPropPassing"><div title="Hover Me"><span>Text</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -119,7 +119,7 @@ public func universal_multi_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MultiChild /> }
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_MultiChild\"><div><span>A</span><span>B</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_MultiChild"><div><span>A</span><span>B</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -133,7 +133,7 @@ public func universal_state_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StateTest /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_StateTest(props) {const tpl=document.createElement('template');tpl.innerHTML='<button><span>0</span></button>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_StateTest.__hydrate(n,props||{});return n;}universal_lib_test_StateTest.__hydrate=(root,props)=>{const count = $_us(0);count.subscribe(v=>$_ut(root,[0]).textContent=v);$_ut(root,[]).addEventListener('click',() => count.value++);};if(window.$_ureg)window.$_ureg('universal_lib_test_StateTest',universal_lib_test_StateTest);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_StateTest',{}]);`)
+    str.append_expr(`function universal_lib_test_StateTest(props) {const tpl=document.createElement('template');tpl.innerHTML='<button><span>0</span></button>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_StateTest.__hydrate(n,props||{},0);return n;}universal_lib_test_StateTest.__hydrate=(root,props,offset=0)=>{const count = $_us(0);count.subscribe(v=>$_ut(root,[0],offset).textContent=v);$_ut(root,[],offset).addEventListener('click',() => count.value++);};if(window.$_ureg)window.$_ureg('universal_lib_test_StateTest',universal_lib_test_StateTest);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_StateTest',{}]);`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -147,7 +147,7 @@ public func universal_nested_universal_ssr(env : &mut TestEnv) {
     #html { <NestedUniversal /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_NestedUniversal\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_NestedUniversal"><span>Hello</span></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -161,7 +161,7 @@ public func universal_nested_universal_props_ssr(env : &mut TestEnv) {
     #html { <NestedUniversalProps title="T" label="L" /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_NestedUniversalProps\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_DeepPropPassing\"><div title=\"T\"><span>L</span></div></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_NestedUniversalProps"><div title="T"><span>L</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -175,7 +175,7 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
     #html { <ConditionalRender show={true} /> }
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement(\"div\", {}, props.show ? $_ur.createElement(\"span\", {}, ${"` Show `"}) : $_ur.createElement(\"span\", {}, ${"` Hide `"})); }if(window.$_ureg)window.$_ureg('universal_lib_test_ConditionalRender',universal_lib_test_ConditionalRender);window.$_uq.push(['${page.getComponentId(0)}','universal_lib_test_ConditionalRender',{\"show\":true}]);`)
+    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, props.show ? $_ur.createElement("span", {}, ${"` Show `"}) : $_ur.createElement("span", {}, ${"` Hide `"})); }if(window.$_ureg)window.$_ureg('universal_lib_test_ConditionalRender',universal_lib_test_ConditionalRender);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ConditionalRender',{"show":true}]);`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -207,7 +207,7 @@ public func universal_spread_and_static_attr_ssr(env : &mut TestEnv) {
     #html { <SpreadAndStaticAttr title="Hello" /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_SpreadAndStaticAttr\"><div title=\"Hello\" id=\"static\" data-val=\"123\"></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_SpreadAndStaticAttr"><div title="Hello" id="static" data-val="123"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -236,7 +236,7 @@ public func universal_frag_parent_ssr(env : &mut TestEnv) {
     #html { <FragParent /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_FragParent\"><div id=\"${page.getComponentId(1)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div><div>Middle</div><div id=\"${page.getComponentId(2)}\" data-u-comp=\"universal_lib_test_Greeting\"><span>Hello</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_FragParent"><span>Hello</span><div>Middle</div><span>Hello</span></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -262,7 +262,7 @@ public func universal_attr_chem_value_ssr(env : &mut TestEnv) {
     #html { <AttrChemValue val={myVal} /> }
     
     var html = std::string()
-    html.append_expr(`<div id=\"${page.getComponentId(0)}\" data-u-comp=\"universal_lib_test_AttrChemValue\"><div data-val=\"42\"></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_AttrChemValue"><div data-val="42"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -313,6 +313,6 @@ public func test_simple_button_works(env : &mut TestEnv) {
     var page = HtmlPage()
     my_button_primary_html(page)
     var html = std::string()
-    html.append_expr(`<div id="${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="my_class dc_2 dc_1">Hello</button></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="my_class dc_2 dc_1">Hello</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

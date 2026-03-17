@@ -268,6 +268,20 @@ func sym_res_root(
     support.requireComponentFn = requireComponentFn
     support.setComponentHashFn = setComponentHashFn;
 
+    const getNextUIdFn = page.child("get_next_u_id")
+    if(getNextUIdFn == null) {
+        resolver.error("'get_next_u_id' function is required on 'page' for universal hydration to work", loc);
+        return false;
+    }
+    support.getNextUIdFn = getNextUIdFn;
+
+    const renderJsAttrs = resolver.find("renderJsAttrs")
+    if(renderJsAttrs == null) {
+        resolver.error("'renderJsAttrs' function is required for universal hydration to work", loc);
+        return false;
+    }
+    support.renderJsAttrs = renderJsAttrs;
+
     for (var i : uint = 0; i < root.components.size(); i += 1) {
         var element = root.components.get(i);
         

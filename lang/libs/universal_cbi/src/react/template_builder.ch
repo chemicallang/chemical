@@ -55,14 +55,16 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         current_func : comp.signature.functionNode
     }
 
-    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, nestedBindings, comp.signature.propsName, converter)) {
+    var nodeCount = 0u;
+    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, nestedBindings, comp.signature.propsName, converter, nodeCount)) {
         return;
     }
+    comp.signature.rootNodeCount = nodeCount;
 
     comp.templateHtml = builder.allocate_view(converter.str.to_view());
 
     var init = std::string();
-    init.append_view("{");
+    init.append_view("(root,props,offset=0)=>{");
     for(var i : uint = 0; i < states.size(); i++) {
         const st = states.get(i);
         init.append_view("const ");
@@ -76,7 +78,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view(b.stateName);
         init.append_view(".subscribe(v=>$_ut(root,");
         init.append_view(b.path);
-        init.append_view(").textContent=v);");
+        init.append_view(",offset).textContent=v);");
     }
     for(var i : uint = 0; i < propBindings.size(); i++) {
         const b = propBindings.get(i);
@@ -84,7 +86,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view(b.propPath);
         init.append_view(";$_ut(root,");
         init.append_view(b.path);
-        init.append_view(").textContent=(v==null?\"\":(\"\"+v));}");
+        init.append_view(",offset).textContent=(v==null?\"\":(\"\"+v));}");
     }
     for(var i : uint = 0; i < nestedBindings.size(); i++) {
         const nb = nestedBindings.get(i);
@@ -94,15 +96,22 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         init.append_view(nb.componentName);
         init.append_view("'];if(c&&c.__hydrate){c.__hydrate($_ut(root,");
         init.append_view(nb.path);
-        init.append_view("),");
+        init.append_view(",offset),");
         init.append_view(nb.propsExpr);
+        init.append_view(",");
+        if(nb.path.equals(view("[]"))) {
+            init.append_view("offset+");
+        }
+        var offsetStr = std::string();
+        offsetStr.append_uinteger(nb.offset as u64);
+        init.append_view(offsetStr.to_view());
         init.append_view(");}}");
     }
     for(var i : uint = 0; i < eventBindings.size(); i++) {
         const e = eventBindings.get(i);
         init.append_view("$_ut(root,");
         init.append_view(e.path);
-        init.append_view(").addEventListener('");
+        init.append_view(",offset).addEventListener('");
         init.append_view(e.eventName);
         init.append_view("',");
         init.append_view(e.handlerExpr);

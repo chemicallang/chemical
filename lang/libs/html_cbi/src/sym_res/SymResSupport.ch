@@ -12,6 +12,9 @@ struct SymResSupport {
 
     var pageNode : *mut ASTNode = null
 
+    // ssr attribute rendering functions
+    var renderJsAttrs : *mut ASTNode = null
+
     // Page Children
 
     var appendHtmlCharFn : *mut ASTNode = null
@@ -59,6 +62,8 @@ struct SymResSupport {
     var requireComponentFn : *mut ASTNode = null
 
     var setComponentHashFn : *mut ASTNode = null
+
+    var getNextUIdFn : *mut ASTNode = null
 
     // capture nodes
     var pageHtmlNode : *mut ASTNode = null

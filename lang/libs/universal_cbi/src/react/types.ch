@@ -24,4 +24,5 @@ struct UniversalNestedBinding {
     var componentName : std::string_view
     var path : std::string_view
     var propsExpr : std::string_view
+    var offset : uint
 }

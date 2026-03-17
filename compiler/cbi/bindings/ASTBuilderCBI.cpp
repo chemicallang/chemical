@@ -470,7 +470,7 @@ DestructStmt* ASTBuildermake_destruct_stmt(ASTBuilder* builder, Value* array_val
     return new (builder->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, false, parent_node, location);
 }
 
-ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {
+ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<ReturnStatement>()) ReturnStatement(value, parent_node, location);
 }
 

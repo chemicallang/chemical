@@ -39,7 +39,7 @@ public func preact_component_used_twice_emits_once(env : &mut TestEnv) {
     #html {
         <GreetingTwice />
     }
-    view_equals(env, page.getHeadJs(), """function preact_lib_test_Greeting(props) { return $_p.h("span", {}, ` Hello `); }function preact_lib_test_GreetingTwice(props) { return $_p.h("div", {}, ``, $_p.h(preact_lib_test_Greeting, {}), ``, $_p.h(preact_lib_test_Greeting, {}), ``); }""");
+    view_equals(env, page.getHeadJs(), """function preact_lib_test_Greeting(props) { return $_p.h("span", {}, ` Hello `); }function preact_lib_test_GreetingTwice(props) { return $_p.h("div", {}, $_p.h(preact_lib_test_Greeting, {}), $_p.h(preact_lib_test_Greeting, {})); }""");
 }
 
 #preact EmptyElement(props) {

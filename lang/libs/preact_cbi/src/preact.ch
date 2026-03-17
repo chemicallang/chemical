@@ -145,22 +145,32 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
     const body = root.signature.functionNode.add_body();
     
     var support = root.support
-
     var converter = JsConverter {
         builder : builder,
         support : &mut support,
         vec : body,
-        parent : root.signature.functionNode as *mut ASTNode,
+        parent : root.signature.functionNode,
         str : std::string(),
         jsx_parent : view(""), // Not used in Preact mode like this
         t_counter : 0
     }
-    
+
     const location = intrinsics::get_raw_location()
+    const hash = value.getEncodedLocation()
+    var requireCall = converter.make_require_component_call(hash as size_t)
+    var notRequire = builder.make_not_value(requireCall, location)
+    var ifStmt = builder.make_if_stmt(notRequire, converter.parent, location)
+    var ifBody = ifStmt.get_body()
+    const returnStmt = builder.make_return_stmt(null, ifStmt, location)
+    ifBody.push(returnStmt)
+
+    body.push(ifStmt)
+    // set the component hash
+    body.push(converter.make_set_component_hash_call(hash as size_t))
 
     // Convert to Preact component function.
     converter.str.append_view("function ")
-    get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str)
+    get_module_scoped_name(root.signature.functionNode, root.signature.name, converter.str)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
     converter.str.append_view(") ")
@@ -171,7 +181,7 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
     
     converter.put_chain_in();
     
-    return root.signature.functionNode as *mut ASTNode;
+    return root.signature.functionNode;
 }
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {

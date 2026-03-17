@@ -176,7 +176,7 @@ extern "C" {
 
     DestructStmt* ASTBuildermake_destruct_stmt(ASTBuilder* builder, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location);
 
-    ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location);
+    ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, ASTNode* parent_node, uint64_t location);
 
     //SwitchStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location);
 

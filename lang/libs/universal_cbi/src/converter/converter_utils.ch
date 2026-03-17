@@ -181,6 +181,41 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     return call;
 }
 
+func (converter : &mut JsConverter) make_ssr_prop_v_call(propName : std::string_view) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    const params = converter.current_func.get_params();
+    const propsParam = params.get(1);
+    if(propsParam == null) return builder.make_null_value(location);
+
+    const propsId = builder.make_identifier("attrs", propsParam, false, location);
+    const propsType = propsParam.getType();
+    const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
+    const nameVal = converter.make_ssr_text(propName, location);
+    const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
+    call.get_args().push(derefProps);
+    call.get_args().push(nameVal);
+    return call;
+}
+
+func (converter : &mut JsConverter) render_ssr_value_call(value : *mut Value) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var fnPtr = if(converter.target == BufferType.HTML) support.renderHtmlAttrValueFn else support.renderJsAttrValueFn;
+    var fnName = if(converter.target == BufferType.HTML) view("renderHtmlAttrValue") else view("renderJsAttrValue");
+
+    var id = builder.make_identifier(fnName, fnPtr, false, location);
+    var call = builder.make_function_call_node(id, converter.parent, location)
+    call.get_args().push(pageId);
+    call.get_args().push(value);
+    return call;
+}
+
 func (converter : &mut JsConverter) put_chain_in() {
     if(converter.str.empty()) return;
 
@@ -188,7 +223,7 @@ func (converter : &mut JsConverter) put_chain_in() {
     const str_view = converter.builder.allocate_view(converter.str.to_view());
     const val = converter.builder.make_string_value(str_view, location);
     const call = converter.make_value_call(val, converter.str.size());
-    converter.vec.push(call as *mut ASTNode);
+    converter.vec.push(call);
     converter.str.clear();
 }
 
@@ -212,7 +247,7 @@ func (converter : &mut JsConverter) put_char_chain(value : char) {
     var args = call.get_args();
     const char_val = converter.builder.make_char_value(value, location);
     args.push(char_val)
-    converter.vec.push(call as *mut ASTNode)
+    converter.vec.push(call)
 }
 
 func (converter : &mut JsConverter) is_html_entity(text : std::string_view, index : uint) : bool {
@@ -308,7 +343,7 @@ func make_ssr_text_val(builder : *mut ASTBuilder, val : &std::string_view, textN
     const structVal = builder.make_struct_value(textNode, location);
     structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
     structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
-    return structVal as *mut Value;
+    return structVal;
 }
 
 func (converter : &mut JsConverter) make_ssr_text(val : &std::string_view, location : ubigint) : *mut Value {
@@ -382,7 +417,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                 const params = converter.current_func.get_params();
                                 const propsParam = params.get(1);
                                 if(propsParam != null) {
-                                    const propsId = builder.make_identifier("props", propsParam, false, location);
+                                    const propsId = builder.make_identifier("attrs", propsParam, false, location);
                                     const propsType = propsParam.getType();
                                     const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
                                     const nameVal = converter.make_ssr_text(mem.property, location);
@@ -412,16 +447,16 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 //  we should check whether its a javascript object, or the props being passed from the current function
                 const params = converter.current_func.get_params()
                 const propsParam = params.get(1)
-                const spread_props = builder.make_identifier("props", propsParam, false, location);
+                const spread_props = builder.make_identifier("attrs", propsParam, false, location);
                 const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
 
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
                 attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
             }
-            attrValues.push(attrStructVal as *mut Value);
+            attrValues.push(attrStructVal);
         }
 
-        listStruct.add_value(std::string_view("data"), arrayValue as *mut Value);
+        listStruct.add_value(std::string_view("data"), arrayValue);
         listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(attributes.size(), location));
     }
 

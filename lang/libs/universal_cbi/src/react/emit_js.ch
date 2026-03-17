@@ -10,23 +10,23 @@ func append_universal_component_js(
 
     var out = &mut converter.str;
     out.append_view("function ");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view("(");
     out.append_view(signature.propsName);
     out.append_view(") {const tpl=document.createElement('template');tpl.innerHTML='");
     converter.escapeJs(comp.templateHtml);
     out.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view(".__hydrate(n,");
     out.append_view(signature.propsName);
     out.append_view("||{},0);return n;}");
 
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view(".__hydrate=");
     out.append_view(comp.hydrationLogic);
     out.append_view(";if(window.$_ureg)window.$_ureg('");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view("',");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
+    get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view(");");
 }

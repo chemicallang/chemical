@@ -44,9 +44,9 @@ func render_universal_jsx(
                         const attrs = converter.build_ssr_attributes(element);
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                         var call = builder.make_function_call_node(builder.make_identifier(std::string_view("renderHtmlAttrs"), converter.support.renderHtmlAttrs, false, location), converter.parent, location);
-                        call.get_args().push(pageId as *mut Value);
-                        call.get_args().push(builder.make_addr_of_value(attrs, location) as *mut Value);
-                        converter.vec.push(call as *mut ASTNode);
+                        call.get_args().push(pageId);
+                        call.get_args().push(builder.make_addr_of_value(attrs, location));
+                        converter.vec.push(call );
                     }
 
                     converter.str.append('>');
@@ -82,13 +82,13 @@ func render_universal_jsx(
                     if(converter.target == BufferType.HTML) {
                         const attrs = converter.build_ssr_attributes(element);
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-                        var call = builder.make_function_call_node(builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location), converter.parent, location);
-                        call.get_args().push(pageId as *mut Value);
-                        call.get_args().push(builder.make_addr_of_value(attrs, location) as *mut Value);
-                        converter.vec.push(call as *mut ASTNode);
+                        var call = builder.make_function_call_node(builder.make_identifier(signature.name, signature.functionNode , false, location), converter.parent, location);
+                        call.get_args().push(pageId);
+                        call.get_args().push(builder.make_addr_of_value(attrs, location));
+                        converter.vec.push(call );
                     } else {
                         converter.str.append_view("$_ur.createElement(");
-                        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
+                        get_module_scoped_name(signature.functionNode , signature.name, converter.str);
                         converter.str.append_view(", ");
                         build_nested_props_expr(converter, element, states);
                         converter.str.append_view(")");

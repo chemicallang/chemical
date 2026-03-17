@@ -46,7 +46,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         builder : builder,
         support : tmpSupport,
         vec : comp.signature.functionNode.add_body(),
-        parent : comp.signature.functionNode as *mut ASTNode,
+        parent : comp.signature.functionNode ,
         str : std::string(),
         jsx_parent : view(""),
         t_counter : 0,

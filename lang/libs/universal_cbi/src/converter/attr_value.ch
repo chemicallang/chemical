@@ -38,7 +38,7 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
             const location = intrinsics::get_raw_location();
             var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
             var id = builder.make_identifier(fnName, writeFn, false, location);
-            const chain = builder.make_access_chain(std::span<*mut Value>([ value as *mut Value, id ]), location)
+            const chain = builder.make_access_chain(std::span<*mut Value>([ value, id ]), location)
             var call = builder.make_function_call_value(chain, location)
             var args = call.get_args();
             args.push(base)

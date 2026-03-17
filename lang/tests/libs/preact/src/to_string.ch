@@ -20,6 +20,28 @@ public func preact_element_in_html_works_head_js(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }");
 }
 
+@test
+public func preact_component_used_twice_in_html_emits_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Greeting /><Greeting />
+    }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_Greeting(props) { return $_p.h(\"span\", {}, ` Hello `); }");
+}
+
+#preact GreetingTwice(props) {
+    return <div><Greeting /><Greeting /></div>
+}
+
+@test
+public func preact_component_used_twice_emits_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <GreetingTwice />
+    }
+    view_equals(env, page.getHeadJs(), """function preact_lib_test_Greeting(props) { return $_p.h("span", {}, ` Hello `); }function preact_lib_test_GreetingTwice(props) { return $_p.h("div", {}, ``, $_p.h(preact_lib_test_Greeting, {}), ``, $_p.h(preact_lib_test_Greeting, {}), ``); }""");
+}
+
 #preact EmptyElement(props) {
     return <span />
 }

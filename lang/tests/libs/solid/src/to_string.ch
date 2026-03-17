@@ -20,6 +20,28 @@ public func solid_element_in_html_works_head_js(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }");
 }
 
+@test
+public func solid_component_used_twice_in_html_emits_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Greeting /><Greeting />
+    }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }");
+}
+
+#solid GreetingTwice(props) {
+    return <div><Greeting /><Greeting /></div>
+}
+
+@test
+public func solid_component_used_twice_emits_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <GreetingTwice />
+    }
+    view_equals(env, page.getHeadJs(), """function solid_lib_test_Greeting(props) { return $_sh("span", {}, ` Hello `); }function solid_lib_test_GreetingTwice(props) { return $_sh("div", {}, $_s.createComponent(solid_lib_test_Greeting, {}), $_s.createComponent(solid_lib_test_Greeting, {})); }""");
+}
+
 #solid EmptyElement(props) {
     return <span />
 }

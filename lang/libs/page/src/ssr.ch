@@ -211,3 +211,11 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append('"')
     }
 }
+
+public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
+    writePrimitiveAttrValue(page.pageHtml, attrVal)
+}
+
+public func renderJsAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
+    writePrimitiveAttrValue(page.pageJs, attrVal)
+}

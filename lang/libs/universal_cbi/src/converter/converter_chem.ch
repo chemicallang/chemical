@@ -1,36 +1,36 @@
 func (converter : &mut JsConverter) put_wrapping(value : *mut Value) {
     const wrapped = converter.builder.make_value_wrapper(value, converter.parent)
-    converter.vec.push(wrapped as *mut ASTNode);
+    converter.vec.push(wrapped);
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_value_in(value : *mut Value) {
     const chain = converter.make_char_ptr_value_call(value)
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_char_value_in(value : *mut Value) {
     var chain = converter.make_char_value_call(value);
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_integer_value_in(value : *mut Value) {
     var chain = converter.make_integer_value_call(value);
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_uinteger_value_in(value : *mut Value) {
     var chain = converter.make_uinteger_value_call(value);
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_float_value_in(value : *mut Value) {
     var chain = converter.make_float_value_call(value);
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_double_value_in(value : *mut Value) {
     var chain = converter.make_double_value_call(value);
-    converter.vec.push(chain as *mut ASTNode)
+    converter.vec.push(chain)
 }
 
 func (converter : &mut JsConverter) put_by_type(type : *mut BaseType, value : *mut Value) {

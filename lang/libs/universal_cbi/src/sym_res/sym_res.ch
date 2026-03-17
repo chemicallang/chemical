@@ -29,7 +29,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     params.push(param);
 
     // resolution of required types and functions for code generation
-    root.support.pageNode = param as *mut ASTNode;
+    root.support.pageNode = param ;
     resolve_page_children(resolver, root.support, root.support.pageNode, loc);
     sym_res_support(resolver, root.support, loc);
 
@@ -42,7 +42,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     const childrenType = builder.make_linked_type(std::string_view("SsrText"), root.support.ssrTextLinkedNode, loc);
     const param3 = builder.make_function_param(std::string_view("children"), childrenType as *mut BaseType, 2, null, false, funcDecl, loc);
     params.push(param3)
-    root.support.childrenParamNode = param3 as *mut ASTNode;
+    root.support.childrenParamNode = param3 ;
     // add a body
     funcDecl.add_body();
 

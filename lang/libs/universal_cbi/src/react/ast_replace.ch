@@ -1,7 +1,7 @@
 @no_mangle
 public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
-    return root.signature.functionNode as *mut ASTNode;
+    return root.signature.functionNode ;
 }
 
 func emit_child_component_js_calls(
@@ -31,20 +31,20 @@ func emit_child_component_js_calls(
                 emitted.push(hash);
 
                 var requireCall = make_require_component_call_static(builder, support, hash, location)
-                var ifStmt = builder.make_if_stmt(requireCall as *mut Value, parent, location)
+                var ifStmt = builder.make_if_stmt(requireCall, parent, location)
                 var thenBody = ifStmt.get_body()
 
                 thenBody.push(make_set_component_hash_call_static(builder, support, hash, parent, location))
 
                 var targetNode = signature.functionNode as *mut FunctionDeclaration;
                 var targetName = signature.name;
-                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
+                var base = builder.make_identifier(targetName, targetNode , false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
-                var call = builder.make_function_call_node(base as *mut Value, parent, location)
-                call.get_args().push(pageId as *mut Value)
-                thenBody.push(call as *mut ASTNode)
+                var call = builder.make_function_call_node(base, parent, location)
+                call.get_args().push(pageId)
+                thenBody.push(call )
 
-                vec.push(ifStmt as *mut ASTNode)
+                vec.push(ifStmt )
             }
         }
     }
@@ -83,7 +83,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         builder : builder,
         support : &mut support,
         vec : body,
-        parent : root.signature.functionNode as *mut ASTNode,
+        parent : root.signature.functionNode ,
         str : std::string(),
         jsx_parent : view(""),
         t_counter : 0,
@@ -94,7 +94,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     const location = intrinsics::get_raw_location()
 
     var emitted = std::vector<size_t>();
-    // emit_child_component_js_calls(builder, root.signature.functionNode as *mut ASTNode, root.components, support, body, emitted, location);
+    // emit_child_component_js_calls(builder, root.signature.functionNode , root.components, support, body, emitted, location);
 
     if(root.body != null && root.body.kind == JsNodeKind.Block) {
         const block = root.body as *mut JsBlock;
@@ -104,7 +104,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             // This ALWAYS happens even if attrs is null, to ensure the component JS is available.
             const selfHash = root.signature.functionNode.getEncodedLocation() as size_t;
             var selfReq = make_require_component_call_static(builder, support, selfHash, location)
-            var selfIf = builder.make_if_stmt(selfReq as *mut Value, converter.parent, location)
+            var selfIf = builder.make_if_stmt(selfReq, converter.parent, location)
             var selfBody = selfIf.get_body()
             selfBody.push(make_set_component_hash_call_static(builder, support, selfHash, converter.parent, location))
             
@@ -112,7 +112,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
                 builder : builder,
                 support : &mut support,
                 vec : selfBody,
-                parent : selfIf as *mut ASTNode,
+                parent : selfIf ,
                 str : std::string(),
                 jsx_parent : view(""),
                 t_counter : 0,
@@ -123,7 +123,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             append_universal_component_js(jsConv, root);
             jsConv.put_chain_in();
             
-            converter.vec.push(selfIf as *mut ASTNode);
+            converter.vec.push(selfIf );
 
             // 2. Early return if attrs is null
             // if(attrs == null) return;
@@ -151,6 +151,6 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 
     var scope = builder.make_scope(root.signature.functionNode.getParent(), location);
     var scope_nodes = scope.getNodes();
-    scope_nodes.push(root.signature.functionNode as *mut ASTNode);
+    scope_nodes.push(root.signature.functionNode );
     return scope;
 }

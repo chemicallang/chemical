@@ -1193,11 +1193,13 @@ void func_call_single_arg(
     }
     auto base_type = val->getType();
     if(isStructLikeTypeDecl || (is_param_type_ref && !is_lambda_conversion && !val->is_stored_ptr_or_ref(visitor.allocator))) {
-        auto allocated = visitor.local_allocated.find(val);
-        if(allocated != visitor.local_allocated.end()) {
-            visitor.write(allocated->second);
-        } else if(accept_value) {
+        if (accept_value) {
             visitor.visit(val);
+        } else {
+            auto allocated = visitor.local_allocated.find(val);
+            if(allocated != visitor.local_allocated.end()) {
+                visitor.write(allocated->second);
+            }
         }
     } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
         visitor.write('(');

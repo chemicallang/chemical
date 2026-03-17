@@ -65,7 +65,7 @@ public func universal_class_merge(env : &mut TestEnv) {
     #html { <ClassMerge class="extra" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ClassMerge" class="base-class"></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ClassMerge"><div class="extra base-class"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()

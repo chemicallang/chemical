@@ -821,7 +821,7 @@ public struct ASTBuilder {
 
     func make_destruct_stmt(&self, array_value : *Value, ptr_value : *Value, is_array : bool, parent_node : *ASTNode, location : ubigint) : *mut DestructStmt
 
-    func make_return_stmt(&self, value : *Value, decl : *FunctionType, parent_node : *ASTNode, location : ubigint) : *mut ReturnStatement
+    func make_return_stmt(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *mut ReturnStatement
 
     //SwitchStatement* ASTBuildermake_return_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 

@@ -14,18 +14,11 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
     // 2. Generate the if(page.require_component(hash)) block to emit component JS.
     if(signature.mountStrategy != MountStrategy.Universal) {
-        var requireCall = converter.make_require_component_call(hash as size_t)
-        var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
-        var body = ifStmt.get_body()
-        body.push(converter.make_set_component_hash_call(hash as size_t))
-
         var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var call = builder.make_function_call_node(base as *mut Value, converter.parent, location)
         call.get_args().push(pageId as *mut Value)
-        body.push(call as *mut ASTNode)
-
-        converter.vec.push(ifStmt as *mut ASTNode)
+        converter.vec.push(call)
     }
 
     // special case for universal component rendering

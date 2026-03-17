@@ -473,6 +473,21 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
+
+    // Non Universal components (probably react)
+    // we make this call to ensure component JS exists
+    if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
+        var targetNode = element.componentSignature.functionNode as *mut FunctionDeclaration;
+        var targetName = element.componentSignature.name;
+        const location = intrinsics::get_raw_location()
+        var base = converter.builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
+        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var call = converter.builder.make_function_call_node(base, converter.parent, location)
+        call.get_args().push(pageId)
+        converter.vec.push(call)
+    }
+
+    // Universal components require special treatment
     if(element.componentSignature != null && element.componentSignature.mountStrategy == MountStrategy.Universal) {
         converter.str.append_view("window.$_pu(");
         if(tagNameNode.kind == JsNodeKind.Identifier) {

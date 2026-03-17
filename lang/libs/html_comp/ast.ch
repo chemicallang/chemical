@@ -18,6 +18,7 @@ public struct ComponentSignature {
     var functionNode : *mut FunctionDeclaration = null
     var mountStrategy : MountStrategy = MountStrategy.Default
     var access : AccessSpecifier = AccessSpecifier.Private
+    var rootNodeCount : uint = 0
 }
 
 public func get_module_scoped_name(functionNode : *mut ASTNode, name : std::string_view, str : &mut std::string) {

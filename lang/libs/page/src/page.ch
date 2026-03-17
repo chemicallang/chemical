@@ -353,8 +353,12 @@ public struct HtmlPage {
     func defaultUniversalSetup(&mut self) {
         pageHead.append_view(std::string_view("""<script>
             // Utility to traverse DOM children by path
-            window.$_ut = window.$_ut || ((e, x) => {
-                for(let i = 0; i < x.length; i++) e = e.children[x[i]];
+            window.$_ut = window.$_ut || ((e, x, offset = 0) => {
+                for(let i = 0; i < x.length; i++) {
+                    let idx = x[i];
+                    if(i === 0) idx += offset;
+                    e = e.childNodes[idx];
+                }
                 return e;
             });
 
@@ -452,9 +456,8 @@ public struct HtmlPage {
                         next.push(q);
                         continue;
                     }
-                    const root = host.firstElementChild || host.firstChild;
-                    if(root && comp.__hydrate) {
-                        comp.__hydrate(root, props);
+                    if(comp.__hydrate) {
+                        comp.__hydrate(host, props, 0);
                     } else if(comp) {
                         const node = window.$_uc ? window.$_uc(comp, props) : comp(props);
                         if(node) {

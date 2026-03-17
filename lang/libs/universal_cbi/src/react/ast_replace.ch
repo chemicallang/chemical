@@ -143,72 +143,9 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             const pageId2 = builder.make_identifier(std::string_view("page"), support.pageNode, false, location2);
             const second_param2 = curr_func_params.get(1);
 
-            // Generate unique uId: var uId = page.get_next_u_id();
-            const chain = builder.make_access_chain(std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("get_next_u_id"), support.getNextUIdFn, false, location2) ]), location2);
-            var getNextIdCall = builder.make_function_call_value(chain, location2);
-            var uIdDecl = builder.make_varinit_stmt(true, false, std::string_view("uId"), null, getNextIdCall, AccessSpecifier.Internal, converter.parent, location2);
-            converter.vec.push(uIdDecl);
-            var uIdVal = builder.make_identifier(std::string_view("uId"), uIdDecl, false, location2);
-
-            // Emit <div id="u
-            converter.str.append_view("<div id=\"u");
-            converter.put_chain_in();
-            
-            // Emit uId
-            const chain2 = builder.make_access_chain(std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("append_html_uinteger"), support.appendHtmlUIntFn, false, location2) ]), location2);
-            var appendUIntCall = builder.make_function_call_node(chain2, converter.parent, location2);
-            appendUIntCall.get_args().push(uIdVal as *mut Value);
-            converter.vec.push(appendUIntCall as *mut ASTNode);
-
-            // Emit " data-u-comp="
-            converter.str.append_view("\" data-u-comp=\"");
-            get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, converter.str);
-            converter.str.append_view("\">");
-            converter.put_chain_in();
-
             // Emit the actual component content
             converter.convertJsNode(returned);
             converter.put_chain_in();
-
-            // Emit </div>
-            converter.str.append_view("</div>");
-            converter.put_chain_in();
-
-            // 4. Hydration call: window.$_uq.push(['u{uId}', 'Name', {props}])
-            // This goes to HeadJS (or just JS)
-            const jsHeaderId = builder.make_identifier(std::string_view("append_js_char_ptr"), support.appendHeadJsCharPtrFn, false, location2);
-            const jsHeaderChain = builder.make_access_chain(std::span<*mut Value>([ pageId2, jsHeaderId ]), location2);
-            
-            // window.$_uq.push(['u
-            var callPushStart = builder.make_function_call_node(jsHeaderChain, converter.parent, location2);
-            callPushStart.get_args().push(builder.make_string_value(view("window.$_uq.push(['u"), location2));
-            converter.vec.push(callPushStart as *mut ASTNode);
-
-            // {uId}
-            var jsUIntId = builder.make_identifier(std::string_view("append_js_uinteger"), support.appendHeadJsUIntFn, false, location2);
-            var jsUIntChain = builder.make_access_chain(std::span<*mut Value>([ pageId2, jsUIntId ]), location2);
-            var callPushId = builder.make_function_call_node(jsUIntChain, converter.parent, location2);
-            callPushId.get_args().push(uIdVal as *mut Value);
-            converter.vec.push(callPushId as *mut ASTNode);
-
-            // ', 'Name', {
-            var pushMidStr = std::string("','");
-            get_module_scoped_name(root.signature.functionNode as *mut ASTNode, root.signature.name, pushMidStr);
-            pushMidStr.append_view("',{");
-            var callPushMid = builder.make_function_call_node(jsHeaderChain, converter.parent, location2);
-            callPushMid.get_args().push(builder.make_string_value(builder.allocate_view(pushMidStr.to_view()), location2));
-            converter.vec.push(callPushMid as *mut ASTNode);
-
-            // {props} -> renderJsAttrs
-            var callAttrs = builder.make_function_call_node(builder.make_identifier(std::string_view("renderJsAttrs"), support.renderJsAttrs, false, location2), converter.parent, location2);
-            callAttrs.get_args().push(pageId2 as *mut Value);
-            callAttrs.get_args().push(builder.make_identifier(std::string_view("attrs"), second_param2, false, location2));
-            converter.vec.push(callAttrs as *mut ASTNode);
-
-            // }]);
-            var callPushEnd = builder.make_function_call_node(jsHeaderChain, converter.parent, location2);
-            callPushEnd.get_args().push(builder.make_string_value(view("}]);"), location2));
-            converter.vec.push(callPushEnd as *mut ASTNode);
         }
     }
 

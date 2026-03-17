@@ -19,12 +19,10 @@ func append_universal_component_js(
     get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
     out.append_view(".__hydrate(n,");
     out.append_view(signature.propsName);
-    out.append_view("||{});return n;}");
+    out.append_view("||{},0);return n;}");
 
     get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);
-    out.append_view(".__hydrate=(root,");
-    out.append_view(signature.propsName);
-    out.append_view(")=>");
+    out.append_view(".__hydrate=");
     out.append_view(comp.hydrationLogic);
     out.append_view(";if(window.$_ureg)window.$_ureg('");
     get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *out);

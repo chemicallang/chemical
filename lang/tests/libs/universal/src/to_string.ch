@@ -316,3 +316,15 @@ public func test_simple_button_works(env : &mut TestEnv) {
     html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="my_class dc_2 dc_1">Hello</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
+
+@test
+public func universal_multiple_in_html(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Greeting />
+        <Greeting />
+    }
+    var str = std::string();
+    str.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div><div id="u${page.getComponentId(1)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    view_equals(env, page.getHtml(), str.to_view());
+}

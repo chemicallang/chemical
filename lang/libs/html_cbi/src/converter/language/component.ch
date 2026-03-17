@@ -126,9 +126,15 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         var pageIdWrapp = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
         var getNextIdChain = builder.make_access_chain(std::span<*mut Value>([ pageIdWrapp, builder.make_identifier(std::string_view("get_next_u_id"), converter.support.getNextUIdFn, false, location) ]), location);
         var getNextIdCall = builder.make_function_call_value(getNextIdChain, location);
-        var uIdVar = builder.make_varinit_stmt(true, false, std::string_view("uId"), null, getNextIdCall, AccessSpecifier.Internal, converter.parent, location);
+
+        var uIdNameStr = std::string();
+        uIdNameStr.append_view("uId_");
+        uIdNameStr.append_integer(element.loc as bigint);
+        var uIdName = builder.allocate_view(uIdNameStr.to_view());
+
+        var uIdVar = builder.make_varinit_stmt(true, false, uIdName, null, getNextIdCall, AccessSpecifier.Internal, converter.parent, location);
         converter.vec.push(uIdVar);
-        var uIdVal = builder.make_identifier(std::string_view("uId"), uIdVar, false, location);
+        var uIdVal = builder.make_identifier(uIdName, uIdVar, false, location);
 
         // 2. Emit <div id="u
         converter.str.append_view("<div id=\"u");
@@ -169,7 +175,13 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 builder2.make_access_chain(std::span<*mut Value>([ pageId2 as *mut Value, builder2.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
                 location
             );
-            var startIdxVar = builder2.make_varinit_stmt(false, false, view("startIdx"), builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+
+            var startIdxNameStr = std::string();
+            startIdxNameStr.append_view("startIdx_");
+            startIdxNameStr.append_integer(element.loc as bigint);
+            var startIdxName = builder2.allocate_view(startIdxNameStr.to_view());
+
+            var startIdxVar = builder2.make_varinit_stmt(false, false, startIdxName, builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
             converter.vec.push(startIdxVar as *mut ASTNode);
 
             // 2. Render children
@@ -184,18 +196,23 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             var pageId3 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
             var pageHtmlAccess = builder2.make_access_chain(std::span<*mut Value>([ pageId3 as *mut Value, builder2.make_identifier(view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
 
-            var childrenHtmlVar = builder2.make_varinit_stmt(false, false, view("childrenHtml"), null,
+            var childrenHtmlNameStr = std::string();
+            childrenHtmlNameStr.append_view("childrenHtml_");
+            childrenHtmlNameStr.append_integer(element.loc as bigint);
+            var childrenHtmlName = builder2.allocate_view(childrenHtmlNameStr.to_view());
+
+            var childrenHtmlVar = builder2.make_varinit_stmt(false, false, childrenHtmlName, null,
                 builder2.make_function_call_value(builder2.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
                 AccessSpecifier.Internal, converter.parent, location);
             converter.vec.push(childrenHtmlVar as *mut ASTNode);
 
-            var childrenHtmlId = builder2.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
+            var childrenHtmlId = builder2.make_identifier(childrenHtmlName, childrenHtmlVar as *mut ASTNode, false, location);
             var appendCall = builder2.make_function_call_node(
                 builder2.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
                 converter.parent,
                 location
             );
-            var startIdxId = builder2.make_identifier(view("startIdx"), startIdxVar as *mut ASTNode, false, location);
+            var startIdxId = builder2.make_identifier(startIdxName, startIdxVar as *mut ASTNode, false, location);
             var dataCall = builder2.make_function_call_value(
                 builder2.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder2.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
                 location
@@ -215,7 +232,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 converter.parent,
                 location
             );
-            truncateCall.get_args().push(builder2.make_identifier(view("startIdx"), startIdxVar as *mut ASTNode, false, location));
+            truncateCall.get_args().push(builder2.make_identifier(startIdxName, startIdxVar as *mut ASTNode, false, location));
             converter.vec.push(truncateCall as *mut ASTNode);
 
             // 4. Construct SsrText and pass as 3rd arg

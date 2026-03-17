@@ -82,14 +82,24 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
             location
         );
-        var startIdxVar = builder.make_varinit_stmt(false, false, view("startIdx"), builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        var startIdxNameStr = std::string();
+        startIdxNameStr.append_view("startIdx_");
+        startIdxNameStr.append_integer(location as bigint);
+        var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
+
+        var startIdxVar = builder.make_varinit_stmt(false, false, startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
         body.push(startIdxVar);
 
         // 3. Extract range and truncate
         var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
         var pageHtmlAccess = builder.make_access_chain(std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
 
-        var childrenHtmlVar = builder.make_varinit_stmt(false, false, view("childrenHtml"), null, 
+        var childrenHtmlNameStr = std::string();
+        childrenHtmlNameStr.append_view("childrenHtml_");
+        childrenHtmlNameStr.append_integer(location as bigint);
+        var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
+
+        var childrenHtmlVar = builder.make_varinit_stmt(false, false, childrenHtmlName, null, 
             builder.make_function_call_value(builder.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
             AccessSpecifier.Internal, converter.parent, location);
         body.push(childrenHtmlVar);
@@ -99,13 +109,13 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
              converter.convertJsNode(element.children.get(i));
         }
 
-        var childrenHtmlId = builder.make_identifier(view("childrenHtml"), childrenHtmlVar , false, location);
+        var childrenHtmlId = builder.make_identifier(childrenHtmlName, childrenHtmlVar , false, location);
         var appendCall = builder.make_function_call_node(
             builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
             converter.parent,
             location
         );
-        var startIdxId = builder.make_identifier(view("startIdx"), startIdxVar , false, location);
+        var startIdxId = builder.make_identifier(startIdxName, startIdxVar , false, location);
         var dataCall = builder.make_function_call_value(
             builder.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
             location
@@ -125,7 +135,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             converter.parent,
             location
         );
-        truncateCall.get_args().push(builder.make_identifier(view("startIdx"), startIdxVar , false, location));
+        truncateCall.get_args().push(builder.make_identifier(startIdxName, startIdxVar , false, location));
         body.push(truncateCall );
 
         // 4. Construct SsrText and pass as 3rd arg

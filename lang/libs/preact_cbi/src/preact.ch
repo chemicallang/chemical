@@ -157,46 +157,6 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
     }
     
     const location = intrinsics::get_raw_location()
-    
-    var emitted = std::vector<size_t>();
-    
-    for(var i : uint = 0; i < root.components.size(); i++) {
-        const element = root.components.get(i);
-        if(element.componentSignature != null) {
-            const signature = element.componentSignature;
-            const hash = signature.functionNode.getEncodedLocation() as size_t;
-            
-            var already_emitted = false;
-            for(var j : uint = 0; j < emitted.size(); j++) {
-                if(emitted.get(j) == hash) {
-                    already_emitted = true;
-                    break;
-                }
-            }
-            
-            if(!already_emitted) {
-                emitted.push(hash);
-                
-                converter.put_chain_in()
-                
-                var requireCall = converter.make_require_component_call(hash)
-                var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
-                var thenBody = ifStmt.get_body()
-                
-                thenBody.push(converter.make_set_component_hash_call(hash))
-                
-                var targetNode = signature.functionNode as *mut FunctionDeclaration;
-                var targetName = signature.name;
-                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
-                var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-                var call = builder.make_function_call_node(base, converter.parent, location)
-                call.get_args().push(pageId as *mut Value)
-                thenBody.push(call as *mut ASTNode)
-                
-                converter.vec.push(ifStmt as *mut ASTNode)
-            }
-        }
-    }
 
     // Convert to Preact component function.
     converter.str.append_view("function ")

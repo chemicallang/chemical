@@ -92,9 +92,7 @@ public func universal_button_variant(env : &mut TestEnv) {
 }
 
 #universal DeepPropPassing(props) {
-    return <div title={props.title}>
-        <span>{props.label}</span>
-    </div>
+    return <div title={props.title}><span>{props.label}</span></div>
 }
 
 @test
@@ -108,10 +106,7 @@ public func universal_deep_prop_passing(env : &mut TestEnv) {
 }
 
 #universal MultiChild(props) {
-    return <div>
-        <span>A</span>
-        <span>B</span>
-    </div>
+    return <div><span>A</span><span>B</span></div>
 }
 
 @test
@@ -223,11 +218,7 @@ public func universal_complex_class_merge_js(env : &mut TestEnv) {
 }
 
 #universal FragParent(props) {
-    return <>
-        <Greeting />
-        <div>Middle</div>
-        <Greeting />
-    </>
+    return <><Greeting /><div>Middle</div><Greeting /></>
 }
 
 @test

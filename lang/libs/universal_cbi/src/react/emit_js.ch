@@ -1,6 +1,7 @@
 func append_universal_component_js(
     converter : &mut JsConverter,
-    comp : *mut JsComponentDecl
+    comp : *mut JsComponentDecl,
+    appendCall : *mut ASTNode
 ) {
     if(comp == null) return;
     const signature = &mut comp.signature;
@@ -14,7 +15,9 @@ func append_universal_component_js(
     out.append_view("(");
     out.append_view(signature.propsName);
     out.append_view(") {const tpl=document.createElement('template');tpl.innerHTML='");
-    converter.escapeJs(comp.templateHtml);
+    converter.put_chain_in();
+    converter.vec.push(appendCall)
+
     out.append_view("';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);");
     get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view(".__hydrate(n,");

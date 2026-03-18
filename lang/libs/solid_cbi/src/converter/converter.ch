@@ -7,6 +7,7 @@ struct JsConverter {
     var str : std::string
     var jsx_parent : std::string_view
     var t_counter : int = 0
+    var current_func : *mut FunctionDeclaration = null
 }
 
 func (converter : &mut JsConverter) append_hex(val : uint) {
@@ -602,18 +603,20 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.str.append_view(")");
 
         // Call UniversalComponent(page, null) to ensure JS generation
-        var base = converter.builder.make_identifier(element.componentSignature.name, element.componentSignature.functionNode as *mut ASTNode, false, intrinsics::get_raw_location())
-        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
-        var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
-        call.get_args().push(pageId as *mut Value)
-        call.get_args().push(converter.builder.make_null_value(intrinsics::get_raw_location()))
+        const location = intrinsics::get_raw_location()
+        var base = converter.builder.make_identifier(element.componentSignature.name, element.componentSignature.functionNode as *mut ASTNode, false, location)
+        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var call = converter.builder.make_function_call_node(base, converter.parent, location)
+        call.get_args().push(pageId)
+        const ssrAttrs = converter.build_ssr_attributes(element);
+        call.get_args().push(converter.builder.make_addr_of_value(ssrAttrs, location))
         
         // Pass empty SsrText as the 3rd argument
-        const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, intrinsics::get_raw_location());
-        ssrTextStructVal.add_value("data", converter.builder.make_null_value(intrinsics::get_raw_location()));
-        ssrTextStructVal.add_value("size", converter.builder.make_ubigint_value(0, intrinsics::get_raw_location()));
-        call.get_args().push(ssrTextStructVal as *mut Value)
-        converter.vec.push(call as *mut ASTNode)
+        const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+        ssrTextStructVal.add_value("data", converter.builder.make_null_value(location));
+        ssrTextStructVal.add_value("size", converter.builder.make_ubigint_value(0, location));
+        call.get_args().push(ssrTextStructVal)
+        converter.vec.push(call)
 
         return;
     }

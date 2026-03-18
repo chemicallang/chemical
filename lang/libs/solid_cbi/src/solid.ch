@@ -47,15 +47,7 @@ public func solid_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     root.support.pageNode = param as *mut ASTNode
     fix_support_page_node(root.support, root.support.pageNode, loc)
 
-    const ssrTextNode = resolver.find("SsrText")
-    if(ssrTextNode != null) {
-        root.support.ssrTextLinkedNode = ssrTextNode
-    }
-
-    const ssrAttrListNode = resolver.find("SsrAttributeList")
-    if(ssrAttrListNode != null) {
-        root.support.ssrAttributeListNode = ssrAttrListNode
-    }
+    sym_res_ssr_support(resolver, root.support, loc)
 
     root.signature.functionNode = funcDecl;
 
@@ -152,7 +144,8 @@ public func solid_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
         parent : root.signature.functionNode,
         str : std::string(),
         jsx_parent : view(""), // Not used in Preact mode like this
-        t_counter : 0
+        t_counter : 0,
+        current_func : root.signature.functionNode
     }
 
     const location = intrinsics::get_raw_location()

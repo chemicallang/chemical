@@ -205,3 +205,10 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
         }
     }
 }
+
+func make_ssr_text_val(builder : *mut ASTBuilder, val : &std::string_view, textNode : *mut ASTNode, location : ubigint) : *mut Value {
+    const structVal = builder.make_struct_value(textNode, location);
+    structVal.add_value(std::string_view("data"), builder.make_string_value(val, location));
+    structVal.add_value(std::string_view("size"), builder.make_ubigint_value(val.size(), location));
+    return structVal;
+}

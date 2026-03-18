@@ -138,6 +138,20 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             ifNullStmt.get_body().push(returnStmt);
             converter.vec.push(ifNullStmt);
 
+            // 2. Reset attributes if they are NULL
+            // if(no_ssr_html) {
+            //  attrs = &SsrAttributeList { data : null, size : 0 }
+            // }
+            var ifNoAttrs = builder.make_if_stmt(no_ssr_html_id, converter.parent, location);
+            const ifNoAttrsBody = ifNoAttrs.get_body();
+            const listStruct = builder.make_struct_value(converter.support.ssrAttributeListNode, location);
+            listStruct.add_value(std::string_view("data"), builder.make_null_value(location));
+            listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(0, location));
+            const addrOf = builder.make_addr_of_value(listStruct, location)
+            const assign = builder.make_assignment_stmt(attrsId, addrOf, Operation.Assignment, ifNoAttrs, location)
+            ifNoAttrsBody.push(assign)
+            converter.vec.push(ifNoAttrs)
+
             // 2. Record html index
             // var ssr_html_index = page.get_html_size()
             var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
@@ -176,7 +190,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             append_universal_component_js(converter, root, appendCall);
             converter.put_chain_in();
 
-            // 2. Remove html if no_ssr_html
+            // 5. Remove html if no_ssr_html
             // if(no_ssr_html) {
             //  page.truncate_html(ssr_html_index)
             // }

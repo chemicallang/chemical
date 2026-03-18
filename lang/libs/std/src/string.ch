@@ -169,16 +169,16 @@ public struct string : Hashable, Eq {
         }
     }
 
-    func resize_unsafe(&self, value : size_t) {
+    func resize_unsafe(&mut self, value : size_t) {
+        ensure_mut(value + 1);
         switch(state) {
-            '0' => {
-                storage.constant.length = value;
-            }
             '1' => {
-                storage.sso.length = value;
+                storage.sso.length = value as uchar;
+                storage.sso.buffer[value] = '\0';
             }
             '2' => {
                 storage.heap.length = value;
+                storage.heap.data[value] = '\0';
             }
             default => {
                 return

@@ -114,7 +114,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     output.append(' ');
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
-                    writePrimitiveAttrValue(page.pageHtml, d.value)
+                    writePrimitiveAttrValue(*output, d.value)
                     output.append_view("\"")
                 }
             }
@@ -134,7 +134,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" class=\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(page.pageHtml, *special.classes[i])
+            writePrimitiveAttrValue(*output, *special.classes[i])
         }
         output.append_view("\"")
     }
@@ -144,7 +144,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" style=\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page.pageJs, *special.styles[i])
+            writePrimitiveAttrValue(*output, *special.styles[i])
         }
         output.append_view("\"")
     }
@@ -174,7 +174,7 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
 
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view(":\"")
-                    writePrimitiveAttrValue(page.pageJs, d.value)
+                    writePrimitiveAttrValue(*output, d.value)
                     output.append('"')
                 }
             }
@@ -195,7 +195,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("class:\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ')
-            writePrimitiveAttrValue(page.pageJs, *special.classes[i])
+            writePrimitiveAttrValue(*output, *special.classes[i])
         }
         output.append('"')
         is_first = false
@@ -206,7 +206,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("style:\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';')
-            writePrimitiveAttrValue(page.pageJs, *special.styles[i])
+            writePrimitiveAttrValue(*output, *special.styles[i])
         }
         output.append('"')
     }

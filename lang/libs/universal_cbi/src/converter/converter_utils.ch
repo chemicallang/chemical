@@ -350,6 +350,104 @@ func (converter : &mut JsConverter) make_ssr_text(val : &std::string_view, locat
     return make_ssr_text_val(converter.builder, val, converter.support.ssrTextLinkedNode, location);
 }
 
+func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
+    if(node == null) return false;
+    switch(node.kind) {
+        JsNodeKind.Literal => {
+            out.append_view((node as *mut JsLiteral).value);
+            return true;
+        }
+        JsNodeKind.Identifier => {
+            out.append_view((node as *mut JsIdentifier).value);
+            return true;
+        }
+        JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            if(!append_js_node_text(mem.object, out)) return false;
+            out.append('.');
+            out.append_view(mem.property);
+            return true;
+        }
+        JsNodeKind.IndexAccess => {
+            const idx = node as *mut JsIndexAccess;
+            if(!append_js_node_text(idx.object, out)) return false;
+            out.append('[');
+            if(!append_js_node_text(idx.index, out)) return false;
+            out.append(']');
+            return true;
+        }
+        JsNodeKind.UnaryOp => {
+            const unary = node as *mut JsUnaryOp;
+            if(unary.prefix) {
+                out.append_view(unary.operator);
+                return append_js_node_text(unary.operand, out);
+            }
+            if(!append_js_node_text(unary.operand, out)) return false;
+            out.append_view(unary.operator);
+            return true;
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            if(!append_js_node_text(bin.left, out)) return false;
+            out.append(' ');
+            out.append_view(bin.op);
+            out.append(' ');
+            return append_js_node_text(bin.right, out);
+        }
+        JsNodeKind.Ternary => {
+            const tern = node as *mut JsTernary;
+            if(!append_js_node_text(tern.condition, out)) return false;
+            out.append_view(" ? ");
+            if(!append_js_node_text(tern.consequent, out)) return false;
+            out.append_view(" : ");
+            return append_js_node_text(tern.alternate, out);
+        }
+        JsNodeKind.FunctionCall => {
+            const call = node as *mut JsFunctionCall;
+            if(!append_js_node_text(call.callee, out)) return false;
+            out.append('(');
+            for(var i : uint = 0; i < call.args.size(); i++) {
+                if(i > 0) out.append_view(", ");
+                if(!append_js_node_text(call.args.get(i), out)) return false;
+            }
+            out.append(')');
+            return true;
+        }
+        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
+            const arr = node as *mut JsArrayLiteral;
+            out.append('[');
+            for(var i : uint = 0; i < arr.elements.size(); i++) {
+                if(i > 0) out.append_view(", ");
+                const elem = arr.elements.get(i);
+                if(elem != null && !append_js_node_text(elem, out)) return false;
+            }
+            out.append(']');
+            return true;
+        }
+        JsNodeKind.ObjectLiteral => {
+            const obj = node as *mut JsObjectLiteral;
+            out.append('{');
+            for(var i : uint = 0; i < obj.properties.size(); i++) {
+                if(i > 0) out.append_view(", ");
+                const prop = obj.properties.get(i);
+                out.append_view(prop.key);
+                out.append_view(": ");
+                if(!append_js_node_text(prop.value, out)) return false;
+            }
+            out.append('}');
+            return true;
+        }
+        default => return false
+    }
+}
+
+func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode, outText : &mut std::string_view) : bool {
+    var text = std::string();
+    if(!append_js_node_text(node, text)) return false;
+    outText = builder.allocate_view(text.to_view());
+    return true;
+}
+
 func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut JsLiteral, attrValConv : &mut AttrValueConverter, location : ubigint) : *mut Value {
     const val = lit.value;
     const builder = converter.builder;
@@ -395,7 +493,8 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
 
                 const attr = attrNode as *mut JsJSXAttribute;
-                attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attr.name, location));
+                const attrName = if(attr.name.equals("className") || attr.name.equals("class")) std::string_view("class") else attr.name;
+                attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attrName, location));
 
                 if(attr.value == null) {
                     const boolVal = builder.make_bool_value(true, location);
@@ -410,6 +509,13 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
                         } else if(container.expression.kind == JsNodeKind.Literal) {
                             attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
+                        } else if(container.expression.kind == JsNodeKind.ObjectLiteral) {
+                            var objText = std::string_view();
+                            if(build_js_node_text_view(builder, container.expression, objText)) {
+                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(objText, location)));
+                            } else {
+                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
+                            }
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
                             var handled = false

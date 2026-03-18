@@ -196,6 +196,9 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
             // a pointer to other than char, or uchar, we cannot handle it
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
         }
+        BaseTypeKind.String => {
+            return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
+        }
         default => {
             // unknown type of value being appended
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);

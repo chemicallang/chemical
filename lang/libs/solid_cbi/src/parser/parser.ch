@@ -573,7 +573,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         if(t.type == JsTokenType.Dot as int) {
             parser.increment();
             const idToken = parser.getToken();
-            if(idToken.type != JsTokenType.Identifier as int) {
+            if(idToken.type != JsTokenType.Identifier as int && idToken.type != JsTokenType.Class as int) {
                 parser.error("expected identifier after dot");
                 break;
             }

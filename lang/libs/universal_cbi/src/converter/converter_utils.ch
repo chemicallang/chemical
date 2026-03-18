@@ -441,11 +441,10 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
     }
 }
 
-func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode, outText : &mut std::string_view) : bool {
+func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode) : std::string_view {
     var text = std::string();
-    if(!append_js_node_text(node, text)) return false;
-    outText = builder.allocate_view(text.to_view());
-    return true;
+    if(!append_js_node_text(node, text)) return std::string_view();
+    return builder.allocate_view(text.to_view());
 }
 
 func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut JsLiteral, attrValConv : &mut AttrValueConverter, location : ubigint) : *mut Value {
@@ -493,7 +492,8 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
 
                 const attr = attrNode as *mut JsJSXAttribute;
-                const attrName = if(attr.name.equals("className") || attr.name.equals("class")) std::string_view("class") else attr.name;
+                const isClass = attr.name.equals("className") || attr.name.equals("class")
+                const attrName = if(isClass) std::string_view("class") else attr.name;
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attrName, location));
 
                 if(attr.value == null) {
@@ -511,11 +511,12 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
                         } else if(container.expression.kind == JsNodeKind.ObjectLiteral) {
                             var objText = std::string_view();
-                            if(build_js_node_text_view(builder, container.expression, objText)) {
-                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(objText, location)));
+                            if(attr.name.equals("style")) {
+                                objText = build_js_node_text_view_style_attr(builder, container.expression as *mut JsObjectLiteral)
                             } else {
-                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
+                                objText = build_js_node_text_view(builder, container.expression)
                             }
+                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(objText, location)));
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
                             var handled = false

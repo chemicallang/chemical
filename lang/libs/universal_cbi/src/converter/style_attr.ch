@@ -89,6 +89,22 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
     }
 }
 
+func append_kebab_case(input: std::string_view, out: &mut std::string) {
+    for (var i: uint = 0; i < input.size(); i++) {
+        const c = input.get(i);
+        if (c >= 'A' && c <= 'Z') {
+            // Add a hyphen if it's not the very first character
+            if (i > 0) {
+                out.append('-');
+            }
+            // Convert to lowercase (ASCII offset)
+            out.append((c + 32) as char);
+        } else {
+            out.append(c);
+        }
+    }
+}
+
 func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut JsObjectLiteral) : std::string_view {
     var out = std::string();
     for(var i : uint = 0; i < obj.properties.size(); i++) {
@@ -101,7 +117,7 @@ func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut Js
         } else {
             // quotes weren't stripped from property key
             // must make sure borderRadius translates to border-radius
-            out.append_view(prop.key);
+            append_kebab_case(prop.key, out);
         }
         out.append(':');
         if(!append_style_js_node_text(prop.value, out)) break;

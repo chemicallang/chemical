@@ -41,6 +41,7 @@ public struct SymResSupport {
 
     // capture nodes
     var pageHtmlNode : *mut ASTNode = null
+    var pageJsNode : *mut ASTNode = null
     var getHtmlSizeFn : *mut ASTNode = null
     var truncateHtmlFn : *mut ASTNode = null
     var stringNodeMake : *mut ASTNode = null

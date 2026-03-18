@@ -142,9 +142,15 @@ func resolve_page_children(
         resolver.error("'pageHtml' member is required on 'page' for html to work", loc);
         return false;
     }
+    const pageJsNode = page.child("pageJs");
+    if(pageJsNode == null) {
+        resolver.error("'pageJs' member is required on 'page' for js to work", loc);
+        return false;
+    }
     support.getHtmlSizeFn = getHtmlSizeFn;
     support.truncateHtmlFn = truncateHtmlFn;
     support.pageHtmlNode = pageHtmlNode;
+    support.pageJsNode = pageJsNode;
 
     return true
 }

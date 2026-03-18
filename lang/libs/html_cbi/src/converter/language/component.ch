@@ -60,6 +60,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             var attrValConv = AttrValueConverter {
                 pageNode : converter.support.pageNode,
+                ssrTextNode : converter.support.ssrTextLinkedNode,
                 ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
                 multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
                 parent : converter.parent

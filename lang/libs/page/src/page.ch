@@ -11,6 +11,8 @@ public struct HtmlPage {
 
     var pageHeadJs : std::string
 
+    var pageJsEnd : std::string
+
     func getHead(&self) : std::string_view {
         return pageHead.to_view()
     }
@@ -272,9 +274,10 @@ public struct HtmlPage {
         str.append_view(std::string_view("</head>"))
         appendBodyTagStart(str, bodyClass)
         str.append_string(pageHtml)
-        if(!pageJs.empty()) {
+        var finalizedJs = getFinalizedPageJs()
+        if(!finalizedJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(pageJs)
+            str.append_string(finalizedJs)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</body></html>"))
@@ -338,19 +341,88 @@ public struct HtmlPage {
         appendViewportMeta();
     }
 
+    // TODO: why is the preact setup so large, fix that
     func defaultPreactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c,p) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, p || {}), P); e.replaceWith(P); }; window.$_pu = window.$_pu || ((compRef, props, ...children) => { const pp = props ? { ...props } : {}; if(children && children.length) pp.children = children.length === 1 ? children[0] : children; const U = (p2) => { const ref = $_ph.useRef(null); $_ph.useLayoutEffect(() => { const host = ref.current; if(!host) return; let stop = false; let h = 0; const resolve = () => { if(typeof compRef === 'string') { if(window.$_u && window.$_u[compRef]) return window.$_u[compRef]; if(window[compRef]) return window[compRef]; return null; } return compRef; }; const mount = () => { if(stop) return; const comp = resolve(); if(!comp) { h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16); return; } const node = window.$_uc ? window.$_uc(comp, p2 || {}) : null; host.innerHTML = ''; if(node) host.appendChild(node); }; mount(); return () => { stop = true; if(window.cancelAnimationFrame && window.requestAnimationFrame && h) window.cancelAnimationFrame(h); else if(h) clearTimeout(h); }; }, [p2]); return $_p.h('span', { ref }); }; return $_p.h(U, pp); });</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script>"""))
+        pageHeadJs.append_view(std::string_view("""window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c,p) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, p || {}), P); e.replaceWith(P); }; window.$_pu = window.$_pu || ((compRef, props, ...children) => { const pp = props ? { ...props } : {}; if(children && children.length) pp.children = children.length === 1 ? children[0] : children; const U = (p2) => { const ref = $_ph.useRef(null); $_ph.useLayoutEffect(() => { const host = ref.current; if(!host) return; let stop = false; let h = 0; const resolve = () => { if(typeof compRef === 'string') { if(window.$_u && window.$_u[compRef]) return window.$_u[compRef]; if(window[compRef]) return window[compRef]; return null; } return compRef; }; const mount = () => { if(stop) return; const comp = resolve(); if(!comp) { h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16); return; } const node = window.$_uc ? window.$_uc(comp, p2 || {}) : null; host.innerHTML = ''; if(node) host.appendChild(node); }; mount(); return () => { stop = true; if(window.cancelAnimationFrame && window.requestAnimationFrame && h) window.cancelAnimationFrame(h); else if(h) clearTimeout(h); }; }, [p2]); return $_p.h('span', { ref }); }; return $_p.h(U, pp); });"""))
+        // universal component bridge for preact
+        pageHeadJs.append_view(std::string_view("""
+function UniPreactBridge({ html, fnName, props }) {
+    const ref = $_ph.useRef(null);
+    $_ph.useLayoutEffect(() => {
+        const target = ref.current.firstChild;
+        const coreFn = window[fnName];
+        if (coreFn) {
+            coreFn(target, props);
+        } else {
+            window.$__uni_hydration_queue.push([ fnName, target, props ])
+        }
+    }, []);
+    return $_p.h('div', {
+        ref,
+        style: "display: contents",
+        dangerouslySetInnerHTML: { __html: html }
+    });
+}
+const $p_uni_ch = (html, fnName, props) => $_p.h(UniPreactBridge, { html, fnName, props });
+"""))
+    }
+
+    func reactHeadJs(&mut self) {
+        pageHeadJs.append_view(std::string_view("""window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }"""));
+        pageHeadJs.append_view(std::string_view("""
+function UniReactBridge({ html, fnName, props }) {
+    const ref = $_r.useRef(null);
+    $_r.useLayoutEffect(() => {
+        const target = ref.current.firstChild;
+        const coreFn = window[fnName];
+        if (coreFn) {
+            coreFn(target, props);
+        } else {
+            window.$__uni_hydration_queue.push([ fnName, target, props ])
+        }
+    }, []);
+    return $_r.createElement('div', {
+        ref,
+        style: { display: 'contents' },
+        dangerouslySetInnerHTML: { __html: html }
+    });
+}
+const $r_uni_ch = (html, fnName, props) => $_r.createElement(UniReactBridge, { html, fnName, props });
+"""))
     }
 
     func defaultDevelopmentReactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script><script>window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>"""))
+        reactHeadJs()
     }
 
     func defaultReactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script><script>window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>"""))
+        reactHeadJs()
     }
 
     func defaultUniversalSetup(&mut self) {
+        // we must not put anything else in the head js
+        // everything else must go into body js
+        // this is just required for react, solid and preact integration to work
+        pageHeadJs.append_view(std::string_view("""
+window.$__uni_hydration_queue = []
+window.$__universal_flush = function() {
+    const q = window.$__uni_hydration_queue;
+    while (q.length > 0) {
+        const [name, el, props] = q.shift();
+        const fn = window[name];
+        if (typeof fn === 'function') {
+            fn(el, props);
+        } else {
+            console.warn(`Universal hydrator "${name}" not found.`);
+        }
+    }
+};
+"""))
+        pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
+        // TODO: remove these
         pageHead.append_view(std::string_view("""<script>
             // Utility to traverse DOM children by path
             window.$_ut = window.$_ut || ((e, x, offset = 0) => {
@@ -691,7 +763,36 @@ public struct HtmlPage {
     }
 
     func defaultSolidSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script>"""))
+        pageHeadJs.append_view(std::string_view("""window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };"""))
+        pageHeadJs.append_view(std::string_view("""
+function UniSolidBridge(props) {
+   let el;
+   $_s.onMount(() => {
+       const coreFn = window[props.fnName];
+       const target = el.firstChild;
+       if (coreFn) {
+           coreFn(target, props);
+       } else {
+           window.$__uni_hydration_queue.push([ props.fnName, target, props.props ])
+       }
+   });
+   return $_sh("div", {
+       ref: (r) => el = r,
+       style: { display: "contents" },
+       innerHTML: props.html
+   });
+}
+const $s_uni_ch = (html, fnName, props) => $_sh(UniSolidBridge, { html, fnName, props });
+"""))
+    }
+
+    func getFinalizedPageJs(&self) : std::string {
+        var str = std::string();
+        str.reserve(pageJs.size() + pageJsEnd.size())
+        str.append_view(pageJs.to_view())
+        str.append_view(pageJsEnd.to_view())
+        return str;
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist
@@ -764,12 +865,13 @@ public struct HtmlPage {
         }
 
         // {name}.js
-        if(!pageJs.empty()) {
+        var finalizedJs = getFinalizedPageJs()
+        if(!finalizedJs.empty()) {
             const jsFile = std::string(path.data(), path.size())
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".js")
-            fs::write_text_file(jsFile.data(), pageJs.data() as *u8, pageJs.size())
+            fs::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size())
         }
 
     }

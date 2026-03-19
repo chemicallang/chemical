@@ -643,7 +643,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             }
             converter.str.append(']')
         }
-        converter.str.append_view("}); })");
+        converter.str.append_view("}); })()");
         return;
     }
 

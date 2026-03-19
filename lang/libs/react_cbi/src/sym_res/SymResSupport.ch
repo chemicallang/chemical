@@ -14,6 +14,8 @@ public struct SymResSupport {
     var renderJsAttrValueFn : *mut ASTNode = null
     var getSsrAttributeValueFn : *mut ASTNode = null
 
+    var move_html_to_js_with_lambda_start : *mut ASTNode = null
+
     var pageNode : *mut ASTNode = null
     var appendHeadJsFn : *mut ASTNode = null
     var appendHeadJsCharFn : *mut ASTNode = null
@@ -25,4 +27,6 @@ public struct SymResSupport {
 
     var requireComponentFn : *mut ASTNode = null
     var setComponentHashFn : *mut ASTNode = null
+
+    var getHtmlSizeFn : *mut ASTNode = null
 }

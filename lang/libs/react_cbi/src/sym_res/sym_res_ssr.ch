@@ -60,6 +60,12 @@ func sym_res_ssr_support(resolver : *mut SymbolResolver, support : &mut SymResSu
         return false;
     }
 
+    const move_html_to_js_with_lambda_start = resolver.find("move_html_to_js_with_lambda_start");
+    if(move_html_to_js_with_lambda_start == null) {
+        resolver.error("couldn't find 'move_html_to_js_with_lambda_start' node", loc);
+        return false;
+    }
+
     support.ssrAttrLinkedNode = ssrAttrLinkedNode
     support.ssrTextLinkedNode = ssrTextLinkedNode
     support.ssrAttributeValueNode = ssrAttributeValueNode
@@ -70,6 +76,7 @@ func sym_res_ssr_support(resolver : *mut SymbolResolver, support : &mut SymResSu
     support.renderHtmlAttrValueFn = renderHtmlAttrValueFn
     support.renderJsAttrValueFn = renderJsAttrValueFn
     support.getSsrAttributeValueFn = getSsrAttributeValueFn
+    support.move_html_to_js_with_lambda_start = move_html_to_js_with_lambda_start;
 
     return true;
 

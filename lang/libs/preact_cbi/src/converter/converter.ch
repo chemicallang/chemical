@@ -475,32 +475,76 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
 
+    const builder = converter.builder;
+    const componentFunc = element.componentSignature.functionNode;
+
     // Non Universal components (probably react)
     // we make this call to ensure component JS exists
     if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
-        var targetNode = element.componentSignature.functionNode as *mut FunctionDeclaration;
-        var targetName = element.componentSignature.name;
+        // put existing chain in
+        converter.put_chain_in();
+        // the actual call
         const location = intrinsics::get_raw_location()
-        var base = converter.builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
-        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var call = converter.builder.make_function_call_node(base, converter.parent, location)
+        var base = builder.make_identifier(element.componentSignature.name, componentFunc, false, location)
+        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var call = builder.make_function_call_node(base, converter.parent, location)
         call.get_args().push(pageId)
         converter.vec.push(call)
     }
 
     // Universal components require special treatment
     if(element.componentSignature != null && element.componentSignature.mountStrategy == MountStrategy.Universal) {
-        converter.str.append_view("window.$_pu(");
+
+        // 0. Put Existing Chain in
+        converter.put_chain_in();
+
+        // 1. Record Index
+        const location = intrinsics::get_raw_location();
+        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var base = builder.make_identifier(element.componentSignature.name, converter.support.getHtmlSizeFn, false, location)
+        var chain = builder.make_access_chain(std::span<*mut Value>([ pageId, base ]), location)
+        var getSizeCall = builder.make_function_call_value(chain, location)
+        var idxName = std::string("startIdx_")
+        idxName.append_uinteger(componentFunc.getEncodedLocation());
+        const idxNameView = builder.allocate_view(idxName.to_view())
+        const startIdxInit = builder.make_varinit_stmt(true, false, idxNameView, converter.builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        var startIdxId = builder.make_identifier(idxNameView, startIdxInit, false, location)
+        converter.vec.push(startIdxInit)
+
+        // 2. Call UniversalComponent(page, attrs) to ensure JS generation
+        var componentFuncId = converter.builder.make_identifier(element.componentSignature.name, componentFunc, false, location)
+        var call = converter.builder.make_function_call_node(componentFuncId, converter.parent, location)
+        call.get_args().push(pageId)
+        const ssrAttrs = converter.build_ssr_attributes(element);
+        // TODO: remove the addr of
+        call.get_args().push(converter.builder.make_addr_of_value(ssrAttrs, location))
+        // Pass empty SsrText as the 3rd argument
+        const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+        ssrTextStructVal.add_value("data", converter.builder.make_null_value(location));
+        ssrTextStructVal.add_value("size", converter.builder.make_ubigint_value(0, location));
+        call.get_args().push(ssrTextStructVal)
+        converter.vec.push(call)
+
+        // 3. Call move_html_to_js_with_lambda_start with the start index
+        var moveFuncId = converter.builder.make_identifier("move_html_to_js_with_lambda_start", converter.support.move_html_to_js_with_lambda_start, false, location)
+        var moveCall = converter.builder.make_function_call_node(moveFuncId, converter.parent, location)
+        moveCall.get_args().push(pageId)
+        moveCall.get_args().push(startIdxId)
+        converter.vec.push(moveCall)
+
+        // 4. Write the hydration call ending the js lambda scope
+        converter.str.append_view("return $p_uni_ch(html, ");
+        // the component name is passed to the hydration call
         if(tagNameNode.kind == JsNodeKind.Identifier) {
-            converter.str.append_view("\"");
-            get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, converter.str);
-            converter.str.append_view("\"");
+            converter.str.append('"');
+            get_module_scoped_name(componentFunc, tagName, converter.str);
+            converter.str.append('"');
         } else {
             converter.convertJsNode(tagNameNode);
         }
+        // now we pass the attributes
         converter.str.append_view(", {");
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            if(i > 0) converter.str.append_view(", ");
             const attrNode = element.opening.attributes.get(i)
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
                 const attr = attrNode as *mut JsJSXAttribute
@@ -513,32 +557,20 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                 converter.str.append_view("...");
                 converter.convertJsNode(spread.argument);
             }
+            converter.str.append_view(", ");
         }
-        converter.str.append_view("}");
-        if(!element.children.empty()) {
+        // pass the children as prop too
+        if(element.children.empty()) {
+            converter.str.append_view("children : []");
+        } else {
+            converter.str.append_view("children : [");
             for(var i : uint = 0; i < element.children.size(); i++) {
                 converter.str.append_view(", ");
                 converter.convertJsNode(element.children.get(i));
             }
+            converter.str.append(']')
         }
-        converter.str.append_view(")");
-
-        // Call UniversalComponent(page, null) to ensure JS generation
-        const location = intrinsics::get_raw_location()
-        var base = converter.builder.make_identifier(element.componentSignature.name, element.componentSignature.functionNode as *mut ASTNode, false, location)
-        var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var call = converter.builder.make_function_call_node(base, converter.parent, location)
-        call.get_args().push(pageId)
-        const ssrAttrs = converter.build_ssr_attributes(element);
-        call.get_args().push(converter.builder.make_addr_of_value(ssrAttrs, location))
-
-        // Pass empty SsrText as the 3rd argument
-        const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
-        ssrTextStructVal.add_value("data", converter.builder.make_null_value(location));
-        ssrTextStructVal.add_value("size", converter.builder.make_ubigint_value(0, location));
-        call.get_args().push(ssrTextStructVal)
-        converter.vec.push(call)
-
+        converter.str.append_view("}); })");
         return;
     }
 

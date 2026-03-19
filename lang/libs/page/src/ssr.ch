@@ -219,3 +219,15 @@ public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeVal
 public func renderJsAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
     writePrimitiveAttrValue(page.pageJs, attrVal)
 }
+
+// this function allows libraries like preact, solid and react to move rendered html to js buffer
+// then they send the html to a function that creates an element out of it
+// then they hydrate that element, this is usually done for a universal component that renders html for ssr
+public func move_html_to_js_with_lambda_start(page : &mut HtmlPage, index : size_t) {
+    page.pageHeadJs.append_view("\n(() => { const html = `");
+    page.pageHeadJs.append_with_len(page.pageHtml.data() + index, page.pageHtml.size() - index)
+    page.pageHtml.resize_unsafe(index)
+    page.pageHeadJs.append_view("`;")
+    // after this the caller would write something like
+    // create_and_hydrate(html, ComponentFunction, MissingAttributesObject)
+}

@@ -110,6 +110,11 @@ func fix_support_page_node(
         return false;
     }
 
+    const getHtmlSizeFn = page.child("get_html_size")
+    if(getHtmlSizeFn == null) {
+        return false;
+    }
+
     support.requireComponentFn = requireComponentFn;
     support.setComponentHashFn = setComponentHashFn;
 
@@ -120,6 +125,7 @@ func fix_support_page_node(
     support.appendHeadJsUIntFn = appendHeadJsUIntFn;
     support.appendHeadJsFloatFn = appendHeadJsFloatFn;
     support.appendHeadJsDoubleFn = appendHeadJsDoubleFn;
+    support.getHtmlSizeFn = getHtmlSizeFn
 
     return true
 }
@@ -163,7 +169,7 @@ public func react_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
     // Convert to React element returning function
     // function Component(props) { return $_r.createElement(...) }
     
-    converter.str.append_view("function ")
+    converter.str.append_view("\nfunction ")
     get_module_scoped_name(root.signature.functionNode, root.signature.name, converter.str)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)

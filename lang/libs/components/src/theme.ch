@@ -76,3 +76,21 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
         }
     """)
 }
+
+public func (page : &mut HtmlPage) injectComponentsThemeScope(selector : &std::string_view, vars : &std::string_view) {
+    var css = std::string()
+    css.append_view(selector)
+    css.append_view(" {")
+    css.append_view(vars)
+    css.append_view("}")
+    page.append_css_view(css.to_view())
+}
+
+public func componentsThemeScope(selector : &std::string_view, vars : &std::string_view) : std::string {
+    var css = std::string()
+    css.append_view(selector)
+    css.append_view(" {")
+    css.append_view(vars)
+    css.append_view("}")
+    return css
+}

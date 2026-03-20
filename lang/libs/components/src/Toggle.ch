@@ -1,15 +1,13 @@
 func toggle_styles(page : &mut HtmlPage) : *char {
     return #css {
-        .chx-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: var(--chx-text-main);
-            font-weight: 600;
-            cursor: pointer;
-            position: relative;
-            user-select: none;
-        }
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--chx-text-main);
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        user-select: none;
         .chx-toggle-input {
             position: absolute;
             opacity: 0;
@@ -82,8 +80,7 @@ func toggle_styles(page : &mut HtmlPage) : *char {
 }
 
 public #universal Checkbox(props) {
-    toggle_styles(page);
-    return <label class="chx-toggle">
+    return <label class={${toggle_styles(page)}}>
         <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
         <span class="chx-checkbox-box"></span>
         <span>{props.children}</span>
@@ -91,8 +88,7 @@ public #universal Checkbox(props) {
 }
 
 public #universal Radio(props) {
-    toggle_styles(page);
-    return <label class="chx-toggle">
+    return <label class={${toggle_styles(page)}}>
         <input type="radio" checked={props.checked} name={props.name} class="chx-toggle-input" />
         <span class="chx-checkbox-box" style="border-radius:999px;"></span>
         <span>{props.children}</span>
@@ -100,8 +96,7 @@ public #universal Radio(props) {
 }
 
 public #universal Switch(props) {
-    toggle_styles(page);
-    return <label class="chx-toggle">
+    return <label class={${toggle_styles(page)}}>
         <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
         <span class="chx-switch-track"></span>
         <span>{props.children}</span>

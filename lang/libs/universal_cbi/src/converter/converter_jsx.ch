@@ -84,7 +84,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         );
         var startIdxNameStr = std::string();
         startIdxNameStr.append_view("startIdx_");
-        startIdxNameStr.append_integer(location as bigint);
+        startIdxNameStr.append_uinteger(element.loc);
         var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
 
         var startIdxVar = builder.make_varinit_stmt(false, false, startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
@@ -96,7 +96,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         var childrenHtmlNameStr = std::string();
         childrenHtmlNameStr.append_view("childrenHtml_");
-        childrenHtmlNameStr.append_integer(location as bigint);
+        childrenHtmlNameStr.append_uinteger(element.loc);
         var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
 
         var childrenHtmlVar = builder.make_varinit_stmt(false, false, childrenHtmlName, null, 

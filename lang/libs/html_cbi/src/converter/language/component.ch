@@ -213,7 +213,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             var childrenHtmlNameStr = std::string();
             childrenHtmlNameStr.append_view("childrenHtml_");
-            childrenHtmlNameStr.append_integer(element.loc as bigint);
+            childrenHtmlNameStr.append_uinteger(element.loc);
             var childrenHtmlName = builder2.allocate_view(childrenHtmlNameStr.to_view());
 
             var childrenHtmlVar = builder2.make_varinit_stmt(false, false, childrenHtmlName, null,

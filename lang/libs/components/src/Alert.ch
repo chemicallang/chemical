@@ -1,35 +1,41 @@
 func alert_styles(page : &mut HtmlPage) : *char {
     return #css {
+        --chx-alert-border: var(--chx-border);
+        --chx-alert-bg: var(--chx-surface);
+        --chx-alert-accent: var(--chx-text-main);
         display: flex;
         align-items: flex-start;
         gap: 0.75rem;
         padding: 1rem 1.2rem;
         border-radius: var(--chx-radius);
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
+        border: 1px solid var(--chx-alert-border);
+        background: var(--chx-alert-bg);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), var(--chx-shadow-sm);
         color: var(--chx-text-main);
-        box-shadow: var(--chx-shadow-sm);
     }
 }
 
 func alert_accent_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border-color: rgba(59, 130, 246, 0.4);
-        background: rgba(59, 130, 246, 0.08);
+        --chx-alert-border: rgba(59, 130, 246, 0.4);
+        --chx-alert-bg: rgba(59, 130, 246, 0.08);
+        --chx-alert-accent: rgb(59, 130, 246);
     }
 }
 
 func alert_success_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border-color: rgba(16, 185, 129, 0.4);
-        background: rgba(16, 185, 129, 0.08);
+        --chx-alert-border: rgba(16, 185, 129, 0.4);
+        --chx-alert-bg: rgba(16, 185, 129, 0.08);
+        --chx-alert-accent: rgb(16, 185, 129);
     }
 }
 
 func alert_error_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border-color: rgba(239, 68, 68, 0.4);
-        background: rgba(239, 68, 68, 0.08);
+        --chx-alert-border: rgba(239, 68, 68, 0.4);
+        --chx-alert-bg: rgba(239, 68, 68, 0.08);
+        --chx-alert-accent: rgb(239, 68, 68);
     }
 }
 

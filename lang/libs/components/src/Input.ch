@@ -7,9 +7,15 @@ func input_styles(page : &mut HtmlPage) : *char {
         background: var(--chx-surface);
         color: var(--chx-text-main);
         outline: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        &:hover {
+            border-color: var(--chx-border-strong);
+        }
+        &:focus {
+            border-color: var(--chx-accent);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+        }
     }
-    // TODO: transition not parsing with var
-    // transition: border-color var(--chx-transition), box-shadow var(--chx-transition), background var(--chx-transition);
 }
 
 func textarea_styles(page : &mut HtmlPage) : *char {
@@ -23,9 +29,15 @@ func textarea_styles(page : &mut HtmlPage) : *char {
         color: var(--chx-text-main);
         outline: none;
         resize: vertical;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        &:hover {
+            border-color: var(--chx-border-strong);
+        }
+        &:focus {
+            border-color: var(--chx-accent);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+        }
     }
-    // TODO: transition not working with var
-    // transition: border-color var(--chx-transition), box-shadow var(--chx-transition), background var(--chx-transition);
 }
 
 func select_styles(page : &mut HtmlPage) : *char {
@@ -37,9 +49,15 @@ func select_styles(page : &mut HtmlPage) : *char {
         background: var(--chx-surface);
         color: var(--chx-text-main);
         outline: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        &:hover {
+            border-color: var(--chx-border-strong);
+        }
+        &:focus {
+            border-color: var(--chx-accent);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+        }
     }
-    // TODO: transition not working with var
-    // transition: border-color var(--chx-transition), box-shadow var(--chx-transition), background var(--chx-transition);
 }
 
 public #universal Input(props) {

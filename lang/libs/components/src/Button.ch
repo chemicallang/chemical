@@ -100,6 +100,9 @@ func icon_button_styles(page : &mut HtmlPage) : *char {
         padding: 0;
         transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
         & > * {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
             height: 100%;
             min-width: 0;
@@ -112,6 +115,18 @@ func icon_button_styles(page : &mut HtmlPage) : *char {
             font-size: 1rem;
             font-family: ui-monospace, "SFMono-Regular", monospace;
             transform: translate(-0.02em, -0.04em);
+        }
+        & > * > * {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            line-height: 1;
+            font-size: 1rem;
+            font-family: ui-monospace, "SFMono-Regular", monospace;
         }
         &:hover {
             background: var(--chx-surface-2);
@@ -139,6 +154,9 @@ func fab_styles(page : &mut HtmlPage) : *char {
         cursor: pointer;
         transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
         & > * {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             border: 0;
             border-radius: 0;
             background: transparent;
@@ -156,6 +174,18 @@ func fab_styles(page : &mut HtmlPage) : *char {
             font-size: 1rem;
             font-family: ui-monospace, "SFMono-Regular", monospace;
             transform: translate(-0.02em, -0.04em);
+        }
+        & > *:first-child > * {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            line-height: 1;
+            font-size: 1rem;
+            font-family: ui-monospace, "SFMono-Regular", monospace;
         }
         &:hover {
             transform: translateY(-1px);

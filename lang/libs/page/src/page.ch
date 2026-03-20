@@ -432,7 +432,8 @@ window.$_us = ((v) => {
         },
         set value(n) {
             val = n;
-            for(let i = 0; i < subs.length; i++) subs[i](val);
+            const snapshot = subs.slice();
+            for(let i = 0; i < snapshot.length; i++) snapshot[i](val);
         },
         subscribe(fn) {
             subs.push(fn);
@@ -448,7 +449,8 @@ window.$_ucs = ((fn) => {
     const subs = [];
     let depUnsubs = [];
     const emit = () => {
-        for(let i = 0; i < subs.length; i++) subs[i](cached);
+        const snapshot = subs.slice();
+        for(let i = 0; i < snapshot.length; i++) snapshot[i](cached);
     };
     const recompute = () => {
         for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();

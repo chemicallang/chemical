@@ -13,4 +13,20 @@ types as well can't be passed for values or nodes.
 
 Values can be stored inside nodes. Types as well. Nodes can also be stored in values and types but that's rare.
 
-Look for their definitions in `ast/base` directory
+Look for their definitions in `ast/base` directory, Definition of different ast structures is present in 
+`ast/structures` and `ast/statements`
+
+One of the very interesting library is compiler in the `lang/libs/compiler` directory
+
+The library is very simple, but provides structs that allow you to access compiler APIs
+
+These include (some important bindings)
+
+- BatchAllocator
+- ASTBuilder
+- SourceProvider
+- Lexer
+- Parser
+- SymbolResolver
+
+to name a few.

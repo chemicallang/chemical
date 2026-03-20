@@ -217,6 +217,8 @@ func icon_styles(page : &mut HtmlPage) : *char {
         border: 1px solid var(--chx-border);
         color: var(--chx-text-main);
         font-weight: 700;
+        line-height: 1;
+        font-family: ui-monospace, "SFMono-Regular", monospace;
     }
 }
 

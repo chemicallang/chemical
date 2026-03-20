@@ -51,6 +51,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         jsx_parent : view(""),
         t_counter : 0,
         state_vars : std::vector<std::string_view>(),
+        state_inits : std::vector<JsStateInit>(),
         target : BufferType.HTML,
         current_func : comp.signature.functionNode
     }

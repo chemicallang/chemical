@@ -84,6 +84,8 @@ func accordion_item_styles(page : &mut HtmlPage) : *char {
             background: var(--chx-surface-2);
             border: 1px solid var(--chx-border);
             font-size: 1rem;
+            line-height: 1;
+            font-family: ui-monospace, "SFMono-Regular", monospace;
             flex-shrink: 0;
             transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
         }

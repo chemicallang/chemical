@@ -447,6 +447,254 @@ func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode) : st
     return builder.allocate_view(text.to_view());
 }
 
+struct SsrJsExprEval {
+    var valid : bool
+    var kind : int
+    var boolValue : bool
+    var numberValue : bigint
+    var textValue : std::string_view
+}
+
+func ssr_js_eval_invalid() : SsrJsExprEval {
+    return SsrJsExprEval {
+        valid : false,
+        kind : 0,
+        boolValue : false,
+        numberValue : 0,
+        textValue : view("")
+    };
+}
+
+func ssr_js_eval_bool(value : bool) : SsrJsExprEval {
+    return SsrJsExprEval {
+        valid : true,
+        kind : 1,
+        boolValue : value,
+        numberValue : if(value) 1 else 0,
+        textValue : if(value) view("true") else view("false")
+    };
+}
+
+func ssr_js_eval_number(value : bigint, text : std::string_view) : SsrJsExprEval {
+    return SsrJsExprEval {
+        valid : true,
+        kind : 2,
+        boolValue : value != 0,
+        numberValue : value,
+        textValue : text
+    };
+}
+
+func ssr_js_eval_text(text : std::string_view) : SsrJsExprEval {
+    return SsrJsExprEval {
+        valid : true,
+        kind : 3,
+        boolValue : !text.empty(),
+        numberValue : 0,
+        textValue : text
+    };
+}
+
+func parse_ssr_bigint(text : std::string_view, outValue : &mut bigint) : bool {
+    if(text.empty()) return false;
+    var idx : uint = 0;
+    var sign : bigint = 1;
+    if(text.get(0) == '-') {
+        sign = -1;
+        idx = 1;
+        if(idx >= text.size()) return false;
+    }
+    var value : bigint = 0;
+    while(idx < text.size()) {
+        const c = text.get(idx);
+        if(c < '0' || c > '9') return false;
+        value = value * 10 + ((c - '0') as bigint);
+        idx++
+    }
+    *outValue = value * sign;
+    return true;
+}
+
+func (converter : &mut JsConverter) find_state_init_text(name : std::string_view) : std::string_view {
+    for(var i : uint = 0; i < converter.state_inits.size(); i++) {
+        const init = converter.state_inits.get(i);
+        if(init.name.equals(name)) return init.init;
+    }
+    return view("");
+}
+
+func ssr_js_eval_equals(left : SsrJsExprEval, right : SsrJsExprEval) : bool {
+    if(!left.valid || !right.valid) return false;
+    if(left.kind == right.kind) {
+        switch(left.kind) {
+            1 => return left.boolValue == right.boolValue
+            2 => return left.numberValue == right.numberValue
+            3 => return left.textValue.equals(right.textValue)
+            default => return false
+        }
+    }
+    if(left.kind == 2 && right.kind == 1) return left.numberValue == (if(right.boolValue) 1 else 0);
+    if(left.kind == 1 && right.kind == 2) return (if(left.boolValue) 1 else 0) == right.numberValue;
+    return left.textValue.equals(right.textValue);
+}
+
+func ssr_js_eval_from_text(text : std::string_view) : SsrJsExprEval {
+    if(text.empty()) return ssr_js_eval_invalid();
+    if(text.equals(view("true"))) return ssr_js_eval_bool(true);
+    if(text.equals(view("false"))) return ssr_js_eval_bool(false);
+    const stripped = strip_js_string_quotes(text);
+    if(stripped.size() < text.size()) return ssr_js_eval_text(stripped);
+    var num : bigint = 0;
+    if(parse_ssr_bigint(text, num)) return ssr_js_eval_number(num, text);
+    return ssr_js_eval_invalid();
+}
+
+func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJsExprEval {
+    if(node == null) return ssr_js_eval_invalid();
+    switch(node.kind) {
+        JsNodeKind.Literal => {
+            return ssr_js_eval_from_text((node as *mut JsLiteral).value);
+        }
+        JsNodeKind.Identifier => {
+            const id = node as *mut JsIdentifier;
+            if(converter.is_state_var(id.value)) {
+                return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
+            }
+            return ssr_js_eval_invalid();
+        }
+        JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
+                const id = mem.object as *mut JsIdentifier;
+                if(converter.is_state_var(id.value)) {
+                    return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
+                }
+            }
+            return ssr_js_eval_invalid();
+        }
+        JsNodeKind.UnaryOp => {
+            const unary = node as *mut JsUnaryOp;
+            if(unary.operator.equals(view("!"))) {
+                const operand = converter.eval_ssr_js_expr(unary.operand);
+                if(operand.valid && operand.kind == 1) return ssr_js_eval_bool(!operand.boolValue);
+            }
+            return ssr_js_eval_invalid();
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            const left = converter.eval_ssr_js_expr(bin.left);
+            const right = converter.eval_ssr_js_expr(bin.right);
+            if(!left.valid || !right.valid) return ssr_js_eval_invalid();
+            if(bin.op.equals(view("==")) || bin.op.equals(view("==="))) {
+                return ssr_js_eval_bool(ssr_js_eval_equals(left, right));
+            }
+            if(bin.op.equals(view("!=")) || bin.op.equals(view("!=="))) {
+                return ssr_js_eval_bool(!ssr_js_eval_equals(left, right));
+            }
+            if(bin.op.equals(view("&&")) && left.kind == 1 && right.kind == 1) {
+                return ssr_js_eval_bool(left.boolValue && right.boolValue);
+            }
+            if(bin.op.equals(view("||")) && left.kind == 1 && right.kind == 1) {
+                return ssr_js_eval_bool(left.boolValue || right.boolValue);
+            }
+            return ssr_js_eval_invalid();
+        }
+        JsNodeKind.Ternary => {
+            const tern = node as *mut JsTernary;
+            const cond = converter.eval_ssr_js_expr(tern.condition);
+            if(!cond.valid || cond.kind != 1) return ssr_js_eval_invalid();
+            return converter.eval_ssr_js_expr(if(cond.boolValue) tern.consequent else tern.alternate);
+        }
+        default => return ssr_js_eval_invalid()
+    }
+}
+
+func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut JsNode) : bool {
+    if(node == null) return false;
+    switch(node.kind) {
+        JsNodeKind.Identifier => {
+            return converter.is_state_var((node as *mut JsIdentifier).value);
+        }
+        JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
+                return converter.is_state_var((mem.object as *mut JsIdentifier).value);
+            }
+            return converter.jsx_expr_needs_reactive_wrapper(mem.object);
+        }
+        JsNodeKind.IndexAccess => {
+            const idx = node as *mut JsIndexAccess;
+            return converter.jsx_expr_needs_reactive_wrapper(idx.object) || converter.jsx_expr_needs_reactive_wrapper(idx.index);
+        }
+        JsNodeKind.UnaryOp => {
+            return converter.jsx_expr_needs_reactive_wrapper((node as *mut JsUnaryOp).operand);
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            return converter.jsx_expr_needs_reactive_wrapper(bin.left) || converter.jsx_expr_needs_reactive_wrapper(bin.right);
+        }
+        JsNodeKind.Ternary => {
+            const tern = node as *mut JsTernary;
+            return converter.jsx_expr_needs_reactive_wrapper(tern.condition) ||
+                converter.jsx_expr_needs_reactive_wrapper(tern.consequent) ||
+                converter.jsx_expr_needs_reactive_wrapper(tern.alternate);
+        }
+        JsNodeKind.FunctionCall => {
+            const call = node as *mut JsFunctionCall;
+            if(converter.jsx_expr_needs_reactive_wrapper(call.callee)) return true;
+            for(var i : uint = 0; i < call.args.size(); i++) {
+                if(converter.jsx_expr_needs_reactive_wrapper(call.args.get(i))) return true;
+            }
+            return false;
+        }
+        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
+            const arr = node as *mut JsArrayLiteral;
+            for(var i : uint = 0; i < arr.elements.size(); i++) {
+                if(converter.jsx_expr_needs_reactive_wrapper(arr.elements.get(i))) return true;
+            }
+            return false;
+        }
+        JsNodeKind.ObjectLiteral => {
+            const obj = node as *mut JsObjectLiteral;
+            for(var i : uint = 0; i < obj.properties.size(); i++) {
+                if(converter.jsx_expr_needs_reactive_wrapper(obj.properties.get(i).value)) return true;
+            }
+            return false;
+        }
+        default => return false
+    }
+}
+
+func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode) {
+    if(node == null) {
+        converter.str.append_view("undefined");
+        return;
+    }
+    if(node.kind == JsNodeKind.Identifier) {
+        const id = node as *mut JsIdentifier;
+        if(converter.is_state_var(id.value)) {
+            converter.str.append_view(id.value);
+            return;
+        }
+    } else if(node.kind == JsNodeKind.MemberAccess) {
+        const mem = node as *mut JsMemberAccess;
+        if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
+            const id = mem.object as *mut JsIdentifier;
+            if(converter.is_state_var(id.value)) {
+                converter.str.append_view(id.value);
+                return;
+            }
+        }
+    }
+    if(converter.jsx_expr_needs_reactive_wrapper(node)) {
+        converter.str.append_view("$_ucs(() => ");
+        converter.convertJsNode(node);
+        converter.str.append_view(")");
+    } else {
+        converter.convertJsNode(node);
+    }
+}
+
 func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
 }
@@ -528,12 +776,15 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                     attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(attr.value as *mut JsLiteral, attrValConv, location));
                 } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                     const container = attr.value as *mut JsJSXExpressionContainer;
+                    var handled = false;
                     if(container.expression != null) {
                         if(container.expression.kind == JsNodeKind.ChemicalValue) {
                             const chem = container.expression as *mut JsChemicalValue;
                             attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
+                            handled = true;
                         } else if(container.expression.kind == JsNodeKind.Literal) {
                             attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
+                            handled = true;
                         } else if(container.expression.kind == JsNodeKind.ObjectLiteral) {
                             var objText = std::string_view();
                             if(attr.name.equals("style")) {
@@ -542,9 +793,9 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                 objText = build_js_node_text_view(builder, container.expression)
                             }
                             attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(objText, location)));
+                            handled = true;
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
-                            var handled = false
                             if(mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
                                 const params = converter.current_func.get_params();
                                 const propsParam = params.get(1);
@@ -561,15 +812,39 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                 }
                             }
                             if(!handled) {
-                                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
+                                const evaluated = converter.eval_ssr_js_expr(container.expression);
+                                if(evaluated.valid) {
+                                    if(evaluated.kind == 1) {
+                                        if(!evaluated.boolValue) continue;
+                                        const boolVal = builder.make_bool_value(true, location);
+                                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
+                                    } else {
+                                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(evaluated.textValue, location)));
+                                    }
+                                    handled = true;
+                                }
                             }
                         } else {
-                            // Fallback for other expressions to avoid "value not given" error.
-                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text("", location)));
+                            const evaluated = converter.eval_ssr_js_expr(container.expression);
+                            if(evaluated.valid) {
+                                if(evaluated.kind == 1) {
+                                    if(!evaluated.boolValue) continue;
+                                    const boolVal = builder.make_bool_value(true, location);
+                                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
+                                } else {
+                                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(evaluated.textValue, location)));
+                                }
+                                handled = true;
+                            }
                         }
                     } else {
                         const boolVal = builder.make_bool_value(true, location);
                         attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
+                        handled = true;
+                    }
+
+                    if(!handled) {
+                        continue;
                     }
                 }
                 attrValues.push(attrStructVal);

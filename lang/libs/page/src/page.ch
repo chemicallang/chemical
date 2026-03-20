@@ -426,10 +426,53 @@ window.$_us = ((v) => {
     let val = v;
     const subs = [];
     return {
-        get value() { return val; },
+        get value() {
+            if(window.$__uni_current_tracker) window.$__uni_current_tracker(this);
+            return val;
+        },
         set value(n) {
             val = n;
             for(let i = 0; i < subs.length; i++) subs[i](val);
+        },
+        subscribe(fn) {
+            subs.push(fn);
+            return () => {
+                const idx = subs.indexOf(fn);
+                if(idx >= 0) subs.splice(idx, 1);
+            };
+        }
+    };
+})
+window.$_ucs = ((fn) => {
+    let cached;
+    const subs = [];
+    let depUnsubs = [];
+    const emit = () => {
+        for(let i = 0; i < subs.length; i++) subs[i](cached);
+    };
+    const recompute = () => {
+        for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();
+        depUnsubs = [];
+        const deps = [];
+        const prev = window.$__uni_current_tracker;
+        window.$__uni_current_tracker = (dep) => {
+            if(dep && deps.indexOf(dep) < 0) deps.push(dep);
+        };
+        cached = fn();
+        window.$__uni_current_tracker = prev;
+        for(let i = 0; i < deps.length; i++) {
+            const dep = deps[i];
+            if(dep && typeof dep.subscribe === "function") {
+                depUnsubs.push(dep.subscribe(() => recompute()));
+            }
+        }
+        emit();
+    };
+    recompute();
+    return {
+        get value() {
+            if(window.$__uni_current_tracker) window.$__uni_current_tracker(this);
+            return cached;
         },
         subscribe(fn) {
             subs.push(fn);

@@ -14,9 +14,13 @@ func button_base_styles(page : &mut HtmlPage) : *char {
         box-shadow: var(--chx-shadow-sm);
         cursor: pointer;
         outline: none;
+        transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        &:hover {
+            transform: translateY(-1px);
+            border-color: var(--chx-border-strong);
+            box-shadow: var(--chx-shadow);
+        }
     }
-    // TODO: transition not working with var
-    // transition: transform var(--chx-transition), box-shadow var(--chx-transition), background var(--chx-transition), color var(--chx-transition), border-color var(--chx-transition);
 }
 
 func button_primary_styles(page : &mut HtmlPage) : *char {
@@ -93,9 +97,26 @@ func icon_button_styles(page : &mut HtmlPage) : *char {
         justify-content: center;
         box-shadow: var(--chx-shadow-sm);
         cursor: pointer;
+        padding: 0;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        & > * {
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            line-height: 1;
+            font-size: 1rem;
+            font-family: ui-monospace, "SFMono-Regular", monospace;
+            transform: translate(-0.02em, -0.04em);
+        }
         &:hover {
             background: var(--chx-surface-2);
             border-color: var(--chx-border-strong);
+            transform: translateY(-1px);
         }
     }
 }
@@ -116,8 +137,29 @@ func fab_styles(page : &mut HtmlPage) : *char {
         font-weight: 700;
         box-shadow: var(--chx-shadow-lg);
         cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        & > * {
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            color: inherit;
+            line-height: 1;
+        }
+        & > *:first-child {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            min-width: 1rem;
+            font-size: 1rem;
+            font-family: ui-monospace, "SFMono-Regular", monospace;
+            transform: translate(-0.02em, -0.04em);
+        }
         &:hover {
             transform: translateY(-1px);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
         }
     }
 }

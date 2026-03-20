@@ -153,7 +153,7 @@ func build_nested_props_expr(
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;
                 if(expr != null) {
-                    converter.convertJsNode(expr);
+                    converter.convert_jsx_runtime_expr(expr);
                 } else {
                     s.append_view("true");
                 }

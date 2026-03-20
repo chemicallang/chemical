@@ -33,6 +33,10 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                          }
                      }
                  }
+                 if(!is_event_attribute_name(attr.name)) {
+                     converter.convert_jsx_runtime_expr(container.expression);
+                     return;
+                 }
              }
          }
          converter.convertJsNode(attr.value);

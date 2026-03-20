@@ -1775,7 +1775,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
                  // Has &: replace & with parent selector(s)
                  var p : uint = 0;
                  while(p < parent_selectors.size()) {
-                     var pdf = parent_selectors.get(p);
+                     var pdf = parent_selectors.get_ptr(p);
                      var res = std::string();
                      serialize_complex(sel, res, pdf.view());
                      current_selectors.push(res);

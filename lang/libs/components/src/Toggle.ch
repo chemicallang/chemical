@@ -1,74 +1,109 @@
-func checkbox_styles(page : &mut HtmlPage) : *char {
+func toggle_styles(page : &mut HtmlPage) : *char {
     return #css {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6rem;
-        color: var(--chx-text-main);
-        font-weight: 600;
-        cursor: pointer;
-    }
-}
-
-func checkbox_box_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 18px;
-        height: 18px;
-        border-radius: 4px;
-        border: 1px solid var(--chx-border-strong);
-        background: var(--chx-surface);
-        display: inline-block;
-    }
-}
-
-func switch_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        cursor: pointer;
-        color: var(--chx-text-main);
-        font-weight: 600;
-    }
-}
-
-func switch_track_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 44px;
-        height: 24px;
-        border-radius: 999px;
-        background: var(--chx-surface-2);
-        border: 1px solid var(--chx-border);
-        position: relative;
-        display: inline-block;
-    }
-}
-
-func switch_thumb_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--chx-primary);
-        display: inline-block;
-        margin-left: 3px;
-        margin-top: 2px;
+        .chx-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--chx-text-main);
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+        .chx-toggle-input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            margin: 0;
+            pointer-events: none;
+        }
+        .chx-checkbox-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 1px solid var(--chx-border-strong);
+            background: var(--chx-surface);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .chx-checkbox-box::after {
+            content: '';
+            width: 5px;
+            height: 9px;
+            border-right: 2px solid #fff;
+            border-bottom: 2px solid #fff;
+            transform: rotate(45deg) scale(0.85);
+            opacity: 0;
+            transition: opacity 0.18s ease;
+            margin-top: -1px;
+        }
+        .chx-toggle-input:checked + .chx-checkbox-box {
+            background: var(--chx-primary);
+            border-color: var(--chx-primary);
+            box-shadow: 0 0 0 4px var(--chx-ring);
+        }
+        .chx-toggle-input:checked + .chx-checkbox-box::after {
+            opacity: 1;
+        }
+        .chx-switch-track {
+            width: 44px;
+            height: 24px;
+            border-radius: 999px;
+            background: var(--chx-surface-2);
+            border: 1px solid var(--chx-border);
+            position: relative;
+            display: inline-block;
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .chx-switch-track::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--chx-primary);
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            transition: transform 0.18s ease, background 0.18s ease;
+            box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
+        }
+        .chx-toggle-input:checked + .chx-switch-track {
+            background: rgba(59, 130, 246, 0.16);
+            border-color: rgba(59, 130, 246, 0.32);
+            box-shadow: 0 0 0 4px var(--chx-ring);
+        }
+        .chx-toggle-input:checked + .chx-switch-track::after {
+            transform: translateX(20px);
+        }
     }
 }
 
 public #universal Checkbox(props) {
-    return <label class={${checkbox_styles(page)}}>
-        <input type="checkbox" checked={props.checked} />
-        <span class={${checkbox_box_styles(page)}}></span>
+    toggle_styles(page);
+    return <label class="chx-toggle">
+        <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
+        <span class="chx-checkbox-box"></span>
+        <span>{props.children}</span>
+    </label>
+}
+
+public #universal Radio(props) {
+    toggle_styles(page);
+    return <label class="chx-toggle">
+        <input type="radio" checked={props.checked} name={props.name} class="chx-toggle-input" />
+        <span class="chx-checkbox-box" style="border-radius:999px;"></span>
         <span>{props.children}</span>
     </label>
 }
 
 public #universal Switch(props) {
-    return <label class={${switch_styles(page)}}>
-        <input type="checkbox" checked={props.checked} />
-        <span class={${switch_track_styles(page)}}>
-            <span class={${switch_thumb_styles(page)}}></span>
-        </span>
+    toggle_styles(page);
+    return <label class="chx-toggle">
+        <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
+        <span class="chx-switch-track"></span>
         <span>{props.children}</span>
     </label>
 }

@@ -1,3 +1,26 @@
+func is_event_attribute_name(name : std::string_view) : bool {
+    return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+}
+
+func has_non_ssr_attr_value(attrValue : *AttributeValue) : bool {
+    if(attrValue == null) return false;
+    switch(attrValue.kind) {
+        AttributeValueKind.Chemical => {
+            const chem = attrValue as *mut ChemicalAttributeValue;
+            return chem.value != null && chem.value.getKind() == ValueKind.LambdaFunc;
+        }
+        AttributeValueKind.ChemicalValues => {
+            const chem = attrValue as *mut ChemicalAttributeValues;
+            for(var i : uint = 0; i < chem.values.size(); i++) {
+                const value = chem.values.get(i);
+                if(value != null && value.getKind() == ValueKind.LambdaFunc) return true;
+            }
+            return false;
+        }
+        default => return false
+    }
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
     // 0. Flush any pending HTML
     converter.put_chain_in()
@@ -67,8 +90,10 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             }
 
             // constructing ssr attributes
+            var pushedCount : ubigint = 0;
             for(var i = 0u; i < element.attributes.size(); i++) {
                 const attr = element.attributes.get(i)
+                if(is_event_attribute_name(attr.name) || has_non_ssr_attr_value(attr.value)) continue;
 
                 // constructing a ssr text for the attribute name
                 const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
@@ -108,12 +133,13 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
                 // putting the attribute struct val into the array
                 attrValues.push(attrStructVal)
+                pushedCount++;
 
             }
 
             // now lets add value for the data (going to be the array), and size
             structValue.add_value(std::string_view("data"), arrayValue)
-            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(element.attributes.size(), location))
+            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(pushedCount, location))
         }
 
         // 1. Generate uId: var uId = page.get_next_u_id();
@@ -249,18 +275,9 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         converter.put_chain_in();
 
         // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])
-        const jsHeaderId = builder.make_identifier(std::string_view("append_js_char_ptr"), converter.support.appendJsCharPtrFn, false, location);
-        const jsHeaderChain = builder.make_access_chain(std::span<*mut Value>([ pageIdWrapp, jsHeaderId ]), location);
-
-        // Name(document.getElementById('u{id}'), {});
-        var pushNameStr = std::string("");
-        get_module_scoped_name(signature.functionNode, signature.name, pushNameStr);
-        pushNameStr.append_view("(document.getElementById('u");
-        pushNameStr.append_uinteger(hash)
-        pushNameStr.append_view("'), {});\n")
-        var callPushMid = builder.make_function_call_node(jsHeaderChain, converter.parent, location);
-        callPushMid.get_args().push(builder.make_string_value(builder.allocate_view(pushNameStr.to_view()), location));
-        converter.vec.push(callPushMid);
+        var hostId = std::string("u");
+        hostId.append_uinteger(hash);
+        converter.emit_universal_queue(element, signature, hostId);
 
         return;
     }

@@ -447,6 +447,22 @@ func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode) : st
     return builder.allocate_view(text.to_view());
 }
 
+func is_event_attribute_name(name : std::string_view) : bool {
+    return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+}
+
+func is_non_ssr_expression(expr : *mut JsNode) : bool {
+    if(expr == null) return false;
+    switch(expr.kind) {
+        JsNodeKind.ArrowFunction, JsNodeKind.FunctionDecl => return true
+        JsNodeKind.ChemicalValue => {
+            const chem = expr as *mut JsChemicalValue;
+            return chem.value != null && chem.value.getKind() == ValueKind.LambdaFunc;
+        }
+        default => return false
+    }
+}
+
 func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut JsLiteral, attrValConv : &mut AttrValueConverter, location : ubigint) : *mut Value {
     const val = lit.value;
     const builder = converter.builder;
@@ -483,15 +499,24 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
         }
 
         const attributes = &element.opening.attributes;
+        var pushedCount : ubigint = 0;
         for(var i : uint = 0; i < attributes.size(); i++) {
             const attrNode = attributes.get(i);
             if(attrNode == null) continue;
 
-            const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
-
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
 
                 const attr = attrNode as *mut JsJSXAttribute;
+                if(is_event_attribute_name(attr.name)) continue;
+
+                if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                    const container = attr.value as *mut JsJSXExpressionContainer;
+                    if(is_non_ssr_expression(container.expression)) continue;
+                } else if(is_non_ssr_expression(attr.value)) {
+                    continue;
+                }
+
+                const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
                 const isClass = attr.name.equals("className") || attr.name.equals("class")
                 const attrName = if(isClass) std::string_view("class") else attr.name;
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attrName, location));
@@ -547,6 +572,8 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                         attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
                     }
                 }
+                attrValues.push(attrStructVal);
+                pushedCount++;
             } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute){
                 const attr = attrNode as *mut JsJSXSpreadAttribute
                 // TODO: currently we only support spreading props (the real argument passed)
@@ -556,15 +583,17 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 const propsParam = params.get(1)
                 const spread_props = builder.make_identifier("attrs", propsParam, false, location);
                 const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
+                const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
 
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
                 attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
+                attrValues.push(attrStructVal);
+                pushedCount++;
             }
-            attrValues.push(attrStructVal);
         }
 
         listStruct.add_value(std::string_view("data"), arrayValue);
-        listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(attributes.size(), location));
+        listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(pushedCount, location));
     }
 
     return listStruct as *mut Value;

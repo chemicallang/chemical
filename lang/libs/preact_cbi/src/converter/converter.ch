@@ -565,7 +565,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         } else {
             converter.str.append_view("children : [");
             for(var i : uint = 0; i < element.children.size(); i++) {
-                converter.str.append_view(", ");
+                if(i > 0) converter.str.append_view(", ");
                 converter.convertJsNode(element.children.get(i));
             }
             converter.str.append(']')

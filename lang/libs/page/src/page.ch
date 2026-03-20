@@ -344,14 +344,9 @@ public struct HtmlPage {
 function UniPreactBridge({ html, fnName, props }) {
     const ref = $_ph.useRef(null);
     $_ph.useLayoutEffect(() => {
-        const target = ref.current.firstChild;
-        const coreFn = window[fnName];
-        if (coreFn) {
-            coreFn(target, props);
-        } else {
-            window.$__uni_hydration_queue.push([ fnName, target, props ])
-        }
-    }, []);
+        const target = ref.current;
+        window.$__uni_dispatch(fnName, target, props);
+    }, [fnName, props]);
     return $_p.h('div', {
         ref,
         style: "display: contents",
@@ -368,14 +363,9 @@ const $p_uni_ch = (html, fnName, props) => $_p.h(UniPreactBridge, { html, fnName
 function UniReactBridge({ html, fnName, props }) {
     const ref = $_r.useRef(null);
     $_r.useLayoutEffect(() => {
-        const target = ref.current.firstChild;
-        const coreFn = window[fnName];
-        if (coreFn) {
-            coreFn(target, props);
-        } else {
-            window.$__uni_hydration_queue.push([ fnName, target, props ])
-        }
-    }, []);
+        const target = ref.current;
+        window.$__uni_dispatch(fnName, target, props);
+    }, [fnName, props]);
     return $_r.createElement('div', {
         ref,
         style: { display: 'contents' },
@@ -402,17 +392,169 @@ const $r_uni_ch = (html, fnName, props) => $_r.createElement(UniReactBridge, { h
         // this is just required for react, solid and preact integration to work
         pageHeadJs.append_view(std::string_view("""
 window.$__uni_hydration_queue = []
+window.$_u = window.$_u || {}
+window.$_um = window.$_um || ((...parts) => {
+    const out = {};
+    for(let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if(!part) continue;
+        for(const k in part) out[k] = part[k];
+    }
+    return out;
+})
+window.$_ur = window.$_ur || {
+    Fragment: {},
+    createElement: (t, p, ...c) => ({ t, p: p || {}, c })
+}
+window.$_us = window.$_us || ((v) => {
+    let val = v;
+    const subs = [];
+    return {
+        get value() { return val; },
+        set value(n) {
+            val = n;
+            for(let i = 0; i < subs.length; i++) subs[i](val);
+        },
+        subscribe(fn) {
+            subs.push(fn);
+            return () => {
+                const idx = subs.indexOf(fn);
+                if(idx >= 0) subs.splice(idx, 1);
+            };
+        }
+    };
+})
+window.$__uni_is_state = window.$__uni_is_state || ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
+window.$__uni_value = window.$__uni_value || ((v) => window.$__uni_is_state(v) ? v.value : v)
+window.$__uni_html = window.$__uni_html || ((html) => ({ __uni_html: html || "" }))
+window.$__uni_set_prop = window.$__uni_set_prop || ((el, key, value) => {
+    const v = window.$__uni_value(value);
+    if(key === "children" || key === "ref" || key == null) return;
+    if(key === "className" || key === "class") {
+        if(v == null || v === false) el.removeAttribute("class");
+        else el.setAttribute("class", "" + v);
+        return;
+    }
+    if(key === "htmlFor" || key === "for") {
+        if(v == null || v === false) el.removeAttribute("for");
+        else el.setAttribute("for", "" + v);
+        return;
+    }
+    if(key === "style") {
+        if(v == null || v === false) {
+            el.removeAttribute("style");
+        } else if(typeof v === "string") {
+            el.style.cssText = v;
+        } else if(typeof v === "object") {
+            for(const sk in v) el.style[sk] = window.$__uni_value(v[sk]);
+        }
+        return;
+    }
+    if(key.length > 2 && key[0] === "o" && key[1] === "n" && typeof v === "function") {
+        const eventName = key.substring(2).toLowerCase();
+        if(!el.$__uni_events) el.$__uni_events = {};
+        const prev = el.$__uni_events[eventName];
+        if(prev) el.removeEventListener(eventName, prev);
+        el.$__uni_events[eventName] = v;
+        el.addEventListener(eventName, v);
+        return;
+    }
+    if(v == null || v === false) {
+        if(key in el && typeof el[key] !== "function") {
+            try { el[key] = ""; } catch(_) {}
+        }
+        el.removeAttribute(key);
+        return;
+    }
+    if(key in el && key !== "list" && key !== "type") {
+        try {
+            el[key] = v;
+            return;
+        } catch(_) {}
+    }
+    el.setAttribute(key, "" + v);
+})
+window.$__uni_apply_prop = window.$__uni_apply_prop || ((el, key, value) => {
+    window.$__uni_set_prop(el, key, value);
+    if(window.$__uni_is_state(value)) {
+        value.subscribe((next) => window.$__uni_set_prop(el, key, next));
+    }
+})
+window.$_urn = window.$_urn || ((v) => {
+    if(v == null || v === false || v === true) return document.createTextNode("");
+    if(window.$__uni_is_state(v)) {
+        const n = document.createTextNode(v.value == null ? "" : "" + v.value);
+        v.subscribe((next) => { n.textContent = next == null ? "" : "" + next; });
+        return n;
+    }
+    if(v.nodeType) return v;
+    if(Array.isArray(v)) {
+        const f = document.createDocumentFragment();
+        for(let i = 0; i < v.length; i++) f.appendChild(window.$_urn(v[i]));
+        return f;
+    }
+    if(typeof v === "string" || typeof v === "number") return document.createTextNode("" + v);
+    if(v && v.__uni_html !== undefined) {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = v.__uni_html;
+        return tpl.content.cloneNode(true);
+    }
+    if(v && v.t !== undefined) {
+        if(v.t === window.$_ur.Fragment) {
+            const f = document.createDocumentFragment();
+            for(let i = 0; i < v.c.length; i++) f.appendChild(window.$_urn(v.c[i]));
+            return f;
+        }
+        if(typeof v.t === "function") {
+            const nextProps = v.p ? { ...v.p } : {};
+            if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
+            return window.$_urn(v.t(nextProps));
+        }
+        const e = document.createElement(v.t);
+        const props = v.p || {};
+        for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
+        for(let i = 0; i < v.c.length; i++) e.appendChild(window.$_urn(v.c[i]));
+        return e;
+    }
+    return document.createTextNode("" + v);
+})
+window.$__uni_mount = window.$__uni_mount || ((host, comp, props) => {
+    if(!host || !comp) return;
+    const data = props || {};
+    const out = comp(data);
+    const node = window.$_urn(out);
+    host.innerHTML = "";
+    if(node) host.appendChild(node);
+})
+window.$_uc = window.$_uc || ((factory, props) => {
+    if(!factory) return null;
+    return window.$_urn(factory(props || {}));
+})
+window.$__uni_get = window.$__uni_get || ((name) => {
+    if(window.$_u && window.$_u[name]) return window.$_u[name];
+    if(window[name]) return window[name];
+    return null;
+})
+window.$__uni_dispatch = window.$__uni_dispatch || ((fnName, target, props) => {
+    const fn = window.$__uni_get(fnName);
+    if(!fn) {
+        window.$__uni_hydration_queue.push([ fnName, target, props ]);
+        return false;
+    }
+    const hydrate = fn.__hydrate || fn;
+    hydrate(target, props || {});
+    return true;
+})
 window.$__universal_flush = function() {
     const q = window.$__uni_hydration_queue;
+    const next = [];
     while (q.length > 0) {
         const [name, el, props] = q.shift();
-        const fn = window[name];
-        if (typeof fn === 'function') {
-            fn(el, props);
-        } else {
-            console.warn(`Universal hydrator "${name}" not found.`);
+        if(!window.$__uni_dispatch(name, el, props)) {
+            next.push([name, el, props]);
         }
     }
+    while(next.length > 0) q.push(next.shift());
 };
 """))
         pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
@@ -763,13 +905,7 @@ window.$__universal_flush = function() {
 function UniSolidBridge(props) {
    let el;
    $_s.onMount(() => {
-       const coreFn = window[props.fnName];
-       const target = el.firstChild;
-       if (coreFn) {
-           coreFn(target, props);
-       } else {
-           window.$__uni_hydration_queue.push([ props.fnName, target, props.props ])
-       }
+       window.$__uni_dispatch(props.fnName, el, props.props);
    });
    return $_sh("div", {
        ref: (r) => el = r,

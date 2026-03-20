@@ -51,6 +51,10 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // lets construct a var decl array of attributes
         // var attrs = [ SsrAttribute { name : SsrText { data : "", size : 0 }, value : SsrAttributeValue.Text(SsrText { data : "", size : 0 }) } ]
 
+        // every component invocation generates different html
+        // therefore we must make sure every html gets a different id
+        const idLoc = element.loc;
+
         // the ssr attribute linked type
         const ssrAttrLinkedNode = converter.support.ssrAttrLinkedNode
         const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), ssrAttrLinkedNode, location)
@@ -147,7 +151,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
         // 2. Emit <div id="u
         converter.str.append_view("<div id=\"u");
-        converter.str.append_uinteger(hash);
+        converter.str.append_uinteger(idLoc);
 
         // Emit uId
         // var appendUIntChain = builder.make_access_chain(std::span<*mut Value>([ pageIdWrapp, builder.make_identifier(std::string_view("append_html_uinteger"), converter.support.appendHtmlUIntFn, false, location) ]), location);
@@ -276,7 +280,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
         // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])
         var hostId = std::string("u");
-        hostId.append_uinteger(hash);
+        hostId.append_uinteger(idLoc);
         converter.emit_universal_queue(element, signature, hostId);
 
         return;

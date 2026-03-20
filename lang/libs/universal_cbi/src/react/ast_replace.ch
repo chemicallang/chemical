@@ -43,6 +43,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         jsx_parent : view(""),
         t_counter : 0,
         state_vars : std::vector<std::string_view>(),
+        state_inits : std::vector<JsStateInit>(),
         current_func : funcNode
     }
 

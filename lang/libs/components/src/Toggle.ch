@@ -59,28 +59,30 @@ func toggle_styles(page : &mut HtmlPage) : *char {
             opacity: 0;
             transition: opacity 0.18s ease, transform 0.18s ease;
         }
-        .chx-toggle-input:checked + .chx-checkbox-box {
+        .chx-toggle-input[checked] + .chx-checkbox-box {
             background: var(--chx-primary);
             border-color: var(--chx-primary);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
         }
-        .chx-toggle-input:checked + .chx-checkbox-box::after {
+        .chx-toggle-input[checked] + .chx-checkbox-box::after {
             opacity: 1;
         }
-        .chx-toggle-input:focus + .chx-checkbox-box {
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
-        }
-        .chx-toggle-input:checked + .chx-radio-box {
+        .chx-toggle-input[checked] + .chx-radio-box {
             background: var(--chx-primary);
             border-color: var(--chx-primary);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
         }
-        .chx-toggle-input:checked + .chx-radio-box::after {
+        .chx-toggle-input[checked] + .chx-radio-box::after {
             opacity: 1;
             transform: scale(1);
         }
-        .chx-toggle-input:focus + .chx-radio-box {
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+        .chx-toggle-input[checked] + .chx-switch-track {
+            background: rgba(59, 130, 246, 0.16);
+            border-color: rgba(59, 130, 246, 0.32);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10);
+        }
+        .chx-toggle-input[checked] + .chx-switch-track::after {
+            transform: translateX(20px);
         }
         .chx-switch-track {
             width: 44px;
@@ -104,23 +106,12 @@ func toggle_styles(page : &mut HtmlPage) : *char {
                 box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
             }
         }
-        .chx-toggle-input:checked + .chx-switch-track {
-            background: rgba(59, 130, 246, 0.16);
-            border-color: rgba(59, 130, 246, 0.32);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10);
-        }
-        .chx-toggle-input:checked + .chx-switch-track::after {
-            transform: translateX(20px);
-        }
-        .chx-toggle-input:focus + .chx-switch-track {
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
-        }
     }
 }
 
 public #universal Checkbox(props) {
     return <label class={${toggle_styles(page)}}>
-        <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
+        <input {...props} type="checkbox" checked={props.checked} class="chx-toggle-input" />
         <span class="chx-checkbox-box"></span>
         <span>{props.children}</span>
     </label>
@@ -128,7 +119,7 @@ public #universal Checkbox(props) {
 
 public #universal Radio(props) {
     return <label class={${toggle_styles(page)}}>
-        <input type="radio" checked={props.checked} name={props.name} class="chx-toggle-input" />
+        <input {...props} type="radio" checked={props.checked} name={props.name} class="chx-toggle-input" />
         <span class="chx-radio-box"></span>
         <span>{props.children}</span>
     </label>
@@ -136,7 +127,7 @@ public #universal Radio(props) {
 
 public #universal Switch(props) {
     return <label class={${toggle_styles(page)}}>
-        <input type="checkbox" checked={props.checked} class="chx-toggle-input" />
+        <input {...props} type="checkbox" checked={props.checked} class="chx-toggle-input" />
         <span class="chx-switch-track"></span>
         <span>{props.children}</span>
     </label>

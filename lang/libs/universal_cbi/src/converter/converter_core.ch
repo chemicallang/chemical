@@ -204,6 +204,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              var decl = node as *mut JsVarDecl
              if(decl.keyword.equals(view("state")) && decl.pattern == null && !decl.name.empty()) {
                  converter.state_vars.push(decl.name);
+                 var initText = view("undefined");
+                 if(decl.value != null) {
+                     initText = build_js_node_text_view(converter.builder, decl.value);
+                 }
+                 converter.state_inits.push(JsStateInit {
+                     name : decl.name,
+                     init : initText
+                 });
                  converter.str.append_view("const ");
                  converter.str.append_view(decl.name);
                  converter.str.append_view(" = $_us(");
@@ -324,8 +332,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                          }
                      }
                  }
+                 converter.convert_jsx_runtime_expr(container.expression);
+                 return;
              }
-             converter.convertJsNode(container.expression);
         }
         JsNodeKind.JSXText => {
              var text = node as *mut JsJSXText

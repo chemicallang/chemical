@@ -346,7 +346,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         }
         tail.append_view("\")");
     }
-    tail.append_view("});");
+    tail.append_view("});\n");
     converter.emit_append_js_from_str(tail);
 }
 

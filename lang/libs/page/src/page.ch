@@ -395,7 +395,7 @@ window.$__uni_hydration_queue = []
 window.$__uni_dispatch = ((fnName, target, props) => {
     const fn = window[fnName]
     if(fn) {
-        fn.__hydrate(target, props || {})
+        window.$__uni_mount(target, fn, props || {});
     } else {
         window.$__uni_hydration_queue.push([ fnName, target, props ]);
     }
@@ -546,12 +546,7 @@ window.$__universal_flush = function() {
         const fnName = obj[0]
         const fn = window[fnName];
         if(fn) {
-            const hydrater = fn.__hydrate;
-            if(hydrater) {
-                hydrater(obj[1], obj[2] || {})
-            } else {
-                console.error("missing component hydration function by name", obj[0]);
-            }
+            window.$__uni_mount(obj[1], fn, obj[2] || {})
         } else {
             console.error("missing component function by name", obj[0]);
         }

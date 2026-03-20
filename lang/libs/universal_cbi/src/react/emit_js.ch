@@ -24,8 +24,4 @@ func append_universal_component_js(
         out.append_view("{ return null; }");
     }
     out.append_view("\n");
-    out.append_view(scopedNameView);
-    out.append_view(".__hydrate = function(elem, props) { return window.$__uni_mount(elem, ");
-    out.append_view(scopedNameView);
-    out.append_view(", props || {}); };\n");
 }

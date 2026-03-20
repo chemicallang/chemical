@@ -505,7 +505,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var chain = builder.make_access_chain(std::span<*mut Value>([ pageId, base ]), location)
         var getSizeCall = builder.make_function_call_value(chain, location)
         var idxName = std::string("startIdx_")
-        idxName.append_uinteger(componentFunc.getEncodedLocation());
+        idxName.append_uinteger(element.loc);
         const idxNameView = builder.allocate_view(idxName.to_view())
         const startIdxInit = builder.make_varinit_stmt(true, false, idxNameView, converter.builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
         var startIdxId = builder.make_identifier(idxNameView, startIdxInit, false, location)

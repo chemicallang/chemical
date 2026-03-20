@@ -1,20 +1,11 @@
 func progress_styles(page : &mut HtmlPage) : *char {
     return #css {
         width: 100%;
-        overflow: hidden;
+        height: 12px;
+        accent-color: var(--chx-accent);
         border-radius: 999px;
         background: var(--chx-surface-2);
-        border: 1px solid var(--chx-border);
-        height: 12px;
     }
-}
-
-func progress_fill_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        height: 100%;
-        border-radius: inherit;
-    }
-    // TODO: support background: linear-gradient(90deg, var(--chx-accent), var(--chx-primary));
 }
 
 func accordion_styles(page : &mut HtmlPage) : *char {
@@ -179,9 +170,7 @@ func table_cell_styles(page : &mut HtmlPage) : *char {
 }
 
 public #universal Progress(props) {
-    return <div {...props} class={${progress_styles(page)}}>
-        <div class={${progress_fill_styles(page)}} style={"width:" + props.value + "%;"}></div>
-    </div>
+    return <progress {...props} max={100} value={props.value} class={${progress_styles(page)}}></progress>
 }
 
 public #universal Accordion(props) {

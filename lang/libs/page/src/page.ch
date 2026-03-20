@@ -407,7 +407,14 @@ window.$_um = ((...parts) => {
     for(let i = 0; i < parts.length; i++) {
         const part = parts[i];
         if(!part) continue;
-        for(const k in part) out[k] = part[k];
+        for(const k in part) {
+            const key = (k === "className" || k === "class") ? "class" : k;
+            if(key === "class" && out[key] && part[k]) {
+                out[key] = out[key] + " " + part[k];
+            } else {
+                out[key] = part[k];
+            }
+        }
     }
     return out;
 })

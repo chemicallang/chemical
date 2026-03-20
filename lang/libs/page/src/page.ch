@@ -392,7 +392,16 @@ const $r_uni_ch = (html, fnName, props) => $_r.createElement(UniReactBridge, { h
         // this is just required for react, solid and preact integration to work
         pageHeadJs.append_view(std::string_view("""
 window.$__uni_hydration_queue = []
-window.$_u = window.$_u || {}
+window.$__uni_dispatch = ((fnName, target, props) => {
+    const fn = window[fnName]
+    if(fn) {
+        fn.__hydrate(target, props || {})
+    } else {
+        window.$__uni_hydration_queue.push([ fnName, target, props ]);
+    }
+})
+"""))
+        pageJs.append_view(std::string_view("""
 window.$_um = window.$_um || ((...parts) => {
     const out = {};
     for(let i = 0; i < parts.length; i++) {
@@ -530,338 +539,26 @@ window.$_uc = window.$_uc || ((factory, props) => {
     if(!factory) return null;
     return window.$_urn(factory(props || {}));
 })
-window.$__uni_get = window.$__uni_get || ((name) => {
-    if(window.$_u && window.$_u[name]) return window.$_u[name];
-    if(window[name]) return window[name];
-    return null;
-})
-window.$__uni_dispatch = window.$__uni_dispatch || ((fnName, target, props) => {
-    const fn = window.$__uni_get(fnName);
-    if(!fn) {
-        window.$__uni_hydration_queue.push([ fnName, target, props ]);
-        return false;
-    }
-    const hydrate = fn.__hydrate || fn;
-    hydrate(target, props || {});
-    return true;
-})
 window.$__universal_flush = function() {
     const q = window.$__uni_hydration_queue;
-    const next = [];
-    while (q.length > 0) {
-        const [name, el, props] = q.shift();
-        if(!window.$__uni_dispatch(name, el, props)) {
-            next.push([name, el, props]);
+    for(let i = 0; i < q.length; i++) {
+        const obj = window.$__uni_hydration_queue[i];
+        const fnName = obj[0]
+        const fn = window[fnName];
+        if(fn) {
+            const hydrater = fn.__hydrate;
+            if(hydrater) {
+                hydrater(obj[1], obj[2] || {})
+            } else {
+                console.error("missing component hydration function by name", obj[0]);
+            }
+        } else {
+            console.error("missing component function by name", obj[0]);
         }
     }
-    while(next.length > 0) q.push(next.shift());
 };
 """))
         pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
-        // TODO: remove these
-        // pageHead.append_view(std::string_view("""<script>
-        //     // Utility to traverse DOM children by path
-        //     window.$_ut = window.$_ut || ((e, x, offset = 0) => {
-        //         for(let i = 0; i < x.length; i++) {
-        //             let idx = x[i];
-        //             if(i === 0) idx += offset;
-        //             e = e.childNodes[idx];
-        //         }
-        //         return e;
-        //     });
-//
-        //     // Universal Runtime: createElement and Node creation
-        //     window.$_ur = {
-        //         Fragment: {},
-        //         createElement: (t, p, ...c) => ({ t, p: p || {}, c })
-        //     };
-//
-        //     window.$_urn = (v) => {
-        //         if(v == null || v === false || v === true) return document.createTextNode('');
-        //         if(v.nodeType) return v;
-        //         if(v.subscribe && v.value !== undefined) {
-        //             const n = document.createTextNode('' + v.value);
-        //             v.subscribe((x) => n.textContent = '' + x);
-        //             return n;
-        //         }
-        //         if(Array.isArray(v)) {
-        //             const f = document.createDocumentFragment();
-        //             for(let i = 0; i < v.length; i++) f.appendChild(window.$_urn(v[i]));
-        //             return f;
-        //         }
-        //         if(typeof v === 'string' || typeof v === 'number') return document.createTextNode('' + v);
-        //         if(v && v.t !== undefined) {
-        //             if(v.t === window.$_ur.Fragment) {
-        //                 const f = document.createDocumentFragment();
-        //                 for(let i = 0; i < v.c.length; i++) f.appendChild(window.$_urn(v.c[i]));
-        //                 return f;
-        //             }
-        //             if(typeof v.t === 'function') {
-        //                 return window.$_urn(v.t({ ...v.p, children: v.c }));
-        //             }
-        //             const e = document.createElement(v.t);
-        //             const props = v.p || {};
-        //             for(const k in props) {
-        //                 const pv = props[k];
-        //                 if(k.startsWith('on') && typeof pv === 'function') {
-        //                     e.addEventListener(k.substring(2).toLowerCase(), pv);
-        //                 } else if(pv && pv.subscribe && pv.value !== undefined) {
-        //                     if(k in e) e[k] = pv.value;
-        //                     else e.setAttribute(k, '' + pv.value);
-        //                     pv.subscribe((x) => {
-        //                         if(k in e) e[k] = x;
-        //                         else e.setAttribute(k, '' + x);
-        //                     });
-        //                 } else if(k === 'className') {
-        //                     e.setAttribute('class', pv);
-        //                 } else if(pv !== false && pv != null) {
-        //                     if(k in e) e[k] = pv;
-        //                     else e.setAttribute(k, '' + pv);
-        //                 }
-        //             }
-        //             for(let i = 0; i < v.c.length; i++) e.appendChild(window.$_urn(v.c[i]));
-        //             return e;
-        //         }
-        //         return document.createTextNode('' + v);
-        //     };
-//
-        //     // State management
-        //     window.$_us = (v) => {
-        //         let val = v;
-        //         const subs = [];
-        //         return {
-        //             get value() { return val; },
-        //             set value(n) {
-        //                 val = n;
-        //                 for(let i = 0; i < subs.length; i++) subs[i](val);
-        //             },
-        //             subscribe(fn) { subs.push(fn); }
-        //         };
-        //     };
-        //     window.$_r=window.$_r||window.$_ur;
-        //     window.$_u = window.$_u || {};
-        //     window.$_uq = window.$_uq || [];
-        //     window.$_ureg = window.$_ureg || ((name, comp) => {
-        //         window.$_u[name] = comp;
-        //         if(window.$_uf) window.$_uf();
-        //     });
-        //     window.$_ucn = window.$_ucn || ((name, props) => {
-        //         const comp = window.$_u[name];
-        //         if(!comp) return null;
-        //         return comp(props || {});
-        //     });
-        //     window.$_uf = window.$_uf || (() => {
-        //         if(!window.$_uq || !window.$_uq.length) return;
-        //         const next = [];
-        //         for(let i = 0; i < window.$_uq.length; i++) {
-        //             const q = window.$_uq[i];
-        //             const id = q[0];
-        //             const name = q[1];
-        //             const props = q[2] || {};
-        //             const host = document.getElementById(id);
-        //             const comp = window.$_u[name];
-        //             if(!host || !comp) {
-        //                 next.push(q);
-        //                 continue;
-        //             }
-        //             if(comp.__hydrate) {
-        //                 comp.__hydrate(host, props, 0);
-        //             } else if(comp) {
-        //                 const node = window.$_uc ? window.$_uc(comp, props) : comp(props);
-        //                 if(node) {
-        //                     host.innerHTML = "";
-        //                     host.appendChild(node);
-        //                 }
-        //             }
-        //         }
-        //         window.$_uq = next;
-        //     });
-        //     if(document.readyState === "loading") {
-        //         document.addEventListener("DOMContentLoaded", () => window.$_uf && window.$_uf(), { once: true });
-        //     } else {
-        //         window.$_uf();
-        //     }
-        //     window.$_um = window.$_um || ((e, comp, props) => {
-        //         const data = props || {};
-        //         const out = comp(data);
-        //         if(out == null) {
-        //             e.remove();
-        //             return;
-        //         }
-        //         if(out.nodeType) {
-        //             e.replaceWith(out);
-        //             return;
-        //         }
-        //         if(out.root && out.root.nodeType) {
-        //             const root = out.root;
-        //             e.replaceWith(root);
-        //             if(out.initialize) out.initialize(root, data);
-        //             return;
-        //         }
-        //         if(typeof out === "string" || out.html !== undefined) {
-        //             const tpl = document.createElement("template");
-        //             tpl.innerHTML = typeof out === "string" ? out : out.html;
-        //             const root = tpl.content.firstElementChild || tpl.content.firstChild;
-        //             if(!root) {
-        //                 e.remove();
-        //                 return;
-        //             }
-        //             e.replaceWith(root);
-        //             if(out.initialize) out.initialize(root, data);
-        //             return;
-        //         }
-        //         if(out && out.t !== undefined && window.$_urn) {
-        //             e.replaceWith(window.$_urn(out));
-        //             return;
-        //         }
-        //         e.remove();
-        //     });
-        //     window.$_uc = window.$_uc || ((factory, props) => {
-        //         const out = factory(props || {});
-        //         if(out == null) return null;
-        //         if(out.nodeType) return out;
-        //         if(out.root && out.root.nodeType) return out.root;
-        //         if(typeof out === "string" || out.html !== undefined) {
-        //             const tpl = document.createElement("template");
-        //             tpl.innerHTML = typeof out === "string" ? out : out.html;
-        //             const root = tpl.content.firstElementChild || tpl.content.firstChild;
-        //             if(!root) return null;
-        //             if(out.initialize) out.initialize(root, props || {});
-        //             return root;
-        //         }
-        //         if(out && out.t !== undefined && window.$_urn) return window.$_urn(out);
-        //         return null;
-        //     });
-        //     window.$_ru = window.$_ru || ((compRef, props, ...children) => {
-        //         const p = props ? { ...props } : {};
-        //         if(children && children.length) p.children=children.length === 1 ? children[0] : children;
-        //         const U = (pp) => {
-        //             const ref = $_r.useRef(null);
-        //             $_r.useLayoutEffect(()=>{
-        //                 const host = ref.current;
-        //                 if(!host) return;
-        //                 let stop = false;
-        //                 let h = 0;
-        //                 const resolve = () => {
-        //                     if(typeof compRef === 'string') {
-        //                         if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
-        //                         if(window[compRef]) return window[compRef];
-        //                         return null;
-        //                     }
-        //                     return compRef;
-        //                 };
-        //                 const mount = () => {
-        //                     if(stop) return;
-        //                     const comp = resolve();
-        //                     if(!comp) {
-        //                         h = (window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount,16));
-        //                         return;
-        //                     }
-        //                     let node=null;
-        //                     if(window.$_uc) {
-        //                         node=window.$_uc(comp, pp || {});
-        //                     } else {
-        //                         const out=comp(pp || {});
-        //                         if(out && out.nodeType) node=out; else if(out && out.root && out.root.nodeType) {
-        //                             node=out.root;
-        //                             if(out.initialize) out.initialize(node,pp || {});
-        //                         }else if(typeof out === 'string' || (out && out.html !== undefined)) {
-        //                             const tpl=document.createElement('template');
-        //                             tpl.innerHTML = typeof out === 'string' ? out : out.html;
-        //                             node = tpl.content.firstElementChild || tpl.content.firstChild;
-        //                             if(node && out && out.initialize) out.initialize(node, pp || {});
-        //                         }else if(out && out.t !== undefined && window.$_urn){
-        //                             node = window.$_urn(out);
-        //                         }
-        //                     }
-        //                     if(node) {
-        //                         host.innerHTML = '';
-        //                         host.appendChild(node);
-        //                     } else {
-        //                         host.innerHTML = '';
-        //                     }
-        //                 };
-        //                 mount();
-        //                 return ()=>{
-        //                     stop=true;
-        //                     if(window.cancelAnimationFrame&&window.requestAnimationFrame&&h) window.cancelAnimationFrame(h);
-        //                     else if(h) clearTimeout(h);
-        //                 };
-        //             },[pp]);
-        //             return $_r.createElement('span', { ref });
-        //         };
-        //         return $_r.createElement(U,p);
-        //     });
-        //     window.$_pu = window.$_pu || ((compRef, props, ...children) => {
-        //         const p = props ? { ...props } : {};
-        //         if(children && children.length) p.children = children.length === 1 ? children[0] : children;
-        //         const U = (pp) => {
-        //             const ref = window.$_ph && window.$_ph.useRef ? window.$_ph.useRef(null) : { current: null };
-        //             const effect = window.$_ph && window.$_ph.useLayoutEffect ? window.$_ph.useLayoutEffect : ((fn) => fn());
-        //             effect(() => {
-        //                 const host = ref.current;
-        //                 if(!host) return;
-        //                 let stop = false;
-        //                 let h = 0;
-        //                 const resolve = () => {
-        //                     if(typeof compRef === "string") {
-        //                         if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
-        //                         if(window[compRef]) return window[compRef];
-        //                         return null;
-        //                     }
-        //                     return compRef;
-        //                 };
-        //                 const mount = () => {
-        //                     if(stop) return;
-        //                     const comp = resolve();
-        //                     if(!comp) {
-        //                         h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16);
-        //                         return;
-        //                     }
-        //                     const node = window.$_uc ? window.$_uc(comp, pp || {}) : null;
-        //                     host.innerHTML = "";
-        //                     if(node) host.appendChild(node);
-        //                 };
-        //                 mount();
-        //                 return () => {
-        //                     stop = true;
-        //                     if(window.cancelAnimationFrame && window.requestAnimationFrame && h) window.cancelAnimationFrame(h);
-        //                     else if(h) clearTimeout(h);
-        //                 };
-        //             }, [p]);
-        //             return window.$_p ? window.$_p.h("span", { ref }) : null;
-        //         };
-        //         return window.$_p ? window.$_p.h(U, p) : null;
-        //     });
-        //     window.$_su = window.$_su || ((compRef, props, ...children) => {
-        //         const p = props ? { ...props } : {};
-        //         if(children && children.length) p.children = children.length === 1 ? children[0] : children;
-        //         const host = document.createElement("span");
-        //         let stop = false;
-        //         let h = 0;
-        //         const resolve = () => {
-        //             if(typeof compRef === "string") {
-        //                 if(window.$_u && window.$_u[compRef]) return window.$_u[compRef];
-        //                 if(window[compRef]) return window[compRef];
-        //                 return null;
-        //             }
-        //             return compRef;
-        //         };
-        //         const mount = () => {
-        //             if(stop) return;
-        //             const comp = resolve();
-        //             if(!comp) {
-        //                 h = window.requestAnimationFrame ? window.requestAnimationFrame(mount) : setTimeout(mount, 16);
-        //                 return;
-        //             }
-        //             const node = window.$_uc ? window.$_uc(comp, p) : null;
-        //             host.innerHTML = "";
-        //             if(node) host.appendChild(node);
-        //         };
-        //         mount();
-        //         return host;
-        //     });
-        // </script>"""))
     }
 
     func asynchronousSolidSetup(&mut self) {

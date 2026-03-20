@@ -28,15 +28,4 @@ func append_universal_component_js(
     out.append_view(".__hydrate = function(elem, props) { return window.$__uni_mount(elem, ");
     out.append_view(scopedNameView);
     out.append_view(", props || {}); };\n");
-    out.append_view("window.$_u = window.$_u || {};\n");
-    out.append_view("window.$_u['");
-    out.append_view(scopedNameView);
-    out.append_view("'] = ");
-    out.append_view(scopedNameView);
-    out.append_view(";\n");
-    out.append_view("window['");
-    out.append_view(scopedNameView);
-    out.append_view("'] = ");
-    out.append_view(scopedNameView);
-    out.append_view(";\n");
 }

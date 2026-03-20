@@ -402,7 +402,7 @@ window.$__uni_dispatch = ((fnName, target, props) => {
 })
 """))
         pageJs.append_view(std::string_view("""
-window.$_um = window.$_um || ((...parts) => {
+window.$_um = ((...parts) => {
     const out = {};
     for(let i = 0; i < parts.length; i++) {
         const part = parts[i];
@@ -411,11 +411,11 @@ window.$_um = window.$_um || ((...parts) => {
     }
     return out;
 })
-window.$_ur = window.$_ur || {
+window.$_ur = {
     Fragment: {},
     createElement: (t, p, ...c) => ({ t, p: p || {}, c })
 }
-window.$_us = window.$_us || ((v) => {
+window.$_us = ((v) => {
     let val = v;
     const subs = [];
     return {
@@ -433,10 +433,10 @@ window.$_us = window.$_us || ((v) => {
         }
     };
 })
-window.$__uni_is_state = window.$__uni_is_state || ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
-window.$__uni_value = window.$__uni_value || ((v) => window.$__uni_is_state(v) ? v.value : v)
-window.$__uni_html = window.$__uni_html || ((html) => ({ __uni_html: html || "" }))
-window.$__uni_set_prop = window.$__uni_set_prop || ((el, key, value) => {
+window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
+window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
+window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
+window.$__uni_set_prop = ((el, key, value) => {
     const v = window.$__uni_value(value);
     if(key === "children" || key === "ref" || key == null) return;
     if(key === "className" || key === "class") {
@@ -483,13 +483,13 @@ window.$__uni_set_prop = window.$__uni_set_prop || ((el, key, value) => {
     }
     el.setAttribute(key, "" + v);
 })
-window.$__uni_apply_prop = window.$__uni_apply_prop || ((el, key, value) => {
+window.$__uni_apply_prop = ((el, key, value) => {
     window.$__uni_set_prop(el, key, value);
     if(window.$__uni_is_state(value)) {
         value.subscribe((next) => window.$__uni_set_prop(el, key, next));
     }
 })
-window.$_urn = window.$_urn || ((v) => {
+window.$_urn = ((v) => {
     if(v == null || v === false || v === true) return document.createTextNode("");
     if(window.$__uni_is_state(v)) {
         const n = document.createTextNode(v.value == null ? "" : "" + v.value);
@@ -527,7 +527,7 @@ window.$_urn = window.$_urn || ((v) => {
     }
     return document.createTextNode("" + v);
 })
-window.$__uni_mount = window.$__uni_mount || ((host, comp, props) => {
+window.$__uni_mount = ((host, comp, props) => {
     if(!host || !comp) return;
     const data = props || {};
     const out = comp(data);
@@ -535,7 +535,7 @@ window.$__uni_mount = window.$__uni_mount || ((host, comp, props) => {
     host.innerHTML = "";
     if(node) host.appendChild(node);
 })
-window.$_uc = window.$_uc || ((factory, props) => {
+window.$_uc = ((factory, props) => {
     if(!factory) return null;
     return window.$_urn(factory(props || {}));
 })

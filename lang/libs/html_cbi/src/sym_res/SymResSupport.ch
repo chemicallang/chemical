@@ -63,8 +63,6 @@ struct SymResSupport {
 
     var setComponentHashFn : *mut ASTNode = null
 
-    var getNextUIdFn : *mut ASTNode = null
-
     // capture nodes
     var pageHtmlNode : *mut ASTNode = null
     var getHtmlSizeFn : *mut ASTNode = null

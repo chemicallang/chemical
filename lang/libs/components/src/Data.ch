@@ -37,6 +37,71 @@ func accordion_panel_styles(page : &mut HtmlPage) : *char {
     }
 }
 
+func accordion_item_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        border: 1px solid var(--chx-border);
+        border-radius: 18px;
+        background: var(--chx-surface);
+        overflow: hidden;
+        box-shadow: var(--chx-shadow-sm);
+        .chx-accordion-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            cursor: pointer;
+            list-style: none;
+            width: 100%;
+            padding: 1rem 1.1rem;
+            font-weight: 650;
+            color: var(--chx-text-main);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 80%), var(--chx-surface);
+            border: 0;
+        }
+        .chx-accordion-summary::-webkit-details-marker {
+            display: none;
+        }
+        .chx-accordion-copy {
+            display: grid;
+            gap: 0.2rem;
+        }
+        .chx-accordion-title {
+            font-size: 1rem;
+            color: var(--chx-text-main);
+        }
+        .chx-accordion-subtitle {
+            font-size: 0.84rem;
+            font-weight: 500;
+            color: var(--chx-text-muted);
+        }
+        .chx-accordion-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--chx-surface-2);
+            border: 1px solid var(--chx-border);
+            font-size: 1rem;
+            flex-shrink: 0;
+            transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+        .chx-accordion-panel {
+            padding: 1rem 1.1rem;
+            color: var(--chx-text-muted);
+            background: var(--chx-surface);
+            border-top: 1px solid var(--chx-border);
+        }
+        &[open] .chx-accordion-icon {
+            transform: rotate(45deg);
+            background: var(--chx-primary);
+            color: var(--chx-primary-fg);
+            border-color: transparent;
+        }
+    }
+}
+
 func tabs_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: grid;
@@ -58,11 +123,16 @@ func tab_list_styles(page : &mut HtmlPage) : *char {
 
 func tab_styles(page : &mut HtmlPage) : *char {
     return #css {
+        border: 0;
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
         background: var(--chx-surface-2);
         color: var(--chx-text-main);
         font-weight: 600;
+        cursor: pointer;
+        &:hover {
+            background: rgba(59, 130, 246, 0.12);
+        }
     }
 }
 
@@ -185,6 +255,19 @@ public #universal AccordionPanel(props) {
     return <div {...props} class={${accordion_panel_styles(page)}}>{props.children}</div>
 }
 
+public #universal AccordionItem(props) {
+    return <details {...props} class={${accordion_item_styles(page)}}>
+        <summary class="chx-accordion-summary">
+            <span class="chx-accordion-copy">
+                <span class="chx-accordion-title">{props.title}</span>
+                <span class="chx-accordion-subtitle">{props.subtitle}</span>
+            </span>
+            <span class="chx-accordion-icon">+</span>
+        </summary>
+        <div class="chx-accordion-panel">{props.children}</div>
+    </details>
+}
+
 public #universal Tabs(props) {
     return <div {...props} class={${tabs_styles(page)}}>{props.children}</div>
 }
@@ -194,7 +277,7 @@ public #universal TabList(props) {
 }
 
 public #universal Tab(props) {
-    return <div {...props} class={${tab_styles(page)}}>{props.children}</div>
+    return <button {...props} type="button" class={${tab_styles(page)}}>{props.children}</button>
 }
 
 public #universal TabActive(props) {

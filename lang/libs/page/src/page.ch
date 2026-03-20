@@ -475,12 +475,24 @@ window.$__uni_set_prop = ((el, key, value) => {
         el.addEventListener(eventName, v);
         return;
     }
+    const propType = typeof el[key];
     if(v == null || v === false) {
         if(key in el && typeof el[key] !== "function") {
-            try { el[key] = ""; } catch(_) {}
+            try {
+                if(propType === "boolean") el[key] = false;
+                else el[key] = "";
+            } catch(_) {}
         }
         el.removeAttribute(key);
         return;
+    }
+    if(key in el && propType === "boolean") {
+        try {
+            el[key] = !!v;
+            if(v) el.setAttribute(key, "");
+            else el.removeAttribute(key);
+            return;
+        } catch(_) {}
     }
     if(key in el && key !== "list" && key !== "type") {
         try {

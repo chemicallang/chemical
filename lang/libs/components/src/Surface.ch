@@ -80,17 +80,59 @@ func popover_styles(page : &mut HtmlPage) : *char {
     }
 }
 
-func dialog_styles(page : &mut HtmlPage) : *char {
+func dialog_overlay_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        z-index: 50;
+    }
+}
+
+func dialog_backdrop_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.62);
+        backdrop-filter: blur(6px);
+    }
+}
+
+func dialog_content_styles(page : &mut HtmlPage) : *char {
     return #css {
         width: 420px;
         max-width: 100%;
-        margin: 0;
+        position: relative;
+        z-index: 1;
         border: 1px solid var(--chx-border);
         border-radius: 20px;
         padding: 1.15rem;
         background: var(--chx-surface);
         box-shadow: var(--chx-shadow-lg);
         color: var(--chx-text-main);
+    }
+}
+
+func dialog_header_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+    }
+}
+
+func dialog_actions_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1rem;
     }
 }
 
@@ -118,6 +160,47 @@ func tooltip_styles(page : &mut HtmlPage) : *char {
         background: var(--chx-surface-2);
         color: var(--chx-text-main);
         font-size: 0.82rem;
+        box-shadow: var(--chx-shadow-sm);
+    }
+}
+
+func bottom_bar_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--chx-border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: var(--chx-shadow-lg);
+        backdrop-filter: blur(18px);
+    }
+}
+
+func empty_state_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: grid;
+        gap: 0.75rem;
+        justify-items: start;
+        padding: 1.3rem;
+        border: 1px dashed var(--chx-border-strong);
+        border-radius: var(--chx-radius);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.04), transparent 60%), var(--chx-surface);
+    }
+}
+
+func stat_card_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: grid;
+        gap: 0.5rem;
+        padding: 1.15rem;
+        border: 1px solid var(--chx-border);
+        border-radius: 18px;
+        background: var(--chx-surface);
         box-shadow: var(--chx-shadow-sm);
     }
 }
@@ -162,7 +245,23 @@ public #universal Popover(props) {
 }
 
 public #universal Dialog(props) {
-    return <dialog {...props} open={props.open} class={${dialog_styles(page)}}>{props.children}</dialog>
+    return <div {...props} class={${dialog_overlay_styles(page)}}>{props.children}</div>
+}
+
+public #universal DialogBackdrop(props) {
+    return <div {...props} class={${dialog_backdrop_styles(page)}}></div>
+}
+
+public #universal DialogContent(props) {
+    return <div {...props} class={${dialog_content_styles(page)}}>{props.children}</div>
+}
+
+public #universal DialogHeader(props) {
+    return <div {...props} class={${dialog_header_styles(page)}}>{props.children}</div>
+}
+
+public #universal DialogActions(props) {
+    return <div {...props} class={${dialog_actions_styles(page)}}>{props.children}</div>
 }
 
 public #universal Snackbar(props) {
@@ -175,4 +274,16 @@ public #universal Tooltip(props) {
 
 public #universal Icon(props) {
     return <span {...props} class={${icon_styles(page)}}>{props.children}</span>
+}
+
+public #universal BottomBar(props) {
+    return <nav {...props} class={${bottom_bar_styles(page)}}>{props.children}</nav>
+}
+
+public #universal EmptyState(props) {
+    return <section {...props} class={${empty_state_styles(page)}}>{props.children}</section>
+}
+
+public #universal StatCard(props) {
+    return <section {...props} class={${stat_card_styles(page)}}>{props.children}</section>
 }

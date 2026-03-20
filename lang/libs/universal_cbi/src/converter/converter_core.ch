@@ -78,6 +78,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     converter.str.append_view(bin.op);
                     converter.str.append_view(" ");
                     converter.convertJsNode(bin.right);
+                } else {
+                    converter.convertJsNode(bin.left);
+                    converter.str.append_view(" ");
+                    converter.str.append_view(bin.op);
+                    converter.str.append_view(" ");
+                    converter.convertJsNode(bin.right);
                 }
             } else {
                 converter.convertJsNode(bin.left);

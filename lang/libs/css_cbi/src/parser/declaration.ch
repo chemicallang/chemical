@@ -85,6 +85,10 @@ func (cssParser : &mut CSSParser) parseValue(
 ) {
 
     const valueTok = parser.getToken();
+    if(valueTok.type == TokenType.DollarLBrace) {
+        cssParser.parseChemValueAfterLBrace(parser, builder, value);
+        return;
+    }
     if(valueTok.type == TokenType.Identifier) {
         const globalKind = getCSSGlobalKeywordKind(valueTok.value);
         if(globalKind != CSSKeywordKind.Unknown) {

@@ -54,6 +54,14 @@ func button_danger_styles(page : &mut HtmlPage) : *char {
     }
 }
 
+func button_success_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        background: var(--chx-success);
+        color: #fff;
+        border-color: transparent;
+    }
+}
+
 func button_sm_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.5rem 0.85rem;
@@ -70,6 +78,48 @@ func button_lg_styles(page : &mut HtmlPage) : *char {
     // TODO: calc not working
     // error: expected a length value
     // border-radius: calc(var(--chx-radius) + 4px);
+}
+
+func icon_button_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 1px solid var(--chx-border);
+        background: var(--chx-surface);
+        color: var(--chx-text-main);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--chx-shadow-sm);
+        cursor: pointer;
+        &:hover {
+            background: var(--chx-surface-2);
+            border-color: var(--chx-border-strong);
+        }
+    }
+}
+
+func fab_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        min-width: 56px;
+        height: 56px;
+        padding: 0 1.2rem;
+        border-radius: 999px;
+        border: none;
+        background: var(--chx-accent);
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.65rem;
+        font-weight: 700;
+        box-shadow: var(--chx-shadow-lg);
+        cursor: pointer;
+        &:hover {
+            transform: translateY(-1px);
+        }
+    }
 }
 
 public #universal Button(props) {
@@ -92,10 +142,22 @@ public #universal ButtonDanger(props) {
     return <Button {...props} class={${button_danger_styles(page)}}>{props.children}</Button>
 }
 
+public #universal ButtonSuccess(props) {
+    return <Button {...props} class={${button_success_styles(page)}}>{props.children}</Button>
+}
+
 public #universal ButtonSm(props) {
     return <Button {...props} class={${button_sm_styles(page)}}>{props.children}</Button>
 }
 
 public #universal ButtonLg(props) {
     return <Button {...props} class={${button_lg_styles(page)}}>{props.children}</Button>
+}
+
+public #universal IconButton(props) {
+    return <button {...props} class={${icon_button_styles(page)}}>{props.children}</button>
+}
+
+public #universal Fab(props) {
+    return <button {...props} class={${fab_styles(page)}}>{props.children}</button>
 }

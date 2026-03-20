@@ -111,6 +111,13 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
+                    if(d.value is SsrAttributeValue.Boolean) {
+                        var Boolean(value) = d.value else unreachable;
+                        if(!value) {
+                            d++;
+                            continue;
+                        }
+                    }
                     output.append(' ');
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
@@ -168,6 +175,13 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
+                    if(d.value is SsrAttributeValue.Boolean) {
+                        var Boolean(value) = d.value else unreachable;
+                        if(!value) {
+                            d++;
+                            continue;
+                        }
+                    }
                     // Safe comma placement
                     if (!*is_first) output.append_view(", ")
                     *is_first = false

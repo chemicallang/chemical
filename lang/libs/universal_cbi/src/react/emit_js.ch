@@ -13,6 +13,6 @@ func append_universal_component_js(
     get_module_scoped_name(signature.functionNode , signature.name, *out);
     out.append_view("(");
     out.append_view(signature.propsName);
-    out.append_view(") { // TODO: must emit proper hydration function \n }");
+    out.append_view(") { // TODO: must emit proper hydration function \n}\n");
 
 }

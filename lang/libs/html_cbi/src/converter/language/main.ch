@@ -247,11 +247,11 @@ func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::str
 
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
     var js = std::string();
-    js.append_view("window.$_uq.push(['");
-    js.append_view(idStr.view());
-    js.append_view("','");
+    js.append_view("window.$__uni_dispatch('");
     get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);
-    js.append_view("',{");
+    js.append_view("', document.getElementById('");
+    js.append_view(idStr.view());
+    js.append_view("'), {");
     converter.emit_append_js_from_str(js);
 
     const attrs = element.attributes.size();
@@ -302,7 +302,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
     var tail = std::string();
     if(!element.children.empty()) {
         if(attrs > 0) tail.append_view(",");
-        tail.append_view("\"children\":\"");
+        tail.append_view("\"children\":window.$__uni_html(\"");
         // Collect static text/element children directly into childHtml
         var childHtml = std::string();
         for(var ci : uint = 0; ci < element.children.size(); ci++) {
@@ -344,9 +344,9 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
             else { tail.append(c); }
             ci2++;
         }
-        tail.append('\"');
+        tail.append_view("\")");
     }
-    tail.append_view("}]);");
+    tail.append_view("});");
     converter.emit_append_js_from_str(tail);
 }
 

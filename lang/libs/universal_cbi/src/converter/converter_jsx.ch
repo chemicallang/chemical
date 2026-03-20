@@ -181,8 +181,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             if(attrCount > 0) converter.str.append_view(", ");
             const attr = attrNode as *mut JsJSXAttribute
             var name = attr.name;
-            if(name.equals("class")) name = std::string_view("className");
-            else if(name.equals("for")) name = std::string_view("htmlFor");
 
             converter.str.append_view("\"");
             converter.str.append_view(name);

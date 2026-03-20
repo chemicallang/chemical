@@ -395,7 +395,7 @@ window.$__uni_hydration_queue = []
 window.$__uni_dispatch = ((fnName, target, props) => {
     const fn = window[fnName]
     if(fn) {
-        window.$__uni_mount(target, fn, props || {});
+        window.$__uni_mount(target, fn, props);
     } else {
         window.$__uni_hydration_queue.push([ fnName, target, props ]);
     }
@@ -529,8 +529,7 @@ window.$_urn = ((v) => {
 })
 window.$__uni_mount = ((host, comp, props) => {
     if(!host || !comp) return;
-    const data = props || {};
-    const out = comp(data);
+    const out = comp(props || {});
     const node = window.$_urn(out);
     host.innerHTML = "";
     if(node) host.appendChild(node);
@@ -543,10 +542,9 @@ window.$__universal_flush = function() {
     const q = window.$__uni_hydration_queue;
     for(let i = 0; i < q.length; i++) {
         const obj = window.$__uni_hydration_queue[i];
-        const fnName = obj[0]
-        const fn = window[fnName];
+        const fn = window[obj[0]];
         if(fn) {
-            window.$__uni_mount(obj[1], fn, obj[2] || {})
+            window.$__uni_mount(obj[1], fn, obj[2])
         } else {
             console.error("missing component function by name", obj[0]);
         }

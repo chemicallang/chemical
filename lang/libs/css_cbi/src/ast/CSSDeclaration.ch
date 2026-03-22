@@ -48,6 +48,11 @@ struct CSSStringValueData {
     var value : std::string_view
 }
 
+@direct_init
+struct CSSRawValueData {
+    var value : std::string_view
+}
+
 struct SingleLengthFuncCall {
 
     var name : CSSKeywordValueData

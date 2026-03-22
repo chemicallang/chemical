@@ -1534,6 +1534,11 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             str.append('\'')
         }
 
+        CSSValueKind.Raw => {
+            const ptr = value.data as *mut CSSRawValueData
+            str.append_view(ptr.value)
+        }
+
         CSSValueKind.Animation => {
             const ptr = value.data as *mut CSSAnimationValueData
             converter.writeAnimationValueData(*ptr, str)

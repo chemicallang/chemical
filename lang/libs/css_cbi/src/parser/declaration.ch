@@ -16,6 +16,85 @@ func getCSSGlobalKeywordKind(view : &std::string_view) : CSSKeywordKind {
     }
 }
 
+func is_custom_property_name(view : &std::string_view) : bool {
+    return view.size() >= 2 && view.get(0) == '-' && view.get(1) == '-';
+}
+
+func token_needs_space_before(type : TokenType) : bool {
+    switch(type) {
+        TokenType.Identifier,
+        TokenType.PropertyName,
+        TokenType.Number,
+        TokenType.HexColor,
+        TokenType.SingleQuotedValue,
+        TokenType.DoubleQuotedValue,
+        TokenType.Important,
+        TokenType.Id,
+        TokenType.ClassName => {
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+}
+
+func token_needs_space_after(type : TokenType) : bool {
+    switch(type) {
+        TokenType.Identifier,
+        TokenType.PropertyName,
+        TokenType.Number,
+        TokenType.HexColor,
+        TokenType.SingleQuotedValue,
+        TokenType.DoubleQuotedValue,
+        TokenType.Important,
+        TokenType.Id,
+        TokenType.ClassName,
+        TokenType.RParen => {
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+}
+
+func (cssParser : &mut CSSParser) parseCustomPropertyValue(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    var raw = std::string()
+    var prev_type = TokenType.Unexpected;
+    var first = true;
+
+    while(true) {
+        const token = parser.getToken();
+        if(token.type == TokenType.Semicolon || token.type == TokenType.EndOfFile) {
+            break;
+        }
+        if(token.type == TokenType.Important) {
+            break;
+        }
+
+        if(!first && token_needs_space_before(token.type as TokenType) && token_needs_space_after(prev_type as TokenType)) {
+            raw.append(' ')
+        }
+
+        raw.append_view(token.value)
+        prev_type = token.type as TokenType
+        first = false
+        parser.increment()
+    }
+
+    var raw_data = builder.allocate<CSSRawValueData>();
+    new (raw_data) CSSRawValueData {
+        value : builder.allocate_view(raw.to_view())
+    }
+    value.kind = CSSValueKind.Raw
+    value.data = raw_data
+}
+
 func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();
     switch(token.type) {
@@ -165,7 +244,11 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         important : false
     }
 
-    cssParser.parseValue(parser, builder, decl.value, token.value);
+    if(is_custom_property_name(token.value)) {
+        cssParser.parseCustomPropertyValue(parser, builder, decl.value);
+    } else {
+        cssParser.parseValue(parser, builder, decl.value, token.value);
+    }
     
     if(parser.increment_if(TokenType.Important as int)) {
         decl.important = true;

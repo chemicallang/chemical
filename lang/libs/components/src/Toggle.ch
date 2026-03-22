@@ -15,6 +15,36 @@ func toggle_styles(page : &mut HtmlPage) : *char {
             height: 1px;
             margin: 0;
             pointer-events: none;
+            &:focus-visible + .chx-checkbox-box,
+            &:focus-visible + .chx-radio-box,
+            &:focus-visible + .chx-switch-track {
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+            }
+            &[checked] + .chx-checkbox-box {
+                background: var(--chx-primary);
+                border-color: var(--chx-primary);
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+            }
+            &[checked] + .chx-checkbox-box .chx-checkbox-mark {
+                opacity: 1;
+            }
+            &[checked] + .chx-radio-box {
+                background: var(--chx-primary);
+                border-color: var(--chx-primary);
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+            }
+            &[checked] + .chx-radio-box .chx-radio-dot {
+                opacity: 1;
+                transform: scale(1);
+            }
+            &[checked] + .chx-switch-track {
+                background: rgba(59, 130, 246, 0.16);
+                border-color: rgba(59, 130, 246, 0.32);
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10);
+            }
+            &[checked] + .chx-switch-track .chx-switch-thumb {
+                transform: translateX(20px);
+            }
         }
         .chx-checkbox-box {
             width: 18px;
@@ -84,8 +114,8 @@ func toggle_styles(page : &mut HtmlPage) : *char {
 public #universal Checkbox(props) {
     return <label class={${toggle_styles(page)}}>
         <input type="checkbox" checked={props.checked} onClick={props.onClick} class="chx-toggle-input" />
-        <span class="chx-checkbox-box" style={props.checked ? "background:var(--chx-primary);border-color:var(--chx-primary);box-shadow:0 0 0 4px rgba(59, 130, 246, 0.12);" : ""}>
-            <span class="chx-checkbox-mark" style={props.checked ? "opacity:1;" : ""}></span>
+        <span class="chx-checkbox-box">
+            <span class="chx-checkbox-mark"></span>
         </span>
         <span>{props.children}</span>
     </label>
@@ -94,8 +124,8 @@ public #universal Checkbox(props) {
 public #universal Radio(props) {
     return <label class={${toggle_styles(page)}}>
         <input type="radio" checked={props.checked} name={props.name} onClick={props.onClick} class="chx-toggle-input" />
-        <span class="chx-radio-box" style={props.checked ? "background:var(--chx-primary);border-color:var(--chx-primary);box-shadow:0 0 0 4px rgba(59, 130, 246, 0.12);" : ""}>
-            <span class="chx-radio-dot" style={props.checked ? "opacity:1;transform:scale(1);" : ""}></span>
+        <span class="chx-radio-box">
+            <span class="chx-radio-dot"></span>
         </span>
         <span>{props.children}</span>
     </label>
@@ -104,8 +134,8 @@ public #universal Radio(props) {
 public #universal Switch(props) {
     return <label class={${toggle_styles(page)}}>
         <input type="checkbox" checked={props.checked} onClick={props.onClick} class="chx-toggle-input" />
-        <span class="chx-switch-track" style={props.checked ? "background:rgba(59, 130, 246, 0.16);border-color:rgba(59, 130, 246, 0.32);box-shadow:0 0 0 4px rgba(59, 130, 246, 0.10);" : ""}>
-            <span class="chx-switch-thumb" style={props.checked ? "transform:translateX(20px);" : ""}></span>
+        <span class="chx-switch-track">
+            <span class="chx-switch-thumb"></span>
         </span>
         <span>{props.children}</span>
     </label>

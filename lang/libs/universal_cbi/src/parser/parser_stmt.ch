@@ -97,7 +97,9 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
     } else if(token.type == JsTokenType.Return as int) {
         parser.increment();
         var val : *mut JsNode = null;
-        if(parser.getToken().type != JsTokenType.SemiColon as int) {
+        if(parser.getToken().type != JsTokenType.SemiColon as int &&
+           parser.getToken().type != JsTokenType.RBrace as int &&
+           parser.getToken().type != JsTokenType.EndOfFile as int) {
             val = jsParser.parseExpression(parser, builder);
         }
         var ret = builder.allocate<JsReturn>()

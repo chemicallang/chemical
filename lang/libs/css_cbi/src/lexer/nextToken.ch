@@ -380,6 +380,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             css.lb_count++;
             if(css.at_rule) {
                 css.at_rule = false;
+                css.where = CSSLexerWhere.Declaration;
             } else if(css.where == CSSLexerWhere.Selector) {
                 css.where = CSSLexerWhere.Declaration;
             } else if(css.where == CSSLexerWhere.Value) {

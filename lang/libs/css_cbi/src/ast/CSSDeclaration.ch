@@ -206,13 +206,13 @@ struct CSSOutlineValueData {
 
 struct CSSBorderRadiusValueData {
 
-    var first : CSSLengthValueData
+    var first : CSSValue
 
-    var second : CSSLengthValueData
+    var second : CSSValue
 
-    var third : CSSLengthValueData
+    var third : CSSValue
 
-    var fourth : CSSLengthValueData
+    var fourth : CSSValue
 
     var next : *mut CSSBorderRadiusValueData
 

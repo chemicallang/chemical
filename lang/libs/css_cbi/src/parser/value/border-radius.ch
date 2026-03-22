@@ -6,26 +6,37 @@ func (cssParser : &mut CSSParser) parseBorderRadius(
 ) {
 
     const ptr = builder.allocate<CSSBorderRadiusValueData>();
-    if(cssParser.parseLengthInto(parser, builder, ptr.first)) {
+    new (ptr) CSSBorderRadiusValueData {
+        first : CSSValue()
+        second : CSSValue()
+        third : CSSValue()
+        fourth : CSSValue()
+        next : null
+    }
+    if(cssParser.parseLength(parser, builder, ptr.first)) {
 
-        cssParser.parseLengthInto(parser, builder, ptr.second)
-        cssParser.parseLengthInto(parser, builder, ptr.third)
-        cssParser.parseLengthInto(parser, builder, ptr.fourth)
-
-        ptr.next = null
+        cssParser.parseLength(parser, builder, ptr.second)
+        cssParser.parseLength(parser, builder, ptr.third)
+        cssParser.parseLength(parser, builder, ptr.fourth)
 
         const tok = parser.getToken()
         if(tok.type == TokenType.Divide) {
             parser.increment();
 
             const next = builder.allocate<CSSBorderRadiusValueData>();
-            next.next = null;
+            new (next) CSSBorderRadiusValueData {
+                first : CSSValue()
+                second : CSSValue()
+                third : CSSValue()
+                fourth : CSSValue()
+                next : null
+            }
 
-            if(cssParser.parseLengthInto(parser, builder, next.first)) {
+            if(cssParser.parseLength(parser, builder, next.first)) {
 
-                cssParser.parseLengthInto(parser, builder, next.second)
-                cssParser.parseLengthInto(parser, builder, next.third)
-                cssParser.parseLengthInto(parser, builder, next.fourth)
+                cssParser.parseLength(parser, builder, next.second)
+                cssParser.parseLength(parser, builder, next.third)
+                cssParser.parseLength(parser, builder, next.fourth)
 
                 ptr.next = next;
 

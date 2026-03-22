@@ -388,7 +388,7 @@ func (cssParser : &mut CSSParser) parseCSSVariableFunc(parser : *mut Parser, bui
     }
 
     const colorToken = parser.getToken()
-    if(colorToken.type != TokenType.Identifier) {
+    if(colorToken.type != TokenType.Identifier && colorToken.type != TokenType.PropertyName) {
         parser.error("expected a identifier after 'var'");
     }
     parser.increment()
@@ -563,7 +563,7 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
             parser.increment();
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
         }
         TokenType.LBrace, TokenType.DollarLBrace => {

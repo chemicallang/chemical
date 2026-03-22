@@ -140,7 +140,7 @@ func (cssParser : &mut CSSParser) parseLengthInto(
             }
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
@@ -173,7 +173,7 @@ func (cssParser: &mut CSSParser) parseNumberInto(
             length.value = builder.allocate_view(token.value)
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
@@ -212,7 +212,7 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
             }
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
@@ -250,7 +250,7 @@ func (cssParser : &mut CSSParser) parseLength(
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
@@ -287,7 +287,7 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)

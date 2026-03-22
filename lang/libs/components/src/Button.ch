@@ -78,10 +78,8 @@ func button_lg_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.95rem 1.6rem;
         font-size: 1.05rem;
+        border-radius: calc(var(--chx-radius) + 4px);
     }
-    // TODO: calc not working
-    // error: expected a length value
-    // border-radius: calc(var(--chx-radius) + 4px);
 }
 
 func icon_button_styles(page : &mut HtmlPage) : *char {

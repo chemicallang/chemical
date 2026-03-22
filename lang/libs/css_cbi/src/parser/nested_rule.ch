@@ -73,6 +73,10 @@ func (cssParser : &mut CSSParser) parseNestedRule(om : &mut CSSOM, parser : *mut
 
 // Helper to parse content into a nested rule (acting as parent)
 func (cssParser : &mut CSSParser) parseNestedRuleContent(parent : *mut CSSNestedRule, parser : *mut Parser, builder : *mut ASTBuilder) : bool {
+    return cssParser.parseNestedRuleContentInto(parent.nested_rules, parser, builder);
+}
+
+func (cssParser : &mut CSSParser) parseNestedRuleContentInto(target : &mut std::vector<*mut CSSNestedRule>, parser : *mut Parser, builder : *mut ASTBuilder) : bool {
     var selector = parseSelectorList(parser, builder);
     if(selector == null) return false;
     
@@ -90,7 +94,7 @@ func (cssParser : &mut CSSParser) parseNestedRuleContent(parent : *mut CSSNested
         switch(token.type) {
              TokenType.RBrace => {
                  parser.increment();
-                 parent.nested_rules.push(rule);
+                 target.push(rule);
                  return true;
              }
              TokenType.EndOfFile => {

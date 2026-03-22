@@ -5,6 +5,8 @@ struct CSSMediaRule {
 
     var declarations : std::vector<*mut CSSDeclaration>
 
+    var nested_rules : std::vector<*mut CSSNestedRule>
+
     var parent : *mut ASTNode
 
 }

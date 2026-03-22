@@ -64,7 +64,10 @@ func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, build
         const stop = list.last_ptr()
 
         // optional hint
-        cssParser.parseLength(parser, builder, stop.hint)
+        const hintToken = parser.getToken()
+        if(hintToken.type == TokenType.Number) {
+            cssParser.parseLength(parser, builder, stop.hint)
+        }
 
         if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
             break;

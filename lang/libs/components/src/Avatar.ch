@@ -10,9 +10,8 @@ func avatar_styles(page : &mut HtmlPage) : *char {
         color: var(--chx-primary-fg);
         border: 2px solid var(--chx-border);
         box-shadow: var(--chx-shadow-sm);
+        background: linear-gradient(135deg, var(--chx-accent), var(--chx-primary));
     }
-    // TODO: background not parsing when using vars
-    // background: linear-gradient(135deg, var(--chx-accent), var(--chx-primary));
 }
 
 func avatar_sm_styles(page : &mut HtmlPage) : *char {

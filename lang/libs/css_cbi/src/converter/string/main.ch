@@ -277,30 +277,30 @@ func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     }
 }
 
-func writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
 
-    if(ptr.first.kind != CSSLengthKind.Unknown) {
-        writeLength(ptr.first, str)
+    if(ptr.first.kind != CSSValueKind.Unknown) {
+        converter.writeValue(ptr.first)
     }
 
-    if(ptr.second.kind != CSSLengthKind.Unknown) {
+    if(ptr.second.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeLength(ptr.second, str)
+        converter.writeValue(ptr.second)
     }
 
-    if(ptr.third.kind != CSSLengthKind.Unknown) {
+    if(ptr.third.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeLength(ptr.third, str)
+        converter.writeValue(ptr.third)
     }
 
-    if(ptr.fourth.kind != CSSLengthKind.Unknown) {
+    if(ptr.fourth.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeLength(ptr.fourth, str)
+        converter.writeValue(ptr.fourth)
     }
 
     if(ptr.next != null) {
         str.append_view(std::string_view(" / "))
-        writeBorderRadiusValueData(*ptr.next, str)
+        converter.writeBorderRadiusValueData(*ptr.next, str)
     }
 
 }
@@ -1410,7 +1410,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
         CSSValueKind.BorderRadius => {
 
             const ptr = value.data as *mut CSSBorderRadiusValueData
-            writeBorderRadiusValueData(*ptr, str)
+            converter.writeBorderRadiusValueData(*ptr, str)
 
         }
 
@@ -1664,25 +1664,96 @@ func (converter : &mut ASTConverter) make_set_css_hash_call(hash : size_t) : *mu
     return converter.make_value_call_with(value, std::string_view("set_css_hash"), converter.support.setCssHashFn)
 }
 
+func append_media_root_selector(out : &mut std::string, className : std::string_view) {
+    if(className.empty()) return;
+    if(className.data()[0] == '.') {
+        out.append_view(className);
+    } else {
+        out.append('.');
+        out.append_view(className);
+    }
+}
+
+func (converter : &mut ASTConverter) writeMediaNestedRule(rule : *mut CSSNestedRule, str : &mut std::string, parent_selectors : &mut std::vector<std::string>) {
+    var current_selectors = std::vector<std::string>();
+
+    if(rule.selector != null) {
+        var i : uint = 0;
+        while(i < rule.selector.selectors.size()) {
+            var sel = rule.selector.selectors.get(i);
+            if(has_ampersand_complex(sel) && !parent_selectors.empty()) {
+                var p : uint = 0;
+                while(p < parent_selectors.size()) {
+                    var resolved = std::string();
+                    serialize_complex(sel, resolved, parent_selectors.get_ptr(p).view());
+                    current_selectors.push(resolved);
+                    p++;
+                }
+            } else {
+                var resolved = std::string();
+                serialize_complex(sel, resolved, std::string_view("&"));
+                current_selectors.push(resolved);
+            }
+            i++;
+        }
+    }
+
+    if(!rule.declarations.empty()) {
+        var i : uint = 0;
+        while(i < current_selectors.size()) {
+            if(i > 0) str.append_view(", ");
+            str.append_view(current_selectors.get_ptr(i).view());
+            i++;
+        }
+        str.append_view(std::string_view(" { "));
+        i = 0;
+        while(i < rule.declarations.size()) {
+            converter.convertDeclaration(rule.declarations.get(i));
+            i++;
+        }
+        str.append_view(std::string_view(" } "));
+    }
+
+    var nested_i : uint = 0;
+    while(nested_i < rule.nested_rules.size()) {
+        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, current_selectors);
+        nested_i++;
+    }
+}
+
 func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
     str.append_view(std::string_view("@media "))
     
     // Serialize the media query list AST
     converter.writeMediaQueryList(rule.queryList, str)
     
-    str.append_view(std::string_view(" { ."))
-    str.append_view(className)
     str.append_view(std::string_view(" { "))
-    
-    var size = rule.declarations.size()
-    var i : uint = 0
-    while(i < size) {
-        var decl = rule.declarations.get(i)
-        converter.convertDeclaration(decl)
-        i++;
+
+    var parent_selectors = std::vector<std::string>();
+    if(!className.empty()) {
+        var root_selector = std::string();
+        append_media_root_selector(root_selector, className);
+        parent_selectors.push(root_selector);
+
+        if(!rule.declarations.empty()) {
+            append_media_root_selector(str, className);
+            str.append_view(std::string_view(" { "))
+            var i : uint = 0
+            while(i < rule.declarations.size()) {
+                converter.convertDeclaration(rule.declarations.get(i))
+                i++;
+            }
+            str.append_view(std::string_view(" } "))
+        }
     }
 
-    str.append_view(std::string_view(" } }"))
+    var nested_i : uint = 0;
+    while(nested_i < rule.nested_rules.size()) {
+        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, parent_selectors);
+        nested_i++;
+    }
+
+    str.append_view(std::string_view("}"))
 }
 
 func (converter : &mut ASTConverter) make_require_random_css_hash_call(hash : size_t) : *mut FunctionCall {

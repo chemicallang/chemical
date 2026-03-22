@@ -86,7 +86,11 @@ func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, fam
     while(true) {
         const token = parser.getToken()
         switch(token.type) {
-            TokenType.Identifier, TokenType.DoubleQuotedValue, TokenType.SingleQuotedValue => {
+            TokenType.Identifier, TokenType.PropertyName, TokenType.DoubleQuotedValue, TokenType.SingleQuotedValue => {
+
+                if((token.type == TokenType.Identifier || token.type == TokenType.PropertyName) && token.value.equals("var")) {
+                    return;
+                }
 
                 parser.increment()
 
@@ -176,6 +180,12 @@ func (cssParser : &mut CSSParser) parseFontFamily(
     const token = parser.getToken()
     if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
         cssParser.parseChemValueAfterLBrace(parser, builder, value)
+        return;
+    }
+    if((token.type == TokenType.Identifier || token.type == TokenType.PropertyName) && token.value.equals("var")) {
+        parser.increment()
+        const fontVar = cssParser.parseCSSVariableFunc(parser, builder)
+        alloc_value_length_var(parser, builder, value, fontVar)
         return;
     }
 

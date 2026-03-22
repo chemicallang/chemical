@@ -28,6 +28,7 @@ func (cssParser : &mut CSSParser) parseMediaRule(om : &mut CSSOM, parser : *mut 
     new (rule) CSSMediaRule {
         queryList : queryList,
         declarations : std::vector<*mut CSSDeclaration>(),
+        nested_rules : std::vector<*mut CSSNestedRule>(),
         parent : om.parent
     }
 
@@ -35,15 +36,31 @@ func (cssParser : &mut CSSParser) parseMediaRule(om : &mut CSSOM, parser : *mut 
 
     if (parser.increment_if(TokenType.LBrace as int)) {
         while(true) {
+            const body_token = parser.getToken();
+            switch(body_token.type) {
+                TokenType.RBrace => {
+                    parser.increment();
+                    return true;
+                }
+                TokenType.EndOfFile => {
+                    parser.error("unexpected end of file in media query block");
+                    return false;
+                }
+                TokenType.At => {
+                    parser.error("nested at-rules inside media are not supported yet");
+                    return false;
+                }
+                default => {}
+            }
             var decl = cssParser.parseDeclaration(parser, builder);
             if(decl) {
                 rule.declarations.push(decl)
             } else {
-                break;
+                if(!cssParser.parseNestedRuleContentInto(rule.nested_rules, parser, builder)) {
+                    parser.error("expected a declaration or nested rule inside media query block");
+                    return false;
+                }
             }
-        }
-        if (!parser.increment_if(TokenType.RBrace as int)) {
-            parser.error("expected '}' after media query block");
         }
     } else {
         parser.error("expected '{' to start media query block");

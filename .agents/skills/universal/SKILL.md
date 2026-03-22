@@ -24,6 +24,13 @@ The server function does two things, it appends a js function that would perform
 to the html bundle.
 A trick used by `react_cbi`, `solid_cbi` and `preact_cbi`, they actually capture this html and put it into the js bundle.
 
+When I say js bundle or html bundle, A struct HtmlPage present in `lang/libs/page` is used for each page, it contains strings
+in which we append, `pageHtml`, `pageHeadJs`, `pageJs`, these fields are used to write the final output.
+
+`react_cbi`, `solid_cbi` and `preact_cbi` write their components to `pageHeadJs`, because we use umd bundles, so that everything is rendered
+without flash of unrendered components, `universal_cbi` however appends to the `pageJs`, so its components are present in the js loaded at the end of body
+this means we have to use a queue to hydrate universal components, once they have been rendered.
+
 One very important thing to note:
 
 The html (server rendered), does NOT contain attributes that use js expressions or for example js lambdas, because we cannot ssr them.

@@ -111,6 +111,10 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
+                    if(d.value is SsrAttributeValue.None) {
+                        d++;
+                        continue;
+                    }
                     if(d.value is SsrAttributeValue.Boolean) {
                         var Boolean(value) = d.value else unreachable;
                         if(!value) {
@@ -175,6 +179,10 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                     special.styles[special.style_count] = &d.value
                     special.style_count++
                 } else {
+                    if(d.value is SsrAttributeValue.None) {
+                        d++;
+                        continue;
+                    }
                     if(d.value is SsrAttributeValue.Boolean) {
                         var Boolean(value) = d.value else unreachable;
                         if(!value) {

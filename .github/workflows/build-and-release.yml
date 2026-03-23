@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  LLVM_RELEASE_TAG: "llvm18"
+  LLVM_RELEASE_TAG: "llvm21"
 
 jobs:
   build-windows:

@@ -59,7 +59,7 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
         add_compile_options(-Wall -Wextra -Werror=return-type)
     elseif (MSVC)
-        add_compile_options(/W4 /we4715)
+        add_compile_options(/W4 /we4715 /Zc:preprocessor)
     endif()
 endif ()
 

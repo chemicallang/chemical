@@ -47,11 +47,13 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         }
     }
 
-    for (auto &value: values) {
-        auto& value_ptr = value.second.value;
-        auto variable = child_type_w_index(value.first);
+    auto current = values.begin();
+    while (current != values.end()) {
+        auto value = current.value();
+        auto& value_ptr = value.value;
+        auto variable = child_type_w_index(value.name);
         if (variable.second == -1) {
-            gen.error(this) << "couldn't get struct child " << value.first << " in definition with name " << definition->name_view();
+            gen.error(this) << "couldn't get struct child " << value.name << " in definition with name " << definition->name_view();
         } else {
 
             const auto pure_type = variable.first->canonical();
@@ -71,6 +73,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                     const auto ref_pointer = value_ptr->llvm_pointer(gen);
                     const auto storeInst = gen.builder->CreateStore(ref_pointer, elementPtr);
                     gen.di.instr(storeInst, value_ptr);
+                    ++current;
                     continue;
                 }
             }
@@ -78,6 +81,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, pure_type);
 
         }
+        ++current;
     }
 
     // storing default values for direct variables

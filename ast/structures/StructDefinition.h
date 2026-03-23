@@ -238,7 +238,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type* with_elements_type(
+    llvm::StructType* with_elements_type(
         Codegen &gen,
         const std::vector<llvm::Type *>& elements,
         bool anonymous

@@ -14,6 +14,7 @@
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/Type.h"
 #include "core/diag/Diagnostic.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 class CTranslator;
 

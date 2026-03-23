@@ -97,7 +97,7 @@ Codegen::Codegen(
         bool debug_info,
         ASTAllocator& allocator
 ) : ASTDiagnoser(comptime_scope.loc_man), binder(binder), options(options), comptime_scope(comptime_scope), allocator(allocator),
-    target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
+    target_triple(std::move(target_triple)), is64Bit(is_64_bit),
     di(comptime_scope.loc_man, nullptr, *this, debug_info), llvm(di), mode(comptime_scope.mode),
     mangler(mangler)
 {

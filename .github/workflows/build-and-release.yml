@@ -1,4 +1,4 @@
-name: Build and Deploy on Commit
+name: Build and Release
 
 permissions:
   contents: write
@@ -54,7 +54,7 @@ jobs:
           $url = "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
           Write-Host "Downloading LLVM from $url"
           curl.exe -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $url
-          7z x llvm.zip -y
+          7z x llvm.zip -y -ochemical
 
       # Configure the project
       - name: Map workspace to X and configure
@@ -211,7 +211,7 @@ jobs:
           url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
           echo "Downloading LLVM from $url"
           curl -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
-          unzip -o llvm.zip
+          unzip -o llvm.zip -d chemical
 
       - name: Configure Chemical Project
         shell: msys2 {0}
@@ -353,7 +353,7 @@ jobs:
           curl -L -o llvm.tar.gz \
             -H "Authorization: token $GITHUB_TOKEN" \
             "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
-          tar -xzf llvm.tar.gz
+          tar -xzf llvm.tar.gz -C chemical
 
       # Configure chemical project
       - name: Configure Chemical Project
@@ -504,7 +504,7 @@ jobs:
           curl -L -o llvm.tar.gz \
             -H "Authorization: token $GITHUB_TOKEN" \
             "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
-          tar -xzf llvm.tar.gz
+          tar -xzf llvm.tar.gz -C chemical
 
       # Linux steps unchanged
       - name: Configure Chemical Project
@@ -639,7 +639,7 @@ jobs:
           curl -L -o llvm.tar.gz \
             -H "Authorization: token $GITHUB_TOKEN" \
             "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
-          tar -xzf llvm.tar.gz
+          tar -xzf llvm.tar.gz -C chemical
 
       # Configure chemical project
       - name: Configure Chemical Project

@@ -19,11 +19,11 @@ lsp::json::Object cbiFnIndex_toJson(CBIFunctionIndex& index) {
     return std::move(obj);
 }
 
-lsp::json::Array dependencies_toJson(std::vector<LabModule*>& deps) {
+lsp::json::Array dependencies_toJson(std::vector<ModuleDependency>& deps) {
     lsp::json::Array depArr;
     depArr.reserve(deps.size());
     for(const auto dep : deps) {
-        depArr.emplace_back(lsp::toJson(dep->format(':')));
+        depArr.emplace_back(lsp::toJson(dep.module->format(':')));
     }
     return std::move(depArr);
 }
@@ -114,13 +114,13 @@ std::string labBuildContext_toJsonStr(BasicBuildContext& context, bool format) {
 //------------fromJson methods----------
 //--------------------------------------
 
-void dependencies_fromJson(ModuleStorage& storage, const lsp::json::Array& depsArr, std::vector<LabModule*>& deps) {
+void dependencies_fromJson(ModuleStorage& storage, const lsp::json::Array& depsArr, std::vector<ModuleDependency>& deps) {
     deps.reserve(depsArr.size());
     for(auto& dep : depsArr) {
         if(dep.isString()) {
             const auto found = storage.find_module(dep.string());
             if(found != nullptr) {
-                deps.emplace_back(found);
+                deps.emplace_back(found, nullptr);
             }
         }
     }

@@ -21,9 +21,26 @@ public:
     ASTAllocator allocator;
 
     /**
+     * the meta data of file
+     */
+    ASTFileMetaData metaData;
+
+    /**
      * the pointer to unit that's cached
      */
     ASTUnit unit;
+
+    /**
+     * cached ast units of files
+     */
+    CachedASTUnit(
+        std::size_t heapBatchSize,
+        unsigned int fileId,
+        ModuleScope* moduleScope,
+        std::string abs_path
+    ) : allocator(heapBatchSize), metaData(fileId, moduleScope, std::move(abs_path)), unit(metaData, moduleScope) {
+
+    }
 
 };
 

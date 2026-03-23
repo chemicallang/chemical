@@ -115,8 +115,24 @@ public:
     ASTAllocator allocator;
 
     /**
+     * meta data
+     */
+    ASTFileMetaData metaData;
+
+    /**
      * module file data
      */
     ModuleFileData modFileData;
+
+    /**
+     * module file data unit
+     */
+    ModuleFileDataUnit(
+        std::size_t heapBathSize,
+        unsigned int fileId,
+        std::string abs_path
+    ) : allocator(heapBathSize), metaData(fileId, nullptr, std::move(abs_path)), modFileData(metaData) {
+
+    }
 
 };

@@ -415,7 +415,7 @@ void CompletionItemAnalyzer::analyze(LabModule* module, ModuleData* modData, Lex
 
 
     // check is caret position before a chain
-    current_file = unit->scope.file_path.view();
+    current_file = unit->scope.meta.abs_path;
     auto chain = chain_before_caret(lexResult->tokens);
     if(chain) {
         // TODO handle access chain before caret, we must provide completions

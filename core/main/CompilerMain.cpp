@@ -27,7 +27,7 @@
 
 #ifdef COMPILER_BUILD
 
-int chemical_clang_main(int argc, char **argv);
+extern "C" int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(std::vector<chem::string>& command_args);
 

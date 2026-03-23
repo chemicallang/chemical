@@ -665,7 +665,7 @@ void print_loc_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
     }
     const auto& unId = fileEntry->getUniqueID();
 
-    std::string filename = fileEntry->getName().str();
+    std::string filename = fileEntry->tryGetRealPathName().str();
 
     // Determine if it is a header or source file based on extension
     std::string filetype = "source file";
@@ -693,7 +693,7 @@ void invalid_loc_err(clang::Decl* decl, clang::SourceManager& SM, clang::SourceL
         std::cerr << "Cannot find file entry for the location" << std::endl;
         return;
     }
-    std::string filename = fileEntry->getName().str();
+    std::string filename = fileEntry->tryGetRealPathName().str();
     // Determine if it is a header or source file based on extension
     std::string filetype = "source file";
     if (filename.find(".h") != std::string::npos || filename.find(".hpp") != std::string::npos) {
@@ -759,7 +759,7 @@ std::string get_file_name_for_decl(clang::Decl* decl, clang::SourceManager& SM) 
     if (!fileEntry) {
         return "";
     }
-    return fileEntry->getName().str();
+    return fileEntry->tryGetRealPathName().str();
 }
 
 std::string part_name_with_no(const std::string& path_str, unsigned int no) {
@@ -961,6 +961,7 @@ clang::ASTUnit *ClangLoadFromCommandLine(
         struct ErrorMsg **errors_ptr,
         unsigned long *errors_len,
         const char *resources_path,
+        std::shared_ptr<clang::DiagnosticOptions> diagOptions,
         clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags
 ) {
 
@@ -981,6 +982,7 @@ clang::ASTUnit *ClangLoadFromCommandLine(
     std::unique_ptr<clang::ASTUnit> ast_unit_unique_ptr = clang::ASTUnit::LoadFromCommandLine(
             args_begin, args_end,
             pch_container_ops,
+            diagOptions,
             diags,
             resources_path,
             store_preambles_in_memory,
@@ -1077,11 +1079,11 @@ public:
 ClangCodegen::ClangCodegen(std::string target_triple, ManglerKind manglerKind) : impl(new ClangCodegenImpl()) {
 
     auto& compiler = impl->compiler;
-    compiler.createDiagnostics();
+    compiler.createDiagnostics(compiler.getVirtualFileSystem());
 
     auto TO = std::make_shared<clang::TargetOptions>();
     TO->Triple = std::move(target_triple);
-    compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), TO));
+    compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), *TO));
 
     // Create the necessary file manager and source manager
     compiler.createFileManager();
@@ -1215,7 +1217,8 @@ CTranslator::CTranslator(
     TypeBuilder& typeBuilder,
     bool is64Bit
 ) : allocator(allocator), typeBuilder(typeBuilder), is64Bit(is64Bit),
-    diags_engine(clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions))
+    fsPtr(llvm::vfs::createPhysicalFileSystem()), diagnosticOptions(new clang::DiagnosticOptions()),
+    diags_engine(clang::CompilerInstance::createDiagnostics(*fsPtr, *diagnosticOptions).get())
 {
     init_type_makers();
     init_node_makers();
@@ -1229,14 +1232,16 @@ clang::ASTUnit* CTranslator::get_unit(
     //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
 //    ErrorMsg *errorMsg;
 //    unsigned long errors_len = 0;
+    auto diag_opts = std::make_shared<clang::DiagnosticOptions>();
     auto unit = ClangLoadFromCommandLine(
-            args_begin,
-            args_end,
-            &diagnostics,
-            nullptr,
-            nullptr,
-            resources_path,
-            diags_engine
+        args_begin,
+        args_end,
+        &diagnostics,
+        nullptr,
+        nullptr,
+        resources_path,
+        diag_opts,
+        diags_engine
     );
     if (!unit) {
         diags_engine->dump();

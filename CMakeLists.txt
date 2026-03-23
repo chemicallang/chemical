@@ -1,4 +1,4 @@
-﻿# CMakeList.txt : CMake project for chemical, include path and define
+# CMakeList.txt : CMake project for chemical, include path and define
 # project specific logic here.
 #
 cmake_minimum_required(VERSION 3.15)
@@ -90,8 +90,8 @@ include(cmake/CompilerOptions.cmake)
 # find these packages
 if(BUILD_COMPILER)
 
-    # Allow overriding LLVM version (default is 19)
-    set(LLVM_VERSION "19" CACHE STRING "LLVM version to use")
+    # Allow overriding LLVM version (default is 22)
+    set(LLVM_VERSION "22" CACHE STRING "LLVM version to use")
 
     # Find llvm,clang,lld packages
     find_package(llvm ${LLVM_VERSION})
@@ -893,7 +893,7 @@ else()
             target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
         else()
             # MinGW needs explicit system library linkage (MSVC auto-links via #pragma comment)
-            target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB} ws2_32 version psapi shell32 ole32 uuid advapi32)
+            target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB} ws2_32 version psapi shell32 ole32 uuid advapi32 ntdll iphlpapi)
             target_link_options(Compiler PRIVATE -static)
         endif()
     endif()

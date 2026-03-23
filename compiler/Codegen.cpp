@@ -1362,7 +1362,7 @@ TargetMachine* Codegen::setup_for_target(const std::string &TargetTriple, bool i
         RM = llvm::Reloc::PIC_;
     }
 
-    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+    auto TheTargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, RM);
     TargetMachine = TheTargetMachine;
 
     return TheTargetMachine;

@@ -188,17 +188,9 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         case clang::Type::DependentSizedExtVector:
             error("TODO: type with class DependentSizedExtVector");
             break;
-        case clang::Type::DependentTemplateSpecialization:
-            error("TODO: type with class DependentTemplateSpecialization");
-            break;
         case clang::Type::DependentVector:
             error("TODO: type with class DependentVector");
             break;
-        case clang::Type::Elaborated:{
-            const auto elab = ptr->getAs<clang::ElaboratedType>();
-            auto named_type = elab->getNamedType();
-            return make_type(&named_type);
-        }
         case clang::Type::FunctionNoProto:{
             const auto protoType = ptr->getAs<clang::FunctionNoProtoType>();
             auto retType = protoType->getReturnType();
@@ -975,11 +967,11 @@ clang::ASTUnit *ClangLoadFromCommandLine(
     bool retain_excluded_conditional_blocks = false;
     bool store_preambles_in_memory = false;
     llvm::StringRef preamble_storage_path = llvm::StringRef();
-    clang::ArrayRef<clang::ASTUnit::RemappedFile> remapped_files = std::nullopt;
+    clang::ArrayRef<clang::ASTUnit::RemappedFile> remapped_files;
     std::unique_ptr<clang::ASTUnit> err_unit;
     llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr;
     std::optional<llvm::StringRef> ModuleFormat = std::nullopt;
-    std::unique_ptr<clang::ASTUnit> ast_unit_unique_ptr = clang::ASTUnit::LoadFromCommandLine(
+    std::unique_ptr<clang::ASTUnit> ast_unit_unique_ptr = CreateASTUnitFromCommandLine(
             args_begin, args_end,
             pch_container_ops,
             diagOptions,
@@ -1079,7 +1071,7 @@ public:
 ClangCodegen::ClangCodegen(std::string target_triple, ManglerKind manglerKind) : impl(new ClangCodegenImpl()) {
 
     auto& compiler = impl->compiler;
-    compiler.createDiagnostics(compiler.getVirtualFileSystem());
+    compiler.createDiagnostics();
 
     auto TO = std::make_shared<clang::TargetOptions>();
     TO->Triple = std::move(target_triple);
@@ -1087,7 +1079,7 @@ ClangCodegen::ClangCodegen(std::string target_triple, ManglerKind manglerKind) :
 
     // Create the necessary file manager and source manager
     compiler.createFileManager();
-    compiler.createSourceManager(compiler.getFileManager());
+    compiler.createSourceManager();
 
     // Initialize the preprocessor
     compiler.createPreprocessor(clang::TU_Complete);

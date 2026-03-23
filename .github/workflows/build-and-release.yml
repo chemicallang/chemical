@@ -485,6 +485,9 @@ jobs:
             llvm_asset: linux-alpine-arm64.tar.gz
     steps:
 
+      - name: Enable JavaScript actions in Alpine containers
+        uses: laverdet/alpine-arm64@v1
+
       # ––– Install dependencies –––
       - name: Install dependencies
         run: |

@@ -179,11 +179,13 @@ jobs:
         include:
           - arch: x64
             runner: windows-2025
-            msystem: MINGW64
+            msystem: CLANG64
+            msys_env: clang-x86_64
             llvm_asset: windows-mingw-ucrt-x64.zip
           - arch: arm64
             runner: windows-11-arm
             msystem: CLANGARM64
+            msys_env: clang-aarch64
             llvm_asset: windows-mingw-ucrt-arm64.zip
     steps:
       - name: Checkout chemical repository
@@ -201,9 +203,11 @@ jobs:
           install: >-
             base-devel
             git
-            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-toolchain
-            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-cmake
-            mingw-w64-${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}-ninja
+            zip
+            unzip
+            mingw-w64-${{ matrix.msys_env }}-toolchain
+            mingw-w64-${{ matrix.msys_env }}-cmake
+            mingw-w64-${{ matrix.msys_env }}-ninja
 
       - name: Download prebuilt LLVM (MinGW)
         shell: msys2 {0}
@@ -315,6 +319,154 @@ jobs:
         with:
           name: windows-mingw-${{ matrix.arch }}-lsp.zip
           path: chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
+
+  build-windows-mingw-msvcrt:
+    name: Build on Windows MinGW MSVCRT (x64)
+    runs-on: windows-2025
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, 'releaseIt')
+    env:
+      LLVM_MINGW_VER: "20260224"
+    steps:
+      - name: Checkout chemical repository
+        uses: actions/checkout@v4
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical
+          submodules: recursive
+
+      - name: Set up llvm-mingw MSVCRT toolchain
+        shell: bash
+        run: |
+          LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64"
+          curl -L -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/${LLVM_MINGW_NAME}.zip"
+          7z x llvm-mingw.zip -o"$HOME"
+          echo "$HOME/${LLVM_MINGW_NAME}/bin" >> $GITHUB_PATH
+          choco install ninja cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+
+      - name: Download prebuilt LLVM (MinGW MSVCRT)
+        shell: bash
+        run: |
+          # The logic assumes there might be a specific asset for msvcrt, but based on the user request 
+          # "add a mingw msvc build too, these both are ucrt", I will assume we use the regular mingw asset or a specific one if available.
+          # The previous llvm workflow had separate steps for msvcrt.
+          # Assuming we use the same llvm asset logic but looking for msvcrt variant if it exists, or just reuse mingw asset.
+          # The user's provided LLVM workflow example doesn't explicitly show msvcrt assets being uploaded for LLVM itself in the 'Compress release assets' step 
+          # (it shows 'windows-mingw-msvcrt-${{ matrix.arch }}.zip'). 
+          # Wait, the LLVM workflow DOES show:
+          # elif [ "${{ matrix.toolchain }}" == "mingw-msvcrt" ]; then
+          #    cd chemical-bootstrap && 7z a -tzip ../windows-mingw-msvcrt-${{ matrix.arch }}.zip out\*
+          # So we should look for windows-mingw-msvcrt-x64.zip
+          
+          url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/windows-mingw-msvcrt-x64.zip"
+          echo "Downloading LLVM from $url"
+          curl -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
+          unzip -o llvm.zip -d chemical
+
+      - name: Configure Chemical Project
+        shell: bash
+        run: |
+          cd chemical
+          mkdir -p out/build
+          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+
+      - name: Run configure script
+        shell: bash
+        run: |
+          cd chemical
+          ./scripts/configure.sh --arch x64
+
+      - name: Build Compiler Targets
+        shell: bash
+        run: |
+          cd chemical
+          cmake --build out/build --config Release --target Compiler
+          cmake --build out/build --config Release --target TCCCompiler
+          cmake --build out/build --config Release --target ChemicalLsp
+
+      - name: Run release packaging
+        shell: bash
+        run: |
+          cd chemical
+          ./scripts/release.sh --windows
+
+      - name: Rename Windows MinGW MSVCRT release files
+        shell: bash
+        run: |
+          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-msvcrt-x64.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-msvcrt-x64-lsp.zip
+
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const releasesResponse = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
+
+      - name: Check if windows-mingw-msvcrt-x64.zip exists in latest release
+        id: check_windows_mingw_msvcrt
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const filenames = [
+                `windows-mingw-msvcrt-x64.zip`,
+                `windows-mingw-msvcrt-x64-tcc.zip`,
+                `windows-mingw-msvcrt-x64-lsp.zip`
+            ];
+            const exists = release.assets.some(asset => filenames.includes(asset.name));
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload release artifacts
+        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: |
+            chemical/out/release/windows-mingw-msvcrt-x64.zip
+            chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
+            chemical/out/release/windows-mingw-msvcrt-x64-lsp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save windows-mingw-msvcrt-x64.zip as artifact if already exists
+        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-msvcrt-x64.zip
+          path: chemical/out/release/windows-mingw-msvcrt-x64.zip
+
+      - name: Save windows-mingw-msvcrt-x64-tcc.zip as artifact if already exists
+        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-msvcrt-x64-tcc.zip
+          path: chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
+
+      - name: Save windows-mingw-msvcrt-x64-lsp.zip as artifact if already exists
+        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mingw-msvcrt-x64-lsp.zip
+          path: chemical/out/release/windows-mingw-msvcrt-x64-lsp.zip
 
   build-linux:
     name: Build on Linux (${{ matrix.arch }})

@@ -114,12 +114,6 @@ public:
     NameMangler& mangler;
 
     /**
-     * the clang codegen class, that allows to control clang code generation without importing
-     * everything everywhere
-     */
-    ClangCodegen clang;
-
-    /**
      * allocator is used to allocate ast things during code generation
      */
     ASTAllocator& allocator;

@@ -495,11 +495,6 @@ public:
     void publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics);
 
     /**
-     * get ast, in which declarations are sure to be valid
-     */
-    std::shared_ptr<ASTResult> get_decl_ast(const std::string& abs_path);
-
-    /**
      * same as the method below
      */
     bool get_lexed(LexResult* result, const std::string& path, bool keep_comments = false);

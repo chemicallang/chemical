@@ -61,8 +61,8 @@ bool parse_file(
 
     // parse the file
     Parser parser(
-            unit.scope.file_id,
-            unit.scope.file_path.view(),
+            unit.scope.meta.file_id,
+            unit.scope.meta.abs_path,
             start_token,
             loc_man,
             controller,
@@ -98,7 +98,7 @@ bool parse_file(
         ASTUnit& unit
 ) {
 
-    auto abs_path_str = std::string(unit.scope.file_path.view());
+    auto abs_path_str = std::string(unit.scope.meta.abs_path);
 
     LexResult lexResult;
     if(!manager.get_lexed(&lexResult, abs_path_str, false)) {
@@ -127,10 +127,7 @@ CachedASTUnit* parseFile(
 ) {
 
     // we use a 10kb allocator
-    const auto cachedUnit = new CachedASTUnit {
-            .allocator = ASTAllocator(10000),
-            .unit = ASTUnit(fileId, file_path_view, &modData->modScope)
-    };
+    const auto cachedUnit = new CachedASTUnit(10000, fileId, &modData->modScope, file_path_view.str());
 
     // every file costs us 10kb batched allocator
     // which means for module of 100 files, 1mb for each module
@@ -233,7 +230,7 @@ void parseModuleWithDeps(
     for(const auto dep : module->dependencies) {
 
         // getting the module data for dependency module
-        const auto depModData = manager.getModuleData(dep);
+        const auto depModData = manager.getModuleData(dep.module);
 
         // we are preparing dependencies of this module as well (once)
         if(!modData->determined_dependencies) {
@@ -241,7 +238,7 @@ void parseModuleWithDeps(
         }
 
         // launch this dependency's dependencies
-        parseModuleWithDeps(manager, dep, depModData, futures);
+        parseModuleWithDeps(manager, dep.module, depModData, futures);
 
     }
 
@@ -280,7 +277,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     // remove the generic instantiations for the given file
     // this must be done before clearing the allocator
     for(const auto cachedUnit : fileUnits) {
-        manager.instContainer.removeInstantiationsFor(cachedUnit->unit.scope.file_id);
+        manager.instContainer.removeInstantiationsFor(cachedUnit->unit.scope.meta.file_id);
     }
     // clear the allocator, this will get rid of any results stored
     // because of symbol resolution we performed earlier
@@ -309,9 +306,9 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     for(const auto cachedUnit : fileUnits) {
 
         auto& unit = cachedUnit->unit;
-        auto path_str = unit.scope.file_path.str();
+        auto path_str = unit.scope.meta.abs_path;
 
-        auto priv_sym_range = resolver.tld_declare_file(unit.scope.body, unit.scope.file_id, path_str);
+        auto priv_sym_range = resolver.tld_declare_file(unit.scope.body, unit.scope.meta.file_id, path_str);
         priv_sym_ranges.emplace_back(priv_sym_range);
 
     }
@@ -321,11 +318,11 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     for(const auto cachedUnit : fileUnits) {
 
         auto& unit = cachedUnit->unit;
-        auto path_str = unit.scope.file_path.str();
+        auto path_str = unit.scope.meta.abs_path;
 
         auto& priv_sym_range = priv_sym_ranges[i];
 
-        resolver.link_signature_file(unit.scope.body, unit.scope.file_id, priv_sym_range);
+        resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
 
         i++;
     }
@@ -489,7 +486,7 @@ bool WorkspaceManager::should_process_file(const std::string& path, ModuleData* 
             const auto dirtyFilesSize = dirtyMod->dirtyFiles.size();
             if(dirtyFilesSize == 1) {
                 const auto dirtyFile = *dirtyMod->dirtyFiles.begin();
-                if (dirtyFile->unit.scope.file_path.view() == path) {
+                if (dirtyFile->unit.scope.meta.abs_path == path) {
                     if(dirtyModules.size() == 1) {
                         // don't need to symbol resolve, a single module and file is dirty and it's the same file request is for
                         return false;
@@ -671,7 +668,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             // then we must check if any of its own file changed for the final verdict
             auto curr_file_path = std::filesystem::path(abs_path);
             for(const auto fileUnit : modData->fileUnits) {
-                if (modData->is_dirty(fileUnit) && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
+                if (modData->is_dirty(fileUnit) && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.meta.abs_path)) {
                     // this is not current file
                     // must symbol resolve, changed file is not current file
                     sym_res_curr_mod = true;
@@ -711,8 +708,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if (abs_path_view != unit.scope.file_path) {
-                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.file_id, unit.scope.file_path.str());
+                if (abs_path_view.view() != unit.scope.meta.abs_path) {
+                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.meta.file_id, unit.scope.meta.abs_path);
                 }
                 i++;
             }
@@ -721,8 +718,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if (abs_path_view != unit.scope.file_path) {
-                    resolver.link_signature_file(unit.scope.body, unit.scope.file_id, priv_sym_ranges[i]);
+                if (abs_path_view.view() != unit.scope.meta.abs_path) {
+                    resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i]);
                 }
             }
 
@@ -731,7 +728,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             // declaring symbols of current module, before linking current file
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if(abs_path_view != unit.scope.file_path) {
+                if(abs_path_view.view() != unit.scope.meta.abs_path) {
                     for (const auto node: unit.scope.body.nodes) {
                         declare_node(declarer, node, AccessSpecifier::Internal);
                     }
@@ -766,7 +763,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 make_module_dirty(modData, &cachedUnit);
                 // remove any instantiations we may have for this file
                 // this will also remove from inside the ast (must be done before clearing allocator)
-                instContainer.removeInstantiationsFor(astUnit.scope.file_id);
+                instContainer.removeInstantiationsFor(astUnit.scope.meta.file_id);
                 removeDeclInstantiations(instContainer, astUnit.scope.body);
                 // clear the previous unit
                 allocator.clear();
@@ -780,7 +777,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             }
 
             // declare and link file
-            resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.file_id, abs_path);
+            resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.meta.file_id, abs_path);
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module
@@ -825,7 +822,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         resolver.mod_allocator = &fileData->allocator;
 
         // declare and link file
-        resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.file_id, abs_path);
+        resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.meta.file_id, abs_path);
 
     }
 
@@ -897,11 +894,11 @@ void WorkspaceManager::process_dot_mod_file(const std::string& path) {
     ModuleFileDataUnit* unit;
     auto unitPtr = modFileData.get(path);
     if(unitPtr == nullptr) {
-        const auto modFileDataUnit = new ModuleFileDataUnit {ASTAllocator(10000), ModuleFileData(fileId, chem::string_view(lexUnit->abs_path))};
+        const auto modFileDataUnit = new ModuleFileDataUnit(10000, fileId, lexUnit->abs_path);
         modFileData.put(path, std::shared_ptr<ModuleFileDataUnit>(modFileDataUnit));
         unit = modFileDataUnit;
     } else {
-        unitPtr->get()->modFileData.scope.file_path = chem::string_view(lexUnit->abs_path);
+        unitPtr->get()->modFileData.scope.meta.abs_path = lexUnit->abs_path;
         unit = unitPtr->get();
     }
 

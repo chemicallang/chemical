@@ -19,14 +19,14 @@ public:
     ASTAllocator allocator;
 
     /**
-     * the path to file
-     */
-    std::string abs_path;
-
-    /**
      * an anonymous module scope is used for the anonymous file
      */
     ModuleScope modScope;
+
+    /**
+     * meta data about the file
+     */
+    ASTFileMetaData metaData;
 
     /**
      * the unit that is allocated
@@ -39,10 +39,18 @@ public:
     AnonymousFileData(
             unsigned int fileId,
             std::string abs_path
-    ) : allocator(10000 /** 10 kb **/), abs_path(std::move(abs_path)),
-        modScope("", "", nullptr), unit(fileId, chem::string_view(this->abs_path), &modScope)
+    ) : allocator(10000 /** 10 kb **/),
+        metaData(fileId, &modScope, std::move(abs_path)),
+        modScope("", "", nullptr), unit(metaData, &modScope)
     {
 
+    }
+
+    /**
+     * get absolute path of the file
+     */
+    const std::string& getAbsPath() {
+        return metaData.abs_path;
     }
 
 

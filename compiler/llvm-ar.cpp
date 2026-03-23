@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/IR/LLVMContext.h"
@@ -31,7 +32,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/StringSaver.h"
-#include "llvm/Support/TargetSelect.h";
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1508,7 +1509,7 @@ static int ranlib_main(int argc, char **argv) {
   return 0;
 }
 
-static int llvm_ar_main(int argc, char **argv, const llvm::ToolContext &) {
+int llvm_ar_main(int argc, char **argv, const llvm::ToolContext &) {
   ToolName = argv[0];
 
   llvm::InitializeAllTargetInfos();
@@ -1538,6 +1539,7 @@ static int llvm_ar_main(int argc, char **argv, const llvm::ToolContext &) {
 
   fail("not ranlib, ar, lib or dlltool");
 }
+
 
 extern "C" int ChemLlvmAr_main(int, char **);
 int ChemLlvmAr_main(int argc, char **argv) {

@@ -195,7 +195,6 @@ void ZigClang_detect_enum_TypeClass(clang::Type::TypeClass ty) {
         case clang::Type::UnaryTransform:
         case clang::Type::Record:
         case clang::Type::Enum:
-        case clang::Type::Elaborated:
         case clang::Type::Attributed:
         case clang::Type::BTFTagAttributed:
         case clang::Type::BitInt:
@@ -207,7 +206,6 @@ void ZigClang_detect_enum_TypeClass(clang::Type::TypeClass ty) {
         case clang::Type::DeducedTemplateSpecialization:
         case clang::Type::InjectedClassName:
         case clang::Type::DependentName:
-        case clang::Type::DependentTemplateSpecialization:
         case clang::Type::PackExpansion:
         case clang::Type::ObjCTypeParam:
         case clang::Type::ObjCObject:

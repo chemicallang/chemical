@@ -9,9 +9,9 @@
 #include <mutex>
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
-#include "compiler/chem_clang.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "ordered_map.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/Type.h"
 #include "core/diag/Diagnostic.h"
 
@@ -60,6 +60,16 @@ public:
     std::mutex translation_mutex;
 
     /**
+     * file system pointer in llvm
+     */
+    std::unique_ptr<llvm::vfs::FileSystem> fsPtr = nullptr;
+
+    /**
+     * the diagnostic options
+     */
+    std::unique_ptr<clang::DiagnosticOptions> diagnosticOptions = nullptr;
+
+    /**
      * the diagnostics engine is used to collect diagnostics from clang across
      * multiple invocations
      */
@@ -87,13 +97,13 @@ public:
      * enum BuiltinType::Kind, this enum is used as an index on this vector
      * last enum entry is being used as size of the vector
      */
-    std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(clang::BuiltinType::LastKind + 1);
+    std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(clang::BuiltinType::LastKind + 1, nullptr);
 
     /**
      * these allow indexing decl kind enum, to provide functions that can make nodes
      * last enum entry is being used as size of the vector
      */
-    std::vector<CNodeMakerFn> node_makers = std::vector<CNodeMakerFn>(ZigClangDeclTranslationUnit + 1);
+    std::vector<CNodeMakerFn> node_makers = std::vector<CNodeMakerFn>(clang::Decl::Kind::lastDecl + 1, nullptr);
 
     /**
      * this is the result after translation

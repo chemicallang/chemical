@@ -90,8 +90,8 @@ include(cmake/CompilerOptions.cmake)
 # find these packages
 if(BUILD_COMPILER)
 
-    # Allow overriding LLVM version (default is 17)
-    set(LLVM_VERSION "18" CACHE STRING "LLVM version to use")
+    # Allow overriding LLVM version (default is 19)
+    set(LLVM_VERSION "19" CACHE STRING "LLVM version to use")
 
     # Find llvm,clang,lld packages
     find_package(llvm ${LLVM_VERSION})
@@ -145,7 +145,6 @@ set(COMMON_SOURCES
         parser/statements/LexType.cpp
         stream/StreamPosition.h
         parser/utils/LexValue.cpp
-        compiler/clang_driver.cpp
         utils/JsonUtils.cpp
         utils/JsonUtils.h
         utils/FileUtils.h
@@ -684,7 +683,6 @@ set(COMPILER_SOURCES
         compiler/backend/CLANG.cpp
         compiler/ctranslator/CTranslator.h
         compiler/ctranslator/CTranslator.cpp
-        compiler/chem_clang.h
         compiler/chem_clang.cpp
         compiler/backend/LLVM.cpp
         compiler/ASTCompiler.cpp

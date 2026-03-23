@@ -232,7 +232,8 @@ void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
 
 bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     // Parse the target triple string
-    llvm::Triple triple(target_triple);
+    auto llvmRef = llvm::StringRef(target_triple);
+    llvm::Triple triple(llvmRef);
     return triple.isArch64Bit();
 }
 
@@ -252,7 +253,7 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
 
     // set the data layout and target triple
     module->setDataLayout(TargetMachine->createDataLayout());
-    module->setTargetTriple(target_triple);
+    module->setTargetTriple(llvm::Triple(target_triple));
 
     // debug flags must be added otherwise debug information is ignored (or dropped)
     if(llvm.di.isEnabled) {
@@ -1500,7 +1501,7 @@ bool save_as_file_type(
                 });
         // Verify the output
         pass_builder.registerOptimizerLastEPCallback(
-                [](ModulePassManager &module_pm, OptimizationLevel OL) {
+                [](ModulePassManager &module_pm, OptimizationLevel OL, ThinOrFullLTOPhase ltoPhase) {
                     module_pm.addPass(VerifierPass());
                 });
     }
@@ -1516,7 +1517,7 @@ bool save_as_file_type(
 
     // Thread sanitizer
     if (options->tsan) {
-        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
             module_pm.addPass(ModuleThreadSanitizerPass());
             module_pm.addPass(createModuleToFunctionPassAdaptor(ThreadSanitizerPass()));
         });
@@ -1534,7 +1535,8 @@ bool save_as_file_type(
 
     // Initialize the PassManager
     if (opt_level == OptimizationLevel::O0) {
-        module_pm = pass_builder.buildO0DefaultPipeline(opt_level, options->lto);
+        // TODO: allow controlling post or pre link lto from command line
+        module_pm = pass_builder.buildO0DefaultPipeline(opt_level, options->lto ? llvm::ThinOrFullLTOPhase::FullLTOPostLink : llvm::ThinOrFullLTOPhase::None);
     } else if (options->lto) {
         module_pm = pass_builder.buildLTOPreLinkDefaultPipeline(opt_level);
     } else {
@@ -1655,9 +1657,9 @@ bool Codegen::save_to_ll_file_for_debugging(const std::string &out_path) const {
 
 #ifdef CLANG_LIBS
 
-int chemical_clang_main(int argc, char **argv);
+extern "C" int chemical_clang_main(int argc, char **argv);
 
-int ChemLlvmAr_main(int argc, char **argv);
+extern "C" int ChemLlvmAr_main(int, char **);
 
 int chemical_clang_main2(std::vector<chem::string> &command_args) {
     char** pointers = chem_string_cmd_pointers(command_args);
@@ -1704,7 +1706,8 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 int invoke_lld(std::vector<chem::string>& command_args, const std::string_view& targetTripleString) {
     // figure out the lld driver
     chem::string lld_driver;
-    auto triple = llvm::Triple(targetTripleString);
+    auto tripleRef = llvm::StringRef(targetTripleString);
+    auto triple = llvm::Triple(tripleRef);
     if (triple.isOSDarwin()){
         lld_driver.append(std::string_view("ld64.lld"));
     } else if (triple.isOSWindows()) {

@@ -177,7 +177,7 @@ void StructDefinition::llvm_store_type(Codegen& gen, llvm::StructType* type) {
     llvm_struct_type = type;
 }
 
-llvm::Type* StructDefinition::with_elements_type(
+llvm::StructType* StructDefinition::with_elements_type(
         Codegen &gen,
         const std::vector<llvm::Type *>& elements,
         bool anonymous
@@ -185,19 +185,16 @@ llvm::Type* StructDefinition::with_elements_type(
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     }
-    auto stored = llvm_stored_type(gen);
-    if(!stored) {
-        ScratchString<128> temp_name;
-        gen.mangler.mangle(temp_name, this);
-        auto new_stored = llvm::StructType::create(*gen.ctx, elements, (std::string_view) temp_name);
-        llvm_store_type(gen, new_stored);
-        return new_stored;
-    }
-    return stored;
+    ScratchString<128> temp_name;
+    gen.mangler.mangle(temp_name, this);
+    return llvm::StructType::create(*gen.ctx, elements, (std::string_view) temp_name);
 }
 
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return with_elements_type(gen, elements_type(gen), is_anonymous());
+    if(auto stored = llvm_stored_type(gen)) return stored;
+    const auto new_type = with_elements_type(gen, elements_type(gen), is_anonymous());
+    llvm_store_type(gen, new_type);
+    return new_type;
 }
 
 llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {

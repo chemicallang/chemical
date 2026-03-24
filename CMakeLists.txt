@@ -8,6 +8,8 @@ project("chemical" VERSION 0.0.32)
 if(MSVC)
     # Ensure static linking for MSVC runtime
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # Enable modern preprocessor for LLVM compatibility
+    add_compile_options(/Zc:preprocessor)
 endif()
 
 # Set C++ standard 20
@@ -59,7 +61,7 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
         add_compile_options(-Wall -Wextra -Werror=return-type)
     elseif (MSVC)
-        add_compile_options(/W4 /we4715 /Zc:preprocessor)
+        add_compile_options(/W4 /we4715)
     endif()
 endif ()
 
@@ -893,7 +895,8 @@ else()
             target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
         else()
             # MinGW needs explicit system library linkage (MSVC auto-links via #pragma comment)
-            target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB} ws2_32 version psapi shell32 ole32 uuid advapi32 ntdll iphlpapi)
+            add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+            target_link_libraries(Compiler -Wl,--start-group ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} -Wl,--end-group ${LIBTCC_LIB} ws2_32 version psapi shell32 ole32 uuid advapi32 ntdll iphlpapi)
             # Use -lntdll to be safe on some MinGW environments
             if (NOT MSVC)
                 target_link_options(Compiler PRIVATE -lntdll -liphlpapi)

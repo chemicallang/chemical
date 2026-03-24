@@ -10,7 +10,14 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Enable modern preprocessor for LLVM compatibility
     add_compile_options(/Zc:preprocessor)
+elseif(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Force libc++ to match prebuilt LLVM ABI on Windows
+    add_compile_options("-stdlib=libc++")
+    add_link_options("-stdlib=libc++")
 endif()
+
+# Clang headers require this for static linking on Windows
+add_definitions(-DCLANG_BUILD_STATIC)
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)
@@ -874,7 +881,7 @@ elseif(UNIX AND NOT APPLE)
         target_link_libraries(Compiler PRIVATE
                 # ask linker to prefer static libraries from here onward
                 -Wl,-Bstatic
-                ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
+                -Wl,--start-group ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} -Wl,--end-group
                 # switch back to dynamic mode for the next libs
                 -Wl,-Bdynamic
                 ${LIBTCC_LIB}
@@ -895,7 +902,6 @@ else()
             target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
         else()
             # MinGW needs explicit system library linkage (MSVC auto-links via #pragma comment)
-            add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
             target_link_libraries(Compiler -Wl,--start-group ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} -Wl,--end-group ${LIBTCC_LIB} ws2_32 version psapi shell32 ole32 uuid advapi32 ntdll iphlpapi)
             # Use -lntdll to be safe on some MinGW environments
             if (NOT MSVC)

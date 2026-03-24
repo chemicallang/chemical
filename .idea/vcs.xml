@@ -7,6 +7,8 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/llvm-prebuilt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/tcclib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/lsp-framework" vcs="Git" />
   </component>
 </project>

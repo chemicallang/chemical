@@ -216,4 +216,16 @@ func test_sizeof_alignof() {
     test("sizeof with array of structs work", () => {
         return sizeof([4]SizeOfStrT1) == 4 * 4 * 3;
     })
+    test("sizeof i8 and u8 is 1 byte", () => {
+        return sizeof(i8) == 1 && sizeof(u8) == 1
+    })
+    test("sizeof i16 and u16 is 2 bytes", () => {
+        return sizeof(i16) == 2 && sizeof(u16) == 2
+    })
+    test("sizeof i32 and u32 is 4 bytes", () => {
+        return sizeof(i32) == 4 && sizeof(u32) == 4
+    })
+    test("sizeof i64 and u64 is 8 bytes", () => {
+        return sizeof(i64) == 8 && sizeof(u64) == 8
+    })
 }

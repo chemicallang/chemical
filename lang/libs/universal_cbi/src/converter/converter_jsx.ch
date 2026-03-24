@@ -52,6 +52,86 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         }
 
         const signature = element.componentSignature;
+        if(signature.mountStrategy != MountStrategy.Universal) {
+             converter.put_chain_in();
+
+             const builder = converter.builder;
+             const location = intrinsics::get_raw_location();
+
+             // signature.name(page)
+             var base = builder.make_identifier(signature.name, signature.functionNode, false, location);
+             var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+             var call = builder.make_function_call_node(base, converter.parent, location);
+             call.get_args().push(pageId);
+             converter.vec.push(call);
+
+             converter.str.append_view("<script>");
+
+             const mountFn = switch(signature.mountStrategy) {
+                 MountStrategy.React => view("$_rm")
+                 MountStrategy.Preact => view("$_pm")
+                 MountStrategy.Solid => view("$_sm")
+                 default => view("$_dm")
+             }
+
+             converter.str.append_view(mountFn);
+             converter.str.append_view("(document.currentScript, ");
+             get_module_scoped_name(signature.functionNode, signature.name, converter.str);
+             converter.str.append_view(", {");
+
+             var attrCount = 0u;
+             const attributes = &element.opening.attributes;
+             for(var i : uint = 0; i < attributes.size(); i++) {
+                 const attrNode = attributes.get(i);
+                 if(attrNode.kind == JsNodeKind.JSXAttribute) {
+                     const attr = attrNode as *mut JsJSXAttribute;
+                     if(attr.name.equals("children")) continue;
+
+                     if(attrCount > 0) converter.str.append_view(", ");
+                     converter.str.append_view(attr.name);
+                     converter.str.append_view(": ");
+
+                     if(attr.value == null) {
+                         converter.str.append_view("true");
+                     } else if(attr.value.kind == JsNodeKind.Literal) {
+                         converter.convertJsNode(attr.value);
+                     } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
+                         const container = attr.value as *mut JsJSXExpressionContainer;
+                         if(container.expression != null) {
+                             if(container.expression.kind == JsNodeKind.ChemicalValue) {
+                                 const cv = container.expression as *mut JsChemicalValue;
+                                 const cvType = cv.value.getType();
+                                 const isStr = cvType != null && (cvType.getKind() == BaseTypeKind.String ||
+                                     cvType.getKind() == BaseTypeKind.Pointer ||
+                                     cvType.getKind() == BaseTypeKind.ExpressiveString);
+                                 if(isStr) converter.str.append('"');
+
+                                 converter.put_chain_in();
+                                 converter.put_chemical_value_in(cv.value);
+
+                                 if(isStr) {
+                                     converter.put_char_chain('"');
+                                 }
+                             } else if(container.expression.kind == JsNodeKind.MemberAccess) {
+                                  const mem = container.expression as *mut JsMemberAccess;
+                                  if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
+                                       converter.put_chain_in();
+                                       const v = converter.make_ssr_prop_v_call(mem.property);
+                                       const renderCall = converter.render_ssr_value_call(v);
+                                       converter.vec.push(renderCall);
+                                  }
+                             }
+                         }
+                     }
+                     attrCount++;
+                 }
+             }
+
+             converter.str.append_view("});</script>");
+             converter.put_chain_in();
+             return;
+        }
+
         const hash = signature.functionNode.getEncodedLocation();
 
         var body = converter.vec
@@ -162,6 +242,11 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         body.push(call )
 
         return;
+    }
+
+    if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
+        converter.str.append_view("null");
+         return;
     }
 
     converter.str.append_view("$_ur.createElement(");

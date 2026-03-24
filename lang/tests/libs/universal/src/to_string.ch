@@ -38,7 +38,7 @@ public func universal_element_in_html_works_js(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Greeting /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{},0);return n;}universal_lib_test_Greeting.__hydrate=(root,props,offset=0)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_Greeting',{}]);`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"` Hello `"}); }\nwindow.$__uni_dispatch('universal_lib_test_Greeting', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -51,7 +51,7 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) {const tpl=document.createElement('template');tpl.innerHTML='<span>Hello</span>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_Greeting.__hydrate(n,props||{},0);return n;}universal_lib_test_Greeting.__hydrate=(root,props,offset=0)=>{};if(window.$_ureg)window.$_ureg('universal_lib_test_Greeting',universal_lib_test_Greeting);function universal_lib_test_ComponentChild(props) {const tpl=document.createElement('template');tpl.innerHTML='<div><span>Hello</span></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ComponentChild.__hydrate(n,props||{},0);return n;}universal_lib_test_ComponentChild.__hydrate=(root,props,offset=0)=>{{const c=(window.$_u&&window.$_u['universal_lib_test_Greeting'])||window['universal_lib_test_Greeting'];if(c&&c.__hydrate){c.__hydrate($_ut(root,[0],offset),{},0);}}};if(window.$_ureg)window.$_ureg('universal_lib_test_ComponentChild',universal_lib_test_ComponentChild);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ComponentChild',{}]);`)
+    str.append_expr(`function universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, $_ur.createElement(universal_lib_test_Greeting, {})); }\nfunction universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"` Hello `"}); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -69,7 +69,7 @@ public func universal_class_merge(env : &mut TestEnv) {
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ClassMerge(props) {const tpl=document.createElement('template');tpl.innerHTML='<div class="base-class"></div>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_ClassMerge.__hydrate(n,props||{},0);return n;}universal_lib_test_ClassMerge.__hydrate=(root,props,offset=0)=>{{const el=$_ut(root,[],offset);let v="";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=""+x;if(s.length===0)return;if(h)v+=" ";v+=s;h=true;};a(props.className);a(props.class);a('base-class');if(h) el.setAttribute('class', v);}{const el=$_ut(root,[],offset);let v="";let h=false;const a=(x)=>{if(x==null||x===false)return;const s=""+x;if(s.length===0)return;if(h)v+=";";v+=s;h=true;};a(props.style);if(h) el.setAttribute('style', v);}};if(window.$_ureg)window.$_ureg('universal_lib_test_ClassMerge',universal_lib_test_ClassMerge);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ClassMerge',{"class":"extra"}]);`)
+    js.append_expr(`function universal_lib_test_ClassMerge(props) { return $_ur.createElement("div", $_um(props, {"class": "base-class"})); }\nwindow.$__uni_dispatch('universal_lib_test_ClassMerge', document.getElementById('u${page.getComponentId(0)}'), {"class":"extra"});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -128,7 +128,7 @@ public func universal_state_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StateTest /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_StateTest(props) {const tpl=document.createElement('template');tpl.innerHTML='<button><span>0</span></button>';const root=tpl.content.firstElementChild||tpl.content.firstChild;if(!root)return document.createTextNode('');const n=root.cloneNode(true);universal_lib_test_StateTest.__hydrate(n,props||{},0);return n;}universal_lib_test_StateTest.__hydrate=(root,props,offset=0)=>{const count = $_us(0);count.subscribe(v=>$_ut(root,[0],offset).textContent=v);$_ut(root,[],offset).addEventListener('click',() => count.value++);};if(window.$_ureg)window.$_ureg('universal_lib_test_StateTest',universal_lib_test_StateTest);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_StateTest',{}]);`)
+    str.append_expr(`function universal_lib_test_StateTest(props) { const count = $_us(0); return $_ur.createElement("button", {"onClick": () => count.value++}, count); }\nwindow.$__uni_dispatch('universal_lib_test_StateTest', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -170,7 +170,7 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
     #html { <ConditionalRender show={true} /> }
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, props.show ? $_ur.createElement("span", {}, ${"` Show `"}) : $_ur.createElement("span", {}, ${"` Hide `"})); }if(window.$_ureg)window.$_ureg('universal_lib_test_ConditionalRender',universal_lib_test_ConditionalRender);window.$_uq.push(['u${page.getComponentId(0)}','universal_lib_test_ConditionalRender',{"show":true}]);`)
+    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, props.show ? $_ur.createElement("span", {}, ${"` Show `"}) : $_ur.createElement("span", {}, ${"` Hide `"})); }\nwindow.$__uni_dispatch('universal_lib_test_ConditionalRender', document.getElementById('u${page.getComponentId(0)}'), {"show":1});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 

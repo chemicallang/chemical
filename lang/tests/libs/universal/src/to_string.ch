@@ -29,7 +29,7 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    str.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 
@@ -65,7 +65,7 @@ public func universal_class_merge(env : &mut TestEnv) {
     #html { <ClassMerge class="extra" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ClassMerge"><div class="extra base-class"></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div class="extra base-class"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()
@@ -87,7 +87,7 @@ public func universal_button_variant(env : &mut TestEnv) {
     #html { <ButtonPrimary>Click Me</ButtonPrimary> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_ButtonPrimary"><button class="btn-primary btn-base">Click Me</button></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="btn-primary btn-base">Click Me</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -101,7 +101,7 @@ public func universal_deep_prop_passing(env : &mut TestEnv) {
     #html { <DeepPropPassing title="Hover Me" label="Text" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_DeepPropPassing"><div title="Hover Me"><span>Text</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="Hover Me"><span>Text</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -114,7 +114,7 @@ public func universal_multi_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MultiChild /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_MultiChild"><div><span>A</span><span>B</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span>A</span><span>B</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -142,7 +142,7 @@ public func universal_nested_universal_ssr(env : &mut TestEnv) {
     #html { <NestedUniversal /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_NestedUniversal"><span>Hello</span></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -156,7 +156,7 @@ public func universal_nested_universal_props_ssr(env : &mut TestEnv) {
     #html { <NestedUniversalProps title="T" label="L" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_NestedUniversalProps"><div title="T"><span>L</span></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="T"><span>L</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -202,7 +202,7 @@ public func universal_spread_and_static_attr_ssr(env : &mut TestEnv) {
     #html { <SpreadAndStaticAttr title="Hello" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_SpreadAndStaticAttr"><div title="Hello" id="static" data-val="123"></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="Hello" id="static" data-val="123"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -227,7 +227,7 @@ public func universal_frag_parent_ssr(env : &mut TestEnv) {
     #html { <FragParent /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_FragParent"><span>Hello</span><div>Middle</div><span>Hello</span></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span><div>Middle</div><span>Hello</span></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -253,7 +253,7 @@ public func universal_attr_chem_value_ssr(env : &mut TestEnv) {
     #html { <AttrChemValue val={myVal} /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_AttrChemValue"><div data-val="42"></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div data-val="42"></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -304,7 +304,7 @@ public func test_simple_button_works(env : &mut TestEnv) {
     var page = HtmlPage()
     my_button_primary_html(page)
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_MyButtonPrimary"><button class="my_class dc_2 dc_1">Hello</button></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="my_class dc_2 dc_1">Hello</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -316,6 +316,6 @@ public func universal_multiple_in_html(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="u${page.getComponentId(0)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div><div id="u${page.getComponentId(1)}" data-u-comp="universal_lib_test_Greeting"><span>Hello</span></div>`);
+    str.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div><div id="u${page.getComponentId(1)}"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }

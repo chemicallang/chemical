@@ -153,9 +153,8 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
         current_func : root.signature.functionNode
     }
 
-    const location = intrinsics::get_raw_location()
-    const hash = value.getEncodedLocation()
-    var requireCall = converter.make_require_component_call(hash as size_t)
+    const location = value.getEncodedLocation()
+    var requireCall = converter.make_require_component_call(location as size_t)
     var notRequire = builder.make_not_value(requireCall, location)
     var ifStmt = builder.make_if_stmt(notRequire, converter.parent, location)
     var ifBody = ifStmt.get_body()
@@ -164,10 +163,47 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
 
     body.push(ifStmt)
     // set the component hash
-    body.push(converter.make_set_component_hash_call(hash as size_t))
+    body.push(converter.make_set_component_hash_call(location as size_t))
+
+    // Emit dependency components
+    var emitted = std::vector<size_t>();
+    for(var i : uint = 0; i < root.components.size(); i++) {
+        const element = root.components.get(i);
+        if(element.componentSignature != null) {
+            const signature = element.componentSignature;
+
+            // handle every component except universal
+            if(signature.mountStrategy == MountStrategy.Universal) {
+                // universal components are handled at call site
+                continue;
+            }
+
+            const hash = signature.functionNode.getEncodedLocation() as size_t;
+
+            var already_emitted = false;
+            for(var j : uint = 0; j < emitted.size(); j++) {
+                if(emitted.get(j) == hash) {
+                    already_emitted = true;
+                    break;
+                }
+            }
+
+            if(!already_emitted) {
+                emitted.push(hash);
+                converter.put_chain_in()
+                var targetNode = signature.functionNode as *mut FunctionDeclaration;
+                var targetName = signature.name;
+                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
+                var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+                var call = builder.make_function_call_node(base, converter.parent, location)
+                call.get_args().push(pageId as *mut Value)
+                converter.vec.push(call as *mut ASTNode)
+            }
+        }
+    }
 
     // Convert to Preact component function.
-    converter.str.append_view("\nfunction ")
+    converter.str.append_view("function ")
     get_module_scoped_name(root.signature.functionNode, root.signature.name, converter.str)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
@@ -176,6 +212,8 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
     if(root.body != null) {
         converter.convertJsNode(root.body)
     }
+
+    converter.str.append('\n');
     
     converter.put_chain_in();
     

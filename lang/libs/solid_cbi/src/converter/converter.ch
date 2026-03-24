@@ -551,20 +551,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     const builder = converter.builder;
     const componentFunc = element.componentSignature.functionNode;
 
-    // Non Universal components (probably react)
-    // we make this call to ensure component JS exists
-    if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
-        // put existing chain in
-        converter.put_chain_in();
-        // the actual call
-        const location = intrinsics::get_raw_location()
-        var base = builder.make_identifier(element.componentSignature.name, componentFunc, false, location)
-        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var call = builder.make_function_call_node(base, converter.parent, location)
-        call.get_args().push(pageId)
-        converter.vec.push(call)
-    }
-
     // Universal components require special treatment
     if(element.componentSignature != null && element.componentSignature.mountStrategy == MountStrategy.Universal) {
 

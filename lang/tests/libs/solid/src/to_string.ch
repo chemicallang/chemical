@@ -17,7 +17,7 @@ public func solid_element_in_html_works_head_js(env : &mut TestEnv) {
     #html {
         <Greeting />
     }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }\n");
 }
 
 @test
@@ -26,7 +26,7 @@ public func solid_component_used_twice_in_html_emits_once(env : &mut TestEnv) {
     #html {
         <Greeting /><Greeting />
     }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }\n");
 }
 
 #solid GreetingTwice(props) {
@@ -39,7 +39,7 @@ public func solid_component_used_twice_emits_once(env : &mut TestEnv) {
     #html {
         <GreetingTwice />
     }
-    view_equals(env, page.getHeadJs(), """function solid_lib_test_Greeting(props) { return $_sh("span", {}, ` Hello `); }function solid_lib_test_GreetingTwice(props) { return $_sh("div", {}, $_s.createComponent(solid_lib_test_Greeting, {}), $_s.createComponent(solid_lib_test_Greeting, {})); }""");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }\nfunction solid_lib_test_GreetingTwice(props) { return $_sh(\"div\", {}, $_s.createComponent(solid_lib_test_Greeting, {}), $_s.createComponent(solid_lib_test_Greeting, {})); }\n");
 }
 
 #solid EmptyElement(props) {
@@ -50,7 +50,7 @@ public func solid_component_used_twice_emits_once(env : &mut TestEnv) {
 public func solid_empty_element(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <EmptyElement /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_EmptyElement(props) { return $_sh(\"span\", {}); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_EmptyElement(props) { return $_sh(\"span\", {}); }\n");
 }
 
 #solid ElementChild(props) {
@@ -61,7 +61,7 @@ public func solid_empty_element(env : &mut TestEnv) {
 public func solid_element_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ElementChild /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_ElementChild(props) { return $_sh(\"div\", {}, $_sh(\"span\", {})); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_ElementChild(props) { return $_sh(\"div\", {}, $_sh(\"span\", {})); }\n");
 }
 
 #solid PropsTest(props) {
@@ -72,7 +72,7 @@ public func solid_element_child(env : &mut TestEnv) {
 public func solid_props_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PropsTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_PropsTest(props) { return $_sh(\"div\", {\"id\": \"myId\", \"className\": \"foo\"}); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_PropsTest(props) { return $_sh(\"div\", {\"id\": \"myId\", \"className\": \"foo\"}); }\n");
 }
 
 #solid NumericProp(props) {
@@ -83,7 +83,7 @@ public func solid_props_test(env : &mut TestEnv) {
 public func solid_numeric_prop(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <NumericProp /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_NumericProp(props) { return $_sh(\"div\", {\"tabIndex\": 1}); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_NumericProp(props) { return $_sh(\"div\", {\"tabIndex\": 1}); }\n");
 }
 
 #solid SpreadProps(props) {
@@ -94,7 +94,7 @@ public func solid_numeric_prop(env : &mut TestEnv) {
 public func solid_spread_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SpreadProps /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", $_s.mergeProps({}, props, {})); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", $_s.mergeProps({}, props, {})); }\n");
 }
 
 #solid FragmentTest(props) {
@@ -105,7 +105,7 @@ public func solid_spread_props(env : &mut TestEnv) {
 public func solid_fragment_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <FragmentTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_FragmentTest(props) { return [$_sh(\"span\", {})]; }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_FragmentTest(props) { return [$_sh(\"span\", {})]; }\n");
 }
 
 #solid ComponentChild(props) {
@@ -116,7 +116,7 @@ public func solid_fragment_test(env : &mut TestEnv) {
 public func solid_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }function solid_lib_test_ComponentChild(props) { return $_sh(\"div\", {}, $_s.createComponent(solid_lib_test_Greeting, {})); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }\nfunction solid_lib_test_ComponentChild(props) { return $_sh(\"div\", {}, $_s.createComponent(solid_lib_test_Greeting, {})); }\n");
 }
 
 #solid ComponentProps(props) {
@@ -127,7 +127,7 @@ public func solid_component_child(env : &mut TestEnv) {
 public func solid_component_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentProps /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }function solid_lib_test_ComponentProps(props) { return $_s.createComponent(solid_lib_test_Greeting, {\"text\": \"hi\"}); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_Greeting(props) { return $_sh(\"span\", {}, ` Hello `); }\nfunction solid_lib_test_ComponentProps(props) { return $_s.createComponent(solid_lib_test_Greeting, {\"text\": \"hi\"}); }\n");
 }
 
 #solid TernaryTest(cond) {
@@ -138,7 +138,7 @@ public func solid_component_props(env : &mut TestEnv) {
 public func solid_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `)); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `)); }\n");
 }
 
 #solid MapTest(items) {
@@ -149,7 +149,7 @@ public func solid_ternary_test(env : &mut TestEnv) {
 public func solid_map_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MapTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_MapTest(items) { return $_sh(\"ul\", {}, () => items.map((i) => $_sh(\"li\", {}, i))); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_MapTest(items) { return $_sh(\"ul\", {}, () => items.map((i) => $_sh(\"li\", {}, i))); }\n");
 }
 
 #solid EventTest(props) {

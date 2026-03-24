@@ -16,7 +16,7 @@ func try_build_style_object_text(
         s.append_view(": ");
         s.append_view(valText);
     }
-    outText = builder.allocate_view(s.to_view());
+    *outText = builder.allocate_view(s.to_view());
     return true;
 }
 
@@ -87,7 +87,7 @@ func resolve_nested_prop_as_text(
     if(attr == null || attr.value == null) return 0;
     if(attr.value.kind == JsNodeKind.Literal) {
         const lit = attr.value as *mut JsLiteral;
-        outText = strip_js_string_quotes(lit.value);
+        *outText = strip_js_string_quotes(lit.value);
         return 1;
     }
     if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
@@ -96,26 +96,26 @@ func resolve_nested_prop_as_text(
         if(expr == null) return 0;
         if(expr.kind == JsNodeKind.Literal) {
             const lit = expr as *mut JsLiteral;
-            outText = strip_js_string_quotes(lit.value);
+            *outText = strip_js_string_quotes(lit.value);
             return 1;
         }
         if(expr.kind == JsNodeKind.Identifier) {
             const id = expr as *mut JsIdentifier;
             if(has_state(states, id.value)) {
-                outText = find_state_init_text(states, id.value);
+                *outText = find_state_init_text(states, id.value);
                 return 1;
             }
         }
         if(expr.kind == JsNodeKind.MemberAccess) {
             const p = get_prop_access_path(builder, expr, propsName);
             if(!p.empty()) {
-                outPropAccess = p;
+                *outPropAccess = p;
                 return 2;
             }
         }
         if(expr.kind == JsNodeKind.ChemicalValue) {
             const cv = expr as *mut JsChemicalValue;
-            outChem = cv.value;
+            *outChem = cv.value;
             return 3;
         }
     }

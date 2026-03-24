@@ -430,8 +430,8 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     visit(value, lhsType);
 
-    if(lhsType->isReferenceCanonical() && value->getType()->isReferenceCanonical()) {
-        linker.error("you cannot re-assign a reference", lhs);
+    if(lhsType->isReferenceCanonical()) {
+        linker.error("assignment to reference is forbidden, please use dereference operator explicitly", lhs);
     }
 
     // first we check if the value is mutable

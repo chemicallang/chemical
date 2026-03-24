@@ -160,5 +160,5 @@ public func solid_map_test(env : &mut TestEnv) {
 public func solid_event_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <EventTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_EventTest(props) { return $_sh(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_EventTest(props) { return $_sh(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }\n");
 }

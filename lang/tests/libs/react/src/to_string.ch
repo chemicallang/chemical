@@ -39,7 +39,7 @@ public func react_component_used_twice_emits_once(env : &mut TestEnv) {
     #html {
         <GreetingTwice />
     }
-    view_equals(env, page.getHeadJs(), "function react_lib_test_Greeting(props) { return $_r.createElement(\"span\", {}, ` Hello `); }\nfunction react_lib_test_GreetingTwice(props) { return $_sh(\"div\", {}, $_s.createComponent(react_lib_test_Greeting, {}), $_s.createComponent(react_lib_test_Greeting, {})); }\n");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_Greeting(props) { return $_r.createElement(\"span\", {}, ` Hello `); }\nfunction react_lib_test_GreetingTwice(props) { return $_r.createElement(\"div\", {}, $_r.createElement(react_lib_test_Greeting, {}), $_r.createElement(react_lib_test_Greeting, {})); }\n");
 }
 
 #react EmptyElement(props) {

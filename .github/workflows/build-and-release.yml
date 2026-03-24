@@ -328,6 +328,7 @@ jobs:
       contains(github.event.head_commit.message, 'releaseIt')
     env:
       LLVM_MINGW_VER: "20260224"
+      LLVM_MINGW_NAME: "llvm-mingw-20260224-msvcrt-x86_64"
     steps:
       - name: Checkout chemical repository
         uses: actions/checkout@v4
@@ -368,9 +369,15 @@ jobs:
       - name: Configure Chemical Project
         shell: bash
         run: |
+          LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64"
+          export PATH="$HOME/${LLVM_MINGW_NAME}/bin:$PATH"
+          export CC=clang
+          export CXX=clang++
           cd chemical
           mkdir -p out/build
-          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       - name: Run configure script
         shell: bash
@@ -381,6 +388,9 @@ jobs:
       - name: Build Compiler Targets
         shell: bash
         run: |
+          export PATH="$HOME/${LLVM_MINGW_NAME}/bin:$PATH"
+          export CC=clang
+          export CXX=clang++
           cd chemical
           cmake --build out/build --config Release --target Compiler
           cmake --build out/build --config Release --target TCCCompiler

@@ -12,7 +12,7 @@ struct AssignableReferencableStruct {
 }
 
 func assign_to_ref_struct(r : &mut AssignableReferencableStruct) {
-    r = AssignableReferencableStruct(9873)
+    *r = AssignableReferencableStruct(9873)
 }
 
 func take_ref(r : &ReferencableStruct) : int {

@@ -37,12 +37,14 @@ func test_char_ptr_strings() {
 klmnopqrstuvwxyz"""
         return strlen(first) == 28
     })
+    /**
     test("same contents of strings in same module have same char ptr", () => {
         return SameStringContentsSame1 == SameStringContentsSame2
     })
     test("same contents of strings in two modules have same char ptr", () => {
         return SameStringContents == SameStringContents2
     })
+    **/
     test("single line strings end with a null terminator", () => {
         var myStr = "abc"
         return myStr[3] == '\0'

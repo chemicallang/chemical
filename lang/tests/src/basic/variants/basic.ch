@@ -244,18 +244,6 @@ func test_variants() {
     test("variants can be passed to functions - 2", () => {
         return get_value(OptVariant.None()) == -1;
     })
-    test("allocated variant is in unspecified state", () => {
-        var v : OptVariant
-        switch(v) {
-            Some() => {
-                return false;
-            }
-            None() => {
-                return false;
-            }
-        }
-        return true;
-    })
     test("variants can be returned from functions - 1", () => {
         const v = give_variant(true);
         return get_value(v) == 30

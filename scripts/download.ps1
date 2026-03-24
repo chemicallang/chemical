@@ -50,7 +50,7 @@ if ($VERSION -eq "latest" -or !$VERSION) {
                 Write-Host "Latest version detected via API: $VERSION"
             }
         } catch {
-            $VERSION = "v0.0.30"
+            $VERSION = "v0.0.32"
             Write-Host "Warning: API failed, falling back to $VERSION"
         }
     }

@@ -319,3 +319,59 @@ public func universal_multiple_in_html(env : &mut TestEnv) {
     str.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div><div id="u${page.getComponentId(1)}"><span>Hello</span></div>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
+
+#react MyReactComp(props) {
+    return <div>Hello {props.name}</div>
+}
+
+#solid MySolidComp(props) {
+    return <div>Hello {props.name}</div>
+}
+
+#preact MyPreactComp(props) {
+    return <div>Hello {props.name}</div>
+}
+
+#universal ReactInUniversal(props) {
+    return <div><MyReactComp name="React" /></div>
+}
+
+@test
+public func test_react_in_universal_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ReactInUniversal /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><script>$_rm(document.currentScript, universal_lib_test_MyReactComp, {name: "React"});</script></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+    
+    // JS should only have the Universal component entry, MyReactComp should be skipped in JS
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_ReactInUniversal(props) { return $_ur.createElement("div", {}, null); }\nwindow.$__uni_dispatch('universal_lib_test_ReactInUniversal', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
+#universal SolidInUniversal(props) {
+    return <div><MySolidComp name="Solid" /></div>
+}
+
+@test
+public func test_solid_in_universal_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SolidInUniversal /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><script>$_sm(document.currentScript, universal_lib_test_MySolidComp, {name: "Solid"});</script></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal PreactInUniversal(props) {
+    return <div><MyPreactComp title="Preact" /></div>
+}
+
+@test
+public func test_preact_in_universal_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <PreactInUniversal /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><script>$_pm(document.currentScript, universal_lib_test_MyPreactComp, {title: "Preact"});</script></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}

@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Usage: ./install-chemical.sh
 # Env vars:
-#   VERSION (default v0.0.30)
+#   VERSION (default v0.0.32)
 #   RELEASE_PLATFORM (optional: e.g. linux, linux-alpine, macos, windows)
 #   VARIANT (empty OR tcc OR lsp)
 #   ARCH_OVERRIDE (optional: amd64 | arm64 | x64 etc)
@@ -33,11 +33,11 @@ if [[ "$VERSION" == "latest" || -z "$VERSION" ]]; then
       VERSION="$LATEST_TAG"
       echo "Latest version detected: $VERSION"
     else
-      VERSION="v0.0.30"
+      VERSION="v0.0.32"
       echo "Warning: No tags found, falling back to $VERSION"
     fi
   else
-    VERSION="v0.0.30"
+    VERSION="v0.0.32"
     echo "Warning: git not found, falling back to $VERSION"
   fi
 fi

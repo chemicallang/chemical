@@ -852,7 +852,13 @@ if(BUILD_COMPILER)
     target_compile_options(Compiler PRIVATE ${NO_RTTI})
 endif()
 
-if(UNIX AND NOT APPLE)
+if(WIN32)
+    # Linking Compiler executable statically is necessary because of LLVM
+    # we link everything else statically on windows anyway
+    if(MSVC AND BUILD_COMPILER)
+        target_compile_options(Compiler PRIVATE "/MT")
+    endif()
+elseif(UNIX AND NOT APPLE)
     # Statically link C++ runtime + libgcc
     if(BUILD_COMPILER)
         target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)

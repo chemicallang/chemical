@@ -82,7 +82,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_LabJobgetTarget", (void*) LabJobgetTarget },
 
         // setters
-        { "lab_LabJobgetAbsPath", (void*) LabJobsetAbsPath },
+        { "lab_LabJobsetAbsPath", (void*) LabJobsetAbsPath },
 };
 
 const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {

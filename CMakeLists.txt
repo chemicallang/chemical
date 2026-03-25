@@ -952,13 +952,25 @@ elseif(UNIX)
     endif()
 endif()
 
-# On Windows, copy libtcc.dll to the build directory at configure time
+# copy libtcc or shared libs to the build directory at configure time
 # so executables can find it at runtime without manual copying.
 if(WIN32)
     if(EXISTS ${LIBTCC_DIR}/libtcc.dll)
         file(COPY ${LIBTCC_DIR}/libtcc.dll DESTINATION ${CMAKE_BINARY_DIR})
     else()
-        message(WARNING "libtcc.dll not found at ${LIBTCC_DIR}/libtcc.dll. Run ./scripts/configure.sh to set it up.")
+        message(WARNING "libtcc.dll not found at ${LIBTCC_DIR}/libtcc.dll. Run ./scripts/configure.sh to set it up, And rerun cmake configure")
+    endif()
+elseif(APPLE)
+    if(EXISTS ${LIBTCC_DIR}/libtcc.dylib)
+        file(COPY ${LIBTCC_DIR}/libtcc.dylib DESTINATION ${CMAKE_BINARY_DIR})
+    else()
+        message(WARNING "libtcc.dylib not found at ${LIBTCC_DIR}/libtcc.so. Run ./scripts/configure.sh to set it up, And rerun cmake configure")
+    endif()
+elseif(UNIX)
+    if(EXISTS ${LIBTCC_DIR}/libtcc.so)
+        file(COPY ${LIBTCC_DIR}/libtcc.so DESTINATION ${CMAKE_BINARY_DIR})
+    else()
+        message(WARNING "libtcc.so not found at ${LIBTCC_DIR}/libtcc.so. Run ./scripts/configure.sh to set it up, And rerun cmake configure")
     endif()
 endif()
 

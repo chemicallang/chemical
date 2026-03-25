@@ -1,3 +1,7 @@
+func posix_mkdir(pathname : *char, mode : uint) : int {
+    return mkdir(pathname, mode)
+}
+
 public namespace fs {
 
 using std::Result;

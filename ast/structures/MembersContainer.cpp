@@ -284,10 +284,13 @@ void ExtendableMembersContainerNode::llvm_override_declare(Codegen& gen, Functio
         auto llvm_data = user.find(inherited_func);
         if (llvm_data == user.end()) {
             // interface hasn't been encountered yet, it comes after the struct
+            const auto prev_user = interface->active_user;
+            interface->active_user = this;
             inherited_func->code_gen_declare(gen, interface);
             const auto func_ptr = inherited_func->known_func(gen);
             user[inherited_func] = { func_ptr, true };
             function->set_llvm_data(gen, func_ptr);
+            interface->active_user = prev_user;
         } else {
             auto& overridable_info = llvm_data->second;
             // indicate to interface that this function has been overridden

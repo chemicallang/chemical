@@ -125,7 +125,12 @@ unsigned int ArrayValue::store_in_struct(
         BaseType* expected_type
 ) {
     auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-    initialize_allocated(gen, elem_pointer, expected_type);
+    if (expected_type && expected_type->isPointerCanonical()) {
+        auto alloc = llvm_allocate(gen, "", expected_type);
+        gen.llvm.CreateStore(alloc, elem_pointer, encoded_location());
+    } else {
+        initialize_allocated(gen, elem_pointer, expected_type);
+    }
     return index + values.size();
 }
 

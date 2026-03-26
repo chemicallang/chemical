@@ -232,25 +232,41 @@ if ! curl -sSLf -o "${TEMP_ZIP}" "${DOWNLOAD_URL}"; then
     exit 1
 fi
 
-echo "Extracting..."
 # Create target directory (parent)
 mkdir -p "$(dirname "${TARGET_DIR}")"
-
-# Unzip to a temporary directory first to inspect structure or just unzip directly if we trust it matches.
-# The previous git clone put files directly in lib/tcc.
-# Assuming the zip file contains the contents directly or a single folder?
-# Release assets usually mirror the repo structure or the build artifact.
-# If the zip has a root folder (e.g. tcc/), we might need to strip it or move it.
-# However, the user said "assets on releases ... are named ... windows-amd64.zip".
-# Let's assume they unzip to the correct structure or into a folder.
-# Safest is to unzip to a temp dir and then move.
 
 TEMP_EXTRACT_DIR="tcclib_extract_temp"
 rm -rf "${TEMP_EXTRACT_DIR}"
 mkdir -p "${TEMP_EXTRACT_DIR}"
 
-if ! unzip -q "${TEMP_ZIP}" -d "${TEMP_EXTRACT_DIR}"; then
-    echo "Error: Failed to unzip downloaded file." >&2
+# 1. Try unzip (standard, works on many platforms)
+# On some Windows ZIP files created with backslashes, Info-ZIP unzip might fail with a warning.
+EXTRACT_SUCCESS=false
+if unzip -q "${TEMP_ZIP}" -d "${TEMP_EXTRACT_DIR}" 2>/dev/null; then
+    EXTRACT_SUCCESS=true
+fi
+
+# 2. Fallback for Windows if unzip failed (common for backslash path separators in ZIPs)
+if [ "$EXTRACT_SUCCESS" = false ] && [[ "$UNAME_S_L" == mingw* || "$UNAME_S_L" == msys* || "$UNAME_S_L" == cygwin* ]]; then
+    # Try powershell Expand-Archive (guaranteed on GH Actions Windows runners)
+    if command -v powershell.exe >/dev/null 2>&1; then
+        echo "unzip failed, trying powershell.exe Expand-Archive..."
+        if powershell.exe -NoProfile -Command "Expand-Archive -Path '${TEMP_ZIP}' -DestinationPath '${TEMP_EXTRACT_DIR}' -Force" >/dev/null 2>&1; then
+            EXTRACT_SUCCESS=true
+        fi
+    fi
+
+    # Try tar (modern Windows has a built-in tar that handles ZIPs well)
+    if [ "$EXTRACT_SUCCESS" = false ] && command -v tar >/dev/null 2>&1; then
+        echo "Trying tar..."
+        if tar -xf "${TEMP_ZIP}" -C "${TEMP_EXTRACT_DIR}" >/dev/null 2>&1; then
+            EXTRACT_SUCCESS=true
+        fi
+    fi
+fi
+
+if [ "$EXTRACT_SUCCESS" = false ]; then
+    echo "Error: Failed to extract downloaded file '${TEMP_ZIP}'. Please ensure 'unzip' is installed or use a supported environment." >&2
     rm -f "${TEMP_ZIP}"
     rm -rf "${TEMP_EXTRACT_DIR}"
     exit 1

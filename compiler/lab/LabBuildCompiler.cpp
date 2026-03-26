@@ -61,8 +61,6 @@
 #include <chrono>
 #include "compiler/lab/transformer/TransformerContext.h"
 
-
-
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
 #include "core/source/LocationManager.h"
@@ -2257,6 +2255,20 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         // stmt->setResult(modDependency);
         // the modFileData is getting disposed
         module->add_dependency(modDependency);
+    }
+
+    // adding dependencies for c files user asked to compile + link
+    for(auto& c_file : modFileData.c_files) {
+        auto resolved = resolve_target_condition(job->target_data, c_file.if_cond);
+        if(resolved.has_value()) {
+            if(resolved.value()) {
+                const auto mod = context.new_module(LabModuleType::CFile, "", "");
+                mod->paths.emplace_back(c_file.path);
+                module->add_dependency(mod);
+            }
+        } else {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << " for c file '" << c_file.path << '\'' << std::endl;
+        }
     }
 
     // clear the allocators

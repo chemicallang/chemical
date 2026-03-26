@@ -238,6 +238,7 @@ public func (ctx : &BuildContext) directory_module(scope_name : &std::string_vie
 }
 
 func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::span<*mut Module>) {
+    if(dependencies.empty()) return;
     vec.reserve(dependencies.size())
     var start = dependencies.data()
     const end = start + dependencies.size()
@@ -260,6 +261,11 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
     const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
     ctx.add_path(mod, path)
     return mod;
+}
+
+// a single .c file
+public func (ctx : &BuildContext) c_file_module_by_path(path : &std::string_view) : *mut Module {
+    return ctx.c_file_module("", "", path, std::span<*mut Module>())
 }
 
 // a single .cpp file

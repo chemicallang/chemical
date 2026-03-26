@@ -228,7 +228,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cd chemical
-          ./scripts/configure.sh --arch ${{ matrix.arch }}
+          ./scripts/configure.sh --arch ${{ matrix.arch }} --mingw --ucrt
 
       - name: Build Compiler Targets
         shell: msys2 {0}
@@ -383,7 +383,7 @@ jobs:
         shell: bash
         run: |
           cd chemical
-          ./scripts/configure.sh --arch x64
+          ./scripts/configure.sh --arch x64 --mingw --msvcrt
 
       - name: Build Compiler Targets
         shell: bash

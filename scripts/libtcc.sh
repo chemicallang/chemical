@@ -20,6 +20,8 @@ UNAME_M_L="$(printf '%s' "$UNAME_M" | tr '[:upper:]' '[:lower:]')"
 ARG_ARCH=""
 ARG_MUSL=""
 ARG_TAG=""
+ARG_MINGW=false
+ARG_CRT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -29,7 +31,10 @@ while [ $# -gt 0 ]; do
     --musl=*) ARG_MUSL="${1#*=}"; shift ;;
     --tag) ARG_TAG="${2:-}"; shift 2 ;;
     --tag=*) ARG_TAG="${1#*=}"; shift ;;
-    --help|-h) printf '%s\n' "Usage: $0 [--arch <arch>] [--musl <true|false>] [--tag <version>]" ; exit 0 ;;
+    --mingw) ARG_MINGW=true; shift ;;
+    --ucrt) ARG_CRT="ucrt"; shift ;;
+    --msvcrt) ARG_CRT="msvcrt"; shift ;;
+    --help|-h) printf '%s\n' "Usage: $0 [--arch <arch>] [--musl <true|false>] [--tag <version>] [--mingw] [--ucrt] [--msvcrt]" ; exit 0 ;;
     *) # stop parsing unknown args
        break ;;
   esac
@@ -154,12 +159,23 @@ case "$UNAME_S_L" in
     ;;
 
   mingw*|msys*|cygwin*)
-    case "$ARCH" in
-      amd64) ASSET_BASE="windows-amd64" ;;
-      i386)  ASSET_BASE="windows-i386" ;;
-      arm64) ASSET_BASE="windows-arm64" ;;
-      *) printf '%s\n' "Unsupported Windows arch: $UNAME_M / $WIN_PROC" >&2; exit 1 ;;
-    esac
+    if [ "$ARG_MINGW" = true ]; then
+      CRT="${ARG_CRT:-ucrt}"
+      if [ "$ARCH" = "amd64" ]; then
+        ASSET_BASE="windows-mingw-${CRT}-x64"
+      elif [ "$ARCH" = "arm64" ]; then
+        ASSET_BASE="windows-mingw-${CRT}-arm64"
+      else
+        printf '%s\n' "Unsupported MinGW arch: $UNAME_M" >&2; exit 1
+      fi
+    else
+      case "$ARCH" in
+        amd64) ASSET_BASE="windows-amd64" ;;
+        i386)  ASSET_BASE="windows-i386" ;;
+        arm64) ASSET_BASE="windows-arm64" ;;
+        *) printf '%s\n' "Unsupported Windows arch: $UNAME_M / $WIN_PROC" >&2; exit 1 ;;
+      esac
+    fi
     ;;
 
   *)

@@ -166,6 +166,17 @@ bool ASTNode::is_top_level() {
     }
 }
 
+bool ASTNode::is_member_or_top_level() {
+    switch (kind()) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::VariantMember:
+        case ASTNodeKind::StructMember:
+            return true;
+        default:
+            return is_top_level();
+    }
+}
+
 BaseType* ASTNode::getType() {
     switch(kind()) {
         case ASTNodeKind::EmbeddedNode:

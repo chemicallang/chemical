@@ -41,6 +41,7 @@
 #include <sstream>
 #include <filesystem>
 #include <iostream>
+#include <cstdlib>
 #include <utility>
 #include <functional>
 #include "utils/FileUtils.h"
@@ -3104,6 +3105,96 @@ int LabBuildCompiler::run_invocation(
     
     LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, compiler.binder);
     
+    // 0. Built-in: `chemical run tests [extra args]`
+    //    Downloads the hosted test script via curl to a temp file, then executes it
+    //    with a proper argv array — no shell quoting issues, output goes to current terminal.
+    if (target == "tests") {
+        std::error_code fs_ec;
+        const auto tmp_dir = fs::temp_directory_path(fs_ec);
+        if (fs_ec) {
+            std::cerr << rang::fg::red << "error: " << rang::fg::reset
+                      << "could not determine temp directory: " << fs_ec.message() << std::endl;
+            return 1;
+        }
+
+        // On Windows, detect Git Bash / MSYS via the MSYSTEM env var.
+        // If MSYSTEM is set we are inside a POSIX-like shell and can use bash.
+#ifdef _WIN32
+        const char* msystem_env = std::getenv("MSYSTEM");
+        const bool use_bash = (msystem_env != nullptr && msystem_env[0] != '\0');
+#else
+        constexpr bool use_bash = true;
+#endif
+
+        // Pick the right script URL and temp filename
+        const std::string script_url = use_bash
+            ? "https://chemicallang.com/test.sh"
+            : "https://chemicallang.com/test.ps1";
+        const std::string tmp_script = (tmp_dir / (use_bash ? "chemical_run_tests.sh"
+                                                             : "chemical_run_tests.ps1")).string();
+
+        // --- Step 1: Download with curl (proper argv, no quoting) ---
+        {
+            std::string curl_exe  = "curl";
+            std::string curl_flag = "-sSL";
+            std::string curl_o    = "-o";
+            // tmp_script and script_url contain no shell-special chars, safe as raw argv
+            std::vector<char*> dl_argv = {
+                const_cast<char*>(curl_exe.c_str()),
+                const_cast<char*>(curl_flag.c_str()),
+                const_cast<char*>(script_url.c_str()),
+                const_cast<char*>(curl_o.c_str()),
+                const_cast<char*>(tmp_script.c_str()),
+                nullptr
+            };
+            const int dl_ret = launch_process_and_wait(
+                dl_argv[0], dl_argv.data(), dl_argv.size() - 1
+            );
+            if (dl_ret != 0) {
+                std::cerr << rang::fg::red << "error: " << rang::fg::reset
+                          << "failed to download test script (curl exited " << dl_ret << ")" << std::endl;
+                return dl_ret;
+            }
+        }
+
+        // --- Step 2: Execute via proper argv (zero quoting issues) ---
+        {
+            // Build the argv list using stable std::string storage
+            std::vector<std::string> argv_storage;
+            if (use_bash) {
+                argv_storage.emplace_back("bash");
+                argv_storage.emplace_back(tmp_script);
+            } else {
+                argv_storage.emplace_back("powershell.exe");
+                argv_storage.emplace_back("-NoProfile");
+                argv_storage.emplace_back("-ExecutionPolicy");
+                argv_storage.emplace_back("Bypass");
+                argv_storage.emplace_back("-File");
+                argv_storage.emplace_back(tmp_script);
+            }
+            // Forward any extra args the user gave (e.g. --tag v0.0.32)
+            for (const auto& a : args) {
+                argv_storage.emplace_back(a);
+            }
+
+            std::vector<char*> run_argv;
+            run_argv.reserve(argv_storage.size() + 1);
+            for (auto& s : argv_storage) {
+                run_argv.push_back(const_cast<char*>(s.c_str()));
+            }
+            run_argv.push_back(nullptr);
+
+            const int run_ret = launch_process_and_wait(
+                run_argv[0], run_argv.data(), run_argv.size() - 1
+            );
+
+            // Best-effort cleanup of the temp script
+            fs::remove(tmp_script, fs_ec);
+
+            return run_ret;
+        }
+    }
+
     // Detection logic
     // 1. Is it a transformer? (Multiple args, first is likely a module, second is a file)
     if (args.size() >= 1) {

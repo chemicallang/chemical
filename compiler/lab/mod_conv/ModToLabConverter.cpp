@@ -249,6 +249,22 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
 
+    // calls for c file modules
+    if (!data.c_files.empty()) {
+        for (auto& c_file : data.c_files) {
+            const auto has_if = c_file.if_cond != nullptr;
+            if(has_if) {
+                output << "\tif(";
+                writeIfConditional(c_file.if_cond, output);
+                output << ") {\n\t";
+            }
+            output << "\tctx.add_dependency(__chx_job, ctx.c_file_module_by_path(lab::rel_path_to(\"" << c_file.path << "\").to_view()), null)\n";
+            if(has_if) {
+                output << "\t}\n";
+            }
+        }
+    }
+
     if(!data.compiler_interfaces.empty()) {
         // writing each compiler interface
         for(const auto interface : data.compiler_interfaces) {

@@ -201,8 +201,8 @@ void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *n
             table.declare(name, node);
             return;
         }
-        if(previous->activeNode->is_top_level()) {
-            // previous symbol is a top level symbol, allow shadowing
+        if(previous->activeNode->is_member_or_top_level()) {
+            // previous symbol is a top level symbol or a member (function or struct/variant member), allow shadowing
             table.declare(name, node);
             return;
         }

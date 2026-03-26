@@ -951,51 +951,8 @@ void SymResLinkBody::VisitEnumMember(EnumMember* node) {
     linker.declare_or_shadow(node->name, node);
 }
 
-void configure_members_by_inheritance(EnumDeclaration* current, int start) {
-    // build sorted list of enum members (sorted by the index specified by the user)
-    std::vector<EnumMember*> sorted_members;
-    sorted_members.reserve(current->members.size());
-    for(auto& member : current->members) {
-        sorted_members.emplace_back(member.second);
-    }
-    std::stable_sort(std::begin(sorted_members), std::end(sorted_members), [](EnumMember* a, EnumMember* b) {
-        return a->get_index_dirty() < b->get_index_dirty();
-    });
-    // now that we have a sorted list of members for current enum
-    // we should modify its member index as long as we can predict it
-    auto counter = 0;
-    for(const auto mem : sorted_members) {
-        if(mem->get_index_dirty() == counter) {
-            // this means user didn't modify the index
-            // we should modify it
-            mem->set_index_dirty(start);
-            start++;
-            counter++;
-        } else {
-            return;
-        }
-    }
-}
-
 void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
     auto& members = node->members;
-    auto& underlying_type = node->underlying_type;
-    auto& underlying_integer_type = node->underlying_integer_type;
-    const auto pure_underlying = underlying_type->pure_type(*linker.ast_allocator);
-    const auto k = pure_underlying->kind();
-    if(k == BaseTypeKind::IntN) {
-        underlying_integer_type = pure_underlying->as_intn_type_unsafe();
-    } else {
-        const auto linked = pure_underlying->get_direct_linked_node();
-        if(linked->kind() == ASTNodeKind::EnumDecl) {
-            const auto inherited = linked->as_enum_decl_unsafe();
-            configure_members_by_inheritance(node, inherited->next_start);
-            underlying_integer_type = inherited->underlying_integer_type;
-        } else {
-            linker.error("given type is not an enum or integer type", node->encoded_location());
-            underlying_integer_type = linker.comptime_scope.typeBuilder.getIntType();
-        }
-    }
     linker.scope_start();
     // since members is an unordered map, first we declare all enums
     // then we link their init values
@@ -2439,6 +2396,11 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     const auto parent_val = call->parent_val;
     visit(parent_val, nullptr);
     link_call_without_parent(*this, call, exp_type, true);
+    // we miss setting the type of the function call (even though we shouldn't)
+    // therefore this checks and fixes that
+    if (call->getType() == nullptr) {
+        call->setType(linker.get_unresolved_decl()->known_type());
+    }
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {

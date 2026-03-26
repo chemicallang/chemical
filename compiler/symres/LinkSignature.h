@@ -145,6 +145,8 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 
+    void VisitEnumDecl(EnumDeclaration* node);
+
     void VisitGenericTypeDecl(GenericTypeDecl* node);
 
     void VisitGenericFuncDecl(GenericFuncDecl* node);

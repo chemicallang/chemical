@@ -150,6 +150,11 @@ public:
     bool is_top_level();
 
     /**
+     * is top level node or is a function or struct/variant member
+     */
+    bool is_member_or_top_level();
+
+    /**
      * get the type of this node
      */
     BaseType* getType();

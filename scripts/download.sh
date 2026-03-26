@@ -357,4 +357,29 @@ elif [ -x "$tmpdir/chemical.exe" ]; then
   "$tmpdir/chemical.exe" --configure || true
 fi
 
-echo "Done install-chemical.sh"
+# ── PATH setup ────────────────────────────────────────────────────────────────
+# Add the install directory to PATH so the user can run `chemical` immediately
+# without reopening their terminal.
+
+PATH_LINE="export PATH=\"${tmpdir}:\$PATH\""
+
+add_to_profile() {
+  local profile="$1"
+  if [ -f "$profile" ] || [ "$profile" = "${HOME}/.bashrc" ] || [ "$profile" = "${HOME}/.profile" ]; then
+    if ! grep -qF "$tmpdir" "$profile" 2>/dev/null; then
+      printf '\n# Added by Chemical installer\n%s\n' "$PATH_LINE" >> "$profile"
+      echo "  → Added PATH entry to $profile"
+    fi
+  fi
+}
+
+add_to_profile "${HOME}/.bashrc"
+add_to_profile "${HOME}/.zshrc"
+add_to_profile "${HOME}/.profile"
+add_to_profile "${HOME}/.bash_profile"
+
+# Make chemical available in the CURRENT shell session right now.
+export PATH="${tmpdir}:${PATH}"
+
+echo ""
+echo "✓ Chemical Installed to $tmpdir"

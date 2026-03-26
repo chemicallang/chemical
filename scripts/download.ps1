@@ -130,4 +130,10 @@ if (Test-Path $exePath) {
     & $exePath --configure
 }
 
+# Update the current session so `chemical` works right now without reopening the terminal.
+if ($env:PATH -notlike "*$installDir*") {
+    $env:PATH = "$installDir;$env:PATH"
+}
+
+Write-Host ""
 Write-Host "Done! Chemical installed to $installDir"

@@ -13,6 +13,7 @@ int link_objects_tcc(
         const std::string& comp_exe_path,
         std::vector<chem::string>& objects,
         std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string& output_path,
         TCCMode mode
 );
@@ -22,6 +23,7 @@ int link_objects_now(
         LabBuildCompilerOptions* options,
         std::vector<chem::string>& objects,
         std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string& output_path,
         const std::string_view& target_triple
 );

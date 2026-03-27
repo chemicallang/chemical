@@ -103,6 +103,8 @@ extern "C" {
 
     void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module);
 
+    void BuildContextadd_lib_search_path(LabBuildContext* self, LabJob* job, chem::string_view* path, LabModule* module);
+
     bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
 
     void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string_view* header);

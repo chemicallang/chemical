@@ -242,23 +242,17 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 writeIfConditional(lib.if_cond, output);
                 output << ") {\n\t";
             }
-            output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
-            if(has_if) {
-                output << "\t}\n";
+            switch (lib.kind) {
+            case ModFileLinkLibKind::Name:
+                output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
+                break;
+            case ModFileLinkLibKind::Path:
+                output << "\tctx.add_lib_search_path(__chx_job, lab::rel_path_to(\"" << lib.name << "\").to_view(), null)\n";
+                break;
+            case ModFileLinkLibKind::CFile:
+                output << "\tctx.add_dependency(__chx_job, ctx.c_file_module_by_path(lab::rel_path_to(\"" << lib.name << "\").to_view()), null)\n";
+                break;
             }
-        }
-    }
-
-    // calls for c file modules
-    if (!data.c_files.empty()) {
-        for (auto& c_file : data.c_files) {
-            const auto has_if = c_file.if_cond != nullptr;
-            if(has_if) {
-                output << "\tif(";
-                writeIfConditional(c_file.if_cond, output);
-                output << ") {\n\t";
-            }
-            output << "\tctx.add_dependency(__chx_job, ctx.c_file_module_by_path(lab::rel_path_to(\"" << c_file.path << "\").to_view()), null)\n";
             if(has_if) {
                 output << "\t}\n";
             }

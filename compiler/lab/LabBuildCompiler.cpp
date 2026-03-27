@@ -1928,13 +1928,44 @@ int link_objects_now(
 #endif
 }
 
+void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
+    if (job->ship_files.empty()) return;
+
+    std::filesystem::path exe_path(job->abs_path.to_std_string());
+    auto dest_dir = exe_path.parent_path();
+
+    for (auto& ship_file_str : job->ship_files) {
+        std::filesystem::path src_path(ship_file_str.to_std_string());
+        if (!std::filesystem::exists(src_path)) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "ship file doesn't exist: '" << src_path.string() << "'" << std::endl;
+            continue;
+        }
+
+        auto dest_path = dest_dir / src_path.filename();
+
+        if (options->verbose) {
+            std::cout << "[lab] shipping '" << src_path.string() << "' to '" << dest_path.string() << "'" << std::endl;
+        }
+
+        try {
+            std::filesystem::copy(src_path, dest_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to ship '" << src_path.string() << "' : " << e.what() << std::endl;
+        }
+    }
+}
+
 int LabBuildCompiler::do_executable_job(LabJob* job) {
     auto result = process_modules(job);
     if(result != 0) {
         return result;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    const auto link_res = link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    if (link_res == 0) {
+        ship_files_now(options, job);
+    }
+    return link_res;
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
@@ -1943,7 +1974,11 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return result;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    const auto link_res = link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    if (link_res == 0) {
+        ship_files_now(options, job);
+    }
+    return link_res;
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
@@ -2210,6 +2245,19 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                         break;
                     }
                 }
+            }
+        } else {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;
+        }
+    }
+
+    // handle shipping files for this module
+    for(auto& ship_file : modFileData.ship_files) {
+        auto resolved = resolve_target_condition(job->target_data, ship_file.if_cond);
+        if(resolved.has_value()) {
+            if(resolved.value()) {
+                std::lock_guard<std::mutex> lock(job_mutex);
+                job->ship_files.emplace_back(resolve_sibling(modFilePathView, ship_file.path.view()));
             }
         } else {
             std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;

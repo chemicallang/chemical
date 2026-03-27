@@ -136,6 +136,12 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             goto loop_break;
                         }
                     break;
+                    case hash_fn("ship"):
+                        if(!parseShipStmt(allocator, data)) {
+                            error("couldn't parse a ship statement");
+                            goto loop_break;
+                        }
+                    break;
                 }
                 break;
             }

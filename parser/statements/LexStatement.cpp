@@ -639,3 +639,36 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
     return true;
 
 }
+
+bool BasicParser::parseShipStmt(ASTAllocator& allocator, ModuleFileData& data) {
+
+    if(token->type == TokenType::Identifier && token->value == "ship") {
+        token++;
+    } else {
+        return false;
+    }
+
+    data.ship_files.emplace_back();
+    auto& ship_file = data.ship_files.back();
+
+    // get the file path
+    auto path = parseString(allocator);
+    if(path.has_value()) {
+        ship_file.path = path.value();
+    } else {
+        error("expected a file path to ship");
+        return false;
+    }
+
+    // condition is NOT required
+    if(consumeToken(TokenType::IfKw)) {
+        const auto cond = parseIffyConditional(allocator);
+        ship_file.if_cond = cond;
+        if(!cond) {
+            error("expected condition after 'if' in ship statement");
+        }
+    }
+
+    return true;
+
+}

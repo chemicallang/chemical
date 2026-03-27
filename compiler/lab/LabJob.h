@@ -98,6 +98,11 @@ struct LabJob {
     std::vector<chem::string> lib_search_paths;
 
     /**
+     * files to be shipped (copied to output directory)
+     */
+    std::vector<chem::string> ship_files;
+
+    /**
      * dependencies are the pointers to modules that this job depends on
      * these modules will be compiled first
      */

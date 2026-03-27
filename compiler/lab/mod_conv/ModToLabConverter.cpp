@@ -259,6 +259,21 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
 
+    if(!data.ship_files.empty()) {
+        for(auto& ship : data.ship_files) {
+            const auto has_if = ship.if_cond != nullptr;
+            if(has_if) {
+                output << "\tif(";
+                writeIfConditional(ship.if_cond, output);
+                output << ") {\n\t";
+            }
+            output << "\tctx.ship_file(__chx_job, lab::rel_path_to(\"" << ship.path << "\").to_view());\n";
+            if(has_if) {
+                output << "\t}\n";
+            }
+        }
+    }
+
     if(!data.compiler_interfaces.empty()) {
         // writing each compiler interface
         for(const auto interface : data.compiler_interfaces) {

@@ -85,11 +85,13 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                     }
                 }
                 index++;
-                if(consumeToken(TokenType::CommaSym)) {
-                    continue;
-                } else {
-                    consumeNewLines();
-                    break;
+                switch (token->type) {
+                    case TokenType::CommaSym:
+                    case TokenType::NewLine:
+                        token++;
+                        continue;
+                    default:
+                        break;
                 }
             } else {
                 break;

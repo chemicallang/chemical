@@ -1149,6 +1149,17 @@ void verify_has_return(SymbolResolver& linker, Scope& scope, SourceLocation loca
 }
 
 void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
+    // visiting the signature of the function
+    for(auto param : node->params) {
+        // default values aren't verified during link signature
+        // because they may not have been linked at that time
+        if(param->defValue) {
+            const auto imp_constructor = param->type->implicit_constructor_for(param->defValue);
+            if(imp_constructor == nullptr && !param->type->satisfies(param->defValue, false)) {
+                linker.unsatisfied_type_err(param->defValue, param->type);
+            }
+        }
+    }
     if(node->body.has_value()) {
         // if has body declare params
         linker.scope_start();

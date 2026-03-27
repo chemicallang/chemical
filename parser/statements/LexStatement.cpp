@@ -479,6 +479,28 @@ ModFileIfBase* parseModFileId(BasicParser& parser, ASTAllocator& allocator) {
     }
 }
 
+inline static bool isAnd(const Token* tok) {
+    switch (tok->type) {
+        case TokenType::LogicalAndSym:
+            return true;
+        case TokenType::Identifier:
+            return tok->value == "and";
+        default:
+            return false;
+    }
+}
+
+inline static bool isOr(const Token* tok) {
+    switch (tok->type) {
+        case TokenType::LogicalOrSym:
+            return true;
+        case TokenType::Identifier:
+            return tok->value == "or";
+        default:
+            return false;
+    }
+}
+
 IffyBase* BasicParser::parseIffyConditional(ASTAllocator& allocator) {
 
     auto& parser = *this;
@@ -488,9 +510,8 @@ IffyBase* BasicParser::parseIffyConditional(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    const auto tok_type = token->type;
-    const auto isLogicalAnd = tok_type == TokenType::LogicalAndSym;
-    if(!(isLogicalAnd || tok_type == TokenType::LogicalOrSym)) {
+    const auto isLogicalAnd = isAnd(token);
+    if(!(isLogicalAnd || isOr(token))) {
         return first;
     }
 
@@ -514,10 +535,8 @@ IffyBase* BasicParser::parseIffyConditional(ASTAllocator& allocator) {
 
     while(true) {
 
-        const auto type = token->type;
-        const auto isNextLogicalAnd = type == TokenType::LogicalAndSym;
-
-        if(!(isNextLogicalAnd || type == TokenType::LogicalOrSym)) {
+        const auto isNextLogicalAnd = isAnd(token);
+        if(!(isNextLogicalAnd || isOr(token))) {
             return rootExpr;
         }
 

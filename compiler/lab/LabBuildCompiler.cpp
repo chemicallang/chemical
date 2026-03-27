@@ -2197,17 +2197,13 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // get all the sources
     for(auto& src : modFileData.sources_list) {
-        if(src.if_cond == nullptr) {
-            module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
-        } else {
-            auto resolved = resolve_target_condition(job->target_data, src.if_cond);
-            if (resolved.has_value()) {
-                if(resolved.value()) {
-                    module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
-                }
-            } else {
-                std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;
+        auto resolved = resolve_target_condition_nullable(job->target_data, src.if_cond);
+        if (resolved.has_value()) {
+            if(resolved.value()) {
+                module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
             }
+        } else {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;
         }
     }
 
@@ -2227,7 +2223,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // import any link libraries into the executable user requested for this module
     for(auto& linkLib : modFileData.link_libs) {
-        auto resolved = resolve_target_condition(job->target_data, linkLib.if_cond);
+        auto resolved = resolve_target_condition_nullable(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
                 std::lock_guard<std::mutex> lock(job_mutex);
@@ -2236,7 +2232,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                         job->link_libs.emplace_back(linkLib.name);
                         break;
                     case ModFileLinkLibKind::Path:
-                        job->lib_search_paths.emplace_back(linkLib.name);
+                        job->lib_search_paths.emplace_back(resolve_sibling(modFilePathView, linkLib.name.view()));
                         break;
                     case ModFileLinkLibKind::CFile: {
                         const auto mod = context.new_module(LabModuleType::CFile, "", "");
@@ -2253,7 +2249,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // handle shipping files for this module
     for(auto& ship_file : modFileData.ship_files) {
-        auto resolved = resolve_target_condition(job->target_data, ship_file.if_cond);
+        auto resolved = resolve_target_condition_nullable(job->target_data, ship_file.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
                 std::lock_guard<std::mutex> lock(job_mutex);

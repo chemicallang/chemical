@@ -95,7 +95,6 @@ std::optional<bool> is_condition_enabled(TargetData& target_data, const chem::st
 }
 
 std::optional<bool> resolve_target_condition(TargetData& data, IffyBase* base) {
-    if(base == nullptr) return std::nullopt;
     if(base->is_id) {
         const auto if_id = (IffyCondId*) base;
         auto value = is_condition_enabled(data, if_id->value);

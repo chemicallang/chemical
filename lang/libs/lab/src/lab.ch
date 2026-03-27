@@ -139,8 +139,11 @@ public interface BuildContext {
     func put_job_before(&self, newJob : *mut LabJob, existingJob : *mut LabJob);
 
     // would link this system library into the job of whoever consumes this module
-    // the module parameter is optional
+    // the module parameter is optional (for better errors)
     func link_system_lib(&self, job : *mut LabJob, name : &std::string_view, module : *mut Module = null);
+
+    // would add this library search path into the job
+    func add_lib_search_path(&self, job : *mut LabJob, path : &std::string_view, module : *mut Module = null);
 
     // adds the given compiler interface to the module
     // returns true if it succeeds

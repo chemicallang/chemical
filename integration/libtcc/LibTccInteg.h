@@ -45,5 +45,6 @@ int tcc_link_objects(
         const std::string& outputFileName,
         std::vector<chem::string>& objects,
         std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         TCCMode mode
 );

@@ -1875,11 +1875,12 @@ int link_objects_tcc(
         const std::string& comp_exe_path,
         std::vector<chem::string>& objects,
         std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string& output_path,
         TCCMode mode
 ) {
     chem::string copy(comp_exe_path);
-    const auto link_result = tcc_link_objects(copy.mutable_data(), output_path, objects, link_libs, mode);
+    const auto link_result = tcc_link_objects(copy.mutable_data(), output_path, objects, link_libs, lib_search_paths, mode);
     if(link_result != 0) {
         print_failed_to_link(objects, output_path);
     }
@@ -1891,6 +1892,7 @@ int link_objects_now(
     LabBuildCompilerOptions* options,
     std::vector<chem::string>& objects,
     std::vector<chem::string>& link_libs,
+    std::vector<chem::string>& lib_search_paths,
     const std::string& output_path,
     const std::string_view& target_triple
 ) {
@@ -1904,7 +1906,7 @@ int link_objects_now(
     }
 #ifdef COMPILER_BUILD
     if(use_tcc) {
-        return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->out_mode, options->debug_info));
+        return link_objects_tcc(options->exe_path, objects, link_libs, lib_search_paths, output_path, to_tcc_mode(options->out_mode, options->debug_info));
     } else {
         LinkFlags linkFlags;
         linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->out_mode);
@@ -1922,7 +1924,7 @@ int link_objects_now(
         return link_result;
     }
 #else
-    return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->out_mode, options->debug_info));
+    return link_objects_tcc(options->exe_path, objects, link_libs, lib_search_paths, output_path, to_tcc_mode(options->out_mode, options->debug_info));
 #endif
 }
 
@@ -1932,7 +1934,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
         return result;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
+    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
@@ -1941,7 +1943,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return result;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
+    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
@@ -2193,16 +2195,20 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         auto resolved = resolve_target_condition(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
+                std::lock_guard<std::mutex> lock(job_mutex);
                 switch(linkLib.kind) {
-                    case ModFileLinkLibKind::Name: {
-                        std::lock_guard<std::mutex> lock(job_mutex);
+                    case ModFileLinkLibKind::Name:
                         job->link_libs.emplace_back(linkLib.name);
                         break;
+                    case ModFileLinkLibKind::Path:
+                        job->lib_search_paths.emplace_back(linkLib.name);
+                        break;
+                    case ModFileLinkLibKind::CFile: {
+                        const auto mod = context.new_module(LabModuleType::CFile, "", "");
+                        mod->paths.emplace_back(linkLib.name);
+                        job->add_dependency(mod);
+                        break;
                     }
-                    case ModFileLinkLibKind::File:
-                        // TODO: support file link libs
-                        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "file based link libraries aren't supported '" << modFilePathView << '\'' << std::endl;
-                        continue;
                 }
             }
         } else {
@@ -2255,20 +2261,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         // stmt->setResult(modDependency);
         // the modFileData is getting disposed
         module->add_dependency(modDependency);
-    }
-
-    // adding dependencies for c files user asked to compile + link
-    for(auto& c_file : modFileData.c_files) {
-        auto resolved = resolve_target_condition(job->target_data, c_file.if_cond);
-        if(resolved.has_value()) {
-            if(resolved.value()) {
-                const auto mod = context.new_module(LabModuleType::CFile, "", "");
-                mod->paths.emplace_back(c_file.path);
-                module->add_dependency(mod);
-            }
-        } else {
-            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << " for c file '" << c_file.path << '\'' << std::endl;
-        }
     }
 
     // clear the allocators
@@ -2736,6 +2728,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     for(const auto mod : outModDependencies) {
         for(auto& interface : mod->compiler_interfaces) {
             CompilerBinder::import_compiler_interface(interface, state);
+        }
+    }
+
+    // add all library search paths
+    for(auto& libSearchPath : job->lib_search_paths) {
+        if (tcc_add_library_path(state, libSearchPath.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't add library search path '" << libSearchPath << "' for build.lab at '" << path << '\'' << std::endl;
         }
     }
 

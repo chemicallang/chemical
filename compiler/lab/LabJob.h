@@ -93,6 +93,11 @@ struct LabJob {
     std::vector<chem::string> link_libs;
 
     /**
+     * paths user asked to specify for searching libraries
+     */
+    std::vector<chem::string> lib_search_paths;
+
+    /**
      * dependencies are the pointers to modules that this job depends on
      * these modules will be compiled first
      */

@@ -46,6 +46,10 @@ void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::strin
     job->link_libs.emplace_back(*name);
 }
 
+void BuildContextadd_lib_search_path(LabBuildContext* self, LabJob* job, chem::string_view* path, LabModule* module) {
+    job->lib_search_paths.emplace_back(*path);
+}
+
 bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface) {
     auto& maps = self->binder.interface_maps;
     auto found = maps.find(*interface);

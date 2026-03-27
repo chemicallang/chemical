@@ -597,50 +597,34 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
         return false;
     }
 
-    if (token->type == TokenType::Identifier) {
-        if (token->value == "c") {
-            // trying to import a c file
-            token++;
-
-            data.c_files.emplace_back();
-            auto& c_file = data.c_files.back();
-
-            // parse the path
-            auto fileName = parseString(allocator);
-            if (fileName.has_value()) {
-                c_file.path = fileName.value();
-            } else {
-                error("expected a c file path");
-                return false;
-            }
-
-            // condition is NOT required
-            if(consumeToken(TokenType::IfKw)) {
-                const auto cond = parseIffyConditional(allocator);
-                c_file.if_cond = cond;
-                if(!cond) {
-                    error("expected condition after 'if' in link statement");
-                }
-            }
-
-            return true;
-
-        } else {
-            error("unknown identifier in link statement");
-            return false;
-        }
-    }
-
     data.link_libs.emplace_back();
     auto& link_lib = data.link_libs.back();
 
-    // get the library name
-    auto libName = parseString(allocator);
-    if(libName.has_value()) {
-        link_lib.name = libName.value();
+    // link a c file
+    if (token->type == TokenType::Identifier) {
+        if (token->value == "c") {
+            token++;
+            link_lib.kind = ModFileLinkLibKind::CFile;
+        } else if (token->value == "path") {
+            token++;
+            link_lib.kind = ModFileLinkLibKind::Path;
+        }
+    }
+
+    if (token->type == TokenType::Identifier) {
+
+        link_lib.name = allocate_view(allocator, token->value);
+        token++;
+
     } else {
-        error("expected a library name");
-        return false;
+        // get the library name
+        auto libName = parseString(allocator);
+        if(libName.has_value()) {
+            link_lib.name = libName.value();
+        } else {
+            error("expected a library name");
+            return false;
+        }
     }
 
     // condition is NOT required

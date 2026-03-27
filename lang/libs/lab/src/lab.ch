@@ -142,6 +142,8 @@ public interface BuildContext {
     // the module parameter is optional (for better errors)
     func link_system_lib(&self, job : *mut LabJob, name : &std::string_view, module : *mut Module = null);
 
+    func ship_file(&self, job : *mut LabJob, path : &std::string_view);
+
     // would add this library search path into the job
     func add_lib_search_path(&self, job : *mut LabJob, path : &std::string_view, module : *mut Module = null);
 

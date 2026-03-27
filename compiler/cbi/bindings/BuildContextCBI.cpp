@@ -42,6 +42,10 @@ void BuildContextput_job_before(LabBuildContext* self, LabJob* newJob, LabJob* e
     self->put_job_before(newJob, existingJob);
 }
 
+void BuildContextship_file(LabBuildContext* self, LabJob* job, chem::string_view* path) {
+    job->ship_files.emplace_back(*path);
+}
+
 void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module) {
     job->link_libs.emplace_back(*name);
 }

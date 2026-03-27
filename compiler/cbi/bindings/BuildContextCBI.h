@@ -153,4 +153,6 @@ extern "C" {
 
     bool BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep, int strategy);
 
+    void BuildContextship_file(LabBuildContext* self, LabJob* job, chem::string_view* path);
+
 }

@@ -24,6 +24,14 @@ struct ModFileSource {
 
 };
 
+struct ModFileShipFile {
+
+    chem::string_view path;
+
+    IffyBase* if_cond = nullptr;
+
+};
+
 enum class ModFileLinkLibKind {
     Name,
     Path,
@@ -81,6 +89,11 @@ public:
      * libraries user asked us to link for this module
      */
     std::vector<ModFileLinkLib> link_libs;
+
+    /**
+     * files user asked us to ship for this module
+     */
+    std::vector<ModFileShipFile> ship_files;
 
     /**
      * interface declarations in chemical.mod file allowing user to import

@@ -200,6 +200,11 @@ public:
     bool parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * a ship statement defines a file to be copied into executable directory in .mod file
+     */
+    bool parseShipStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */

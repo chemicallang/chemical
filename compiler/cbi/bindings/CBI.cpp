@@ -31,6 +31,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextadd_module", (void*) BuildContextadd_module },
         { "lab_BuildContextadd_dependency", (void*) BuildContextadd_dependency },
         { "lab_BuildContextput_job_before", (void*) BuildContextput_job_before },
+        { "lab_BuildContextship_file", (void*) BuildContextship_file },
         { "lab_BuildContextlink_system_lib", (void*) BuildContextlink_system_lib },
         { "lab_BuildContextadd_lib_search_path", (void*) BuildContextadd_lib_search_path },
         { "lab_BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },

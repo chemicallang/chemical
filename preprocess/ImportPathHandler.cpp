@@ -7,6 +7,7 @@
 #include "ast/statements/Import.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/lab/TargetConditionAPI.h"
+#include "compiler/cbi/bindings/BuildContextCBI.h"
 
 AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::string_view& filePath, unsigned int slash) {
     auto headerPath = filePath.substr(slash + 1);
@@ -243,15 +244,13 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
 }
 
 ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(
+    LabBuildContext& context,
+    LabJob* job,
+    LabModule* module,
     ImportStatement* stmt,
     TargetData& targetData,
     const std::string_view& base_path
 ) {
-
-    // skip remote imports
-    if(!stmt->isLocalModuleImport()) {
-        return ImportedModuleDepResult { };
-    }
 
     // check are we even supposed to include this import
     if(stmt->if_condition != nullptr) {
@@ -263,6 +262,49 @@ ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(
         } else {
             return ImportedModuleDepResult { .error_message = "couldn't evaluate the if condition" };
         }
+    }
+
+    if (stmt->isRemoteModuleImport()) {
+
+        std::vector<RemoteImportSymbolCBI> symbols;
+
+        auto& import_items = stmt->getImportItems();
+        symbols.reserve(import_items.size());
+        for (auto& item : import_items) {
+            symbols.emplace_back(RemoteImportSymbolCBI {
+                .parts = RemoteImportSymbolPartsSpan { .ptr = const_cast<chem::string_view*>(item.parts.data()), .size = item.parts.size() },
+                .alias = item.alias
+            });
+        }
+
+        auto import = RemoteImportCBI {
+             .scope = "",
+             .name =  "",
+             .origin = "",
+             .from = stmt->getSourcePath(),
+             .subdir = stmt->getSubdir(),
+             .version = stmt->getVersion(),
+             .branch = stmt->getBranch(),
+             .orphan_branch = stmt->isBranchOrphan(),
+             .commit = stmt->getCommit(),
+             .alias = stmt->getTopLevelAlias(),
+             .symbols = RemoteImportSymbolCBISpan { symbols.data(), symbols.size() },
+             .location = stmt->encoded_location().encoded
+        };
+
+        // 0 is for the default strategy
+        const auto success = BuildContextfetch_mod_dependency(&context, job, module, &import, 0);
+
+        if (success) {
+            return ImportedModuleDepResult { };
+        } else {
+            return ImportedModuleDepResult { .error_message = "failed to fetch module dependency '" + stmt->getSourcePath().str() + "'" };
+        }
+
+    }
+
+    if (!stmt->isLocalModuleImport()) {
+        return ImportedModuleDepResult { };
     }
 
     // handle native libs: import std

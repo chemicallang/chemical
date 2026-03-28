@@ -40,6 +40,8 @@ struct ImportStatementAttributes {
 
     bool force_empty_import_items = false;
 
+    bool orphan_branch = false;
+
 };
 
 class ImportStatement final : public ASTNode {
@@ -132,6 +134,20 @@ public:
     const chem::string_view& getSubdir() const { return m_subdir; }
     const chem::string_view& getBranch() const { return m_branch; }
     const chem::string_view& getCommit() const { return m_commit; }
+
+    /**
+     * is branch orphan (user specified)
+     */
+    bool isBranchOrphan() {
+        return attrs.orphan_branch;
+    }
+
+    /**
+     * make the branch orphan (or not)
+     */
+    void setBranchOrphan(bool value) {
+        attrs.orphan_branch = value;
+    }
 
     /**
      * check if its a native lib import

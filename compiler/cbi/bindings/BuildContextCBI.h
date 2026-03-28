@@ -52,6 +52,7 @@ struct RemoteImportCBI {
     chem::string_view subdir;
     chem::string_view version;
     chem::string_view branch;
+    bool orphan_branch;
     chem::string_view commit;
     chem::string_view alias;
     RemoteImportSymbolCBISpan symbols;

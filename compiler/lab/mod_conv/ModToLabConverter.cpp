@@ -180,6 +180,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     output << "\t\tfrom: \"" << stmt->getSourcePath() << "\",\n"; // from
                     if(!stmt->getSubdir().empty()) output << "\t\tsubdir: \"" << stmt->getSubdir() << "\",\n"; // subdir
                     if(!stmt->getVersion().empty()) output << "\t\tversion: \"" << stmt->getVersion() << "\",\n"; // version
+                    if(stmt->isBranchOrphan()) output << "\t\torphan_branch: true,\n"; // branch
                     if(!stmt->getBranch().empty()) output << "\t\tbranch: \"" << stmt->getBranch() << "\",\n"; // branch
                     if(!stmt->getCommit().empty()) output << "\t\tcommit: \"" << stmt->getCommit() << "\",\n"; // commit
 

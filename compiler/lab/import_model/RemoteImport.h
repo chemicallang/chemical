@@ -27,4 +27,10 @@ struct RemoteImport {
     chem::string_view mod_scope;
     chem::string_view mod_name;
     chem::string_view origin;      // e.g. "github.com"
+
+    // Attributes
+    // if the branch is orphan, we do not cause conflicts between
+    // other branches, if they differ
+    bool orphan_branch = false;
+
 };

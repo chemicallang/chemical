@@ -283,7 +283,8 @@ bool BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, Remote
         .commit = allocate_view(allocator, dep->commit),
         .mod_scope = allocate_view(allocator, dep->scope),
         .mod_name = allocate_view(allocator, dep->name),
-        .origin = allocate_view(allocator, dep->origin)
+        .origin = allocate_view(allocator, dep->origin),
+        .orphan_branch = dep->orphan_branch
     };
     
     auto sym_info = allocate_dep_info(allocator, DependencySymbolInfo{
@@ -306,7 +307,8 @@ bool BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabMod
         .commit = allocate_view(allocator, dep->commit),
         .mod_scope = allocate_view(allocator, dep->scope),
         .mod_name = allocate_view(allocator, dep->name),
-        .origin = allocate_view(allocator, dep->origin)
+        .origin = allocate_view(allocator, dep->origin),
+        .orphan_branch = dep->orphan_branch
     };
     
     auto sym_info = allocate_dep_info(allocator, DependencySymbolInfo{

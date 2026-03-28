@@ -58,6 +58,13 @@ void parseImportMetadata(BasicParser& parser, ASTAllocator& allocator, ImportSta
     while (true) {
         if (parser.token->type != TokenType::Identifier) break;
 
+        chem::string_view orphanKey = parser.token->value;
+        // set the branch to orphan if user asks
+        if (orphanKey == "orphan") {
+            stmt->setBranchOrphan(true);
+            parser.token++;
+        }
+
         chem::string_view key = parser.token->value;
         parser.token++; // consume key
 

@@ -161,6 +161,19 @@ var func_ptr : () => int // Function pointer
 var ref : &int          // Reference to int
 ```
 
+#### Common Mistake
+
+Using `const` in pointer type is not recommended, for example
+
+```chemical
+// Invalid Code (const doesn't exist)
+var ptr : *const int
+```
+
+Every pointer is by default non-mutable, you use `*mut int` for mutability
+
+`*char` in Chemical means `const char*` in C
+
 #### How to take a pointer of an object
 
 Use `&obj` or `&mut obj` to take a pointer or mutable pointer respectively

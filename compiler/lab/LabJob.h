@@ -3,6 +3,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include <unordered_map>
 #include "std/chem_string.h"
 #include "LabJobType.h"
@@ -111,7 +112,7 @@ struct LabJob {
     /**
      * remote imports to be downloaded and added as dependencies
      */
-    std::vector<RemoteImport> remote_imports;
+    std::vector<std::unique_ptr<RemoteImport>> remote_imports;
 
     /**
      * index for remote imports to avoid linear searches

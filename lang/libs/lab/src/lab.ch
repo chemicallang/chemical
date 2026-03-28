@@ -315,6 +315,7 @@ public struct ImportRepo {
     var subdir : std::string_view
     var version : std::string_view
     var branch : std::string_view
+    var orphan_branch : bool = false
     var commit : std::string_view
     var alias : std::string_view
     var symbols : std::span<ImportSymbol>

@@ -12,6 +12,10 @@ struct GlobalContainer;
 
 class LocationManager;
 
+struct LabJob;
+
+class LabBuildContext;
+
 struct ImportedModuleDepResult {
     std::string error_message;
     std::string directory_path;
@@ -106,8 +110,12 @@ public:
     /**
      * resolves module dependency using the import statement
      * gives error, or the directory path to the module, if both empty should be skipped
+     * the remote imports are added to the given job
      */
     ImportedModuleDepResult resolve_mod_dep_import(
+            LabBuildContext& context,
+            LabJob* job,
+            LabModule* module,
             ImportStatement* stmt,
             TargetData& targetData,
             const std::string_view& base_path

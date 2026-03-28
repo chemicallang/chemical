@@ -2280,7 +2280,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
             break;
         }
         const auto stmt = node->as_import_stmt_unsafe();
-        auto result = path_handler.resolve_mod_dep_import(stmt, job->target_data, modFilePathView);
+        auto result = path_handler.resolve_mod_dep_import(context, job, module, stmt, job->target_data, modFilePathView);
         if(result.isSkipped()) {
             continue;
         }
@@ -2458,7 +2458,7 @@ TCCState* LabBuildCompiler::built_lab_file(
                 break;
             }
             const auto stmt = node->as_import_stmt_unsafe();
-            auto result = path_handler.resolve_mod_dep_import(stmt, job->target_data, path_view);
+            auto result = path_handler.resolve_mod_dep_import(context, job, &chemical_lab_module, stmt, job->target_data, path_view);
             if(result.isSkipped()) {
                 continue;
             }
@@ -3484,19 +3484,26 @@ bool LabBuildCompiler::parse_remote_import_from(RemoteImport& import, ASTAllocat
 }
 
 struct RemoteRepoInfo {
-    std::string storage_path;
+    std::string url_path;
+    // std::string storage_path;
     std::string target_dir;
 };
 
 static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const RemoteImport& import) {
     RemoteRepoInfo info;
-    auto& path = info.storage_path;
+    auto& path = info.url_path;
     path += import.origin.view();
     path += '/';
     path += import.mod_scope.view();
     path += '/';
     path += import.mod_name.view();
-    info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
+    auto storage_path = path;
+    // specified orphan branches should get a different name
+    if (!import.branch.empty() && import.orphan_branch) {
+        storage_path += '@';
+        storage_path += import.branch.view();
+    }
+    info.target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
     return info;
 }
 
@@ -3976,9 +3983,15 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
     key.append("/");
     key.append(import.mod_name.view());
 
+    // orphan branches only conflict with themselves
+    if (import.orphan_branch && !import.branch.empty()) {
+        key.append("/");
+        key.append(import.branch.view());
+    }
+
     auto it_idx = job->remote_import_index.find(key);
     if (it_idx != job->remote_import_index.end()) {
-        auto& existing = job->remote_imports[it_idx->second];
+        auto& existing = *job->remote_imports[it_idx->second].get();
         bool keep_existing = true;
         int res = resolve_remote_import_conflict(strategy == ConflictResolutionStrategy::Default ? job->conflict_strategy : strategy, existing, import, keep_existing);
         if (res != 0) return false;
@@ -3997,7 +4010,9 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
     }
 
     job->remote_import_index[key] = job->remote_imports.size();
-    job->remote_imports.push_back(std::move(import));
+    const auto heapRemoteImport = new RemoteImport{};
+    *heapRemoteImport = std::move(import);
+    job->remote_imports.emplace_back(heapRemoteImport);
     return true;
 }
 
@@ -4166,7 +4181,7 @@ static int download_remote_import(
     if(!fs::exists(target_dir)) {
         fs::create_directories(fs::path(target_dir).parent_path());
 
-        auto url = info.storage_path;
+        auto url = info.url_path;
         if (url.find("://") == std::string::npos && url.find("git@") != 0) {
             url = "https://" + url;
         }
@@ -4258,7 +4273,7 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
                 break;
             }
             for (size_t i = processed_count; i < job->remote_imports.size(); ++i) {
-                wave_ptrs.push_back(&job->remote_imports[i]);
+                wave_ptrs.push_back(job->remote_imports[i].get());
             }
             processed_count = job->remote_imports.size();
         }

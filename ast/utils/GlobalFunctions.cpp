@@ -3337,6 +3337,7 @@ void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefTh
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, typeBuilder, data.win32));
     defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, typeBuilder, data.win64));
     defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, data.isLinux));
+    defThing.declare_value(allocator, "musl", boolType, boolValue(allocator, typeBuilder, data.musl));
     defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, typeBuilder, data.macos));
     defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, typeBuilder, data.freebsd));
     defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, data.isUnix));

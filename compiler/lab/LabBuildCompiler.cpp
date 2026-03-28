@@ -3007,8 +3007,18 @@ int LabBuildCompiler::build_lab_file_no_alloc(
 
     // we must set the -o to this job
     if (out_run_job != nullptr) {
-        out_run_job->abs_path.clear();
-        out_run_job->abs_path.append(outputPath);
+        auto& job_abs_path = out_run_job->abs_path;
+        if (outputPath.empty()) {
+            if (job_abs_path.empty()) {
+                job_abs_path.append(out_run_job->name.to_view());
+#ifdef _WIN32
+                job_abs_path.append(".exe");
+#endif
+            }
+        } else {
+            job_abs_path.clear();
+            job_abs_path.append(outputPath);
+        }
     }
 
     // the status for the main job

@@ -35,6 +35,7 @@ public struct TargetData {
     var mingw32 : bool = false;
     var mingw64 : bool = false;
     var emscripten : bool = false;
+    var musl : bool = false;
 
     // architecture
     var x86_64 : bool = false;

@@ -694,10 +694,13 @@ int compiler_main(int argc, char *argv[]) {
                 context.build_args[opt.first.data() + 4] = opt.second;
             }
         }
-
         if(is_lab_file) {
             // building the lab file
-            const auto result = compiler.build_lab_file(context, args[0], output.value());
+            chem::string outputPath;
+            if(output.has_value()) {
+                outputPath.append(output.value());
+            }
+            const auto result = compiler.build_lab_file(context, args[0], outputPath.to_view());
             return result;
         } else {
             // building the mod file

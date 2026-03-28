@@ -41,6 +41,7 @@ struct TargetData {
     bool mingw32 = false;
     bool mingw64 = false;
     bool emscripten = false;
+    bool musl = false;
 
     // architecture
     bool x86_64 = false;

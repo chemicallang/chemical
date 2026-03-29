@@ -2034,8 +2034,12 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         LabJob* job
 ) {
     auto& module_path = dependency.module_dir_path;
-    auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
-    if(std::filesystem::exists(buildLabPath)) {
+    auto buildLabPathNonCanonical = resolve_rel_child_path_str(module_path, "build.lab");
+    if(std::filesystem::exists(buildLabPathNonCanonical)) {
+
+        // canonical makes the path empty (if it doesn't exist)
+        // so we check first
+        auto buildLabPath = canonical_path(buildLabPathNonCanonical);
 
         // check if we have already parsed this build.lab (from another module's dependency)
         {
@@ -2078,8 +2082,12 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
     } else {
 
-        auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
-        if(std::filesystem::exists(modFilePath)) {
+        auto modFilePathNonCanonical = resolve_rel_child_path_str(module_path, "chemical.mod");
+        if(std::filesystem::exists(modFilePathNonCanonical)) {
+
+            // canonical makes the path empty (if it doesn't exist)
+            // so we check first
+            auto modFilePath = canonical(modFilePathNonCanonical);
 
             // check if we have already parsed this chemical.mod (from another module's dependency)
             {
@@ -2240,7 +2248,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                         mod_name += "_cfile_";
                         mod_name += std::to_string(c_file_index);
                         const auto mod = context.new_module(LabModuleType::CFile, module->scope_name.to_chem_view(), chem::string_view(mod_name));
-                        mod->paths.emplace_back(linkLib.name);
+                        mod->paths.emplace_back(resolve_sibling(modFilePathView, linkLib.name.view()));
                         job->add_dependency(mod);
                         c_file_index++;
                         break;
@@ -4194,6 +4202,25 @@ static int download_remote_import(
     auto info = get_remote_repo_info(remote_mods_dir, *import);
     auto target_dir = info.target_dir;
 
+    {
+        std::unique_lock<std::mutex> lock(compiler->download_mutex);
+        compiler->download_cv.wait(lock, [&]() {
+            return compiler->downloading_dirs.find(target_dir) == compiler->downloading_dirs.end();
+        });
+        compiler->downloading_dirs.insert(target_dir);
+    }
+
+    struct DownloadGuard {
+        LabBuildCompiler* comp;
+        std::string dir;
+        DownloadGuard(LabBuildCompiler* c, std::string d) : comp(c), dir(std::move(d)) {}
+        ~DownloadGuard() {
+            std::lock_guard<std::mutex> lock(comp->download_mutex);
+            comp->downloading_dirs.erase(dir);
+            comp->download_cv.notify_all();
+        }
+    } guard(compiler, target_dir);
+
     if(!fs::exists(target_dir)) {
         fs::create_directories(fs::path(target_dir).parent_path());
 
@@ -4250,10 +4277,10 @@ static int download_remote_import(
             mod->scope_name.clear();
             mod->scope_name.append(import->mod_scope);
         }
-        if(mod->name != import->mod_name) {
-            mod->name.clear();
-            mod->name.append(import->mod_name);
-        }
+        // if(mod->name != import->mod_name) {
+        //     mod->name.clear();
+        //     mod->name.append(import->mod_name);
+        // }
 
         std::lock_guard<std::mutex> lock(compiler->job_mutex);
         for (auto& req_info : import->requesters) {

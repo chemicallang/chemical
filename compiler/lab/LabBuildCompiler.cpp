@@ -3508,6 +3508,10 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
         storage_path += '@';
         storage_path += import.branch.view();
     }
+    if (!import.version.empty()) {
+        storage_path += "@";
+        storage_path += import.version.view();
+    }
     info.target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
     return info;
 }
@@ -3992,6 +3996,13 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
     if (import.orphan_branch && !import.branch.empty()) {
         key.append("/");
         key.append(import.branch.view());
+    }
+
+    // subdirs don't conflict with each other unless same
+    // so we add them into the key
+    if (!import.subdir.empty()) {
+        key.append("/");
+        key.append(import.subdir.view());
     }
 
     auto it_idx = job->remote_import_index.find(key);

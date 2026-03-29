@@ -3,6 +3,9 @@
 #pragma once
 
 #include <string>
+#include <mutex>
+#include <condition_variable>
+#include <unordered_set>
 #include "LabBuildCompilerOptions.h"
 #include "LabJob.h"
 #include "ctpl.h"
@@ -110,6 +113,13 @@ public:
      * mutex to protect access to mod_storage
      */
     std::mutex mod_storage_mutex;
+
+    /**
+     * used to synchronize downloads to the same target directory
+     */
+    std::mutex download_mutex;
+    std::unordered_set<std::string> downloading_dirs;
+    std::condition_variable download_cv;
 
     /**
      * the current job being compiled

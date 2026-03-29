@@ -268,11 +268,6 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
     return mod;
 }
 
-// a single .c file
-public func (ctx : &BuildContext) c_file_module_by_path(path : &std::string_view) : *mut Module {
-    return ctx.c_file_module("", "", path, std::span<*mut Module>())
-}
-
 // a single .cpp file
 public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()

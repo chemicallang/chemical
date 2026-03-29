@@ -9,9 +9,12 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/llvm-prebuilt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/md-themes" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/nuklear" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/sqlite3" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tcclib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/temp/build/remote/github.com/chemicallang/webview" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/temp/build/remote/github.com/chemicallang/webview@win-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tinycc" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/webview" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example" vcs="Git" />

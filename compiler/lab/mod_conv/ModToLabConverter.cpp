@@ -235,6 +235,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
 
+    unsigned int c_file_index = 0;
     if(!data.link_libs.empty()) {
         for(auto& lib : data.link_libs) {
             const auto has_if = lib.if_cond != nullptr;
@@ -251,7 +252,8 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 output << "\tctx.add_lib_search_path(__chx_job, lab::rel_path_to(\"" << lib.name << "\").to_view(), null)\n";
                 break;
             case ModFileLinkLibKind::CFile:
-                output << "\tctx.add_dependency(__chx_job, ctx.c_file_module_by_path(lab::rel_path_to(\"" << lib.name << "\").to_view()), null)\n";
+                output << "\tctx.add_dependency(__chx_job, ctx.c_file_module(\"" << data.scope_name << "\", \"" << data.module_name << "_cfile_" << c_file_index << "\", lab::rel_path_to(\"" << lib.name << "\").to_view(), std::span<*mut Module>()), null)\n";
+                c_file_index++;
                 break;
             }
             if(has_if) {

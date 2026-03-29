@@ -2222,6 +2222,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     }
 
     // import any link libraries into the executable user requested for this module
+    unsigned int c_file_index = 0;
     for(auto& linkLib : modFileData.link_libs) {
         auto resolved = resolve_target_condition_nullable(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
@@ -2235,9 +2236,13 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                         job->lib_search_paths.emplace_back(resolve_sibling(modFilePathView, linkLib.name.view()));
                         break;
                     case ModFileLinkLibKind::CFile: {
-                        const auto mod = context.new_module(LabModuleType::CFile, "", "");
+                        auto mod_name = std::string(module->name.to_view());
+                        mod_name += "_cfile_";
+                        mod_name += std::to_string(c_file_index);
+                        const auto mod = context.new_module(LabModuleType::CFile, module->scope_name.to_chem_view(), chem::string_view(mod_name));
                         mod->paths.emplace_back(linkLib.name);
                         job->add_dependency(mod);
+                        c_file_index++;
                         break;
                     }
                 }

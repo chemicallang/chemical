@@ -98,7 +98,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             if (is_extern()) {
                 global->setExternallyInitialized(true);
             } else {
-                global->setInitializer(llvm::Constant::getNullValue(llvm_ptr->getType()));
+                global->setInitializer(llvm::Constant::getNullValue(llvm_type(gen)));
             }
             return;
         }

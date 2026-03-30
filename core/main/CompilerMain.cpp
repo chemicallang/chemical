@@ -389,7 +389,10 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("jobs", "j", CmdOptionType::SingleValue),
             CmdOption("job-type", "jt", CmdOptionType::SingleValue),
             CmdOption("jit", "jit", CmdOptionType::NoValue),
+            CmdOption("download-only", "download-only", CmdOptionType::NoValue),
+            CmdOption("check-only", "check-only", CmdOptionType::NoValue),
             CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue),
+            CmdOption("use-c", "use-c", CmdOptionType::NoValue),
             CmdOption("use-bc", "use-bitcode", CmdOptionType::NoValue),
             CmdOption("use-lld", "use-lld", CmdOptionType::NoValue),
             CmdOption("output", "o", CmdOptionType::SingleValue),
@@ -502,9 +505,20 @@ int compiler_main(int argc, char *argv[]) {
         opts->minify_c = options.has_value("minify-c");
         opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
+        if (options.has_value("download-only")) {
+            opts->download_only = true;
+        }
+        if (options.has_value("check-only")) {
+            opts->check_only = true;
+        }
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
-        opts->use_tcc = options.has_value("use-tcc", "use-tcc");
+        if (options.has_value("use-tcc", "use-tcc")) {
+            opts->use_tcc = true;
+            opts->use_c = true;
+        } else if (options.has_value("use-c", "use-c")) {
+            opts->use_c = true;
+        }
         opts->use_lld = options.has_value("use-lld", "use-lld");
         opts->use_mod_obj_format = !options.has_value("use-bc", "use-bitcode");
         opts->out_ll_all = options.has_value("out-ll-all");

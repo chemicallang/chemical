@@ -184,3 +184,5 @@ public func my_c_file_sum_func(a : int, b : int) : int
 ```
 
 In this case `my_c_file_sum_func` in not mangled and expected to exist during linking.
+
+The c files are compiled to individual object files and then linked with the final program.

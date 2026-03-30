@@ -93,14 +93,19 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if(is_comptime()) {
             return;
         }
+        const auto global = ((llvm::GlobalVariable*) llvm_ptr);
         if(value == nullptr) {
+            if (is_extern()) {
+                global->setExternallyInitialized(true);
+            } else {
+                global->setInitializer(llvm::Constant::getNullValue(llvm_ptr->getType()));
+            }
             return;
         }
         // strings are initialized
         if(value->kind() == ValueKind::String) {
             return;
         }
-        const auto global = ((llvm::GlobalVariable*) llvm_ptr);
         // probably done in code_gen_declare
         // why are we doing this here ?
         // well value can contain something that hasn't been declared yet

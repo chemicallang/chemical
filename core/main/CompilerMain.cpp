@@ -718,7 +718,7 @@ int compiler_main(int argc, char *argv[]) {
             LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
             LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir), mode);
             LabBuildContext::initialize_job(&final_job, &compiler_opts);
-            const auto result = compiler.build_mod_file(context, args[0], &final_job);
+            const auto result = compiler.build_mod_file(context, args[0], &final_job, true);
             return result;
         }
 

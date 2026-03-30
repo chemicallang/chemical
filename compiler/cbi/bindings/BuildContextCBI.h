@@ -90,9 +90,9 @@ extern "C" {
 
     void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module, unsigned int index, DependencySymbolInfoCBI* info);
 
-    LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name);
+    LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* path);
 
-    void BuildContextset_cached(LabBuildContext* self, LabJob* job, LabModule* module);
+    void BuildContextset_cached(LabBuildContext* self, LabJob* job, chem::string_view* path, LabModule* module);
 
     void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path);
 

@@ -106,7 +106,7 @@ std::optional<bool> resolve_target_condition(TargetData& data, IffyBase* base) {
         return value;
     } else {
         const auto if_expr = (IffyCondExpr*) base;
-        auto value = resolve_target_condition(data, if_expr->left);
+        auto value = if_expr->left ? resolve_target_condition(data, if_expr->left) : std::optional(true);
         if(value.has_value()) {
             if(value.value() && if_expr->op == IffyExprOp::Or) {
                 // value is true, in or expression, we do not need to resolve second
@@ -117,7 +117,7 @@ std::optional<bool> resolve_target_condition(TargetData& data, IffyBase* base) {
             } else {
                 // in 'and', first is true, depends on second (true if second is true, false if second is false)
                 // in 'or' , first is false, depends on second (true if second is true, false if second is false)
-                return resolve_target_condition(data, if_expr->right);
+                return if_expr->right ? resolve_target_condition(data, if_expr->right) : std::optional(true);
             }
         }
     }

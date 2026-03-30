@@ -124,9 +124,9 @@ public interface BuildContext {
 
     func set_module_symbol_info(&self, module : *mut Module, index : uint, info : &DependencySymbolInfo);
 
-    func get_cached(&self, job : *LabJob, scope_name : &std::string_view, name : &std::string_view) : *mut Module
+    func get_cached(&self, job : *LabJob, path : &std::string_view) : *mut Module
 
-    func set_cached(&self, job : *LabJob, module : *mut Module);
+    func set_cached(&self, job : *LabJob, path : &std::string_view, module : *mut Module);
 
     func add_path(&self, module : *mut Module, path : &std::string_view);
 
@@ -282,6 +282,11 @@ public func (ctx : &BuildContext) object_module(scope_name : &std::string_view, 
     const mod = ctx.new_package(ModuleType.ObjFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>());
     ctx.add_path(mod, path)
     return mod;
+}
+
+// directory module
+public func (ctx : &BuildContext) empty_module(scope_name : &std::string_view, name : &std::string_view) : *mut Module {
+    return ctx.new_module_with_deps(ModuleType.Directory, PackageKind.Library, scope_name, name, std::span<*mut Module>());
 }
 
 // directory module
@@ -487,6 +492,17 @@ public namespace lab {
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
         return intrinsics::wrap(curr_dir_of(loc_path, loc_path_size)) as std::string
+    }
+
+    public func view_of(path : *char, len : size_t) : std::string_view {
+        return std::string_view(path, len)
+    }
+
+    public comptime func get_my_path() : std::string_view {
+        const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
+        const loc_path = intrinsics::get_loc_file_path(call_loc)
+        const loc_path_size = intrinsics::size(loc_path)
+        return intrinsics::wrap(view_of(loc_path, loc_path_size)) as std::string_view
     }
 
     public func appended_str(str : std::string, path : *char) : std::string {

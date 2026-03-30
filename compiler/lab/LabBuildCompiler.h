@@ -37,12 +37,17 @@ class Codegen;
 #endif
 
 /**
- * lab build compiler, doesn't relate to building a .lab file
- * it provides easy methods to do what can be done with a .lab file
- * The limited api is used to provide command line interface to our compiler applications
+ * Handles everything from building a .lab file or a .mod file.
+ * Doing the jobs required by the user and building modules and linking
+ * them together into executables or libraries
  */
 class LabBuildCompiler {
 public:
+
+    /**
+    * all the executables created during the build process
+    */
+    std::vector<std::unique_ptr<LabJob>> executables;
 
     /**
      * the annotation controller handles annotations

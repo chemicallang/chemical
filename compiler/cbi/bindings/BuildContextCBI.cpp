@@ -22,12 +22,13 @@ AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self)
     return &self->compiler.controller;
 }
 
-LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name) {
-    return self->get_cached(job, *scope_name, *name);
+LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* path) {
+    auto found = job->built_files.find(*path);
+    return found != job->built_files.end() ? found->second : nullptr;
 }
 
-void BuildContextset_cached(LabBuildContext* self, LabJob* job, LabModule* module) {
-    self->set_exists_in_cache(job, module);
+void BuildContextset_cached(LabBuildContext* self, LabJob* job, chem::string_view* path, LabModule* module) {
+    job->built_files.emplace(*path, module);
 }
 
 void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path) {

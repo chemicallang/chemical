@@ -86,7 +86,7 @@ LabModule* LabBuildContext::new_module(
 
 void LabBuildContext::put_job_before(LabJob* newJob, LabJob* existingJob) {
     // lets first remove the job (scanning backwards)
-    auto& v = executables;
+    auto& v = compiler.executables;
     if (newJob == existingJob) return; // nothing to do
     int newIdx = -1; // index of the newJob we found (the one to potentially move)
     // single pass from back to front
@@ -119,7 +119,7 @@ LabJob* LabBuildContext::translate_to_chemical(
 ) {
     auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"), compiler.options->def_out_mode);
     initialize_job(job, compiler.options);
-    executables.emplace_back(job);
+    compiler.executables.emplace_back(job);
     job->abs_path.append(*out_path);
     job->add_dependency(module);
     return job;
@@ -136,7 +136,7 @@ LabJob* LabBuildContext::translate_to_c(
 ) {
     auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(job, compiler.options);
-    executables.emplace_back(job);
+    compiler.executables.emplace_back(job);
     set_build_dir(job);
     job->abs_path.append(*out_path);
     return job;
@@ -147,7 +147,7 @@ LabJob* LabBuildContext::build_exe(
 ) {
     auto exe = new LabJob(LabJobType::Executable, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
-    executables.emplace_back(exe);
+    compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WIN32
@@ -162,7 +162,7 @@ LabJob* LabBuildContext::run_jit_exe(
 ) {
     auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
-    executables.emplace_back(exe);
+    compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WIN32
@@ -177,7 +177,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
 ) {
     auto exe = new LabJob(LabJobType::Library, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
-    executables.emplace_back(exe);
+    compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     auto output_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WIN32
@@ -196,7 +196,7 @@ LabJob* LabBuildContext::build_cbi(
 ) {
     auto exe = new LabJobCBI(chem::string(*name), compiler.options->def_plugin_mode);
     initialize_job((LabJob*) exe, compiler.options);
-    executables.emplace_back(exe);
+    compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     return exe;
 }

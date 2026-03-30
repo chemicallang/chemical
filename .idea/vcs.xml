@@ -11,13 +11,18 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/nuklear" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/sokol" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/sqlite3" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tcclib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/temp/build/remote/github.com/chemicallang/webview" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/temp/build/remote/github.com/chemicallang/webview@win-x64" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/temp/sokol_nuklear_demo/build/remote/github.com/chemicallang/nuklear" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/temp/sokol_nuklear_demo/build/remote/github.com/chemicallang/sokol" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/temp/sokol_window_demo/build/remote/github.com/chemicallang/sokol" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tinycc" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/webview" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example@v1.0" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/lsp-framework" vcs="Git" />
   </component>
 </project>

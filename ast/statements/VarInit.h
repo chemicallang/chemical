@@ -90,6 +90,12 @@ struct VarInitAttributes {
      */
     bool never_destructed = false;
 
+    /**
+     * is external declaration (marked with @extern), in this case global variables
+     * are external, if they don't have an initializer
+     */
+    bool is_extern = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -186,6 +192,14 @@ public:
     inline void set_compiler_decl(bool value) {
         attrs.is_comptime = value;
         attrs.is_compiler_decl = value;
+    }
+
+    inline bool is_extern() {
+        return attrs.is_extern;
+    }
+
+    inline void set_extern(bool value) {
+        attrs.is_extern = value;
     }
 
     /**

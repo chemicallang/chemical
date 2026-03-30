@@ -180,6 +180,9 @@ void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& ar
         case ASTNodeKind::InterfaceDecl:
             node->as_interface_def_unsafe()->set_extern(true);
             return;
+        case ASTNodeKind::VarInitStmt:
+            node->as_var_init_unsafe()->set_extern(true);
+            return;
         default:
             return;
     }

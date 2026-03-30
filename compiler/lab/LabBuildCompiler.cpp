@@ -1914,9 +1914,9 @@ int link_objects_now(
         linkFlags.no_pie = options->no_pie;
         int link_result;
         if(options->use_lld) {
-            link_result = lld_link_objects(objects, output_path, options->exe_path, link_libs, target_triple, linkFlags);
+            link_result = lld_link_objects(objects, output_path, options->exe_path, link_libs, lib_search_paths, target_triple, linkFlags);
         } else {
-            link_result = clang_link_objects(objects, output_path, options->exe_path, link_libs, target_triple, linkFlags, options->resources_path);
+            link_result = clang_link_objects(objects, output_path, options->exe_path, link_libs, lib_search_paths, target_triple, linkFlags, options->resources_path);
         }
         if(link_result != 0) {
             print_failed_to_link(objects, output_path);

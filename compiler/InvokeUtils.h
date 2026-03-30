@@ -23,6 +23,7 @@ int lld_link_objects(
         const std::string_view& bin_out,
         const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string_view& target_triple,
         LinkFlags& flags
 );
@@ -32,6 +33,7 @@ int clang_link_objects(
         const std::string_view& bin_out,
         const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string_view& target_triple,
         LinkFlags& flags,
         const std::string_view& resource_dir

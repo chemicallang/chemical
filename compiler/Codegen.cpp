@@ -1733,6 +1733,7 @@ int lld_link_objects(
         const std::string_view& bin_out,
         const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string_view& target_triple,
         LinkFlags& flags
 ) {
@@ -1753,6 +1754,19 @@ int lld_link_objects(
     command.emplace_back(chem::string("-o"));
     command.emplace_back(chem::string("./"));
     command.back().append(bin_out);
+#endif
+
+    // add library search paths
+#ifdef _WIN32
+    for (const auto& path : lib_search_paths) {
+        command.emplace_back("/LIBPATH:");
+        command.back().append(path.data(), path.size());
+    }
+#else
+    for (const auto& path : lib_search_paths) {
+        command.emplace_back("-L");
+        command.back().append(path.data(), path.size());
+    }
 #endif
 
 #ifdef _WIN32
@@ -1809,6 +1823,7 @@ int clang_link_objects(
         const std::string_view& bin_out,
         const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
+        std::vector<chem::string>& lib_search_paths,
         const std::string_view& target_triple,
         LinkFlags& flags,
         const std::string_view& resource_dir
@@ -1839,6 +1854,13 @@ int clang_link_objects(
 
     for(auto& linkable : linkables) {
         clang_flags.emplace_back(linkable.to_view());
+    }
+
+    // add library search paths
+    for (const auto& path : lib_search_paths) {
+        clang_flags.emplace_back("-L");
+        auto& str = clang_flags.back();
+        str.append(path.to_view());
     }
 
     // add libraries user asked us to link

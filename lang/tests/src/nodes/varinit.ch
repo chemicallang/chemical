@@ -21,7 +21,17 @@ variant TLInheriterVariant : TLInherited {
 var variant_inheriter_variable = TLInheriterVariant.None()
 var variant_inheriter_variable2 = TLInheriterVariant.Some(837)
 
+struct GlobalVariableAutoZero {
+    var a : int;
+    var b : int
+}
+
+var auto_zero_variable : GlobalVariableAutoZero
+
 func test_var_init() {
+    test("non extern global variables are initialized to zero by default when no initializer", () => {
+        return auto_zero_variable.a == 0 && auto_zero_variable.b == 0
+    })
     test("structs inherited in top level variables initialized to default values if no value given", ()=> {
         return struct_inheriter_variable.a == 10;
     })

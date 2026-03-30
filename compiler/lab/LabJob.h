@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include "std/chem_string.h"
 #include "LabJobType.h"
@@ -131,7 +132,12 @@ struct LabJob {
      * this is used to avoid building the same file multiple times
      * .lab and .mod files perform checks using their absolute path before building
      */
-    std::unordered_map<chem::string_view, LabModule*> built_files;
+    std::unordered_map<std::string, LabModule*> built_files;
+
+    /**
+     * a mutex for this job, it protects access and write on dependencies, built_files...etc
+     */
+    std::mutex mutex;
 
     /**
      * the conflict resolution strategy for remote imports

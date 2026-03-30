@@ -93,26 +93,9 @@ public:
     ctpl::thread_pool pool;
 
     /**
-     * dependencies having build.lab have a function that return the LabModule*
-     * instead of parsing the build.lab again and running it, we reuse this module
-     * pointer
-     */
-    std::unordered_map<std::string, LabModule*> buildLabDependenciesCache;
-
-    /**
      * the global container contains namespaces like std and compiler
      */
     GlobalContainer* container = nullptr;
-
-    /**
-     * mutex to protect access to the job object (remote_imports, dependencies, link_libs, etc.)
-     */
-    std::mutex job_mutex;
-
-    /**
-     * mutex to protect access to buildLabDependenciesCache
-     */
-    std::mutex buildLabDependenciesCacheMutex;
 
     /**
      * mutex to protect access to mod_storage

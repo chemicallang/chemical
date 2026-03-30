@@ -389,8 +389,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("jobs", "j", CmdOptionType::SingleValue),
             CmdOption("job-type", "jt", CmdOptionType::SingleValue),
             CmdOption("jit", "jit", CmdOptionType::NoValue),
-            CmdOption("download-only", "download-only", CmdOptionType::NoValue),
-            CmdOption("check-only", "check-only", CmdOptionType::NoValue),
+            CmdOption("download", "download", CmdOptionType::NoValue),
+            CmdOption("check", "check", CmdOptionType::NoValue),
             CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue),
             CmdOption("use-c", "use-c", CmdOptionType::NoValue),
             CmdOption("use-bc", "use-bitcode", CmdOptionType::NoValue),
@@ -505,10 +505,10 @@ int compiler_main(int argc, char *argv[]) {
         opts->minify_c = options.has_value("minify-c");
         opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
-        if (options.has_value("download-only")) {
+        if (options.has_value("download")) {
             opts->download_only = true;
         }
-        if (options.has_value("check-only")) {
+        if (options.has_value("check")) {
             opts->check_only = true;
         }
 #ifdef COMPILER_BUILD

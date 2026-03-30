@@ -4023,6 +4023,15 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
         bool keep_existing = true;
         int res = resolve_remote_import_conflict(strategy == ConflictResolutionStrategy::Default ? job->conflict_strategy : strategy, existing, import, keep_existing);
         if (res != 0) return false;
+
+        const auto already_built = existing.built_module;
+        if (already_built != nullptr) {
+            // since its already built, we would not want to add it again
+            for (auto& req : import.requesters) {
+                req.requester->add_dependency(already_built, req.symbol_info);
+            }
+            return true;
+        }
         
         // merge requesters
         std::vector<RemoteImportRequester> merged_requesters = std::move(existing.requesters);
@@ -4286,6 +4295,10 @@ static int download_remote_import(
         //     mod->name.append(import->mod_name);
         // }
 
+        // quickly set it to built_module, so new requesters happen on this remote import
+        import->built_module = mod;
+
+        // set to all the requesters who requested for this module
         std::lock_guard<std::mutex> lock(job->mutex);
         for (auto& req_info : import->requesters) {
             if(req_info.requester) {

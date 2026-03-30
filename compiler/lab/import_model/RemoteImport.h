@@ -28,6 +28,13 @@ struct RemoteImport {
     chem::string_view mod_name;
     chem::string_view origin;      // e.g. "github.com"
 
+    /**
+     * we set this once, this has been built
+     * when its built, the next import won't append to the requesters vector above
+     * it would simply take this lab module pointer and store in dependencies
+     */
+    LabModule* built_module = nullptr;
+
     // Attributes
     // if the branch is orphan, we do not cause conflicts between
     // other branches, if they differ

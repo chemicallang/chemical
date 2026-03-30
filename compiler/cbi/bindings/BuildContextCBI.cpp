@@ -23,12 +23,13 @@ AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self)
 }
 
 LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* path) {
-    auto found = job->built_files.find(*path);
+    // TODO: should be able to use string views for path checks
+    auto found = job->built_files.find(path->str());
     return found != job->built_files.end() ? found->second : nullptr;
 }
 
 void BuildContextset_cached(LabBuildContext* self, LabJob* job, chem::string_view* path, LabModule* module) {
-    job->built_files.emplace(*path, module);
+    job->built_files.emplace(path->str(), module);
 }
 
 void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path) {

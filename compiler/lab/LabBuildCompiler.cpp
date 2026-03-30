@@ -2043,9 +2043,9 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // check if we have already parsed this build.lab (from another module's dependency)
         {
-            std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
-            auto found = buildLabDependenciesCache.find(buildLabPath);
-            if(found != buildLabDependenciesCache.end()) {
+            std::lock_guard<std::mutex> lock(job->mutex);
+            auto found = job->built_files.find(buildLabPath);
+            if(found != job->built_files.end()) {
                 return found->second;
             }
         }
@@ -2074,8 +2074,8 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         if (modPtr) {
             // store the mod pointer in cache, so we don't need to build this build.lab again
-            std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
-            buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
+            std::lock_guard<std::mutex> lock(job->mutex);
+            job->built_files.emplace(std::move(buildLabPath), modPtr);
         }
 
         return modPtr;
@@ -2091,9 +2091,9 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
             // check if we have already parsed this chemical.mod (from another module's dependency)
             {
-                std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
-                auto found = buildLabDependenciesCache.find(modFilePath);
-                if(found != buildLabDependenciesCache.end()) {
+                std::lock_guard<std::mutex> lock(job->mutex);
+                auto found = job->built_files.find(modFilePath);
+                if(found != job->built_files.end()) {
                     return found->second;
                 }
             }
@@ -2103,8 +2103,8 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
             if (modPtr) {
                 // store the module pointer in cache
-                std::lock_guard<std::mutex> lock(buildLabDependenciesCacheMutex);
-                buildLabDependenciesCache[std::move(modFilePath)] = modPtr;
+                std::lock_guard<std::mutex> lock(job->mutex);
+                job->built_files.emplace(std::move(modFilePath), modPtr);
             }
 
             return modPtr;
@@ -2235,7 +2235,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         auto resolved = resolve_target_condition_nullable(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
-                std::lock_guard<std::mutex> lock(job_mutex);
+                std::lock_guard<std::mutex> lock(job->mutex);
                 switch(linkLib.kind) {
                     case ModFileLinkLibKind::Name:
                         job->link_libs.emplace_back(linkLib.name);
@@ -2265,7 +2265,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         auto resolved = resolve_target_condition_nullable(job->target_data, ship_file.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
-                std::lock_guard<std::mutex> lock(job_mutex);
+                std::lock_guard<std::mutex> lock(job->mutex);
                 job->ship_files.emplace_back(resolve_sibling(modFilePathView, ship_file.path.view()));
             }
         } else {
@@ -3014,7 +3014,6 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     // these modules were created to facilitate the build.lab generation
     // if not cleared, these modules will interfere with modules created for executable
     context.storage.clear();
-    buildLabDependenciesCache.clear();
 
     // call the root build.lab build's function
     out_run_job = build(&context);
@@ -3107,7 +3106,6 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
     // the modules created during the build call below it
     if (promote_to_app) {
         context.storage.clear();
-        buildLabDependenciesCache.clear();
     }
 
     // call the root chemical.mod build's function
@@ -3522,8 +3520,12 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
         storage_path += import.branch.view();
     }
     if (!import.version.empty()) {
-        storage_path += "@";
+        storage_path += '@';
         storage_path += import.version.view();
+    }
+    if (!import.commit.empty()) {
+        storage_path += '@';
+        storage_path += import.commit.view();
     }
     info.target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
     return info;
@@ -3793,7 +3795,6 @@ int LabBuildCompiler::local_or_remote_project_to_module(
         // these modules were created to facilitate the build.lab generation
         // if not cleared, these modules will interfere with modules created for executable
         context.storage.clear();
-        buildLabDependenciesCache.clear();
 
         // call the root chemical.mod build's function
         const auto main_module = build(&context, job);
@@ -3900,7 +3901,6 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // clear everything, since now cbi has been built
     mod_storage.clear();
-    buildLabDependenciesCache.clear();
     // clearing all allocations done in all the allocators
     _job_allocator.clear();
     _mod_allocator.clear();
@@ -3994,7 +3994,7 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(job_mutex);
+    std::lock_guard<std::mutex> lock(job->mutex);
 
     std::string key;
     key.reserve(import.origin.size() + import.mod_scope.size() + import.mod_name.size() + 2);
@@ -4286,7 +4286,7 @@ static int download_remote_import(
         //     mod->name.append(import->mod_name);
         // }
 
-        std::lock_guard<std::mutex> lock(compiler->job_mutex);
+        std::lock_guard<std::mutex> lock(job->mutex);
         for (auto& req_info : import->requesters) {
             if(req_info.requester) {
                 req_info.requester->add_dependency(mod, req_info.symbol_info);
@@ -4315,7 +4315,7 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
     while (true) {
         std::vector<RemoteImport*> wave_ptrs;
         {
-            std::lock_guard<std::mutex> lock(job_mutex);
+            std::lock_guard<std::mutex> lock(job->mutex);
             if (processed_count >= job->remote_imports.size()) {
                 break;
             }

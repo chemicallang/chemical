@@ -3014,6 +3014,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     // these modules were created to facilitate the build.lab generation
     // if not cleared, these modules will interfere with modules created for executable
     context.storage.clear();
+    buildLabDependenciesCache.clear();
 
     // call the root build.lab build's function
     out_run_job = build(&context);
@@ -3038,7 +3039,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     int job_result = 0;
 
     // generating outputs (executables)
-    for(auto& exe : context.executables) {
+    for(auto& exe : executables) {
 
         // do the job
         const auto result = do_job(exe.get());
@@ -3100,10 +3101,14 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
         return 1;
     }
 
-    // clear the module storage
-    // these modules were created to facilitate the build.lab generation
-    // if not cleared, these modules will interfere with modules created for executable
-    context.storage.clear();
+    // since promoting to an app
+    // its an app level chemical.mod/build.lab (its not a nested one)
+    // which means we should clear the module storage so it doesn't conflict with
+    // the modules created during the build call below it
+    if (promote_to_app) {
+        context.storage.clear();
+        buildLabDependenciesCache.clear();
+    }
 
     // call the root chemical.mod build's function
     const auto main_module = build(&context, final_job);
@@ -3121,7 +3126,7 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
     final_job->add_dependency(main_module);
 
     // lets compile any cbi jobs user may have specified
-    for(auto& job : context.executables) {
+    for(auto& job : executables) {
         if(job->type == LabJobType::CBI) {
             const auto job_result = do_job(job.get());
             if(job_result != 0) {
@@ -3546,7 +3551,7 @@ int LabBuildCompiler::run_job(LabJob& final_job, const std::vector<std::string_v
     mod->package_kind = PackageKind::Application;
 
     // lets compile any cbi jobs user may have specified
-    for(auto& job : context.executables) {
+    for(auto& job : executables) {
         if(job->type == LabJobType::CBI) {
             const auto job_result = do_job(job.get());
             if(job_result != 0) {
@@ -3788,6 +3793,7 @@ int LabBuildCompiler::local_or_remote_project_to_module(
         // these modules were created to facilitate the build.lab generation
         // if not cleared, these modules will interfere with modules created for executable
         context.storage.clear();
+        buildLabDependenciesCache.clear();
 
         // call the root chemical.mod build's function
         const auto main_module = build(&context, job);
@@ -3867,7 +3873,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     }
 
     // first lets execute any cbi jobs, present before, except the final job (done explicitly)
-    for(auto& job : context.executables) {
+    for(auto& job : executables) {
         if(job->type == LabJobType::CBI && job.get() != &transformer_job) {
             const auto job_result = do_job(job.get());
             if(job_result != 0) {
@@ -3899,8 +3905,6 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     _job_allocator.clear();
     _mod_allocator.clear();
     _file_allocator.clear();
-    // clear the exists cache
-    context.existance_cache.clear();
 
     // check other transformer contains at least a single module
     if(transformer_job.dependencies.empty()) {

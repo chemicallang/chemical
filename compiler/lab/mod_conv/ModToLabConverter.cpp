@@ -127,7 +127,8 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     // build method
     output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {\n";
 
-    output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
+    output << "\tconst __curr_lab_path = lab::get_my_path();\n";
+    output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, __curr_lab_path);\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
 
     output << "\tconst deps : []ModuleDependency = [ ";
@@ -165,7 +166,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << " ];\n";
     const auto pkg_kind_str = (data.package_kind == PackageKind::Application) ? "PackageKind.Application" : "PackageKind.Library";
     output << "\tconst mod = ctx.new_package(ModuleType.Directory, " << pkg_kind_str << ", \"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
-    output << "\tctx.set_cached(__chx_job, mod)\n";
+    output << "\tctx.set_cached(__chx_job, __curr_lab_path, mod)\n";
     
     // Now handle remote imports
     i = 0;

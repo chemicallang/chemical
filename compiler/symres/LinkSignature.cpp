@@ -94,7 +94,7 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
         // to ensure function decl is informed about usage
         value->process_linked(&linker, nullptr);
     } else if(value->linked == nullptr) {
-        linker.error(value) << "unresolved variable identifier, '" << value->value << "' not found";
+        linker.error(value) << "unresolved variable identifier '" << value->value << "' not found";
         value->linked = (ASTNode*) linker.get_unresolved_decl();
         value->setType(value->linked->known_type());
     }

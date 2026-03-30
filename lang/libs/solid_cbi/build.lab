@@ -12,15 +12,12 @@ var did_once = false;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
-    const already_std = ctx.get_cached(user_job, "", "std");
-
-    // the std module
-    var user_std_module = if(already_std != null) already_std else stdMod.build(ctx, user_job);
-    if(user_std_module == null) {
-        return null
-    }
-
-    if(did_once) return user_std_module;
+    const curr_file_path = lab::get_my_path();
+    const previous_module = ctx.get_cached(user_job, curr_file_path);
+    if(previous_module != null) return previous_module;
+    const empty_module = ctx.empty_module(std::string_view(""), std::string_view("solid_cbi"));
+    ctx.set_cached(user_job, curr_file_path, empty_module)
+    if(did_once) return empty_module;
     did_once = true;
 
     // creating a marker annotation named 'component'
@@ -70,6 +67,6 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_cbi_fn(cbi, std::string_view("solid"), std::string_view("solid_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
     ctx.index_cbi_fn(cbi, std::string_view("solid"), std::string_view("solid_replacementNode"), CBIFunctionType.ReplacementNode);
 
-    return user_std_module;
+    return empty_module;
 
 }

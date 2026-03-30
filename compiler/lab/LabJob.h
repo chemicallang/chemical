@@ -127,6 +127,13 @@ struct LabJob {
     std::unordered_map<std::string, bool> definitions;
 
     /**
+     * built files are the build files (.mod or .lab) that have been built
+     * this is used to avoid building the same file multiple times
+     * .lab and .mod files perform checks using their absolute path before building
+     */
+    std::unordered_map<chem::string_view, LabModule*> built_files;
+
+    /**
      * the conflict resolution strategy for remote imports
      */
     ConflictResolutionStrategy conflict_strategy = ConflictResolutionStrategy::PreferNewerVersion;

@@ -4,7 +4,8 @@ import "@std/build.lab" as stdMod
 
 public func build(ctx : *mut BuildContext, job : *mut LabJob) : *mut Module {
 
-    const cached = ctx.get_cached(job, std::string_view(""), std::string_view("submod2"));
+    const curr_file_path = lab::get_my_path()
+    const cached = ctx.get_cached(job, curr_file_path);
     if(cached != null) return cached;
 
     // the std module
@@ -14,6 +15,10 @@ public func build(ctx : *mut BuildContext, job : *mut LabJob) : *mut Module {
     }
 
     const path = lab::rel_path_to("src")
-    return ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), [ std_module ])
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), [ std_module ])
+
+    ctx.set_cached(job, curr_file_path, module)
+
+    return module;
 
 }

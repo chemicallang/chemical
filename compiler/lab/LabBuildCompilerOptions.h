@@ -17,13 +17,35 @@ public:
     std::string build_dir;
 
     /**
-     * use tcc compiler to build and generate executable
+     * translate to c, on llvm build compiler, we translate to C and use Clang
+     * on tiny cc based, we translate to C and use tiny cc
      */
-#ifdef TCC_BUILD
-    bool use_tcc = true;
+#ifdef COMPILER_BUILD
+    bool use_c = false;
 #else
-    bool use_tcc = false;
+    bool use_c = true;
 #endif
+
+    /**
+     * force use tiny cc compiler, use_c true is implied
+     */
+#ifdef COMPILER_BUILD
+    bool use_tcc = false;
+#else
+    bool use_tcc = true;
+#endif
+
+    /**
+     * this means download the dependencies only
+     * no compilation or source code checking happens
+     */
+    bool download_only = false;
+
+    /**
+     * this means only source code will only be checked
+     * nothing will be compiled, downloads will still happen
+     */
+    bool check_only = false;
 
     /**
      * caching can be enabled or disabled, when enabled
@@ -47,7 +69,7 @@ public:
      * // TODO make this by default false, once our bitcode generation is valid
      * // Currently set to true, so object files are emitted
      */
-#ifdef TCC_BUILD
+#ifdef COMPILER_BUILD
     bool use_mod_obj_format = true;
 #else
     bool use_mod_obj_format = true;

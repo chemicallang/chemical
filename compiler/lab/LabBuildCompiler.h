@@ -261,6 +261,29 @@ public:
     /**
      * should use tcc for this job type
      */
+    inline bool use_c(LabJobType type) {
+        if(options->use_c) return true;
+        switch(type) {
+        case LabJobType::CBI:
+        case LabJobType::ToCTranslation:
+        case LabJobType::JITExecutable:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * should use tcc for the job
+     */
+    inline bool use_c(LabJob* job) {
+        return use_tcc(job->type);
+    }
+
+
+    /**
+     * should use tcc for this job type
+     */
     inline bool use_tcc(LabJobType type) {
         if(options->use_tcc) return true;
         switch(type) {
@@ -286,7 +309,7 @@ public:
      */
     int process_modules(LabJob* job) {
 #ifdef COMPILER_BUILD
-        return use_tcc(job) ? (
+        return use_c(job) ? (
             process_job_tcc(job)
         ) : (
             process_job_gen(job)

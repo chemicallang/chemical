@@ -761,7 +761,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (we make the check when setting the boolean)
-    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
+    if(mod->has_changed.has_value() && !mod->has_changed.value() && !options->check_only) {
 
         if(verbose) {
             std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
@@ -794,6 +794,18 @@ int LabBuildCompiler::process_module_tcc(
         // the module hasn't changed
         return 0;
 
+    }
+
+    // don't compile when user asked for checking only
+    if (options->check_only) {
+        if(verbose) {
+            std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
+        }
+        // removing non public nodes, because these would be disposed when allocator clears
+        remove_non_public_nodes(processor, mod->direct_files);
+        // disposing data
+        mod_allocator->clear();
+        return 0;
     }
 
     if(verbose) {
@@ -962,7 +974,7 @@ int LabBuildCompiler::process_module_gen(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (currently
-    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
+    if(mod->has_changed.has_value() && !mod->has_changed.value() && !options->check_only) {
 
         if(verbose) {
             std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
@@ -986,6 +998,17 @@ int LabBuildCompiler::process_module_gen(
 
     }
 
+    // skip compilation when user asked to check only
+    if (options->check_only) {
+        if(verbose) {
+            std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
+        }
+        // removing non public nodes, because these would be disposed when allocator clears
+        remove_non_public_nodes(processor, mod->direct_files);
+        // disposing data
+        mod_allocator->clear();
+        return 0;
+    }
 
     if(verbose) {
         std::cout << "[lab] " << "compiling module files" << std::endl;
@@ -1187,11 +1210,11 @@ inline std::string get_mod_dir(const std::string_view& build_dir, LabModule* mod
 
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
-    const auto use_tcc = compiler->use_tcc(job_type);
-    const auto is_use_obj_format = use_tcc || compiler->options->use_mod_obj_format;
+    const auto use_c = compiler->use_c(job_type);
+    const auto is_use_obj_format = use_c || compiler->options->use_mod_obj_format;
     // creating the module directory
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
-    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (use_tcc ? "object_tcc.o" : (is_use_obj_format ? "object.o" : "object.bc")));
+    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (use_c ? "object_c.o" : (is_use_obj_format ? "object.o" : "object.bc")));
     if (!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
         if (!exists_with_error(module_dir_path)) {
             if (verbose) {
@@ -1408,7 +1431,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     const auto is_job_cbi = get_job_type == LabJobType::CBI;
     // job caching means relink all if all objects are present
-    const auto job_caching = is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled;
+    const auto job_caching = !options->check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
     const auto verbose = options->verbose;
     const auto bm_mod = options->benchmark_modules;
 
@@ -1426,6 +1449,12 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     LabBuildContext context(*this, path_handler, mod_storage, binder);
     auto ri_res = process_remote_imports(context, job);
     if(ri_res != 0) return ri_res;
+
+    // if user asked us to download remote imports only
+    // we skip compilation
+    if (options->download_only) {
+        return 0;
+    }
 
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
@@ -1565,6 +1594,10 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             switch (mod->type) {
                 case LabModuleType::CPPFile:
                 case LabModuleType::CFile: {
+                    if (options->check_only) {
+                        // do not compile c or c++ files when in checking mode
+                        continue;
+                    }
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                         const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, true));
                         if (c_res == 0) {
@@ -1631,7 +1664,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         writeToFile(resolve_rel_child_path_str(build_dir, "Translated.c"), program);
     }
 
-    if(intermediate_job) {
+    if(intermediate_job || options->check_only) {
         // skip compilation, only intermediates required
         return 0;
     }
@@ -1671,7 +1704,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     const auto is_job_cbi = job_type == LabJobType::CBI;
     // job caching means relink all if all objects are present
-    const auto job_caching = is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled;
+    const auto job_caching = !options->check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
     const auto verbose = options->verbose;
 
     begin_job_print(job);
@@ -1688,6 +1721,12 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     LabBuildContext context(*this, path_handler, mod_storage, binder);
     auto ri_res = process_remote_imports(context, job);
     if(ri_res != 0) return ri_res;
+
+    // if user asked us to download remote imports only
+    // we skip checking and compilation
+    if (options->download_only) {
+        return 0;
+    }
 
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
@@ -1813,6 +1852,10 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         switch (mod->type) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
+                if (options->check_only) {
+                    // do not compile c or c++ files when user asked to check only
+                    continue;
+                }
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                     const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, false));
                     if(c_res == 0) {
@@ -1958,6 +2001,10 @@ void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
 int LabBuildCompiler::do_executable_job(LabJob* job) {
     auto result = process_modules(job);
     if(result != 0) {
+        return result;
+    }
+    if (options->check_only || options->download_only) {
+        // no linking required in this case
         return result;
     }
     // link will automatically detect the extension at the end

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="CompilePlaygroundTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="lang/compiled/playground/chemical.mod -o lang/compiled/playground/playground.exe --mode debug_complete --no-cache" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
+  <configuration default="false" name="CompilePlaygroundTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="&quot;lang/compiled/playground/chemical.mod&quot; -o &quot;lang/compiled/playground/playground.exe&quot; --mode debug_complete --no-cache --emit-c -frecompile-plugins" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
     <method v="2">
       <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
     </method>

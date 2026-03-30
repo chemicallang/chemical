@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="SokolDemoTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="lang/compiled/sokol_demo/chemical.mod -o lang/compiled/sokol_demo/build.exe --mode debug_quick --no-cache" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
+  <configuration default="false" name="SokolDemoTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="lang/compiled/demos/sokol/chemical.mod -o lang/compiled/demos/sokol/build.exe --mode debug_quick --no-cache" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
     <method v="2">
       <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
     </method>

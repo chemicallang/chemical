@@ -2640,6 +2640,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     // preparing translation
     c_visitor.prepare_translate();
 
+    auto prev_check_only = options->check_only;
+    // ofcourse we need to compile when building a lab file
+    // so we'll turn this off for now
+    options->check_only = false;
+
     // processing flattened dependencies
     for(const auto mod : outModDependencies) {
 
@@ -2654,6 +2659,9 @@ TCCState* LabBuildCompiler::built_lab_file(
         }
 
     }
+
+    // restore the check only option
+    options->check_only = prev_check_only;
 
     if(verbose) {
         std::cout << "[lab] symbol resolving current module" << std::endl;

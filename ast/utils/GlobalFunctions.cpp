@@ -3317,6 +3317,7 @@ BoolValue* boolValue(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool val
 
 void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefThing& defThing, const TargetData& data) {
     const auto boolType = typeBuilder.getBoolType();
+    defThing.declare_value(allocator, "c", boolType, boolValue(allocator, typeBuilder, data.c));
     defThing.declare_value(allocator, "tcc", boolType, boolValue(allocator, typeBuilder, data.tcc));
     defThing.declare_value(allocator, "clang", boolType, boolValue(allocator, typeBuilder, data.clang));
     defThing.declare_value(allocator, "cbi", boolType, boolValue(allocator, typeBuilder, data.cbi));

@@ -7,6 +7,7 @@
 struct TargetData {
 
     // compilers
+    bool c = false;
     bool tcc = false;
     bool clang = false;
 
@@ -71,6 +72,7 @@ consteval TargetData create_target_data() {
 #ifdef COMPILER_BUILD
     d.clang = true;
 #else
+    d.c = true;
     d.tcc = true;
 #endif
 

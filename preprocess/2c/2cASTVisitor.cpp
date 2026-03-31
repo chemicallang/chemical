@@ -5345,6 +5345,8 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
                     visitor.visit(stmt->value);
                     return;
                 }
+                visitor.mangle(stmt);
+                return;
             }
         }
     }

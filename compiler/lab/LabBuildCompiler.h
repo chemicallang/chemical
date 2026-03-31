@@ -281,7 +281,7 @@ public:
      * should use tcc for the job
      */
     inline bool use_c(LabJob* job) {
-        return use_tcc(job->type);
+        return use_c(job->type);
     }
 
 

@@ -112,6 +112,23 @@ std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
     auto res = resolve_rel_parent_path_str(exe_path, "resources");
 #ifdef DEBUG
     if(res.empty()) {
+        // Try to auto-detect clang version from ../lib/clang/
+        auto clang_dir = resolve_rel_parent_path_str(exe_path, "../lib/clang");
+        if(!clang_dir.empty()) {
+            std::error_code ec;
+            for (const auto& entry : std::filesystem::directory_iterator(clang_dir, ec)) {
+                if (entry.is_directory()) {
+                    auto version_include = entry.path() / "include";
+                    if (std::filesystem::exists(version_include, ec)) {
+                        res = version_include.string();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    // Final fallback to old location
+    if(res.empty()) {
         res = resolve_rel_parent_path_str(exe_path, "../lib/include");
     }
 #endif

@@ -27,6 +27,20 @@ case "$os_type" in
     ;;
 esac
 
+# Auto-detect clang version from out/host/lib/clang
+CLANG_VERSION=""
+if [ -d "out/host/lib/clang" ]; then
+    CLANG_VERSION=$(ls -1 out/host/lib/clang | head -n 1)
+    if [ -z "$CLANG_VERSION" ]; then
+        echo "Error: Could not detect clang version in out/host/lib/clang" >&2
+        exit 1
+    fi
+    echo "Detected clang version: $CLANG_VERSION"
+else
+    echo "Error: out/host/lib/clang directory not found" >&2
+    exit 1
+fi
+
 # Functions
 
 zip_folder() {
@@ -182,8 +196,8 @@ fi
 if [ "$windows" = true ]; then
   # copy compiler
   cp out/build/Compiler.exe "$windows_dir/chemical.exe"
-  # copy resources
-  cp -r ./lib/include "$windows_dir/resources"
+  # copy resources (auto-detected clang version)
+  cp -r "out/host/lib/clang/$CLANG_VERSION/include" "$windows_dir/resources"
   # copy the libs directory
   cp -r lang/libs "$windows_dir/"
   # copy the tinycc package
@@ -197,8 +211,8 @@ fi
 if [ "$linux" = true ]; then
   # copy compiler
   cp out/build/Compiler "$linux_dir/chemical"
-  # copy resources
-  cp -r ./lib/include "$linux_dir/resources"
+  # copy resources (auto-detected clang version)
+  cp -r "out/host/lib/clang/$CLANG_VERSION/include" "$linux_dir/resources"
   # copy the libs directory
   cp -r lang/libs "$linux_dir/"
   # copy the tinycc package
@@ -212,8 +226,8 @@ fi
 if [ "$alpine" = true ]; then
   # copy compiler
   cp out/build/Compiler "$alpine_dir/chemical"
-  # copy resources
-  cp -r ./lib/include "$alpine_dir/resources"
+  # copy resources (auto-detected clang version)
+  cp -r "out/host/lib/clang/$CLANG_VERSION/include" "$alpine_dir/resources"
   # copy the libs directory
   cp -r lang/libs "$alpine_dir/"
   # copy the tinycc package
@@ -227,8 +241,8 @@ fi
 if [ "$macos" = true ]; then
   # copy compiler
   cp out/build/Compiler "$macos_dir/chemical"
-  # copy resources
-  cp -r ./lib/include "$macos_dir/resources"
+  # copy resources (auto-detected clang version)
+  cp -r "out/host/lib/clang/$CLANG_VERSION/include" "$macos_dir/resources"
   # copy the libs directory
   cp -r lang/libs "$macos_dir/"
   # copy the tinycc package

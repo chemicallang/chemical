@@ -1155,6 +1155,14 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
     }
 }
 
+static void save_mod_timestamp_from_paths(LabModule* mod, const std::string& mod_timestamp_file, OutputMode mode) {
+    std::vector<std::string_view> paths;
+    for (auto& path: mod->paths) {
+        paths.emplace_back(path.to_view());
+    }
+    save_mod_timestamp(paths, mod_timestamp_file, mode);
+}
+
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 #ifndef COMPILER_BUILD
     if(mod->type == LabModuleType::CPPFile) {
@@ -1162,8 +1170,9 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         return 2;
     }
 #endif
-    const auto is_use_obj_format = compiler->options->use_mod_obj_format;
-    const auto caching = compiler->options->is_caching_enabled;
+    auto& options = *compiler->options;
+    const auto is_use_obj_format = options.use_mod_obj_format;
+    const auto caching = options.is_caching_enabled;
     if(mod->paths.empty()) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "non-existent path in a c/c++ module '" << *mod << '\'' << std::endl;
         return 1;
@@ -1180,11 +1189,15 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
-    const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), compiler->options->exe_path, compiler->options->resources_path);
-    if (compile_result != 0) {
-        return compile_result;
+    if (!options.use_tcc) {
+        const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path);
+        if (compile_result != 0) {
+            return compile_result;
+        }
+        if(caching) save_mod_timestamp_from_paths(mod, mod_timestamp_file, options.out_mode);
+        return 0;
     }
-#else
+#endif
     if(mod->type == LabModuleType::CPPFile) {
         std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 1;
@@ -1193,14 +1206,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     if (compile_result != 0) {
         return compile_result;
     }
-#endif
-    if(caching) {
-        std::vector<std::string_view> paths;
-        for (auto& path: mod->paths) {
-            paths.emplace_back(path.to_view());
-        }
-        save_mod_timestamp(paths, mod_timestamp_file, compiler->options->out_mode);
-    }
+    if(caching) save_mod_timestamp_from_paths(mod, mod_timestamp_file, options.out_mode);
     return 0;
 }
 
@@ -1668,6 +1674,13 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         // skip compilation, only intermediates required
         return 0;
     }
+
+#ifdef COMPILER_BUILD
+    // check if user wants to compile the c code via clang compiler
+    if (options->use_c && !options->use_tcc && !LabBuildCompiler::is_tcc_job(job->type)) {
+
+    }
+#endif
 
     // compiling the entire C to a single object file
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));

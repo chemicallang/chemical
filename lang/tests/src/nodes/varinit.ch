@@ -28,7 +28,15 @@ struct GlobalVariableAutoZero {
 
 var auto_zero_variable : GlobalVariableAutoZero
 
+namespace wrapped_variable {
+    const thing = 3456
+}
+
 func test_var_init() {
+    test("wrapped variable in namespace works", () => {
+        var x = wrapped_variable::thing;
+        return x == 3456
+    })
     test("non extern global variables are initialized to zero by default when no initializer", () => {
         return auto_zero_variable.a == 0 && auto_zero_variable.b == 0
     })

@@ -135,13 +135,16 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             error("couldn't parse a link statement");
                             goto loop_break;
                         }
-                    break;
+                        break;
                     case hash_fn("ship"):
                         if(!parseShipStmt(allocator, data)) {
                             error("couldn't parse a ship statement");
                             goto loop_break;
                         }
-                    break;
+                        break;
+                    default:
+                        error("unknown identifier found in module file");
+                        goto loop_break;
                 }
                 break;
             }

@@ -4197,7 +4197,9 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.new_line_and_indent();
         visitor.visit(param->type);
         visitor.space();
-        visitor.write("self = ");
+        visitor.write("self = (");
+        visitor.visit(param->type);
+        visitor.write(") ");
         visitor.write(static_interface_passed_param_name);
         visitor.write(';');
     }

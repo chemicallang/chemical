@@ -38,7 +38,15 @@ void prepare_tcc_state_for_jit(TCCState* state);
 int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode);
 
 // add a file (C file, dll, object, library, ld script)
-int compile_adding_file(char* exe_path, const char* file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode);
+int compile_adding_file(
+    char* exe_path,
+    const char* file_path,
+    const std::string& outputFileName,
+    bool jit,
+    bool benchmark,
+    TCCMode mode,
+    const std::vector<chem::string>& include_dirs
+);
 
 int tcc_link_objects(
         char* exe_path,

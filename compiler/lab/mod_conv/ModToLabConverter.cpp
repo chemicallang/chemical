@@ -237,6 +237,55 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     unsigned int c_file_index = 0;
+    if(!data.c_files.empty()) {
+        for(auto& lib : data.c_files) {
+            const auto has_if = lib.if_cond != nullptr;
+            if(has_if) {
+                output << "\tif(";
+                writeIfConditional(lib.if_cond, output);
+                output << ") {\n\t";
+            }
+
+            output << "\tconst c_file_mod_" << c_file_index << " = " << "ctx.c_file_module(\"" << data.scope_name << "\", \"" << data.module_name << "_cfile_" << c_file_index << "\", lab::rel_path_to(\"" << lib.path << "\").to_view(), std::span<*mut Module>());\n";
+
+            // adding global includes (scopes to this chemical.mod file)
+            for (auto& inc : data.include_dirs) {
+                const auto has_include_if = inc.if_cond != nullptr;
+                if(has_include_if) {
+                    output << "\tif(";
+                    writeIfConditional(inc.if_cond, output);
+                    output << ") {\n\t";
+                }
+                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", lab::rel_path_to(\"" << inc.path << "\").to_view());\n";
+                if(has_include_if) {
+                    output << "\t}\n";
+                }
+            }
+
+            // adding global includes (scopes to this chemical.mod file)
+            for (auto& inc : lib.include_dirs) {
+                const auto has_include_if = inc.if_cond != nullptr;
+                if(has_include_if) {
+                    output << "\tif(";
+                    writeIfConditional(inc.if_cond, output);
+                    output << ") {\n\t";
+                }
+                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", lab::rel_path_to(\"" << inc.path << "\").to_view());\n";
+                if(has_include_if) {
+                    output << "\t}\n";
+                }
+            }
+
+            output << "\tctx.add_dependency(__chx_job, c_file_mod_" << c_file_index << ", null)\n";
+
+            c_file_index++;
+
+            if(has_if) {
+                output << "\t}\n";
+            }
+        }
+    }
+
     if(!data.link_libs.empty()) {
         for(auto& lib : data.link_libs) {
             const auto has_if = lib.if_cond != nullptr;
@@ -246,16 +295,12 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 output << ") {\n\t";
             }
             switch (lib.kind) {
-            case ModFileLinkLibKind::Name:
-                output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
-                break;
-            case ModFileLinkLibKind::Path:
-                output << "\tctx.add_lib_search_path(__chx_job, lab::rel_path_to(\"" << lib.name << "\").to_view(), null)\n";
-                break;
-            case ModFileLinkLibKind::CFile:
-                output << "\tctx.add_dependency(__chx_job, ctx.c_file_module(\"" << data.scope_name << "\", \"" << data.module_name << "_cfile_" << c_file_index << "\", lab::rel_path_to(\"" << lib.name << "\").to_view(), std::span<*mut Module>()), null)\n";
-                c_file_index++;
-                break;
+                case ModFileLinkLibKind::Name:
+                    output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
+                    break;
+                case ModFileLinkLibKind::Path:
+                    output << "\tctx.add_lib_search_path(__chx_job, lab::rel_path_to(\"" << lib.name << "\").to_view(), null)\n";
+                    break;
             }
             if(has_if) {
                 output << "\t}\n";

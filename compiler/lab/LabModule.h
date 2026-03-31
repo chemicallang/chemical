@@ -68,6 +68,11 @@ struct LabModule {
     std::vector<chem::string> headers;
 
     /**
+     * include directories for C/C++ compiler
+     */
+    std::vector<chem::string> include_dirs;
+
+    /**
      * this path point to a c (.c, .h) file, a chemical file, a directory or a build.lab
      * depends on the type of module
      */

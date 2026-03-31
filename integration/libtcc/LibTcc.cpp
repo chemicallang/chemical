@@ -264,7 +264,7 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
 }
 
-int compile_adding_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode) {
+int compile_adding_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode, const std::vector<chem::string>& include_dirs) {
 
     BenchmarkResults results{};
     if(benchmark) {
@@ -275,6 +275,14 @@ int compile_adding_file(char* exe_path, const char* c_file_path, const std::stri
     if(!s) {
         return 1;
     }
+
+    for (auto& dir : include_dirs) {
+        tcc_add_include_path(s, dir.data());
+    }
+
+    // for (auto& def : definitions) {
+    //     tcc_define_symbol(s, def.data(), "1");
+    // }
 
     // add the c file
     if (tcc_add_file(s, c_file_path) == -1) {

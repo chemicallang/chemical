@@ -363,3 +363,6 @@ void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module
     }
 }
 
+void BuildContextadd_include_dir(LabBuildContext* self, LabModule* module, chem::string_view* path) {
+    module->include_dirs.emplace_back(*path);
+}

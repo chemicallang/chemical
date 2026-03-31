@@ -1190,7 +1190,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
     if (!options.use_tcc) {
-        const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path);
+        const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path, mod->include_dirs);
         if (compile_result != 0) {
             return compile_result;
         }
@@ -1202,7 +1202,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
-    const auto compile_result = compile_adding_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options));
+    const auto compile_result = compile_adding_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options), mod->include_dirs);
     if (compile_result != 0) {
         return compile_result;
     }
@@ -2296,8 +2296,42 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         }
     }
 
-    // import any link libraries into the executable user requested for this module
+    // handling c files
     unsigned int c_file_index = 0;
+    for (auto& cfile : modFileData.c_files) {
+        auto resolved = resolve_target_condition_nullable(job->target_data, cfile.if_cond);
+        if (resolved.has_value()) {
+            if (resolved.value()) {
+                auto mod_name = std::string(module->name.to_view());
+                mod_name += "_cfile_";
+                mod_name += std::to_string(c_file_index);
+                const auto cfile_mod = context.new_module(LabModuleType::CFile, module->scope_name.to_chem_view(), chem::string_view(mod_name));
+                cfile_mod->paths.emplace_back(resolve_sibling(modFilePathView, cfile.path.view()));
+                // add global include dirs (scoped only to c files in this chemical.mod file)
+                for (auto& inc : modFileData.include_dirs) {
+                    auto inc_resolved = resolve_target_condition_nullable(job->target_data, inc.if_cond);
+                    if (inc_resolved.has_value()) {
+                        if (inc_resolved.value()) {
+                            cfile_mod->include_dirs.emplace_back(resolve_sibling(modFilePathView, inc.path.view()));
+                        }
+                    }
+                }
+                // add include dirs
+                for (auto& inc : cfile.include_dirs) {
+                    auto inc_resolved = resolve_target_condition_nullable(job->target_data, inc.if_cond);
+                    if (inc_resolved.has_value()) {
+                        if (inc_resolved.value()) {
+                            cfile_mod->include_dirs.emplace_back(resolve_sibling(modFilePathView, inc.path.view()));
+                        }
+                    }
+                }
+                job->add_dependency(cfile_mod);
+                c_file_index++;
+            }
+        }
+    }
+
+    // import any link libraries into the executable user requested for this module
     for(auto& linkLib : modFileData.link_libs) {
         auto resolved = resolve_target_condition_nullable(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
@@ -2310,16 +2344,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                     case ModFileLinkLibKind::Path:
                         job->lib_search_paths.emplace_back(resolve_sibling(modFilePathView, linkLib.name.view()));
                         break;
-                    case ModFileLinkLibKind::CFile: {
-                        auto mod_name = std::string(module->name.to_view());
-                        mod_name += "_cfile_";
-                        mod_name += std::to_string(c_file_index);
-                        const auto mod = context.new_module(LabModuleType::CFile, module->scope_name.to_chem_view(), chem::string_view(mod_name));
-                        mod->paths.emplace_back(resolve_sibling(modFilePathView, linkLib.name.view()));
-                        job->add_dependency(mod);
-                        c_file_index++;
-                        break;
-                    }
                 }
             }
         } else {
@@ -2609,7 +2633,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
         if (!has_any_changed && !has_buildLabChanged) {
 
-            // NOTE: there exists not a single module that has changed
+            // NOTE: there exists not a single module (or file) that has changed
             // also not a single file in the build.lab has changed and its object file also exists
             // which means we can safely link the previous object files again
             if(verbose) {

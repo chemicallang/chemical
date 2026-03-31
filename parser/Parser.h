@@ -200,6 +200,11 @@ public:
     bool parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * a c file statement defines a c file to be compiled and linked
+     */
+    bool parseCFileStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a ship statement defines a file to be copied into executable directory in .mod file
      */
     bool parseShipStmt(ASTAllocator& allocator, ModuleFileData& data);

@@ -19,20 +19,26 @@ void set_job_mode(TargetData& data, OutputMode mode) {
 }
 
 void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::string& target_triple) {
+    if (options->use_c) {
+        job->target_data.c = true;
+    }
     // setting if compiler is tcc
     if(options->use_tcc) {
         job->target_data.tcc = true;
+        job->target_data.c = true;
     } else {
         switch(job->type) {
             case LabJobType::CBI:
                 // no need to initialize target triple
                 // keeping it empty, so host target triple is used
+                job->target_data.c = true;
                 job->target_data.tcc = true;
                 job->target_data.cbi = true;
                 break;
             case LabJobType::JITExecutable:
                 // no need to initialize target triple
                 // keeping it empty, so host target triple is used
+                job->target_data.c = true;
                 job->target_data.tcc = true;
                 break;
             // why is this commented
@@ -40,6 +46,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
             // user has to explicitly provide --use-tcc to make that happen
             // case LabJobType::ToCTranslation:
             default:
+                job->target_data.c = true;
                 job->target_data.tcc = false;
                 break;
         }

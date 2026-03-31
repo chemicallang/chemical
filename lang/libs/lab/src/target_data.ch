@@ -1,8 +1,9 @@
 public struct TargetData {
 
     // compilers
-    var tcc : bool = false;
-    var clang : bool = false;
+    var c : bool = false; // are we translating to c
+    var tcc : bool = false; // is c being compiled by embedded tiny cc compiler
+    var clang : bool = false; // is llvm/clang compiler being used (can also compile c)
 
     // job specific
     var cbi : bool = false;

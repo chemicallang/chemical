@@ -1678,7 +1678,13 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 #ifdef COMPILER_BUILD
     // check if user wants to compile the c code via clang compiler
     if (LabBuildCompiler::use_embedded_clang(job)) {
-        // TODO: use clang to compile the c string to a temporary file
+        auto tmp_c_file = resolve_rel_child_path_str(build_dir, "Translated.c");
+        if (!emit_c) writeToFile(tmp_c_file, program);
+        const auto compile_result = compile_c_file_to_object(tmp_c_file, job_obj_path, options->exe_path, options->resources_path);
+        if (compile_result != 0) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program using clang, written at " << tmp_c_file << std::endl;
+            return compile_result;
+        }
         return 0;
     }
 #endif
@@ -3623,7 +3629,7 @@ int LabBuildCompiler::run_job(LabJob& final_job, const std::vector<std::string_v
 
     // lets compile any cbi jobs user may have specified
     for(auto& job : executables) {
-        if(job->type == LabJobType::CBI) {
+        if(job->type == LabJobType::CBI && job.get() != &final_job) {
             const auto job_result = do_job(job.get());
             if(job_result != 0) {
                 return job_result;

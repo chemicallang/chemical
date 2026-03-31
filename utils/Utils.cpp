@@ -113,14 +113,34 @@ std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
 #ifdef DEBUG
     if(res.empty()) {
         // Try to auto-detect clang version from ../lib/clang/
-        auto clang_dir = resolve_rel_parent_path_str(exe_path, "../lib/clang");
+        auto clang_dir = resolve_rel_parent_path_str(exe_path, "../out/host/lib/clang");
         if(!clang_dir.empty()) {
             std::error_code ec;
             for (const auto& entry : std::filesystem::directory_iterator(clang_dir, ec)) {
                 if (entry.is_directory()) {
                     auto version_include = entry.path() / "include";
                     if (std::filesystem::exists(version_include, ec)) {
-                        res = version_include.string();
+                        // clang wants the resources dir to contain include dir
+                        // so that's why we use the parent dir here
+                        res = entry.path().string();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    // Try working directory out/host/lib/clang
+    if(res.empty()) {
+        auto cwd_clang_dir = std::filesystem::current_path() / "out/host/lib/clang";
+        std::error_code ec;
+        if(std::filesystem::exists(cwd_clang_dir, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(cwd_clang_dir, ec)) {
+                if (entry.is_directory()) {
+                    auto version_include = entry.path() / "include";
+                    if (std::filesystem::exists(version_include, ec)) {
+                        // clang wants the resources dir to contain include dir
+                        // so that's why we use the parent dir here
+                        res = entry.path().string();
                         break;
                     }
                 }
@@ -130,6 +150,11 @@ std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
     // Final fallback to old location
     if(res.empty()) {
         res = resolve_rel_parent_path_str(exe_path, "../lib/include");
+        if (!res.empty()) {
+            // clang wants the resources dir to contain include dir
+            // so that's why we use the parent dir here
+            res = resolve_rel_parent_path_str(exe_path, "../lib");
+        }
     }
 #endif
     return res;

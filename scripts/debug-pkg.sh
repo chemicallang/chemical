@@ -174,7 +174,10 @@ ZIP_PATH="$EXE_DIR/debug-package.zip"
 mkdir -p "$(dirname "$ZIP_PATH")"
 
 if [ "$PLATFORM" = "windows" ]; then
-  powershell.exe -NoProfile -Command "Compress-Archive -Path (Convert-Path -LiteralPath '$PKG_DIR') -DestinationPath (Convert-Path -LiteralPath '$ZIP_PATH') -Force" \
+  # Convert Unix paths to Windows format for PowerShell
+  WIN_PKG_DIR=$(cygpath -w "$PKG_DIR" 2>/dev/null || echo "$PKG_DIR")
+  WIN_ZIP_PATH=$(cygpath -w "$ZIP_PATH" 2>/dev/null || echo "$ZIP_PATH")
+  powershell.exe -NoProfile -Command "Compress-Archive -Path '$WIN_PKG_DIR' -DestinationPath '$WIN_ZIP_PATH' -Force" \
     || { echo "Compress-Archive failed" >&2; exit 1; }
 else
   if ! command -v zip >/dev/null 2>&1; then

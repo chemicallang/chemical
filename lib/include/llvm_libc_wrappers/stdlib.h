@@ -15,28 +15,18 @@
 
 #include_next <stdlib.h>
 
-#if __has_include(<llvm-libc-decls/stdlib.h>)
-
 #if defined(__HIP__) || defined(__CUDA__)
 #define __LIBC_ATTRS __attribute__((device))
+#else
+#define __LIBC_ATTRS
 #endif
 
 #pragma omp begin declare target
 
-// The LLVM C library uses this type so we forward declare it.
-typedef void (*__atexithandler_t)(void);
-
-// Enforce ABI compatibility with the structs used by the LLVM C library.
-_Static_assert(__builtin_offsetof(div_t, quot) == 0, "ABI mismatch!");
-_Static_assert(__builtin_offsetof(ldiv_t, quot) == 0, "ABI mismatch!");
-_Static_assert(__builtin_offsetof(lldiv_t, quot) == 0, "ABI mismatch!");
-
-#include <llvm-libc-decls/stdlib.h>
+// TODO: Define these for CUDA / HIP.
 
 #pragma omp end declare target
 
 #undef __LIBC_ATTRS
-
-#endif
 
 #endif // __CLANG_LLVM_LIBC_WRAPPERS_STDLIB_H__

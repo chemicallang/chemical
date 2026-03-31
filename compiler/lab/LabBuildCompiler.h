@@ -41,7 +41,8 @@ class Codegen;
  * Doing the jobs required by the user and building modules and linking
  * them together into executables or libraries
  */
-class LabBuildCompiler {
+class LabBuildCompiler
+{
 public:
 
     /**
@@ -258,11 +259,7 @@ public:
 
 #endif
 
-    /**
-     * should use tcc for this job type
-     */
-    inline bool use_c(LabJobType type) {
-        if(options->use_c) return true;
+    static inline bool is_tcc_job(LabJobType type) {
         switch(type) {
         case LabJobType::CBI:
         case LabJobType::ToCTranslation:
@@ -271,6 +268,13 @@ public:
         default:
             return false;
         }
+    }
+
+    /**
+     * should use tcc for this job type
+     */
+    inline bool use_c(LabJobType type) {
+        return options->use_c || is_tcc_job(type);
     }
 
     /**
@@ -285,15 +289,7 @@ public:
      * should use tcc for this job type
      */
     inline bool use_tcc(LabJobType type) {
-        if(options->use_tcc) return true;
-        switch(type) {
-            case LabJobType::CBI:
-            case LabJobType::ToCTranslation:
-            case LabJobType::JITExecutable:
-                return true;
-            default:
-                return false;
-        }
+        return options->use_tcc || is_tcc_job(type);
     }
 
     /**

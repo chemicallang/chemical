@@ -23,6 +23,19 @@ is_true() {
   esac
 }
 
+# --- Auto-detect clang version -------------------------------------------------
+CLANG_VERSION=""
+if [ -d "out/host/lib/clang" ]; then
+    CLANG_VERSION=$(ls -1 out/host/lib/clang 2>/dev/null | head -n 1)
+    if [ -n "$CLANG_VERSION" ]; then
+        echo "Detected clang version: $CLANG_VERSION"
+    else
+        echo "warning: Could not detect clang version in out/host/lib/clang" >&2
+    fi
+else
+    echo "warning: out/host/lib/clang directory not found" >&2
+fi
+
 # --- Arg parsing ----------------------------------------------------------
 if [ "$#" -ne 2 ]; then
   usage
@@ -137,14 +150,19 @@ else
   echo "warning: lang/libs not found; skipping copy of lang/libs" >&2
 fi
 
-# --- If is_compiler true, copy lib/include -> exe_dir/pkg/lib/include ----
+# --- If is_compiler true, copy clang resources -> exe_dir/pkg/resources ----
 if [ "$IS_COMPILER" -eq 1 ]; then
-  if [ -d "lib/include" ]; then
+  if [ -n "$CLANG_VERSION" ] && [ -d "out/host/lib/clang/$CLANG_VERSION/include" ]; then
+    mkdir -p "$PKG_DIR/resources"
+    cp -a "out/host/lib/clang/$CLANG_VERSION/include" "$PKG_DIR/resources/" || { echo "failed to copy clang resources" >&2; exit 1; }
+    echo "copied out/host/lib/clang/$CLANG_VERSION/include -> $PKG_DIR/resources/include"
+  elif [ -d "lib/include" ]; then
+    # Fallback to old location for backwards compatibility
     mkdir -p "$PKG_DIR/lib"
     cp -a "lib/include" "$PKG_DIR/lib/" || { echo "failed to copy lib/include" >&2; exit 1; }
     echo "copied lib/include -> $PKG_DIR/lib/include"
   else
-    echo "warning: lib/include not found, skipping (expected at lib/include)" >&2
+    echo "warning: clang resources not found, skipping (expected at out/host/lib/clang/<version>/include)" >&2
   fi
 fi
 

@@ -616,8 +616,7 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
         return false;
     }
 
-    data.link_libs.emplace_back();
-    auto& link_lib = data.link_libs.back();
+    bool is_path = false;
 
     // link a c file
     if (token->type == TokenType::Identifier) {
@@ -626,8 +625,15 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
             return parseCFileStmt(allocator, data);
         } else if (token->value == "path") {
             token++;
-            link_lib.kind = ModFileLinkLibKind::Path;
+            is_path = true;
         }
+    }
+
+    data.link_libs.emplace_back();
+    auto& link_lib = data.link_libs.back();
+
+    if (is_path) {
+        link_lib.kind = ModFileLinkLibKind::Path;
     }
 
     if (token->type == TokenType::Identifier) {

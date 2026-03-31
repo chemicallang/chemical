@@ -1677,8 +1677,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
 #ifdef COMPILER_BUILD
     // check if user wants to compile the c code via clang compiler
-    if (options->use_c && !options->use_tcc && !LabBuildCompiler::is_tcc_job(job->type)) {
-
+    if (LabBuildCompiler::use_embedded_clang(job)) {
+        // TODO: use clang to compile the c string to a temporary file
+        return 0;
     }
 #endif
 
@@ -2021,7 +2022,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
         return result;
     }
     // link will automatically detect the extension at the end
-    const auto link_res = link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    const auto link_res = link_objects_now(!use_embedded_clang(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
     if (link_res == 0) {
         ship_files_now(options, job);
     }
@@ -2034,7 +2035,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return result;
     }
     // link will automatically detect the extension at the end
-    const auto link_res = link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
+    const auto link_res = link_objects_now(!use_embedded_clang(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
     if (link_res == 0) {
         ship_files_now(options, job);
     }

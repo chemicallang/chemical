@@ -88,4 +88,18 @@ func test_var_init() {
         const something = 1200 + 400
         return something == 1600
     })
+    test("global variable structs can be passed as default values to functions above them", () => {
+        return take_global_variable_as_default_value() == 256;
+    })
 }
+
+struct GlobalVariablePassedAsDefaultValue {
+    var a : int
+    var b : int
+}
+
+func take_global_variable_as_default_value(p : &GlobalVariablePassedAsDefaultValue = global_var_def_value_struct) : int {
+    return p.a + p.b
+}
+
+var global_var_def_value_struct = GlobalVariablePassedAsDefaultValue { a : 234, b : 22 }

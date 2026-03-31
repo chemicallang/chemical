@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="CompileTestsTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="&quot;lang/tests/build.lab&quot; -o lang/tests/build/tests-tcc.exe --mode debug_quick --no-cache --emit-c --check" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
+  <configuration default="false" name="CompileTestsTCC" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="&quot;lang/tests/build.lab&quot; -o lang/tests/build/tests-tcc.exe --mode debug_quick --no-cache --emit-c" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="TCCCompiler" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="TCCCompiler">
     <method v="2">
       <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
     </method>

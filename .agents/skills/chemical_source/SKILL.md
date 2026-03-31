@@ -54,7 +54,7 @@ namespace cool {
 Use `namespace_name::identifier` to refer to types/functions inside a namespace from outside that namespace.
 
 ```chemical
-var p : cool::Pair2
+var p : cool::Pair2 { a : 0, b : 0 }
 var x = cool::pair2_sum(&p)
 ```
 
@@ -326,6 +326,44 @@ struct StructName {
     }
 }
 ```
+
+#### How to initialize a struct
+
+You can use a struct value
+
+```chemical
+// any member that doesn't have a default value must be initialized
+// any member that doesn't have a default constructor must be initialized
+var s = StructName { member1 : 0, member2 : std::string() }
+```
+
+In the above example, member2 need not be initialized, because `std::string` has a default constructor
+
+##### Calling the constructor
+
+When calling the constructor, You must not use the name of the function of the constructor, for example
+
+```chemical
+// compiler will automatically determine the constructor
+// like c++
+var p = Point(10, 20)
+```
+
+If you use the name of the constructor function, chemical won't complain, but for example library author changes the
+name of the constructor, that would cause your project to break at compilation.
+
+##### Creating a zeroed struct
+
+```chemical
+// this will set all values to zero
+// if the struct is destructible or has a constructor, this may not work, and compiler may force you to use annotations
+var s = zeroed<StructName>()
+```
+
+##### Common Mistake
+
+When initializing struct, members without a constructor or a default value MUST be initialized, otherwise there would be
+compilation errors.
 
 #### Struct Members
 - Fields: `var name : type` or `const name : type`

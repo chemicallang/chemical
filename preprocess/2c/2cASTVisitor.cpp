@@ -571,10 +571,9 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
         write_struct_return_param(visitor, decl);
         has_params_before = true;
     }
-    FunctionParam* param;
     auto size = decl->isVariadic() ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
-        param = decl->params[i];
+        const auto param = decl->params[i];
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -1130,6 +1129,39 @@ void visit_subscript_arr_type(ToCAstVisitor& visitor, BaseType* type) {
     }
 }
 
+void perform_cast_for_interface_pass(ToCAstVisitor& visitor, FunctionType* func_type, BaseType* param_type) {
+    if (func_type) {
+        const auto func = func_type->as_function();
+        if (func && func->is_override()) {
+            const auto func_parent = func->parent();
+            if (func_parent) {
+                const auto container = func_parent->get_members_container();
+                if (container) {
+                    const auto interface = container->get_overriding_interface(func);
+                    if (interface && interface->is_static()) {
+                        visitor.write("(void**) ");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    const auto canonical = param_type->canonical();
+    if (canonical->kind() == BaseTypeKind::Reference) {
+        const auto refType = canonical->as_reference_type_unsafe();
+        const auto main_type_can = refType->type->canonical();
+        perform_cast_for_interface_pass(visitor, nullptr, main_type_can);
+    } else if (canonical->kind() == BaseTypeKind::Linked) {
+        const auto linked = canonical->as_linked_type_unsafe()->linked;
+        if (linked->kind() == ASTNodeKind::InterfaceDecl) {
+            const auto decl = linked->as_interface_def_unsafe();
+            if (decl && decl->is_static()) {
+                visitor.write("(void**) ");
+            }
+        }
+    }
+}
+
 void func_call_single_arg(
         ToCAstVisitor& visitor,
         BaseType* non_canon_param_type,
@@ -1201,7 +1233,7 @@ void func_call_single_arg(
                 visitor.write(allocated->second);
             }
         }
-    } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
+    } else if(!val->reference() && param_type_kind != BaseTypeKind::Pointer && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
         visitor.write('(');
         visit_subscript_arr_type(visitor, base_type);
         visitor.write(")");
@@ -1365,7 +1397,7 @@ bool primitive_non_ptr_like(BaseType* type) {
 }
 
 // this checks the parameter type
-void write_self_arg(ToCAstVisitor& visitor, Value* grandpa, FunctionCall* call, FunctionParam* param) {
+void write_self_arg(ToCAstVisitor& visitor, Value* grandpa, FunctionType* func_type, FunctionCall* call, FunctionParam* param) {
     if(primitive_non_ptr_like(param->type)) {
         visitor.visit(grandpa);
         return;
@@ -1744,7 +1776,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                 visitor.write(", ");
             }
             const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
-            write_self_arg(visitor, till_grandpa, call, firstParam);
+            write_self_arg(visitor, till_grandpa, func_type, call, firstParam);
             has_value_before = true;
         } else {
             visitor.error("couldn't get the self parameter for the extension function receiver parameter", firstParam);
@@ -1759,7 +1791,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         visitor.write(", ");
                     }
                     const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
-                    write_self_arg(visitor, till_grandpa, call, param);
+                    write_self_arg(visitor, till_grandpa, func_type, call, param);
                     has_value_before = true;
                 } else if(visitor.current_func_type) {
                     auto self_param = visitor.current_func_type->get_self_param();
@@ -3679,6 +3711,13 @@ void ToCAstVisitor::prepare_translate() {
         "#endif\n"
         "#endif\n"
     );
+    write("#if defined(__clang__)\n"
+"#pragma clang diagnostic ignored \"-Wincompatible-pointer-types\"\n"
+"#elif defined(__GNUC__)\n"
+"#pragma GCC diagnostic ignored \"-Wincompatible-pointer-types\"\n"
+"#elif defined(_MSC_VER)\n"
+"#pragma warning(disable: 4047 4024)\n"
+"#endif\n");
 
 }
 

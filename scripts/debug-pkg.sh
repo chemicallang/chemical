@@ -173,8 +173,8 @@ ZIP_PATH="$EXE_DIR/debug-package.zip"
 # Ensure parent directory for zip exists (should, because we created PKG_DIR)
 mkdir -p "$(dirname "$ZIP_PATH")"
 
-if [ "$PLATFORM" = "windows" ]; then
-  # Convert Unix paths to Windows format for PowerShell
+if [ "$PLATFORM" = "windows" ] && ! command -v zip >/dev/null 2>&1; then
+  # Fallback to PowerShell only if zip is not available
   WIN_PKG_DIR=$(cygpath -w "$PKG_DIR" 2>/dev/null || echo "$PKG_DIR")
   WIN_ZIP_PATH=$(cygpath -w "$ZIP_PATH" 2>/dev/null || echo "$ZIP_PATH")
   powershell.exe -NoProfile -Command "Compress-Archive -Path '$WIN_PKG_DIR' -DestinationPath '$WIN_ZIP_PATH' -Force" \

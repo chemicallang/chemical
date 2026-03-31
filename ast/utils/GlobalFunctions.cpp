@@ -51,6 +51,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "utils/PathUtils.h"
+#include "TargetAPI.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -3071,78 +3072,6 @@ struct GlobalContainer {
 
 };
 
-// this puts the target data of the current executable
-void prepare_executable_target_data(TargetData& data) {
-#ifdef _WIN32
-    data.windows = true;
-    data.win32 = true;
-#endif
-
-#ifdef _WIN64
-    data.windows = true;
-    data.win64 = true;
-#endif
-
-    data.is64Bit = sizeof(void*) == 8;
-
-#ifdef __linux__
-    data.isLinux = true;
-    data.isUnix = true;
-#endif
-
-#ifdef __APPLE__
-    data.macos = true;
-    data.isUnix = true;
-#endif
-
-#ifdef __FreeBSD__
-    data.freebsd = true;
-    data.isUnix = true;
-#endif
-
-#ifdef __ANDROID__
-    data.android = true;
-    data.isUnix = true;
-#endif
-
-#ifdef __CYGWIN__
-    data.cygwin = true;
-    data.isUnix = true;
-#endif
-
-#ifdef __MINGW32__
-    data.mingw32 = true;
-    data.win32 = true;
-    data.windows = true;
-#endif
-
-#ifdef __MINGW64__
-    data.mingw64 = true;
-    data.win64 = true;
-    data.windows = true;
-#endif
-
-// Detect architecture using predefined macros
-#ifdef __x86_64__
-    data.x86_64 = true;
-#endif
-
-#ifdef __i386__
-    data.i386 = true;
-#endif
-
-#ifdef __arm__
-    data.arm = true;
-#endif
-
-#ifdef __aarch64__
-    data.aarch64 = true;
-#endif
-
-    data.little_endian = IS_LITTLE_ENDIAN;
-
-}
-
 #ifdef COMPILER_BUILD
 
 void init_target_data(llvm::Triple& triple, TargetData& data) {
@@ -3215,7 +3144,7 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
 
 }
 
-void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::string& target_triple) {
+void prepare_target_data(TargetData& data, const std::string& target_triple) {
 
     if(target_triple.empty()) {
         prepare_executable_target_data(data);
@@ -3228,15 +3157,15 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::stri
 
 #else
 
-void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::string& target_triple) {
+void prepare_target_data(TargetData& data, const std::string& target_triple) {
 
     if(target_triple.empty()) {
-        prepare_executable_target_data(data);
         return;
     }
 
     // Split the target string by '-'
     std::vector<std::string> parts;
+    parts.reserve(4);
     std::istringstream stream(target_triple);
     std::string part;
     while (std::getline(stream, part, '-')) {
@@ -3244,13 +3173,17 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::stri
     }
 
     if (parts.size() < 3) {
-        prepare_executable_target_data(data);
         return;  // Invalid target string format
     }
 
-    std::string arch = parts[0];
-    std::string sys = parts[2];
-    std::string abi = (parts.size() > 3) ? parts[3] : ""; // Optional ABI part
+    // since we are going to reset the target data
+    // we must wipe it clean (every member initially false)
+    // so we can set to true what we gather
+    data = TargetData{};
+
+    const auto& arch = parts[0];
+    const auto& sys = parts[2];
+    const auto& abi = (parts.size() > 3) ? parts[3] : ""; // Optional ABI part
 
     // Determine architecture
     if (arch == "x86_64") {
@@ -3291,6 +3224,10 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::stri
         data.windows = true;
     }
 
+    // posix
+    data.posix = !data.windows;
+
+    // endianness
     if (arch == "x86_64" || arch == "i386" || arch == "aarch64") {
         data.little_endian = true;
     } else if (arch == "arm") {

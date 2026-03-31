@@ -91,10 +91,14 @@ public:
 
     }
 
+    static void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::string& target_triple);
+
     /**
      * initialize a new job from compiler options
      */
-    static void initialize_job(LabJob* job, LabBuildCompilerOptions* options);
+    inline static void initialize_job(LabJob* job, LabBuildCompilerOptions* options) {
+        initialize_job(job, options, options->target_triple);
+    }
 
     /**
      * declare alias for a path

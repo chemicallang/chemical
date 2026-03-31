@@ -34,13 +34,20 @@ struct ModFileShipFile {
 
 enum class ModFileLinkLibKind {
     Name,
-    Path,
-    CFile
+    Path
 };
 
 enum class ModFileLinkLibVisibility { Unknown };
 
 enum class ModFileLinkLibType { Unknown };
+
+struct ModFileIncludeDir {
+
+    chem::string_view path;
+
+    IffyBase* if_cond = nullptr;
+
+};
 
 struct ModFileLinkLib {
 
@@ -53,6 +60,16 @@ struct ModFileLinkLib {
     ModFileLinkLibType type = ModFileLinkLibType::Unknown;
 
     IffyBase* if_cond = nullptr;
+
+};
+
+struct ModFileCFile {
+
+    chem::string_view path;
+
+    IffyBase* if_cond = nullptr;
+
+    std::vector<ModFileIncludeDir> include_dirs;
 
 };
 
@@ -94,6 +111,16 @@ public:
      * files user asked us to ship for this module
      */
     std::vector<ModFileShipFile> ship_files;
+
+    /**
+     * include directories for C/C++ files in this module
+     */
+    std::vector<ModFileIncludeDir> include_dirs;
+
+    /**
+     * C files to be compiled and linked
+     */
+    std::vector<ModFileCFile> c_files;
 
     /**
      * interface declarations in chemical.mod file allowing user to import

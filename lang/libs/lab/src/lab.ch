@@ -228,6 +228,10 @@ public interface BuildContext {
     // fetches a remote dependency for the module
     func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module, dep : &ImportRepo, strategy : ConflictResolutionStrategy = ConflictResolutionStrategy.Default) : bool;
 
+    // adds an include directory for the module
+    // C/C++ only
+    func add_include_dir(&self, module : *mut Module, path : &std::string_view);
+
 }
 
 public func (ctx : &BuildContext) new_module(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {

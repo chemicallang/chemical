@@ -142,6 +142,21 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             goto loop_break;
                         }
                         break;
+                    case hash_fn("include"): {
+                        token++;
+                        data.include_dirs.emplace_back();
+                        auto& inc = data.include_dirs.back();
+                        auto path = parseString(allocator);
+                        if (path.has_value()) {
+                            inc.path = path.value();
+                        } else {
+                            error("expected an include path");
+                        }
+                        if (consumeToken(TokenType::IfKw)) {
+                            inc.if_cond = parseIffyConditional(allocator);
+                        }
+                        break;
+                    }
                     default:
                         error("unknown identifier found in module file");
                         goto loop_break;

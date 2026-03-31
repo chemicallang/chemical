@@ -156,4 +156,6 @@ extern "C" {
 
     void BuildContextship_file(LabBuildContext* self, LabJob* job, chem::string_view* path);
 
+    void BuildContextadd_include_dir(LabBuildContext* self, LabModule* module, chem::string_view* path);
+
 }

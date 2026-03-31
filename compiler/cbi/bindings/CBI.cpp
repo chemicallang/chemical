@@ -58,6 +58,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextset_conflict_resolution_strategy", (void*) BuildContextset_conflict_resolution_strategy },
         { "lab_BuildContextfetch_job_dependency", (void*) BuildContextfetch_job_dependency },
         { "lab_BuildContextfetch_mod_dependency", (void*) BuildContextfetch_mod_dependency },
+        { "lab_BuildContextadd_include_dir", (void*) BuildContextadd_include_dir },
 
 
         // Module functions

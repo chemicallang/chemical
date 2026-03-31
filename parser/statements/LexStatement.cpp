@@ -623,7 +623,7 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
     if (token->type == TokenType::Identifier) {
         if (token->value == "c") {
             token++;
-            link_lib.kind = ModFileLinkLibKind::CFile;
+            return parseCFileStmt(allocator, data);
         } else if (token->value == "path") {
             token++;
             link_lib.kind = ModFileLinkLibKind::Path;
@@ -657,6 +657,54 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
 
     return true;
 
+}
+
+bool BasicParser::parseCFileStmt(ASTAllocator& allocator, ModuleFileData& data) {
+
+    data.c_files.emplace_back();
+    auto& c_file = data.c_files.back();
+
+    auto path = parseString(allocator);
+    if(path.has_value()) {
+        c_file.path = path.value();
+    } else {
+        error("expected a c file path");
+        return false;
+    }
+
+    if(consumeToken(TokenType::IfKw)) {
+        c_file.if_cond = parseIffyConditional(allocator);
+    }
+
+    if (consumeToken(TokenType::LBrace)) {
+        while (!consumeToken(TokenType::RBrace)) {
+            consumeNewLines();
+            if (token->type == TokenType::Identifier) {
+                if (token->value == "include") {
+                    token++;
+                    c_file.include_dirs.emplace_back();
+                    auto& inc = c_file.include_dirs.back();
+                    auto inc_path = parseString(allocator);
+                    if (inc_path.has_value()) {
+                        inc.path = inc_path.value();
+                    } else {
+                        error("expected an include path");
+                    }
+                    if (consumeToken(TokenType::IfKw)) {
+                        inc.if_cond = parseIffyConditional(allocator);
+                    }
+                    consumeToken(TokenType::SemiColonSym);
+                }
+            } else if (token->type == TokenType::EndOfFile) {
+                error("expected '}' but reached end of file");
+                break;
+            } else {
+                token++;
+            }
+        }
+    }
+
+    return true;
 }
 
 bool BasicParser::parseShipStmt(ASTAllocator& allocator, ModuleFileData& data) {

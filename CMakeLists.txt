@@ -626,6 +626,7 @@ set(COMMON_SOURCES
         compiler/lab/transformer/TransformerContext.h
         compiler/cbi/bindings/TransformerContextCBI.cpp
         ast/structures/BlockScope.h
+        ast/utils/TargetAPI.h
 )
 
 # Chemical LSP Executable Target

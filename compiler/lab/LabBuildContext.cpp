@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <span>
 #include "LabBuildCompiler.h"
+#include "ast/utils/TargetAPI.h"
 
 void set_job_mode(TargetData& data, OutputMode mode) {
     data.debug = is_debug(mode);
@@ -52,8 +53,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
         }
     }
     // tiny cc doesn't support target triple
-    job->target_triple.clear();
-    if(!target_triple.empty()) {
+    if(!target_triple.empty() && job->target_triple.empty()) {
         job->target_triple.append(target_triple);
     }
     // setting the default output mode
@@ -69,8 +69,9 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
 
 }
 
-void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* options) {
-    ::initialize_job(job, options, options->target_triple);
+void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::string& target_triple) {
+    prepare_target_data(job->target_data, target_triple);
+    ::initialize_job(job, options, target_triple);
 }
 
 /**

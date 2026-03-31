@@ -595,6 +595,13 @@ int compiler_main(int argc, char *argv[]) {
 
 #else
     std::string target = "native";
+    auto& user_target = options.option_new("target", "t");
+    if(user_target.has_value()) {
+        target = user_target.value();
+    }
+    if (verbose) {
+        std::cout << "target: " << target << std::endl;
+    }
 #if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__)
     bool is64Bit = true;
 #else

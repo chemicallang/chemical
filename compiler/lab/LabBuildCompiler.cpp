@@ -3060,7 +3060,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // lets create the job for jit of build.lab/chemical.mod file
     LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir), options->def_out_mode);
-    LabBuildContext::initialize_job(&build_job, options);
+    // explicitly sending an empty target triple
+    // because this job is basically for executing the build.lab
+    // it should always match the host system
+    LabBuildContext::initialize_job(&build_job, options, "");
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(

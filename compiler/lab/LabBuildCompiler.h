@@ -300,6 +300,22 @@ public:
     }
 
     /**
+     * should use clang for compilation and linking the objects
+     */
+    inline bool use_embedded_clang(LabJob* job) {
+#ifdef COMPILER_BUILD
+        // job requires jit or tiny cc
+        if (is_tcc_job(job->type)) return false;
+        // user forced using tiny cc
+        if (options->use_tcc) return false;
+        return true;
+#else
+        // clang is not available, must use tcc
+        return false;
+#endif
+    }
+
+    /**
      * processes modules, generates code, or all modules required for linking but doesn't link
      * it also calls appropriate method process job tcc or process job gen
      */

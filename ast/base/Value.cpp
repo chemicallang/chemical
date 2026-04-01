@@ -219,10 +219,7 @@ llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<Value*>& values
                 return linked->llvm_load(gen, id->encoded_location());
             case ASTNodeKind::VarInitStmt:{
                 const auto stmt = linked->as_var_init_unsafe();
-                if(stmt->is_comptime()) {
-                    return stmt->llvm_load(gen, id->encoded_location());
-                }
-                break;
+                return stmt->llvm_load(gen, id->encoded_location());
             }
             default:
                 break;

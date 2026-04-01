@@ -1831,8 +1831,10 @@ int clang_link_objects(
     std::vector<chem::string> clang_flags{chem::string(comp_exe_path)};
 
     // set the target triple
-    clang_flags.emplace_back("-target");
-    clang_flags.emplace_back(target_triple);
+    if (!target_triple.empty()) {
+        clang_flags.emplace_back("-target");
+        clang_flags.emplace_back(target_triple);
+    }
 
     // handle the resource directory
     clang_flags.emplace_back("-resource-dir=");
@@ -1894,14 +1896,34 @@ int compile_c_file_to_object(
         const std::string_view& c_file,
         const std::string_view& out_file,
         const std::string_view& comp_exe_path,
-        const std::string_view& resource_dir
+        const std::string_view& resource_dir,
+        const std::string_view& target_triple,
+        const std::vector<chem::string>& include_dirs,
+        bool debug_info
 ) {
     std::vector<chem::string> clang_flags{ chem::string(comp_exe_path) };
+
+    // set the target triple
+    if (!target_triple.empty()) {
+        clang_flags.emplace_back("-target");
+        clang_flags.emplace_back(target_triple);
+    }
 
     // resource dir
     clang_flags.emplace_back("-resource-dir=");
     auto& resource_dir_arg = clang_flags.back();
     resource_dir_arg.append(resource_dir);
+
+    // include directories
+    for (const auto& path : include_dirs) {
+        clang_flags.emplace_back("-I");
+        clang_flags.emplace_back(path.to_view());
+    }
+
+    // debug info
+    if(debug_info) {
+        clang_flags.emplace_back("-g");
+    }
 
     clang_flags.emplace_back("-c");
     clang_flags.emplace_back(c_file);

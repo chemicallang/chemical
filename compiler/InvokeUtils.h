@@ -48,6 +48,7 @@ int compile_c_file_to_object(
         const std::string_view& out_file,
         const std::string_view& comp_exe_path,
         const std::string_view& resource_dir,
-        const std::vector<chem::string>& include_dirs = {},
-        const std::vector<chem::string>& definitions = {}
+        const std::string_view& target_triple,
+        const std::vector<chem::string>& include_dirs,
+        bool debug_info
 );

@@ -3147,7 +3147,6 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
 void prepare_target_data(TargetData& data, const std::string& target_triple) {
 
     if(target_triple.empty()) {
-        prepare_executable_target_data(data);
         return;
     }
 

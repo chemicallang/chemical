@@ -94,10 +94,11 @@ void WorkspaceManager::index_module_files() {
 
 void WorkspaceManager::post_build_lab() {
 
-    if(!context.executables.empty()) {
-        // using the first job as the main job
-        switch_main_job(context.executables.front().get());
-    }
+    // TODO:
+    // if(!context.executables.empty()) {
+    //     // using the first job as the main job
+    //     switch_main_job(context.executables.front().get());
+    // }
 
     // index all files from all modules
     // (so we can determine the module for a given file in IDE)
@@ -105,11 +106,12 @@ void WorkspaceManager::post_build_lab() {
 
     // compile cbi jobs and have their tcc state ready for invocation
     // the tcc state will end up inside the compiler binder
-    for(auto& job : context.executables) {
-        if(job->type == LabJobType::CBI) {
-            compile_cbi((LabJobCBI*) job.get());
-        }
-    }
+    // TODO:
+    // for(auto& job : context.executables) {
+    //     if(job->type == LabJobType::CBI) {
+    //         compile_cbi((LabJobCBI*) job.get());
+    //     }
+    // }
 
 }
 
@@ -530,7 +532,6 @@ void WorkspaceManager::onSave(const std::string_view& uri) {
             modStorage.clear();
             moduleData.clear();
             tokenCache.clear();
-            context.executables.clear();
             filesIndex.clear();
 
             // this will try to rebuild context from chemical.mod/build.lab file present in project_dir

@@ -91,10 +91,11 @@ lsp::json::Object labModule_toJson(LabModule* module) {
 lsp::json::Object labBuildContext_toJson(BasicBuildContext& context) {
     lsp::json::Object contextObj;
     lsp::json::Array exeArr;
-    exeArr.reserve(context.executables.size());
-    for(auto& exe : context.executables) {
-        exeArr.emplace_back(labJob_toJson(exe.get()));
-    }
+    // TODO:
+    // exeArr.reserve(context.executables.size());
+    // for(auto& exe : context.executables) {
+    //     exeArr.emplace_back(labJob_toJson(exe.get()));
+    // }
     lsp::json::Array modsArr;
     modsArr.reserve(context.storage.get_modules().size());
     for(auto& mod : context.storage.get_modules()) {
@@ -306,7 +307,8 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
             if(exe.isObject()) {
                 const auto exePtr = labJob_fromJson(exe.object(), context.storage);
                 if(exePtr != nullptr) {
-                    context.executables.emplace_back(exePtr);
+                    // TODO:
+                    // context.executables.emplace_back(exePtr);
                 }
             }
         }

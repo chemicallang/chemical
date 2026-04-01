@@ -3,6 +3,11 @@ variant OptVariant {
     None()
 }
 
+variant OptVariantMultiParams {
+    Some(a : int, b : int)
+    None()
+}
+
 variant GenVarIsValTest<T> {
     Some(value : T)
     None()
@@ -475,6 +480,33 @@ func test_variants() {
         }
         dealloc p
         return result == 765
+    })
+    test("variant works in switch pattern match with different name", () => {
+        var p = OptVariant.Some(765)
+        var result : int = 0
+        switch(p) {
+            Some(some_name) => {
+                result = some_name;
+            }
+            None() => {
+
+            }
+        }
+        return result == 765
+    })
+    test("variant works with name based destructuring - 1", () => {
+        var p = OptVariantMultiParams.Some(123, 554)
+        switch(p) {
+            Some { b } => { return b == 554 }
+            None() => { return false; }
+        }
+    })
+    test("variant works with name based destructuring - 2", () => {
+        var p = OptVariantMultiParams.Some(123, 554)
+        switch(p) {
+            Some { a } => { return a == 123 }
+            None() => { return false; }
+        }
     })
     test("different sized objects in variants have same size upon allocation", () => {
         var first = OptVariant.Some(32)

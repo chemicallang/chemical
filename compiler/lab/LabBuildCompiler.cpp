@@ -2040,6 +2040,10 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
     if(result != 0) {
         return result;
     }
+    if (options->check_only || options->download_only) {
+        // no linking required in this case
+        return result;
+    }
     // link will automatically detect the extension at the end
     const auto link_res = link_objects_now(!use_embedded_clang(job), options, job->objects, job->link_libs, job->lib_search_paths, job->abs_path.to_std_string(), job->target_triple.to_view());
     if (link_res == 0) {

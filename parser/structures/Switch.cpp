@@ -4,6 +4,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/values/StructValue.h"
 
 SwitchStatement* fix_switch(SwitchStatement* stmt, ASTAllocator& allocator) {
     if(!stmt->expression) {
@@ -57,12 +58,33 @@ void Parser::parseSwitchStatementBlock(
                     error("multiple default scopes detected");
                 }
             } else {
-                auto caseExpr = parseExpression(allocator);
-                if(caseExpr == nullptr) {
-                    break;
+                if (token->type == TokenType::Identifier && (token + 1)->type == TokenType::LBrace) {
+                    const auto member_name = allocate_view(allocator, token->value);
+                    auto namedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(member_name, stmt);
+                    auto val = new (allocator.allocate<StructValue>()) StructValue(namedType, loc_single(token));
+                    token++;
+                    // parsing { name, name2 }
+                    token++; // known lbrace
+                    while (token->type == TokenType::Identifier) {
+                        auto variable_name = allocate_view(allocator, token->value);
+                        val->values.emplace(variable_name, StructMemberInitializer { variable_name, nullptr });
+                        token++;
+                        if (token->type == TokenType::CommaSym) token++;
+                    }
+                    if (token->type != TokenType::RBrace) {
+                        error("expected r brace when named destructuring of variables in switch cases");
+                    }
+                    token++;
+                    has_single = true;
+                    stmt->cases.emplace_back(val, body_index);
+                } else {
+                    auto caseExpr = parseExpression(allocator);
+                    if(caseExpr == nullptr) {
+                        break;
+                    }
+                    has_single = true;
+                    stmt->cases.emplace_back(caseExpr, body_index);
                 }
-                has_single = true;
-                stmt->cases.emplace_back(caseExpr, body_index);
             }
         } while(consumeToken(TokenType::CommaSym));
         if(!has_single) {

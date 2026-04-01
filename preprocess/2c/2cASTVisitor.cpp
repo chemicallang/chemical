@@ -6236,7 +6236,8 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 write_accessor(*this, expr, identifier);
                 write(var_mem->name);
                 write('.');
-                break;
+                write(var->member_param->name);
+                return;
             }
             case ASTNodeKind::PatternMatchId: {
                 const auto id = linked->as_patt_match_id_unsafe();

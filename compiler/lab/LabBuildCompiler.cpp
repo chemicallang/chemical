@@ -1163,7 +1163,12 @@ static void save_mod_timestamp_from_paths(LabModule* mod, const std::string& mod
     save_mod_timestamp(paths, mod_timestamp_file, mode);
 }
 
-int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
+int compile_c_or_cpp_module(
+    LabBuildCompiler* compiler,
+    LabModule* mod,
+    const std::string& mod_timestamp_file,
+    const std::string_view& target_triple
+) {
 #ifndef COMPILER_BUILD
     if(mod->type == LabModuleType::CPPFile) {
         std::cerr << "[lab] " << rang::fg::yellow << "warning: " << rang::fg::reset << "skipping compilation of c++ module '" << *mod << '\'' << std::endl;
@@ -1190,7 +1195,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
     if (!options.use_tcc) {
-        const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path, mod->include_dirs);
+        const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path, target_triple, mod->include_dirs, options.debug_info || is_debug_or_compl(options.out_mode));
         if (compile_result != 0) {
             return compile_result;
         }
@@ -1605,7 +1610,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                         continue;
                     }
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                        const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, true));
+                        const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, true), job->target_triple.to_std_string());
                         if (c_res == 0) {
                             job->objects.emplace_back(mod->object_path.copy());
                             continue;
@@ -1680,7 +1685,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     if (LabBuildCompiler::use_embedded_clang(job)) {
         auto tmp_c_file = resolve_rel_child_path_str(build_dir, "Translated.c");
         if (!emit_c) writeToFile(tmp_c_file, program);
-        const auto compile_result = compile_c_file_to_object(tmp_c_file, job_obj_path, options->exe_path, options->resources_path);
+        const auto compile_result = compile_c_file_to_object(tmp_c_file, job_obj_path, options->exe_path, options->resources_path, job->target_triple.to_view(), {}, options->debug_info || is_debug_or_compl(options->out_mode));
         if (compile_result != 0) {
             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program using clang, written at " << tmp_c_file << std::endl;
             return compile_result;
@@ -1877,7 +1882,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                     continue;
                 }
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                    const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, false));
+                    const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, false), job->target_triple.to_view());
                     if(c_res == 0) {
                         if(is_use_obj_format) {
                             job->objects.emplace_back(mod->object_path.copy());

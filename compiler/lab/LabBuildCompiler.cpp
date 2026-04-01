@@ -2015,10 +2015,10 @@ void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
             std::cout << "[lab] shipping '" << src_path.string() << "' to '" << dest_path.string() << "'" << std::endl;
         }
 
-        try {
-            std::filesystem::copy(src_path, dest_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
-        } catch (const std::filesystem::filesystem_error& e) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to ship '" << src_path.string() << "' : " << e.what() << std::endl;
+        std::error_code ec;
+        std::filesystem::copy(src_path, dest_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing, ec);
+        if (ec) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to ship '" << src_path.string() << "'" << std::endl;
         }
     }
 }

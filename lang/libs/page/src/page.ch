@@ -75,7 +75,7 @@ public struct HtmlPage {
     }
 
     func truncate_html(&mut self, size : ubigint) {
-        pageHtml.resize_unsafe(size);
+        pageHtml.resize(size);
     }
 
     func append_head(&mut self, value : *char, len : size_t) {

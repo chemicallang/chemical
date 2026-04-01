@@ -24,7 +24,42 @@ public struct vector<T> {
         }
     }
 
-    func resize(&mut self, new_cap : size_t) {
+    func resize(&mut self, new_size : size_t) {
+        if(new_size == data_size) return;
+        // shrinking
+        if(new_size < data_size) {
+            const to_destruct = data_size - new_size;
+            const start = data_ptr + new_size;
+            destruct[to_destruct] start;
+            data_size = new_size;
+            return;
+        }
+        // TODO: support construction in place, either T should be zeroable or T should be default constructable
+        // reserving size for growth
+        if (new_size > self.data_cap) {
+            var new_cap = 2 as size_t;
+            if(data_cap != 0) {
+                new_cap = data_cap;
+            }
+            while (new_cap < new_size) {
+                new_cap = new_cap * 2;
+            }
+            reserve(new_cap);
+        }
+
+        // TODO: using zeroed, the type may not be trivially copyable or zero initializable
+        // constraints should be used to verify the type
+        var i = data_size;
+        while (i < new_size) {
+            data_ptr[i] = zeroed<T>();
+            i = i + 1;
+        }
+
+        data_size = new_size;
+    }
+
+    func reserve(&mut self, new_cap : size_t) {
+        if(new_cap <= data_cap) return;
         var new_data = realloc(data_ptr, (sizeof(T) * new_cap)) as *mut T;
         unsafe {
             if (new_data != null) {
@@ -36,16 +71,11 @@ public struct vector<T> {
         }
     }
 
-    func reserve(&mut self, cap : size_t) {
-        if(cap <= data_cap) return;
-        resize(cap);
-    }
-
     func ensure_capacity_for_one_more(&mut self) {
         if (data_cap == 0) {
-            resize(2)
+            reserve(2)
         } else {
-            resize(data_cap * 2)
+            reserve(data_cap * 2)
         }
     }
 
@@ -138,7 +168,9 @@ public struct vector<T> {
         data_size = 0;
     }
 
-    func resize_unsafe(&mut self, new_size : size_t) {
+    // TODO: make this method unsafe to use
+    // user must put it in an unsafe block
+    func set_len(&mut self, new_size : size_t) {
         data_size = new_size
     }
 

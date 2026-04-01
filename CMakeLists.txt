@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.15)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 0.0.32)
+project("chemical" VERSION 0.3.3)
 
 if(MSVC)
     # Ensure static linking for MSVC runtime

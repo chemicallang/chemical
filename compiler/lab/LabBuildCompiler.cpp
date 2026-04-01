@@ -3508,7 +3508,9 @@ int LabBuildCompiler::run_local_project(
     // running the module level build.lab or chemical.mod
     auto& opts = *options;
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(opts.build_dir), opts.out_mode);
-    LabBuildContext::initialize_job(&final_job, &opts);
+    // explicitly sending empty target triple
+    // job will always run on the host system
+    LabBuildContext::initialize_job(&final_job, &opts, "");
     const auto result = build_module_build_file_no_alloc(context, target, &final_job, !is_lab_file, true);
     if (result == 0) {
         // Run the executable
@@ -3731,7 +3733,9 @@ int LabBuildCompiler::run_native_module(const std::string& target, const std::ve
 
     // creating a executable job
     LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
-    LabBuildContext::initialize_job(&final_job, options);
+    // explicitly sending empty target triple
+    // job is for host system, must not allow changing target
+    LabBuildContext::initialize_job(&final_job, options, "");
 
     // this is where 'remote' directory will be created by process_remote_imports
     // we use build_dir, since we want to delete the downloaded sources at the end
@@ -3802,7 +3806,9 @@ int LabBuildCompiler::run_remote_module(const std::string& target, const std::ve
 
     // creating a executable job
     LabJob final_job(LabJobType::Executable, chem::string("main"), options->out_mode);
-    LabBuildContext::initialize_job(&final_job, options);
+    // explicitly sending empty target triple
+    // job will run executable on the host system, must not allow changing target
+    LabBuildContext::initialize_job(&final_job, options, "");
     // this is where 'remote' directory will be created by process_remote_imports
     // we use build_dir, since we want to delete the downloaded sources at the end
     final_job.build_dir = chem::string(build_dir);
@@ -3926,7 +3932,9 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     // the cbi job for the transformer module
     // created so we can store remote imports here
     LabJobCBI transformer_job(chem::string("main"), options->out_mode);
-    LabBuildContext::initialize_job(&transformer_job, options);
+    // explicitly sending empty target triple
+    // job is for host system, must not changing target triple
+    LabBuildContext::initialize_job(&transformer_job, options, "");
 
     // It's a remote transformer, download it
     auto cache_dir = get_transformers_cache_dir();

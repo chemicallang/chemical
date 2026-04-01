@@ -169,7 +169,9 @@ LabJob* LabBuildContext::run_jit_exe(
         chem::string_view* name
 ) {
     auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name), compiler.options->def_out_mode);
-    initialize_job(exe, compiler.options);
+    // explicitly sending empty target triple
+    // job is for host system, because it will be run
+    initialize_job(exe, compiler.options, "");
     compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -203,7 +205,9 @@ LabJob* LabBuildContext::build_cbi(
         chem::string_view* name
 ) {
     auto exe = new LabJobCBI(chem::string(*name), compiler.options->def_plugin_mode);
-    initialize_job((LabJob*) exe, compiler.options);
+    // explicitly sending empty target triple
+    // job is for host system
+    initialize_job((LabJob*) exe, compiler.options, "");
     compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     return exe;

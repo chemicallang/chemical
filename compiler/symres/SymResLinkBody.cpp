@@ -707,33 +707,41 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
     }
 }
 
-VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, VariableIdentifier* id) {
+VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, const chem::string_view id, SourceLocation loc) {
     auto& allocator = *resolver.ast_allocator;
     // explicit nullptr for ChildResolver, because we're just looking for direct variant members
-    const auto child = def->child(nullptr, id->value);
+    const auto child = def->child(nullptr, id);
     if(child) {
         if(child->kind() == ASTNodeKind::VariantMember) {
-            return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, resolver.comptime_scope.typeBuilder.getVoidType(), id->encoded_location());
+            return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, resolver.comptime_scope.typeBuilder.getVoidType(), loc);
         } else {
-            resolver.error(id) << "couldn't find variant member with name '" << id->value << "'";
+            resolver.error(loc) << "couldn't find variant member with name '" << id << "'";
         }
     } else {
-        resolver.error(id) << "couldn't find the variant member with name '" << id->value << "'";
+        resolver.error(loc) << "couldn't find the variant member with name '" << id << "'";
     }
     return nullptr;
 }
 
-void create_var_case_var(VariableIdentifier* id, SymResLinkBody& linker, ASTAllocator& allocator, VariantCase* varCase, SwitchStatement* stmt) {
-    const auto param = varCase->member->values.find(id->value);
-    if (param != varCase->member->values.end()) {
+VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, VariableIdentifier* id) {
+    return create_variant_case(resolver, stmt, def, id->value, id->encoded_location());
+}
 
-        auto variable = new(allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, id->encoded_location());
+void create_var_case_var(const chem::string_view& name, SymResLinkBody& linker, ASTAllocator& allocator, VariantCase* varCase, SwitchStatement* stmt, bool name_based, unsigned param_index, SourceLocation location) {
+    const auto param = name_based ? varCase->member->values.find(name) : (varCase->member->values.begin() + param_index);
+    if (param != varCase->member->values.end() && param_index < varCase->member->values.size()) {
+
+        auto variable = new(allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(name, param->second, stmt, location);
         varCase->identifier_list.emplace_back(variable);
         linker.visit(variable);
 
     } else {
-        linker.linker.error("couldn't find variant member parameter with that name", id);
+        linker.linker.error("couldn't find variant member parameter with that name", location);
     }
+}
+
+void create_var_case_var(VariableIdentifier* id, SymResLinkBody& linker, ASTAllocator& allocator, VariantCase* varCase, SwitchStatement* stmt, bool name_based, unsigned param_index) {
+    create_var_case_var(id->value, linker, allocator, varCase, stmt, name_based, param_index, id->encoded_location());
 }
 
 VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, VariantDefinition* def, FunctionCall* call) {
@@ -744,14 +752,16 @@ VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, 
         const auto varCase = create_variant_case(resolver, stmt, def, first_id);
         if(varCase) {
             // put all values as variant case variables
+            unsigned param_index = 0;
             for (const auto value: call->values) {
                 if (value->kind() == ValueKind::Identifier) {
-                    create_var_case_var(value->as_identifier_unsafe(), linker, astAlloc, varCase, stmt);
+                    create_var_case_var(value->as_identifier_unsafe(), linker, astAlloc, varCase, stmt, false, param_index);
                 } else if(value->kind() == ValueKind::AccessChain && value->as_access_chain_unsafe()->values.back()->kind() == ValueKind::Identifier) {
-                    create_var_case_var(value->as_access_chain_unsafe()->values.back()->as_identifier_unsafe(), linker, astAlloc, varCase, stmt);
+                    create_var_case_var(value->as_access_chain_unsafe()->values.back()->as_identifier_unsafe(), linker, astAlloc, varCase, stmt, false, param_index);
                 } else {
                     resolver.error("expected value to be a identifier", value);
                 }
+                param_index++;
             }
             return varCase;
         }
@@ -760,6 +770,24 @@ VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, 
         resolver.error("expected first value in the function call to be identifier", call->parent_val);
     }
     return nullptr;
+}
+
+VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, VariantDefinition* def, StructValue* structVal) {
+    auto& resolver = linker.linker;
+    auto& astAlloc = *resolver.ast_allocator;
+    const auto refType = structVal->getRefType();
+    if (refType->kind() != BaseTypeKind::Linked || !refType->as_linked_type_unsafe()->is_named()) {
+        linker.linker.error("unknown type in struct value for variant case", structVal);
+        return nullptr;
+    }
+    const auto namedType = (NamedLinkedType*) refType;
+    const auto varCase = create_variant_case(resolver, stmt, def, namedType->debug_link_name(), structVal->encoded_location());
+    unsigned int index = 0;
+    for (auto& val : structVal->values) {
+        create_var_case_var(val.first, linker, astAlloc, varCase, stmt, true, index, structVal->encoded_location());
+        index++;
+    }
+    return varCase;
 }
 
 void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
@@ -800,6 +828,13 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
                     // link with the case
                     const auto case_kind = switch_case.first->val_kind();
                     switch(case_kind) {
+                        case ValueKind::StructValue: {
+                            const auto varCase = create_variant_case(*this, stmt, variant_def, switch_case.first->as_struct_value_unsafe());
+                            if (varCase) {
+                                switch_case.first = varCase;
+                            }
+                            continue;
+                        }
                         case ValueKind::Identifier: {
                             const auto varCase = create_variant_case(linker, stmt, variant_def, switch_case.first->as_identifier_unsafe());
                             if (varCase) {
@@ -1546,13 +1581,13 @@ void SymResLinkBody::VisitUnsafeBlock(UnsafeBlock* node) {
 }
 
 void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
-    const auto member = node->member_param->parent();
-    auto child = member->values.find(node->name);
-    if(child == member->values.end()) {
-        linker.error(node) << "variant case member variable not found in switch statement, name '" << node->name << "' not found";
-        return;
-    }
-    node->member_param = child->second;
+    // const auto member = node->member_param->parent();
+    // auto child = member->values.find(node->name);
+    // if(child == member->values.end()) {
+    //     linker.error(node) << "variant case member variable not found in switch statement, name '" << node->name << "' not found";
+    //     return;
+    // }
+    // node->member_param = child->second;
     linker.declare_or_shadow(node->name, node);
 }
 

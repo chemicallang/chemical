@@ -20,7 +20,7 @@ public:
             SwitchStatement* statement,
             VoidType* voidTy,
             SourceLocation location
-    ) : Value(ValueKind::VariantCase, location), member(member), switch_statement(statement) {
+    ) : Value(ValueKind::VariantCase, (BaseType*) voidTy, location), member(member), switch_statement(statement) {
 
     }
 

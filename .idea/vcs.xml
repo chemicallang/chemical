@@ -7,6 +7,11 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/components" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/demos" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/docs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/extra/cJSON" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/extra/fontstash" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/extra/mbedtls" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/extra/mssql" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/extra/zstd" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/llvm-prebuilt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/md-themes" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/miniaudio" vcs="Git" />

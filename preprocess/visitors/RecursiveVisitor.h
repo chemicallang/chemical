@@ -136,6 +136,11 @@ public:
         static_cast<Derived*>(this)->visit(thing);
     }
 
+    template<typename T>
+    inline void visit_it(BaseType*& type, SourceLocation location) {
+        static_cast<Derived*>(this)->visit(type, location);
+    }
+
     void VisitScope(Scope *scope) {
         for(auto& node : scope->nodes) {
             visit_it(node);
@@ -635,9 +640,13 @@ public:
         visit_it(value->value);
     }
 
-    //inline void VisitZeroedValue(ZeroedValue* value) {
-    //
-    //}
+    inline void VisitZeroedValue(ZeroedValue* value) {
+        auto typeLoc = TypeLoc(value->getType(), value->type_location);
+        visit_it(typeLoc);
+        if(typeLoc.getType() != value->getType()) {
+            value->setType(const_cast<BaseType*>(typeLoc.getType()));
+        }
+    }
 
     void VisitEmbeddedNode(EmbeddedNode* node) {
         for(auto& child_node : node->chemical_nodes) {

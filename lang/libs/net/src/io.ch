@@ -20,10 +20,15 @@ public namespace io {
         }
 
         func append_bytes(&mut self, src:*u8, n: usize) {
-            const old_sz = v.size();
-            v.resize(old_sz + n);
-            memcpy(v.get_ptr(old_sz), src, n);
-            v.resize_unsafe(old_sz + n);
+            // TODO: use append_multiple, once requirement constraint for trivially copyable types is in place
+            // reserve larger size
+            v.reserve(v.size() + n)
+            var curr = src;
+            const end = curr + n;
+            while(curr != end) {
+                v.push(*curr)
+                curr++
+            }
         }
 
         func consume(&mut self, n: usize) {
@@ -36,8 +41,8 @@ public namespace io {
                 var rem = v.size() - read_pos;
                 // move remaining bytes to front
                 memmove(ptr, ptr + read_pos, rem);
-                // resize vector to reflect new size (just changes size, doesn't realloc/free)
-                v.resize_unsafe(rem);
+                // resize vector to reflect new size (just changes size, doesn't realloc/free because shrinking)
+                v.resize(rem);
                 read_pos = 0u;
             }
         }

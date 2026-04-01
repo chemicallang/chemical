@@ -154,7 +154,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
     }
 
     // set the string's size to the number of bytes read
-    vec.resize_unsafe(pos);
+    vec.set_len(pos);
 
     file_close(&mut f);
     return Result.Ok(vec);

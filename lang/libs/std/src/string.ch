@@ -169,7 +169,7 @@ public struct string : Hashable, Eq {
         }
     }
 
-    func resize_unsafe(&mut self, value : size_t) {
+    func resize(&mut self, value : size_t) {
         ensure_mut(value + 1);
         switch(state) {
             '1' => {

@@ -14,9 +14,9 @@ func utf16_to_utf8_str(src : *u16) : std::string {
     var needed = WideCharToMultiByte(CP_UTF8, 0u32, src, -1, null, 0, null, null);
     if(needed <= 0) { return out; }
     out.reserve((needed as size_t) - 1);
-    out.resize_unsafe((needed as size_t) - 1);
+    out.resize((needed as size_t) - 1);
     var n = WideCharToMultiByte(CP_UTF8, 0u32, src, -1, out.mutable_data(), needed, null, null);
-    if(n <= 0) { out.resize_unsafe(0); return out; }
+    if(n <= 0) { out.resize(0); return out; }
     return out;
 }
 

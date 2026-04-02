@@ -25,13 +25,13 @@
 #include <pthread.h>
 #endif
 
-int report_context_to_parent(BasicBuildContext& context, const std::string& shmName, const std::string& evtChild, const std::string& evtParent) {
-    auto jsonStr = labBuildContext_toJsonStr(context);
+int report_context_to_parent(BuildContextInformation& information, const std::string& shmName, const std::string& evtChild, const std::string& evtParent) {
+    auto jsonStr = labBuildContext_toJsonStr(information);
     return child_create_and_write_shm(shmName, evtChild, evtParent, jsonStr);
 }
 
 #ifdef _WIN32
-int launch_child_build(BasicBuildContext& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
+int get_child_build_payload(const std::string_view& lspPath, const std::string_view& buildFilePath, std::string& outPayload) {
 
     // 1) Generate unique names:
     std::string shmName, evtChildDone, evtParentAck;
@@ -172,14 +172,9 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
-    const auto ok = labBuildContext_fromJson(context, result.payload);
+    outPayload = std::move(result.payload);
 
-    // 7) Print the string:
-    std::cout << "[lsp] Shared‐memory contents:\n---\n"
-              << result.payload
-              << std::endl;
-
-    return ok ? 0 : 1;
+    return 0;
 }
 
 #else
@@ -211,7 +206,7 @@ int timed_wait(sem_t* sem, const struct timespec* ts) {
 #endif
 }
 
-int launch_child_build(BasicBuildContext& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
+int get_child_build_payload(const std::string_view& lspPath, const std::string_view& buildFilePath, std::string& outPayload) {
 
     // 1) Generate unique names:
     std::string shmName, evtChildDone, evtParentAck;
@@ -374,14 +369,33 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
-    const bool ok = labBuildContext_fromJson(context, result.payload);
+    outPayload = std::move(result.payload);
 
-    // 7) Print the JSON for debugging:
-    std::cout << "[lsp] Shared-memory contents:\n---\n"
-              << result.payload
-              << "\n";
+    return 0;
 
-    return ok ? 0 : 1;
 }
 
 #endif
+
+int launch_child_build(BuildContextInformation& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
+
+    std::string payload;
+
+    auto status = get_child_build_payload(lspPath, buildFilePath, payload);
+    if (status != 0) {
+        return status;
+    }
+
+    // 7) Print the JSON for debugging:
+    std::cout << "[lsp] Shared-memory contents:\n---\n"
+              << payload
+              << "\n";
+
+    // clear previous build context information
+    // then we add new context information
+    context.clear();
+
+    const auto ok = labBuildContext_fromJson(context, payload);
+    return ok ? 0 : 1;
+
+}

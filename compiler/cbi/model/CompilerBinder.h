@@ -89,6 +89,14 @@ public:
     const char* index_function(CBIFunctionIndex& index, TCCState* state);
 
     /**
+     * clear
+     */
+    void clear() {
+        hooks_.clear();
+        data.clear();
+    }
+
+    /**
      * a destructor is used to destruct the TCC state
      */
     ~CompilerBinder();

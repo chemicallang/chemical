@@ -1,11 +1,18 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ContextSerialization.h"
-#include "compiler/lab/LabBuildContext.h"
 #include "lsp/json/json.h"
 #include <lsp/enumeration.h>
 #include <lsp/serialization.h>
+
 #include "compiler/cbi/model/CompilerBinder.h"
+#include "compiler/lab/ModuleStorage.h"
+
+void BuildContextInformation::clear() {
+    modStorage.clear();
+    jobs.clear();
+    binder.clear();
+}
 
 // ---------------------------------------
 // ---------------- toJson methods
@@ -88,17 +95,16 @@ lsp::json::Object labModule_toJson(LabModule* module) {
     return std::move(modObj);
 }
 
-lsp::json::Object labBuildContext_toJson(BasicBuildContext& context) {
+lsp::json::Object labBuildContext_toJson(BuildContextInformation& context) {
     lsp::json::Object contextObj;
     lsp::json::Array exeArr;
-    // TODO:
-    // exeArr.reserve(context.executables.size());
-    // for(auto& exe : context.executables) {
-    //     exeArr.emplace_back(labJob_toJson(exe.get()));
-    // }
+    exeArr.reserve(context.jobs.size());
+    for(auto& exe : context.jobs) {
+        exeArr.emplace_back(labJob_toJson(exe.get()));
+    }
     lsp::json::Array modsArr;
-    modsArr.reserve(context.storage.get_modules().size());
-    for(auto& mod : context.storage.get_modules()) {
+    modsArr.reserve(context.modStorage.get_modules().size());
+    for(auto& mod : context.modStorage.get_modules()) {
         modsArr.emplace_back(labModule_toJson(mod.get()));
     }
     contextObj["executables"] = std::move(exeArr);
@@ -106,7 +112,7 @@ lsp::json::Object labBuildContext_toJson(BasicBuildContext& context) {
     return std::move(contextObj);
 }
 
-std::string labBuildContext_toJsonStr(BasicBuildContext& context, bool format) {
+std::string labBuildContext_toJsonStr(BuildContextInformation& context, bool format) {
     return lsp::json::stringify(labBuildContext_toJson(context), format);
 }
 
@@ -269,7 +275,7 @@ LabJob* labJob_fromJson(lsp::json::Object& obj, ModuleStorage& storage) {
     return nullptr;
 }
 
-void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj) {
+void labBuildContext_fromJson(BuildContextInformation& context, lsp::json::Object& obj) {
     std::vector<LabModuleDependencyRecord> depsRec;
     // we get all the modules, and index their dependencies as records
     auto modsArr = obj.find("modules");
@@ -279,7 +285,7 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
             if(mod.isObject()) {
                 const auto modPtr = labModule_fromJson(mod.object(), depsRec, context.binder);
                 if(modPtr != nullptr) {
-                    context.storage.insert_module_ptr_dangerous(modPtr);
+                    context.modStorage.insert_module_ptr_dangerous(modPtr);
                 }
             }
         }
@@ -290,7 +296,7 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
         auto& modRef = *rec.module;
         for(auto& val : depsArr) {
             if(val.isString()) {
-                const auto depFound = context.storage.find_module(val.string());
+                const auto depFound = context.modStorage.find_module(val.string());
                 if(depFound != nullptr) {
                     modRef.add_dependency(depFound);
                 }
@@ -304,17 +310,16 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
         auto& arr = exeArr->array();
         for(auto& exe : arr) {
             if(exe.isObject()) {
-                const auto exePtr = labJob_fromJson(exe.object(), context.storage);
+                const auto exePtr = labJob_fromJson(exe.object(), context.modStorage);
                 if(exePtr != nullptr) {
-                    // TODO:
-                    // context.executables.emplace_back(exePtr);
+                    context.jobs.emplace_back(exePtr);
                 }
             }
         }
     }
 }
 
-bool labBuildContext_fromJson(BasicBuildContext& context, std::string_view jsonContent) {
+bool labBuildContext_fromJson(BuildContextInformation& context, std::string_view jsonContent) {
     auto thing = lsp::json::parse(jsonContent);
     if(thing.isObject()) {
         labBuildContext_fromJson(context, thing.object());

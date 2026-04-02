@@ -37,7 +37,7 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context(modStorage, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
+    context_information(nullptr, modStorage, {}, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
     modFileData(10), anonFilesData(10), controller()
 {
 
@@ -94,11 +94,10 @@ void WorkspaceManager::index_module_files() {
 
 void WorkspaceManager::post_build_lab() {
 
-    // TODO:
-    // if(!context.executables.empty()) {
-    //     // using the first job as the main job
-    //     switch_main_job(context.executables.front().get());
-    // }
+    if(!context_information.jobs.empty()) {
+        // using the first job as the main job
+        switch_main_job(context_information.jobs.front().get());
+    }
 
     // index all files from all modules
     // (so we can determine the module for a given file in IDE)
@@ -106,12 +105,11 @@ void WorkspaceManager::post_build_lab() {
 
     // compile cbi jobs and have their tcc state ready for invocation
     // the tcc state will end up inside the compiler binder
-    // TODO:
-    // for(auto& job : context.executables) {
-    //     if(job->type == LabJobType::CBI) {
-    //         compile_cbi((LabJobCBI*) job.get());
-    //     }
-    // }
+    for(auto& job : context_information.jobs) {
+        if(job->type == LabJobType::CBI) {
+            compile_cbi((LabJobCBI*) job.get());
+        }
+    }
 
 }
 
@@ -169,80 +167,13 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
     return jobRes;
 
 }
-
-LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, const std::string& lab_path, ModuleStorage& modStorage) {
-
-    // using is64Bit as true
-    auto is64Bit = true;
-    auto compiler_exe_path = exe_path + " cc";
-    auto is_mod_source = lab_path.ends_with(".mod");
-    auto compiler_build_dir = resolve_sibling(lab_path, "build");
-    auto build_dir = resolve_rel_child_path_str(compiler_build_dir, "ide");
-    // create build directory before proceeding (if it doesn't exist)
-    create_dir(compiler_build_dir);
-    create_dir(build_dir);
-
-    CompilerBinder binder(compiler_exe_path);
-    LocationManager loc_man;
-    auto& storage = modStorage;
-
-    // creating the compiler (static function, cannot reuse global contaienr)
-    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
-    LabBuildCompiler compiler(loc_man, binder, &options);
-
-    // creating context, this allows separation, we don't want to reuse
-    // we do not want to share data between labs because lab files are very flexible
-    auto context_ptr = new LabBuildContext(compiler, compiler.path_handler, storage, binder);
-    std::unique_ptr<LabBuildContext> context(context_ptr);
-
-    // allocating ast allocators
-    const auto job_mem_size = 100000; // 100 kb
-    const auto mod_mem_size = 100000; // 100 kb
-    const auto file_mem_size = 100000; // 100 kb
-    ASTAllocator _job_allocator(job_mem_size);
-    ASTAllocator _mod_allocator(mod_mem_size);
-    ASTAllocator _file_allocator(file_mem_size);
-
-    // the allocators that will be used for all jobs
-    compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
-
-    // build the lab file to a tcc state
-    const auto state = compiler.built_lab_file(*context, lab_path, is_mod_source);
-
-    // auto delte the tcc state
-    TCCDeletor auto_delete(state);
-
-    // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
-    if(!build) {
-        std::cerr << "[lsp] there's no build function in the file" << std::endl;
-        return nullptr;
-    }
-
-    // clear the module storage
-    // these modules were created to facilitate the build.lab generation
-    // if not cleared, these modules will interfere with modules created for executable
-    context->storage.clear();
-
-    // call the root build.lab build's function
-    build(context.get());
-
-    // returning the context
-    if(state) {
-        return context.release();
-    } else {
-        return nullptr;
-    }
-
-}
-
 int WorkspaceManager::build_context_from_build_lab() {
     // doing asynchronous tasks during initialization
     std::future<void> futureObj = std::async(std::launch::async, [this] {
         auto mod_file = get_mod_file_path();
         if(std::filesystem::exists(mod_file)) {
             std::cout << "[lsp] found mod file at '" << mod_file << "', triggering build" << std::endl;
-            auto result = launch_child_build(context, lsp_exe_path, mod_file);
+            auto result = launch_child_build(context_information, lsp_exe_path, mod_file);
             if(result == 0) {
                 post_build_lab();
             } else {
@@ -252,7 +183,7 @@ int WorkspaceManager::build_context_from_build_lab() {
         auto lab_path = get_build_lab_path();
         if(std::filesystem::exists(lab_path)) {
             std::cout << "[lsp] found lab file at '" << lab_path << "', triggering build" << std::endl;
-            auto result = launch_child_build(context, lsp_exe_path, lab_path);
+            auto result = launch_child_build(context_information, lsp_exe_path, lab_path);
             if(result == 0) {
                 post_build_lab();
             } else {

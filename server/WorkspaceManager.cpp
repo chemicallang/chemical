@@ -37,7 +37,7 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context_information(nullptr, modStorage, {}, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
+    context_information(nullptr, modStorage, {}, binder, ASTAllocator(10000)), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
     modFileData(10), anonFilesData(10), controller()
 {
 

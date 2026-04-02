@@ -80,7 +80,8 @@ int compile_lab(
         .root_module = rootMod,
         .modStorage = compiler.mod_storage,
         .jobs = std::move(compiler.executables),
-        .binder = compiler.binder
+        .binder = compiler.binder,
+        .allocator = ASTAllocator(10000)
     };
 
     outPayload = labBuildContext_toJsonStr(info, format);

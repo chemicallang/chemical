@@ -46,12 +46,14 @@ TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
         if(!consumeToken(TokenType::RParen)) {
             unexpected_error("expected a ')' after the ')' in lambda function type");
         }
-        if(consumeToken(TokenType::LambdaSym)) {
+        const auto tt = token->type;
+        if(tt == TokenType::LambdaSym || tt == TokenType::ColonSym) {
+            token++;
             auto type = parseTypeLoc(allocator);
             if(type) {
                 func_type->returnType = type;
             } else {
-                unexpected_error("expected a return type for lambda function type");
+                unexpected_error("expected a return type for lambda function type after '=>'");
             }
         } else {
             unexpected_error("expected '=>' for lambda function type");

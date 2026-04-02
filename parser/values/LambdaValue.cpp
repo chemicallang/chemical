@@ -7,12 +7,20 @@
 
 bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction* lambda) {
 
+    // () : type => {}
+    if (consumeToken(TokenType::ColonSym)) {
+        const auto ty = parseTypeLoc(allocator);
+        if (ty) {
+            lambda->returnType = ty;
+        } else {
+            error("expected a type after ':' in lambda");
+        }
+    }
 
     if (!consumeToken(TokenType::LambdaSym)) {
         unexpected_error("expected '=>' for a lambda");
         return false;
     }
-
 
     auto braceBlock = parseBraceBlock("lambda", parent_node, allocator);
     if(braceBlock.has_value()) {

@@ -51,6 +51,7 @@ class AnnotationController;
 struct ConcurrentParsingState {
     std::atomic<int> outstanding;
     std::promise<void> all_done_promise;
+    std::atomic_bool has_errors;
     void pushed_task() {
         outstanding.fetch_add(1, std::memory_order_relaxed);
     }
@@ -59,6 +60,12 @@ struct ConcurrentParsingState {
         if (outstanding.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             all_done_promise.set_value();
         }
+    }
+    void set_has_errors() {
+        has_errors.store(true, std::memory_order_relaxed);
+    }
+    bool get_has_errors() {
+        return has_errors.load(std::memory_order_relaxed);
     }
 };
 
@@ -206,9 +213,8 @@ public:
      * this imports the given files in parallel using the given thread pool
      * this also imports any files for which import statements are present in the given
      * files, it recursively handles import statements
-     * @return true if succeeding importing all files with continue_processing, false otherwise
      */
-    bool import_chemical_files_recursive(
+    void import_chemical_files_recursive(
             ctpl::thread_pool& pool,
             ConcurrentParsingState& state,
             std::vector<ASTFileMetaData>& files,

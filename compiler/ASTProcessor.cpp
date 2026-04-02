@@ -586,7 +586,7 @@ bool ASTProcessor::type_verify_module_parallel(ctpl::thread_pool& pool, LabModul
     return success;
 }
 
-bool ASTProcessor::import_chemical_files_recursive(
+void ASTProcessor::import_chemical_files_recursive(
         ctpl::thread_pool& pool,
         ConcurrentParsingState& state,
         std::vector<ASTFileMetaData>& files,
@@ -594,7 +594,7 @@ bool ASTProcessor::import_chemical_files_recursive(
 ) {
 
     if(files.empty()) {
-        return true;
+        return;
     }
 
     // if has imports, we import those files
@@ -631,14 +631,11 @@ bool ASTProcessor::import_chemical_files_recursive(
         // to futures vector
         state.pushed_task();
         pool.push([this, &pool, &state, &fileData, use_job_allocator](int){
-            const auto result = import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator);
+            import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator);
             state.done_task();
-            return result;
         });
 
     }
-
-    return true;
 
 }
 
@@ -823,17 +820,20 @@ bool ASTProcessor::import_chemical_file_recursive(
     // import the file into result (lex and parse)
     const auto success = import_file_in_lab(*this, parentFileData, result, use_job_allocator);
     if(!success) {
+        state.set_has_errors();
         return false;
     }
 
     // figure out files imported by this file
     const auto success2 = figure_out_direct_imports(parentFileData, result.unit.scope.body.nodes, result.imports);
     if(!success2) {
+        state.set_has_errors();
         return false;
     }
 
     // handle the imports of this file
-    return import_chemical_files_recursive(pool, state, result.imports, use_job_allocator);
+    import_chemical_files_recursive(pool, state, result.imports, use_job_allocator);
+    return true;
 
 }
 

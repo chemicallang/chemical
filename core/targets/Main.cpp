@@ -332,9 +332,6 @@ int main(int argc, char *argv[]) {
     auto build_lab = options.option_new("build-lab");
     if(build_lab.has_value()) {
 
-        ModuleStorage storage;
-        const auto context = WorkspaceManager::compile_lab(getExecutablePath(), std::string(build_lab.value()), storage);
-
         auto shmName = options.option_new("shmName");
         if(!shmName.has_value() || shmName.value().empty()) {
             std::cerr << "[lsp] expected a 'shmName' command line argument" << std::endl;
@@ -353,7 +350,13 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        return report_context_to_parent(*context, std::string(shmName.value()), std::string(childDone.value()), std::string(parentAck.value()));
+        return WorkspaceManager::compile_lab(
+            getExecutablePath(),
+            std::string(build_lab.value()),
+            shmName.value(),
+            childDone.value(),
+            parentAck.value()
+        );
 
     }
 

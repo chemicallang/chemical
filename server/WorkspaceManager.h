@@ -26,6 +26,7 @@
 #include "lsp/types.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "ctpl.h"
+#include "build/ContextSerialization.h"
 #include "server/model/ModuleData.h"
 #include "core/source/LocationManager.h"
 #include "compiler/processor/ModuleFileData.h"
@@ -203,9 +204,10 @@ public:
     std::atomic<bool> publish_diagnostics_cancel_flag{false};
 
     /**
-     * this context is used to store information about module graph
+     * this is used to basically encode and decode build information
+     * between parent and child processes
      */
-    BasicBuildContext context;
+    BuildContextInformation context_information;
 
     /**
      * path to resources folder, if empty, will be calculated relative to current executable
@@ -299,7 +301,13 @@ public:
      * this method reports to parent process
      * the lab build context is a new pointer, you are taking ownership of it
      */
-    static LabBuildContext* compile_lab(const std::string& exe_path, const std::string& path, ModuleStorage& storage);
+    static int compile_lab(
+        const std::string& exe_path,
+        const std::string& path,
+        std::string_view shmName,
+        std::string_view evtChildDone,
+        std::string_view evtParentAck
+    );
 
     /**
      * builds the context from a build.lab or chemical.mod file present in project path

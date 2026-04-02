@@ -676,6 +676,7 @@ add_executable(ChemicalLsp core/targets/Main.cpp ${COMMON_SOURCES}
         server/mod_file/Importer.cpp
         server/diagnostics/DiagnosticUtils.h
         server/diagnostics/DiagnosticUtils.cpp
+        server/build/BuildAndReport.cpp
 )
 
 # lsp framework

@@ -20,6 +20,7 @@
 #include <functional>
 #include <utility>
 #include "utils/JsonUtils.h"
+#include "utils/PathUtils.h"
 #include "server/build/ChildProcessBuild.h"
 #include "server/build/ContextSerialization.h"
 
@@ -47,16 +48,17 @@ std::vector<std::string> getTokenTypes() {
 void run_session(
         std::atomic_bool& g_shutdown,
         lsp::io::SocketListener& listener,
-        lsp::io::Socket socket,
-        const char* executable_path
+        lsp::io::Socket socket
 ) {
   try {
+
+    auto exePath = getExecutablePath();
 
     bool local_shutdown = false;
 //    SocketStream stream();
     lsp::Connection connection(socket);
     lsp::MessageHandler handler(connection);
-    WorkspaceManager manager(executable_path, handler);
+    WorkspaceManager manager(exePath.c_str(), handler);
 
     handler.add<lsp::requests::Initialize>([&manager](lsp::InitializeParams&& params){
 
@@ -331,7 +333,7 @@ int main(int argc, char *argv[]) {
     if(build_lab.has_value()) {
 
         ModuleStorage storage;
-        const auto context = WorkspaceManager::compile_lab(std::string(argv[0]), std::string(build_lab.value()), storage);
+        const auto context = WorkspaceManager::compile_lab(getExecutablePath(), std::string(build_lab.value()), storage);
 
         auto shmName = options.option_new("shmName");
         if(!shmName.has_value() || shmName.value().empty()) {
@@ -390,7 +392,7 @@ int main(int argc, char *argv[]) {
             std::cout << "[LSP] Accepted connection"  << std::endl;
 
             // Detach a thread to serve this client
-            std::thread(&run_session, std::ref(g_shutdown), std::ref(socketListener), std::move(socket), argv[0]).detach();
+            std::thread(&run_session, std::ref(g_shutdown), std::ref(socketListener), std::move(socket)).detach();
 
         }
 

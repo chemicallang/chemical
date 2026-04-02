@@ -20,6 +20,7 @@
 #include "parser/Parser.h"
 #include "compiler/ASTProcessor.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
+#include "ast/statements/ChildrenMapNode.h"
 #include <functional>
 #include <utility>
 #include "server/diagnostics/DiagnosticUtils.h"
@@ -215,7 +216,7 @@ void parseModuleWithDeps(
 
     // launch all modules concurrently and recursively
     // because in parsing, no module is dependent on another module
-    for(const auto dep : module->dependencies) {
+    for(auto& dep : module->dependencies) {
 
         // getting the module data for dependency module
         const auto depModData = manager.getModuleData(dep.module);
@@ -256,6 +257,32 @@ void parseModuleWithDepsWait(
     }
 }
 
+inline static void declareAllSymbols(SymbolResolver& resolver, ChildrenMapNode* children) {
+    // user didn't give any alias or symbols
+    // declare everything
+    for (auto& sym: children->symbols) {
+        resolver.declare_or_shadow(sym.first, sym.second);
+    }
+}
+
+static void declareChildren(SymbolResolver& resolver, DependencySymbolInfo* info, ChildrenMapNode* children) {
+    if(info == nullptr) {
+        declareAllSymbols(resolver, children);
+        return;
+    }
+    if(!info->alias.empty()) {
+        // does not shadow
+        resolver.declare(info->alias, children);
+    } else if(!info->symbols.empty()) {
+        // declare imported symbols only
+        for(auto& sym : info->symbols) {
+            resolver.declareImportedSymbol(children, sym.parts, sym.alias, info->location);
+        }
+    } else {
+        declareAllSymbols(resolver, children);
+    }
+}
+
 void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, ModuleData* modData) {
     const auto mod_index = resolver.module_scope_start();
 
@@ -277,13 +304,38 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     resolver.mod_allocator = resolver_allocator;
 
     // declaring symbols of direct dependencies
-    SymbolResolverDeclarer declarer(resolver);
-    for(const auto depUnit : modData->dependencies) {
-        for(const auto cachedUnit : depUnit->fileUnits) {
+    unsigned int depIndex = 0;
+    for (const auto modData : modData->dependencies) {
+
+        auto& modDeps = modData->getModule()->dependencies;
+        const auto depInfo = depIndex < modDeps.size() ? modDeps[depIndex].info : nullptr;
+
+        if(modData->getModule()->children != nullptr) {
+            declareChildren(resolver, depInfo, modData->getModule()->children);
+            depIndex++;
+            continue;
+        }
+
+        // creating new children map node
+        const auto children = resolver.ast_allocator->allocate<ChildrenMapNode>();
+        new (children) ChildrenMapNode(&modData->modScope, modData->modScope.encoded_location());
+
+        // traversing the dependencies to store children into the map
+        MapSymbolDeclarer declarer(children->symbols);
+        for(const auto cachedUnit : modData->fileUnits) {
             for(const auto node : cachedUnit->unit.scope.body.nodes) {
                 declare_node(declarer, node, AccessSpecifier::Public);
             }
         }
+
+        // storing the children for caching
+        modData->getModule()->children = children;
+
+        // declare children
+        declareChildren(resolver, depInfo, children);
+
+        depIndex++;
+
     }
 
     // private symbol ranges are stored in this vector
@@ -301,7 +353,6 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
     }
 
-    // linking signatures in all files
     unsigned i = 0;
     for(const auto cachedUnit : fileUnits) {
 
@@ -310,7 +361,34 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
         auto& priv_sym_range = priv_sym_ranges[i];
 
+        resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+
+        i++;
+    }
+
+    // linking signatures in all files
+    i = 0;
+    for(const auto cachedUnit : fileUnits) {
+
+        auto& unit = cachedUnit->unit;
+        auto path_str = unit.scope.meta.abs_path;
+
+        auto& priv_sym_range = priv_sym_ranges[i];
+
         resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+
+        i++;
+    }
+
+    i = 0;
+    for(const auto cachedUnit : fileUnits) {
+
+        auto& unit = cachedUnit->unit;
+        auto path_str = unit.scope.meta.abs_path;
+
+        auto& priv_sym_range = priv_sym_ranges[i];
+
+        resolver.after_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
 
         i++;
     }

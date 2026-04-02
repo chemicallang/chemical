@@ -7,6 +7,25 @@
 struct BuildContextInformation;
 class BasicBuildContext;
 
-int report_context_to_parent(BuildContextInformation& context, const std::string& shmName, const std::string& evtChild, const std::string& evtParent);
-
 int launch_child_build(BuildContextInformation& context, const std::string_view& lspPath, const std::string_view& buildFilePath);
+
+int compile_lab(
+    const std::string& exe_path,
+    const std::string& lab_path,
+    std::string& outPayload,
+    bool format
+);
+
+/**
+ * compile a .lab file or a .mod file
+ * this method is called in a separate process to handle compilation
+ * this method reports to parent process
+ */
+int compile_lab(
+    const std::string& exe_path,
+    const std::string& lab_path,
+    bool format,
+    std::string_view shmName,
+    std::string_view evtChildDone,
+    std::string_view evtParentAck
+);

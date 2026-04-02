@@ -350,9 +350,10 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        return WorkspaceManager::compile_lab(
+        return compile_lab(
             getExecutablePath(),
             std::string(build_lab.value()),
+            false,
             shmName.value(),
             childDone.value(),
             parentAck.value()

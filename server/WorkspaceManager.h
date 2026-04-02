@@ -296,20 +296,6 @@ public:
     int compile_cbi(LabJobCBI* job);
 
     /**
-     * compile a .lab file or a .mod file
-     * this method is called in a separate process to handle compilation
-     * this method reports to parent process
-     * the lab build context is a new pointer, you are taking ownership of it
-     */
-    static int compile_lab(
-        const std::string& exe_path,
-        const std::string& path,
-        std::string_view shmName,
-        std::string_view evtChildDone,
-        std::string_view evtParentAck
-    );
-
-    /**
      * builds the context from a build.lab or chemical.mod file present in project path
      */
     int build_context_from_build_lab();

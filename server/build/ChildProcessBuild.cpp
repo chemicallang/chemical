@@ -25,11 +25,6 @@
 #include <pthread.h>
 #endif
 
-int report_context_to_parent(BuildContextInformation& information, const std::string& shmName, const std::string& evtChild, const std::string& evtParent) {
-    auto jsonStr = labBuildContext_toJsonStr(information);
-    return child_create_and_write_shm(shmName, evtChild, evtParent, jsonStr);
-}
-
 #ifdef _WIN32
 int get_child_build_payload(const std::string_view& lspPath, const std::string_view& buildFilePath, std::string& outPayload) {
 
@@ -377,13 +372,36 @@ int get_child_build_payload(const std::string_view& lspPath, const std::string_v
 
 #endif
 
+#ifdef DEBUG
+// when this is defined, we do not use IPC, we straight up build the chemical.mod / build.lab
+// so this must not be done in release, its just to facilitate debugging
+#define DEBUG_CHILD_BUILD
+#endif
+
 int launch_child_build(BuildContextInformation& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
 
     std::string payload;
 
-    auto status = get_child_build_payload(lspPath, buildFilePath, payload);
-    if (status != 0) {
-        return status;
+    bool compile_here = false;
+
+#ifdef DEBUG_CHILD_BUILD
+    compile_here = true;
+#endif
+
+    if (compile_here) {
+        // we will compile the build.lab / chemical.mod right here and get it
+        // instead of using ipc (which would detach debugger)
+        auto compile_status = compile_lab(
+            std::string(lspPath), std::string(buildFilePath), payload, true
+        );
+        if (compile_status != 0) {
+            return compile_status;
+        }
+    } else {
+        auto status = get_child_build_payload(lspPath, buildFilePath, payload);
+        if (status != 0) {
+            return status;
+        }
     }
 
     // 7) Print the JSON for debugging:
@@ -397,5 +415,30 @@ int launch_child_build(BuildContextInformation& context, const std::string_view&
 
     const auto ok = labBuildContext_fromJson(context, payload);
     return ok ? 0 : 1;
+
+}
+
+int compile_lab(
+    const std::string& exe_path,
+    const std::string& lab_path,
+    bool format,
+    std::string_view shmName,
+    std::string_view evtChildDone,
+    std::string_view evtParentAck
+) {
+
+    std::string outPayload;
+
+    auto status = compile_lab(exe_path, lab_path, outPayload, format);
+    if (status != 0) {
+        return status;
+    }
+
+    return child_create_and_write_shm(
+        std::string(shmName),
+        std::string(evtChildDone),
+        std::string(evtParentAck),
+        outPayload
+    );
 
 }

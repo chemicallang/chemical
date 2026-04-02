@@ -53,5 +53,13 @@ public:
         return metaData.abs_path;
     }
 
+    /**
+     * it becomes reusable for another parse
+     */
+    void clear() {
+        unit.scope.body.nodes.clear();
+        allocator.clear();
+    }
+
 
 };

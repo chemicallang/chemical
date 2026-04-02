@@ -673,6 +673,9 @@ add_executable(ChemicalLsp core/targets/Main.cpp ${COMMON_SOURCES}
         compiler/cbi/bindings/lsp/LSPHooks.h
         compiler/cbi/bindings/lsp/LSPHooks.cpp
         server/model/SemanticTokenScopes.h
+        server/mod_file/Importer.cpp
+        server/diagnostics/DiagnosticUtils.h
+        server/diagnostics/DiagnosticUtils.cpp
 )
 
 # lsp framework

@@ -770,24 +770,63 @@ var default_struct = DefaultGeneric{ value : 0 }  // Uses int as default
 
 ### Lambda Functions
 
-#### Basic Lambda
+When writing a function type, You should use colon arrow '=>' before the return type
+
+`var lambda : (param : type) => return_type = null` ✅
+
+When writing the lambda as an expression, You must not write return_type after `=>`
+
+`var lamb = () => int { return 33 }` ❌
+
+`var lamb = () : int => 33` ✅
+
+`var lamb = () : int => { return 33 }` ✅
+
+Return type determined from the returned expression
+
+`var lamb = () => 33` ✅
+
+`var lamb = () => { return 33 }` ✅
+
+#### Lambda with return type
+
+Here's a lambda with a function type
+
 ```chemical
-var lambda = (param : type) => return_type {
+var lamb : () => int = () => 33;
+```
+
+#### Basic Lambda
+
+```chemical
+var lambda = (param : type) : return_type => {
+    return param * 2
+}
+```
+
+The `return_type` after the colon is optional, You can do this
+
+```chemical
+var lambda = (param : type) => {
     return param * 2
 }
 ```
 
 #### Capturing Lambda
+
+When using capturing lambda, a container type like `std::function` is required, The lambda decays into that container type
+Without the container type, capturing of variables is not possible.
+
 ```chemical
 var x = 10
-var capturing_lambda : std::function<(p : int) => int> = |x|(param : int) => int {
+var capturing_lambda : std::function<(p : int) => int> = |x|(param : int) : int => {
     return param + x
 }
 ```
 
 #### Lambda without Parameters
 ```chemical
-var no_params = () => int {
+var no_params = () : int => {
     return 42
 }
 ```

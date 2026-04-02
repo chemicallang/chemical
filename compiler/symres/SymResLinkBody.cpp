@@ -2930,18 +2930,20 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     if(!func_type) {
 
-#ifdef DEBUG
-        linker.info("deducing lambda function type by visiting body", (Value*) lambVal);
-#endif
-
         // linking params and their types
         auto result = link_full(lambVal, *this);
 
-        // finding return type
-        auto retType = find_return_type(scope.nodes);
+        if (lambVal->returnType == nullptr) {
+#ifdef DEBUG
+            linker.info("deducing lambda function type by visiting body", (Value*) lambVal);
+#endif
 
-        auto& typeBuilder = linker.comptime_scope.typeBuilder;
-        returnType = {retType ? retType : typeBuilder.getVoidType(), lambVal->get_location()};
+            // finding return type
+            auto retType = find_return_type(scope.nodes);
+
+            auto& typeBuilder = linker.comptime_scope.typeBuilder;
+            returnType = {retType ? retType : typeBuilder.getVoidType(), lambVal->get_location()};
+        }
 
         if(result) {
             data.signature_resolved = true;

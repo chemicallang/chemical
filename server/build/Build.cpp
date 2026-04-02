@@ -10,12 +10,11 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "integration/libtcc/LibTccInteg.h"
 
-int WorkspaceManager::compile_lab(
+int compile_lab(
     const std::string& exe_path,
     const std::string& lab_path,
-    std::string_view shmName,
-    std::string_view evtChildDone,
-    std::string_view evtParentAck
+    std::string& outPayload,
+    bool format
 ) {
 
     // using is64Bit as true
@@ -32,7 +31,7 @@ int WorkspaceManager::compile_lab(
     LocationManager loc_man;
 
     // creating the compiler (static function, cannot reuse global contaienr)
-    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
+    LabBuildCompilerOptions options(compiler_exe_path, "", build_dir, is64Bit);
     LabBuildCompiler compiler(loc_man, binder, &options);
 
     // creating context, this allows separation, we don't want to reuse
@@ -57,7 +56,7 @@ int WorkspaceManager::compile_lab(
     TCCDeletor auto_delete(state);
 
     // get the build method
-    auto build = (LabModule*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    auto build = (LabModule*(*)(LabBuildContext*, LabJob*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
         std::cerr << "[lsp] there's no build function in the file" << std::endl;
         return 1;
@@ -70,8 +69,11 @@ int WorkspaceManager::compile_lab(
     compiler.controller.clear();
     context.storage.clear();
 
+    LabJob final_job(LabJobType::Executable, chem::string("lsp_build_job"), OutputMode::Debug);
+    LabBuildContext::initialize_job(&final_job, &options);
+
     // call the root build.lab build's function
-    const auto rootMod = build(&context);
+    const auto rootMod = build(&context, &final_job);
 
     // reporting build context info to parent
     auto info = BuildContextInformation {
@@ -81,6 +83,8 @@ int WorkspaceManager::compile_lab(
         .binder = compiler.binder
     };
 
-    return report_context_to_parent(info, std::string(shmName), std::string(evtChildDone), std::string(evtParentAck));
+    outPayload = labBuildContext_toJsonStr(info, format);
+
+    return 0;
 
 }

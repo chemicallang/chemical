@@ -809,6 +809,9 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 fileData = newAnonFileData;
             } else {
                 fileData = anonFileData->get();
+                // clear the existing ast, along with nodes
+                fileData->allocator.clear();
+                fileData->unit.scope.body.nodes.clear();
             }
         }
 

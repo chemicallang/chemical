@@ -41,6 +41,10 @@ struct DestructibleZeroInitializable2 {
     func delete(&mut self) { }
 }
 
+func <T> gen_zeroed() : T {
+    return zeroed<T>();
+}
+
 func test_zeroed_value() {
     test("zero initializable works", () => {
         var z = zeroed<ZeroInitializable>()
@@ -51,6 +55,13 @@ func test_zeroed_value() {
     })
     test("zero initializable works when taking address", () => {
         return give_me_zi_ptr(&zeroed<ZeroInitializable>()) == 0
+    })
+    test("zero initializable works inside generic containers - 1", () => {
+        var z = gen_zeroed<ZeroInitializable>()
+        return z.a == 0 && z.b == 0
+    })
+    test("zero initializable works inside generic containers - 2", () => {
+        return give_me_zi(gen_zeroed<ZeroInitializable>()) == 0
     })
     test("constructable structs work with unsafe zeroed", () => {
         var x = zeroed:unsafe<ConstructibleZeroInitializable>()

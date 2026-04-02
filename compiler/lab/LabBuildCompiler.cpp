@@ -2500,13 +2500,13 @@ TCCState* LabBuildCompiler::built_lab_file(
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        const auto parseSuccess = lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true);
+        lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true);
         // wait for all files to parse
         auto fut = state.all_done_promise.get_future();
         fut.wait();
 
         // return failure if parse failed
-        if(!parseSuccess) {
+        if(state.get_has_errors()) {
             if(verbose) {
                 std::cout << "[lab] " << "parsing failure in lab file at '" << path_view << '\'' << std::endl;
             }
@@ -4404,35 +4404,36 @@ static int download_remote_import(
 
     auto mod = compiler->create_module_for_dependency(context, record, job);
 
-    if (mod) {
-        if(mod->scope_name != import->mod_scope) {
-            mod->scope_name.clear();
-            mod->scope_name.append(import->mod_scope);
-        }
-        // if(mod->name != import->mod_name) {
-        //     mod->name.clear();
-        //     mod->name.append(import->mod_name);
-        // }
-
-        // quickly set it to built_module, so new requesters happen on this remote import
-        import->built_module = mod;
-
-        // set to all the requesters who requested for this module
-        std::lock_guard<std::mutex> lock(job->mutex);
-        for (auto& req_info : import->requesters) {
-            if(req_info.requester) {
-                req_info.requester->add_dependency(mod, req_info.symbol_info);
-            } else {
-                job->add_dependency(mod, req_info.symbol_info);
-            }
-        }
-        return 0;
-    } else {
+    if (mod == nullptr) {
         std::stringstream ss;
         ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to initialize module after download from '" << import->from << "'\n";
         progress.add_error(ss.str());
         return 1;
     }
+
+    if(mod->scope_name != import->mod_scope) {
+        mod->scope_name.clear();
+        mod->scope_name.append(import->mod_scope);
+    }
+    // if(mod->name != import->mod_name) {
+    //     mod->name.clear();
+    //     mod->name.append(import->mod_name);
+    // }
+
+    // quickly set it to built_module, so new requesters happen on this remote import
+    import->built_module = mod;
+
+    // set to all the requesters who requested for this module
+    std::lock_guard<std::mutex> lock(job->mutex);
+    for (auto& req_info : import->requesters) {
+        if(req_info.requester) {
+            req_info.requester->add_dependency(mod, req_info.symbol_info);
+        } else {
+            job->add_dependency(mod, req_info.symbol_info);
+        }
+    }
+    return 0;
+
 }
 
 int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* job) {

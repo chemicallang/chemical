@@ -7,6 +7,8 @@
 #include "ast/base/BatchAllocator.h"
 #include <memory>
 
+#include "stream/FileInputSource.h"
+
 struct LexResult {
 
     /**
@@ -35,6 +37,19 @@ struct LexResult {
      * diagnostics when tokens were lexed / resolved
      */
     std::vector<Diag> diags;
+
+    /**
+     * this is only used if overridden source doesn't exit, meaning we read from the file
+     */
+    FileInputSource fileSource;
+
+    /**
+     * when lex source is overridden source
+     * IDE has edited changes, that haven't been saved to disk, we store the source
+     * in this variable, then we lex this source, it has to be valid, because tokens above contain
+     * pointers into this string, IT must not change once initialized
+     */
+    std::string overridden_source;
 
     /**
      * constructor

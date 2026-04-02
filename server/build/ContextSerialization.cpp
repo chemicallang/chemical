@@ -107,8 +107,7 @@ lsp::json::Object labBuildContext_toJson(BasicBuildContext& context) {
 }
 
 std::string labBuildContext_toJsonStr(BasicBuildContext& context, bool format) {
-    auto obj = labBuildContext_toJson(context);
-    return lsp::json::stringify(obj, format);
+    return lsp::json::stringify(labBuildContext_toJson(context), format);
 }
 
 //--------------------------------------
@@ -137,12 +136,12 @@ void indexes_fromJson(const lsp::json::Array& indexesArr, std::vector<CBIFunctio
         auto foundFnName = index.find("fn_name");
         auto foundKey = index.find("key");
         auto foundType = index.find("type");
-        if(foundFnName == index.end() || foundKey == index.end() || foundType == index.end()) {
+        if(foundFnName == nullptr || foundKey == nullptr || foundType == nullptr) {
             continue;
         }
-        auto& fnName = foundFnName->second;
-        auto& key = foundKey->second;
-        auto& type = foundType->second;
+        auto& fnName = *foundFnName;
+        auto& key = *foundKey;
+        auto& type = *foundType;
         if(!fnName.isString() || !key.isString() || !type.isInteger()) {
             continue;
         }
@@ -167,29 +166,29 @@ LabModule* labModule_fromJson(
         CompilerBinder& binder
 ) {
     auto jobType = obj.find("type");
-    if(jobType != obj.end() && jobType->second.isInteger()) {
+    if(jobType != nullptr && jobType->isInteger()) {
 
         // the type of job
-        auto labModType = static_cast<LabModuleType>(jobType->second.integer());
+        auto labModType = static_cast<LabModuleType>(jobType->integer());
 
         // the scope name of the module
         auto scope_name = obj.find("scope_name");
-        if(scope_name != obj.end() && scope_name->second.isString()) {
+        if(scope_name != nullptr && scope_name->isString()) {
 
-            auto scopeNameStr = scope_name->second.string();
+            auto scopeNameStr = scope_name->string();
 
             auto name = obj.find("name");
-            if(name != obj.end() && name->second.isString()) {
+            if(name != nullptr && name->isString()) {
 
                 // the name of the module
-                auto nameStr = name->second.string();
+                auto nameStr = name->string();
 
                 const auto module = new LabModule(labModType, chem::string(scopeNameStr), chem::string(nameStr));
 
                 // lets get paths
                 auto paths = obj.find("paths");
-                if(paths != obj.end() && paths->second.isArray()) {
-                    auto& pathsArr = paths->second.array();
+                if(paths != nullptr && paths->isArray()) {
+                    auto& pathsArr = paths->array();
                     module->paths.reserve(pathsArr.size());
                     for(auto& path : pathsArr) {
                         if(path.isString()) {
@@ -200,8 +199,8 @@ LabModule* labModule_fromJson(
 
                 // lets get interfaces
                 auto interfaces = obj.find("interfaces");
-                if(interfaces != obj.end() && interfaces->second.isArray()) {
-                    auto& ifsArr = interfaces->second.array();
+                if(interfaces != nullptr && interfaces->isArray()) {
+                    auto& ifsArr = interfaces->array();
                     module->compiler_interfaces.reserve(ifsArr.size());
                     for(auto& ifs : ifsArr) {
                         if(ifs.isString()) {
@@ -215,8 +214,8 @@ LabModule* labModule_fromJson(
 
                 // lets get dependencies
                 auto deps = obj.find("dependencies");
-                if(deps != obj.end() && deps->second.isArray()) {
-                    auto& depsArr = deps->second.array();
+                if(deps != nullptr && deps->isArray()) {
+                    auto& depsArr = deps->array();
                     depsRec.emplace_back(module, &depsArr);
                 }
 
@@ -232,16 +231,16 @@ LabModule* labModule_fromJson(
 
 LabJob* labJob_fromJson(lsp::json::Object& obj, ModuleStorage& storage) {
     auto jobType = obj.find("type");
-    if(jobType != obj.end() && jobType->second.isInteger()) {
+    if(jobType != nullptr && jobType->isInteger()) {
 
         // the type of job
-        auto labJobType = static_cast<LabJobType>(jobType->second.integer());
+        auto labJobType = static_cast<LabJobType>(jobType->integer());
 
         auto name = obj.find("name");
-        if(name != obj.end() && name->second.isString()) {
+        if(name != nullptr && name->isString()) {
 
             // the name of the job
-            auto nameStr = name->second.string();
+            auto nameStr = name->string();
 
             // creating a lab job
             const auto job = labJobType == LabJobType::CBI ?
@@ -250,8 +249,8 @@ LabJob* labJob_fromJson(lsp::json::Object& obj, ModuleStorage& storage) {
 
             // lets get dependencies
             auto deps = obj.find("dependencies");
-            if(deps != obj.end() && deps->second.isArray()) {
-                auto& depsArr = deps->second.array();
+            if(deps != nullptr && deps->isArray()) {
+                auto& depsArr = deps->array();
                 dependencies_fromJson(storage, depsArr, job->dependencies);
             }
 
@@ -259,8 +258,8 @@ LabJob* labJob_fromJson(lsp::json::Object& obj, ModuleStorage& storage) {
             if(labJobType == LabJobType::CBI) {
                 const auto cbiJob = (LabJobCBI*) job;
                 auto indexes = obj.find("indexes");
-                if(indexes != obj.end() && indexes->second.isArray()) {
-                    indexes_fromJson(indexes->second.array(), cbiJob->indexes);
+                if(indexes != nullptr && indexes->isArray()) {
+                    indexes_fromJson(indexes->array(), cbiJob->indexes);
                 }
             }
 
@@ -274,8 +273,8 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
     std::vector<LabModuleDependencyRecord> depsRec;
     // we get all the modules, and index their dependencies as records
     auto modsArr = obj.find("modules");
-    if(modsArr != obj.end() && modsArr->second.isArray()) {
-        auto& arr = modsArr->second.array();
+    if(modsArr != nullptr && modsArr->isArray()) {
+        auto& arr = modsArr->array();
         for(auto& mod : arr) {
             if(mod.isObject()) {
                 const auto modPtr = labModule_fromJson(mod.object(), depsRec, context.binder);
@@ -301,8 +300,8 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
     }
     // we get all the executables
     auto exeArr = obj.find("executables");
-    if(exeArr != obj.end() && exeArr->second.isArray()) {
-        auto& arr = exeArr->second.array();
+    if(exeArr != nullptr && exeArr->isArray()) {
+        auto& arr = exeArr->array();
         for(auto& exe : arr) {
             if(exe.isObject()) {
                 const auto exePtr = labJob_fromJson(exe.object(), context.storage);

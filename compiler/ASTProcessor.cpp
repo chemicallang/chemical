@@ -257,7 +257,7 @@ void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int file
     }
 }
 
-inline void declareAllSymbols(SymbolResolver& resolver, ChildrenMapNode* children) {
+inline static void declareAllSymbols(SymbolResolver& resolver, ChildrenMapNode* children) {
     // user didn't give any alias or symbols
     // declare everything
     for (auto& sym: children->symbols) {

@@ -586,6 +586,7 @@ bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data)
 
     data.sources_list.emplace_back();
     auto& source = data.sources_list.back();
+    source.location = loc_single(token);
 
     // get the source path
     auto sourcePath = parseString(allocator);

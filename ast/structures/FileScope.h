@@ -30,6 +30,15 @@ public:
     }
 
     /**
+     * move constructor
+     */
+    FileScope(
+        FileScope&& other
+    ) : ASTNode(ASTNodeKind::FileScope, (ASTNode*) other.parent(), other.encoded_location()), meta(other.meta), body(std::move(other.body)) {
+
+    }
+
+    /**
      * get the file id for this file scope
      */
     inline unsigned int getFileId() {

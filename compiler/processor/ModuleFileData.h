@@ -22,6 +22,8 @@ struct ModFileSource {
 
     IffyBase* if_cond = nullptr;
 
+    SourceLocation location = 0;
+
 };
 
 struct ModFileShipFile {
@@ -148,6 +150,23 @@ public:
 
     }
 
+    /**
+     * makes this object reusable for another parse
+     */
+    void clear() {
+        scope_name = "";
+        module_name = "";
+        scope.body.nodes.clear();
+        sources_list.clear();
+        link_libs.clear();
+        ship_files.clear();
+        include_dirs.clear();
+        c_files.clear();
+        compiler_interfaces.clear();
+        read_error.clear();
+        diagnostics.clear();
+    }
+
 };
 
 class ModuleFileDataUnit {
@@ -177,6 +196,14 @@ public:
         std::string abs_path
     ) : allocator(heapBathSize), metaData(fileId, nullptr, std::move(abs_path)), modFileData(metaData) {
 
+    }
+
+    /**
+     * make the object reusable for another parse
+     */
+    void clear() {
+        modFileData.clear();
+        allocator.clear();
     }
 
 };

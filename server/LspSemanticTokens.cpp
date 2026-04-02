@@ -22,22 +22,10 @@
 #include "compiler/symres/NodeSymbolDeclarer.h"
 #include <functional>
 #include <utility>
+#include "server/diagnostics/DiagnosticUtils.h"
 
 #define DEBUG_TOKENS false
 #define PRINT_TOKENS false
-
-void add_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, std::vector<Diag>& diags) {
-    for(auto& diag : diags) {
-        diagnostics.emplace_back(lsp::Diagnostic(
-                lsp::Range(
-                        lsp::Position(diag.range.start.line, diag.range.start.character),
-                        lsp::Position(diag.range.end.line, diag.range.end.character)
-                ),
-                diag.message,
-                static_cast<lsp::DiagnosticSeverity>(static_cast<int>(diag.severity.value()))
-        ));
-    }
-}
 
 void build_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, const std::vector<std::vector<Diag>*>& diags) {
     for(const auto diagsPtr : diags) {
@@ -766,8 +754,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 instContainer.removeInstantiationsFor(astUnit.scope.meta.file_id);
                 removeDeclInstantiations(instContainer, astUnit.scope.body);
                 // clear the previous unit
-                allocator.clear();
                 astUnit.scope.body.nodes.clear();
+                allocator.clear();
 
                 // parse the new tokens into the ast unit
                 // we need to parse, because the parseModule above won't parse any file
@@ -809,9 +797,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 fileData = newAnonFileData;
             } else {
                 fileData = anonFileData->get();
-                // clear the existing ast, along with nodes
-                fileData->allocator.clear();
-                fileData->unit.scope.body.nodes.clear();
+                // clear the existing file data, so it becomes resuable (crucial step)
+                fileData->clear();
             }
         }
 
@@ -854,78 +841,6 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
     // publish diagnostics will return ast import unit ref
     publish_diagnostics(abs_path, std::move(diagnostics));
-
-}
-
-void WorkspaceManager::process_dot_mod_file(const std::string& path) {
-
-#ifdef DEBUG
-    std::cout << "[lsp] processing .mod file '" << path << "'" << std::endl;
-#endif
-
-    // lex the .mod file
-    const auto lexUnit = get_lexed(path, true);
-
-    // put the token into token cache
-    tokenCache.put(path, lexUnit);
-
-    auto& all_tokens = lexUnit->tokens;
-
-    // copy the tokens
-    std::vector<Token> copied_tokens;
-    copied_tokens.reserve(all_tokens.size());
-
-    // index for each token is stored (index in all_tokens)
-    std::vector<size_t> originalIndexes;
-    originalIndexes.reserve(all_tokens.size());
-
-    // copy the tokens and record the original indexes
-    size_t i = 0;
-    for(auto& token : all_tokens) {
-        if(token.type != TokenType::SingleLineComment && token.type != TokenType::MultiLineComment) {
-            copied_tokens.emplace_back(token);
-            originalIndexes.emplace_back(i);
-        }
-        i++;
-    }
-
-    // construct a parser
-    const auto fileId = loc_man.encodeFile(path);
-    BasicParser basicParser(loc_man, fileId, copied_tokens.data());
-
-    // getting the module file data
-    ModuleFileDataUnit* unit;
-    auto unitPtr = modFileData.get(path);
-    if(unitPtr == nullptr) {
-        const auto modFileDataUnit = new ModuleFileDataUnit(10000, fileId, lexUnit->abs_path);
-        modFileData.put(path, std::shared_ptr<ModuleFileDataUnit>(modFileDataUnit));
-        unit = modFileDataUnit;
-    } else {
-        unitPtr->get()->modFileData.scope.meta.abs_path = lexUnit->abs_path;
-        unit = unitPtr->get();
-    }
-
-    // parse the .mod file
-    basicParser.parseModuleFile(unit->allocator, unit->modFileData);
-
-    // now restore the mapping of ast with tokens (using original indexes)
-    // the order in which this operation occurs is important because
-    // first the copied_tokens must be linked before we can link original tokens
-    // which happens after symbol resolution, so this must take place after symbol resolution
-    i = 0;
-    for(auto& token : copied_tokens) {
-        if(token.linked != nullptr) {
-            auto original_index = originalIndexes[i];
-            auto& originalToken = all_tokens[original_index];
-            originalToken.linked = token.linked;
-        }
-        i++;
-    }
-
-    // publish diagnotics of parsing
-    std::vector<lsp::Diagnostic> diagnostics;
-    add_diagnostics(diagnostics, unit->modFileData.diagnostics);
-    publish_diagnostics(path, diagnostics);
 
 }
 

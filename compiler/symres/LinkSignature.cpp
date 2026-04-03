@@ -996,10 +996,90 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     }
 }
 
+class TopLevelIfStmtConditionChecker : public RecursiveVisitor<TopLevelIfStmtConditionChecker> {
+public:
+
+    ASTDiagnoser& diagnoser;
+
+    ModuleScope* currModScope;
+
+    SourceLocation type_location;
+
+    bool has_error = false;
+
+    TopLevelIfStmtConditionChecker(
+        ASTDiagnoser& diagnoser,
+        ModuleScope* currModScope,
+        SourceLocation location
+    ) : diagnoser(diagnoser), currModScope(currModScope), type_location(location) {
+
+    }
+
+    template<typename T>
+    inline void visit(T* ptr) {
+        VisitByPtrTypeNoNullCheck(ptr);
+    }
+    inline void visit(ASTNode* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(BaseDefMember* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(Value* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(BaseType*& type_ref) {
+        VisitTypeNoNullCheck(type_ref);
+    }
+    inline void visit(TypeLoc& type) {
+        type_location = type.getLocation();
+        auto changed = const_cast<BaseType*>(type.getType());
+        VisitTypeNoNullCheck(changed);
+    }
+    inline void visit(LinkedType*& type_ref) {
+        visit((BaseType*&) type_ref);
+    }
+    inline void visit(Scope& scope) {
+        VisitScope(&scope);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* value) {
+        const auto parent = value->linked->get_mod_scope();
+        if (parent == currModScope) {
+            diagnoser.error("top level comptime if statement condition must not reference a symbol from current module", value);
+            has_error = true;
+        }
+    }
+
+    void VisitLinkedType(LinkedType* type) {
+        const auto parent = type->linked->get_mod_scope();
+        if (parent == currModScope) {
+            diagnoser.error("top level comptime if statement condition must not reference a symbol from current module", type_location);
+            has_error = true;
+        }
+    }
+
+};
+
+bool CheckTopLevelComptimeIfStmtCondition(
+    ASTDiagnoser& diagnoser,
+    Value* condition,
+    ModuleScope* currModScope
+) {
+    if (currModScope == nullptr) {
+        return false;
+    }
+    auto checker = TopLevelIfStmtConditionChecker(diagnoser, currModScope, condition->encoded_location());
+    checker.visit_it(condition);
+    return !checker.has_error;
+}
+
 void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
-    auto scope = node->get_evaluated_scope_by_linking(linker);
-    if(scope) {
-        VisitByPtrTypeNoNullCheck(scope);
+    if (node->computed_scope.has_value()) {
+        const auto scope = node->computed_scope.value();
+        if (scope) {
+            VisitByPtrTypeNoNullCheck(scope);
+        }
     }
 }
 
@@ -1381,7 +1461,7 @@ void LinkGlobalVariableValues(TopLevelLinkSignature& visitor, std::vector<ASTNod
                         visitor.visit(stmt->value);
                     }
                 }
-                if(!linker.has_errors && stmt->known_type()->kind() == BaseTypeKind::Void) {
+                if(!linker.has_errors() && stmt->known_type()->kind() == BaseTypeKind::Void) {
                     linker.error(node) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
                 }
                 continue;

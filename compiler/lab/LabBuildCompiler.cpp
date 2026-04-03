@@ -204,7 +204,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     }
 
     job->status = LabJobStatus::Launched;
-    int return_int;
+    int return_int = 0;
     switch(job->type) {
         case LabJobType::Executable:
             return_int = do_executable_job(job);
@@ -239,8 +239,16 @@ int LabBuildCompiler::do_job(LabJob* job) {
         ASTProcessor::print_benchmarks(std::cout, "bm:job", job->name.to_view(), &bm_res);
     }
 
+    // every job has its output mode
+    // however we access output mode from options mostly
     options->out_mode = previous_mode;
 
+    // very important
+    // annotation controller can collect top level nodes
+    // the use has eneded
+    controller.clear();
+
+    // finally return the status
     return return_int;
 }
 

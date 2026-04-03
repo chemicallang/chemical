@@ -564,15 +564,3 @@ public:
     ~WorkspaceManager();
 
 };
-
-extern void replace(
-        std::string &source,
-        unsigned int lineStart,
-        unsigned int charStart,
-        unsigned int lineEnd,
-        unsigned int charEnd,
-        const std::string &replacement
-);
-
-extern void replaceSafe(std::string &source, unsigned int lineStart, unsigned int charStart, unsigned int lineEnd,
-                        unsigned int charEnd, const std::string &replacement);

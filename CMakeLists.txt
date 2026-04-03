@@ -627,6 +627,7 @@ set(COMMON_SOURCES
         compiler/cbi/bindings/TransformerContextCBI.cpp
         ast/structures/BlockScope.h
         ast/utils/TargetAPI.h
+        compiler/symres/TopLevelIfStmtConditionChecker.h
 )
 
 # Chemical LSP Executable Target

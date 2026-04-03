@@ -25,7 +25,7 @@ void Diagnoser::add_diag(Diag diag) {
             std::cerr << rang::fg::red << "[Debug_Error] " << diag.message << " at " << diag.path_url.value() << ":"
                       << diag.range.start.representation() << rang::fg::reset << std::endl;
         }
-        has_errors = true;
+        error_count++;
     }
     diagnostics.emplace_back(diag);
 }

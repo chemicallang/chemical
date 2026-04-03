@@ -30,7 +30,7 @@ public:
      * this helps to know if errors were added in any process performed, allowing us to
      * avoid moving forward
      */
-    bool has_errors = false;
+    unsigned int error_count = 0;
 
     /**
      * diagnostics, containing errors and warning
@@ -48,11 +48,18 @@ public:
     void add_diag(Diag diag);
 
     /**
+     * check
+     */
+    inline bool has_errors() {
+        return error_count > 0;
+    }
+
+    /**
      * get diagnostic
      */
     Diag& empty_diagnostic(const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
         if(severity == DiagSeverity::Error) {
-            has_errors = true;
+            error_count++;
         }
         diagnostics.emplace_back(Range { start, end }, severity, file_path.str(), "");
         return diagnostics.back();
@@ -75,7 +82,7 @@ public:
      * resets the diagnostics
      */
     void reset_diagnostics() {
-        has_errors = false;
+        error_count = 0;
         diagnostics.clear();
     }
 

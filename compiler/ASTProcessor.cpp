@@ -146,7 +146,6 @@ bool ASTProcessor::import_module_files_direct(
 
 SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -169,7 +168,6 @@ void ASTProcessor::sym_res_before_link_sig_file(
         const SymbolRange& range
 ) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -186,7 +184,6 @@ void ASTProcessor::sym_res_before_link_sig_file(
 
 void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -208,7 +205,6 @@ void ASTProcessor::sym_res_after_link_sig_file(
         const SymbolRange& range
 ) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -225,7 +221,6 @@ void ASTProcessor::sym_res_after_link_sig_file(
 
 void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -242,7 +237,6 @@ void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const st
 
 void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
-    auto prev_has_errors = resolver->has_errors;
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
@@ -335,7 +329,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.file_id, file.abs_path);
 
         // report and clear diagnostics
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
@@ -352,7 +346,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         sym_res_before_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
@@ -369,7 +363,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
@@ -386,7 +380,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         sym_res_after_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
@@ -402,7 +396,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         auto& file = *file_ptr.result;
 
         sym_res_link_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
@@ -446,7 +440,7 @@ int ASTProcessor::sym_res_module_seq(LabModule* module) {
         sym_res_declare_and_link_file(file.unit.scope.body, file.file_id, file.abs_path);
 
         // report and clear diagnostics
-        if (resolver->has_errors && !options->ignore_errors) {
+        if (resolver->has_errors() && !options->ignore_errors) {
             std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
             return 1;
         }
@@ -552,7 +546,7 @@ TypeVerifyFileResult type_verify_file_task(
     // run verification
     type_verify(diagnoser, processor->file_allocator, file->unit.scope.body.nodes);
 
-    result.has_errors = diagnoser.has_errors;
+    result.has_errors = diagnoser.has_errors();
     result.diagnostics = std::move(diagnoser.diagnostics);
     return result;
 }
@@ -971,7 +965,7 @@ bool ASTProcessor::parse_chemical_file(
     }
 
     // do not continue, if error occurs during lexing
-    if(lexer.diagnoser.has_errors) {
+    if(lexer.diagnoser.has_errors()) {
         result.continue_processing = false;
         return false;
     }
@@ -1008,7 +1002,7 @@ bool ASTProcessor::parse_chemical_file(
     }
 
     // continue
-    if(parser.has_errors) {
+    if(parser.has_errors()) {
         result.continue_processing = false;
         return false;
     } else {
@@ -1064,7 +1058,7 @@ bool ASTProcessor::import_chemical_file(
     }
 
     // do not continue, if error occurs during lexing
-    if(lexer.diagnoser.has_errors) {
+    if(lexer.diagnoser.has_errors()) {
         result.continue_processing = false;
         return false;
     }
@@ -1101,7 +1095,7 @@ bool ASTProcessor::import_chemical_file(
     }
 
     // continue
-    if(parser.has_errors) {
+    if(parser.has_errors()) {
         result.continue_processing = false;
         return false;
     } else {
@@ -1177,7 +1171,7 @@ bool ASTProcessor::import_chemical_file_with_tokens(
     }
 
     // do not continue, if error occurs during lexing
-    if(lexer.diagnoser.has_errors) {
+    if(lexer.diagnoser.has_errors()) {
         result.continue_processing = false;
         return false;
     }
@@ -1229,7 +1223,7 @@ bool ASTProcessor::import_chemical_file_with_tokens(
     }
 
     // continue
-    if(parser.has_errors) {
+    if(parser.has_errors()) {
         result.continue_processing = false;
         return false;
     } else {
@@ -1274,7 +1268,7 @@ bool ASTProcessor::import_chemical_mod_file(
 
     data.diagnostics = std::move(parser.diagnostics);
 
-    return !parser.has_errors;
+    return !parser.has_errors();
 
 }
 

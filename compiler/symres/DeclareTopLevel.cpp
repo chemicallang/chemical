@@ -27,6 +27,8 @@
 #include "NodeSymbolDeclarer.h"
 #include "utils/PathUtils.h"
 #include "DeclareTopLevel.h"
+
+#include "TopLevelIfStmtConditionChecker.h"
 #include "compiler/cbi/model/CBIFunctionType.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
@@ -173,13 +175,19 @@ void TopLevelDeclSymDeclare::VisitGenericVariantDecl(GenericVariantDecl* node) {
 }
 
 void TopLevelDeclSymDeclare::VisitIfStmt(IfStatement* node) {
-    // TODO: condition should not reference a comptime variable/constant that is present in same module
-    //  because we declare in order, and we link the conditions in order too, any symbols that appear below
-    //  won't be considered
     auto& comptime_scope = linker.comptime_scope;
     ASTDiagnoser& diagnoser = linker;
+    const auto prev_err_count = linker.error_count;
     // we don't know if conditions of this if statement have linked or failed
     node->link_conditions(linker);
+    const auto new_err_count = linker.error_count;
+    if (new_err_count > prev_err_count) {
+        // link_conditions introduced some errors
+        return;
+    }
+    if (!CheckTopLevelComptimeIfStmtCondition(diagnoser, node->condition, node->get_mod_scope())) {
+        return;
+    }
     auto condition_evaluated = node->get_condition_const(comptime_scope);;
     if(!condition_evaluated.has_value()) {
         diagnoser.error("couldn't evaluate condition", node->condition);

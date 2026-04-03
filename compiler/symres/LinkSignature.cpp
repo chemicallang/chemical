@@ -8,6 +8,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/Export.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -1249,6 +1250,90 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
     }
 }
 
+static bool isValidExportParent(ASTNode* parent) {
+    switch(parent->kind()) {
+    case ASTNodeKind::FileScope:
+        return true;
+    case ASTNodeKind::IfStmt:
+        return isValidExportParent(parent->as_if_stmt_unsafe()->parent());
+    default:
+        return false;
+    }
+}
+
+void LinkExportStatement(SymbolResolver& linker, ExportStmt* node) {
+    if (node->parent() && !isValidExportParent(node->parent())) {
+        linker.error("Export statement can only be used as a top level statement", node);
+        return;
+    }
+
+    // resolution of chain
+    auto resolvedNode = linker.find(node->ids[0]);
+    if(resolvedNode == nullptr) {
+        linker.error(node->encoded_location()) << "unresolved symbol '" << node->ids[0] << "' in export statement";
+        return;
+    }
+    auto start = node->ids.data() + 1;
+    const auto end = node->ids.data() + node->ids.size();
+    while(start != end) {
+        resolvedNode = resolvedNode->child(*start);
+        if(resolvedNode == nullptr) {
+            linker.error(node->encoded_location()) << "unresolved symbol '" << *start << "' in parent";
+            return;
+        }
+        start++;
+    }
+
+    if (resolvedNode->get_mod_scope() == linker.current_mod_scope) {
+        linker.error("cannot export a symbol from the current module", node);
+        return;
+    }
+
+    switch (resolvedNode->kind()) {
+    case ASTNodeKind::NamespaceDecl:
+    case ASTNodeKind::StructDecl:
+    case ASTNodeKind::VariantDecl:
+    case ASTNodeKind::UnionDecl:
+    case ASTNodeKind::FunctionDecl:
+    case ASTNodeKind::GenericFuncDecl:
+    case ASTNodeKind::GenericStructDecl:
+    case ASTNodeKind::GenericUnionDecl:
+    case ASTNodeKind::GenericInterfaceDecl:
+    case ASTNodeKind::GenericVariantDecl:
+    case ASTNodeKind::TypealiasStmt:
+        break;
+    default:
+        linker.error("unsupported declaration being used with export statement", node);
+        return;
+    }
+
+    node->linked_node = resolvedNode;
+}
+
+void LinkExportStatement(SymbolResolver& resolver, std::vector<ASTNode*>& nodes) {
+    for (const auto node : nodes) {
+        switch(node->kind()) {
+        case ASTNodeKind::ExportStmt:
+            LinkExportStatement(resolver, node->as_export_stmt_unsafe());
+            continue;
+        case ASTNodeKind::IfStmt:{
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(stmt->computed_scope.has_value()) {
+                const auto scope = stmt->computed_scope.value();
+                if(scope) {
+                    LinkExportStatement(resolver, scope->nodes);
+                }
+            }
+            continue;
+        }
+        default:
+            continue;
+        }
+    }
+}
+
 void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
-    BuildIndexes(scope->nodes);
+    auto& nodes = scope->nodes;
+    BuildIndexes(nodes);
+    LinkExportStatement(resolver, nodes);
 }

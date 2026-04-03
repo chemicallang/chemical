@@ -369,6 +369,61 @@ void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
     process_any_file_on_open(abs_path);
 }
 
+static size_t positionToOffset(
+        const std::string& source,
+        unsigned int targetLine,
+        unsigned int targetChar
+) {
+    size_t offset = 0;
+    unsigned int line = 0;
+    unsigned int ch = 0;
+
+    while (offset < source.size()) {
+        if (line == targetLine && ch == targetChar) {
+            return offset;
+        }
+
+        char c = source[offset++];
+
+        if (c == '\n') {
+            line++;
+            ch = 0;
+        } else if (c == '\r') {
+            // handle CRLF properly (treat as single newline)
+            if (offset < source.size() && source[offset] == '\n') {
+                offset++;
+            }
+            line++;
+            ch = 0;
+        } else {
+            ch++;
+        }
+    }
+
+    // If position is at EOF (valid in LSP)
+    return offset;
+}
+
+static void applyChange(
+        std::string& source,
+        unsigned int lineStart,
+        unsigned int charStart,
+        unsigned int lineEnd,
+        unsigned int charEnd,
+        const std::string& replacement
+) {
+    size_t startOffset = positionToOffset(source, lineStart, charStart);
+    size_t endOffset   = positionToOffset(source, lineEnd, charEnd);
+
+    if (startOffset > endOffset) {
+        std::swap(startOffset, endOffset);
+    }
+
+    source.replace(startOffset, endOffset - startOffset, replacement);
+}
+
+constexpr bool debug_replace = false;
+
 void WorkspaceManager::onChangedContents(
         const std::string_view &non_canon_path,
         const std::vector<lsp::TextDocumentContentChangeEvent> &changes
@@ -396,10 +451,10 @@ void WorkspaceManager::onChangedContents(
             std::cerr << "Unknown error opening the file" << '\n';
             return;
         }
-        source = "";
-        while (!file.eof()) {
-            source += file.get();
-        }
+        source.assign(
+            std::istreambuf_iterator<char>(file),
+            std::istreambuf_iterator<char>()
+        );
         file.close();
     } else {
         source = overriddenSources[path];
@@ -431,13 +486,19 @@ void WorkspaceManager::onChangedContents(
 #endif
 
     // make changes to the source code
-    for (auto &changeVar: changes) {
+    for (auto& changeVar : changes) {
         auto changePtr = get_if<lsp::TextDocumentContentChangeEvent_Range_Text>(&changeVar);
-        if(changePtr) {
+        if (changePtr) {
             auto& change = *changePtr;
-            auto& start = change.range.start;
-            auto& end = change.range.end;
-            replaceSafe(source, start.line, start.character, end.line, end.character, change.text);
+
+            applyChange(
+                source,
+                change.range.start.line,
+                change.range.start.character,
+                change.range.end.line,
+                change.range.end.character,
+                change.text
+            );
         } else {
 #ifdef DEBUG
             throw std::runtime_error("unhandled whole document change");
@@ -445,7 +506,7 @@ void WorkspaceManager::onChangedContents(
         }
     }
 
-    if (verbose) {
+    if (debug_replace && verbose) {
         std::cout << "[lsp] overridden_source : " << source << std::endl;
     }
 
@@ -487,77 +548,4 @@ void WorkspaceManager::clearAllStoredContents() {
 
 WorkspaceManager::~WorkspaceManager() {
     GlobalInterpretScope::dispose_container(global_container);
-}
-
-void replace(
-        std::string &source,
-        unsigned int lineStart,
-        unsigned int charStart,
-        unsigned int lineEnd,
-        unsigned int charEnd,
-        const std::string &replacement
-) {
-
-    auto provider = SourceProvider(source.data(), source.size());
-
-    std::string nextSource;
-
-    if (DEBUG_REPLACE) std::cout << "reading:";
-
-    auto not_replaced = true;
-
-    while (!provider.eof()) {
-        if (not_replaced && (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart)) {
-
-            // forwarding to the end without adding character
-            if (DEBUG_REPLACE) std::cout << "[fwd]:[";
-            while (!provider.eof() &&
-                   !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
-                if (DEBUG_REPLACE) {
-                    std::cout << provider.readCharacter();
-                } else {
-                    provider.readCharacter();
-                }
-            }
-            if (DEBUG_REPLACE) std::cout << ']';
-
-            // adding replacement
-            nextSource += replacement;
-            if (DEBUG_REPLACE) std::cout << "[rep]:[" << replacement << ']';
-
-            // replaced
-            not_replaced = false;
-
-        } else {
-            auto c = provider.readCharacter();
-            nextSource += c;
-            if (DEBUG_REPLACE) std::cout << c;
-        }
-    }
-
-    if (DEBUG_REPLACE) std::cout << '\n';
-
-    source = nextSource;
-
-}
-
-void replaceSafe(std::string &source, unsigned int lineStart, unsigned int charStart, unsigned int lineEnd,
-                 unsigned int charEnd, const std::string &replacement) {
-
-    if (lineStart == lineEnd) {
-        if (charStart == charEnd) {
-            // range is closed, do nothing
-        } else if (charStart > charEnd) {
-            // if start is larger than end, call replace accurately (swapping start with end)
-            replace(source, lineEnd, charEnd, lineStart, charStart, replacement);
-            return;
-        }
-    } else if (lineStart > lineEnd) {
-        // if start is larger than end, call replace accurately (swapping start with end)
-        replace(source, lineEnd, charEnd, lineStart, charStart, replacement);
-        return;
-    }
-
-    replace(source, lineStart, charStart, lineEnd, charEnd, replacement);
-
 }

@@ -726,7 +726,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
     if(mod) {
 
         if (verbose) {
-            std::cout << "[lsp] process_file; found module for '" << abs_path << "', parsing...";
+            std::cout << "[lsp] process_file; found module for '" << abs_path << "', parsing..." << std::endl;
         }
 
         // trigger parse of module with dependencies
@@ -774,9 +774,6 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // so any created types during linking remain on its allocator
         resolver.mod_allocator = &modData->allocator;
         resolver.setASTAllocator(modData->allocator);
-
-        // declaring symbols of direct dependencies
-        declareDependencies(resolver, modData);
 
         // only symbol resolve if required (one of deps / current module file changed)
         if(sym_res_curr_mod) {
@@ -831,11 +828,17 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 i++;
             }
 
+            // declaring symbols of direct dependencies
+            declareDependencies(resolver, modData);
+
         } else {
 
             if (verbose) {
-                std::cout << "[lsp] process_file: declaring symbols of current file" << std::endl;
+                std::cout << "[lsp] process_file: declaring symbols of current module except current file" << std::endl;
             }
+
+            // declaring symbols of direct dependencies
+            declareDependencies(resolver, modData);
 
             // declaring symbols of current module, before linking current file
             SymbolResolverDeclarer declarer(resolver);
@@ -859,6 +862,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             auto& cachedUnit = *found->second;
             auto& allocator = cachedUnit.allocator;
             auto& astUnit = cachedUnit.unit;
+
+            if (verbose) {
+                std::cout << "[lsp] process_file: found cached unit for file '" << abs_path_view << "', depends_on_dirty : " << depends_on_dirty << ", current_file_changed : " << current_file_changed << std::endl;
+            }
 
             // if the current file didn't change
             // we don't need to even reparse it
@@ -893,6 +900,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
             }
 
+            if (verbose) {
+                std::cout << "[lsp] process_file: linking current file '" << abs_path << "'" << std::endl;
+            }
+
             // declare and link file
             resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.meta.file_id, abs_path);
 
@@ -902,6 +913,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 #ifdef DEBUG
             throw std::runtime_error("prepared file units, however current file not present");
 #endif
+        } else {
+
+            std::cout << "[lsp] process_file: couldn't find cached unit for current file '" << abs_path << "'" << std::endl;
+
         }
 
     } else {

@@ -10,7 +10,10 @@
 #include "stream/FileInputSource.h"
 
 struct LexResult {
-
+    /**
+     * must be assigned
+     */
+    unsigned int fileId;
     /**
      * if any error occurred during lexing, this will be made true
      */
@@ -55,7 +58,7 @@ struct LexResult {
      * constructor
      * by default 5000 bytes = 5kb is allocated for tokens of each file in batches
      */
-    LexResult() : allocator(0), fileAllocator(0) {
+    LexResult(unsigned int fileId) : fileId(fileId), allocator(0), fileAllocator(0) {
 
     }
 

@@ -273,12 +273,14 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
     auto cachedTokens = tokenCache.get(abs_path);
     if(cachedTokens != nullptr) {
         lexResult = cachedTokens->get();
+
+        CompletionItemAnalyzer analyzer(loc_man, position);
+        if(unit) {
+            analyzer.analyze(mod, modData, lexResult, unit);
+        }
+        return std::move(analyzer.list);
     }
-    CompletionItemAnalyzer analyzer(loc_man, position);
-    if(unit) {
-        analyzer.analyze(mod, modData, lexResult, unit);
-    }
-    return std::move(analyzer.list);
+    return {};
 }
 
 //td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {

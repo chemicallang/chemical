@@ -96,9 +96,11 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
 }
 
 Value* Parser::getErroredValue(ASTAllocator& allocator) {
-    return new (allocator.allocate<NullValue>()) NullValue(
-        typeBuilder.getNullPtrType(), loc_single(token)
-    );
+    return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc_single(token));
+}
+
+TypeLoc Parser::getErroredType(ASTAllocator& allocator) {
+    return TypeLoc { typeBuilder.getNullPtrType(), loc_single(token) };
 }
 
 chem::string_view BasicParser::get_file_path() {

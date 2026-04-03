@@ -470,6 +470,11 @@ public:
     Value* getErroredValue(ASTAllocator& allocator);
 
     /**
+     * this gets the errored type
+     */
+    TypeLoc getErroredType(ASTAllocator& allocator);
+
+    /**
      * parses a variable otherwise returns nullptr
      */
     VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);

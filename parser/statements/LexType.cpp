@@ -322,7 +322,8 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
         return firstType;
     }
 
-    auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd);
+    const auto secondTypeSafe = secondType ? secondType : getErroredType(allocator);
+    auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondTypeSafe, isLogicalAnd);
     auto currentExpr = rootExpr;
 
     while(true) {
@@ -344,11 +345,13 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
 
         // A | B & C | D = (A | (B & C)) | D
 
+        const auto nextTypeSafe = nextType ? nextType : getErroredType(allocator);
+
         if(isNextLogicalAnd && !currentExpr->isLogicalAnd) {
-            const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd);
+            const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextTypeSafe, isNextLogicalAnd);
             currentExpr->secondType = newExpr;
         } else {
-            currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, isNextLogicalAnd);
+            currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextTypeSafe, isNextLogicalAnd);
             rootExpr = currentExpr;
         }
 
@@ -407,6 +410,7 @@ BaseType* parseSingleGenType(Parser& parser, ASTAllocator& allocator, SourceLoca
     auto child_type = parser.parseTypeLoc(allocator);
     if (!child_type) {
         parser.error("expected a child type as generic argument type");
+        return parser.getErroredType(allocator);
     }
     if (!parser.consumeGenericClose()) {
         parser.unexpected_error("expected '>' after the generic argument type");
@@ -436,7 +440,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { type, loc_single(self_tok) };
             } else {
                 error("couldn't find the parent declaration for 'Self' Type");
-                return {nullptr, ZERO_LOC};
+                return getErroredType(allocator);
             }
         }
         case TokenType::StructKw:
@@ -452,7 +456,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             auto expr = parseExpression(allocator);
             if(!consumeToken(TokenType::RBracket)) {
                 unexpected_error("expected ']' for array type");
-                return {nullptr, ZERO_LOC};
+                return getErroredType(allocator);
             }
             auto childType = parseTypeLoc(allocator);
             return {new (allocator.allocate<ArrayType>()) ArrayType(childType, expr), loc_single(&t)};
@@ -469,7 +473,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { new(allocator.allocate<PointerType>()) PointerType(type, is_mutable), loc_single(ptrToken) };
             } else {
                 error("expected a type after the *");
-                return {nullptr, ZERO_LOC};
+                return getErroredType(allocator);
             }
         }
         case TokenType::AmpersandSym: {
@@ -484,7 +488,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable), loc_single(refToken) };
             } else {
                 error("expected a type after the &");
-                return {nullptr, ZERO_LOC};;
+                return getErroredType(allocator);;
             }
         }
         case TokenType::DynKw: {
@@ -496,7 +500,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { make_dynamic_type(allocator, type, loc), loc };
             } else {
                 error("expected a type after the qualifier");
-                return {nullptr, ZERO_LOC};;
+                return getErroredType(allocator);
             }
         }
         case TokenType::MutKw: {
@@ -508,7 +512,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { type, loc };
             } else {
                 error("expected a type after the qualifier");
-                return {nullptr, ZERO_LOC};
+                return getErroredType(allocator);
             }
         }
         case TokenType::ModSym:{
@@ -519,7 +523,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 token++;
             } else {
                 error("expected a identifier / type after ");
-                return {nullptr, loc};
+                return getErroredType(allocator);
             }
             constexpr auto hashFn = std::hash<chem::string_view>();
             switch(hashFn(t.value)) {
@@ -564,7 +568,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 }
                 default:
                     error("unknown magic type given");
-                    return {nullptr, loc};
+                    return getErroredType(allocator);
             }
         }
         default:

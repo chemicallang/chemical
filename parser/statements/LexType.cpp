@@ -168,7 +168,7 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
                 chain->values.emplace_back(id);
             } else {
                 error() << "expected an identifier after '" << type->value << "::' for a type";
-                return nullptr;
+                return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
             }
         } else {
             return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
@@ -459,6 +459,10 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return getErroredType(allocator);
             }
             auto childType = parseTypeLoc(allocator);
+            if (childType == nullptr) {
+                error("expected a child type for the array type, after the ']'");
+                childType = getErroredType(allocator);
+            }
             return {new (allocator.allocate<ArrayType>()) ArrayType(childType, expr), loc_single(&t)};
         }
         case TokenType::MultiplySym: {

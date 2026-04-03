@@ -527,18 +527,19 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
             return;
         }
         const auto maybe_type = node->value->getType();
-        if (maybe_type != nullptr) {
+        if (maybe_type != nullptr && maybe_type->isPrimitive(false)) {
             node->type = {maybe_type, node->value->encoded_location()};
         } else {
             return;
         }
-    }
-    if(node->is_comptime() && !linker.comptime_context) {
-        linker.comptime_context = true;
-        visit(node->type);
-        linker.comptime_context = false;
     } else {
-        visit(node->type);
+        if(node->is_comptime() && !linker.comptime_context) {
+            linker.comptime_context = true;
+            visit(node->type);
+            linker.comptime_context = false;
+        } else {
+            visit(node->type);
+        }
     }
     // array type size determination from array value
     const auto value = node->value;

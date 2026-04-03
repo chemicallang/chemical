@@ -34,6 +34,7 @@
 #include "ast/types/IfType.h"
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
+#include "ast/statements/UnresolvedDecl.h"
 #include "compiler/SymbolResolver.h"
 
 void sym_res_before_signature(SymbolResolver& resolver, Scope* scope) {
@@ -211,6 +212,11 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
     visit(value->parent_val);
     const auto last_linked = value->parent_val->get_chain_last_linked();
+    if (last_linked == nullptr) {
+        value->setType(linker.get_unresolved_decl()->known_type());
+        linker.error(value) << "call to unsupported parent value at top level";
+        return;
+    }
     switch(last_linked->kind()) {
         case ASTNodeKind::FunctionDecl: {
             const auto decl = last_linked->as_function_unsafe();
@@ -228,6 +234,7 @@ void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
             return;
         }
         default: {
+            value->setType(linker.get_unresolved_decl()->known_type());
             linker.error(value) << "call to unsupported parent value at top level";
             return;
         }

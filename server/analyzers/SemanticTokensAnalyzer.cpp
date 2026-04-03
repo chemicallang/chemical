@@ -208,6 +208,22 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::Number:
                 put(token, TokenType(Number));
                 break;
+        case TokenType::BacktickString:
+                put(token, TokenType(String));
+                break;
+        case TokenType::StringExprStart:
+                // ${
+                put(token, TokenType(Operator));
+                break;
+        case TokenType::StringExprEnd:
+                if (token->value.size() <= 1) {
+                    put(token, TokenType(Operator));
+                } else {
+                    // first we put '}' (rbrace), then rest is a string
+                    put(token->position.line, token->position.character, 1, TokenType(Operator), 0);
+                    put(token->position.line, token->position.character + 1, token->value.size() - 1, TokenType(String), 0);
+                }
+                break;
             default:
 #ifdef DEBUG
                 throw std::runtime_error("unhandled token type");

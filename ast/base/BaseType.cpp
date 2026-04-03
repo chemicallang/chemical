@@ -197,6 +197,7 @@ BaseType* BaseType::canonicalize_enum() {
 
 inline bool isLinkedTypePrimitive(LinkedType* type, bool isAnyPrimitive) {
     const auto linked = type->linked;
+    if (linked == nullptr) return false;
     switch(linked->kind()) {
         case ASTNodeKind::TypealiasStmt:
             return linked->as_typealias_unsafe()->actual_type->isPrimitive(isAnyPrimitive);

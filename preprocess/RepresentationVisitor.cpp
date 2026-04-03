@@ -980,7 +980,12 @@ void RepresentationVisitor::VisitFunctionType(FunctionType *type) {
         i++;
     }
     write(") => ");
-    visit(type->returnType);
+    if (type->returnType) {
+        visit(type->returnType);
+    } else {
+        // lambda functions can have void return types
+        write("void");
+    }
 }
 
 void RepresentationVisitor::VisitGenericType(GenericType *type) {

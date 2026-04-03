@@ -566,7 +566,10 @@ public:
         for(auto& ty : type->params) {
             visit_it(ty);
         }
-        visit_it(type->returnType);
+        if (type->returnType) {
+            // lambda functions can have void return types
+            visit_it(type->returnType);
+        }
     }
 
     void VisitCapturingFunctionType(CapturingFunctionType* type) {

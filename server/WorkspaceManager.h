@@ -239,6 +239,16 @@ public:
     bool is64Bit = sizeof(void*) == 8;
 
     /**
+     * in verbose mode, there's logging
+     */
+#ifdef DEBUG
+    bool verbose = true;
+#else
+    bool verbose = false;
+#endif
+
+
+    /**
      * constructor
      */
     explicit WorkspaceManager(std::string lsp_exe_path, lsp::MessageHandler& handler);

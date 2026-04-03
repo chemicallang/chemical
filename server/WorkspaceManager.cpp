@@ -169,7 +169,8 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
 }
 int WorkspaceManager::build_context_from_build_lab() {
     // doing asynchronous tasks during initialization
-    std::future<void> futureObj = std::async(std::launch::async, [this] {
+    // Use the pool instead of std::async to avoid blocking on local future destruction
+    pool.push([this](int) {
         auto mod_file = get_mod_file_path();
         if(std::filesystem::exists(mod_file)) {
             std::cout << "[lsp] found mod file at '" << mod_file << "', triggering build" << std::endl;
@@ -206,9 +207,6 @@ void WorkspaceManager::initialize(const lsp::InitializeParams &params) {
     } else {
         // couldn't get project path, user must have opened a file
     }
-    std::async(std::launch::async, [this] {
-        register_watched_files_capability();
-    });
 }
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {

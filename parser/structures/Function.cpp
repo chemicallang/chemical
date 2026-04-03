@@ -51,9 +51,9 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     }
 }
 
-DestructStmt* fix_destruct(DestructStmt* stmt, ASTAllocator& allocator) {
+DestructStmt* fix_destruct(Parser* parser, ASTAllocator& allocator, DestructStmt* stmt) {
     if(!stmt->identifier) {
-        stmt->identifier = new(allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        stmt->identifier = parser->getErroredValue(allocator);
     }
     return stmt;
 }
@@ -72,7 +72,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
             }
             if(!consumeToken(TokenType::RBracket)) {
                 unexpected_error("expected a ']' after the access chain value");
-                return fix_destruct(stmt, allocator);
+                return fix_destruct(this, allocator, stmt);
             }
         }
         auto value = parseAccessChainOrValue(allocator);
@@ -80,7 +80,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
             stmt->identifier = value;
         } else {
             unexpected_error("expected a pointer value for the destruct statement");
-            return fix_destruct(stmt, allocator);
+            return fix_destruct(this, allocator, stmt);
         }
         return stmt;
     } else {

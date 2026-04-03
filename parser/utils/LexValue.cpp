@@ -582,7 +582,9 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         auto pointer_val = parseExpression(allocator);
         if(!pointer_val) {
             unexpected_error("expected a pointer value for placement new");
-            return nullptr;
+            new_value->pointer = getErroredValue(allocator);
+            new_value->value = getErroredValue(allocator);
+            return new_value;
         }
         new_value->pointer = pointer_val;
         if(token->type != TokenType::RParen) {
@@ -591,6 +593,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         token++;
         auto value = parseExpression(allocator, true);
         if(!value) {
+            new_value->value = getErroredValue(allocator);
             unexpected_error("expected a value for placement new expression");
             return nullptr;
         }
@@ -634,8 +637,9 @@ ASTNode* Parser::parsePlacementNewNode(ASTAllocator& allocator) {
         token++;
         auto pointer_val = parseExpression(allocator);
         if(!pointer_val) {
+            new_value->value.pointer = getErroredValue(allocator);
             unexpected_error("expected a pointer value for placement new");
-            return nullptr;
+            return new_value;
         }
         new_value->value.pointer = pointer_val;
         if(token->type != TokenType::RParen) {
@@ -644,8 +648,9 @@ ASTNode* Parser::parsePlacementNewNode(ASTAllocator& allocator) {
         token++;
         auto value = parseExpression(allocator, true);
         if(!value) {
+            new_value->value.value = getErroredValue(allocator);
             unexpected_error("expected a value for placement new expression");
-            return nullptr;
+            return new_value;
         }
         new_value->value.value = value;
         return new_value;
@@ -895,7 +900,9 @@ Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
     if(expr) {
         value->value = expr;
     } else {
+        value->value = getErroredValue(allocator);
         unexpected_error("expected a expression for dynamic value");
+        return value;
     }
 
     if(token->type == TokenType::RParen) {

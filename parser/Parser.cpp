@@ -10,6 +10,8 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/base/AnnotableNode.h"
+#include "ast/base/TypeBuilder.h"
+#include "ast/values/NullValue.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 
 Parser::Parser(
@@ -91,6 +93,12 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
 
 void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleStatements(mod_allocator, nodes);
+}
+
+Value* Parser::getErroredValue(ASTAllocator& allocator) {
+    return new (allocator.allocate<NullValue>()) NullValue(
+        typeBuilder.getNullPtrType(), loc_single(token)
+    );
 }
 
 chem::string_view BasicParser::get_file_path() {

@@ -360,6 +360,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
             auto expr = parseExpression(allocator);
             if (!expr) {
                 error("expected an expression in indexing operators for access chain");
+                indexOp->idx = getErroredValue(allocator);
                 return nullptr;
             }
             indexOp->idx = expr;

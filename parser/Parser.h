@@ -464,6 +464,12 @@ public:
     }
 
     /**
+     * when a value is required, but user gave nothing, we link it with this value
+     * this prevents nullptr errors
+     */
+    Value* getErroredValue(ASTAllocator& allocator);
+
+    /**
      * parses a variable otherwise returns nullptr
      */
     VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);

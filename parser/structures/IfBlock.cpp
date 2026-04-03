@@ -106,7 +106,7 @@ void Parser::parseIfStatement(
         statement->ifBody = std::move(exprBlockValue.second);
     } else {
         if(!statement->condition) {
-            statement->condition = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+            statement->condition = getErroredValue(allocator);
         }
         return;
     }

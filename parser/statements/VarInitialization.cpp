@@ -67,6 +67,7 @@ void Parser::parsePatternMatchExprAfterId(
     if(expr) {
         patternMatch->expression = expr;
     } else {
+        patternMatch->expression = getErroredValue(allocator);
         error("expected an expression from which to destructure");
     }
 

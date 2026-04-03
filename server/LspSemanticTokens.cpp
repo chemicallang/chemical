@@ -89,7 +89,7 @@ bool parse_file(
 
     auto abs_path_str = std::string(unit.scope.meta.abs_path);
 
-    LexResult lexResult;
+    LexResult lexResult(unit.scope.getFileId());
     if(!manager.get_lexed(&lexResult, abs_path_str, false)) {
         return false;
     }
@@ -283,6 +283,46 @@ static void declareChildren(SymbolResolver& resolver, DependencySymbolInfo* info
     }
 }
 
+void declareSymbolsOf(SymbolResolver& resolver, ModuleData* modData, DependencySymbolInfo* depInfo) {
+    if(modData->getModule()->children != nullptr) {
+        declareChildren(resolver, depInfo, modData->getModule()->children);
+        return;
+    }
+
+    // creating new children map node
+    const auto children = resolver.ast_allocator->allocate<ChildrenMapNode>();
+    new (children) ChildrenMapNode(&modData->modScope, modData->modScope.encoded_location());
+
+    // traversing the dependencies to store children into the map
+    MapSymbolDeclarer declarer(children->symbols);
+    for(const auto cachedUnit : modData->fileUnits) {
+        for(const auto node : cachedUnit->unit.scope.body.nodes) {
+            declare_node(declarer, node, AccessSpecifier::Public);
+        }
+    }
+
+    // storing the children for caching
+    modData->getModule()->children = children;
+
+    // declare children
+    declareChildren(resolver, depInfo, children);
+}
+
+void declareDependencies(SymbolResolver& resolver, ModuleData* modData) {
+    // declaring symbols of direct dependencies
+    unsigned int depIndex = 0;
+    for (const auto childModData : modData->dependencies) {
+
+        auto& modDeps = modData->getModule()->dependencies;
+        const auto depInfo = depIndex < modDeps.size() ? modDeps[depIndex].info : nullptr;
+
+        declareSymbolsOf(resolver, childModData, depInfo);
+
+        depIndex++;
+
+    }
+}
+
 void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, ModuleData* modData) {
     const auto mod_index = resolver.module_scope_start();
 
@@ -304,39 +344,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     resolver.mod_allocator = resolver_allocator;
 
     // declaring symbols of direct dependencies
-    unsigned int depIndex = 0;
-    for (const auto modData : modData->dependencies) {
-
-        auto& modDeps = modData->getModule()->dependencies;
-        const auto depInfo = depIndex < modDeps.size() ? modDeps[depIndex].info : nullptr;
-
-        if(modData->getModule()->children != nullptr) {
-            declareChildren(resolver, depInfo, modData->getModule()->children);
-            depIndex++;
-            continue;
-        }
-
-        // creating new children map node
-        const auto children = resolver.ast_allocator->allocate<ChildrenMapNode>();
-        new (children) ChildrenMapNode(&modData->modScope, modData->modScope.encoded_location());
-
-        // traversing the dependencies to store children into the map
-        MapSymbolDeclarer declarer(children->symbols);
-        for(const auto cachedUnit : modData->fileUnits) {
-            for(const auto node : cachedUnit->unit.scope.body.nodes) {
-                declare_node(declarer, node, AccessSpecifier::Public);
-            }
-        }
-
-        // storing the children for caching
-        modData->getModule()->children = children;
-
-        // declare children
-        declareChildren(resolver, depInfo, children);
-
-        depIndex++;
-
-    }
+    declareDependencies(resolver, modData);
 
     // private symbol ranges are stored in this vector
     std::vector<SymbolRange> priv_sym_ranges;
@@ -750,15 +758,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         resolver.setASTAllocator(modData->allocator);
 
         // declaring symbols of direct dependencies
-        SymbolResolverDeclarer declarer(resolver);
-        for (const auto depData: modData->dependencies) {
-            for (const auto cachedUnit: depData->fileUnits) {
-                auto& unit = cachedUnit->unit;
-                for (const auto node: unit.scope.body.nodes) {
-                    declare_node(declarer, node, AccessSpecifier::Public);
-                }
-            }
-        }
+        declareDependencies(resolver, modData);
 
         // only symbol resolve if required (one of deps / current module file changed)
         if(sym_res_curr_mod) {
@@ -774,7 +774,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if (abs_path_view.view() != unit.scope.meta.abs_path) {
+                if (last_file->fileId != unit.scope.getFileId()) {
                     priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.meta.file_id, unit.scope.meta.abs_path);
                 }
                 i++;
@@ -783,12 +783,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for(const auto cachedUnit : modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                auto path_str = unit.scope.meta.abs_path;
-
-                auto& priv_sym_range = priv_sym_ranges[i];
-
-                resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
-
+                if (last_file->fileId != unit.scope.getFileId()) {
+                    auto& priv_sym_range = priv_sym_ranges[i];
+                    resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+                }
                 i++;
             }
 
@@ -796,30 +794,28 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if (abs_path_view.view() != unit.scope.meta.abs_path) {
+                if (last_file->fileId != unit.scope.getFileId()) {
                     resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i]);
                 }
             }
 
             i = 0;
             for(const auto cachedUnit : modData->fileUnits) {
-
                 auto& unit = cachedUnit->unit;
-                auto path_str = unit.scope.meta.abs_path;
-
-                auto& priv_sym_range = priv_sym_ranges[i];
-
-                resolver.after_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
-
+                if (last_file->fileId != unit.scope.getFileId()) {
+                    auto& priv_sym_range = priv_sym_ranges[i];
+                    resolver.after_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+                }
                 i++;
             }
 
         } else {
 
             // declaring symbols of current module, before linking current file
+            SymbolResolverDeclarer declarer(resolver);
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                if(abs_path_view.view() != unit.scope.meta.abs_path) {
+                if (last_file->fileId != unit.scope.getFileId()) {
                     for (const auto node: unit.scope.body.nodes) {
                         declare_node(declarer, node, AccessSpecifier::Internal);
                     }
@@ -885,7 +881,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 #endif
 
         // encode the file path to get file id
-        const auto fileId = loc_man.encodeFile(abs_path);
+        const auto fileId = last_file->fileId;
 
         // remove any stored generic instantiations for the given file
         instContainer.removeInstantiationsFor(fileId);

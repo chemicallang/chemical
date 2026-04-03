@@ -15,7 +15,8 @@
 #include <mutex>
 
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path, bool keep_comments) {
-    auto result = std::make_shared<LexResult>();
+    auto fileId = loc_man.encodeFile(path);
+    auto result = std::make_shared<LexResult>(fileId);
     if(!get_lexed(result.get(), path, keep_comments)) {
         return nullptr;
     }

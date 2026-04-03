@@ -629,15 +629,18 @@ void removeDeclInstantiations(InstantiationsContainer& container, Scope& scope) 
 
 void WorkspaceManager::process_file(const std::string& abs_path, bool current_file_changed, bool depends_on_dirty) {
 
-#ifdef DEBUG
-    std::cout << "[lsp] processing file '" << abs_path << "'" << std::endl;
-#endif
+    if (verbose) {
+        std::cout << "[lsp] processing file '" << abs_path << "'" << std::endl;
+    }
 
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);
     if(!last_file) {
         // couldn't get tokens for the file
         // maybe a read error or something similar
+        if (verbose) {
+            std::cout << "[lsp] process_file: couldn't get tokens, probably read error '" << abs_path << "'" << std::endl;
+        }
         return;
     }
 
@@ -656,6 +659,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // return early, as we don't want to proceed with parsing
         // must store the tokens in token cache (otherwise semantic tokens won't work)
         tokenCache.put(abs_path, last_file);
+
+        if (verbose) {
+            std::cout << "[lsp] process_file: skipping parsing, errors occurred during lexing '" << abs_path_view << "'" << std::endl;
+        }
         return;
 
     }
@@ -718,6 +725,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
     if(mod) {
 
+        if (verbose) {
+            std::cout << "[lsp] process_file; found module for '" << abs_path << "', parsing...";
+        }
+
         // trigger parse of module with dependencies
         // and wait for everything to be parsed
         parseModuleWithDepsWait(*this, mod, modData);
@@ -729,6 +740,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // we ignore the flag returned from this
         // because that considers all files (we want to ignore current file)
         sym_res_mod_deps_seq(0, *this, resolver, modData, is_direct_deps_sym_res);
+
+        if (verbose) {
+            std::cout << "[lsp] process_file: is_direct_deps_sym_res " << is_direct_deps_sym_res << std::endl;
+        }
 
         // should symbol resolve the current module ?
         auto& sym_res_curr_mod = is_direct_deps_sym_res;
@@ -746,6 +761,9 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                     // this is not current file
                     // must symbol resolve, changed file is not current file
                     sym_res_curr_mod = true;
+                    if (verbose) {
+                        std::cout << "[lsp] process_file: changed file other than current file in module detected '" << abs_path << "'" << std::endl;
+                    }
                     break;
                 }
             }
@@ -762,6 +780,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
         // only symbol resolve if required (one of deps / current module file changed)
         if(sym_res_curr_mod) {
+
+            if (verbose) {
+                std::cout << "[lsp] process_file: symbol resolving current module, except current file" << std::endl;
+            }
 
             // since we are symbol resolving the module again, we
             // can delete previous stuff off
@@ -811,6 +833,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
         } else {
 
+            if (verbose) {
+                std::cout << "[lsp] process_file: declaring symbols of current file" << std::endl;
+            }
+
             // declaring symbols of current module, before linking current file
             SymbolResolverDeclarer declarer(resolver);
             for (const auto cachedUnit: modData->fileUnits) {
@@ -842,6 +868,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             // file changed or the tokens for the file didn't exist before
             // (tokens contain mapping which needs to be valid for semantic tokens to show properly)
             if(depends_on_dirty || current_file_changed || tokenCache.get(abs_path) == nullptr) {
+
+                if (verbose) {
+                    std::cout << "[lsp] process_file: reparsing file '" << abs_path << "' file changed or tokens didn't exist before" << std::endl;
+                }
 
                 // THE ORDER OF OPERATIONS IN THE NEXT THREE STATEMENTS IS IMPORTANT
                 // we will set this file symbol resolved = false
@@ -877,7 +907,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
     } else {
 
 #ifdef DEBUG
-        std::cerr << "[lsp] couldn't find module file '" << abs_path << "' belongs to" << std::endl;
+        std::cerr << "[lsp] process_file: couldn't find module file '" << abs_path << "' belongs to" << std::endl;
 #endif
 
         // encode the file path to get file id
@@ -913,6 +943,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // declare and link file
         resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.meta.file_id, abs_path);
 
+    }
+
+    if (verbose) {
+        std::cout << "[lsp] reporting diagnostics for '" << abs_path << "'" << std::endl;
     }
 
     // now restore the mapping of ast with tokens (using original indexes)
@@ -990,9 +1024,9 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
         return get_semantic_tokens(**cachedTokens);
     }
 
-#ifdef DEBUG
-    std::cout << "[lsp] couldn't find tokens for file '" << abs_path << "' in token cache" << std::endl;
-#endif
+    if (verbose) {
+        std::cout << "[lsp] couldn't find tokens for file '" << abs_path << "' in token cache" << std::endl;
+    }
 
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);

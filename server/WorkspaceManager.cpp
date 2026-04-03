@@ -445,9 +445,9 @@ void WorkspaceManager::onChangedContents(
         }
     }
 
-#if defined DEBUG_REPLACE && DEBUG_REPLACE
-    std::cout << "replaced : " << source << std::endl;
-#endif
+    if (verbose) {
+        std::cout << "[lsp] overridden_source : " << source << std::endl;
+    }
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);

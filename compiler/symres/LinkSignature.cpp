@@ -190,6 +190,20 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     const auto size = value->values.size();
     while(i < size) {
         const auto child = value->values[i]->as_identifier_unsafe();
+        // special case check, when accessing a var decl
+        // it may have not been linked yet, because of global variable inter-dependence
+        if (parent->kind() == ASTNodeKind::VarInitStmt) {
+            const auto stmt = parent->as_var_init_unsafe();
+            const auto stmtType = stmt->known_type();
+            if (stmtType == nullptr) {
+                child->linked = (ASTNode*) linker.get_unresolved_decl();
+                child->setType(child->linked->known_type());
+                linker.error(value->values[i - 1]) << "couldn't infer type of global variable, please specify type of global variable being accessed";
+                linker.info(parent) << "explicit type not given, however accessed in current module";
+                i++;
+                continue;
+            }
+        }
         const auto child_linked = parent->child(&linker.child_resolver, child->value);
         if(child_linked) {
             child->linked = child_linked;
@@ -505,21 +519,33 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
 }
 
 void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
+    // only visit type if given, top level variable values are linked specially
+    // in a pass defined below (after link signature)
+    if (node->type == nullptr) {
+        if (!node->value) {
+            linker.error("a type of a value must be given for global variable", node);
+            return;
+        }
+        const auto maybe_type = node->value->getType();
+        if (maybe_type != nullptr) {
+            node->type = {maybe_type, node->value->encoded_location()};
+        } else {
+            return;
+        }
+    }
     if(node->is_comptime() && !linker.comptime_context) {
         linker.comptime_context = true;
-        RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
+        visit(node->type);
         linker.comptime_context = false;
     } else {
-        RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
+        visit(node->type);
     }
-    if(node->known_type()->kind() == BaseTypeKind::Void) {
-        linker.error(node) << "variable with name '" << node->name_view() << "' type can't be of type void";
-    }
+    // array type size determination from array value
     const auto value = node->value;
     const auto type = node->type.getType();
     if(type && value) {
-        const auto as_array = value->as_array_value();
-        if(type->kind() == BaseTypeKind::Array && as_array) {
+        if(type->kind() == BaseTypeKind::Array && value->kind() == ValueKind::ArrayValue) {
+            const auto as_array = value->as_array_value_unsafe();
             const auto arr_type = ((ArrayType*) type);
             if(arr_type->has_no_array_size()) {
                 arr_type->set_array_size(as_array->array_size());
@@ -1339,8 +1365,54 @@ void LinkExportStatement(SymbolResolver& resolver, std::vector<ASTNode*>& nodes)
     }
 }
 
+void LinkGlobalVariableValues(TopLevelLinkSignature& visitor, std::vector<ASTNode*>& nodes) {
+    for (const auto node : nodes) {
+        switch (node->kind()) {
+            case ASTNodeKind::VarInitStmt: {
+                auto& linker = visitor.linker;
+                const auto stmt = node->as_var_init_unsafe();
+                if (stmt->value) {
+                    if(stmt->is_comptime() && !linker.comptime_context) {
+                        linker.comptime_context = true;
+                        visitor.visit(stmt->value);
+                        linker.comptime_context = false;
+                    } else {
+                        visitor.visit(stmt->value);
+                    }
+                }
+                if(!linker.has_errors && stmt->known_type()->kind() == BaseTypeKind::Void) {
+                    linker.error(node) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
+                }
+                continue;
+            }
+            case ASTNodeKind::NamespaceDecl: {
+                const auto ns = node->as_namespace_unsafe();
+                LinkGlobalVariableValues(visitor, ns->nodes);
+                continue;
+            }
+            case ASTNodeKind::IfStmt:{
+                const auto stmt = node->as_if_stmt_unsafe();
+                if(stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if(scope) {
+                        LinkGlobalVariableValues(visitor, scope->nodes);
+                    }
+                }
+                continue;
+            }
+            default:
+                continue;
+        }
+    }
+}
+
 void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     auto& nodes = scope->nodes;
+    // builds indexes of containers to children inside them can be looked up
     BuildIndexes(nodes);
+    // links export statements, these can't be linked during link signature
     LinkExportStatement(resolver, nodes);
+    // links global variable values, which can have dependencies on each other
+    TopLevelLinkSignature visitor(resolver);
+    LinkGlobalVariableValues(visitor, nodes);
 }

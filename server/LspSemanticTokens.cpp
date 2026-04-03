@@ -780,6 +780,18 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 i++;
             }
 
+            i = 0;
+            for(const auto cachedUnit : modData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                auto path_str = unit.scope.meta.abs_path;
+
+                auto& priv_sym_range = priv_sym_ranges[i];
+
+                resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+
+                i++;
+            }
+
             // linking signatures of all files in current module
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
@@ -787,6 +799,19 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 if (abs_path_view.view() != unit.scope.meta.abs_path) {
                     resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i]);
                 }
+            }
+
+            i = 0;
+            for(const auto cachedUnit : modData->fileUnits) {
+
+                auto& unit = cachedUnit->unit;
+                auto path_str = unit.scope.meta.abs_path;
+
+                auto& priv_sym_range = priv_sym_ranges[i];
+
+                resolver.after_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+
+                i++;
             }
 
         } else {

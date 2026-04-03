@@ -164,7 +164,7 @@ ASTNode* Parser::parseParenLhsAssignment(ASTAllocator& allocator) {
         stmt->value = expr;
     } else {
         unexpected_error("expected a value for variable assignment");
-        stmt->value = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        stmt->value = getErroredValue(allocator);
         return stmt;
     }
 
@@ -247,7 +247,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         stmt->value = expr;
     } else {
         unexpected_error("expected a value for variable assignment");
-        stmt->value = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        stmt->value = getErroredValue(allocator);
         return stmt;
     }
 

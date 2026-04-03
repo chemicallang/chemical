@@ -155,6 +155,7 @@ static Value* parseAccessChainAfterValue(Parser* parser, ASTAllocator& allocator
             parser->token++;
             auto expr = parser->parseExpression(allocator);
             if (!expr) {
+                indexOp->idx = parser->getErroredValue(allocator);
                 parser->error("expected an expression in indexing operators for access chain");
                 break;
             }

@@ -6,9 +6,9 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/values/StructValue.h"
 
-SwitchStatement* fix_switch(SwitchStatement* stmt, ASTAllocator& allocator) {
+SwitchStatement* fix_switch(Parser* parser, ASTAllocator& allocator, SwitchStatement* stmt) {
     if(!stmt->expression) {
-        stmt->expression = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        stmt->expression = parser->getErroredValue(allocator);
     }
     return stmt;
 }
@@ -22,19 +22,19 @@ void Parser::parseSwitchStatementBlock(
 
     if (!consumeToken(TokenType::LParen)) {
         error("expect '(' after keyword 'switch' for the expression");
-        fix_switch(stmt, allocator);
+        fix_switch(this, allocator, stmt);
         return;
     }
     auto expr = parseExpression(allocator);
     if(expr == nullptr) {
         error("expected an expression tokens in switch statement");
-        fix_switch(stmt, allocator);
+        fix_switch(this, allocator, stmt);
         return;
     }
     stmt->expression = expr;
     if (!consumeToken(TokenType::RParen)) {
         error("expected ')' in switch statement");
-        fix_switch(stmt, allocator);
+        fix_switch(this, allocator, stmt);
         return;
     }
     consumeNewLines();

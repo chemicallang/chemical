@@ -249,6 +249,7 @@ ThrowStatement* Parser::parseThrowStatement(ASTAllocator& allocator) {
         if(expr) {
             stmt->value = expr;
         } else {
+            stmt->value = getErroredValue(allocator);
             error("expected a value after 'throw'");;
         }
         return stmt;

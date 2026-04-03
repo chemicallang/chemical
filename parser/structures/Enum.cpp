@@ -41,6 +41,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
             if(type) {
                 decl->underlying_type = type;
             } else {
+                decl->underlying_type = { typeBuilder.getIntType(), loc};
                 error("expected a type after ':' in enum declaration");
                 return decl;
             }
@@ -50,6 +51,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
 
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for after the enum name");
+            decl->next_start = 0;
             return decl;
         }
         int index = 0;

@@ -8,8 +8,8 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/values/NullValue.h"
 
-inline DoWhileLoop* fix_loop(ASTAllocator& allocator, DoWhileLoop* loop) {
-    loop->condition = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+inline DoWhileLoop* fix_loop(Parser* parser, ASTAllocator& allocator, DoWhileLoop* loop) {
+    loop->condition = parser->getErroredValue(allocator);
     return loop;
 }
 
@@ -33,17 +33,17 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
         loop->body.set_parent(blk.parent());
     } else {
         unexpected_error("expected a brace block { statement(s) } when lexing a while block");
-        return fix_loop(allocator, loop);
+        return fix_loop(this, allocator, loop);
     }
 
     if(!consumeToken(TokenType::WhileKw)) {
         unexpected_error("expected 'while' with condition in a do while loop");
-        return fix_loop(allocator, loop);
+        return fix_loop(this, allocator, loop);
     }
 
     if(!consumeToken(TokenType::LParen)) {
         unexpected_error("expected a starting parenthesis ( after keyword while for while block");
-        return fix_loop(allocator, loop);
+        return fix_loop(this, allocator, loop);
     }
 
     auto expr = parseExpression(allocator);
@@ -51,7 +51,7 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
         loop->condition = expr;
     } else {
         unexpected_error("expected a conditional statement for while block");
-        return fix_loop(allocator, loop);
+        return fix_loop(this, allocator, loop);
     }
 
     if(!consumeToken(TokenType::RParen)) {

@@ -11,15 +11,15 @@
 #include "integration/libtcc/LibTccInteg.h"
 
 int compile_lab(
-    const std::string& exe_path,
-    const std::string& lab_path,
+    const std::string_view& exe_path,
+    const std::string_view& lab_path,
+    const std::string_view& built_cbi,
     std::string& outPayload,
     bool format
 ) {
 
     // using is64Bit as true
     auto is64Bit = true;
-    auto compiler_exe_path = exe_path;
     auto is_mod_source = lab_path.ends_with(".mod");
     auto compiler_build_dir = resolve_sibling(lab_path, "build");
     auto build_dir = resolve_rel_child_path_str(compiler_build_dir, "ide");
@@ -27,16 +27,30 @@ int compile_lab(
     create_dir(compiler_build_dir);
     create_dir(build_dir);
 
-    CompilerBinder binder(compiler_exe_path);
+    CompilerBinder binder{std::string(exe_path)};
     LocationManager loc_man;
 
     // creating the compiler (static function, cannot reuse global contaienr)
-    LabBuildCompilerOptions options(compiler_exe_path, "", build_dir, is64Bit);
+    LabBuildCompilerOptions options(std::string(exe_path), "", build_dir, is64Bit);
     LabBuildCompiler compiler(loc_man, binder, &options);
 
     // creating context, this allows separation, we don't want to reuse
     // we do not want to share data between labs because lab files are very flexible
     LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, binder);
+
+    // we set off all these cbis in context as built
+    // so build.lab don't try to rebuilt these
+    std::string_view input = built_cbi;
+    size_t start = 0;
+    while (start < input.size()) {
+        size_t end = input.find(',', start);
+        if (end == std::string_view::npos)
+            end = input.size();
+        if (end > start) {
+            context.built_cbi.emplace(std::string(input.substr(start, end - start)), true);
+        }
+        start = end + 1;
+    }
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -51,6 +65,9 @@ int compile_lab(
 
     // build the lab file to a tcc state
     const auto state = compiler.built_lab_file(context, lab_path, is_mod_source);
+    if (state == nullptr) {
+        return 1;
+    }
 
     // auto delte the tcc state
     TCCDeletor auto_delete(state);

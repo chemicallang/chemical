@@ -1415,12 +1415,14 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
         return 1;
     }
 
-    auto& cbiData = binder.data[cbiName];
-
     // we compile the entirety of this module and store it
     // here putting this module in cbi is what will delete it
     // this is very important, otherwise tcc_delete won't be called on it
-    cbiData.module = state;
+    if (!binder.store_cbi(cbiName, state)) {
+        tcc_delete(state);
+        std::cerr << "[lab] " << rang::fg::red <<  "error: failed to store, " << rang::fg::reset << "cbi with name '" << job_name << "' already exists" << std::endl;
+        return 1;
+    }
 
     // error out if cbi types are empty
     if(cbiJob->indexes.empty()) {

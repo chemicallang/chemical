@@ -38,6 +38,8 @@ struct BuildContextInformation {
     void clear();
 
     chem::string_view pool_string(const std::string& str);
+
+    std::string built_cbi_map_to_str();
 };
 
 /**

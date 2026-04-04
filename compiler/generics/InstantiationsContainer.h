@@ -16,6 +16,11 @@ class BaseType;
  */
 using InstantiationType = std::span<BaseType*>;
 
+struct RegistryPosition {
+    unsigned int fileId;
+    unsigned int index;
+};
+
 struct DeclInstantiations {
     // the types that caused the instantiation are stored in this
     // types vector
@@ -26,7 +31,7 @@ struct DeclInstantiations {
     std::vector<void*>&                  implData;
     // same length as 'types' and 'implData';
     // each entry tells you which slot in fileIdRegistry[fileId] owns that inst.
-    std::vector<unsigned int>            registryPositions;
+    std::vector<RegistryPosition>        registryPositions;
 };
 
 struct RegistryEntry {
@@ -102,7 +107,7 @@ public:
         // 3) Append new instantiation
         auto instIdx = static_cast<unsigned int>(decl.types.size());
         decl.types          .push_back(types);
-        decl.registryPositions.push_back(regPos);
+        decl.registryPositions.push_back({ current_file_id, regPos });
 
         // 4) Remember to delete it later
         registry.push_back({ key, instIdx });
@@ -114,9 +119,29 @@ public:
      */
     void removeInstantiationsFor(void* key) {
         auto found = instantiations.find(key);
-        if(found != instantiations.end()) {
-            instantiations.erase(found);
+        if (found == instantiations.end()) return;
+
+        auto& decl = found->second;
+        // Clean up from registries
+        for (auto& pos : decl.registryPositions) {
+            auto it = fileIdRegistry.find(pos.fileId);
+            if (it == fileIdRegistry.end()) continue;
+
+            auto& registry = it->second;
+            if (pos.index < registry.size()) {
+                unsigned int lastIdx = static_cast<unsigned int>(registry.size()) - 1;
+                if (pos.index != lastIdx) {
+                    std::swap(registry[pos.index], registry[lastIdx]);
+                    auto& movedRec = registry[pos.index];
+                    auto it2 = instantiations.find(movedRec.key);
+                    if (it2 != instantiations.end()) {
+                        it2->second.registryPositions[movedRec.typeIndex].index = pos.index;
+                    }
+                }
+                registry.pop_back();
+            }
         }
+        instantiations.erase(found);
     }
 
     /**
@@ -150,9 +175,15 @@ public:
                 std::swap(decl.registryPositions[removeIdx], decl.registryPositions[lastIdx]);
 
                 // 2) fix up the RegistryEntry that now points to 'lastIdx'
-                unsigned int otherRegPos = decl.registryPositions[removeIdx];
-                auto& otherRec = registry[otherRegPos];
-                otherRec.typeIndex = removeIdx;
+                auto otherPos = decl.registryPositions[removeIdx];
+                auto oit = fileIdRegistry.find(otherPos.fileId);
+                if (oit != fileIdRegistry.end()) {
+                    auto& otherRegistry = oit->second;
+                    if (otherPos.index < otherRegistry.size()) {
+                        auto& otherRec = otherRegistry[otherPos.index];
+                        otherRec.typeIndex = removeIdx;
+                    }
+                }
             }
 
             // pop our key’s data
@@ -165,7 +196,7 @@ public:
         }
 
         // finally, drop the empty registry vector
-        fileIdRegistry.erase(fit);
+        fileIdRegistry.erase(fileId);
     }
 
 };

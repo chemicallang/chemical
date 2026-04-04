@@ -23,8 +23,7 @@ AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self)
 }
 
 LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* path) {
-    // TODO: should be able to use string views for path checks
-    auto found = job->built_files.find(path->str());
+    auto found = job->built_files.find(*path);
     return found != job->built_files.end() ? found->second : nullptr;
 }
 
@@ -127,6 +126,14 @@ void BuildContextset_environment_testing(LabBuildContext* self, LabJob* job, boo
         self->compiler.controller.ensure_test_resources();
     }
     job->target_data.test = value;
+}
+
+bool BuildContextcontains_cbi(LabBuildContext* self, chem::string_view* key) {
+    return self->built_cbi.contains(*key);
+}
+
+void BuildContextset_contains_cbi(LabBuildContext* self, chem::string_view* key) {
+    self->built_cbi.emplace(key->str(), true);
 }
 
 bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {

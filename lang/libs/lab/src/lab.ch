@@ -181,6 +181,13 @@ public interface BuildContext {
     // however compiler wasn't invoked with --test parameter
     func set_environment_testing(&self, job : *mut LabJob, value : bool);
 
+    // have we built this cbi (job) before
+    func contains_cbi(&self, key : &std::string_view) : bool
+
+    // set that this cbi (job) has been built
+    // the above contains call will return true
+    func set_contains_cbi(&self, key : &std::string_view)
+
     // indexes a function from cbi, so it can be called when required
     func index_cbi_fn(&self, job : *mut LabJobCBI, key : &std::string_view, fn_name : &std::string_view, fn_type : CBIFunctionType) : bool
 

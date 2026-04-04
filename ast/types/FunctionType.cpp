@@ -215,8 +215,23 @@ bool FunctionType::equal(FunctionType *other) const {
     if (isVariadic() != other->isVariadic()) {
         return false;
     }
-    if (!returnType->is_same(other->returnType)) {
-        return false;
+    // return type can be nullptr
+    // because sometimes user doesn't give return type for lambda
+    // we can't set it to void (because we have to determine it by traversing ast)
+    if (returnType == nullptr) {
+        if (other->returnType == nullptr || other->returnType->canonical()->kind() != BaseTypeKind::Void) {
+            return false;
+        }
+    } else {
+        if (other->returnType == nullptr) {
+            if (returnType->canonical()->kind() != BaseTypeKind::Void) {
+                return false;
+            }
+        } else {
+            if (!returnType->is_same(other->returnType)) {
+                return false;
+            }
+        }
     }
     if(params.size() != other->params.size()) {
         return false;

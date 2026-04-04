@@ -92,9 +92,21 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     const auto decl = linker.find(value->value);
     if(decl) {
         value->linked = decl;
-        value->setType(decl->known_type());
-        // to ensure function decl is informed about usage
-        value->process_linked(&linker, nullptr);
+        const auto k = decl->known_type();
+        value->setType(k);
+        // special case check, when accessing a var decl
+        // it may have not been linked yet, because of global variable inter-dependence
+        // we don't want to force the user to give types, because mostly type can be inferred
+        // when type can't be inferred, we generate this error
+        if (k == nullptr && decl->kind() == ASTNodeKind::VarInitStmt) {
+            value->linked = (ASTNode*) linker.get_unresolved_decl();
+            value->setType(value->linked->known_type());
+            linker.error(value) << "couldn't infer type of global variable, please specify type of global variable being accessed";
+            linker.info(decl) << "explicit type not given, however accessed in current module";
+        } else {
+            // to ensure function decl is informed about usage
+            value->process_linked(&linker, nullptr);
+        }
     } else if(value->linked == nullptr) {
         linker.error(value) << "unresolved variable identifier '" << value->value << "' not found";
         value->linked = (ASTNode*) linker.get_unresolved_decl();
@@ -189,9 +201,16 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     unsigned i = 1;
     const auto size = value->values.size();
     while(i < size) {
+#ifdef DEBUG
+      if (value->values[i]->kind() != ValueKind::Identifier) {
+          CHEM_THROW_RUNTIME("value should be an identifier, but isn't");
+      }
+#endif
         const auto child = value->values[i]->as_identifier_unsafe();
         // special case check, when accessing a var decl
         // it may have not been linked yet, because of global variable inter-dependence
+        // we don't want to force the user to give types, because mostly type can be inferred
+        // when type can't be inferred, we generate this error
         if (parent->kind() == ASTNodeKind::VarInitStmt) {
             const auto stmt = parent->as_var_init_unsafe();
             const auto stmtType = stmt->known_type();
@@ -213,7 +232,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
             child->linked = (ASTNode*) linker.get_unresolved_decl();
             child->setType(child->linked->known_type());
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
-            break;
+            parent = child->linked;
         }
         i++;
     }
@@ -294,13 +313,12 @@ void TopLevelLinkSignature::VisitComptimeValue(ComptimeValue* value) {
 
 void TopLevelLinkSignature::VisitDereferenceValue(DereferenceValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitDereferenceValue(value);
-    if(linker.comptime_context) {
-        // determining the type for this dereference value
-        auto& typeBuilder = linker.comptime_scope.typeBuilder;
-        if (!value->determine_type(typeBuilder)) {
-            linker.error("couldn't determine type for de-referencing", value);
-        }
-    } else {
+    // determining the type for this dereference value
+    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    if (!value->determine_type(typeBuilder)) {
+        linker.error("couldn't determine type for de-referencing", value);
+    }
+    if(!linker.comptime_context) {
         linker.error("cannot dereference value at runtime outside function body", value);
     }
 }
@@ -1072,6 +1090,17 @@ bool CheckTopLevelComptimeIfStmtCondition(
     auto checker = TopLevelIfStmtConditionChecker(diagnoser, currModScope, condition->encoded_location());
     checker.visit_it(condition);
     return !checker.has_error;
+}
+
+void IfStatement::link_conditions(SymbolResolver &linker) {
+    TopLevelLinkSignature symRes(linker);
+    auto prev_comptime = linker.comptime_context;
+    linker.comptime_context = true;
+    symRes.visit(condition);
+    for (auto& cond: elseIfs) {
+        symRes.visit(cond.first);
+    }
+    linker.comptime_context = prev_comptime;
 }
 
 void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {

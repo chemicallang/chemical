@@ -1353,18 +1353,6 @@ void link_body(
     linker.scope_end();
 }
 
-void link_conditions(IfStatement* stmt, SymResLinkBody& symRes) {
-    symRes.visit(stmt->condition);
-    for (auto& cond: stmt->elseIfs) {
-        symRes.visit(cond.first);
-    }
-}
-
-void IfStatement::link_conditions(SymbolResolver &linker) {
-    SymResLinkBody temp(linker);
-    ::link_conditions(this, temp);
-}
-
 void link_conditions_no_patt_match_expr(IfStatement* stmt, SymResLinkBody &symRes) {
     if(stmt->condition->kind() != ValueKind::PatternMatchExpr) {
         symRes.visit(stmt->condition);
@@ -1395,6 +1383,18 @@ Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
 }
 
 void SymResLinkBody::VisitIfStmt(IfStatement* node) {
+
+    if (node->is_top_level()) {
+        // must not re-evaluate comptime top level if statement
+        // it is evaluated in declare top level
+        if (node->computed_scope.has_value()) {
+            const auto scope = node->computed_scope.value();
+            if (scope) {
+                visit(scope);
+            }
+        }
+        return;
+    }
 
     link_conditions_no_patt_match_expr(node, *this);
 

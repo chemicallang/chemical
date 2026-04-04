@@ -2,8 +2,12 @@
 
 #pragma once
 
+#if defined(LSP_BUILD) && defined(DEBUG)
+#define LSP_DEBUG_BUILD
+#endif
+
 // Detect whether exceptions are enabled without pulling in heavy headers.
-#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)
+#if !defined(LSP_DEBUG_BUILD) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #define CHEM_EXCEPTIONS_ENABLED 1
 #else
 #define CHEM_EXCEPTIONS_ENABLED 0

@@ -36,7 +36,7 @@ bool WorkspaceManager::get_lexed(LexResult* result, const std::string& path, boo
         }
         lexer.getTokens(result->tokens);
         result->diags = std::move(lexer.diagnoser.diagnostics);
-        result->has_errors = lexer.diagnoser.has_errors;
+        result->has_errors = lexer.diagnoser.has_errors();
     } else {
         auto& input_source = result->fileSource;
         input_source.open(path);
@@ -49,7 +49,7 @@ bool WorkspaceManager::get_lexed(LexResult* result, const std::string& path, boo
         }
         lexer.getTokens(result->tokens);
         result->diags = std::move(lexer.diagnoser.diagnostics);
-        result->has_errors = lexer.diagnoser.has_errors;
+        result->has_errors = lexer.diagnoser.has_errors();
     }
     return true;
 }

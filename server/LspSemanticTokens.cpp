@@ -73,11 +73,7 @@ bool parse_file(
         *outDiags = std::move(parser.diagnostics);
     }
 
-    if(parser.has_errors) {
-        return false;
-    } else {
-        return true;
-    }
+    return !parser.has_errors();
 
 }
 

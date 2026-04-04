@@ -282,6 +282,14 @@ public:
 
     void ensure_test_resources();
 
+    void clear_marked_or_collected() {
+        marked.clear();
+        single_marked.clear();
+        for (auto& col : collections) {
+            col.nodes.clear();
+        }
+    }
+
     /**
      * clears the annotation controller, but re-initializes
      */

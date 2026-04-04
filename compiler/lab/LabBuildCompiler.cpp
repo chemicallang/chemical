@@ -246,7 +246,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     // very important
     // annotation controller can collect top level nodes
     // the use has eneded
-    controller.clear();
+    controller.clear_marked_or_collected();
 
     // finally return the status
     return return_int;

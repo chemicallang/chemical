@@ -8,8 +8,6 @@ import "@compiler/build.lab" as compilerMod
 
 using namespace std;
 
-var did_once = false;
-
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
     const curr_file_path = lab::get_my_path();
@@ -17,15 +15,19 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     if(previous_module != null) return previous_module;
     const empty_module = ctx.empty_module(std::string_view(""), std::string_view("preact_cbi"));
     ctx.set_cached(user_job, curr_file_path, empty_module)
-    if(did_once) return empty_module;
-    did_once = true;
+
+    const cbi_name = std::string_view("preact");
+    if(ctx.contains_cbi(cbi_name) {
+        return empty_module;
+    }
+    ctx.set_contains_cbi(cbi_name)
 
     // creating a marker annotation named 'component'
     const controller = ctx.getAnnotationController()
     controller.createMarkerAnnotation(std::string_view("component"))
 
     // js cbi
-    var cbi = ctx.build_cbi(std::string_view("preact"))
+    var cbi = ctx.build_cbi(cbi_name)
     const job = cbi;
 
     // makes sure this job is done before the user_job

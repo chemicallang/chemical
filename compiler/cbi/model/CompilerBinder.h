@@ -6,6 +6,7 @@
 #include "compiler/cbi/model/Model.h"
 #include <unordered_map>
 #include "std/chem_string_view.h"
+#include "std/unordered_map.h"
 #include "compiler/cbi/bindings/CBI.h"
 #include "CBIFunctionIndex.h"
 
@@ -34,17 +35,18 @@ struct CBIFunctionHash {
  * compiler binder based on tiny c compiler
  */
 class CompilerBinder {
+
+    /**
+     * contains a map between cbi_name and module data
+     */
+    util::unordered_string_map<CBIData> data;
+
 public:
 
     /**
      * all the functions user has asked us to hook
      */
     std::unordered_map<CBIFunctionKey, void*, CBIFunctionHash> hooks_;
-
-    /**
-     * contains a map between cbi_name and module data
-     */
-    std::unordered_map<std::string, CBIData> data;
 
     /**
      * a map between interface names like Lexer, SourceProvider and their actual symbols
@@ -61,6 +63,30 @@ public:
      * constructor
      */
     explicit CompilerBinder(std::string exe_path);
+
+    /**
+     * get the built cbi map
+     */
+    inline const util::unordered_string_map<CBIData>& get_cbi_map() {
+        return data;
+    }
+
+    /**
+     * check whether this cbi exists already
+     */
+    inline bool contains_cbi(const std::string_view& name) {
+        return data.contains(name);
+    }
+
+    /**
+     * cbi by this name is stored and
+     * protects from overriding existing cbi
+     */
+    bool store_cbi(std::string name, TCCState* state) {
+        if (data.contains(name)) return false;
+        data[std::move(name)] = {state};
+        return true;
+    }
 
     /**
      * imports the given compiler interfaces
@@ -87,14 +113,6 @@ public:
      * indexes the given function
      */
     const char* index_function(CBIFunctionIndex& index, TCCState* state);
-
-    /**
-     * clear
-     */
-    void clear() {
-        hooks_.clear();
-        data.clear();
-    }
 
     /**
      * a destructor is used to destruct the TCC state

@@ -11,6 +11,7 @@
 #include <vector>
 #include <unordered_map>
 #include <optional>
+#include "std/unordered_map.h"
 
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency>& modules);
 
@@ -66,6 +67,11 @@ public:
      * build arguments given to the build lab
      */
     std::unordered_map<std::string, std::string> build_args;
+
+    /**
+     * a map to track which cbi have been queued to be built
+     */
+    util::unordered_string_map<bool> built_cbi;
 
     /**
      * if import paths are to be used with aliases in them, we need a path handler

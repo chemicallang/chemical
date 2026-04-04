@@ -466,6 +466,7 @@ set(COMMON_SOURCES
         std/chem_span.h
         std/chem_string_view.h
         std/small_vector.h
+        std/unordered_map.h
         ast/values/AlignOfValue.h
         compiler/cbi/bindings/BatchAllocatorCBI.h
         compiler/cbi/bindings/BatchAllocatorCBI.cpp

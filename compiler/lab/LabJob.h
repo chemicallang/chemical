@@ -11,6 +11,7 @@
 #include "preprocess/StringViewHashEqual.h"
 #include "compiler/cbi/model/CBIData.h"
 #include "compiler/cbi/model/CBIFunctionIndex.h"
+#include "std/unordered_map.h"
 #include "TargetData.h"
 #include "compiler/OutputMode.h"
 #include "import_model/RemoteImport.h"
@@ -132,7 +133,7 @@ struct LabJob {
      * this is used to avoid building the same file multiple times
      * .lab and .mod files perform checks using their absolute path before building
      */
-    std::unordered_map<std::string, LabModule*> built_files;
+    util::unordered_string_map<LabModule*> built_files;
 
     /**
      * a mutex for this job, it protects access and write on dependencies, built_files...etc

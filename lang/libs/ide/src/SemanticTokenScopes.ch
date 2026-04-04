@@ -82,7 +82,6 @@ public enum SemanticTokenScopes {
     EntityOtherAttributeNameId,
     EntityOtherAttributeNameIdCss,
     EntityOtherAttributeNameParentSelectorCss,
-    EntityOtherAttributeNameParentLess,
     EntityOtherAttributeNamePseudoElement,
     EntityOtherAttributeNamePseudoElementCss,
     EntityOtherAttributeNameScss,

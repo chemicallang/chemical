@@ -4,6 +4,8 @@ import std
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@compiler/build.lab" as compilerMod
+import "@js_parser/build.lab" as jsParserMod
+import "@js_ide/build.lab" as jsIdeMod
 
 using namespace std;
 
@@ -47,7 +49,21 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
-    const dependencies = [ cstd_module, std_module, compiler_module ]
+    // the js parser module
+    var js_parser = jsParserMod.build(ctx, job)
+
+    // only compile html ide module in lsp
+    var jsIde : *mut Module
+    comptime if(def.lsp) {
+        jsIde = jsIdeMod.build(ctx, job)
+        if(jsIde == null) {
+            return null;
+        }
+    } else {
+        jsIde = js_parser
+    }
+
+    const dependencies = [ cstd_module, std_module, compiler_module, js_parser, jsIde ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("js_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     ctx.add_module(cbi, module)

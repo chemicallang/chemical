@@ -271,9 +271,8 @@ ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value
     return new (builder->allocate<ValueWrapperNode>()) ValueWrapperNode(value, parent_node);
 }
 
-AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, uint64_t location) {
-    // TODO get if this is a mutable reference
-    const auto val = new (builder->allocate<AddrOfValue>()) AddrOfValue(value, true, location);
+AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, bool is_mutable, uint64_t location) {
+    const auto val = new (builder->allocate<AddrOfValue>()) AddrOfValue(value, is_mutable, location);
     val->setType(&val->_ptr_type);
     return val;
 }

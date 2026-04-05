@@ -13,7 +13,6 @@
 int compile_lab(
     const std::string_view& exe_path,
     const std::string_view& lab_path,
-    const std::string_view& built_cbi,
     std::string& outPayload,
     bool format
 ) {
@@ -37,20 +36,6 @@ int compile_lab(
     // creating context, this allows separation, we don't want to reuse
     // we do not want to share data between labs because lab files are very flexible
     LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, binder);
-
-    // we set off all these cbis in context as built
-    // so build.lab don't try to rebuilt these
-    std::string_view input = built_cbi;
-    size_t start = 0;
-    while (start < input.size()) {
-        size_t end = input.find(',', start);
-        if (end == std::string_view::npos)
-            end = input.size();
-        if (end > start) {
-            context.built_cbi.emplace(std::string(input.substr(start, end - start)), true);
-        }
-        start = end + 1;
-    }
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb

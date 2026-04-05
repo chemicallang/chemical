@@ -7,12 +7,15 @@
 struct BuildContextInformation;
 class BasicBuildContext;
 
-int launch_child_build(BuildContextInformation& context, const std::string_view& lspPath, const std::string_view& buildFilePath);
+int launch_child_build(
+    BuildContextInformation& context,
+    const std::string_view& lspPath,
+    const std::string_view& buildFilePath
+);
 
 int compile_lab(
     const std::string_view& exe_path,
     const std::string_view& lab_path,
-    const std::string_view& built_cbi,
     std::string& outPayload,
     bool format
 );
@@ -25,7 +28,6 @@ int compile_lab(
 int compile_lab(
     const std::string_view& exe_path,
     const std::string_view& lab_path,
-    const std::string_view& built_cbi,
     bool format,
     std::string_view shmName,
     std::string_view evtChildDone,

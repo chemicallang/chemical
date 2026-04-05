@@ -115,8 +115,32 @@ public:
     const char* index_function(CBIFunctionIndex& index, TCCState* state);
 
     /**
+     * destroy the memory
+     */
+    void destroy_memory() {
+        for(auto& unit : data) {
+            if(unit.second.module != nullptr) {
+                tcc_delete(unit.second.module);
+            }
+        }
+        data.clear();
+    }
+
+    /**
+     * called to make this compiler binder reusable
+     * usually one instance is allocated for multiple jobs, when one job asks for html_cbi
+     * we reuse html_cbi for the other job too
+     */
+    void clear() {
+        destroy_memory();
+        hooks_.clear();
+    }
+
+    /**
      * a destructor is used to destruct the TCC state
      */
-    ~CompilerBinder();
+    ~CompilerBinder() {
+        destroy_memory();
+    }
 
 };

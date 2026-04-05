@@ -1,4 +1,4 @@
-public enum SemanticTokenTypes {
+public enum SemanticTokenTypes : uint {
 	Namespace,
 	/*
 	 * Represents a generic type. Acts as a fallback for types which can't be mapped to

@@ -25,11 +25,3 @@ const char* CompilerBinder::index_function(CBIFunctionIndex& index, TCCState* st
     registerHook(index.fn_type, index.key.to_chem_view(), sym);
     return nullptr;
 }
-
-CompilerBinder::~CompilerBinder() {
-    for(auto& unit : data) {
-        if(unit.second.module != nullptr) {
-            tcc_delete(unit.second.module);
-        }
-    }
-}

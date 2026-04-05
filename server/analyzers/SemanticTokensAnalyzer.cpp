@@ -162,6 +162,7 @@ Token* SemanticTokensAnalyzer::put_auto(Token* token) {
         case TokenType::SemiColonSym:
         case TokenType::TripleDotSym:
         case TokenType::LambdaSym:
+        case TokenType::QuestionMarkSym:
             put(token, TokenType(Operator));
             break;
         case TokenType::String: {

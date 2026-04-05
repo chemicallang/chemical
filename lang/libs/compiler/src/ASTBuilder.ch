@@ -733,7 +733,7 @@ public struct ASTBuilder {
 
     func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *mut ValueWrapperNode
 
-    func make_addr_of_value(&self, value : *Value, location : ubigint) : *mut AddrOfValue
+    func make_addr_of_value(&self, value : *Value, is_mutable : bool, location : ubigint) : *mut AddrOfValue
 
     func make_array_value(&self, type : *BaseType, location : ubigint) : *mut ArrayValue
 

@@ -142,7 +142,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         call.get_args().push(pageId)
         
         const attrs = converter.build_ssr_attributes(element);
-        call.get_args().push(converter.builder.make_addr_of_value(attrs, intrinsics::get_raw_location()));
+        call.get_args().push(converter.builder.make_addr_of_value(attrs, true, intrinsics::get_raw_location()));
 
         const location = intrinsics::get_raw_location();
         const builder = converter.builder;

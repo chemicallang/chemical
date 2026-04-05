@@ -11,7 +11,7 @@ struct Token;
 
 extern "C" {
 
-    void SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token);
+    Token* SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token);
 
     void SemanticTokensAnalyzerput(
             SemanticTokensAnalyzer* analyzer,

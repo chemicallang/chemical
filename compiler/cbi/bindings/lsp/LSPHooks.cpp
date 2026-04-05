@@ -5,8 +5,8 @@
 #include "server/analyzers/SemanticTokensAnalyzer.h"
 #include "server/analyzers/FoldingRangeAnalyzer.h"
 
-void SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token) {
-    analyzer->put_auto(token);
+Token* SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token) {
+    return analyzer->put_auto(token);
 }
 
 void SemanticTokensAnalyzerput(

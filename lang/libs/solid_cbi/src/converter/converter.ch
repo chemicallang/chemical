@@ -576,7 +576,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         call.get_args().push(pageId)
         const ssrAttrs = converter.build_ssr_attributes(element);
         // TODO: remove the addr of
-        call.get_args().push(converter.builder.make_addr_of_value(ssrAttrs, location))
+        call.get_args().push(converter.builder.make_addr_of_value(ssrAttrs, true, location))
         // Pass empty SsrText as the 3rd argument
         const ssrTextStructVal = converter.builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
         ssrTextStructVal.add_value("data", converter.builder.make_null_value(location));

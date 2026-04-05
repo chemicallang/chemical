@@ -168,7 +168,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         converter.put_chain_in();
 
         // 3. Add attributes address as the second argument
-        args.push(builder.make_addr_of_value(structValue, location) as *mut Value)
+        args.push(builder.make_addr_of_value(structValue, true, location) as *mut Value)
 
         if(element.children.empty()) {
 

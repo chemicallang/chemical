@@ -199,4 +199,12 @@ public:
         fileIdRegistry.erase(fileId);
     }
 
+    /**
+     * instantiations container can be cleared to be reused
+     */
+    void clear() {
+        instantiations.clear();
+        fileIdRegistry.clear();
+    }
+
 };

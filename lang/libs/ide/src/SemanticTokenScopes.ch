@@ -1,4 +1,4 @@
-public enum SemanticTokenScopes {
+public enum SemanticTokenScopes : uint {
     MarkupItalic = 23,
     MarkupItalicMarkdown,
     MarkupBold,

@@ -5,6 +5,11 @@
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/types/LinkedType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "compiler/lab/TargetData.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/values/IntNumValue.h"
@@ -125,9 +130,30 @@ Value* IntNType::create(
     );
 }
 
-bool IntNType::satisfies(BaseType *given) {
-    const auto type = given->canonical();
-    return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
+bool IntNType::satisfies(BaseType *type) {
+    switch (type->kind()) {
+        case BaseTypeKind::IntN:
+            return satisfies(type->as_intn_type_unsafe());
+        case BaseTypeKind::Linked: {
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::TypealiasStmt:
+                    return satisfies(linked->as_typealias_unsafe()->actual_type);
+                case ASTNodeKind::EnumDecl: {
+                    const auto underlying = linked->as_enum_decl_unsafe()->get_underlying_integer_type();
+                    return underlying ? satisfies(underlying) : false;
+                }
+                default:
+                    return false;
+            }
+        }
+        case BaseTypeKind::MaybeRuntime:
+            return satisfies(type->as_maybe_runtime_type_unsafe()->underlying);
+        case BaseTypeKind::Runtime:
+            return satisfies(type->as_runtime_type_unsafe()->underlying);
+        default:
+            return false;
+    }
 }
 
 bool IntNType::satisfies(Value *value, bool assignment) {

@@ -33,7 +33,7 @@ public:
     TypeLoc underlying_type;
 
     // this is calculated during symbol resolution
-    IntNType* underlying_integer_type;
+    IntNType* underlying_integer_type = nullptr;
 
     /**
      * this is the index at which any enum that inherits this enum should start

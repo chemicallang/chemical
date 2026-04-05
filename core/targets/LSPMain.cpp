@@ -311,7 +311,6 @@ int main(int argc, char *argv[]) {
             CmdOption("version", "v", CmdOptionType::NoValue),
             CmdOption("build-lab", CmdOptionType::SingleValue),
             CmdOption("cc", CmdOptionType::SubCommand),
-            CmdOption("built-cbi", CmdOptionType::SingleValue),
             CmdOption("shmName", CmdOptionType::SingleValue),
             CmdOption("evtChildDone", CmdOptionType::SingleValue),
             CmdOption("evtParentAck", CmdOptionType::SingleValue),
@@ -340,12 +339,6 @@ int main(int argc, char *argv[]) {
     auto build_lab = options.option_new("build-lab");
     if(build_lab.has_value()) {
 
-        auto builtCbi = options.option_new("built-cbi");
-        if(!builtCbi.has_value() || builtCbi.value().empty()) {
-            std::cerr << "[lsp] expected a 'built-cbi' command line argument" << std::endl;
-            return 1;
-        }
-
         auto shmName = options.option_new("shmName");
         if(!shmName.has_value() || shmName.value().empty()) {
             std::cerr << "[lsp] expected a 'shmName' command line argument" << std::endl;
@@ -367,7 +360,6 @@ int main(int argc, char *argv[]) {
         return compile_lab(
             getExecutablePath(),
             build_lab.value(),
-            builtCbi.value(),
             false,
             shmName.value(),
             childDone.value(),

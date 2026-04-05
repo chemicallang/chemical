@@ -71,7 +71,19 @@ func take_addr_of_enum_param(check : MultiNum) : MultiNum {
     return *addr;
 }
 
+enum UIntEnumDecl : uint {
+    First = 264,
+    Second = 832
+}
+
+func i_take_uint_enum(f : uint, s : uint) : bool {
+    return f == 264 && s == 832
+}
+
 func test_enum() {
+    test("enums can be passed to functions which take underlying type", () => {
+        return i_take_uint_enum(UIntEnumDecl.First, UIntEnumDecl.Second)
+    })
     test("enum index works", () => {
         return Thing.Fruit == 0 && Thing.Veg == 1;
     })

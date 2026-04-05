@@ -29,7 +29,6 @@
 int get_child_build_payload(
     const std::string_view& lspPath,
     const std::string_view& buildFilePath,
-    const std::string_view& built_cbi_str,
     std::string& outPayload
 ) {
 
@@ -56,8 +55,6 @@ int get_child_build_payload(
     argv.emplace_back(lspPath);
     argv.emplace_back("--build-lab");
     argv.emplace_back(buildFilePath);
-    argv.emplace_back("--built-cbi");
-    argv.emplace_back(built_cbi_str);
     argv.emplace_back("--shmName");
     argv.emplace_back(shmName);
     argv.emplace_back("--evtChildDone");
@@ -211,7 +208,6 @@ int timed_wait(sem_t* sem, const struct timespec* ts) {
 int get_child_build_payload(
     const std::string_view& lspPath,
     const std::string_view& buildFilePath,
-    const std::string_view& built_cbi_str,
     std::string& outPayload
 ) {
 
@@ -244,8 +240,6 @@ int get_child_build_payload(
     argv.emplace_back(lspPath);
     argv.emplace_back("--build-lab");
     argv.emplace_back(buildFilePath);
-    argv.emplace_back("--built-cbi");
-    argv.emplace_back(built_cbi_str);
     argv.emplace_back("--shmName");
     argv.emplace_back(shmName);
     argv.emplace_back("--evtChildDone");
@@ -406,13 +400,13 @@ int launch_child_build(BuildContextInformation& context, const std::string_view&
         // we will compile the build.lab / chemical.mod right here and get it
         // instead of using ipc (which would detach debugger)
         auto compile_status = compile_lab(
-            std::string(lspPath), std::string(buildFilePath), context.built_cbi_map_to_str(), payload, true
+            std::string(lspPath), std::string(buildFilePath), payload, true
         );
         if (compile_status != 0) {
             return compile_status;
         }
     } else {
-        auto status = get_child_build_payload(lspPath, buildFilePath, context.built_cbi_map_to_str(), payload);
+        auto status = get_child_build_payload(lspPath, buildFilePath, payload);
         if (status != 0) {
             return status;
         }
@@ -435,7 +429,6 @@ int launch_child_build(BuildContextInformation& context, const std::string_view&
 int compile_lab(
     const std::string_view& exe_path,
     const std::string_view& lab_path,
-    const std::string_view& built_cbi,
     bool format,
     std::string_view shmName,
     std::string_view evtChildDone,
@@ -444,7 +437,7 @@ int compile_lab(
 
     std::string outPayload;
 
-    auto status = compile_lab(exe_path, lab_path, built_cbi, outPayload, format);
+    auto status = compile_lab(exe_path, lab_path, outPayload, format);
     if (status != 0) {
         return status;
     }

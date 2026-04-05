@@ -15,6 +15,7 @@ void BuildContextInformation::clear() {
     modStorage.clear();
     jobs.clear();
     allocator.clear();
+    binder.clear();
     symbol_info_pool.clear();
     symbol_lists_pool.clear();
     parts_lists_pool.clear();
@@ -24,25 +25,6 @@ void BuildContextInformation::clear() {
 chem::string_view BuildContextInformation::pool_string(const std::string& str) {
     const auto allocated = allocator.allocate_str(str.data(), str.size());
     return chem::string_view(allocated, str.size());
-}
-
-std::string BuildContextInformation::built_cbi_map_to_str() {
-    std::string built_cbi_str;
-    auto& cbiMap = binder.get_cbi_map();
-    auto total_size = cbiMap.size(); // total commas
-    for (auto& kv : cbiMap) {
-        total_size += kv.first.size();
-    }
-    built_cbi_str.reserve(total_size);
-    for (auto& kv : cbiMap) {
-        built_cbi_str.append(kv.first);
-        built_cbi_str.append(1, ',');
-    }
-    // omit the last comma
-    if (!built_cbi_str.empty()) {
-        built_cbi_str.resize(built_cbi_str.size() - 1);
-    }
-    return std::move(built_cbi_str);
 }
 
 lsp::json::Value toJson(chem::string_view view) {

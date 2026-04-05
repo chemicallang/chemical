@@ -5,18 +5,18 @@ public interface SemanticTokensAnalyzer {
 
     func put(
             &self,
-            lineNumber : uint32_t,
-            lineCharNumber : uint32_t,
-            length : uint32_t,
-            tokenType : uint32_t,
-            tokenModifiers : uint32_t
+            lineNumber : u32,
+            lineCharNumber : u32,
+            length : u32,
+            tokenType : u32,
+            tokenModifiers : u32
     )
 
     func putToken(
             &self,
             token : *mut Token,
-            tokenType : uint32_t,
-            tokenModifiers : uint32_t
+            tokenType : u32,
+            tokenModifiers : u32
     )
 
 }

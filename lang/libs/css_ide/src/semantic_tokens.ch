@@ -115,7 +115,7 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
 }
 
 @no_mangle
-public func css_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *Token, end : *Token) : *Token {
+public func css_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *mut Token, end : *Token) : *Token {
 
     var current = start
 

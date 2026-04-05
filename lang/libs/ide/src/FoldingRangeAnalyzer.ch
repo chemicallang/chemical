@@ -1,4 +1,5 @@
-public struct FoldingRangeAnalyzer {
+@compiler.interface
+public interface FoldingRangeAnalyzer {
 
     // puts a single folding range
     func put(&self,

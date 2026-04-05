@@ -1,4 +1,4 @@
-@static
+@compiler.interface
 public interface SemanticTokensAnalyzer {
 
     func putAuto(&self, token : *mut Token);

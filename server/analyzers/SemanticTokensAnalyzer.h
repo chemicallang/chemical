@@ -32,11 +32,6 @@ public:
     /**
      * this is a cache variable
      */
-    Token* current_token;
-
-    /**
-     * this is a cache variable
-     */
     Token* end_token;
 
     /**
@@ -79,7 +74,7 @@ public:
     /**
      * will automatically determine the token type based on token
      */
-    void put_auto(Token* token);
+    Token* put_auto(Token* token);
 
     /**
      * analyzes the given tokens

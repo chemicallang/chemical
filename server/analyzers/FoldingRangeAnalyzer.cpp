@@ -44,6 +44,7 @@ void FoldingRangeAnalyzer::analyze(Token* current, Token* end) {
                 const auto hook = binder.findHook(view, CBIFunctionType::FoldingRangesPut);
                 if (hook) {
                     current = ((EmbeddedFoldingRangesPut) hook)(this, current, end);
+                    continue;
                 }
                 break;
             }

@@ -10,6 +10,7 @@
 #include "utils/StringHelpers.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "server/cbi/hooks.h"
+#include "std/except.h"
 
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
 
@@ -95,154 +96,154 @@ void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
     }
 }
 
-void SemanticTokensAnalyzer::put_auto(Token* token) {
+Token* SemanticTokensAnalyzer::put_auto(Token* token) {
     if(token->type >= TokenType::IndexKwStart && token->type <= TokenType::IndexKwEnd) {
         put(token, TokenType(Keyword));
-    } else {
-        switch (token->type) {
-            case TokenType::EndOfFile:
-            case TokenType::Unexpected:
-            case TokenType::Whitespace:
-            case TokenType::NewLine:
-                break;
-            case TokenType::Identifier: {
-                ASTAny* anyPtr = token->linked;
-                if(anyPtr) {
-                    const auto anyKind = anyPtr->any_kind();
-                    if(anyKind == ASTAnyKind::Node) {
-                        put_node_token(token, (ASTNode*) anyPtr);
-                        return;
-                    }
-                    const auto linked = anyPtr->get_ref_linked_node();
-                    if(linked) {
-                        put_node_token(token, linked);
-                    } else {
-                        put(token, TokenType(Variable));
-                    }
+        return token + 1;
+    }
+    switch (token->type) {
+        case TokenType::EndOfFile:
+        case TokenType::Unexpected:
+        case TokenType::Whitespace:
+        case TokenType::NewLine:
+            break;
+        case TokenType::Identifier: {
+            ASTAny* anyPtr = token->linked;
+            if(anyPtr) {
+                const auto anyKind = anyPtr->any_kind();
+                if(anyKind == ASTAnyKind::Node) {
+                    put_node_token(token, (ASTNode*) anyPtr);
+                    return token + 1;
+                }
+                const auto linked = anyPtr->get_ref_linked_node();
+                if(linked) {
+                    put_node_token(token, linked);
                 } else {
                     put(token, TokenType(Variable));
                 }
-                break;
+            } else {
+                put(token, TokenType(Variable));
             }
-            case TokenType::LParen:
-            case TokenType::RParen:
-            case TokenType::LBrace:
-            case TokenType::RBrace:
-            case TokenType::LBracket:
-            case TokenType::RBracket:
-            case TokenType::PlusSym:
-            case TokenType::MinusSym:
-            case TokenType::MultiplySym:
-            case TokenType::DivideSym:
-            case TokenType::ModSym:
-            case TokenType::DoublePlusSym:
-            case TokenType::DoubleMinusSym:
-            case TokenType::EqualSym:
-            case TokenType::DoubleEqualSym:
-            case TokenType::NotEqualSym:
-            case TokenType::LessThanOrEqualSym:
-            case TokenType::LessThanSym:
-            case TokenType::GreaterThanOrEqualSym:
-            case TokenType::GreaterThanSym:
-            case TokenType::LogicalAndSym:
-            case TokenType::LogicalOrSym:
-            case TokenType::LeftShiftSym:
-            case TokenType::RightShiftSym:
-            case TokenType::AmpersandSym:
-            case TokenType::PipeSym:
-            case TokenType::CaretUpSym:
-            case TokenType::BitNotSym:
-            case TokenType::ColonSym:
-            case TokenType::DoubleColonSym:
-            case TokenType::NotSym:
-            case TokenType::DotSym:
-            case TokenType::CommaSym:
-            case TokenType::SemiColonSym:
-            case TokenType::TripleDotSym:
-            case TokenType::LambdaSym:
-                put(token, TokenType(Operator));
-                break;
-            case TokenType::String: {
-                auto& pos = token->position;
-                // +2 is added for the double quotes
-                put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
-                break;
-            }
-            case TokenType::MultilineString:
-                // +3 for each """
-                putMultilineToken(token, TokenType(String), 0, 3, 3);
-                break;
-            case TokenType::Char: {
-                // +2 is added for the quotes
-                auto& pos = token->position;
-                put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
-                break;
-            }
-            case TokenType::HashMacro: {
-
-                // triggering nested semantic token put
-                auto& t = *token;
-                const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
-                const auto hook = binder.findHook(view, CBIFunctionType::SemanticTokensPut);
-                if(hook) {
-                    current_token = ((EmbeddedSemanticTokensPut) hook)(this, &t, end_token);
-                } else {
-                    put(token, TokenType(Macro));
-                }
-
-                break;
-            }
-            case TokenType::Annotation:
-                put(token, TokenType(Macro));
-                break;
-            case TokenType::SingleLineComment: {
-                auto& pos = token->position;
-                // +2 for //
-                put(pos.line, pos.character, token->value.size() + 2, TokenType(Comment), 0);
-                break;
-            }
-            case TokenType::MultiLineComment:
-                // +2 for each /*
-                putMultilineToken(token, TokenType(Comment), 0, 2, 2);
-                break;
-            case TokenType::Number:
-                put(token, TokenType(Number));
-                break;
-        case TokenType::BacktickString:
-                put(token, TokenType(String));
-                break;
-        case TokenType::StringExprStart:
-                // ${
-                put(token, TokenType(Operator));
-                break;
-        case TokenType::StringExprEnd:
-                if (token->value.size() <= 1) {
-                    put(token, TokenType(Operator));
-                } else {
-                    // first we put '}' (rbrace), then rest is a string
-                    put(token->position.line, token->position.character, 1, TokenType(Operator), 0);
-                    put(token->position.line, token->position.character + 1, token->value.size() - 1, TokenType(String), 0);
-                }
-                break;
-            default:
-#ifdef DEBUG
-                throw std::runtime_error("unhandled token type");
-#else
-                break;
-#endif
+            break;
         }
+        case TokenType::LParen:
+        case TokenType::RParen:
+        case TokenType::LBrace:
+        case TokenType::RBrace:
+        case TokenType::LBracket:
+        case TokenType::RBracket:
+        case TokenType::PlusSym:
+        case TokenType::MinusSym:
+        case TokenType::MultiplySym:
+        case TokenType::DivideSym:
+        case TokenType::ModSym:
+        case TokenType::DoublePlusSym:
+        case TokenType::DoubleMinusSym:
+        case TokenType::EqualSym:
+        case TokenType::DoubleEqualSym:
+        case TokenType::NotEqualSym:
+        case TokenType::LessThanOrEqualSym:
+        case TokenType::LessThanSym:
+        case TokenType::GreaterThanOrEqualSym:
+        case TokenType::GreaterThanSym:
+        case TokenType::LogicalAndSym:
+        case TokenType::LogicalOrSym:
+        case TokenType::LeftShiftSym:
+        case TokenType::RightShiftSym:
+        case TokenType::AmpersandSym:
+        case TokenType::PipeSym:
+        case TokenType::CaretUpSym:
+        case TokenType::BitNotSym:
+        case TokenType::ColonSym:
+        case TokenType::DoubleColonSym:
+        case TokenType::NotSym:
+        case TokenType::DotSym:
+        case TokenType::CommaSym:
+        case TokenType::SemiColonSym:
+        case TokenType::TripleDotSym:
+        case TokenType::LambdaSym:
+            put(token, TokenType(Operator));
+            break;
+        case TokenType::String: {
+            auto& pos = token->position;
+            // +2 is added for the double quotes
+            put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
+            break;
+        }
+        case TokenType::MultilineString:
+            // +3 for each """
+            putMultilineToken(token, TokenType(String), 0, 3, 3);
+            break;
+        case TokenType::Char: {
+            // +2 is added for the quotes
+            auto& pos = token->position;
+            put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
+            break;
+        }
+        case TokenType::HashMacro: {
+
+            // triggering nested semantic token put
+            auto& t = *token;
+            const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
+            const auto hook = binder.findHook(view, CBIFunctionType::SemanticTokensPut);
+            if(hook) {
+                return ((EmbeddedSemanticTokensPut) hook)(this, &t, end_token);
+            } else {
+                put(token, TokenType(Macro));
+            }
+
+            break;
+        }
+        case TokenType::Annotation:
+            put(token, TokenType(Macro));
+            break;
+        case TokenType::SingleLineComment: {
+            auto& pos = token->position;
+            // +2 for //
+            put(pos.line, pos.character, token->value.size() + 2, TokenType(Comment), 0);
+            break;
+        }
+        case TokenType::MultiLineComment:
+            // +2 for each /*
+            putMultilineToken(token, TokenType(Comment), 0, 2, 2);
+            break;
+        case TokenType::Number:
+            put(token, TokenType(Number));
+            break;
+    case TokenType::BacktickString:
+            put(token, TokenType(String));
+            break;
+    case TokenType::StringExprStart:
+            // ${
+            put(token, TokenType(Operator));
+            break;
+    case TokenType::StringExprEnd:
+            if (token->value.size() <= 1) {
+                put(token, TokenType(Operator));
+            } else {
+                // first we put '}' (rbrace), then rest is a string
+                put(token->position.line, token->position.character, 1, TokenType(Operator), 0);
+                put(token->position.line, token->position.character + 1, token->value.size() - 1, TokenType(String), 0);
+            }
+            break;
+        default:
+    #ifdef DEBUG
+            CHEM_THROW_RUNTIME("unhandled token type");
+    #else
+            break;
+    #endif
     }
+    return token + 1;
 }
 
 void SemanticTokensAnalyzer::analyze(std::vector<Token>& lexedTokens) {
     // for each token we have 5 integers to hold
     tokens.reserve(lexedTokens.size() * 5);
-    current_token = lexedTokens.data();
-    const auto endToken = current_token + lexedTokens.size();
+    auto current = lexedTokens.data();
+    const auto endToken = lexedTokens.data() + lexedTokens.size();
     end_token = endToken;
-    while(current_token != endToken) {
-        put_auto(current_token);
-        current_token++;
+    while(current != endToken) {
+        current = put_auto(current);
     }
 }
 

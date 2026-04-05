@@ -17,7 +17,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.set_cached(user_job, curr_file_path, empty_module)
 
     const cbi_name = std::string_view("solid");
-    if(ctx.contains_cbi(cbi_name) {
+    if(ctx.contains_cbi(cbi_name)) {
         return empty_module;
     }
     ctx.set_contains_cbi(cbi_name)

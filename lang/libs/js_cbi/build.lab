@@ -53,6 +53,9 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     // the js parser module
     var js_parser = jsParserMod.build(ctx, job)
+    if(js_parser == null) {
+        return null
+    }
 
     // only compile html ide module in lsp
     var jsIde : *mut Module

@@ -1,3 +1,3 @@
-module html_parser
+module solid_parser
 
 source "src"

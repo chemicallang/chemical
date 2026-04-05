@@ -5,6 +5,8 @@ import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@html_comp/build.lab" as htmlCompMod
 import "@compiler/build.lab" as compilerMod
+import "@solid_parser/build.lab" as solidParserMod
+import "@solid_ide/build.lab" as solidIdeMod
 
 using namespace std;
 
@@ -56,7 +58,24 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
-    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module ]
+    // the solid parser module
+    var solid_parser = solidParserMod.build(ctx, job)
+    if(solid_parser == null) {
+        return null
+    }
+
+    // only compile html ide module in lsp
+    var solidIde : *mut Module
+    comptime if(def.lsp) {
+        solidIde = solidIdeMod.build(ctx, job)
+        if(solidIde == null) {
+            return null;
+        }
+    } else {
+        solidIde = solid_parser
+    }
+
+    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module, solid_parser, solidIde ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("solid_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     ctx.add_module(cbi, module)
@@ -68,6 +87,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_cbi_fn(cbi, std::string_view("solid"), std::string_view("solid_symResNode"), CBIFunctionType.SymResNode);
     ctx.index_cbi_fn(cbi, std::string_view("solid"), std::string_view("solid_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
     ctx.index_cbi_fn(cbi, std::string_view("solid"), std::string_view("solid_replacementNode"), CBIFunctionType.ReplacementNode);
+
+    comptime if(def.lsp) {
+        // this will let the lsp know that methods are present
+        ctx.index_def_cbi_fn(cbi, std::string_view("solid_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+        ctx.index_def_cbi_fn(cbi, std::string_view("solid_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+    }
 
     return empty_module;
 

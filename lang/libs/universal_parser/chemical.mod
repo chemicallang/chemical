@@ -1,3 +1,3 @@
-module html_parser
+module universal_parser
 
 source "src"

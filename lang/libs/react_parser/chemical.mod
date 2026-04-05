@@ -1,3 +1,3 @@
-module html_parser
+module react_parser
 
 source "src"

@@ -1,3 +1,3 @@
-module html_parser
+module preact_parser
 
 source "src"

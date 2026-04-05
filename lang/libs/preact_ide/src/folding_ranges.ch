@@ -7,10 +7,10 @@ public func preact_foldingRangesPut(analyzer : &FoldingRangeAnalyzer, start : *T
 
     while(current != end) {
 
-        if(current.type == TokenType.LBrace) {
+        if(current.type == JsTokenType.LBrace) {
             opened_braces++;
             analyzer.stackPush(current.position)
-        } else if(current.type == TokenType.RBrace) {
+        } else if(current.type == JsTokenType.RBrace) {
             if(!analyzer.stackEmpty()) {
                 const opening = analyzer.stackPop();
                 analyzer.put(opening, current.position, false)

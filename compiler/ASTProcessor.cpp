@@ -815,8 +815,12 @@ bool ASTProcessor::import_chemical_file_recursive(
     const auto success = import_file_in_lab(*this, parentFileData, result, use_job_allocator);
     if(!success) {
         state.set_has_errors();
+        print_file_results(result, chem::string_view(result.abs_path), options->benchmark_files);
         return false;
     }
+
+    // print the file results
+    print_file_results(result, chem::string_view(result.abs_path), options->benchmark_files);
 
     // figure out files imported by this file
     const auto success2 = figure_out_direct_imports(parentFileData, result.unit.scope.body.nodes, result.imports);

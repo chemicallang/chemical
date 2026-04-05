@@ -6,6 +6,8 @@ class SemanticTokensAnalyzer;
 
 class FoldingRangeAnalyzer;
 
+struct Token;
+
 /**
  * this function is called by the semantic tokens analyzer for providing support
  * for embedded semantic tokens put

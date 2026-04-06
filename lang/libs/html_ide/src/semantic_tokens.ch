@@ -74,6 +74,7 @@ public func html_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start
         } else if(current.type == TokenType.RBrace) {
             opened_braces--;
             if(opened_braces == 0) {
+                current++;
                 return current;
             }
         }

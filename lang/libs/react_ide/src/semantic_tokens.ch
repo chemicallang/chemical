@@ -70,7 +70,11 @@ public func react_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, star
             opened_braces++
         } else if(type == JsTokenType.RBrace as int) {
             opened_braces--
-            if(opened_braces == 0) return current
+            if(opened_braces == 0) {
+                putJsToken(analyzer, current)
+                current++
+                return current
+            }
         }
 
         // JSX State Machine

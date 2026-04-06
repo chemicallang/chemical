@@ -63,7 +63,11 @@ public func js_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start :
             opened_braces++
         } else if(current.type == JsTokenType.RBrace as int) {
             opened_braces--
-            if(opened_braces == 0) return current
+            if(opened_braces == 0) {
+                putJsToken(analyzer, current)
+                current++
+                return current
+            }
         }
         putJsToken(analyzer, current)
         current++

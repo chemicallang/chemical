@@ -1,10 +1,9 @@
 public enum TokenType {
-    // end of file
-    EndOfFile,
+    EndOfFile = 30000,
     // unexpected
-    Unexpected,
+    Unexpected = 30001,
     // identifier
-    Identifier,
+    Identifier = 100,
     // the class name selector present in global block, begins with '.'
     ClassName,
     // the id selector present in global block, begins with '#'

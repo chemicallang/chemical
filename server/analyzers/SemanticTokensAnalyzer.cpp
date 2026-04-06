@@ -228,11 +228,8 @@ Token* SemanticTokensAnalyzer::put_auto(Token* token) {
             }
             break;
         default:
-    #ifdef DEBUG
-            CHEM_THROW_RUNTIME("unhandled token type");
-    #else
+            put(token, TokenType(Comment));
             break;
-    #endif
     }
     return token + 1;
 }

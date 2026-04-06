@@ -637,6 +637,7 @@ add_executable(ChemicalLsp core/targets/LSPMain.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.cpp
         server/utils/PrintUtils.h
         server/utils/PrintUtils.cpp
+        server/lsp/SemanticTokenScopes.h
         server/LspSemanticTokens.cpp
         server/analyzers/FoldingRangeAnalyzer.h
         server/analyzers/FoldingRangeAnalyzer.cpp

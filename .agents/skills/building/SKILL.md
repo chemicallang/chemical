@@ -87,5 +87,25 @@ Very helpful to know
 
 - `--plugin-mode debug_complete` means compile the plugins in debug mode, this embeds full debug info and therefore helpful if a crash happening in plugin code
 
-If you have just modified a compiler plugin, If it crashes, you should compile it in plugin mode to see the stack trace.
+If you have just modified a compiler plugin, If it crashes, you should compile it in debug_complete plugin mode to see the stack trace.
 
+## Building LSP
+
+If you modify anything inside the [server](/server/) directory, please note that its part of LSP target.
+
+These modules:
+
+- [html_ide](/lang/libs/html_ide)
+- [css_ide](/lang/libs/css_ide)
+- [js_ide](/lang/libs/js_ide)
+- [react_ide](/lang/libs/react_ide)
+- [preact_ide](/lang/libs/preact_ide)
+- [solid_ide](/lang/libs/solid_ide)
+- [universal_ide](/lang/libs/universal_ide)
+- [md_ide](/lang/libs/md_ide)
+
+are all lsp related modules, meaning LSP must be running to verify these.
+
+You really cannot verify, if its a semantic highlighting change for example. User must run the lsp and verify the change.
+
+LSP target name is `ChemicalLsp`, You should read `CMakeLists.txt` before building the Lsp target.

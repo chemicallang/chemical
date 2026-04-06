@@ -874,7 +874,10 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
         return;
     }
     auto& type = node->type;
-    auto& value = node->value;
+    const auto value = node->value;
+    if (!type && !value) {
+        return;
+    }
     auto& attrs = node->attrs;
     if(type) {
         visit(type);

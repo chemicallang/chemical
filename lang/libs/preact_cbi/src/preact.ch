@@ -242,11 +242,14 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
     
     // Parse Identifier
     var name = std::string_view();
-    if(parser.getToken().type == JsTokenType.Identifier as int) {
-        name = builder.allocate_view(parser.getToken().value);
+    const nameTok = parser.getToken();
+    if(nameTok.type == JsTokenType.Identifier as int) {
+        name = builder.allocate_view(nameTok.value);
         parser.increment();
     } else {
-        parser.error("expected component name");
+        var errStr = std::string();
+        errStr.append_expr(`expected component name, got token with value ${nameTok.value} and type ${nameTok.type}, type should be ${JsTokenType.Identifier as int}`)
+        parser.error(errStr.to_view());
         return null;
     }
 

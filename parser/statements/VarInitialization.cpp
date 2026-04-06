@@ -175,6 +175,9 @@ ASTNode* Parser::parseVarInitializationTokens(
 
         // type
         stmt->type = parseTypeLoc(allocator);
+        if (stmt->type) {
+            stmt->attrs.user_gave_type = true;
+        }
 
     }
 

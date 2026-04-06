@@ -6,13 +6,22 @@
 
 #include "SemanticTokensAnalyzer.h"
 #include "ast/base/ASTNode.h"
+#include "ast/statements/VarInit.h"
 #include "lsp/types.h"
+
 #include "utils/StringHelpers.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "server/cbi/hooks.h"
 #include "std/except.h"
+#include "ast/base/ASTNodeKind.h"
+#include "ast/base/ASTAnyKind.h"
+
+#include "server/model/SemanticTokenScopes.h"
+
 
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
+#define TokenScope(e) (static_cast<uint32_t>(SemanticTokenScopes::e))
+
 
 void SemanticTokensAnalyzer::put(
         uint32_t lineNumber,
@@ -48,29 +57,29 @@ void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::FunctionParam:
         case ASTNodeKind::VariantMemberParam:
-            put(token, TokenType(Parameter));
+            put(token, TokenScope(VariableParameterFunction));
             return;
         case ASTNodeKind::GenericTypeParam:
-            put(token, TokenType(TypeParameter));
+            put(token, TokenScope(EntityNameType));
             return;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::UnnamedStruct:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::UnnamedUnion:
         case ASTNodeKind::VariantDecl:
-            put(token, TokenType(Struct));
+            put(token, TokenScope(EntityNameTypeClass));
             return;
         case ASTNodeKind::EnumDecl:
-            put(token, TokenType(Enum));
+            put(token, TokenScope(EntityNameType));
             return;
         case ASTNodeKind::EnumMember:
-            put(token, TokenType(EnumMember));
+            put(token, TokenScope(VariableOtherEnummember));
             return;
         case ASTNodeKind::NamespaceDecl:
-            put(token, TokenType(Namespace));
+            put(token, TokenScope(EntityNameNamespace));
             return;
         case ASTNodeKind::InterfaceDecl:
-            put(token, TokenType(Interface));
+            put(token, TokenScope(EntityNameType));
             return;
         case ASTNodeKind::FunctionDecl: {
             const auto parent = node->parent();
@@ -81,14 +90,20 @@ void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
                     return;
                 }
             }
-            put(token, TokenType(Function));
+            put(token, TokenScope(EntityNameFunction));
             return;
         }
-        case ASTNodeKind::VarInitStmt:
-            put(token, TokenType(Variable));
+        case ASTNodeKind::VarInitStmt: {
+            auto varInit = node->as_var_init_unsafe();
+            if (varInit->is_const()) {
+                put(token, TokenScope(VariableOtherConstant));
+            } else {
+                put(token, TokenScope(EntityNameVariable));
+            }
             return;
+        }
         case ASTNodeKind::TypealiasStmt:
-            put(token, TokenType(Type));
+            put(token, TokenScope(EntityNameType));
             return;
         default:
             put(token, TokenType(Variable));
@@ -96,9 +111,96 @@ void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
     }
 }
 
+
 Token* SemanticTokensAnalyzer::put_auto(Token* token) {
     if(token->type >= TokenType::IndexKwStart && token->type <= TokenType::IndexKwEnd) {
-        put(token, TokenType(Keyword));
+        switch (token->type) {
+            case TokenType::ForKw:
+            case TokenType::SwitchKw:
+            case TokenType::LoopKw:
+            case TokenType::ReturnKw:
+            case TokenType::BreakKw:
+            case TokenType::ContinueKw:
+            case TokenType::IfKw:
+            case TokenType::ElseKw:
+            case TokenType::WhileKw:
+            case TokenType::DoKw:
+            case TokenType::TryKw:
+            case TokenType::CatchKw:
+            case TokenType::ThrowKw:
+                put(token, TokenScope(KeywordControl));
+                break;
+            case TokenType::FuncKw:
+            case TokenType::VarKw:
+            case TokenType::TypeKw:
+            case TokenType::StructKw:
+            case TokenType::UnionKw:
+            case TokenType::VariantKw:
+            case TokenType::InterfaceKw:
+            case TokenType::EnumKw:
+            case TokenType::AliasKw:
+            case TokenType::NamespaceKw:
+            case TokenType::UsingKw:
+            case TokenType::ImplKw:
+                put(token, TokenScope(StorageType));
+                break;
+            case TokenType::PublicKw:
+            case TokenType::PrivateKw:
+            case TokenType::ProtectedKw:
+            case TokenType::InternalKw:
+            case TokenType::ExportKw:
+            case TokenType::UnsafeKw:
+            case TokenType::ComptimeKw:
+            case TokenType::DynKw:
+            case TokenType::ConstKw:
+            case TokenType::MutKw:
+            case TokenType::UnreachableKw:
+            case TokenType::ProvideKw:
+            case TokenType::DefaultKw:
+                put(token, TokenScope(StorageModifier));
+                break;
+            case TokenType::I8Kw: case TokenType::I16Kw: case TokenType::I32Kw: case TokenType::I64Kw:
+            case TokenType::U8Kw: case TokenType::U16Kw: case TokenType::U32Kw: case TokenType::U64Kw:
+            case TokenType::CharKw: case TokenType::ShortKw: case TokenType::IntKw: case TokenType::LongKw:
+            case TokenType::LongLongKw: case TokenType::BigIntKw: case TokenType::Int128Kw:
+            case TokenType::UCharKw: case TokenType::UShortKw: case TokenType::UIntKw: case TokenType::ULongKw:
+            case TokenType::ULongLongKw: case TokenType::UBigIntKw: case TokenType::UInt128Kw:
+            case TokenType::BoolKw:
+            case TokenType::AnyKw:
+            case TokenType::DoubleKw:
+            case TokenType::LongdoubleKw:
+            case TokenType::FloatKw:
+            case TokenType::Float128Kw:
+            case TokenType::VoidKw:
+                put(token, TokenScope(SupportTypePrimitive));
+                break;
+            case TokenType::TrueKw:
+            case TokenType::FalseKw:
+            case TokenType::NullKw:
+                put(token, TokenScope(ConstantLanguage));
+                break;
+            case TokenType::ThisKw:
+                put(token, TokenScope(VariableLanguageThis));
+                break;
+            case TokenType::SelfKw:
+                put(token, TokenScope(VariableLanguage));
+                break;
+            case TokenType::AsKw:
+            case TokenType::IsKw:
+            case TokenType::InKw:
+            case TokenType::NewKw:
+            case TokenType::DeleteKw:
+            case TokenType::DeallocKw:
+            case TokenType::SizeOfKw:
+            case TokenType::AlignOfKw:
+            case TokenType::FromKw:
+            case TokenType::ZeroedKw:
+                put(token, TokenScope(KeywordOperator));
+                break;
+            default:
+                put(token, TokenType(Keyword));
+                break;
+        }
         return token + 1;
     }
     switch (token->type) {
@@ -127,11 +229,23 @@ Token* SemanticTokensAnalyzer::put_auto(Token* token) {
             break;
         }
         case TokenType::LParen:
+            put(token, TokenScope(PunctuationSectionParensBeginBracketRoundC));
+            break;
         case TokenType::RParen:
+            put(token, TokenScope(PunctuationSectionParensEndBracketRoundC));
+            break;
         case TokenType::LBrace:
+            put(token, TokenScope(PunctuationSectionBlockBeginBracketCurlyC));
+            break;
         case TokenType::RBrace:
+            put(token, TokenScope(PunctuationSectionBlockEndBracketCurlyC));
+            break;
         case TokenType::LBracket:
+            put(token, TokenScope(PunctuationSectionArrayBeginPhp));
+            break;
         case TokenType::RBracket:
+            put(token, TokenScope(PunctuationSectionArrayEndPhp));
+            break;
         case TokenType::PlusSym:
         case TokenType::MinusSym:
         case TokenType::MultiplySym:
@@ -139,31 +253,50 @@ Token* SemanticTokensAnalyzer::put_auto(Token* token) {
         case TokenType::ModSym:
         case TokenType::DoublePlusSym:
         case TokenType::DoubleMinusSym:
+            put(token, TokenScope(KeywordOperatorArithmetic));
+            break;
         case TokenType::EqualSym:
+            put(token, TokenScope(KeywordOperatorAssignment));
+            break;
         case TokenType::DoubleEqualSym:
         case TokenType::NotEqualSym:
         case TokenType::LessThanOrEqualSym:
         case TokenType::LessThanSym:
         case TokenType::GreaterThanOrEqualSym:
         case TokenType::GreaterThanSym:
+            put(token, TokenScope(KeywordOperatorComparison));
+            break;
         case TokenType::LogicalAndSym:
         case TokenType::LogicalOrSym:
+        case TokenType::NotSym:
+            put(token, TokenScope(KeywordOperatorLogical));
+            break;
         case TokenType::LeftShiftSym:
         case TokenType::RightShiftSym:
         case TokenType::AmpersandSym:
         case TokenType::PipeSym:
         case TokenType::CaretUpSym:
         case TokenType::BitNotSym:
+            put(token, TokenScope(KeywordOperatorBitwise));
+            break;
         case TokenType::ColonSym:
-        case TokenType::DoubleColonSym:
-        case TokenType::NotSym:
         case TokenType::DotSym:
         case TokenType::CommaSym:
         case TokenType::SemiColonSym:
         case TokenType::TripleDotSym:
+            put(token, TokenScope(PunctuationSeparatorDelimiter));
+            break;
+        case TokenType::DoubleColonSym:
+            put(token, TokenScope(EntityNameScopeResolution));
+            break;
+        case TokenType::DollarSym:
+            put(token, TokenScope(PunctuationSeparatorDelimiter));
+            break;
         case TokenType::LambdaSym:
+            put(token, TokenScope(KeywordOperator));
+            break;
         case TokenType::QuestionMarkSym:
-            put(token, TokenType(Operator));
+            put(token, TokenScope(KeywordOperatorTernary));
             break;
         case TokenType::String: {
             auto& pos = token->position;

@@ -1,9 +1,8 @@
 public enum TokenType {
+    EndOfFile = 30000,
+    Unexpected = 30001,
 
-    EndOfFile,
-    Unexpected,
-
-    TagName,
+    TagName = 100,
     AttrName,
 
     Text,

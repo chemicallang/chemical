@@ -1,5 +1,5 @@
 public enum JsTokenType {
-    EndOfFile,
+    EndOfFile = 30000,
     Var = 100,
     JSXText,
     Identifier,

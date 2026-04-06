@@ -1,5 +1,5 @@
 public enum MdTokenType {
-    EndOfFile,
+    EndOfFile = 30000,
     Text = 100,
     Hash,           // #
     Star,           // *

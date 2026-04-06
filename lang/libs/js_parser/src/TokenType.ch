@@ -1,8 +1,5 @@
 public enum JsTokenType {
-
-    EndOfFile,
-    Unexpected,
-
+    EndOfFile = 30000,
     Var = 100,
     Identifier,
     Equal,

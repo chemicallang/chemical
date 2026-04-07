@@ -1034,7 +1034,7 @@ int LabBuildCompiler::process_module_gen(
     // removing non public nodes, because these would be disposed when allocator clears
     remove_non_public_nodes(processor, mod->direct_files);
 
-    if(gen.has_errors) {
+    if(gen.has_errors()) {
         std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
         return 1;
     }

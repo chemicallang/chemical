@@ -3301,7 +3301,7 @@ int LabBuildCompiler::run_invocation(
     compiler_opts.out_mode = mode;
     compiler_opts.def_out_mode = mode;
 
-    CompilerBinder binder(compiler_exe_path);
+    CompilerBinder binder;
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
     

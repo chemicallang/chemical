@@ -676,7 +676,7 @@ int compiler_main(int argc, char *argv[]) {
         auto compiler_exe_path = getExecutablePath();
         std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(args[0], "build");
         LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
-        CompilerBinder binder(compiler_exe_path);
+        CompilerBinder binder;
         LocationManager loc_man;
         LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
 
@@ -749,7 +749,7 @@ int compiler_main(int argc, char *argv[]) {
     auto compiler_exe_path = getExecutablePath();
     std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : "./";
     LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
-    CompilerBinder binder(compiler_exe_path);
+    CompilerBinder binder;
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
 

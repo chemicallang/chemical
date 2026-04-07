@@ -7,7 +7,7 @@
 #include "integration/libtcc/LibTccInteg.h"
 #include "compiler/cbi/bindings/CBI.h"
 
-CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
+CompilerBinder::CompilerBinder() {
     prepare_cbi_maps(interface_maps);
 }
 

@@ -123,12 +123,46 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     }
 }
 
+AccessSpecifier runtime_specifier(FunctionDeclaration* decl) {
+    const auto p = decl->parent();
+    if(p) {
+        switch(p->kind()) {
+            case ASTNodeKind::StructDecl:
+                return p->as_struct_def_unsafe()->specifier();
+            case ASTNodeKind::VariantDecl:
+                return p->as_variant_def_unsafe()->specifier();
+            case ASTNodeKind::UnionDecl:
+                return p->as_union_def_unsafe()->specifier();
+            case ASTNodeKind::InterfaceDecl:
+                return p->as_interface_def_unsafe()->specifier();
+            default:
+                return decl->specifier();
+        }
+    } else {
+        return decl->specifier();
+    }
+}
+
+llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name) {
+    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
+    decl->set_llvm_data(gen, callee);
+    return callee;
+}
+
 llvm::Function* FunctionDeclaration::known_func(Codegen& gen) {
     auto ptr_found = gen.mod_ptr_cache.find(this);
     if(ptr_found != gen.mod_ptr_cache.end()) {
         return (llvm::Function*) ptr_found->second;
     } else {
-        return nullptr;
+        if (!is_top_level()) {
+            gen.warn("contained function hasn't been declared, declaring before use", this);
+        }
+        // automatically declares missing function in the module
+        ScratchString<128> name_view;
+        gen.mangler.mangle(name_view, this);
+        const auto declared = declare_non_gen_fn(gen, this, name_view);
+        gen.mod_ptr_cache[this] = declared;
+        return declared;
     }
 }
 
@@ -293,26 +327,6 @@ void FunctionDeclaration::set_llvm_data(Codegen& gen, llvm::Function* func) {
     gen.mod_ptr_cache[this] = func;
 }
 
-AccessSpecifier runtime_specifier(FunctionDeclaration* decl) {
-    const auto p = decl->parent();
-    if(p) {
-        switch(p->kind()) {
-            case ASTNodeKind::StructDecl:
-                return p->as_struct_def_unsafe()->specifier();
-            case ASTNodeKind::VariantDecl:
-                return p->as_variant_def_unsafe()->specifier();
-            case ASTNodeKind::UnionDecl:
-                return p->as_union_def_unsafe()->specifier();
-            case ASTNodeKind::InterfaceDecl:
-                return p->as_interface_def_unsafe()->specifier();
-            default:
-                return decl->specifier();
-        }
-    } else {
-        return decl->specifier();
-    }
-}
-
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const chem::string_view& name) {
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(llvm::StringRef{name.data(), name.size()});
@@ -330,12 +344,6 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic fun
     ScratchString<128> name_view;
     gen.mangler.mangle(name_view, decl);
     create_non_generic_fn(gen, decl, name_view);
-}
-
-llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name) {
-    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
-    decl->set_llvm_data(gen, callee);
-    return callee;
 }
 
 inline llvm::Function* external_declare_fn(Codegen& gen, FunctionDeclaration* decl, AccessSpecifier specifier) {

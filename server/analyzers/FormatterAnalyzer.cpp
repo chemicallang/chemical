@@ -8,6 +8,7 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
 
     formatted.clear();
     indentLevel = 0;
+    bracketLevel = 0;
     atStartOfLine = true;
     pendingSpace = false;
     uint32_t prevLine = 0;
@@ -118,8 +119,32 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
         }
         pendingSpace = false;
 
-        // Add the token value
-        formatted += std::string(token.value.data(), token.value.size());
+        // Add the token value with reconstruction if needed
+        std::string val(token.value.data(), token.value.size());
+        switch (token.type) {
+            case TokenType::String:
+                formatted += "\"" + val + "\"";
+                break;
+            case TokenType::Char:
+                formatted += "'" + val + "'";
+                break;
+            case TokenType::MultilineString:
+                formatted += "\"\"\"" + val + "\"\"\"";
+                break;
+            case TokenType::BacktickString:
+                formatted += "`" + val + "`";
+                break;
+            case TokenType::SingleLineComment:
+                formatted += "//" + val;
+                break;
+            case TokenType::MultiLineComment:
+                formatted += "/*" + val + "*/";
+                break;
+            default:
+                formatted += val;
+                break;
+        }
+        
         atStartOfLine = false;
         prevLine = token.position.line;
         hasPrevToken = true;
@@ -135,11 +160,25 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 break;
             case TokenType::RBrace:
                 if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
-                    appendNewline();
+                    // Suppress newline for "cuddled" keywords
+                    TokenType nextType = tokens[i+1].type;
+                    if (nextType != TokenType::ElseKw && 
+                        nextType != TokenType::CatchKw && 
+                        nextType != TokenType::WhileKw) { // while for do-while
+                        appendNewline();
+                    } else {
+                        pendingSpace = true;
+                    }
                 }
                 break;
+            case TokenType::LBracket:
+                bracketLevel++;
+                break;
+            case TokenType::RBracket:
+                bracketLevel--;
+                break;
             case TokenType::SemiColonSym:
-                if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
+                if (bracketLevel == 0 && i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
                     appendNewline();
                 }
                 break;

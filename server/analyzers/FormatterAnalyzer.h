@@ -18,6 +18,7 @@ public:
 private:
     std::string formatted;
     int indentLevel = 0;
+    int bracketLevel = 0;
     bool atStartOfLine = true;
     bool pendingSpace = false;
 

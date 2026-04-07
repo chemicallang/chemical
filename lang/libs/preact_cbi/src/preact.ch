@@ -331,7 +331,7 @@ public func preact_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
 
         const definition = controller.getDefinition("component");
         if(definition == null) {
-            parser.error("component annotation is not defined")
+            // parser.error("component annotation is not defined")
             return node
         }
 

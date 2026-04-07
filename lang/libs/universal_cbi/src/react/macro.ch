@@ -106,7 +106,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 
         const definition = controller.getDefinition("component");
         if(definition == null) {
-            parser.error("component annotation is not defined")
+            // parser.error("component annotation is not defined")
             return node
         }
 

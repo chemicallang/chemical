@@ -329,7 +329,7 @@ public func solid_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
 
         const definition = controller.getDefinition("component");
         if(definition == null) {
-            parser.error("component annotation is not defined")
+            // parser.error("component annotation is not defined")
             return node
         }
 

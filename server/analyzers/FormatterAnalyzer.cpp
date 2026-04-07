@@ -11,12 +11,18 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
     atStartOfLine = true;
     pendingSpace = false;
     uint32_t prevLine = 0;
+    int consecutiveNewlines = 0;
     bool hasPrevToken = false;
 
     // Skip initial whitespace/newlines
     size_t startIndex = 0;
     while(startIndex < tokens.size() && (tokens[startIndex].type == TokenType::Whitespace || tokens[startIndex].type == TokenType::NewLine)) {
         startIndex++;
+    }
+
+    // Initialize prevLine from the first useful token
+    if (startIndex < tokens.size()) {
+        prevLine = tokens[startIndex].position.line;
     }
 
     for (size_t i = startIndex; i < tokens.size(); ++i) {
@@ -39,7 +45,13 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
         } else {
             // Check if we should insert a newline based on original source lines
             if (hasPrevToken && token.position.line > prevLine) {
-                appendNewline();
+                // Limit to maximum of 2 newlines (1 empty line)
+                uint32_t lineDiff = token.position.line - prevLine;
+                if (lineDiff > 2) lineDiff = 2;
+                
+                for(uint32_t j = 0; j < lineDiff; ++j) {
+                    appendNewline();
+                }
                 appendIndent();
             }
         }
@@ -60,10 +72,22 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 case TokenType::ReturnKw:
                 case TokenType::ImportKw:
                 case TokenType::ExportKw:
+                case TokenType::PublicKw:
+                case TokenType::PrivateKw:
+                case TokenType::ProtectedKw:
+                case TokenType::InternalKw:
+                case TokenType::MutKw:
+                case TokenType::ComptimeKw:
+                case TokenType::DynKw:
+                case TokenType::AliasKw:
+                case TokenType::TypeKw:
+                    needsSpaceBefore = true;
+                    break;
                 case TokenType::PlusSym:
                 case TokenType::MinusSym:
                 case TokenType::MultiplySym:
                 case TokenType::DivideSym:
+                case TokenType::ModSym:
                 case TokenType::EqualSym:
                 case TokenType::DoubleEqualSym:
                 case TokenType::NotEqualSym:
@@ -73,8 +97,16 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 case TokenType::GreaterThanOrEqualSym:
                 case TokenType::LogicalAndSym:
                 case TokenType::LogicalOrSym:
+                case TokenType::BitNotSym:
+                case TokenType::PipeSym:
+                case TokenType::CaretUpSym:
+                case TokenType::AmpersandSym:
+                case TokenType::LeftShiftSym:
+                case TokenType::RightShiftSym:
                 case TokenType::LambdaSym:
                 case TokenType::LBrace:
+                case TokenType::DoubleColonSym:
+                case TokenType::QuestionMarkSym:
                     needsSpaceBefore = true;
                     break;
                 default: break;
@@ -94,6 +126,9 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
 
         // Deciding on what follows the token
         switch (token.type) {
+            case TokenType::SingleLineComment:
+                appendNewline();
+                break;
             case TokenType::LBrace:
                 indentLevel++;
                 appendNewline();
@@ -119,6 +154,7 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
             case TokenType::MinusSym:
             case TokenType::MultiplySym:
             case TokenType::DivideSym:
+            case TokenType::ModSym:
             case TokenType::EqualSym:
             case TokenType::DoubleEqualSym:
             case TokenType::NotEqualSym:
@@ -128,25 +164,57 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
             case TokenType::GreaterThanOrEqualSym:
             case TokenType::LogicalAndSym:
             case TokenType::LogicalOrSym:
+            case TokenType::BitNotSym:
+            case TokenType::PipeSym:
+            case TokenType::CaretUpSym:
+            case TokenType::AmpersandSym:
+            case TokenType::LeftShiftSym:
+            case TokenType::RightShiftSym:
             case TokenType::LambdaSym: // =>
+            case TokenType::DoubleColonSym:
+            case TokenType::QuestionMarkSym:
                 pendingSpace = true;
                 break;
             case TokenType::IfKw:
             case TokenType::WhileKw:
             case TokenType::ForKw:
+            case TokenType::LoopKw:
             case TokenType::SwitchKw:
+            case TokenType::TryKw:
             case TokenType::CatchKw:
-                pendingSpace = true; // if (condition)
+            case TokenType::ThrowKw:
+                pendingSpace = true; 
                 break;
             case TokenType::VarKw:
             case TokenType::ConstKw:
             case TokenType::FuncKw:
             case TokenType::StructKw:
+            case TokenType::UnionKw:
+            case TokenType::VariantKw:
+            case TokenType::InterfaceKw:
+            case TokenType::ImplKw:
             case TokenType::NamespaceKw:
+            case TokenType::EnumKw:
             case TokenType::ReturnKw:
             case TokenType::UsingKw:
             case TokenType::ImportKw:
             case TokenType::ExportKw:
+            case TokenType::PublicKw:
+            case TokenType::PrivateKw:
+            case TokenType::ProtectedKw:
+            case TokenType::InternalKw:
+            case TokenType::MutKw:
+            case TokenType::ComptimeKw:
+            case TokenType::DynKw:
+            case TokenType::AliasKw:
+            case TokenType::TypeKw:
+            case TokenType::AsKw:
+            case TokenType::IsKw:
+            case TokenType::InKw:
+                pendingSpace = true;
+                break;
+            case TokenType::Annotation:
+            case TokenType::HashMacro:
                 pendingSpace = true;
                 break;
             default:

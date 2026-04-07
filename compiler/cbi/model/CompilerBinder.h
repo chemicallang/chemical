@@ -55,14 +55,17 @@ public:
     std::unordered_map<chem::string_view, std::span<const std::pair<chem::string_view, void*>>> interface_maps;
 
     /**
-     * path to current executable, resources required by tcc are located relative to it
+     * constructor
      */
-    std::string exe_path;
+    explicit CompilerBinder();
 
     /**
      * constructor
      */
-    explicit CompilerBinder(std::string exe_path);
+    [[deprecated]]
+    inline explicit CompilerBinder(std::string exe_path) : CompilerBinder() {
+
+    }
 
     /**
      * get the built cbi map

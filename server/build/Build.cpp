@@ -26,7 +26,7 @@ int compile_lab(
     create_dir(compiler_build_dir);
     create_dir(build_dir);
 
-    CompilerBinder binder{std::string(exe_path)};
+    CompilerBinder binder;
     LocationManager loc_man;
 
     // creating the compiler (static function, cannot reuse global contaienr)

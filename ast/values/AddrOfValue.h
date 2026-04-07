@@ -32,11 +32,13 @@ public:
     uint64_t byte_size(TargetData& target) final;
 
     AddrOfValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<AddrOfValue>()) AddrOfValue(
+        const auto val = new (allocator.allocate<AddrOfValue>()) AddrOfValue(
                 value->copy(allocator),
                 is_mutable,
                 encoded_location()
         );
+        val->setType(&val->_ptr_type);
+        return val;
     }
 
     void determine_type();

@@ -150,63 +150,84 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
 
     // Inside fenced code block - read until closing fence
     if(md.in_fenced_code) {
-        // Check for closing fence allowing up to 3 spaces indentation
         const ptr = provider.current_data();
         const end = provider.data_end;
-        var offset = 0;
-        var spaces = 0;
-        
-        while(spaces < 3 && ptr + offset < end && *(ptr + offset) == ' ') {
-            offset++;
-            spaces++;
-        }
-        
-        var backtick_count = 0;
-        while(ptr + offset + backtick_count < end && *(ptr + offset + backtick_count) == '`') {
-            backtick_count++;
-        }
 
-        if(backtick_count >= md.fence_count) {
-            // Check if rest of line is valid (empty or whitespace)
-            var p_end = offset + backtick_count;
-            var valid = true;
-            while(ptr + p_end < end) {
-                const c = *(ptr + p_end);
-                if(c == '\n' || c == '\0' || c == '\r') break;
-                if(c != ' ' && c != '\t') { valid = false; break; }
-                p_end++;
+        if (ptr >= end || *ptr == '\0') {
+            md.in_fenced_code = false;
+        } else {
+            // Check for #endmd to avoid swallowing the macro terminator
+            var is_end_md = false;
+            if (*ptr == '#') {
+                if (ptr + 5 < end && ptr[1] == 'e' && ptr[2] == 'n' && ptr[3] == 'd' && ptr[4] == 'm' && ptr[5] == 'd') {
+                    if (ptr + 6 >= end) is_end_md = true;
+                    else {
+                        const d6 = ptr[6];
+                        if (d6 == '\0' || d6 == '\n' || d6 == '\r' || d6 == ' ' || d6 == '\t') is_end_md = true;
+                    }
+                }
             }
-            
-            if(valid) {
-                // Consume spaces + backticks
-                var k = 0;
-                while(k < offset + backtick_count) {
-                     provider.readCharacter();
-                     k++;
+
+            if (is_end_md) {
+                md.in_fenced_code = false;
+            } else {
+                // Check for closing fence allowing up to 3 spaces indentation
+                var offset = 0;
+                var spaces = 0;
+
+                while(spaces < 3 && ptr + offset < end && *(ptr + offset) == ' ') {
+                    offset++;
+                    spaces++;
                 }
 
-                md.in_fenced_code = false;
-                md.fence_count = 0;
-                // Skip rest of line
+                var backtick_count = 0;
+                while(ptr + offset + backtick_count < end && *(ptr + offset + backtick_count) == '`') {
+                    backtick_count++;
+                }
+
+                if(backtick_count >= md.fence_count) {
+                    // Check if rest of line is valid (empty or whitespace)
+                    var p_end = offset + backtick_count;
+                    var valid = true;
+                    while(ptr + p_end < end) {
+                        const c = *(ptr + p_end);
+                        if(c == '\n' || c == '\0' || c == '\r') break;
+                        if(c != ' ' && c != '\t') { valid = false; break; }
+                        p_end++;
+                    }
+
+                    if(valid) {
+                        // Consume spaces + backticks
+                        var k = 0;
+                        while(k < offset + backtick_count) {
+                             provider.readCharacter();
+                             k++;
+                        }
+
+                        md.in_fenced_code = false;
+                        md.fence_count = 0;
+                        // Skip rest of line
+                        while(provider.peek() != '\n' && provider.peek() != '\0') {
+                            provider.readCharacter();
+                        }
+                        if(provider.peek() == '\n') {
+                            provider.readCharacter();
+                        }
+                        return Token { type : MdTokenType.FencedCodeEnd as int, value : std::string_view("```"), position : position }
+                    }
+                }
+
+                // Read until end of line or closing fence
                 while(provider.peek() != '\n' && provider.peek() != '\0') {
                     provider.readCharacter();
                 }
+                const code_line = std::string_view(data_ptr, provider.current_data() - data_ptr);
                 if(provider.peek() == '\n') {
                     provider.readCharacter();
                 }
-                return Token { type : MdTokenType.FencedCodeEnd as int, value : std::string_view("```"), position : position }
+                return Token { type : MdTokenType.CodeContent as int, value : code_line, position : position }
             }
         }
-        
-        // Read until end of line or closing fence
-        while(provider.peek() != '\n' && provider.peek() != '\0') {
-            provider.readCharacter();
-        }
-        const code_line = std::string_view(data_ptr, provider.current_data() - data_ptr);
-        if(provider.peek() == '\n') {
-            provider.readCharacter();
-        }
-        return Token { type : MdTokenType.CodeContent as int, value : code_line, position : position }
     }
 
     const c = provider.readCharacter();

@@ -135,6 +135,10 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
 
     // setup stuff
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
+#ifdef DEBUG
+    // always compile in debug complete mode when debugging
+    options.def_plugin_mode = OutputMode::DebugComplete;
+#endif
     LabBuildCompiler compiler(loc_man, binder, &options);
     // this check for has_container protects us from disposing a container created
     // inside do_job (just a safety guard, although global_container should always be present)

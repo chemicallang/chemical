@@ -47,52 +47,44 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
         // Handle spacing before token for binary operators and other cases
         if (!atStartOfLine) {
             bool needsSpaceBefore = false;
-            // Check for keywords that start statements as a backup for newlines
-            if (!pendingSpace) {
-                switch(token.type) {
-                    case TokenType::VarKw:
-                    case TokenType::ConstKw:
-                    case TokenType::FuncKw:
-                    case TokenType::StructKw:
-                    case TokenType::NamespaceKw:
-                    case TokenType::EnumKw:
-                    case TokenType::IfKw:
-                    case TokenType::WhileKw:
-                    case TokenType::ForKw:
-                    case TokenType::ReturnKw:
-                    case TokenType::ImportKw:
-                    case TokenType::ExportKw:
-                        // If we didn't add a newline but this is a statement start, 
-                        // we should probably have added one if it follows a semicolon or closing brace.
-                        // For now, at least ensure a space.
-                        needsSpaceBefore = true;
-                        break;
-                    case TokenType::PlusSym:
-                    case TokenType::MinusSym:
-                    case TokenType::MultiplySym:
-                    case TokenType::DivideSym:
-                    case TokenType::EqualSym:
-                    case TokenType::DoubleEqualSym:
-                    case TokenType::NotEqualSym:
-                    case TokenType::LessThanSym:
-                    case TokenType::LessThanOrEqualSym:
-                    case TokenType::GreaterThanSym:
-                    case TokenType::GreaterThanOrEqualSym:
-                    case TokenType::LogicalAndSym:
-                    case TokenType::LogicalOrSym:
-                    case TokenType::LambdaSym:
-                    case TokenType::LBrace:
-                        needsSpaceBefore = true;
-                        break;
-                    default: break;
-                }
+            switch(token.type) {
+                case TokenType::VarKw:
+                case TokenType::ConstKw:
+                case TokenType::FuncKw:
+                case TokenType::StructKw:
+                case TokenType::NamespaceKw:
+                case TokenType::EnumKw:
+                case TokenType::IfKw:
+                case TokenType::WhileKw:
+                case TokenType::ForKw:
+                case TokenType::ReturnKw:
+                case TokenType::ImportKw:
+                case TokenType::ExportKw:
+                case TokenType::PlusSym:
+                case TokenType::MinusSym:
+                case TokenType::MultiplySym:
+                case TokenType::DivideSym:
+                case TokenType::EqualSym:
+                case TokenType::DoubleEqualSym:
+                case TokenType::NotEqualSym:
+                case TokenType::LessThanSym:
+                case TokenType::LessThanOrEqualSym:
+                case TokenType::GreaterThanSym:
+                case TokenType::GreaterThanOrEqualSym:
+                case TokenType::LogicalAndSym:
+                case TokenType::LogicalOrSym:
+                case TokenType::LambdaSym:
+                case TokenType::LBrace:
+                    needsSpaceBefore = true;
+                    break;
+                default: break;
             }
             
-            if (needsSpaceBefore) {
+            if (pendingSpace || needsSpaceBefore) {
                 formatted += ' ';
-                pendingSpace = false;
             }
         }
+        pendingSpace = false;
 
         // Add the token value
         formatted += std::string(token.value.data(), token.value.size());
@@ -107,10 +99,14 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 appendNewline();
                 break;
             case TokenType::RBrace:
-                appendNewline();
+                if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
+                    appendNewline();
+                }
                 break;
             case TokenType::SemiColonSym:
-                appendNewline();
+                if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
+                    appendNewline();
+                }
                 break;
             case TokenType::CommaSym:
                 pendingSpace = true;
@@ -133,10 +129,7 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
             case TokenType::LogicalAndSym:
             case TokenType::LogicalOrSym:
             case TokenType::LambdaSym: // =>
-                if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::NewLine) {
-                    formatted += ' ';
-                }
-                // we should also ensure space BEFORE these if they are not at start of line
+                pendingSpace = true;
                 break;
             case TokenType::IfKw:
             case TokenType::WhileKw:

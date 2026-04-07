@@ -23,6 +23,7 @@
 #include "utils/PathUtils.h"
 #include "server/build/ChildProcessBuild.h"
 #include "server/build/ContextSerialization.h"
+#include "server/tests/LspTests.h"
 
 #include <sstream>
 #include <iostream>
@@ -323,6 +324,9 @@ int main(int argc, char *argv[]) {
             CmdOption("shmName", CmdOptionType::SingleValue),
             CmdOption("evtChildDone", CmdOptionType::SingleValue),
             CmdOption("evtParentAck", CmdOptionType::SingleValue),
+#ifdef DEBUG
+            CmdOption("run-tests", CmdOptionType::NoValue),
+#endif
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -331,6 +335,13 @@ int main(int argc, char *argv[]) {
         std::cout << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
         return 0;
     }
+
+#ifdef DEBUG
+    if (options.has_value("run-tests")) {
+        run_lsp_tests();
+        return 0;
+    }
+#endif
 
     auto& compileOpt = options.cmd_opt("cc");
     if(compileOpt.has_multi_value()) {

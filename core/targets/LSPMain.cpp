@@ -1,4 +1,4 @@
-﻿
+
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include <lsp/messages.h> // Generated message definitions
@@ -117,9 +117,10 @@ void run_session(
                         .signatureHelpProvider = signatureOptions,
                         .definitionProvider = true,
                         .documentSymbolProvider = symbolOptions,
+                        .documentFormattingProvider = true,
                         .foldingRangeProvider = foldingOptions,
                         .semanticTokensProvider = tokensProvider,
-                        .inlayHintProvider = true,
+                        .inlayHintProvider = true
                 },
                 .serverInfo = lsp::InitializeResultServerInfo{
                         .name    = "Chemical Language Server",
@@ -212,6 +213,14 @@ void run_session(
         auto& end = params.range.end;
         auto range = Range { Position { start.line, start.character }, Position { end.line, end.character } };
         return lsp::TextDocument_InlayHintResult(manager.get_hints(path, range));
+    });
+    
+    handler.add<lsp::requests::TextDocument_Formatting>([&manager](lsp::requests::TextDocument_Formatting::Params&& params) -> lsp::TextDocument_FormattingResult {
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_Formatting '" << path << '\'' << std::endl;
+#endif
+        return lsp::TextDocument_FormattingResult(manager.get_formatting(path));
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){

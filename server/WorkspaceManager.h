@@ -436,6 +436,11 @@ public:
     std::vector<lsp::InlayHint> get_hints(const std::string_view& path, const Range& range);
 
     /**
+     * get formatting for the given document as a list of text edits
+     */
+    std::vector<lsp::TextEdit> get_formatting(const std::string_view& path);
+
+    /**
      * get signature help response
      */
     lsp::SignatureHelp get_signature_help(const std::string_view& path, const Position& position);

@@ -27,6 +27,7 @@
 #include "compiler/ASTProcessor.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
+#include "server/analyzers/FormatterAnalyzer.h"
 #include <iostream>
 #include <fstream>
 
@@ -308,6 +309,27 @@ std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& 
     }
 }
 
+std::vector<lsp::TextEdit> WorkspaceManager::get_formatting(const std::string_view& path) {
+    const auto abs_path = canonical(path);
+    // get tokens for formatting
+    auto lexResult = get_lexed(abs_path, true); // keep comments
+    if(!lexResult) return {};
+    
+    auto source = get_overridden_source(abs_path);
+    if(!source) {
+        // load from disk if not overridden
+        std::ifstream file(abs_path);
+        if(!file.is_open()) return {};
+        source = std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    }
+
+    FormatterAnalyzer analyzer;
+    return analyzer.format(lexResult->tokens, source.value());
+}
+
+/**
+ * get signature help response
+ */
 lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& path, const Position& position) {
     const auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);

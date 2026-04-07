@@ -322,7 +322,6 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
                    (next >= '0' && next <= '9')) {
                     break;
                 }
-                if (provider.current_data() >= provider.data_end) break;
                 provider.readCharacter();
             }
             return Token { type : MdTokenType.Text as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }

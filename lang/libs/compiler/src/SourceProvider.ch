@@ -44,7 +44,6 @@ public struct SourceProvider {
 
     /**
      * checks the stream is at the end
-     * please also use both peek() == -1
      */
     func eof (&self) : bool
 

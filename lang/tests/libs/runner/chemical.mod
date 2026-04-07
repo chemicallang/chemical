@@ -9,8 +9,3 @@ import test
 // similarly the test functions are located in these submodules, to access those, we need a direct dependency
 // therefore we depend upon html and css for the declarations
 import std
-import "../html"
-import "../css"
-import "../js"
-import "../md"
-import "../universal"

@@ -214,7 +214,6 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 pendingSpace = true;
                 break;
             case TokenType::Annotation:
-            case TokenType::HashMacro:
                 pendingSpace = true;
                 break;
             default:

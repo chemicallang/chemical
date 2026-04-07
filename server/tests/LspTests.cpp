@@ -27,6 +27,7 @@ std::string format_code(const std::string& code) {
     CompilerBinder binder;
     Lexer lexer("test.ch", input, &binder, allocator);
     lexer.lex_whitespace = true;
+    lexer.keep_comments = true;
     
     std::vector<Token> tokens;
     Token t;
@@ -169,9 +170,9 @@ void test_comments_preservation() {
 }
 
 void test_arrays_and_indexing() {
-    std::string input = "var arr:[int;5]=[1,2,3,4,5];var x=arr[0]";
+    std::string input = "var arr:[5]int=[1,2,3,4,5];var x=arr[0]";
     std::string expected = 
-"var arr: [int; 5] = [1, 2, 3, 4, 5];\n"
+"var arr: [5]int = [1, 2, 3, 4, 5];\n"
 "var x = arr[0]";
     assert_equal("Arrays and Indexing", expected, format_code(input));
 }
@@ -179,7 +180,7 @@ void test_arrays_and_indexing() {
 void test_annotations_and_macros() {
     std::string input = "@test\nfunc main(){}";
     std::string expected = 
-"@test \n"
+"@test\n"
 "func main() {}";
     // Note: our current logic adds a space after @annotation and #macro 
     // unless followed by newline. If it is already followed by newline, 

@@ -60,10 +60,7 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 void InterfaceDefinition::code_gen_declare(Codegen &gen) {
     if(is_static()) {
         for (const auto func: instantiated_functions()) {
-            // TODO: improve check
-            // if this is NOT nullptr, it means impl came before interface and declared the method
-            const auto ptr = func->known_func(gen);
-            if(ptr == nullptr) {
+            if(!func->has_been_declared(gen)) {
                 func->code_gen_declare(gen, this);
             }
         }

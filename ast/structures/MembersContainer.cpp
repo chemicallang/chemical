@@ -215,7 +215,7 @@ void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, ExtendableMembe
 }
 
 llvm::Function* declared_func(Codegen& gen, InterfaceDefinition* def, FunctionDeclaration* func) {
-    const auto ptr = func->llvm_func(gen);
+    const auto ptr = func->get_declared_func(gen);
     if(ptr == nullptr) {
         func->code_gen_declare(gen, def);
         return func->llvm_func(gen);

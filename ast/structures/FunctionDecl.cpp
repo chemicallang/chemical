@@ -148,15 +148,19 @@ llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, cons
     decl->set_llvm_data(gen, callee);
     return callee;
 }
+llvm::Function* FunctionDeclaration::get_declared_func(Codegen& gen) {
+    auto found = gen.mod_ptr_cache.find(this);
+    return found != gen.mod_ptr_cache.end() ? (llvm::Function*) found->second : nullptr;
+}
+bool FunctionDeclaration::has_been_declared(Codegen& gen) {
+    return gen.mod_ptr_cache.contains(this);
+}
 
 llvm::Function* FunctionDeclaration::known_func(Codegen& gen) {
     auto ptr_found = gen.mod_ptr_cache.find(this);
     if(ptr_found != gen.mod_ptr_cache.end()) {
         return (llvm::Function*) ptr_found->second;
     } else {
-        if (!is_top_level()) {
-            gen.warn("contained function hasn't been declared, declaring before use", this);
-        }
         // automatically declares missing function in the module
         ScratchString<128> name_view;
         gen.mangler.mangle(name_view, this);

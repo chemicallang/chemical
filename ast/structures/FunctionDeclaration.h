@@ -532,6 +532,10 @@ public:
 
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
 
+    llvm::Function* get_declared_func(Codegen& gen);
+
+    bool has_been_declared(Codegen& gen);
+
     /**
      * get the known func or nullptr
      */

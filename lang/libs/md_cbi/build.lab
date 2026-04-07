@@ -4,10 +4,10 @@ import std
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@compiler/build.lab" as compilerMod
+import "@md_parser/build.lab" as mdParserMod
+import "@md_ide/build.lab" as mdIdeMod
 
 using namespace std;
-
-var did_once = false;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
@@ -16,11 +16,15 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     if(previous_module != null) return previous_module;
     const empty_module = ctx.empty_module(std::string_view(""), std::string_view("md_cbi"));
     ctx.set_cached(user_job, curr_file_path, empty_module)
-    if(did_once) return empty_module;
-    did_once = true;
+
+    const cbi_name = std::string_view("md");
+    if(ctx.contains_cbi(cbi_name)) {
+        return empty_module;
+    }
+    ctx.set_contains_cbi(cbi_name)
 
     // md cbi
-    var cbi = ctx.build_cbi(std::string_view("md"))
+    var cbi = ctx.build_cbi(cbi_name)
     const job = cbi;
 
     // makes sure this job is done before the user_job
@@ -43,7 +47,24 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
-    const dependencies = [ cstd_module, std_module, compiler_module ]
+    // the md parser module
+    var md_parser = mdParserMod.build(ctx, job)
+    if(md_parser == null) {
+        return null
+    }
+
+    // only compile html ide module in lsp
+    var mdIde : *mut Module
+    comptime if(def.lsp) {
+        mdIde = mdIdeMod.build(ctx, job)
+        if(mdIde == null) {
+            return null;
+        }
+    } else {
+        mdIde = md_parser
+    }
+
+    const dependencies = [ cstd_module, std_module, compiler_module, md_parser, mdIde ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("md_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     ctx.add_module(cbi, module)
@@ -55,6 +76,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("md_symResValue"), CBIFunctionType.SymResValue);
     ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementValue"), CBIFunctionType.ReplacementValue);
+
+    comptime if(def.lsp) {
+        // this will let the lsp know that methods are present
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+        ctx.index_def_cbi_fn(cbi, std::string_view("md_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+    }
 
     return empty_module;
 

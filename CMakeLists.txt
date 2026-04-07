@@ -643,6 +643,8 @@ add_executable(ChemicalLsp core/targets/LSPMain.cpp ${COMMON_SOURCES}
         server/analyzers/FoldingRangeAnalyzer.cpp
         server/analyzers/CompletionItemAnalyzer.h
         server/analyzers/CompletionItemAnalyzer.cpp
+        server/analyzers/FormatterAnalyzer.h
+        server/analyzers/FormatterAnalyzer.cpp
         server/analyzers/SemanticTokensAnalyzer.h
         server/analyzers/SemanticTokensAnalyzer.cpp
         server/analyzers/DocumentSymbolsAnalyzer.h

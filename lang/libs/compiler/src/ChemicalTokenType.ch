@@ -1,9 +1,7 @@
 public enum ChemicalTokenType {
 
     // when reached the end of file
-    EndOfFile,
-
-    // usually means an error should occur
+    EndOfFile = 30000,
     Unexpected,
 
     // ------- keywords

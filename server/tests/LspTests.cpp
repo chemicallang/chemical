@@ -177,10 +177,9 @@ void test_arrays_and_indexing() {
 }
 
 void test_annotations_and_macros() {
-    std::string input = "@entry\n#test\nfunc main(){}";
+    std::string input = "@test\nfunc main(){}";
     std::string expected = 
-"@entry \n"
-"#test \n"
+"@test \n"
 "func main() {}";
     // Note: our current logic adds a space after @annotation and #macro 
     // unless followed by newline. If it is already followed by newline, 

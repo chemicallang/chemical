@@ -15,6 +15,9 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
     int consecutiveNewlines = 0;
     bool hasPrevToken = false;
 
+    size_t lastNonWsIndex = 0;
+    bool hasLastNonWsIndex = false;
+
     // Skip initial whitespace/newlines
     size_t startIndex = 0;
     while(startIndex < tokens.size() && (tokens[startIndex].type == TokenType::Whitespace || tokens[startIndex].type == TokenType::NewLine)) {
@@ -36,25 +39,30 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
             continue;
         }
 
-        // Handle indentation and newlines for Braces
+        // Handle indentation and newlines
         if (token.type == TokenType::RBrace) {
-            indentLevel--;
-            if (!atStartOfLine) appendNewline();
-            appendIndent();
-        } else if (atStartOfLine) {
-            appendIndent();
-        } else {
-            // Check if we should insert a newline based on original source lines
-            if (hasPrevToken && token.position.line > prevLine) {
-                // Limit to maximum of 2 newlines (1 empty line)
-                uint32_t lineDiff = token.position.line - prevLine;
-                if (lineDiff > 2) lineDiff = 2;
-                
-                for(uint32_t j = 0; j < lineDiff; ++j) {
-                    appendNewline();
-                }
+            // Check for empty braces
+            bool isEmptyBrace = (hasLastNonWsIndex && tokens[lastNonWsIndex].type == TokenType::LBrace);
+            if (!isEmptyBrace) {
+                indentLevel--;
+                if (!atStartOfLine) appendNewline();
                 appendIndent();
             }
+        } else if (atStartOfLine) {
+            // We are at the start of a line (either from a formatter newline or source newline)
+            // Check if we should add an EXTRA newline for vertical spacing
+            if (hasPrevToken && token.position.line > prevLine + 1) {
+                appendNewline();
+            }
+            appendIndent();
+        } else if (hasPrevToken && token.position.line > prevLine) {
+            // Newline in source that we haven't handled yet
+            uint32_t lineDiff = token.position.line - prevLine;
+            if (lineDiff > 2) lineDiff = 2; // Maximum one empty line
+            for(uint32_t j = 0; j < lineDiff; ++j) {
+                appendNewline();
+            }
+            appendIndent();
         }
 
         // Handle spacing before token for binary operators and other cases
@@ -106,6 +114,8 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 case TokenType::RightShiftSym:
                 case TokenType::LambdaSym:
                 case TokenType::LBrace:
+                case TokenType::SingleLineComment:
+                case TokenType::MultiLineComment:
                 case TokenType::DoubleColonSym:
                 case TokenType::QuestionMarkSym:
                     needsSpaceBefore = true;
@@ -146,8 +156,16 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
         }
         
         atStartOfLine = false;
+        
+        // Update prevLine, counting any internal newlines in the token value
         prevLine = token.position.line;
+        for (char c : val) {
+            if (c == '\n') prevLine++;
+        }
+        
         hasPrevToken = true;
+        lastNonWsIndex = i;
+        hasLastNonWsIndex = true;
 
         // Deciding on what follows the token
         switch (token.type) {
@@ -155,11 +173,17 @@ std::vector<lsp::TextEdit> FormatterAnalyzer::format(const std::vector<Token>& t
                 appendNewline();
                 break;
             case TokenType::LBrace:
-                indentLevel++;
-                appendNewline();
+                if (i + 1 < tokens.size() && tokens[i+1].type == TokenType::RBrace) {
+                    // Empty braces - don't increment indent or newline
+                } else {
+                    indentLevel++;
+                    appendNewline();
+                }
                 break;
             case TokenType::RBrace:
-                if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
+                if (hasPrevToken && tokens[i-1].type == TokenType::LBrace) {
+                    // Empty braces - space before } if you like, but usually {} is fine
+                } else if (i + 1 < tokens.size() && tokens[i+1].type != TokenType::EndOfFile) {
                     // Suppress newline for "cuddled" keywords
                     TokenType nextType = tokens[i+1].type;
                     if (nextType != TokenType::ElseKw && 

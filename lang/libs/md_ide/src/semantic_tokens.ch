@@ -55,6 +55,9 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
         MdTokenType.RBrace => {
             analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
         }
+        MdTokenType.EndMd => {
+            analyzer.putToken(token, SemanticTokenTypes.Macro, 0)
+        }
         default => {
             analyzer.putToken(token, SemanticTokenTypes.Comment, 0)
         }
@@ -66,24 +69,17 @@ public func md_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start :
 
     var current = start
 
-    // put and skip the macro token
+    // put and skip the macro token (#md)
     analyzer.putToken(current, SemanticTokenTypes.Macro, 0)
     current++
-
-    var opened_braces = 0;
 
     while(current != end) {
 
         putToken(analyzer, current)
 
-        if(current.type == MdTokenType.LBrace) {
-            opened_braces++;
-        } else if(current.type == MdTokenType.RBrace) {
-            opened_braces--;
-            if(opened_braces == 0) {
-                current++;
-                return current;
-            }
+        if(current.type == MdTokenType.EndMd) {
+            current++;
+            return current;
         }
 
         current++;

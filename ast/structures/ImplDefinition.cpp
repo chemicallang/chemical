@@ -58,7 +58,7 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
                 gen.error("couldn't get base function when determining function pointer", (AnnotableNode*) function);
             } else {
                 const auto func = overridden.second;
-                const auto func_ptr = func->known_func(gen);
+                const auto func_ptr = func->get_declared_func(gen);
                 if(func_ptr == nullptr) {
                     // impl probably came before the interface, so now we declare it before interface
                     func->code_gen_declare(gen, linked);

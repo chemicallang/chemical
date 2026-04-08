@@ -639,6 +639,10 @@ BaseType* ASTNode::get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k)
                 return init->value->getType();
             }
         }
+        case ASTNodeKind::ForInLoopStmt: {
+            const auto stmt = as_for_in_loop_unsafe();
+            return stmt->elem_type;
+        }
         case ASTNodeKind::CapturedVariable: {
             return as_captured_var_unsafe()->known_type();
         }
@@ -953,6 +957,8 @@ llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
             return as_embedded_node_unsafe()->llvm_pointer(gen);
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::ForInLoopStmt:
+            return as_for_in_loop_unsafe()->llvm_pointer(gen);
         case ASTNodeKind::StructMember:
         case ASTNodeKind::UnnamedStruct:
         case ASTNodeKind::UnnamedUnion:
@@ -983,6 +989,8 @@ llvm::Value* ASTNode::loadable_llvm_pointer(Codegen& gen, SourceLocation locatio
             return as_embedded_node_unsafe()->loadable_llvm_pointer(gen, location);
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::ForInLoopStmt:
+            return as_for_in_loop_unsafe()->loadable_llvm_pointer(gen, location);
         case ASTNodeKind::StructMember:
         case ASTNodeKind::UnnamedStruct:
         case ASTNodeKind::UnnamedUnion:

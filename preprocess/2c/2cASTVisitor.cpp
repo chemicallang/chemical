@@ -3819,8 +3819,38 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     write("break;");
 }
 
+ForInLoop* getParentForInLoop(ASTNode* node) {
+    const auto p = node->parent();
+    if (!p) return nullptr;
+    if (p->kind() == ASTNodeKind::ForInLoopStmt) {
+        return p->as_for_in_loop_unsafe();
+    }
+    return getParentForInLoop(p);
+}
+
 void ToCAstVisitor::VisitContinueStmt(ContinueStatement *stmt) {
     destruct_till_loop_scope_above();
+    const auto forIn = getParentForInLoop(stmt);
+    if (forIn) {
+
+        write(forIn->id);
+        if (forIn->is_reversed()) {
+            write("--;");
+        } else {
+            write("++;");
+        }
+        new_line_and_indent();
+
+        if (forIn->index_init != nullptr) {
+            write(forIn->index_init->id_view());
+            if (forIn->is_reversed_counter()) {
+                write("--;");
+            } else {
+                write("++;");
+            }
+            new_line_and_indent();
+        }
+    }
     write("continue;");
 }
 

@@ -4061,15 +4061,18 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     FunctionDeclaration* iter_data_fn = nullptr;
     FunctionDeclaration* iter_size_fn = nullptr;
     if (exprType->kind() != BaseTypeKind::Array) {
-        const auto container = exprType->get_members_container();
-        if (container) {
-            const auto dataFn = container->child("iter_data");
-            if (dataFn && dataFn->kind() == ASTNodeKind::FunctionDecl) {
-                iter_data_fn = dataFn->as_function_unsafe();
-            }
-            const auto sizeFn = container->child("iter_size");
-            if (sizeFn && sizeFn->kind() == ASTNodeKind::FunctionDecl) {
-                iter_size_fn = sizeFn->as_function_unsafe();
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked) {
+            const auto container = linked->get_members_container();
+            if (container) {
+                const auto dataFn = container->child("iter_data");
+                if (dataFn && dataFn->kind() == ASTNodeKind::FunctionDecl) {
+                    iter_data_fn = dataFn->as_function_unsafe();
+                }
+                const auto sizeFn = container->child("iter_size");
+                if (sizeFn && sizeFn->kind() == ASTNodeKind::FunctionDecl) {
+                    iter_size_fn = sizeFn->as_function_unsafe();
+                }
             }
         }
     }
@@ -4088,7 +4091,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     write(' ');
     write(expr_var);
     write(" = ");
-    if (is_direct_struct) {
+    if (is_direct_struct && !is_value_param_hidden_pointer(node->expr)) {
         write('&');
     }
     visit(node->expr);

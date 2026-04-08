@@ -990,7 +990,12 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
         }
         node->elem_type = arrType->elem_type;
     } else {
-        const auto container = type->get_members_container();
+        const auto linked = type->get_linked_node(true, false);
+        if (!linked) {
+            linker.error("couldn't get container from expression", node->expr);
+            return;
+        }
+        const auto container = linked->get_members_container();
         if (!container) {
             linker.error("couldn't get container from expression", node->expr);
             return;

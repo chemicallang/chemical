@@ -1984,6 +1984,14 @@ void CDestructionVisitor::destruct_arr(const chem::string_view& self_name, int a
     destruct_arr_ptr(self_name, &siz, linked, destructor);
 }
 
+void loop_scope_no_parens(ToCAstVisitor& visitor, Scope& body) {
+    auto& destructor = visitor.destructor;
+    const auto prev_loop_destr_start = destructor.loop_job_begin_index;
+    destructor.loop_job_begin_index = (int) destructor.destruct_jobs.size();
+    scope_no_parens(visitor, body);
+    destructor.loop_job_begin_index = prev_loop_destr_start;
+}
+
 void loop_scope(ToCAstVisitor& visitor, Scope& body) {
     auto& destructor = visitor.destructor;
     const auto prev_loop_destr_start = destructor.loop_job_begin_index;
@@ -4014,6 +4022,184 @@ void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
     }
     write(')');
     loop_scope(*this, forLoop->body);
+}
+
+void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
+
+    const auto exprType = node->expr->getType()->canonical();
+
+    FunctionDeclaration* iter_data_fn = nullptr;
+    FunctionDeclaration* iter_size_fn = nullptr;
+    if (exprType->kind() != BaseTypeKind::Array) {
+        const auto container = exprType->get_members_container();
+        if (container) {
+            const auto dataFn = container->child("iter_data");
+            if (dataFn && dataFn->kind() == ASTNodeKind::FunctionDecl) {
+                iter_data_fn = dataFn->as_function_unsafe();
+            }
+            const auto sizeFn = container->child("iter_size");
+            if (sizeFn && sizeFn->kind() == ASTNodeKind::FunctionDecl) {
+                iter_size_fn = sizeFn->as_function_unsafe();
+            }
+        }
+    }
+    // so index_id won't conflict with other loops
+    write('{');
+    indentation_level += 1;
+    new_line_and_indent();
+
+    // evaluating expression into a variable
+    const auto is_direct_struct = iter_data_fn && exprType->kind() != BaseTypeKind::Reference;
+    auto expr_var = get_local_temp_var_name();
+    visit(node->expr->getType());
+    if (is_direct_struct) {
+        write('*');
+    }
+    write(' ');
+    write(expr_var);
+    write(" = ");
+    if (is_direct_struct) {
+        write('&');
+    }
+    visit(node->expr);
+    write(';');
+    new_line_and_indent();
+
+    // the end pointer variable name
+    auto end_ptr_var_name = get_local_temp_var_name();
+    auto& temp_var = end_ptr_var_name;
+
+    // the current pointer
+    visit(node->elem_type);
+    write("* ");
+    if (node->is_reversed()) {
+        write(end_ptr_var_name);
+    } else {
+        write(node->id);
+    }
+    write(" = ");
+    // writing pointer
+    if (exprType->kind() == BaseTypeKind::Array) {
+        write(expr_var);
+    } else {
+        if (iter_data_fn) {
+            mangle(iter_data_fn);
+            write('(');
+            write(expr_var);
+            write(')');
+        } else {
+            write("0; /** 'iter_data' function missing in the container **/");
+        }
+    }
+    write(";");
+    new_line_and_indent();
+
+    // the end pointer
+    visit(node->elem_type);
+    write("* ");
+    if (node->is_reversed()) {
+        write(node->id);
+    } else {
+        write(temp_var);
+    }
+    write(" = ");
+    if (node->is_reversed()) {
+        write(temp_var);
+    } else {
+        write(node->id);
+    }
+    write(" + ");
+    // writing size
+    if (exprType->kind() == BaseTypeKind::Array) {
+        const auto arrType = exprType->as_array_type_unsafe();
+        writer << arrType->get_array_size();
+    } else {
+        if (iter_size_fn) {
+            mangle(iter_size_fn);
+            write('(');
+            write(expr_var);
+            write(')');
+        } else {
+            write("0; /** 'iter_size' function missing in the container **/");
+        }
+    }
+    write(";");
+    new_line_and_indent();
+
+    if (node->index_init != nullptr) {
+        visit(node->index_init->known_type());
+        write(' ');
+        write(node->index_init->id_view());
+        write(" = ");
+        if (node->is_reversed_counter()) {
+            // writing size again
+            if (exprType->kind() == BaseTypeKind::Array) {
+                const auto arrType = exprType->as_array_type_unsafe();
+                writer << arrType->get_array_size();
+            } else {
+                if (node->is_reversed()) {
+                    write(node->id);
+                    write(" - ");
+                    write(temp_var);
+                } else {
+                    write(temp_var);
+                    write(" - ");
+                    write(node->id);
+                }
+            }
+        } else {
+            write('0');
+        }
+        write(';');
+        new_line_and_indent();
+    }
+
+    // while condition
+    write("while(");
+    write(node->id);
+    write(" != ");
+    write(temp_var);
+
+    write(") {");
+
+    // decrementing counter
+    if (node->index_init != nullptr && node->is_reversed_counter()) {
+        write('\t');
+        write(node->index_init->id_view());
+        write("--;");
+    }
+
+    // decrementing (if reversed)
+    if (node->is_reversed()) {
+        write('\t');
+        // decrementing pointer
+        write(node->id);
+        write("--;");
+    }
+
+    // body
+    loop_scope_no_parens(*this, node->body);
+
+    // incrementing counter
+    if (node->index_init != nullptr && !node->is_reversed_counter()) {
+        write('\t');
+        write(node->index_init->id_view());
+        write("++;");
+    }
+
+    // incrementing
+    if (!node->is_reversed()) {
+        // incrementing pointer
+        write('\t');
+        write(node->id);
+        write("++;");
+    }
+
+    new_line_and_indent();
+    write('}');
+    indentation_level -= 1;
+    new_line_and_indent();
+    write('}');
 }
 
 void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
@@ -6214,6 +6400,12 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                     return;
                 }
                 break;
+            }
+            case ASTNodeKind::ForInLoopStmt: {
+                const auto stmt = linked->as_for_in_loop_unsafe();
+                write('*');
+                write(stmt->id);
+                return;
             }
             case ASTNodeKind::CapturedVariable:{
                 auto found = aliases.find(linked->as_captured_var_unsafe());

@@ -91,6 +91,9 @@ public:
     inline void VisitForLoopStmt(ForLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitForInLoopStmt(ForInLoop* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitIfStmt(IfStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -567,6 +570,9 @@ public:
             case ASTNodeKind::ForLoopStmt:
                 static_cast<Derived*>(this)->VisitForLoopStmt((ForLoop*) node);
                 return;
+            case ASTNodeKind::ForInLoopStmt:
+                static_cast<Derived*>(this)->VisitForInLoopStmt((ForInLoop*) node);
+                return;
             case ASTNodeKind::IfStmt:
                 static_cast<Derived*>(this)->VisitIfStmt((IfStatement*) node);
                 return;
@@ -1004,6 +1010,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(ForLoop* node) {
         static_cast<Derived*>(this)->VisitForLoopStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ForInLoop* node) {
+        static_cast<Derived*>(this)->VisitForInLoopStmt(node);
     }
     inline void VisitByPtrTypeNoNullCheck(IfStatement* node) {
         static_cast<Derived*>(this)->VisitIfStmt(node);

@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ForLoop.h"
+#include "ForInLoop.h"
 
 #ifdef COMPILER_BUILD
 
@@ -47,4 +48,8 @@ void ForLoop::code_gen(Codegen &gen) {
 
 void ForLoop::stopInterpretation() {
     stoppedInterpretation = true;
+}
+
+void ForInLoop::stopInterpretation() {
+    attrs.stoppedInterpretation = true;
 }

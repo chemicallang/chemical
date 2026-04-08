@@ -629,6 +629,7 @@ set(COMMON_SOURCES
         ast/structures/BlockScope.h
         ast/utils/TargetAPI.h
         compiler/symres/TopLevelIfStmtConditionChecker.h
+        ast/structures/ForInLoop.h
 )
 
 # Chemical LSP Executable Target

@@ -39,6 +39,7 @@
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/structures/ForInLoop.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
@@ -418,6 +419,11 @@ public:
         visit_it(loop->initializer);
         visit_it(loop->conditionExpr);
         visit_it(loop->incrementerExpr);
+        visit_it(loop->body);
+    }
+
+    void VisitForInLoopStmt(ForInLoop *loop) {
+        visit_it(loop->expr);
         visit_it(loop->body);
     }
 

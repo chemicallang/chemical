@@ -54,10 +54,13 @@ void ForInLoop::code_gen(Codegen &gen) {
     FunctionDeclaration* iter_data_fn = nullptr;
     FunctionDeclaration* iter_size_fn = nullptr;
     if (exprType->kind() != BaseTypeKind::Array) {
-        const auto container = exprType->get_members_container();
-        if (container) {
-            iter_data_fn = container->direct_child_function("iter_data");
-            iter_size_fn = container->direct_child_function("iter_size");
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked) {
+            const auto container = linked->get_members_container();
+            if (container) {
+                iter_data_fn = container->direct_child_function("iter_data");
+                iter_size_fn = container->direct_child_function("iter_size");
+            }
         }
     }
 

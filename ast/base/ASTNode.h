@@ -907,6 +907,14 @@ public:
     }
 
     /**
+     * get as for in loop
+     */
+    inline ForInLoop* as_for_in_loop_unsafe() {
+        CHECK_CAST(ASTNodeKind::ForInLoopStmt);
+        return (ForInLoop*) this;
+    }
+
+    /**
      * get as while loop
      */
     inline WhileLoop* as_while_loop_unsafe() {

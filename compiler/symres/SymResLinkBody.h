@@ -121,6 +121,8 @@ public:
 
     void VisitForLoopStmt(ForLoop* node);
 
+    void VisitForInLoopStmt(ForInLoop* node);
+
     void VisitFunctionParam(FunctionParam* node);
 
     void VisitGenericTypeParam(GenericTypeParameter* node);

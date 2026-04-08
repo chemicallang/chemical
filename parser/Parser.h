@@ -871,7 +871,7 @@ public:
     /**
      * parses a single for loop
      */
-    ForLoop* parseForLoop(ASTAllocator& allocator);
+    ASTNode* parseForLoop(ASTAllocator& allocator);
 
     /**
      * parses a single loop block

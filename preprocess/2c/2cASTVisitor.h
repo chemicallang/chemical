@@ -666,6 +666,8 @@ public:
 
     void VisitForLoopStmt(ForLoop* node);
 
+    void VisitForInLoopStmt(ForInLoop* node);
+
     void VisitIfStmt(IfStatement* node);
 
     void VisitTryStmt(TryCatch* node);

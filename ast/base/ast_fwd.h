@@ -50,6 +50,8 @@ class EnumDeclaration;
 
 class ForLoop;
 
+class ForInLoop;
+
 class UnionDef;
 
 class FunctionParam;

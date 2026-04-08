@@ -31,6 +31,7 @@
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/LoopBlock.h"
+#include "ast/structures/ForInLoop.h"
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/PatternMatchExprNode.h"
@@ -187,6 +188,8 @@ BaseType* ASTNode::getType() {
             return as_unresolved_decl_unsafe()->known_type();
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->known_type();
+        case ASTNodeKind::ForInLoopStmt:
+            return as_for_in_loop_unsafe()->known_type();
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->known_type();
         case ASTNodeKind::EnumDecl:
@@ -841,6 +844,10 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
                 return provide_child(resolver, stmt->value->getType(), name, this);
             }
             return nullptr;
+        }
+        case ASTNodeKind::ForInLoopStmt: {
+            const auto stmt = as_for_in_loop_unsafe();
+            return provide_child(resolver, stmt->elem_type, name, this);
         }
         case ASTNodeKind::FunctionParam: {
             const auto param = as_func_param_unsafe();

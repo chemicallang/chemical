@@ -24,6 +24,7 @@ enum class TokenType {
     UnsafeKw,
     UnreachableKw,
     InitKw,
+    ReversedKw,
     TryKw,
     CatchKw,
     ThrowKw,

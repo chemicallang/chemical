@@ -33,6 +33,7 @@ enum class ASTNodeKind : uint8_t {
     WhileLoopStmt,
     DoWhileLoopStmt,
     ForLoopStmt,
+    ForInLoopStmt,
     IfStmt,
     TryStmt,
     ValueNode,

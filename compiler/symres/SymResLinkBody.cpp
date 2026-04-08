@@ -974,6 +974,50 @@ void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
     linker.scope_end();
 }
 
+void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
+    linker.scope_start();
+    visit(node->expr);
+
+    const auto exprTy = node->expr->getType();
+    const auto type = exprTy->canonical();
+    if (type->kind() == BaseTypeKind::Array) {
+        const auto arrType = type->as_array_type_unsafe();
+        const auto arrSize = arrType->get_array_size();
+        if (arrSize == 0) {
+            linker.error("array size is not known at compile time so it cannot be iterated", node->expr);
+            linker.hint(node->expr->encoded_location()) << "use a std::span to iterate over an array";
+            return;
+        }
+        node->elem_type = arrType->elem_type;
+    } else {
+        const auto container = type->get_members_container();
+        if (!container) {
+            linker.error("couldn't get container from expression", node->expr);
+            return;
+        }
+        const auto data = container->child("iter_data");
+        if (data == nullptr || data->kind() != ASTNodeKind::FunctionDecl) {
+            linker.error("invalid child 'iter_data' from expression", node->expr);
+            return;
+        }
+        const auto iterDataFunc = data->as_function_unsafe();
+        if (iterDataFunc->returnType->kind() != BaseTypeKind::Pointer) {
+            linker.error("expected 'iter_data' return type to be a pointer", node->expr);
+            return;
+        }
+        node->elem_type = iterDataFunc->returnType->as_pointer_type_unsafe()->type;
+    }
+
+    // we declare the same id
+    linker.declare(node->id, node);
+    if (node->index_init != nullptr) {
+        linker.declare(node->index_init->id_view(), node->index_init);
+    }
+
+    link_seq(*this, node->body);
+    linker.scope_end();
+}
+
 void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
     linker.declare_or_shadow(node->name, node);
 }

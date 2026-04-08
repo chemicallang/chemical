@@ -77,6 +77,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "unsafe", TokenType::UnsafeKw },
                 { "unreachable", TokenType::UnreachableKw },
                 { "init", TokenType::InitKw },
+                { "reversed", TokenType::ReversedKw },
                 { "try", TokenType::TryKw },
                 { "catch", TokenType::CatchKw },
                 { "throw", TokenType::ThrowKw },

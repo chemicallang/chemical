@@ -109,92 +109,92 @@ public:
 
     }
 
-    inline AccessSpecifier specifier() {
+    inline AccessSpecifier specifier() const noexcept {
         return attrs.specifier;
     }
 
-    inline void set_specifier(AccessSpecifier specifier) {
+    inline void set_specifier(AccessSpecifier specifier) noexcept {
         attrs.specifier = specifier;
     }
 
-    inline bool is_comptime() {
+    inline bool is_comptime() const noexcept {
         return attrs.is_comptime;
     }
 
-    inline void set_comptime(bool value) {
+    inline void set_comptime(bool value) noexcept {
         attrs.is_comptime = value;
     }
 
-    inline bool is_compiler_decl() {
+    inline bool is_compiler_decl() const noexcept {
         return attrs.is_compiler_decl;
     }
 
-    inline void set_compiler_decl(bool value) {
+    inline void set_compiler_decl(bool value) noexcept {
         attrs.is_comptime = value;
         attrs.is_compiler_decl = value;
     }
 
-    inline bool is_direct_init() {
+    inline bool is_direct_init() const noexcept {
         return attrs.is_direct_init;
     }
 
-    inline void set_direct_init(bool value) {
+    inline void set_direct_init(bool value) noexcept {
         attrs.is_direct_init = value;
     }
 
-    inline bool is_deprecated() {
+    inline bool is_deprecated() const noexcept {
         return attrs.deprecated;
     }
 
-    inline void set_deprecated(bool value) {
+    inline void set_deprecated(bool value) noexcept {
         attrs.deprecated = value;
     }
 
-    inline bool is_no_init() {
+    inline bool is_no_init() const noexcept {
         return attrs.no_init;
     };
 
-    inline void set_no_init(bool value) {
+    inline void set_no_init(bool value) noexcept {
         attrs.no_init = value;
     }
 
-    inline bool is_use_after_move() {
+    inline bool is_use_after_move() const noexcept {
         return attrs.use_after_move;
     };
 
-    inline void set_use_after_move(bool value) {
+    inline void set_use_after_move(bool value) noexcept {
         attrs.use_after_move = value;
     }
 
-    inline bool is_anonymous() {
+    inline bool is_anonymous() const noexcept {
         return attrs.anonymous;
     };
 
-    inline void set_anonymous(bool value) {
+    inline void set_anonymous(bool value) noexcept {
         attrs.anonymous = value;
     }
 
-    inline bool is_abstract() {
+    inline bool is_abstract() const noexcept {
         return attrs.is_abstract;
     }
 
-    inline void set_abstract(bool value) {
+    inline void set_abstract(bool value) noexcept {
         attrs.is_abstract = value;
     }
 
-    inline bool is_no_mangle() {
+    inline bool is_no_mangle() const noexcept {
         return attrs.is_no_mangle;
     }
 
-    inline void set_no_mangle(bool no_mangle) {
+    inline void set_no_mangle(bool no_mangle) noexcept {
         attrs.is_no_mangle = no_mangle;
     }
 
-    inline bool is_extern() {
+    inline bool is_extern() const noexcept {
         return attrs.is_extern;
     }
 
-    inline void set_extern(bool value) {
+    inline void set_extern(bool value) noexcept {
         attrs.is_extern = value;
     }
 

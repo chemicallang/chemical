@@ -79,6 +79,11 @@ public:
      */
     bool built_indexes = false;
 
+    /**
+     * this is calculated during symbol resolution
+     */
+    bool is_sizeof_zero = false;
+
 private:
 
     /**

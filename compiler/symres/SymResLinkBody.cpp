@@ -111,14 +111,6 @@ void link_seq_backing_moves(
     curr_func->save_moved_chains_after(moved_chains, if_moved_chains_begin);
 }
 
-static BaseType* defaultType(SymbolResolver& resolver, BaseType* type) {
-    if(type) {
-        return type;
-    } else {
-        return resolver.comptime_scope.typeBuilder.getVoidType();
-    }
-}
-
 void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     const auto container = this;
     for(const auto var : container->variables()) {
@@ -176,10 +168,53 @@ void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker)
 }
 
 void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
-    for(auto& inherits : container->inherited) {
+    auto& inherited = container->inherited;
+    for(auto& inherits : inherited) {
         const auto def = inherits.type->get_members_container();
         if(def) {
             def->declare_inherited_members(linker);
+        }
+    }
+    // ensure that every inherited type after the first inherited type is an interface
+    // this makes the inheritance list predictable
+    // if this is an interface decl, every inherited type must be an interface
+    if (container->kind() == ASTNodeKind::InterfaceDecl) {
+        for(auto& inherits : inherited) {
+            const auto node = inherits.type->get_direct_linked_canonical_node();
+            if (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl) {
+                linker.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
+            }
+        }
+    } else if (!inherited.empty()) {
+        // first type can be a struct or interface (shouldn't be variant)
+        auto& first_node_type = inherited.front().type;
+        const auto first_node = first_node_type->get_direct_linked_canonical_node();
+        if (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl && first_node->kind() != ASTNodeKind::InterfaceDecl && first_node->kind() != ASTNodeKind::GenericInterfaceDecl) {
+            linker.error(first_node_type.encoded_location()) << "the first type in inheritance list must be a struct or interface type";
+        }
+        if (inherited.size() > 1) {
+            // all other types must be interfaces or empty struct types
+            auto start = inherited.data() + 1;
+            const auto end = inherited.data() + inherited.size();
+            while (start != end) {
+                const auto node = start->type->get_direct_linked_canonical_node();
+                if (node->kind() == ASTNodeKind::StructDecl) {
+                    // check if struct is empty, if empty, we allow it, otherwise error out
+                    const auto structDecl = node->as_struct_def_unsafe();
+                    if (!structDecl->is_sizeof_zero) {
+                        linker.error(start->type.encoded_location()) << "struct type being inherited (not in the first type) in inheritance list is not empty (contains variables)";
+                    }
+                } else if (node->kind() == ASTNodeKind::GenericStructDecl) {
+                    // check if struct is empty, if empty, we allow it, otherwise error out
+                    const auto structDecl = node->as_gen_struct_def_unsafe();
+                    if (!structDecl->master_impl->is_sizeof_zero) {
+                        linker.error(start->type.encoded_location()) << "struct type being inherited (not in the first type) in inheritance list is not empty (contains variables)";
+                    }
+                } else if (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl) {
+                    linker.error(start->type.encoded_location()) << "only the first type in inheritance list can be a struct type, all other types must be an interface or empty struct types";
+                }
+                start++;
+            }
         }
     }
     // this will only declare aliases

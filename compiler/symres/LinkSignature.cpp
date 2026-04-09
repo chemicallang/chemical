@@ -713,9 +713,12 @@ void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainerBase* contain
 }
 
 void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* container) {
-    for(auto& inherits : container->inherited) {
+    // linking inherited types
+    auto& inherited = container->inherited;
+    for(auto& inherits : inherited) {
         visit(inherits.type);
     }
+    // linking variables and default values
     for (const auto var: container->variables()) {
         visit(var);
         // verify the type of the default value
@@ -728,6 +731,7 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
             }
         }
     }
+    // linking functions
     for(auto& func : container->functions()) {
         visit(func);
     }
@@ -1349,12 +1353,18 @@ void TopLevelLinkSignature::VisitUnnamedUnion(UnnamedUnion* node) {
 }
 
 void buildContainerIndexes(MembersContainer* container) {
+    bool is_inherited_sizeof_zero = true;
     for(auto& inh : container->inherited) {
         const auto sub_container = inh.type->get_members_container();
         if(sub_container) {
             // first build indexes on inherited containers
             // since we want to do multi-level inheritance
             buildContainerIndexes(sub_container);
+            // check if inherited size of zero
+            // we also calculate this flag when building indexes
+            if (!sub_container->is_sizeof_zero) {
+                is_inherited_sizeof_zero = false;
+            }
             // putting all index of this container
             // except we will never override, respecting already present indexes
             // because we want to support function hiding, function in container will hide function in inherited container (with same name)
@@ -1365,6 +1375,9 @@ void buildContainerIndexes(MembersContainer* container) {
                 container_indexes.try_emplace(index.first, index.second);
             }
         }
+    }
+    if (is_inherited_sizeof_zero && container->variables().empty()) {
+        container->is_sizeof_zero = true;
     }
 }
 

@@ -58,8 +58,8 @@ void ForInLoop::code_gen(Codegen &gen) {
         if (linked) {
             const auto container = linked->get_members_container();
             if (container) {
-                iter_data_fn = container->direct_child_function("iter_data");
-                iter_size_fn = container->direct_child_function("iter_size");
+                iter_data_fn = container->direct_child_function("data");
+                iter_size_fn = container->direct_child_function("size");
             }
         }
     }
@@ -184,6 +184,7 @@ void ForInLoop::code_gen(Codegen &gen) {
 }
 
 llvm::Value* ForInLoop::llvm_load(Codegen& gen, SourceLocation location) {
+    if (is_reference()) return id_ptr;
     auto idStrRef = llvm::StringRef(id.data(), id.size());
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), id_ptr, idStrRef);
     gen.di.instr(loadInst, location);

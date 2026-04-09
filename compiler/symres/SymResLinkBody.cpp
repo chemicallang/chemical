@@ -988,7 +988,11 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
             linker.hint(node->expr->encoded_location()) << "use a std::span to iterate over an array";
             return;
         }
-        node->elem_type = arrType->elem_type;
+        if (node->is_reference()) {
+            node->elem_type->as_reference_type_unsafe()->type = arrType->elem_type;
+        } else {
+            node->elem_type = arrType->elem_type;
+        }
     } else {
         const auto linked = type->get_linked_node(true, false);
         if (!linked) {
@@ -1000,17 +1004,22 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
             linker.error("couldn't get container from expression", node->expr);
             return;
         }
-        const auto data = container->child("iter_data");
+        const auto data = container->child("data");
         if (data == nullptr || data->kind() != ASTNodeKind::FunctionDecl) {
-            linker.error("invalid child 'iter_data' from expression", node->expr);
+            linker.error("invalid child 'data' from expression", node->expr);
             return;
         }
         const auto iterDataFunc = data->as_function_unsafe();
         if (iterDataFunc->returnType->kind() != BaseTypeKind::Pointer) {
-            linker.error("expected 'iter_data' return type to be a pointer", node->expr);
+            linker.error("expected 'data' return type to be a pointer", node->expr);
             return;
         }
-        node->elem_type = iterDataFunc->returnType->as_pointer_type_unsafe()->type;
+        const auto ty = iterDataFunc->returnType->as_pointer_type_unsafe()->type;;
+        if (node->is_reference()) {
+            node->elem_type->as_reference_type_unsafe()->type = ty;
+        } else {
+            node->elem_type = ty;
+        }
     }
 
     // we declare the same id

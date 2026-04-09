@@ -47,6 +47,23 @@ void sym_res_before_signature(SymbolResolver& resolver, Scope* scope) {
     }
 }
 
+void BeforeLinkSignature::link(std::vector<GenericTypeParameter*>& params) {
+    auto& linker = signatureLinker.linker;
+    linker.scope_start();
+    for(const auto param : params) {
+        // the trait types can link with previous generic type parameters
+        // so we must declare them
+        linker.declare(param->identifier, param);
+        for(auto& t : param->traits) {
+            signatureLinker.visit(t);
+        }
+        if(param->def_type) {
+            signatureLinker.visit(param->def_type);
+        }
+    }
+    linker.scope_end();
+}
+
 SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visitor) {
     return &visitor->linker;
 }

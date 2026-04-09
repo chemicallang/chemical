@@ -10,12 +10,15 @@
 #include "ast/base/Value.h"
 #include "Scope.h"
 #include "ast/statements/VarInit.h"
+#include "ast/types/ReferenceType.h"
 
 struct ForInLoopAttributes {
 
     bool reversed = false;
 
     bool reversed_counter = false;
+
+    bool is_reference = false;
 
     bool stoppedInterpretation = false;
 
@@ -64,6 +67,19 @@ public:
 
     void set_reversed_counter(bool value) noexcept {
         attrs.reversed_counter = value;
+    }
+
+    bool is_reference() const noexcept {
+        return attrs.is_reference;
+    }
+
+    void set_is_reference(bool value) noexcept {
+        attrs.is_reference = value;
+    }
+
+    bool is_reference_mutable() const noexcept {
+        // when is_reference is true, we attach a reference type to elem_type, which contains whether its mutable
+        return is_reference() && elem_type->as_reference_type_unsafe()->is_mutable;
     }
 
     inline BaseType* known_type() const noexcept {

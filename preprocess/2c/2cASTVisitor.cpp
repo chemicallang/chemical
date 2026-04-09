@@ -4065,11 +4065,11 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         if (linked) {
             const auto container = linked->get_members_container();
             if (container) {
-                const auto dataFn = container->child("iter_data");
+                const auto dataFn = container->child("data");
                 if (dataFn && dataFn->kind() == ASTNodeKind::FunctionDecl) {
                     iter_data_fn = dataFn->as_function_unsafe();
                 }
-                const auto sizeFn = container->child("iter_size");
+                const auto sizeFn = container->child("size");
                 if (sizeFn && sizeFn->kind() == ASTNodeKind::FunctionDecl) {
                     iter_size_fn = sizeFn->as_function_unsafe();
                 }
@@ -6436,7 +6436,9 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
             }
             case ASTNodeKind::ForInLoopStmt: {
                 const auto stmt = linked->as_for_in_loop_unsafe();
-                write('*');
+                if (!stmt->is_reference()) {
+                    write('*');
+                }
                 write(stmt->id);
                 return;
             }

@@ -25,7 +25,7 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
                 if(ty == nullptr) {
                     CHEM_THROW_RUNTIME("generic active type doesn't exist");
                 }
-                if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+                if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam && ty->as_linked_type_unsafe()->linked == linked) {
                     CHEM_THROW_RUNTIME("unexpected generic type parameter usage");
                 }
 #endif

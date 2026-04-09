@@ -73,9 +73,12 @@ static ForLoop* empty_loop(Parser* parser, ASTAllocator& allocator) {
     return fix_loop(parser, loop, allocator);
 }
 
-static ForInLoop* parseForInLoop(Parser& parser, ASTAllocator& allocator, const chem::string_view& id, const chem::string_view& index_id, Token& tok) {
+static ForInLoop* parseForInLoop(Parser& parser, ASTAllocator& allocator, const chem::string_view& id_non_alloc, const chem::string_view& index_id_non_alloc, Token& tok, bool is_reference, bool is_reference_mutable) {
 
     const auto loc = parser.loc_single(tok);
+
+    const auto id = parser.allocate_view(allocator, id_non_alloc);
+    const auto index_id = index_id_non_alloc.empty() ? "" : parser.allocate_view(allocator, index_id_non_alloc);
 
     const auto loop = new (allocator.allocate<ForInLoop>()) ForInLoop(id, nullptr, nullptr, parser.parent_node, loc);
 
@@ -85,6 +88,12 @@ static ForInLoop* parseForInLoop(Parser& parser, ASTAllocator& allocator, const 
         loop->index_init = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
             false, false, index_id, TypeLoc(parser.typeBuilder.getU32Type(), loc), nullptr, loop, loc
         );
+    }
+
+    // set reference
+    if (is_reference) {
+        loop->elem_type = new (allocator.allocate<ReferenceType>()) ReferenceType(nullptr, is_reference_mutable);
+        loop->set_is_reference(true);
     }
 
     auto expr = parser.parseExpression(allocator, false, false);
@@ -186,6 +195,40 @@ ASTNode* Parser::parseForLoop(ASTAllocator& allocator) {
     switch(token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw: {
+            auto& tok_after_var = *(token + 1);
+            if (tok_after_var.type == TokenType::AmpersandSym) {
+                // var& c in circles
+                // var& c, i in circles
+                auto& first_id_tok = *(token + 2);
+                if (first_id_tok.type == TokenType::Identifier) {
+                    const auto tok_after_id_type = (token + 3)->type;
+                    if (tok_after_id_type == TokenType::InKw) {
+                        token += 4;
+                        return parseForInLoop(*this, allocator, first_id_tok.value, "", tok, true, token->type == TokenType::VarKw);
+                    } else if (tok_after_id_type == TokenType::CommaSym) {
+                        auto& second_id_tok = *(token + 4);
+                        if (second_id_tok.type == TokenType::Identifier && (token + 5)->type == TokenType::InKw) {
+                            token += 6;
+                            return parseForInLoop(*this, allocator, first_id_tok.value, second_id_tok.value, tok, true, token->type == TokenType::VarKw);
+                        }
+                    }
+                }
+
+            } else if (tok_after_var.type == TokenType::Identifier) {
+                // var c in circles
+                // var c, i in circles
+                const auto tok_after_id_type = (token + 2)->type;
+                if (tok_after_id_type == TokenType::InKw) {
+                    token += 3;
+                    return parseForInLoop(*this, allocator, tok_after_var.value, "", tok, false, false);
+                } else if (tok_after_id_type == TokenType::CommaSym) {
+                    auto& second_id_tok = *(token + 3);
+                    if (second_id_tok.type == TokenType::Identifier && (token + 4)->type == TokenType::InKw) {
+                        token += 5;
+                        return parseForInLoop(*this, allocator, tok_after_var.value, second_id_tok.value, tok, false, false);
+                    }
+                }
+            }
             auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, parent_node, loc_single(tok));
             auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false, false, false);
             if(statement) {
@@ -202,15 +245,12 @@ ASTNode* Parser::parseForLoop(ASTAllocator& allocator) {
                 if ((token + 1)->type == TokenType::CommaSym) {
                     auto& second_id = *(token + 2);
                     if (second_id.type == TokenType::Identifier && (token + 3)->type == TokenType::InKw) {
-                        auto id = allocate_view(allocator, first_id.value);
-                        auto index_id = allocate_view(allocator, second_id.value);
                         token += 4;
-                        return parseForInLoop(*this, allocator, id, index_id, tok);
+                        return parseForInLoop(*this, allocator, first_id.value, second_id.value, tok, false, false);
                     }
                 } else if ((token + 1)->type == TokenType::InKw) {
-                    auto id = allocate_view(allocator, first_id.value);
                     token += 2;
-                    return parseForInLoop(*this, allocator, id, "", tok);
+                    return parseForInLoop(*this, allocator, first_id.value, "", tok, false, false);
                 }
             }
             auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, parent_node, loc_single(tok));

@@ -28,16 +28,7 @@ public:
 
     }
 
-    void link(std::vector<GenericTypeParameter*>& params) {
-        for(const auto param : params) {
-            for(auto& t : param->traits) {
-                signatureLinker.visit(t);
-            }
-            if(param->def_type) {
-                signatureLinker.visit(param->def_type);
-            }
-        }
-    }
+    void link(std::vector<GenericTypeParameter*>& params);
 
     void VisitNamespaceDecl(Namespace* node);
 

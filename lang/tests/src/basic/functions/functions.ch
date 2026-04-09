@@ -176,7 +176,37 @@ func curr_inline_sum_3(a : int, b : int) : int {
     return a + b;
 }
 
+struct func_name_hiding1_inherited {
+    func give(&self) : int {
+        return 758
+    }
+}
+
+struct hider_func_name_hiding : func_name_hiding1_inherited {
+    func give_proxy1(&self) : int {
+        return give()
+    }
+    func give(&self) : int {
+        return 743
+    }
+    func give_proxy2(&self) : int {
+        return give()
+    }
+}
+
 func test_functions() {
+    test("function name hiding works properly - 1", () => {
+        var s = hider_func_name_hiding {}
+        return s.give() == 743
+    })
+    test("function name hiding works properly - 2", () => {
+        var s = hider_func_name_hiding {}
+        return s.give_proxy1() == 743
+    })
+    test("function name hiding works properly - 3", () => {
+        var s = hider_func_name_hiding {}
+        return s.give_proxy2() == 743
+    })
     test("struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
     })

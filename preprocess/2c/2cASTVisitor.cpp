@@ -6596,13 +6596,31 @@ void ToCAstVisitor::VisitComptimeValue(ComptimeValue* value) {
 }
 
 void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
+
+    const auto castType = casted->getType();
+    // special case:
+    // user casts an object of struct type that implements an interface to interface
+    const auto interface = castType->get_direct_linked_canonical_node();
+    if (interface && interface->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto structNode = casted->value->getType()->get_direct_linked_canonical_node();
+        if (structNode && (structNode->kind() == ASTNodeKind::StructDecl || structNode->kind() == ASTNodeKind::UnionDecl || structNode->kind() == ASTNodeKind::VariantDecl)) {
+            // perform no casting
+            auto prev_nested = nested_value;
+            nested_value = true;
+            visit(casted->value);
+            nested_value = prev_nested;
+            return;
+        }
+    }
+
     write('(');
     write('(');
+
     if(array_types_as_subscript) {
-        visit(casted->getType());
+        visit(castType);
     } else {
         array_types_as_subscript = true;
-        visit(casted->getType());
+        visit(castType);
         array_types_as_subscript = false;
     }
     write(')');

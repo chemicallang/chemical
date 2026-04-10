@@ -53,14 +53,31 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& passed_allocator, AccessSpecifier
 
         }
 
-        const auto interfaceTypeLoc = loc_single(token);
-        auto type = parseLinkedOrGenericType(allocator);
-        if(type) {
-            impl->interface_type = {type, interfaceTypeLoc};
+        auto typeToken = token;
+        const auto idType = typeToken->type;
+        if(Token::isKeywordOrId(idType)) {
+            token++;
         } else {
+            error("expected keyword or identifier for interface type in impl");
             impl->interface_type = { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC };
             return final_decl;
         }
+        const auto typeLoc = loc_single(typeToken);
+        BaseType* type;
+        if(token->type == TokenType::DoubleColonSym || token->type == TokenType::DotSym) {
+
+            const auto linkedValueType = parseLinkedValueType(allocator, typeToken, typeLoc);
+
+            type = parseGenericTypeAfterId(allocator, (BaseType*) linkedValueType);
+
+        } else {
+
+            const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
+            type = parseGenericTypeAfterId(allocator, namedLinkedType);
+
+        }
+        impl->interface_type = {type, typeLoc};
+
         if(consumeToken(TokenType::ForKw)) {
             auto structType = parseTypeLoc(allocator);
             if(structType) {

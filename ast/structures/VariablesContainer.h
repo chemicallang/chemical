@@ -235,19 +235,13 @@ public:
 };
 
 class VariablesContainer : public ASTNode, public VariablesContainerBase {
-protected:
-
-#ifdef COMPILER_BUILD
+public:
 
     /**
      * need to keep track of extension functions, because llvm backend
      * requires to declare the functions, we must know which extension functions are being declared
      */
     std::vector<ASTNode*> extension_functions;
-
-#endif
-
-public:
 
     /**
      * the inherited types
@@ -356,9 +350,7 @@ public:
         other.inherited = inherited;
         other.variables_container = variables_container;
         other.indexes = indexes;
-#ifdef COMPILER_BUILD
         other.extension_functions = extension_functions;
-#endif
     }
 
     /**
@@ -366,9 +358,7 @@ public:
      */
     inline void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
         indexes[name] = (ASTNode*) decl;
-#ifdef COMPILER_BUILD
         extension_functions.emplace_back((ASTNode*) decl);
-#endif
     }
 
     /**
@@ -376,9 +366,7 @@ public:
      */
     inline void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
         indexes[name] = (ASTNode*) decl;
-#ifdef COMPILER_BUILD
         extension_functions.emplace_back((ASTNode*) decl);
-#endif
     }
 
     /**
@@ -386,6 +374,8 @@ public:
      * struct / member, so user can call it using dot notation obj.method
      */
     void adopt(MembersContainer* definition);
+
+    void adopt(ExtendableMembersContainerNode* definition);
 
 #ifdef COMPILER_BUILD
 

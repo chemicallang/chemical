@@ -4,26 +4,29 @@ interface InterfaceGenericDispatchTestable {
 
 }
 
-struct InterfaceGenericDispatchTestOneImpl : InterfaceGenericDispatchTestable {
+struct InterfaceGenericDispatchTestOneImpl {
 
     var i : int
 
-    @override
-    func sum_it(&self) : int {
-        return 107 + i;
-    }
 
 }
 
-struct InterfaceGenericDispatchTestTwoImpl : InterfaceGenericDispatchTestable {
+impl InterfaceGenericDispatchTestable for InterfaceGenericDispatchTestOneImpl {
+    func sum_it(&self) : int {
+        return 107 + i;
+    }
+}
+
+struct InterfaceGenericDispatchTestTwoImpl {
 
     var i : int
 
-    @override
+}
+
+impl InterfaceGenericDispatchTestable for InterfaceGenericDispatchTestTwoImpl {
     func sum_it(&self) : int {
         return 875 + i;
     }
-
 }
 
 func <T : InterfaceGenericDispatchTestable> call_sum_it(value : &T) : int {

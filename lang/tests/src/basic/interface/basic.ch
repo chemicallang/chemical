@@ -37,11 +37,12 @@ interface IndirectlyInheritedInterface9328 {
 interface DelegateInterface2342 : IndirectlyInheritedInterface9328 {
 }
 
-struct Point3828 : DelegateInterface2342 {
+struct Point3828 {
     var a : int
     var b : int
+}
 
-    @override
+impl DelegateInterface2342 for Point3828 {
     func multiply(&self) : int {
         return a * b;
     }
@@ -51,8 +52,10 @@ func use_of_static_inter_bef_def(s : &static_interface_after_usage) : int {
     return s.give()
 }
 
-struct impl_of_static_inter_bef_def : static_interface_after_usage {
-    @override
+struct impl_of_static_inter_bef_def {
+}
+
+impl static_interface_after_usage for impl_of_static_inter_bef_def {
     func give(&self) : int {
         return 436;
     }

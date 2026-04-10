@@ -21,13 +21,12 @@ func <T : GenericExtFuncTestInterface> (inter : &mut T) sum_gen_ext_func_inter_t
     return inter.sum_it() * 2;
 }
 
-struct SumItExtFuncTestOne : GenericExtFuncTestInterface {
+struct SumItExtFuncTestOne {}
 
-    @override
+impl GenericExtFuncTestInterface for SumItExtFuncTestOne {
     func sum_it(&self) : int {
         return 2;
     }
-
 }
 
 func <T> (thing : &mut SumItExtFuncTestOne) ext_func_gen_on_struct_1() : int {
@@ -40,16 +39,17 @@ func <T> (thing : &mut SumItExtFuncTestOne) ext_func_gen_on_struct_1() : int {
     }
 }
 
-struct SumItExtFuncTestTwo : GenericExtFuncTestInterface {
+struct SumItExtFuncTestTwo {
 
     var a : int
     var b : int
 
-    @override
+}
+
+impl GenericExtFuncTestInterface for SumItExtFuncTestTwo {
     func sum_it(&self) : int {
         return a + b;
     }
-
 }
 
 func test_extension_functions() {

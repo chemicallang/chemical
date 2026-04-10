@@ -1390,6 +1390,32 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::InterfaceDecl:
                 buildContainerIndexes(node->as_members_container_unsafe());
                 continue;
+            case ASTNodeKind::ImplDecl: {
+                // for impl decl, impl Interface for Struct <-- Interface extension methods
+                // must be added into the struct so they can be invoked
+                // if method already exists, we must not do that
+                const auto decl = node->as_impl_def_unsafe();
+                const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
+                if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
+                    const auto interface = interfaceNode->as_interface_def_unsafe();
+                    const auto container = decl->struct_type->get_members_container();
+                    if (container) {
+                        for (const auto extension : interface->extension_functions) {
+                            switch (extension->kind()) {
+                                case ASTNodeKind::FunctionDecl:
+                                    container->indexes.try_emplace(extension->as_function_unsafe()->name_view(), extension);
+                                    continue;
+                                case ASTNodeKind::GenericFuncDecl:
+                                    container->indexes.try_emplace(extension->as_gen_func_decl_unsafe()->master_impl->name_view(), extension);
+                                    continue;
+                                default:
+                                    continue;
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
             // for generic containers, we only need to build indexes of the master container
             // because that's where children are resolved from
             case ASTNodeKind::GenericStructDecl:
@@ -1403,6 +1429,9 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
                 continue;
             case ASTNodeKind::GenericInterfaceDecl:
                 buildContainerIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
+                continue;
+            case ASTNodeKind::GenericImplDecl:
+                buildContainerIndexes(node->as_gen_impl_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::NamespaceDecl:
                 BuildIndexes(node->as_namespace_unsafe()->nodes);

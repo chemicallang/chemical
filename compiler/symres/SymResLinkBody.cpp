@@ -189,8 +189,8 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
         // first type can be a struct or interface (shouldn't be variant)
         auto& first_node_type = inherited.front().type;
         const auto first_node = first_node_type->get_direct_linked_canonical_node();
-        if (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl && first_node->kind() != ASTNodeKind::InterfaceDecl && first_node->kind() != ASTNodeKind::GenericInterfaceDecl) {
-            linker.error(first_node_type.encoded_location()) << "the first type in inheritance list must be a struct or interface type";
+        if (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl) {
+            linker.error(first_node_type.encoded_location()) << "the type in inheritance list must be a struct";
         }
         if (inherited.size() > 1) {
             // all other types must be interfaces or empty struct types
@@ -202,16 +202,16 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
                     // check if struct is empty, if empty, we allow it, otherwise error out
                     const auto structDecl = node->as_struct_def_unsafe();
                     if (!structDecl->is_sizeof_zero) {
-                        linker.error(start->type.encoded_location()) << "struct type being inherited (not in the first type) in inheritance list is not empty (contains variables)";
+                        linker.error(start->type.encoded_location()) << "struct type is not empty (contains variables) being inherited (not in the first position) in inheritance list";
                     }
                 } else if (node->kind() == ASTNodeKind::GenericStructDecl) {
                     // check if struct is empty, if empty, we allow it, otherwise error out
                     const auto structDecl = node->as_gen_struct_def_unsafe();
                     if (!structDecl->master_impl->is_sizeof_zero) {
-                        linker.error(start->type.encoded_location()) << "struct type being inherited (not in the first type) in inheritance list is not empty (contains variables)";
+                        linker.error(start->type.encoded_location()) << "struct type is not empty (contains variables) being inherited (not in the first position) in inheritance list";
                     }
-                } else if (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl) {
-                    linker.error(start->type.encoded_location()) << "only the first type in inheritance list can be a struct type, all other types must be an interface or empty struct types";
+                } else {
+                    linker.error(start->type.encoded_location()) << "the type in inheritance list must be a struct";
                 }
                 start++;
             }
@@ -1279,12 +1279,12 @@ void SymResLinkBody::VisitInterfaceDecl(InterfaceDefinition* node) {
 
 void SymResLinkBody::VisitStructDecl(StructDefinition* node) {
     LinkMembersContainer(node);
-    node->register_use_to_inherited_interfaces(node);
+    // node->register_use_to_inherited_interfaces(node);
 }
 
 void SymResLinkBody::VisitVariantDecl(VariantDefinition* node) {
     LinkMembersContainer(node);
-    node->register_use_to_inherited_interfaces(node);
+    // node->register_use_to_inherited_interfaces(node);
 }
 
 void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {

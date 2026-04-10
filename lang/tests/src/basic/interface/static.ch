@@ -10,16 +10,17 @@ func (summer : &mut StaticSummer) multiplied_sum() : int {
     return summer.sum() * 2;
 }
 
-struct ImplStaticSummer : StaticSummer {
+struct ImplStaticSummer {
 
     var a : int
     var b : int
 
-    @override
+}
+
+impl StaticSummer for ImplStaticSummer {
     func sum(&self) : int {
         return a + b + 2;
     }
-
 }
 
 @static
@@ -33,29 +34,32 @@ public func (multiplier : &mut ExportedStaticMultiplier) double_multiplied() : i
     return multiplier.multiply() + multiplier.multiply()
 }
 
-public struct ImplExportedStaticMultiplier : ExportedStaticMultiplier {
+public struct ImplExportedStaticMultiplier {
 
     var a : int
     var b : int
 
-    @override
+
+}
+
+impl ExportedStaticMultiplier for ImplExportedStaticMultiplier {
     func multiply(&self) : int {
         return a * b;
     }
-
 }
 
 func (thing : &mut ExternallyImplementedInterface) get_interface_num_in_curr_mod() : int {
     return thing.give_number();
 }
 
-struct RightExternalNumber : ExternallyImplementedInterface {
+struct RightExternalNumber {
 
-    @override
+}
+
+impl ExternallyImplementedInterface for RightExternalNumber {
     func give_number(&self) : int {
         return 8765;
     }
-
 }
 
 @static
@@ -70,22 +74,25 @@ func (inter : &mut StructRetStaticInter) sum_provider() : int {
     return p.a + p.b
 }
 
-struct StructRetStaticInterImpl : StructRetStaticInter {
+struct StructRetStaticInterImpl {
 
     var x : int
     var y : int
 
-    @override
+}
+
+impl StructRetStaticInter for StructRetStaticInterImpl {
     func provide(&self) : ImplStaticSummer {
         return ImplStaticSummer { a : x, b : y}
     }
-
 }
 
-struct MultiplierBeforeInterface : StaticMultiplierInterface {
+struct MultiplierBeforeInterface {
     var a : int
     var b : int
-    @override
+}
+
+impl StaticMultiplierInterface for MultiplierBeforeInterface {
     func multiply(&self) : int {
         return a * b;
     }
@@ -121,7 +128,7 @@ func test_static_interfaces() {
 
     test("methods of static interfaces are callable in extension functions", () => {
         var summer = ImplStaticSummer { a : 10, b : 10 }
-        return summer.multiplied_sum() == 44;
+        return (summer as StaticSummer).multiplied_sum() == 44;
     })
 
     test("methods in public static interfaces work", () => {
@@ -131,7 +138,7 @@ func test_static_interfaces() {
 
     test("methods of public static interfaces are callable in extension functions", () => {
         var multiplier = ImplExportedStaticMultiplier { a : 10, b : 10 }
-        return multiplier.double_multiplied() == 200;
+        return (multiplier as ExportedStaticMultiplier).double_multiplied() == 200;
     })
 
     test("externally implemented imported interface works", () => {
@@ -141,7 +148,7 @@ func test_static_interfaces() {
 
     test("externally implemented imported interface works through extension method", () => {
         var thing = CurrModPubIntImpl {}
-        return thing.inc_imp_pub_int() == 8788
+        return (thing as ImplementedPublicInterface).inc_imp_pub_int() == 8788
     })
 
     test("external interfaces implemented in current module work", () => {
@@ -156,17 +163,17 @@ func test_static_interfaces() {
 
     test("external interfaces implemented in current module work through extension method in current module", () => {
         var thing = RightExternalNumber {  }
-        return thing.get_interface_num_in_curr_mod() == 8765
+        return (thing as ExternallyImplementedInterface).get_interface_num_in_curr_mod() == 8765
     })
 
     test("external interfaces implemented in current module work through extension method in external module", () => {
         var thing = RightExternalNumber {  }
-        return thing.pls_give_ext_num() == 8765
+        return (thing as ExternallyImplementedInterface).pls_give_ext_num() == 8765
     })
 
     test("methods of static interfaces can return structs", () => {
         var thing = StructRetStaticInterImpl { x : 32, y : 87 };
-        return thing.sum_provider() == 32 + 87;
+        return (thing as StructRetStaticInter).sum_provider() == 32 + 87;
     })
 
     test("static interface can come after implementation - 1", () => {

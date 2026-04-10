@@ -1056,6 +1056,10 @@ void VariablesContainer::adopt(MembersContainer* definition) {
     }
 }
 
+void VariablesContainer::adopt(ExtendableMembersContainerNode* definition) {
+    adopt(definition->as_members_container_unsafe());
+}
+
 bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem::string_view& child_name) {
     const auto child_ind = direct_child_index(child_name);
     if(child_ind != -1) {

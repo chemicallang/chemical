@@ -7,6 +7,7 @@
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/types/ReferenceType.h"
@@ -59,29 +60,30 @@ bool LinkedType::satisfies(BaseType *other_impure) {
                 if (linked == other_linked) {
                     return true;
                 } else {
-                    const auto container = other_linked->get_members_container();
-                    if(container) {
-                        return container->extends_node(linked);
-                    } else {
-                        if(other_linked->kind() == ASTNodeKind::GenericTypeParam) {
-                            const auto genParam = other_linked->as_generic_type_param_unsafe();
-                            for(auto& t : genParam->traits) {
-                                const auto traitLinked = t->get_direct_linked_node();
-                                if(traitLinked) {
-                                    if (traitLinked == linked) {
-                                        return true;
-                                    }
-                                    const auto otherContainer = traitLinked->get_members_container();
-                                    if(otherContainer) {
-                                        const auto resultExtends = otherContainer->extends_node(linked);
-                                        if(resultExtends) return true;
-                                    }
+                    const auto interface = linked->as_interface_def_unsafe();
+                    if (other_linked->kind() == ASTNodeKind::StructDecl || other_linked->kind() == ASTNodeKind::UnionDecl || other_linked->kind() == ASTNodeKind::VariantDecl) {
+                        auto found = interface->users.find(other_linked->as_extendable_members_container_unsafe());
+                        return found != interface->users.end();
+                    } else if (other_linked->kind() == ASTNodeKind::InterfaceDecl) {
+                        return other_linked->as_interface_def_unsafe()->extends_node(interface);
+                    } else if(other_linked->kind() == ASTNodeKind::GenericTypeParam) {
+                        const auto genParam = other_linked->as_generic_type_param_unsafe();
+                        for(auto& t : genParam->traits) {
+                            const auto traitLinked = t->get_direct_linked_node();
+                            if(traitLinked) {
+                                if (traitLinked == linked) {
+                                    return true;
+                                }
+                                const auto otherContainer = traitLinked->get_members_container();
+                                if(otherContainer) {
+                                    const auto resultExtends = otherContainer->extends_node(linked);
+                                    if(resultExtends) return true;
                                 }
                             }
-                            return false;
-                        } else {
-                            return false;
                         }
+                        return false;
+                    } else {
+                        return false;
                     }
                 }
             } else {

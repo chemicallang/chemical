@@ -27,7 +27,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
         return_success = run_test_fn_ptr(env, tfn.ptr as *void, tfn.returns_bool)
     }
     if(return_success == false) {
-        env.error("boolean test returned false");
+        (env as TestEnv).error("boolean test returned false");
     }
 
     if(config.after_each) {

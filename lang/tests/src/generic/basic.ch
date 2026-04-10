@@ -221,18 +221,19 @@ interface GenAddTestInterface<Output, Rhs = Self> {
     func add(&self, rhs : Rhs) : Output
 }
 
-struct GenAddTestStruct : GenAddTestInterface<GenAddTestStruct, GenAddTestStruct> {
-
-    var a : int
-    var b : int
-
-    @override
+impl GenAddTestInterface<GenAddTestStruct, GenAddTestStruct> for GenAddTestStruct {
     func add(&self, rhs : GenAddTestStruct) : GenAddTestStruct {
         return GenAddTestStruct {
             a : a + rhs.a,
             b : b + rhs.b
         }
     }
+}
+
+struct GenAddTestStruct {
+
+    var a : int
+    var b : int
 
 }
 
@@ -327,19 +328,23 @@ interface NonObjectSafeCreationCall {
     func make() : Self
 }
 
-struct generic_id_repl_Creator1 : NonObjectSafeCreationCall {
+struct generic_id_repl_Creator1 {
     var a : int
     var b : int
-    @override
+}
+
+impl NonObjectSafeCreationCall for generic_id_repl_Creator1 {
     func make() : generic_id_repl_Creator1 {
         return { a : 11, b : 22 }
     }
 }
 
-struct generic_id_repl_Creator2 : NonObjectSafeCreationCall {
+struct generic_id_repl_Creator2 {
     var a : int
     var b : int
-    @override
+}
+
+impl NonObjectSafeCreationCall for generic_id_repl_Creator2 {
     func make() : generic_id_repl_Creator2 {
         return { a : 234, b : 432 }
     }

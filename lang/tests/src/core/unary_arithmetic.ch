@@ -1,76 +1,74 @@
-struct PrimUnaryArithTestStruct : core::ops::Neg<int>, core::ops::Not<int>, core::ops::Increment, core::ops::Decrement {
-
-    var a : int
-    var b : int
-
-    @override
+impl core::ops::Neg<int> for PrimUnaryArithTestStruct {
     func neg(&self) : int {
         return -a;
     }
-
-    @override
+}
+impl core::ops::Not<int> for PrimUnaryArithTestStruct {
     func not(&self) : int {
         return -b;
     }
-
-    @override
-    func inc_pre(&mut self) : &Self {
-        a++
-        b++
-        return self
-    }
-
-    @override
-    func inc_post(&mut self) : Self {
-        var temp = PrimUnaryArithTestStruct {
-            a : a,
-            b : b
-        }
-        a++
-        b++
-        return temp;
-    }
-
-    @override
-    func dec_pre(&mut self) : &Self {
-        a--
-        b--
-        return self
-    }
-
-    @override
-    func dec_post(&mut self) : Self {
-        var temp = PrimUnaryArithTestStruct {
-            a : a,
-            b : b
-        }
-        a--
-        b--
-        return temp;
-    }
-
 }
-
-struct StructuralUnaryArithTestStruct : core::ops::Neg<StructuralUnaryArithTestStruct>, core::ops::Not<StructuralUnaryArithTestStruct> {
+impl core::ops::Increment for PrimUnaryArithTestStruct {
+    func inc_pre(&mut self) : &PrimUnaryArithTestStruct {
+        a++
+        b++
+        return self
+    }
+    @override
+    func inc_post(&mut self) : PrimUnaryArithTestStruct {
+        var temp = PrimUnaryArithTestStruct {
+            a : a,
+            b : b
+        }
+        a++
+        b++
+        return temp;
+    }
+}
+impl core::ops::Decrement for PrimUnaryArithTestStruct {
+    func dec_pre(&mut self) : &PrimUnaryArithTestStruct {
+        a--
+        b--
+        return self
+    }
+    func dec_post(&mut self) : PrimUnaryArithTestStruct {
+        var temp = PrimUnaryArithTestStruct {
+            a : a,
+            b : b
+        }
+        a--
+        b--
+        return temp;
+    }
+}
+struct PrimUnaryArithTestStruct {
 
     var a : int
     var b : int
 
-    @override
+}
+
+impl core::ops::Neg<StructuralUnaryArithTestStruct> for StructuralUnaryArithTestStruct {
     func neg(self) : StructuralUnaryArithTestStruct {
         return StructuralUnaryArithTestStruct {
             a : -a,
             b : -b
         }
     }
-
-    @override
+}
+impl core::ops::Not<StructuralUnaryArithTestStruct> for StructuralUnaryArithTestStruct {
     func not(self) : StructuralUnaryArithTestStruct {
         return StructuralUnaryArithTestStruct {
             a : a,
             b : -b
         }
     }
+}
+
+struct StructuralUnaryArithTestStruct {
+
+    var a : int
+    var b : int
 
 }
 

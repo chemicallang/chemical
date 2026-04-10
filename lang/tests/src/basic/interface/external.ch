@@ -1,16 +1,17 @@
 
-public struct ExtPubNormInterfaceImpl3 : ExtPubNormInterface {
+public struct ExtPubNormInterfaceImpl3 {
 
     var a : int
     var b : int
     var c : int
     var d : int
 
-    @override
+}
+
+impl ExtPubNormInterface for ExtPubNormInterfaceImpl3 {
     func sum(&self) : int {
         return a + b + c + d;
     }
-
 }
 
 func dyn_sum_pub_norm_inter(thing : dyn ExtPubNormInterface) : int {

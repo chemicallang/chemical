@@ -15,7 +15,7 @@ public interface JsonStringEmitter {
 
 }
 
-public struct JsonStringPrinter : JsonStringEmitter {
+public struct JsonStringPrinter {
     var stream : CommandLineStream
     @make
     func make() {
@@ -23,23 +23,25 @@ public struct JsonStringPrinter : JsonStringEmitter {
             stream : CommandLineStream {}
         }
     }
-    @override
+}
+
+impl JsonStringEmitter for JsonStringPrinter {
     func append_view(&self, view : &std::string_view) {
         stream.writeStr(view.data(), view.size())
     }
-    @override
     func append_char(&self, ch : char) {
         stream.writeChar(ch)
     }
 }
 
-public struct JsonStringBuilder : JsonStringEmitter {
+public struct JsonStringBuilder {
     var ptr : &mut std::string
-    @override
+}
+
+impl JsonStringEmitter for JsonStringBuilder {
     func append_view(&mut self, view : &std::string_view) {
         ptr.append_view(view)
     }
-    @override
     func append_char(&mut self, ch : char) {
         ptr.append(ch)
     }
@@ -232,7 +234,7 @@ public struct DebugJsonSaxHandler {
 
 }
 
-public struct ASTJsonHandler : public JsonSaxHandler {
+public struct ASTJsonHandler {
 
     var stack : std::vector<JsonValue>
 
@@ -288,19 +290,19 @@ public struct ASTJsonHandler : public JsonSaxHandler {
         }
     }
 
-    @override
+};
+
+impl JsonSaxHandler for ASTJsonHandler {
     func on_null(&mut self) {
         // d.on_null()
         attach_value(JsonValue.Null())
     }
 
-    @override
     func on_bool(&mut self, v : bool) {
         // d.on_bool(v)
         attach_value(JsonValue.Bool(v))
     }
 
-    @override
     func on_number(&mut self, s : *char, len : size_t) {
         // d.on_number(s, len)
         var str = std::string()
@@ -308,7 +310,6 @@ public struct ASTJsonHandler : public JsonSaxHandler {
         attach_value(JsonValue.Number(str))
     }
 
-    @override
     func on_string(&mut self, s : *char, len : size_t) {
         // d.on_string(s, len)
         var str = std::string()
@@ -316,14 +317,12 @@ public struct ASTJsonHandler : public JsonSaxHandler {
         attach_value(JsonValue.String(str))
     }
 
-    @override
     func on_object_begin(&mut self) {
         // d.on_object_begin()
         // push an empty object
         stack.push(JsonValue::Object(std::unordered_map<std::string, JsonValue>()));
     }
 
-    @override
     func on_object_end(&mut self) {
         // d.on_object_end()
         if (stack.empty()) {
@@ -333,13 +332,11 @@ public struct ASTJsonHandler : public JsonSaxHandler {
         attach_value(stack.take_last());
     }
 
-    @override
     func on_array_begin(&mut self) {
         // d.on_array_begin()
         stack.push(JsonValue.Array(std::vector<JsonValue>()));
     }
 
-    @override
     func on_array_end(&mut self) {
         // d.on_array_end()
         if (stack.empty()) {
@@ -349,10 +346,8 @@ public struct ASTJsonHandler : public JsonSaxHandler {
         attach_value(stack.take_last());
     }
 
-    @override
     func on_key(&mut self, s : *char, len : size_t) {
         // d.on_key(s, len)
         key_stack.push(std::string(s, len))
     }
-
-};
+}

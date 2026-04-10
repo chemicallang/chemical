@@ -1,6 +1,6 @@
 public namespace std {
 
-    public struct string_view : Hashable, Eq {
+    public struct string_view {
 
         var _data : *char
         var _size : size_t
@@ -79,12 +79,6 @@ public namespace std {
             return find(needle) != NPOS
         }
 
-        @override
-        func equals(&self, other : &std::string_view) : bool {
-            const self_size = _size;
-            return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
-        }
-
         func ends_with(&self, other : &std::string_view) : bool {
             // If other_data is longer than data, data cannot end with other_data.
             if (other.size() > size()) return false;
@@ -124,11 +118,6 @@ public namespace std {
             return std::string::view_make(self);
         }
 
-        @override
-        func hash(&self) : uint {
-            return fnv1_hash_view(self) as uint
-        }
-
         // TODO: unstable, no interface involved, signature not stable
         // TODO: no verification of signature
         // TODO: hardcoded type StringStream, generic function support required
@@ -136,6 +125,19 @@ public namespace std {
             s.writeStr(_data, _size)
         }
 
+    }
+
+    impl Hashable for string_view {
+        func hash(&self) : uint {
+            return fnv1_hash_view(self) as uint
+        }
+    }
+
+    impl Eq for string_view {
+        func equals(&self, other : &std::string_view) : bool {
+            const self_size = _size;
+            return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
+        }
     }
 
 }

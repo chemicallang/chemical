@@ -340,26 +340,31 @@ func <T : DestructibleInterface> give_destructible_gen_disp(value : T) : int {
     return value.give()
 }
 
-struct FirstDestructibleImpl : DestructibleInterface {
+struct FirstDestructibleImpl {
     var counter : *mut int
-    @override
-    func give(&self) : int {
-        return 11;
-    }
     @delete
     func delete(&self) {
         *counter = *counter + 1;
     }
 }
-struct SecondDestructibleImpl : DestructibleInterface {
-    var counter : *mut int
-    @override
+
+impl DestructibleInterface for FirstDestructibleImpl {
     func give(&self) : int {
-        return 21;
+        return 11;
     }
+}
+
+struct SecondDestructibleImpl {
+    var counter : *mut int
     @delete
     func delete(&self) {
         *counter = *counter + 2;
+    }
+}
+
+impl DestructibleInterface for SecondDestructibleImpl {
+    func give(&self) : int {
+        return 21;
     }
 }
 

@@ -1,91 +1,90 @@
-struct PrimArithBinOpStruct : core::ops::Add<int, int>,
-    core::ops::Sub<int, int>,
-    core::ops::Mul<int, int>,
-    core::ops::Div<int, int>,
-    core::ops::Rem<int, int>,
-    core::ops::BitAnd<int, int>,
-    core::ops::BitOr<int, int>,
-    core::ops::BitXor<int, int>,
-    core::ops::Shl<int, int>,
-    core::ops::Shr<int, int>,
-    core::ops::PartialEq<int>,
-    core::ops::Index<int, int> {
-
-    var a : int
-    var b : int
-
-    @override
+impl core::ops::Add<int, int> for PrimArithBinOpStruct {
     func add(&self, rhs : int) : int {
         return a + rhs
     }
+}
 
-    @override
+impl core::ops::Sub<int, int> for PrimArithBinOpStruct {
     func sub(&self, rhs : int) : int {
         return b - rhs
     }
+}
 
-    @override
+impl core::ops::Mul<int, int> for PrimArithBinOpStruct {
     func mul(&self, rhs : int) : int {
         return a * rhs
     }
+}
 
-    @override
+impl core::ops::Div<int, int> for PrimArithBinOpStruct {
     func div(&self, rhs : int) : int {
         return b / rhs
     }
+}
 
-    @override
+impl core::ops::Rem<int, int> for PrimArithBinOpStruct {
     func rem(&self, rhs : int) : int {
         return a % rhs;
     }
+}
 
-    @override
+impl core::ops::BitAnd<int, int> for PrimArithBinOpStruct {
     func bitand(&self, rhs: int) : int {
         return b & rhs;
     }
+}
 
-    @override
+impl core::ops::BitOr<int, int> for PrimArithBinOpStruct {
     func bitor(&self, rhs: int) : int {
         return a | rhs;
     }
+}
 
-    @override
+impl core::ops::BitXor<int, int> for PrimArithBinOpStruct {
     func bitxor(&self, rhs: int) : int {
         return b ^ rhs;
     }
+}
 
-    @override
+impl core::ops::Shl<int, int> for PrimArithBinOpStruct {
     func shl(&self, rhs: int) : int {
         return a << rhs;
     }
+}
 
-    @override
+impl core::ops::Shr<int, int> for PrimArithBinOpStruct {
     func shr(&self, rhs: int) : int {
         return b >> rhs;
     }
+}
 
-    @override
+impl core::ops::PartialEq<int> for PrimArithBinOpStruct {
     func eq(&self, other : int) : bool {
         return a == other;
     }
-
-    @override
     func ne(&self, other : int) : bool {
         return b != other;
     }
+}
 
-    // TODO: can't take reference of the struct member directly (bug)
-    func take_ref(ptr : &int) : &int {
-        return ptr
-    }
-
-    @override
+impl core::ops::Index<int, int> for PrimArithBinOpStruct {
     func index(&self, idx : int) : &int {
         if(idx == 0) {
             return take_ref(a)
         } else {
             return take_ref(b)
         }
+    }
+}
+
+struct PrimArithBinOpStruct {
+
+    var a : int
+    var b : int
+
+    // TODO: can't take reference of the struct member directly (bug)
+    func take_ref(ptr : &int) : &int {
+        return ptr
     }
 
 }

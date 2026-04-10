@@ -1,112 +1,94 @@
-struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Sub<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Mul<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Div<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Rem<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::BitAnd<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::BitOr<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::BitXor<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Shl<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Shr<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::PartialEq<&StructuralArithBinOpStruct>,
-    core::ops::Ord,
-    core::ops::Index<&StructuralArithBinOpStruct, StructuralArithBinOpStruct> {
-
-    var a : int
-    var b : int
-
-    @override
+impl core::ops::Add<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func add(&self, rhs : StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a + rhs.a,
             b : b + rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Sub<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func sub(&self, rhs : StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a - rhs.a,
             b : b - rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Mul<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func mul(&self, rhs : StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a * rhs.a,
             b : b * rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Div<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func div(&self, rhs : StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a / rhs.a,
             b : b / rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Rem<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func rem(&self, rhs : StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a % rhs.a,
             b : b % rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::BitAnd<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func bitand(&self, rhs: StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a & rhs.a,
             b : b & rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::BitOr<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func bitor(&self, rhs: StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a | rhs.a,
             b : b | rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::BitXor<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func bitxor(&self, rhs: StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a ^ rhs.a,
             b : b ^ rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Shl<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func shl(&self, rhs: StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a << rhs.a,
             b : b << rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::Shr<StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func shr(&self, rhs: StructuralArithBinOpStruct) : StructuralArithBinOpStruct {
         return StructuralArithBinOpStruct {
             a : a >> rhs.a,
             b : b >> rhs.b
         }
     }
-
-    @override
+}
+impl core::ops::PartialEq<&StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func eq(&self, other : &StructuralArithBinOpStruct) : bool {
         return a == other.a && b == other.b
     }
 
-    @override
     func ne(&self, other : &StructuralArithBinOpStruct) : bool {
         return a != other.a && b != other.b
     }
-
-    @override
-    func cmp(&self, other : &Self) : core::ops::Ordering {
+}
+impl core::ops::Ord for StructuralArithBinOpStruct {
+    func cmp(&self, other : &StructuralArithBinOpStruct) : core::ops::Ordering {
         // no time to write the compare
         if(a < other.a && b < other.b) {
             return core::ops::Ordering.Less
@@ -116,35 +98,39 @@ struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, S
         }
         return core::ops::Ordering.Greater
     }
-
     // TODO: removing this default implementation doesn't work
     @override
-    func lt(&self, other : &Self) : bool {
+    func lt(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) == core::ops::Ordering.Less
     }
 
     // TODO: removing this default implementation doesn't work
     @override
-    func lte(&self, other : &Self) : bool {
+    func lte(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) in core::ops::Ordering.Less, core::ops::Ordering.Equal
     }
 
     // TODO: removing this default implementation doesn't work
     @override
-    func gt(&self, other : &Self) : bool {
+    func gt(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) == core::ops::Ordering.Greater
     }
 
     // TODO: removing this default implementation doesn't work
     @override
-    func gte(&self, other : &Self) : bool {
+    func gte(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) in core::ops::Ordering.Greater, core::ops::Ordering.Equal
     }
-
-    @override
+}
+impl core::ops::Index<&StructuralArithBinOpStruct, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
     func index(&self, idx : &StructuralArithBinOpStruct) : &StructuralArithBinOpStruct {
         return idx;
     }
+}
+struct StructuralArithBinOpStruct {
+
+    var a : int
+    var b : int
 
 }
 

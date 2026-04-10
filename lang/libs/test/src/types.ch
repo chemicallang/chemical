@@ -13,7 +13,7 @@ public struct TestFunction {
     var charNum : uint
 }
 
-struct TestEnvImpl : TestEnv {
+struct TestEnvImpl {
 
     var fn : *mut TestFunction
 
@@ -23,17 +23,17 @@ struct TestEnvImpl : TestEnv {
         var fd : int
     }
 
-    @override
+}
+
+impl TestEnv for TestEnvImpl {
     func get_test_id(&self) : int {
         return fn.id;
     }
 
-    @override
     func get_group_name(&self) : std::string_view {
         return fn.group
     }
 
-    @override
     func logIt(&mut self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
         var msg = std::string();
         msg.append_char_ptr("$log,")
@@ -43,7 +43,6 @@ struct TestEnvImpl : TestEnv {
         self.send_message(msg.data(), msg.size())
     }
 
-    @override
     func quit_current_group(&mut self, reason : *char) {
         var msg = std::string();
         msg.append_char_ptr("$quit_group:");
@@ -51,14 +50,12 @@ struct TestEnvImpl : TestEnv {
         self.send_message(msg.data(), msg.size())
     }
 
-    @override
     func quit_all_tests(&mut self, reason : *char) {
         var msg = std::string();
         msg.append_char_ptr("$quit_all:");
         msg.append_char_ptr(reason)
         self.send_message(msg.data(), msg.size())
     }
-
 }
 
 struct TestDisplayConfig {

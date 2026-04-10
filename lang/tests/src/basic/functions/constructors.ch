@@ -104,7 +104,7 @@ struct ComposedInitializableStruct {
     }
 }
 
-struct UselessImplInitialization : UselessInterface {
+struct UselessImplInitialization {
 
     var first : ComposedInitializableStruct
 
@@ -114,11 +114,12 @@ struct UselessImplInitialization : UselessInterface {
         return UselessImplInitialization {}
     }
 
-    @override
+}
+
+impl UselessInterface for UselessImplInitialization {
     func give(&self) : int {
         return first.i;
     }
-
 }
 
 struct constructor_calls_self_function {

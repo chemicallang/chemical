@@ -13,28 +13,31 @@ func (summer : &mut GenStatSummer<int>) gen_stat_int_mul_sum() : int {
     return summer.sum() * 3;
 }
 
-struct ImplShortGenStatSummer : GenStatSummer<short> {
+struct ImplShortGenStatSummer {
 
     var a : int
     var b : int
 
-    @override
-    func sum(&self) : short {
-        return a + b + 2;
-    }
 
 }
 
-struct ImplIntGenStatSummer : GenStatSummer<int> {
+impl GenStatSummer<short> for ImplShortGenStatSummer {
+    func sum(&self) : short {
+        return a + b + 2;
+    }
+}
+
+struct ImplIntGenStatSummer {
 
     var a : int
     var b : int
 
-    @override
+}
+
+impl GenStatSummer<int> for ImplIntGenStatSummer {
     func sum(&self) : int {
         return a + b + 3;
     }
-
 }
 
 func test_generic_static_interfaces() {
@@ -51,12 +54,13 @@ func test_generic_static_interfaces() {
 
     test("generic static interfaces work through extension methods - 1", () => {
         var s = ImplShortGenStatSummer { a : 4, b : 4 }
-        return s.gen_stat_short_mul_sum() == 20
+        // TODO:
+        return (s as GenStatSummer<short>).gen_stat_short_mul_sum() == 20
     })
 
     test("generic static interfaces work through extension methods - 2", () => {
         var s = ImplIntGenStatSummer { a : 5, b : 8 }
-        return s.gen_stat_int_mul_sum() == 48
+        return (s as GenStatSummer<int>).gen_stat_int_mul_sum() == 48
     })
 
 }

@@ -1,76 +1,68 @@
-struct PrimSingleAssignmentTestStruct : core::ops::AddAssign<int>,
-    core::ops::SubAssign<int>,
-    core::ops::MulAssign<int>,
-    core::ops::DivAssign<int>,
-    core::ops::RemAssign<int>,
-    core::ops::BitAndAssign<int>,
-    core::ops::BitOrAssign<int>,
-    core::ops::BitXorAssign<int>,
-    core::ops::ShlAssign<int>,
-    core::ops::ShrAssign<int> {
-
-    var a : int
-    var b : int
-
-    @override
+impl core::ops::AddAssign<int> for PrimSingleAssignmentTestStruct {
     func add_assign(&mut self, rhs: int) {
         a += rhs;
         b += rhs;
     }
+}
 
-    @override
+impl core::ops::SubAssign<int> for PrimSingleAssignmentTestStruct {
     func sub_assign(&mut self, rhs: int) {
         a -= rhs;
         b -= rhs;
     }
-
-    @override
+}
+impl core::ops::MulAssign<int> for PrimSingleAssignmentTestStruct {
     func mul_assign(&mut self, rhs: int) {
         a *= rhs;
         b *= rhs;
     }
-
-    @override
+}
+impl core::ops::DivAssign<int> for PrimSingleAssignmentTestStruct {
     func div_assign(&mut self, rhs: int) {
         a /= rhs;
         b /= rhs;
     }
-
-    @override
+}
+impl core::ops::RemAssign<int> for PrimSingleAssignmentTestStruct {
     func rem_assign(&mut self, rhs: int) {
         a %= rhs;
         b %= rhs;
     }
-
-    @override
+}
+impl core::ops::BitAndAssign<int> for PrimSingleAssignmentTestStruct {
     func bitand_assign(&mut self, rhs: int) {
         a &= rhs
         b &= rhs
     }
-
-    @override
+}
+impl core::ops::BitOrAssign<int> for PrimSingleAssignmentTestStruct {
     func bitor_assign(&mut self, rhs: int) {
         a |= rhs
         b |= rhs
     }
-
-    @override
+}
+impl core::ops::BitXorAssign<int> for PrimSingleAssignmentTestStruct {
     func bitxor_assign(&mut self, rhs: int) {
         a ^= rhs
         b ^= rhs
     }
-
-    @override
+}
+impl core::ops::ShlAssign<int> for PrimSingleAssignmentTestStruct {
     func shl_assign(&mut self, rhs: int) {
         a <<= rhs
         b <<= rhs
     }
-
-    @override
-    func shr_assign(&mut self, rhs: int) {
+}
+impl core::ops::ShrAssign<int> for PrimSingleAssignmentTestStruct {
+   func shr_assign(&mut self, rhs: int) {
         a >>= rhs
         b >>= rhs
     }
+}
+struct PrimSingleAssignmentTestStruct {
+
+    var a : int
+    var b : int
 
 }
 

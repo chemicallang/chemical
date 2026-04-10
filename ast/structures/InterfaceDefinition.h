@@ -190,6 +190,8 @@ public:
         return is_object_safe() && !is_non_dynamic() && !is_static();
     }
 
+    FunctionDeclaration* base_function_with_name(const chem::string_view& name_view);
+
     InterfaceDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(
                 identifier, parent(), encoded_location(), specifier()

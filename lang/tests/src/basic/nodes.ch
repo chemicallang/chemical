@@ -30,11 +30,28 @@ interface Calculator {
 
 }
 
-struct Point : Calculator {
+struct Point {
 
     var x : int
     var y : int
 
+    func call_divide(x : int, y : int) : int {
+        return 0;
+        // TODO: is this supposed to be available
+        // return divide(x, y);
+    }
+
+    func call_multiply_p(&self) : int {
+        return self.multiplyP();
+    }
+
+    func sumP(&self) : int {
+        return self.x + self.y;
+    }
+
+}
+
+impl Calculator for Point {
     @override
     func divide(x : int, y : int) : int {
         return x / y;
@@ -56,18 +73,6 @@ struct Point : Calculator {
         return x + y;
     }
 
-    func call_divide(x : int, y : int) : int {
-        return divide(x, y);
-    }
-
-    func call_multiply_p(&self) : int {
-        return multiplyP();
-    }
-
-    func sumP(&self) : int {
-        return self.x + self.y;
-    }
-
     @override
     func multiplyP(&self) : int {
         return self.x * self.y;
@@ -77,8 +82,8 @@ struct Point : Calculator {
     func dividePOverride(&self) : int {
         return divideP() + 2;
     }
-
 }
+
 
 struct PtrToPointStruct {
     var ptr : *Point
@@ -200,12 +205,16 @@ func call_it(z : dyn ZeroImplTestInterface) {
 }
 // --------- interface existence test (with dyn methods and zero implementation) end -------
 
-struct BeforeStructDefFunc : AfterInterfaceDefFunc {}
-struct BeforeStructOverrideFunc : AfterInterfaceDefFunc {
+impl AfterInterfaceDefFunc for BeforeStructDefFunc {}
+struct BeforeStructDefFunc {}
+impl AfterInterfaceDefFunc for BeforeStructOverrideFunc {
     @override
     func give(&self) : int {
         return 91535
     }
+}
+struct BeforeStructOverrideFunc {
+
 }
 interface AfterInterfaceDefFunc {
     func give(&self) : int {

@@ -33,7 +33,21 @@ func dbl_is_neg(x : double) : bool {
     return ((dbl_bits(x) & DBL_SIGN_MASK) != 0);
 }
 
-public struct string : Hashable, Eq {
+impl Hashable for string {
+    func hash(&self) : uint {
+        return fnv1a_hash_32(data());
+    }
+}
+
+impl Eq for string {
+    // TODO: separate implementation
+    // because we want equals to take views only
+    func equals(&self, other : &string) : bool {
+        return equals_with_len(other.data(), other.size());
+    }
+}
+
+public struct string {
 
     union {
         struct {
@@ -193,13 +207,6 @@ public struct string : Hashable, Eq {
     func equals_with_len(&self, d : *char, l : size_t) : bool {
         const self_size = size();
         return self_size == l && strncmp(data(), d, self_size) == 0;
-    }
-
-    // TODO: separate implementation
-    // because we want equals to take views only
-    @override
-    func equals(&self, other : &string) : bool {
-        return equals_with_len(other.data(), other.size());
     }
 
     func equals_view(&self, other : &std::string_view) : bool {
@@ -780,11 +787,6 @@ public struct string : Hashable, Eq {
         }
     }
 
-    @override
-    func hash(&self) : uint {
-        return fnv1a_hash_32(data());
-    }
-
     func to_view(&self) : std::string_view {
         return std::string_view(data(), size())
     }
@@ -805,9 +807,13 @@ public struct string : Hashable, Eq {
 
 }
 
-public struct StringStream : Stream {
+public struct StringStream {
 
     var str : &mut std::string
+
+}
+
+impl Stream for StringStream {
 
     @override
     func writeI8(&mut self, value : i8) {

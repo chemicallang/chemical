@@ -20,11 +20,12 @@ public func (c : &mut ImplementedPublicInterface) inc_imp_pub_int() : int {
     return c.give_number() + 1;
 }
 
-public struct CurrModPubIntImpl : ImplementedPublicInterface {
+public struct CurrModPubIntImpl {
 
-    @override
+}
+
+impl ImplementedPublicInterface for CurrModPubIntImpl {
     func give_number(&self) : int {
         return 8787
     }
-
 }

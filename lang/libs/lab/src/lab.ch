@@ -71,8 +71,8 @@ public interface LabJob {
     func setAbsPath(&self, path : std::string_view)
 }
 
-@no_init
-public struct LabJobCBI : LabJob {
+@compiler.interface
+public interface LabJobCBI : LabJob {
 
 }
 

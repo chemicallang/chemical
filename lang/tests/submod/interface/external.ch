@@ -4,16 +4,17 @@ public interface ExtPubNormInterface {
 
 }
 
-public struct ExtPubNormInterfaceImpl1 : ExtPubNormInterface {
+public struct ExtPubNormInterfaceImpl1 {
 
     var a : int
     var b : int
 
-    @override
+}
+
+impl ExtPubNormInterface for ExtPubNormInterfaceImpl1 {
     func sum(&self) : int {
         return a + b;
     }
-
 }
 
 public func test_ext_pub_norm_inter_impl1() : int {
@@ -21,17 +22,18 @@ public func test_ext_pub_norm_inter_impl1() : int {
     return ext.sum();
 }
 
-public struct ExtPubNormInterfaceImpl2 : ExtPubNormInterface {
+public struct ExtPubNormInterfaceImpl2 {
 
     var a : int
     var b : int
     var c : int
 
-    @override
+}
+
+impl ExtPubNormInterface for ExtPubNormInterfaceImpl2 {
     func sum(&self) : int {
         return a + b + c;
     }
-
 }
 
 public func test_ext_pub_norm_inter_impl2() : int {

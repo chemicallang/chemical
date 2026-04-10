@@ -310,7 +310,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
         }
         case ASTNodeKind::ImplDecl: {
             const auto def = parent->as_impl_def_unsafe();
-            if(decl->has_self_param() && def->struct_type) {
+            if(def->struct_type) {
                 const auto interface = def->interface_type->get_direct_linked_interface();
                 if(interface->is_static()) {
                     mangle_non_func(stream, interface);

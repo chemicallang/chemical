@@ -1,76 +1,69 @@
-struct StructSingleAssignmentTestStruct : core::ops::AddAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::SubAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::MulAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::DivAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::RemAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::BitAndAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::BitOrAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::BitXorAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::ShlAssign<&StructSingleAssignmentTestStruct>,
-    core::ops::ShrAssign<&StructSingleAssignmentTestStruct> {
 
-    var a : int
-    var b : int
-
-    @override
+impl core::ops::AddAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func add_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a += rhs.a;
         b += rhs.b;
     }
-
-    @override
+}
+impl core::ops::SubAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func sub_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a -= rhs.a;
         b -= rhs.b;
     }
-
-    @override
+}
+impl core::ops::MulAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func mul_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a *= rhs.a;
         b *= rhs.b;
     }
-
-    @override
+}
+impl core::ops::DivAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func div_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a /= rhs.a;
         b /= rhs.b;
     }
-
-    @override
+}
+impl core::ops::RemAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func rem_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a %= rhs.a;
         b %= rhs.b;
     }
-
-    @override
+}
+impl core::ops::BitAndAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func bitand_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a &= rhs.a
         b &= rhs.b
     }
-
-    @override
+}
+impl core::ops::BitOrAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func bitor_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a |= rhs.a
         b |= rhs.b
     }
-
-    @override
+}
+impl core::ops::BitXorAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func bitxor_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a ^= rhs.a
         b ^= rhs.b
     }
-
-    @override
+}
+impl core::ops::ShlAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func shl_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a <<= rhs.a
         b <<= rhs.b
     }
-
-    @override
+}
+impl core::ops::ShrAssign<&StructSingleAssignmentTestStruct> for StructSingleAssignmentTestStruct {
     func shr_assign(&mut self, rhs: &StructSingleAssignmentTestStruct) {
         a >>= rhs.a
         b >>= rhs.b
     }
+}
+
+struct StructSingleAssignmentTestStruct {
+
+    var a : int
+    var b : int
 
 }
 

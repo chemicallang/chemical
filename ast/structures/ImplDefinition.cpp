@@ -168,10 +168,19 @@ uint64_t ImplDefinition::byte_size(TargetData& target) {
 }
 
 void InterfaceDefinition::register_impl(ImplDefinition* definition) {
-    const auto struct_linked = definition->struct_type ? definition->struct_type->get_direct_linked_struct() : nullptr;
-    if(struct_linked) {
-        register_use(struct_linked);
-        register_use_to_inherited_interfaces(struct_linked);
-    }
     attrs.has_implementation = true;
+    if (definition->struct_type == nullptr) return;
+    const auto linked = definition->struct_type->get_direct_linked_canonical_node();
+    if (linked) {
+        switch (linked->kind()) {
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::VariantDecl:
+                register_use(linked->as_extendable_members_container_unsafe());
+                register_use_to_inherited_interfaces(linked->as_extendable_members_container_unsafe());
+                return;
+            default:
+                return;
+        }
+    }
 }

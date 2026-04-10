@@ -196,18 +196,22 @@ func dyn_variant_giver_give(v : dyn VariantInheritableGiverInterface) : int {
     return v.give()
 }
 
-struct StructInheritedGiverImpl : VariantInheritableGiverInterface {
+struct StructInheritedGiverImpl {
     var value : int
-    @override
+}
+
+impl VariantInheritableGiverInterface for StructInheritedGiverImpl {
     func give(&self) : int {
         return value;
     }
 }
 
-variant VariantInheritedGiverImpl : VariantInheritableGiverInterface {
+variant VariantInheritedGiverImpl {
     None()
     Some(value : int)
-    @override
+}
+
+impl VariantInheritableGiverInterface for VariantInheritedGiverImpl {
     func give(&self) : int {
         switch(self) {
             None() => { return -1; }
@@ -216,10 +220,12 @@ variant VariantInheritedGiverImpl : VariantInheritableGiverInterface {
     }
 }
 
-variant VariantInheritedDelegateImpl : VariantInheritableGiverInterfaceDelegate {
+variant VariantInheritedDelegateImpl {
     None()
     Some(value : int)
-    @override
+}
+
+impl VariantInheritableGiverInterfaceDelegate for VariantInheritedDelegateImpl {
     func give(&self) : int {
         switch(self) {
             None() => { return -2; }
@@ -227,6 +233,7 @@ variant VariantInheritedDelegateImpl : VariantInheritableGiverInterfaceDelegate 
         }
     }
 }
+
 
 variant AlignmentTest42 {
     Large(s : std::string)

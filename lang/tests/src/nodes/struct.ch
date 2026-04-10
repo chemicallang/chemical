@@ -288,17 +288,21 @@ func call_grandpa_interface_func(a : dyn GrandpaInterface) : int {
 
 interface ParentInterface : GrandpaInterface {}
 
-struct ChildStructImplementsGrandpa : ParentInterface {
+struct ChildStructImplementsGrandpa {
     var a : int
     var b : int
-    @override
+}
+
+impl ParentInterface for ChildStructImplementsGrandpa {
     func give(&self) : int {
         return a + b;
     }
 }
 
-struct PlaceboOverrideGrandparentChild : ParentInterface {
-    @override
+struct PlaceboOverrideGrandparentChild {
+}
+
+impl ParentInterface for PlaceboOverrideGrandparentChild {
     func give(&self) : int {
         return 383
     }

@@ -3232,9 +3232,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
 
 void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def) {
     for(auto& func : def->instantiated_functions()) {
-        if(def->get_overriding_interface(func) == nullptr) {
-            declare_contained_func(this, func, false);
-        }
+        declare_contained_func(this, func, false);
     }
 }
 
@@ -3548,13 +3546,6 @@ void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefiniti
 }
 
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def);
-
-static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
-    for(auto& func : def->instantiated_functions()) {
-        const auto interface = def->get_overriding_interface(func);
-        contained_func_decl(visitor, func, interface != nullptr, def);
-    }
-}
 
 void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bool external_declare) {
     const auto is_static = def->is_static();
@@ -4506,8 +4497,7 @@ inline void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* dec
     if(!decl->body.has_value() || decl->is_comptime()) {
         return;
     }
-    const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
-    contained_func_decl(visitor, decl, overrides, interface, def);
+    contained_func_decl(visitor, decl, overrides, nullptr, def);
 }
 
 void ToCAstVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
@@ -4753,40 +4743,17 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
     for(auto& func : def->instantiated_functions()) {
-        // TODO: try to not get overriding information
-        // TODO: try to pass true as a constant for overriding
-        // TODO: since these functions exist in this struct anyway, so they must be override
-        const auto overriding = def->get_func_overriding_info(func);
-        contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
+        contained_func_decl(visitor, func, false, def);
     }
 }
 
 static void contained_union_functions(ToCAstVisitor& visitor, UnionDef* def) {
     for(auto& func : def->instantiated_functions()) {
-        const auto overriding = def->get_func_overriding_info(func);
-        contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
+        contained_func_decl(visitor, func, false, def);
     }
 }
 
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
-    for (auto& inherits: def->inherited) {
-        // TODO: handle inherited functions of inherited interfaces
-        const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
-        if (overridden) {
-            if(overridden->is_static()) {
-                // remove, stub implementation for the interface must not be
-                // generated at the end
-                remove_static_interface_for_stub_impl(overridden);
-            }
-            overridden->active_user = def;
-            for (auto& func: overridden->instantiated_functions()) {
-                if (!def->contains_direct_func(func->name_view())) {
-                    contained_func_decl(*this, func, false, def);
-                }
-            }
-            overridden->active_user = nullptr;
-        }
-    }
     contained_struct_functions(*this, def);
 }
 
@@ -4837,16 +4804,6 @@ void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
-    for (auto& inherits: def->inherited) {
-        const auto overridden = inherits.type->linked_node()->as_interface_def();
-        if (overridden) {
-            for (auto& func: overridden->instantiated_functions()) {
-                if (!def->contains_direct_func(func->name_view())) {
-                    contained_func_decl(*this, func, false, def);
-                }
-            }
-        }
-    }
     contained_union_functions(*this, def);
 }
 

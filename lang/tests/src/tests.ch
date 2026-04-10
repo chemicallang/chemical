@@ -15,6 +15,7 @@ func run_executable_tests() {
     test_pointer_math();
     test_casts();
     test_functions();
+    test_name_hiding()
     test_implicit_functions();
     test_destructors();
     test_continue_destruction()

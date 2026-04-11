@@ -233,27 +233,6 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, ImplDefinit
 
 #endif
 
-FunctionDeclaration* InterfaceDefinition::base_function_with_name(const chem::string_view& name_view) {
-    const auto func = direct_child_function(name_view);
-    if (!func || func->is_override()) {
-        // search in inherited interfaces
-        for (auto& inh : inherited) {
-            const auto linked = inh.type->get_direct_linked_canonical_node();
-            if (linked && linked->kind() == ASTNodeKind::InterfaceDecl) {
-                const auto interface = linked->as_interface_def_unsafe();
-                const auto another = interface->base_function_with_name(name_view);
-                if (another) {
-                    return another;
-                }
-            }
-        }
-        // none found
-        return nullptr;
-    } else {
-        return func;
-    }
-}
-
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;
     for(const auto func : functions()) {

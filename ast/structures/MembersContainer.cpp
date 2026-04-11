@@ -552,6 +552,24 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
 //    linker.scope_end();
 //}
 
+FunctionDeclaration* MembersContainer::base_function_with_name(const chem::string_view& name_view) {
+    const auto func = direct_child_function(name_view);
+    if (func && !func->is_override()) return func;
+    // search in inherited interfaces
+    for (auto& inh : inherited) {
+        const auto linked = inh.type->get_direct_linked_canonical_node();
+        if (linked && linked->kind() == ASTNodeKind::InterfaceDecl) {
+            const auto interface = linked->as_interface_def_unsafe();
+            const auto another = interface->base_function_with_name(name_view);
+            if (another) {
+                return another;
+            }
+        }
+    }
+    // none found
+    return nullptr;
+}
+
 void MembersContainer::register_use_to_inherited_interfaces(ExtendableMembersContainerNode* definition) {
     for(auto& inherits : inherited) {
         const auto interface = inherits.type->get_direct_linked_interface();

@@ -229,6 +229,8 @@ public:
         return nullptr;
     }
 
+    FunctionDeclaration* base_function_with_name(const chem::string_view& name_view);
+
     /**
      * get first function with annotation make/constructor
      */

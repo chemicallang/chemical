@@ -60,12 +60,6 @@ struct StructDeclAttributes {
     bool anonymous = false;
 
     /**
-     * if abstract, cannot be instantiated, because it doesn't implement all methods of interface
-     * for which a struct that inherits this, will provide the implementation
-     */
-    bool is_abstract = false;
-
-    /**
      * is no mangle means, module name won't be added to this struct
      */
     bool is_no_mangle = false;
@@ -104,7 +98,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, parent_node, location),
-        attrs(specifier, false, false, false, false, false, false, false, false, false, false),
+        attrs(specifier, false, false, false, false, false, false, false, false, false),
         linked_type(this) {
 
     }
@@ -172,14 +166,6 @@ public:
 
     inline void set_anonymous(bool value) noexcept {
         attrs.anonymous = value;
-    }
-
-    inline bool is_abstract() const noexcept {
-        return attrs.is_abstract;
-    }
-
-    inline void set_abstract(bool value) noexcept {
-        attrs.is_abstract = value;
     }
 
     inline bool is_no_mangle() const noexcept {

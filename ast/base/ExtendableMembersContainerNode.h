@@ -16,6 +16,12 @@ public:
     chem::string_view identifier;
 
     /**
+     * need to keep track of extension functions, because llvm backend
+     * requires to declare the functions, we must know which extension functions are being declared
+     */
+    std::vector<ASTNode*> extension_functions;
+
+    /**
      * constructor
      */
     ExtendableMembersContainerNode(
@@ -43,6 +49,23 @@ public:
 
     inline void shallow_copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
         MembersContainer::shallow_copy_into(other, allocator);
+        other.extension_functions = extension_functions;
+    }
+
+    /**
+ * add an extension function
+ */
+    inline void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
+        indexes[name] = (ASTNode*) decl;
+        extension_functions.emplace_back((ASTNode*) decl);
+    }
+
+    /**
+     * add extension function
+     */
+    inline void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
+        indexes[name] = (ASTNode*) decl;
+        extension_functions.emplace_back((ASTNode*) decl);
     }
 
 #ifdef COMPILER_BUILD

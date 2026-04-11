@@ -931,7 +931,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         return false;
     }
     const auto linked_kind = linked->kind();
-    auto container = linked->as_members_container();
+    auto container = linked->as_extendable_member_container();
     if (linked_kind == ASTNodeKind::InterfaceDecl) {
         const auto interface = linked->as_interface_def_unsafe();
         if (!interface->is_static() && generic_parent == nullptr) {
@@ -945,7 +945,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
             auto& at_least = param->traits.back();
             const auto at_least_linked = at_least->get_direct_linked_node();
             if(at_least_linked) {
-                container = at_least_linked->as_members_container();
+                container = at_least_linked->as_extendable_member_container();
             }
         } else if(tSize > 1) {
             diagnoser.error("extension functions on generic parameters support only a single trait bound", receiver.type.encoded_location());

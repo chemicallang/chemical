@@ -238,12 +238,6 @@ class VariablesContainer : public ASTNode, public VariablesContainerBase {
 public:
 
     /**
-     * need to keep track of extension functions, because llvm backend
-     * requires to declare the functions, we must know which extension functions are being declared
-     */
-    std::vector<ASTNode*> extension_functions;
-
-    /**
      * the inherited types
      */
     std::vector<InheritedType> inherited;
@@ -350,23 +344,6 @@ public:
         other.inherited = inherited;
         other.variables_container = variables_container;
         other.indexes = indexes;
-        other.extension_functions = extension_functions;
-    }
-
-    /**
-     * add an extension function
-     */
-    inline void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
-        indexes[name] = (ASTNode*) decl;
-        extension_functions.emplace_back((ASTNode*) decl);
-    }
-
-    /**
-     * add extension function
-     */
-    inline void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
-        indexes[name] = (ASTNode*) decl;
-        extension_functions.emplace_back((ASTNode*) decl);
     }
 
     /**

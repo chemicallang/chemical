@@ -9,6 +9,7 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/MembersContainer.h"
+#include "core/source/LocationManager.h"
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type) {
     const auto val_type = value->getType();
@@ -72,7 +73,7 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
     }
 }
 
-void verify_interface_implementation(ASTDiagnoser& diagnoser, MembersContainer* implementor, InterfaceDefinition* interface) {
+void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* root_interface, InterfaceDefinition* interface) {
 
     if(interface->is_extern() && interface->is_static()) {
         // compiler interfaces are extern and static
@@ -83,7 +84,7 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, MembersContainer* 
     for (auto& inh : interface->inherited) {
         const auto canonical_node = inh.type->get_direct_linked_canonical_node();
         if(canonical_node->kind() == ASTNodeKind::InterfaceDecl) {
-            verify_interface_implementation(diagnoser, implementor, canonical_node->as_interface_def_unsafe());
+            verify_interface_implementation(diagnoser, implementor, root_interface, canonical_node->as_interface_def_unsafe());
         }
     }
 
@@ -98,13 +99,18 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, MembersContainer* 
             continue;
         }
         const auto found = implementor->direct_child_function(func_node->name_view());
-        if(found) {
-            if(!found->is_override()) {
-                diagnoser.error(found) << "expected function to have @override annotation to override the base function";
-            }
-        } else {
-            diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "'";
+        if(found != nullptr) {
+            // direct implementation present in impl
+            continue;
         }
+        // check for secondary default implementation in inherited
+        // const auto secondary_impl = root_interface->any_child_function(func_node->name_view());
+        // if (secondary_impl && secondary_impl->is_override() && secondary_impl->body.has_value()) {
+        //     // secondary implementation present in impl
+        //     continue;
+        // }
+        diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "'";
+        diagnoser.warn(func_node) << "function hasn't been implemented in an impl below";
     }
 }
 
@@ -136,28 +142,13 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
                 type_verify(diagnoser, allocator, ns->nodes);
                 break;
             }
-            case ASTNodeKind::StructDecl: {
-                const auto structDecl = node->as_struct_def_unsafe();
-                if(structDecl->is_abstract()) {
-                    // TODO: check abstract structs
-                    continue;
-                }
-                for (auto& inherited : structDecl->inherited) {
-                    const auto interface_node = inherited.type->get_direct_linked_canonical_node();
-                    if(interface_node->kind() == ASTNodeKind::InterfaceDecl) {
-                        const auto interface = interface_node->as_interface_def_unsafe();
-                        verify_interface_implementation(diagnoser, structDecl, interface);
-                    }
-                }
-                break;
-            }
             case ASTNodeKind::ImplDecl: {
                 const auto implDecl = node->as_impl_def_unsafe();
                 if (implDecl->interface_type) {
                      const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
                      if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
                          const auto interface = interface_node->as_interface_def_unsafe();
-                         verify_interface_implementation(diagnoser, implDecl, interface);
+                         verify_interface_implementation(diagnoser, implDecl, interface, interface);
                      }
                 }
                 break;

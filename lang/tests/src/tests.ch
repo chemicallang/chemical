@@ -53,7 +53,6 @@ func run_executable_tests() {
     test_pointers_in_comptime();
     test_constructors();
     test_unordered_map();
-    test_abstract_structs();
     test_generic_static_interfaces();
     test_external_interfaces();
     test_interface_generic_dispatch();

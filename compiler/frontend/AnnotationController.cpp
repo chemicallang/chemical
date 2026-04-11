@@ -206,15 +206,6 @@ void annot_handler_direct_init(Parser* parser, ASTNode* node, std::vector<Value*
     }
 }
 
-void annot_handler_abstract(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    const auto def = node->as_struct_def();
-    if(def) {
-        def->set_abstract(true);
-    } else {
-        parser->error("couldn't make the struct abstract");
-    }
-}
-
 void annot_handler_thread_local(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(node->kind() == ASTNodeKind::VarInitStmt && node->is_top_level()) {
         node->as_var_init_unsafe()->set_thread_local(true);
@@ -321,7 +312,6 @@ void AnnotationController::initialize() {
             { "extern", { annot_handler_extern, "extern", AnnotationDefType::Handler } },
             { "implicit", { annot_handler_implicit, "implicit", AnnotationDefType::Handler } },
             { "direct_init", { annot_handler_direct_init, "direct_init", AnnotationDefType::Handler } },
-            { "abstract", { annot_handler_abstract, "abstract", AnnotationDefType::Handler } },
             { "thread_local", { annot_handler_thread_local, "thread_local", AnnotationDefType::Handler } },
             { "maxalign", { annot_handler_maxalign, "maxalign", AnnotationDefType::Handler } },
             { "no_return", { annot_handler_no_return, "no_return", AnnotationDefType::Handler } },

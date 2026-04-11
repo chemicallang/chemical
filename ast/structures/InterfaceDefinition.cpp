@@ -21,7 +21,7 @@ void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDecla
         auto found = user.find(func);
         if(found == user.end()) {
             func->code_gen_declare(gen, this);
-            user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
+            user[func] = { (llvm::Function*) func->llvm_pointer(gen) };
         } else {
             // impl probably came first and basically set the function pointer
         }
@@ -37,11 +37,6 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
             continue;
         }
         auto& overridable_info = llvm_itr->second;
-        if(overridable_info.overridden) {
-            // if struct comes before interface, it can override the interface function and generate code
-            // in that case this flag is set by the struct so interface won't go ahead and generate default implementation
-            continue;
-        }
         active_user = use.first;
         func->code_gen_override(gen, overridable_info.func_pointer);
     }
@@ -105,7 +100,7 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
                     // we must declare the function and reset the function pointer for the user
                     func->code_gen_external_declare(gen);
                 }
-                user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
+                user[func] = { (llvm::Function*) func->llvm_pointer(gen) };
             }
             active_user = nullptr;
         }

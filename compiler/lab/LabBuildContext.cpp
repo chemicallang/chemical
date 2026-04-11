@@ -42,13 +42,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
                 job->target_data.c = true;
                 job->target_data.tcc = true;
                 break;
-            // why is this commented
-            // when translating to C, we do not target tcc
-            // user has to explicitly provide --use-tcc to make that happen
-            // case LabJobType::ToCTranslation:
             default:
-                job->target_data.c = true;
-                job->target_data.tcc = false;
                 break;
         }
     }
@@ -61,8 +55,6 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     // setting job specific variables
 #ifdef LSP_BUILD
     job->target_data.lsp = true;
-#else
-    job->target_data.lsp = false;
 #endif
     // we should allow changing this
     job->target_data.test = false;

@@ -449,6 +449,39 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
         if(linked->kind() == ASTNodeKind::TypealiasStmt) {
             return parent_val->llvm_value(gen);
         } else {
+            // special case for when function is present in an interface
+            // has a default implementation
+            // we should not be loading that function pointer from the interface function
+            // instead we should find implementation according to the struct/variant value its called upon
+            if (linked->kind() == ASTNodeKind::FunctionDecl) {
+                const auto parent = linked->parent();
+                if (parent->kind() == ASTNodeKind::InterfaceDecl) {
+                    const auto interface = parent->as_interface_def_unsafe();
+                    const auto func = linked->as_function_unsafe();
+                    if (func->body.has_value()) {
+                        // default implementation for function exists
+                        // there may be no override available in struct
+                        // so we should find the pointer for it in struct
+                        const auto grandparent = get_parent_from(parent_val);
+                        if (grandparent) {
+                            const auto structType = grandparent->getType();
+                            const auto structNode = structType->get_linked_canonical_node();
+                            if (structNode) {
+                                const auto container = structNode->as_extendable_member_container();
+                                if (container) {
+                                    const auto found = interface->users.find(container);
+                                    if (found != interface->users.end()) {
+                                        auto found_func_ptr = found->second.find(linked->as_function_unsafe());
+                                        if (found_func_ptr != found->second.end()) {
+                                            return found_func_ptr->second.func_pointer;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             return linked->llvm_load(gen, parent_val->encoded_location());
         }
     } else {

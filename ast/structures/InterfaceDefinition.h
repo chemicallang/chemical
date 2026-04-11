@@ -69,9 +69,6 @@ struct OverridableFunctionInfo {
 #else
     FunctionDeclaration* func_pointer;
 #endif
-    // this flag is set by struct (if it comes before interface and overrides)
-    // so that interface doesn't generate code for the default implementation
-    bool overridden = false;
 };
 
 class InterfaceDefinition : public ExtendableMembersContainerNode {

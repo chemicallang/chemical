@@ -53,27 +53,27 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     const auto canonical_node = struct_type->get_direct_linked_canonical_node();
     const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_def) {
-        linked->active_user = struct_def;
-        for (auto& function : instantiated_functions()) {
-            auto overridden = linked->get_func_with_signature(function);
-            if(overridden.second == nullptr) {
-                gen.error("couldn't get base function when determining function pointer", (AnnotableNode*) function);
-            } else {
-                const auto func = overridden.second;
-                const auto func_ptr = func->get_declared_func(gen);
-                if(func_ptr == nullptr) {
-                    // impl probably came before the interface, so now we declare it before interface
-                    func->code_gen_declare(gen, linked);
-                    auto& use = linked->users[struct_def];
-                    const auto new_func_ptr = func->get_llvm_data(gen);
-                    use[func] = { new_func_ptr, false };
-                    function->set_llvm_data(gen, new_func_ptr);
-                } else {
-                    function->set_llvm_data(gen, func_ptr);
-                }
-            }
-        }
-        linked->active_user = nullptr;
+        // linked->active_user = struct_def;
+        // for (auto& function : instantiated_functions()) {
+        //     auto overridden = linked->get_func_with_signature(function);
+        //     if(overridden.second == nullptr) {
+        //         gen.error("couldn't get base function when determining function pointer", (AnnotableNode*) function);
+        //     } else {
+        //         const auto func = overridden.second;
+        //         const auto func_ptr = func->get_declared_func(gen);
+        //         if(func_ptr == nullptr) {
+        //             // impl probably came before the interface, so now we declare it before interface
+        //             func->code_gen_declare(gen, linked);
+        //             auto& use = linked->users[struct_def];
+        //             const auto new_func_ptr = func->get_llvm_data(gen);
+        //             use[func] = { new_func_ptr, false };
+        //             function->set_llvm_data(gen, new_func_ptr);
+        //         } else {
+        //             function->set_llvm_data(gen, func_ptr);
+        //         }
+        //     }
+        // }
+        // linked->active_user = nullptr;
     } else {
         if(linked->is_static()) {
             for (const auto function: instantiated_functions()) {

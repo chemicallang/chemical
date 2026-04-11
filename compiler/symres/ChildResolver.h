@@ -147,6 +147,10 @@ public:
         primitive_types_children.emplace(PrimitiveTypeFunctionKey{ .name = name, .type = type }, node);
     }
 
+    inline void index_primitive_child_try(BaseType* type, const chem::string_view& name, ASTNode* node) {
+        primitive_types_children.try_emplace(PrimitiveTypeFunctionKey{ .name = name, .type = type }, node);
+    }
+
     static bool index_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name, ASTNode* node) {
         switch(type->kind()) {
             case BaseTypeKind::IntN:
@@ -176,12 +180,50 @@ public:
         }
     }
 
+    static bool index_child_try(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name, ASTNode* node) {
+        switch(type->kind()) {
+            case BaseTypeKind::IntN:
+            case BaseTypeKind::String:
+            case BaseTypeKind::ExpressiveString:
+            case BaseTypeKind::Double:
+            case BaseTypeKind::Float:
+            case BaseTypeKind::Float128:
+            case BaseTypeKind::LongDouble:
+            case BaseTypeKind::Any:
+            case BaseTypeKind::Void:
+            case BaseTypeKind::NullPtr:
+            case BaseTypeKind::Bool:
+                // the underlying pointer doesn't change for these types
+                map.try_emplace(ChildKey{.name = name, .pointer = type, .is_mutable = is_mutable}, node);
+                return true;
+            case BaseTypeKind::Linked:
+                // linked types are stored with pointer to linked (because that pointer doesn't change)
+                map.try_emplace(ChildKey{.name = name, .pointer = type->as_linked_type_unsafe()->linked, .is_mutable = is_mutable}, node);
+                return true;
+            case BaseTypeKind::Generic:
+                // generic types are stores similar to linked types
+                map.try_emplace(ChildKey{.name = name, .pointer = type->as_generic_type_unsafe()->referenced->linked, .is_mutable = is_mutable}, node);
+                return true;
+            default:
+                return false;
+        }
+    }
+
     bool index_ptr_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
         return index_child(ptr_child_types, type->type, type->is_mutable, name, node);
+    }
+
+    bool index_ptr_child_try(PointerType* type, const chem::string_view& name, ASTNode* node) {
+        return index_child_try(ptr_child_types, type->type, type->is_mutable, name, node);
     }
 
     inline bool index_ref_child(ReferenceType* type, const chem::string_view& name, ASTNode* node) {
         return index_child(ref_child_types, type->type, type->is_mutable, name, node);
     }
+
+    inline bool index_ref_child_try(ReferenceType* type, const chem::string_view& name, ASTNode* node) {
+        return index_child_try(ref_child_types, type->type, type->is_mutable, name, node);
+    }
+
 
 };

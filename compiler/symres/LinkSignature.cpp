@@ -1132,6 +1132,76 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
         }
     }
 }
+//
+// enum class IndexingDefaultImplsKind {
+//     Primitive,
+//     Pointer,
+//     Reference
+// };
+//
+// void index_default_implementations(SymbolResolver& resolver, ImplDefinition* implDef, InterfaceDefinition* def, IndexingDefaultImplsKind kind) {
+//     switch (kind) {
+//         case IndexingDefaultImplsKind::Primitive:
+//             for (const auto func : def->functions()) {
+//                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
+//                     resolver.child_resolver.index_primitive_child_try(implDef->struct_type, func->as_function_unsafe()->name_view(), func);
+//                 }
+//             }
+//             break;
+//         case IndexingDefaultImplsKind::Pointer:
+//             for (const auto func : def->functions()) {
+//                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
+//                     if(!resolver.child_resolver.index_ptr_child(implDef->struct_type->as_pointer_type_unsafe(), func->as_function_unsafe()->name_view(), func)) {
+//                         resolver.error("implementation for type is not allowed", implDef->struct_type.encoded_location());
+//                         break;
+//                     }
+//                 }
+//             }
+//             break;
+//         case IndexingDefaultImplsKind::Reference:
+//             for (const auto func : def->functions()) {
+//                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
+//                     if(!resolver.child_resolver.index_ref_child(implDef->struct_type->as_reference_type_unsafe(), func->as_function_unsafe()->name_view(), func)) {
+//                         resolver.error("implementation for type is not allowed", implDef->struct_type.encoded_location());
+//                         break;
+//                     }
+//                 }
+//             }
+//             break;
+//     }
+//     // run on inherited functions
+//     for (auto& inh : def->inherited) {
+//         const auto canonical = inh.type->get_direct_linked_canonical_node();
+//         if (canonical && canonical->kind() == ASTNodeKind::InterfaceDecl) {
+//             index_default_implementations(resolver, implDef, canonical->as_interface_def_unsafe(), kind);
+//         }
+//     }
+// }
+//
+// // this generates shallow functions for the impl
+// // the default implementations present in the interface
+// void create_default_implementations(SymbolResolver& resolver, ImplDefinition* implDef, InterfaceDefinition* def) {
+//     auto& allocator = *resolver.ast_allocator;
+//     for (const auto func : def->functions()) {
+//         if (func->kind() == ASTNodeKind::FunctionDecl) {
+//             const auto default_func = func->as_function_unsafe();
+//             if (!default_func->body.has_value()) continue;
+//             // TODO: two functions with same name can exist in multiple interfaces
+//             if (implDef->direct_child_function(default_func->name_view()) != nullptr) continue;
+//             const auto copied = default_func->shallow_copy(allocator);
+//             copied->FunctionType::data.signature_resolved = true;
+//             copied->set_parent(implDef);
+//             implDef->insert_func(copied);
+//         }
+//     }
+//     // run on inherited functions
+//     for (auto& inh : def->inherited) {
+//         const auto canonical = inh.type->get_direct_linked_canonical_node();
+//         if (canonical && canonical->kind() == ASTNodeKind::InterfaceDecl) {
+//             create_default_implementations(resolver, implDef, canonical->as_interface_def_unsafe());
+//         }
+//     }
+// }
 
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     linker.scope_start();
@@ -1171,12 +1241,16 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
             case BaseTypeKind::Void:
             case BaseTypeKind::NullPtr:
             case BaseTypeKind::Bool:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
                 // index all functions (on primitive type)
                 for(const auto func : node->instantiated_functions()) {
                     linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
                 }
                 break;
             case BaseTypeKind::Pointer:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
                 // index all functions (on pointer type)
                 for(const auto func : node->instantiated_functions()) {
                     if(!linker.child_resolver.index_ptr_child(node->struct_type->as_pointer_type_unsafe(), func->name_view(), func)) {
@@ -1186,6 +1260,8 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                 }
                 break;
             case BaseTypeKind::Reference:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
                 // index all functions (on reference type)
                 for(const auto func : node->instantiated_functions()) {
                     if(!linker.child_resolver.index_ref_child(node->struct_type->as_reference_type_unsafe(), func->name_view(), func)) {

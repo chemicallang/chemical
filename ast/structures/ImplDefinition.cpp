@@ -10,7 +10,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked, StructDefinition* struct_def) {
+void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked, ExtendableMembersContainerNode* struct_def) {
     auto overridden = linked->get_func_with_signature(decl);
     if (overridden.first) {
         const auto interface_def = overridden.first->as_interface_def();
@@ -41,15 +41,17 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
 
 void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     const auto linked = interface_type->get_direct_linked_interface();
-    const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
-    code_gen_function(gen, decl, linked, struct_def);
+    const auto canonical_node = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
+    const auto container = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
+    code_gen_function(gen, decl, linked, container);
 }
 
 void ImplDefinition::code_gen_declare(Codegen &gen) {
     if(struct_type == nullptr) return;
     const auto linked = interface_type->get_direct_linked_interface();
     // struct type is given, but probably primitive
-    const auto struct_def = struct_type->get_direct_linked_struct();
+    const auto canonical_node = struct_type->get_direct_linked_canonical_node();
+    const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_def) {
         linked->active_user = struct_def;
         for (auto& function : instantiated_functions()) {
@@ -115,11 +117,42 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     }
 }
 
+void create_default_implementations(Codegen& gen, InterfaceDefinition* interface, ImplDefinition* implDef, ExtendableMembersContainerNode* def) {
+    // do inherited functions
+    for (auto& inh : interface->inherited) {
+        const auto node = inh.type->get_direct_linked_canonical_node();
+        if (node && node->kind() == ASTNodeKind::InterfaceDecl) {
+            create_default_implementations(gen, node->as_interface_def_unsafe(), implDef, def);
+        }
+    }
+    // do direct functions
+    for (const auto funcNode : interface->functions()) {
+        if (funcNode->kind() == ASTNodeKind::FunctionDecl) {
+            const auto func = funcNode->as_function_unsafe();
+            // TODO: we use the name to get the override
+            // multiple functions can have the same name, so we must lookup exact function override
+            // currently work is remaining to support syntax to explicitly specify parent
+            const auto overridden = implDef->direct_child_function(func->name_view());
+            if (overridden == nullptr) {
+                auto found_user = interface->users.find(def);
+                if (found_user != interface->users.end()) {
+                    auto llvmPtr = found_user->second.find(func);
+                    if (llvmPtr != found_user->second.end()) {
+                        // found the function pointer
+                        func->code_gen_override(gen, llvmPtr->second.func_pointer);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void ImplDefinition::code_gen(Codegen &gen) {
     const auto linked = interface_type->get_direct_linked_interface();
-    const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
-    // struct type is given, but probably primitive
+    const auto canonical_node = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
+    const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_type != nullptr && struct_def == nullptr) {
+        // struct type is given, but probably primitive
         for (const auto function: instantiated_functions()) {
             function->code_gen_body(gen);
         }
@@ -127,7 +160,10 @@ void ImplDefinition::code_gen(Codegen &gen) {
             linked->create_global_vtable(gen, this, struct_type, false);
         }
     } else {
-        for (auto& function: instantiated_functions()) {
+        if (linked && struct_def) {
+            create_default_implementations(gen, linked, this, struct_def);
+        }
+        for (const auto function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);
         }
         if (linked && linked->generates_vtable() && struct_def) {
@@ -140,7 +176,8 @@ void ImplDefinition::code_gen_external_declare(Codegen &gen) {
     // const auto linked = interface_type->linked_node()->as_interface_def();
     if(struct_type == nullptr) return;
     // struct type is given, but probably primitive
-    const auto struct_def = struct_type->get_direct_linked_struct();
+    const auto canonical_node = struct_type->get_direct_linked_canonical_node();
+    const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_def) {
         // nothing to do here
     } else {

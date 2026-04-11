@@ -75,9 +75,6 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
     if(is_static()) {
         // nothing to be done at the moment (unsure)
     } else {
-        for (const auto& function: instantiated_functions()) {
-            code_gen_for_users(gen, function);
-        }
         if(generates_vtable()) {
             // generating vtables for each user struct
             for (auto& user: users) {
@@ -102,7 +99,6 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
                 if(found == user.end()) {
                     // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
                     func->code_gen_declare(gen, this);
-                    func->code_gen_body(gen, this);
                 } else {
                     // since function pointer exists
                     // however because the function is from other module, this function pointer is invalid in this module

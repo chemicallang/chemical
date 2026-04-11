@@ -75,7 +75,7 @@ public:
      * responsible for generating code for a single function in a union decl
      * read the documentation in struct decl
      */
-    void code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface, StructDefinition* struct_def);
+    void code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface, ExtendableMembersContainerNode* def);
 
     /**
      * this is a helper function

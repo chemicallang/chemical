@@ -29,18 +29,10 @@ void StructDefinition::struct_func_gen(
 ) {
     if(declare) {
         for (auto& function: funcs) {
-            if (function->is_override()) {
-                llvm_override_declare(gen, function);
-                continue;
-            }
             function->code_gen_declare(gen, this);
         }
     } else {
         for (auto& function: funcs) {
-            if (function->is_override()) {
-                llvm_override(gen, function);
-                continue;
-            }
             function->code_gen_body(gen, this);
         }
     }
@@ -59,18 +51,10 @@ void StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
 }
 
 void StructDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
-    if(decl->is_override()) {
-        llvm_override_declare(gen, decl);
-        return;
-    }
     decl->code_gen_declare(gen, this);
 }
 
 void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
-    if(decl->is_override()) {
-        llvm_override(gen, decl);
-        return;
-    }
     decl->code_gen_body(gen, this);
 }
 
@@ -81,14 +65,6 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
     auto& has_done = declare ? has_declared : has_implemented;
     if(!has_done) {
         struct_func_gen(gen, instantiated_functions(), declare);
-        if (!declare) {
-            for (auto& inherits: inherited) {
-                const auto interface = inherits.type->get_direct_linked_interface();
-                if (interface && interface->generates_vtable()) {
-                    interface->llvm_global_vtable(gen, this);
-                }
-            }
-        }
         has_done = true;
     }
 }

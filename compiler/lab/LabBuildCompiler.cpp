@@ -175,7 +175,7 @@ LabBuildCompiler::LabBuildCompiler(
     LabBuildCompilerOptions* options,
     int nThreads
 ) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool(nThreads),
-global_allocator(100000 /** 100 kb**/), type_builder(global_allocator) {
+    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator) {
 
 }
 
@@ -247,6 +247,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     // annotation controller can collect top level nodes
     // the use has eneded
     controller.clear_marked_or_collected();
+    coreNodes.clear();
 
     // finally return the status
     return return_int;
@@ -1585,7 +1586,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
     ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
@@ -1833,7 +1834,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
@@ -3040,7 +3041,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     InstantiationsContainer instContainer;
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver lab_resolver(binder, global, path_handler, controller, instContainer, coreNodes, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
@@ -4069,7 +4070,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // creating a ast processor is required
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);

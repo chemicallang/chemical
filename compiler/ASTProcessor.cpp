@@ -409,6 +409,12 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     if(errored) return 1;
 
+    // link core nodes, only if the module name is core
+    if (module->scope_name.empty() && module->name == "core") {
+        // this is the core module
+        resolver->link_core_nodes();
+    }
+
     // we need to search for main function in each module and make it no_mangle
     // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
     // only do this for application modules - library modules keep main mangled

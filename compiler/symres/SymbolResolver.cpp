@@ -23,12 +23,13 @@ SymbolResolver::SymbolResolver(
     ImportPathHandler& handler,
     AnnotationController& controller,
     InstantiationsContainer& container,
+    CoreNodes& coreNodes,
     bool is64Bit,
     ASTAllocator& fileAllocator,
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
 ) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
-    allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller),
+    allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller), coreNodes(coreNodes),
     genericInstantiator(binder, child_resolver, container, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
 {
     global_scope_start();
@@ -37,6 +38,67 @@ SymbolResolver::SymbolResolver(
 
 UnresolvedDecl* SymbolResolver::get_unresolved_decl() {
     return comptime_scope.typeBuilder.getUnresolvedDecl();
+}
+
+static FunctionDeclaration* func_of_interface(ASTNode* container, const chem::string_view& interface, const chem::string_view& method) {
+    const auto found = container->child(interface);
+    if (found == nullptr) return nullptr;
+    // this inteface can be a generic interface
+    // we can search for child anyway
+    const auto child = found->child(method);
+    if (child == nullptr || child->kind() != ASTNodeKind::FunctionDecl) return nullptr;
+    return child->as_function_unsafe();
+}
+
+void SymbolResolver::link_core_nodes() {
+
+    const auto coreNode = find("core");
+    if (coreNode == nullptr || coreNode->kind() != ASTNodeKind::NamespaceDecl) return;
+    if (coreNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
+
+    const auto opsNode = coreNode->child("ops");
+    if (opsNode == nullptr || opsNode->kind() != ASTNodeKind::NamespaceDecl) return;
+    if (opsNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
+
+    coreNodes.ops.add = func_of_interface(opsNode, "Add", "add");
+    coreNodes.ops.sub = func_of_interface(opsNode, "Sub", "sub");
+    coreNodes.ops.mul = func_of_interface(opsNode, "Mul", "mul");
+    coreNodes.ops.div = func_of_interface(opsNode, "Div", "div");
+    coreNodes.ops.rem = func_of_interface(opsNode, "Rem", "rem");
+    coreNodes.ops.neg = func_of_interface(opsNode, "Neg", "neg");
+    coreNodes.ops._not = func_of_interface(opsNode, "Not", "not");
+
+    coreNodes.ops.add_assign = func_of_interface(opsNode, "AddAssign", "add_assign");
+    coreNodes.ops.sub_assign = func_of_interface(opsNode, "SubAssign", "sub_assign");
+    coreNodes.ops.mul_assign = func_of_interface(opsNode, "MulAssign", "mul_assign");
+    coreNodes.ops.div_assign = func_of_interface(opsNode, "DivAssign", "div_assign");
+    coreNodes.ops.rem_assign = func_of_interface(opsNode, "RemAssign", "rem_assign");
+
+    coreNodes.ops.bit_and_assign = func_of_interface(opsNode, "BitAndAssign", "bitand_assign");
+    coreNodes.ops.bit_or_assign = func_of_interface(opsNode, "BitOrAssign", "bitor_assign");
+    coreNodes.ops.bit_xor_assign = func_of_interface(opsNode, "BitXorAssign", "bitxor_assign");
+
+    coreNodes.ops.shl_assign = func_of_interface(opsNode, "ShlAssign", "shl_assign");
+    coreNodes.ops.shr_assign = func_of_interface(opsNode, "ShrAssign", "shr_assign");
+
+    coreNodes.ops.bit_and = func_of_interface(opsNode, "BitAnd", "bitand");
+    coreNodes.ops.bit_or = func_of_interface(opsNode, "BitOr", "bitor");
+    coreNodes.ops.bit_xor = func_of_interface(opsNode, "BitXor", "bitxor");
+
+    coreNodes.ops.shl = func_of_interface(opsNode, "Shl", "shl");
+    coreNodes.ops.shr = func_of_interface(opsNode, "Shr", "shr");
+
+    coreNodes.ops.eq = func_of_interface(opsNode, "PartialEq", "eq");
+    coreNodes.ops.ne = func_of_interface(opsNode, "PartialEq", "ne");
+
+    coreNodes.ops.gt = func_of_interface(opsNode, "Ord", "gt");
+    coreNodes.ops.lt = func_of_interface(opsNode, "Ord", "lt");
+    coreNodes.ops.gte = func_of_interface(opsNode, "Ord", "gte");
+    coreNodes.ops.lte = func_of_interface(opsNode, "Ord", "lte");
+
+    coreNodes.ops.index = func_of_interface(opsNode, "Index", "index");
+    coreNodes.ops.index_mut = func_of_interface(opsNode, "IndexMut", "index");
+
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

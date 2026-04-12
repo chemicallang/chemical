@@ -12,6 +12,7 @@
 #include "ChildResolver.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
+#include "compiler/symres/CoreNodes.h"
 
 class ASTNode;
 
@@ -163,6 +164,13 @@ public:
     AnnotationController& controller;
 
     /**
+     * the core module provides some nodes that help compilation process
+     * for example operator overloading requires that we constrain function types
+     * the core module provides interfaces for overloading operators
+     */
+    CoreNodes& coreNodes;
+
+    /**
      * ast allocator is the pointer to the allocator that is used to allocate ast nodes
      * globally, because it is used to store usages of generic types, so they are never disposed
      * because usages of ast types are needed to generate implementations based on usage
@@ -256,6 +264,7 @@ public:
             ImportPathHandler& handler,
             AnnotationController& controller,
             InstantiationsContainer& container,
+            CoreNodes& coreNodes,
             bool is64Bit,
             ASTAllocator& allocator,
             ASTAllocator* modAllocator,
@@ -397,6 +406,11 @@ public:
     bool is_current_file_scope() {
         return table.get_last_scope_kind() == SymResScopeKind::File;
     }
+
+    /**
+     * this links the nodes of coreNodes
+     */
+    void link_core_nodes();
 
     /**
      * duplicate symbol error

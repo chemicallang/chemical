@@ -547,6 +547,10 @@ FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclar
     return { nullptr, nullptr, nullptr };
 }
 
+FunctionDeclaration* MembersContainer::getExactImplementationOf(FunctionDeclaration* base_func) {
+    return direct_child_function(base_func->name_view());
+}
+
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
     auto direct = direct_child_function(function->name_view());
     if(direct) return { this, direct };

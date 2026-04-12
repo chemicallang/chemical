@@ -36,6 +36,7 @@
 #include "LinkSignatureAPI.h"
 #include "ast/statements/UnresolvedDecl.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/frontend/AnnotationController.h"
 
 void sym_res_before_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
@@ -615,6 +616,13 @@ void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
 void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     auto& linker = sig.linker;
     linker.scope_start();
+
+    // override parent is given only to member functions
+    // we check if it has one and then visit that
+    if (node->has_override_parent()) {
+        const auto override_parent = linker.controller.get_override_parent(node);
+        if (override_parent != nullptr) sig.VisitTypeNoNullCheck(override_parent);
+    }
 
     // visiting the signature of the function
     for(auto param : node->params) {
@@ -1433,9 +1441,11 @@ void buildContainerIndexes(MembersContainer* container) {
     for(auto& inh : container->inherited) {
         const auto sub_container = inh.type->get_members_container();
         if(sub_container) {
-            // first build indexes on inherited containers
-            // since we want to do multi-level inheritance
-            buildContainerIndexes(sub_container);
+            if (!sub_container->built_indexes) {
+                // first build indexes on inherited containers
+                // since we want to do multi-level inheritance
+                buildContainerIndexes(sub_container);
+            }
             // check if inherited size of zero
             // we also calculate this flag when building indexes
             if (!sub_container->is_sizeof_zero) {
@@ -1452,12 +1462,54 @@ void buildContainerIndexes(MembersContainer* container) {
             }
         }
     }
+    // set indexes to built
+    // so we can skip building it again when other containers inherit this container
+    container->built_indexes = true;
+    // set is_sizeof_zero to true
     if (is_inherited_sizeof_zero && container->variables().empty()) {
         container->is_sizeof_zero = true;
     }
 }
 
-void BuildIndexes(std::vector<ASTNode*>& nodes) {
+void index_implementations(AnnotationController& controller, ASTDiagnoser& diagnoser, ImplDefinition* implDef, InterfaceDefinition* interface) {
+    for (const auto node : implDef->functions()) {
+        FunctionDeclaration* func;
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            func = node->as_function_unsafe();
+        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
+            func = node->as_gen_func_decl_unsafe()->master_impl;
+        } else {
+            continue;
+        }
+        InterfaceDefinition* containing;
+        if (func->has_override_parent()) {
+            const auto overrideParent = controller.get_override_parent(func);
+            if (overrideParent == nullptr) {
+                diagnoser.error(func) << "couldn't get override parent";
+                continue;
+            }
+            const auto linked = overrideParent->as_linked_type_unsafe()->linked;
+            if (linked->kind() == ASTNodeKind::InterfaceDecl) {
+                containing = linked->as_interface_def_unsafe();
+            } else if (linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                containing = linked->as_gen_interface_decl_unsafe()->master_impl;
+            } else {
+                diagnoser.error(func) << "override parent must be an interface";
+                continue;
+            }
+        } else {
+            containing = interface;
+        }
+        const auto child = containing->child(func->name_view());
+        if (child == nullptr) {
+            diagnoser.error(func) << "couldn't find base function to override";
+            continue;
+        }
+        implDef->override_map[child] = node;
+    }
+}
+
+void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructDecl:
@@ -1467,15 +1519,15 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
                 buildContainerIndexes(node->as_members_container_unsafe());
                 continue;
             case ASTNodeKind::ImplDecl: {
-                // for impl decl, impl Interface for Struct <-- Interface extension methods
-                // must be added into the struct so they can be invoked
-                // if method already exists, we must not do that
                 const auto decl = node->as_impl_def_unsafe();
                 const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
                 if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
                     const auto interface = interfaceNode->as_interface_def_unsafe();
                     const auto container = decl->struct_type->get_members_container();
                     if (container) {
+                        // for impl decl, impl Interface for Struct <-- Interface extension methods
+                        // must be added into the struct so they can be invoked
+                        // if method already exists, we must not do that
                         for (const auto extension : interface->extension_functions) {
                             switch (extension->kind()) {
                                 case ASTNodeKind::FunctionDecl:
@@ -1489,6 +1541,9 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
                             }
                         }
                     }
+                    // we also index implementation methods with key of base methods they are overriding
+                    // for faster access and to reduce ambiguity
+                    index_implementations(linker.controller, linker, decl, interface);
                 }
                 continue;
             }
@@ -1510,14 +1565,14 @@ void BuildIndexes(std::vector<ASTNode*>& nodes) {
                 buildContainerIndexes(node->as_gen_impl_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::NamespaceDecl:
-                BuildIndexes(node->as_namespace_unsafe()->nodes);
+                BuildIndexes(linker, node->as_namespace_unsafe()->nodes);
                 continue;
             case ASTNodeKind::IfStmt:{
                 const auto stmt = node->as_if_stmt_unsafe();
                 if(stmt->computed_scope.has_value()) {
                     const auto scope = stmt->computed_scope.value();
                     if(scope) {
-                        BuildIndexes(scope->nodes);
+                        BuildIndexes(linker, scope->nodes);
                     }
                 }
                 continue;
@@ -1654,7 +1709,7 @@ void LinkGlobalVariableValues(TopLevelLinkSignature& visitor, std::vector<ASTNod
 void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     auto& nodes = scope->nodes;
     // builds indexes of containers to children inside them can be looked up
-    BuildIndexes(nodes);
+    BuildIndexes(resolver, nodes);
     // links export statements, these can't be linked during link signature
     LinkExportStatement(resolver, nodes);
     // links global variable values, which can have dependencies on each other

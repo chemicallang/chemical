@@ -5,6 +5,7 @@
 #include <iostream>
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/mangler/NameMangler.h"
+#include "compiler/symres/CoreNodes.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
@@ -6487,7 +6488,9 @@ void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
 }
 
 void overload_expr_operator(ToCAstVisitor& visitor, MembersContainer* container, Expression* expr) {
-    auto info = operator_impl_info(expr->operation);
+    // TODO: must be stored in the visitor
+    CoreNodes coreNodes;
+    auto info = coreNodes.operator_impl_info(expr->operation);
     if(info.name.empty()) {
         visitor.write('0');
         visitor.error("operator cannot be overloaded", expr);

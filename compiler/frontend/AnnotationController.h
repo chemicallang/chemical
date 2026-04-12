@@ -5,7 +5,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <deque>
 #include <unordered_map>
 #include <memory>
 #include <algorithm>
@@ -18,6 +17,8 @@ class ASTNode;
 class Value;
 class Parser;
 class AnnotationController;
+class FunctionDeclaration;
+class BaseType;
 
 enum class AnnotationDefType {
     /**
@@ -235,6 +236,10 @@ public:
 
     // returns true on error
     bool mark_single(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments);
+
+    void mark_override_parent(FunctionDeclaration* func_decl, BaseType* type);
+
+    BaseType* get_override_parent(FunctionDeclaration* func_decl);
 
     void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
         std::lock_guard lock(marker_mutex);

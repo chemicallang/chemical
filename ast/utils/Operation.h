@@ -111,16 +111,3 @@ uint8_t to_precedence(Operation op);
  * @return true if the associativity is LTR
  */
 bool is_assoc_left_to_right(Operation op);
-
-/**
- * operator being overloaded, information about it is stored
- * in this struct
- */
-struct OperatorImplInformation {
-    chem::string_view name;
-};
-
-/**
- * get information about operator being overloaded, like function name to use
- */
-OperatorImplInformation operator_impl_info(Operation op);

@@ -16,6 +16,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/base/InterpretScope.h"
+#include "compiler/symres/CoreNodes.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
@@ -54,7 +55,9 @@ FunctionDeclaration* get_overloaded_func(Expression* expr) {
     if(node == nullptr) return nullptr;
     const auto container = node->get_members_container();
     if(container == nullptr) return nullptr;
-    const auto op_info = operator_impl_info(expr->operation);
+    // TODO: we must pass down core nodes from the linker
+    CoreNodes coreNodes;
+    const auto op_info = coreNodes.operator_impl_info(expr->operation);
     if (op_info.name.empty()) return nullptr;
     const auto child_node = container->child(op_info.name);
     if(child_node == nullptr) return nullptr;
@@ -134,7 +137,9 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     if(node) {
         const auto container = node->get_members_container();
         if(container) {
-            const auto op_info = operator_impl_info(expr->operation);
+            // TODO: we must pass down core nodes from the linker
+            CoreNodes coreNodes;
+            const auto op_info = coreNodes.operator_impl_info(expr->operation);
             if(op_info.name.empty()) {
                 // this operator cannot be overloaded
                 diagnoser.error("cannot override this operator", expr);

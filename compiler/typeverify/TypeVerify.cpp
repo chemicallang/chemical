@@ -90,27 +90,43 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* im
 
     // Iterate over all functions in the interface
     for (auto& node : interface->functions()) {
-        if (node->kind() != ASTNodeKind::FunctionDecl) {
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            const auto func_node = node->as_function_unsafe();
+            if(func_node->body.has_value()) {
+                // default implementation available
+                continue;
+            }
+            const auto found = implementor->implementation_of(func_node);
+            if (found != nullptr) {
+                // direct implementation present in impl
+                continue;
+            }
+            diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "'";
+            diagnoser.warn(func_node) << "function hasn't been implemented in an impl below";
+        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
+            const auto gen_func = node->as_gen_func_decl_unsafe();
+            if (gen_func->master_impl->body.has_value()) {
+                // default implementation available
+                continue;
+            }
+            // this calls specific method (implementation_of)
+            const auto found = implementor->implementation_of(gen_func);
+            if (found != nullptr) {
+                // direct implementation present in impl
+                continue;
+            }
+            diagnoser.error(implementor) << "type does not implement interface member '" << gen_func->master_impl->name_view() << "'";
+            diagnoser.warn(gen_func) << "function hasn't been implemented in an impl below";
+        } else {
             continue;
         }
-        const auto func_node = node->as_function_unsafe();
-        if(func_node->body.has_value()) {
-            // default implementation available
-            continue;
-        }
-        const auto found = implementor->direct_child_function(func_node->name_view());
-        if(found != nullptr) {
-            // direct implementation present in impl
-            continue;
-        }
+        // we will do this when (someday) we support overriding implementations in interfaces
         // check for secondary default implementation in inherited
         // const auto secondary_impl = root_interface->any_child_function(func_node->name_view());
         // if (secondary_impl && secondary_impl->is_override() && secondary_impl->body.has_value()) {
         //     // secondary implementation present in impl
         //     continue;
         // }
-        diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "'";
-        diagnoser.warn(func_node) << "function hasn't been implemented in an impl below";
     }
 }
 

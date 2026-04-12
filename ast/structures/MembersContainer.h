@@ -437,6 +437,12 @@ public:
     }
 
     /**
+     * get exact implementation function (present usually in 'impl') with the given name that overrides
+     * a method with the given name in the given base interface
+     */
+    FunctionDeclaration* getExactImplementationOf(FunctionDeclaration* base_func);
+
+    /**
      * get a function with signature equal to given func type, present in direct or inherited functions
      * it also checks for the function name
      */

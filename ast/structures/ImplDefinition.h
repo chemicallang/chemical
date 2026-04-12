@@ -26,6 +26,14 @@ public:
     ImplDeclAttrs attrs;
 
     /**
+     * the key is a base function present in an interface.
+     * the value is an implementation function present in this impl definition.
+     * this gives us fast access to overridden functions.
+     * this also allows user to specify exact base function he is overriding (by specifying interface)
+     */
+    std::unordered_map<ASTNode*, ASTNode*> override_map;
+
+    /**
      * constructor
      */
     ImplDefinition(
@@ -67,6 +75,22 @@ public:
         );
         MembersContainer::shallow_copy_into(*impl, allocator);
         return impl;
+    }
+
+    inline ASTNode* implementation_of(ASTNode* node) {
+        auto found = override_map.find(node);
+        if (found == override_map.end()) return nullptr;
+        return found->second;
+    }
+
+    inline FunctionDeclaration* implementation_of(FunctionDeclaration* base) {
+        const auto i = implementation_of((ASTNode*) base);
+        return i ? i->kind() == ASTNodeKind::FunctionDecl ? i->as_function_unsafe() : nullptr : nullptr;
+    }
+
+    inline GenericFuncDecl* implementation_of(GenericFuncDecl* base) {
+        const auto i = implementation_of((ASTNode*) base);
+        return i ? i->kind() == ASTNodeKind::GenericFuncDecl ? i->as_gen_func_decl_unsafe() : nullptr : nullptr;
     }
 
 #ifdef COMPILER_BUILD

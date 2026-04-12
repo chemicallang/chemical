@@ -112,4 +112,8 @@ public:
         }
     }
 
+    void clear() {
+        ops = CoreNodesOps{};
+    }
+
 };

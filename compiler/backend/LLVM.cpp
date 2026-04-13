@@ -97,6 +97,7 @@
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "compiler/mangler/NameMangler.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 // -------------------- Types
 
@@ -339,28 +340,6 @@ llvm::Value* call_single_param_op_impl(Codegen& gen, FunctionDeclaration* decl, 
     return returnedStruct ? returnedStruct : callInst;
 }
 
-llvm::Value* call_single_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, const chem::string_view& func_name) {
-    // find the function
-    auto found_child = container->child(func_name);
-    if(!found_child) {
-        return nullptr;
-    }
-    // call the function
-    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
-        const auto func = found_child->as_function_unsafe();
-        return call_single_param_op_impl(gen, func, first);
-    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto multi_node = found_child->as_multi_func_node_unsafe();
-        std::vector<Value*> args;
-        args.emplace_back(first);
-        const auto func = multi_node->func_for_call(args);
-        if(!func) return nullptr;
-        return call_single_param_op_impl(gen, func, first);
-    } else {
-        return nullptr;
-    }
-}
-
 llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* first, Value* second) {
     if(decl->params.size() != 2) {
         gen.error(first) << "expected overloaded operator to have exactly two parameters";
@@ -384,29 +363,6 @@ llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Val
     return returnedStruct ? returnedStruct : callInst;
 }
 
-llvm::Value* call_two_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, Value* second, const chem::string_view& func_name) {
-    // find the function
-    auto found_child = container->child(func_name);
-    if(!found_child) {
-        return nullptr;
-    }
-    // call the function
-    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
-        const auto func = found_child->as_function_unsafe();
-        return call_two_param_op_impl(gen, func, first, second);
-    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto multi_node = found_child->as_multi_func_node_unsafe();
-        std::vector<Value*> args;
-        args.emplace_back(first);
-        args.emplace_back(second);
-        const auto func = multi_node->func_for_call(args);
-        if(!func) return nullptr;
-        return call_two_param_op_impl(gen, func, first, second);
-    } else {
-        return nullptr;
-    }
-}
-
 llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     // check if operator is overloaded
     const auto valType = value->getType();
@@ -414,7 +370,13 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            return call_single_param_op_impl(gen, container, value, "neg");
+            const auto func = gen.implsIndex.get_neg_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return gen.builder->getInt32(0);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            return called ? called : gen.builder->getInt32(0);
         }
     }
     // normal flow
@@ -434,7 +396,13 @@ llvm::AllocaInst* NegativeValue::llvm_allocate(Codegen &gen, const std::string &
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            const auto called = call_single_param_op_impl(gen, container, value, "neg");
+            const auto func = gen.implsIndex.get_not_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            if (called == nullptr) return Value::llvm_allocate(gen, identifier, expected_type);
             if(llvm::isa<llvm::AllocaInst>(called)) {
                 return (llvm::AllocaInst*) called;
             } else {
@@ -454,7 +422,13 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            return call_single_param_op_impl(gen, container, value, "not");
+            const auto func = gen.implsIndex.get_not_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return gen.builder->getInt32(0);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            return called ? called : gen.builder->getInt32(0);
         }
     }
     // normal flow
@@ -487,7 +461,13 @@ llvm::AllocaInst* NotValue::llvm_allocate(Codegen &gen, const std::string &ident
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            const auto called = call_single_param_op_impl(gen, container, value, "not");
+            const auto func = gen.implsIndex.get_not_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            if (called == nullptr) return Value::llvm_allocate(gen, identifier, expected_type);
             if(llvm::isa<llvm::AllocaInst>(called)) {
                 return (llvm::AllocaInst*) called;
             } else {
@@ -570,7 +550,13 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen)  {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            return call_two_param_op_impl(gen, container, parent_val, idx, "index");
+            const auto func = gen.implsIndex.get_index_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return gen.builder->getInt32(0);
+            }
+            const auto called = call_two_param_op_impl(gen, func, parent_val, idx);
+            return called ? called : gen.builder->getInt32(0);
         }
     }
     // normal flow
@@ -751,19 +737,15 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
+            const auto func = gen.implsIndex.get_expr_op_impl(gen.coreNodes, container, operation);
+            if (func == nullptr) {
+                gen.error(this) << "counld't find operator implementation for expression";
+                return normal_flow_expr(gen, this, firstType, secondType);
+            }
             // operator overloading
-            // get operator info
-            auto impl_info = operator_impl_info(operation);
-            if(impl_info.name.empty()) {
-                gen.error("operator cannot be overloaded", this);
-                return normal_flow_expr(gen, this, firstType, secondType);
-            }
             // call the operator implementation
-            const auto called = call_two_param_op_impl(gen, container, firstValue, secondValue, impl_info.name);
-            if(!called) {
-                gen.error(this) << "couldn't find operator implementation with name '" << impl_info.name << "'";
-                return normal_flow_expr(gen, this, firstType, secondType);
-            }
+            const auto called = call_two_param_op_impl(gen, func, firstValue, secondValue);
+            if(!called) return normal_flow_expr(gen, this, firstType, secondType);
             return called;
         }
     }
@@ -788,17 +770,13 @@ llvm::AllocaInst* Expression::llvm_allocate(Codegen &gen, const std::string &ide
         if(container) {
             // operator overloading
             // get operator info
-            auto impl_info = operator_impl_info(operation);
-            if(impl_info.name.empty()) {
-                gen.error("operator cannot be overloaded", this);
+            const auto func = gen.implsIndex.get_expr_op_impl(gen.coreNodes, container, operation);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator implementation for expression";
                 return Value::llvm_allocate(gen, identifier, expected_type);
             }
-            // call the operator implementation
-            const auto called = call_two_param_op_impl(gen, container, firstValue, secondValue, impl_info.name);
-            if(!called) {
-                gen.error(this) << "couldn't find operator implementation with name '" << impl_info.name << "'";
-                return Value::llvm_allocate(gen, identifier, expected_type);
-            }
+            const auto called = call_two_param_op_impl(gen, func, firstValue, secondValue);
+            if(!called) return Value::llvm_allocate(gen, identifier, expected_type);
             if(llvm::isa<llvm::AllocaInst>(called)) {
                 return (llvm::AllocaInst*) called;
             } else {
@@ -853,7 +831,12 @@ llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     if(can_type) {
         const auto container = can_type->get_members_container();
         if(container) {
-            return call_single_param_op_impl(gen, container, value, get_overloaded_func_name());
+            const auto func = gen.implsIndex.get_inc_dec_op_impl(gen.coreNodes, container, increment, post);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator implementation for increment/decrement";
+                return gen.builder->getInt32(0);
+            }
+            return call_single_param_op_impl(gen, func, value);
         }
     }
     // normal flow
@@ -886,7 +869,13 @@ llvm::AllocaInst* IncDecValue::llvm_allocate(Codegen& gen, const std::string& id
     if(can_type) {
         const auto container = can_type->get_members_container();
         if(container) {
-            const auto called = call_single_param_op_impl(gen, container, value, get_overloaded_func_name());
+            const auto func = gen.implsIndex.get_inc_dec_op_impl(gen.coreNodes, container, increment, post);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator implementation for increment/decrement";
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            if (called == nullptr) return Value::llvm_allocate(gen, identifier, expected_type);
             if(llvm::isa<llvm::AllocaInst>(called)) {
                 return (llvm::AllocaInst*) called;
             } else {
@@ -2177,7 +2166,12 @@ void AssignStatement::code_gen(Codegen &gen) {
         if(can_node) {
             const auto container = can_node->get_members_container();
             if(container) {
-                call_two_param_op_impl(gen, container, lhs, value, AssignStatement::overload_op_name(assOp));
+                const auto func = gen.implsIndex.get_ass_op_impl(gen.coreNodes, container, assOp);
+                if (func == nullptr) {
+                    gen.error(this) << "couldn't find operator overload implementation";
+                    return;
+                }
+                call_two_param_op_impl(gen, func, lhs, value);
                 // all assignment operators return void
                 return;
             }

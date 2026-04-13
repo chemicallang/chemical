@@ -1845,7 +1845,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     code_gen_options.fno_unwind_tables = options->fno_unwind_tables;
     code_gen_options.fno_asynchronous_unwind_tables = options->fno_asynchronous_unwind_tables;
     code_gen_options.no_pie = options->no_pie;
-    Codegen gen(code_gen_options, binder, global, mangler, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
+    Codegen gen(code_gen_options, binder, global, mangler, coreNodes, implsIndex, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;

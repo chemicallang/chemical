@@ -50,6 +50,10 @@ class FunctionCall;
 
 class FunctionDeclaration;
 
+class CoreNodes;
+
+class ImplementationsIndex;
+
 enum class DestructibleKind {
     Single,
     Array
@@ -117,6 +121,17 @@ public:
      * allocator is used to allocate ast things during code generation
      */
     ASTAllocator& allocator;
+
+    /**
+     * the core module contains the interfaces and function definitions for operator overloading...
+     */
+    CoreNodes& coreNodes;
+
+    /**
+     * implementations index contains the impl blocks, where we can find
+     * exact implementations of operator overloading
+     */
+    ImplementationsIndex& implsIndex;
 
     /**
      * the code generation mode
@@ -272,6 +287,8 @@ public:
             CompilerBinder& binder,
             GlobalInterpretScope& comptime_scope,
             NameMangler& mangler,
+            CoreNodes& coreNodes,
+            ImplementationsIndex& implsIndex,
             std::string target_triple,
             std::string curr_exe_path,
             bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen,

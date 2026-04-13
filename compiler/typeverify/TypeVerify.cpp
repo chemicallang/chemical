@@ -76,7 +76,7 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
 void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
 
     // so why always select the master (template) interface
-    // because we need to get the base function, which has been indexed
+    // because we need to get the base function, which has been indexed, to look up
     // we need to use the function pointers present in the master (template) interface
     const auto interface = interface_non_master->generic_parent != nullptr ? interface_non_master->generic_parent->as_gen_interface_decl_unsafe()->master_impl : interface_non_master;
 

@@ -91,6 +91,8 @@ Codegen::Codegen(
         CompilerBinder& binder,
         GlobalInterpretScope& comptime_scope,
         NameMangler& mangler,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
@@ -99,7 +101,7 @@ Codegen::Codegen(
 ) : ASTDiagnoser(comptime_scope.loc_man), binder(binder), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit),
     di(comptime_scope.loc_man, nullptr, *this, debug_info), llvm(di), mode(comptime_scope.mode),
-    mangler(mangler)
+    mangler(mangler), coreNodes(coreNodes), implsIndex(implsIndex)
 {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();

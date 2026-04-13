@@ -24,13 +24,14 @@ SymbolResolver::SymbolResolver(
     AnnotationController& controller,
     InstantiationsContainer& container,
     CoreNodes& coreNodes,
+    ImplementationsIndex& implsIndex,
     bool is64Bit,
     ASTAllocator& fileAllocator,
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
 ) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
-    allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller), coreNodes(coreNodes),
-    genericInstantiator(binder, child_resolver, container, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
+    allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller), coreNodes(coreNodes), implsIndex(implsIndex),
+    genericInstantiator(binder, child_resolver, container, coreNodes, implsIndex, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
@@ -95,6 +96,11 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.ops.lt = func_of_interface(opsNode, "Ord", "lt");
     coreNodes.ops.gte = func_of_interface(opsNode, "Ord", "gte");
     coreNodes.ops.lte = func_of_interface(opsNode, "Ord", "lte");
+
+    coreNodes.ops.inc_pre = func_of_interface(opsNode, "Increment", "inc_pre");
+    coreNodes.ops.inc_post = func_of_interface(opsNode, "Increment", "inc_post");
+    coreNodes.ops.dec_pre = func_of_interface(opsNode, "Decrement", "dec_pre");
+    coreNodes.ops.dec_post = func_of_interface(opsNode, "Decrement", "dec_post");
 
     coreNodes.ops.index = func_of_interface(opsNode, "Index", "index");
     coreNodes.ops.index_mut = func_of_interface(opsNode, "IndexMut", "index");

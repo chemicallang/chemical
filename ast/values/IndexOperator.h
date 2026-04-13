@@ -10,6 +10,9 @@
 #include <utility>
 #include "ast/base/Value.h"
 
+class CoreNodes;
+class ImplementationsIndex;
+
 class IndexOperator : public Value {
 public:
 
@@ -53,7 +56,7 @@ public:
         return op;
     }
 
-    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);
+    void determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

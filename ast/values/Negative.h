@@ -10,6 +10,9 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 
+class CoreNodes;
+class ImplementationsIndex;
+
 // A value that's preceded by a negative operator -value
 class NegativeValue : public Value {
 private:
@@ -59,6 +62,6 @@ public:
 
 #endif
 
-    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);
+    void determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 
 };

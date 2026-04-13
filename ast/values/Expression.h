@@ -11,6 +11,10 @@
 #include "std/chem_string_view.h"
 #include <memory>
 
+class CoreNodes;
+class ImplementationsIndex;
+class MembersContainer;
+
 class Expression : public Value {
 public:
 
@@ -70,7 +74,25 @@ public:
 
 #endif
 
-    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData);
+    FunctionDeclaration* get_overloaded_func(CoreNodes& coreNodes, ImplementationsIndex& implsIndex);
+
+    BaseType* get_determined_type(
+        TypeBuilder& typeBuilder,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
+        ASTDiagnoser& diagnoser,
+        TargetData& targetData
+    );
+
+    inline void determine_type(
+        TypeBuilder& typeBuilder,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
+        ASTDiagnoser& diagnoser,
+        TargetData& targetData
+    ) {
+        setType(get_determined_type(typeBuilder, coreNodes, implsIndex, diagnoser, targetData));
+    }
 
     bool primitive() final;
 

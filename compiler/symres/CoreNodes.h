@@ -16,9 +16,6 @@ public:
     FunctionDeclaration* neg = nullptr;
     FunctionDeclaration* _not = nullptr;
 
-    // InterfaceDefinition* increment = nullptr;
-    // InterfaceDefinition* decrement = nullptr;
-
     FunctionDeclaration* add_assign = nullptr;
     FunctionDeclaration* sub_assign = nullptr;
     FunctionDeclaration* mul_assign = nullptr;
@@ -45,8 +42,10 @@ public:
     FunctionDeclaration* gte = nullptr;
     FunctionDeclaration* lte = nullptr;
 
-    // InterfaceDefinition* partial_ord = nullptr;
-    // InterfaceDefinition* ord = nullptr;
+    FunctionDeclaration* inc_pre = nullptr;
+    FunctionDeclaration* inc_post = nullptr;
+    FunctionDeclaration* dec_pre = nullptr;
+    FunctionDeclaration* dec_post = nullptr;
 
     FunctionDeclaration* index = nullptr;
     FunctionDeclaration* index_mut = nullptr;
@@ -60,56 +59,76 @@ public:
     CoreNodesOps ops;
 
     /**
-     * operator being overloaded, information about it is stored
-     * in this struct
-     */
-    struct OperatorImplInformation {
-        // the base interface that user should be overriding
-        FunctionDeclaration* base;
-        // the name of the function
-        chem::string_view name;
-    };
-
-    /**
      * get information about operator being overloaded, like function name to use
      */
-    OperatorImplInformation operator_impl_info(Operation op) {
+    FunctionDeclaration* expr_operator_impl_base(Operation op) {
         switch(op) {
             case Operation::Addition:
-                return { .base = ops.add, .name = "add" };
+                return ops.add;
             case Operation::Subtraction:
-                return { .base = ops.sub, .name = "sub" };
+                return ops.sub;
             case Operation::Multiplication:
-                return { .base = ops.mul, .name = "mul" };
+                return ops.mul;
             case Operation::Division:
-                return { .base = ops.div, .name = "div" };
+                return ops.div;
             case Operation::Modulus:
-                return { .base = ops.rem, .name = "rem" };
+                return ops.rem;
             case Operation::BitwiseAND:
-                return { .base = ops.bit_and, .name = "bitand" };
+                return ops.bit_and;
             case Operation::BitwiseOR:
-                return { .base = ops.bit_or, .name = "bitor" };
+                return ops.bit_or;
             case Operation::BitwiseXOR:
-                return { .base = ops.bit_xor, .name = "bitxor" };
+                return ops.bit_xor;
             case Operation::LeftShift:
-                return { .base = ops.shl, .name = "shl" };
+                return ops.shl;
             case Operation::RightShift:
-                return { .base = ops.shr, .name = "shr" };
+                return ops.shr;
             case Operation::IsEqual:
-                return { .base = ops.eq, .name = "eq" };
+                return ops.eq;
             case Operation::IsNotEqual:
-                return { .base = ops.ne, .name = "ne" };
+                return ops.ne;
             case Operation::GreaterThan:
-                return { .base = ops.gt, .name = "gt" };
+                return ops.gt;
             case Operation::LessThan:
-                return { .base = ops.lt, .name = "lt" };
+                return ops.lt;
             case Operation::GreaterThanOrEqual:
-                return { .base = ops.gte, .name = "gte" };
+                return ops.gte;
             case Operation::LessThanOrEqual:
-                return { .base = ops.lte, .name = "lte" };
+                return ops.lte;
             default:
-                return { .base = nullptr, .name = "" };
+                return nullptr;
         }
+    }
+
+    FunctionDeclaration* assignment_operator_impl_base(Operation op) {
+        switch(op) {
+            case Operation::Addition:
+                return ops.add_assign;
+            case Operation::Subtraction:
+                return ops.sub_assign;
+            case Operation::Multiplication:
+                return ops.mul_assign;
+            case Operation::Division:
+                return ops.div_assign;
+            case Operation::Modulus:
+                return ops.rem_assign;
+            case Operation::BitwiseAND:
+                return ops.bit_and_assign;
+            case Operation::BitwiseOR:
+                return ops.bit_or_assign;
+            case Operation::BitwiseXOR:
+                return ops.bit_xor_assign;
+            case Operation::LeftShift:
+                return ops.shl_assign;
+            case Operation::RightShift:
+                return ops.shr_assign;
+            default:
+                return nullptr;
+        }
+    }
+
+    FunctionDeclaration* inc_dec_operator_impl_base(bool increment, bool post) {
+        return increment ? (post ? ops.inc_post : ops.inc_pre) : (post ? ops.dec_post : ops.dec_pre);
     }
 
     void clear() {

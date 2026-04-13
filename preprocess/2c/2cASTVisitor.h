@@ -17,6 +17,8 @@
 #include "core/source/LocationManager.h"
 #include "BufferedWriter.h"
 
+class ImplementationsIndex;
+class CoreNodes;
 class GlobalInterpretScope;
 class ASTAllocator;
 class CompilerBinder;
@@ -47,6 +49,16 @@ public:
      * required to replace embedded node and embedded values
      */
     CompilerBinder& binder;
+
+    /**
+     * nodes in the core module are indexed in this class
+     */
+    CoreNodes& coreNodes;
+
+    /**
+     * implementations of all interfaces are indexed in this class
+     */
+    ImplementationsIndex& implsIndex;
 
     /**
      * the writer is used to actually write to an in memory buffer
@@ -216,6 +228,8 @@ public:
         NameMangler& mangler,
         ASTAllocator& allocator,
         LocationManager& manager,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
         bool debug_info,
         bool minify
     );

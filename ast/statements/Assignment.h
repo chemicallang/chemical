@@ -46,8 +46,6 @@ public:
         );
     }
 
-    static chem::string_view overload_op_name(Operation op);
-
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;
 #endif

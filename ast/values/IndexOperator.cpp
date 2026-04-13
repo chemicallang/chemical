@@ -16,6 +16,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/base/InterpretScope.h"
 #include "PointerValue.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 #ifdef COMPILER_BUILD
 
@@ -91,44 +92,28 @@ BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type, bool unwrap_r
     }
 }
 
-void IndexOperator::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
+void IndexOperator::determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser) {
     auto current_type = parent_val->getType();
     const auto can_node = current_type->get_linked_canonical_node(true, false);
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            const auto child = container->child("index");
-            if(!child) {
-                diagnoser.error(this) << "expected a function 'index' to be present for overloading";
+            const auto func = implsIndex.get_index_op_impl(coreNodes, container);
+            if (func == nullptr) {
+                diagnoser.error(this) << "couldn't find 'index' or 'index_mut' function implementation for operator overloading";
                 setType(typeBuilder.getVoidType());
                 return;
             }
-            if(child->kind() == ASTNodeKind::FunctionDecl) {
-                // a single function with name 'index' is present
-                const auto func = child->as_function_unsafe();
-                if (func->params.size() != 2) {
-                    diagnoser.error(this) << "expected 'index' operator function to have exactly two parameters";
-                    setType(typeBuilder.getVoidType());
-                    return;
-                }
-                const auto childType = get_child_type(typeBuilder, func->returnType);
-                if(childType) {
-                    setType(childType);
-                } else {
-                    setType(typeBuilder.getVoidType());
-                }
-            } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
-                const auto node = child->as_multi_func_node_unsafe();
-                std::vector<Value*> args { parent_val, idx };
-                const auto func = node->func_for_call(args);
-                if(func) {
-                    setType(func->returnType);
-                } else {
-                    diagnoser.error(this) << "no function with name 'index' exists for given arguments";
-                    setType(typeBuilder.getVoidType());
-                }
+            // a single function with name 'index' is present
+            if (func->params.size() != 2) {
+                diagnoser.error(this) << "expected 'index' operator function to have exactly two parameters";
+                setType(typeBuilder.getVoidType());
+                return;
+            }
+            const auto childType = get_child_type(typeBuilder, func->returnType);
+            if(childType) {
+                setType(childType);
             } else {
-                diagnoser.error(this) << "expected a function 'index' to be present for overloading";
                 setType(typeBuilder.getVoidType());
             }
             return;

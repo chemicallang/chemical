@@ -73,7 +73,12 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
     }
 }
 
-void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* root_interface, InterfaceDefinition* interface) {
+void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
+
+    // so why always select the master (template) interface
+    // because we need to get the base function, which has been indexed
+    // we need to use the function pointers present in the master (template) interface
+    const auto interface = interface_non_master->generic_parent != nullptr ? interface_non_master->generic_parent->as_gen_interface_decl_unsafe()->master_impl : interface_non_master;
 
     if(interface->is_extern() && interface->is_static()) {
         // compiler interfaces are extern and static
@@ -84,7 +89,7 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* im
     for (auto& inh : interface->inherited) {
         const auto canonical_node = inh.type->get_direct_linked_canonical_node();
         if(canonical_node->kind() == ASTNodeKind::InterfaceDecl) {
-            verify_interface_implementation(diagnoser, implementor, root_interface, canonical_node->as_interface_def_unsafe());
+            verify_interface_implementation(diagnoser, implementor, canonical_node->as_interface_def_unsafe());
         }
     }
 
@@ -164,7 +169,7 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
                      const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
                      if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
                          const auto interface = interface_node->as_interface_def_unsafe();
-                         verify_interface_implementation(diagnoser, implDecl, interface, interface);
+                         verify_interface_implementation(diagnoser, implDecl, interface);
                      }
                 }
                 break;

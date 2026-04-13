@@ -16,7 +16,9 @@
 #include "ast/values/StringValue.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/base/InterpretScope.h"
+#include "ast/structures/ImplDefinition.h"
 #include "compiler/symres/CoreNodes.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
@@ -49,27 +51,13 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
     }
 }
 
-FunctionDeclaration* get_overloaded_func(Expression* expr) {
-    const auto first_canonical = expr->firstValue->getType()->canonical();
+FunctionDeclaration* Expression::get_overloaded_func(CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
+    const auto first_canonical = firstValue->getType()->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);
     if(node == nullptr) return nullptr;
     const auto container = node->get_members_container();
     if(container == nullptr) return nullptr;
-    // TODO: we must pass down core nodes from the linker
-    CoreNodes coreNodes;
-    const auto op_info = coreNodes.operator_impl_info(expr->operation);
-    if (op_info.name.empty()) return nullptr;
-    const auto child_node = container->child(op_info.name);
-    if(child_node == nullptr) return nullptr;
-    if(child_node->kind() == ASTNodeKind::FunctionDecl) {
-        return child_node->as_function_unsafe();
-    } else if(child_node->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto multi_node = child_node->as_multi_func_node_unsafe();
-        std::vector<Value*> args { expr->firstValue, expr->secondValue };
-        return multi_node->func_for_call(args);
-    } else {
-        return nullptr;
-    }
+    return implsIndex.get_expr_op_impl(coreNodes, container, operation);
 }
 
 bool isUntypedIntegerLiteral(Value* value, IntNTypeKind k) {
@@ -101,30 +89,37 @@ bool fits_into(IntNumValue* value, IntNType* type, TargetData& targetData) {
     }
 }
 
-BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData) {
+BaseType* Expression::get_determined_type(
+    TypeBuilder& typeBuilder,
+    CoreNodes& coreNodes,
+    ImplementationsIndex& implsIndex,
+    ASTDiagnoser& diagnoser,
+    TargetData& targetData
+) {
+    const auto expr = this;
     auto firstType = expr->firstValue->getType();
     auto secondType = expr->secondValue->getType();
     if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
         // check first type is primitive
         if(!firstType->isPrimitive()) {
             // check if overloaded operator exists
-            const auto overloaded = get_overloaded_func(expr);
-            if(overloaded != nullptr) {
-                if(overloaded->params.size() != 2) {
-                    // since this expression has two values, we always expect two parameters
-                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                // check the second type here that it matches the overloaded parameter
-                if(!overloaded->params[1]->type->satisfies(expr->secondValue, false)) {
-                    diagnoser.error(expr->secondValue) << "value doesn't satisfy the overloaded operator parameter";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                // return early second type has been checked
-                return typeBuilder.getBoolType();
-            } else {
+            const auto overloaded = get_overloaded_func(coreNodes, implsIndex);
+            if (overloaded == nullptr) {
                 diagnoser.error("expected the value to have primitive type or have operator overloaded", expr->firstValue);
+                return typeBuilder.getBoolType();
             }
+            if(overloaded->params.size() != 2) {
+                // since this expression has two values, we always expect two parameters
+                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+                return typeBuilder.getBoolType();
+            }
+            // check the second type here that it matches the overloaded parameter
+            if(!overloaded->params[1]->type->satisfies(expr->secondValue, false)) {
+                diagnoser.error(expr->secondValue) << "value doesn't satisfy the overloaded operator parameter";
+                return typeBuilder.getBoolType();
+            }
+            // return early second type has been checked
+            return typeBuilder.getBoolType();
         }
         if(!secondType->isPrimitive()) {
             diagnoser.error("expected the value to have primitive type", expr->secondValue);
@@ -137,53 +132,19 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     if(node) {
         const auto container = node->get_members_container();
         if(container) {
-            // TODO: we must pass down core nodes from the linker
-            CoreNodes coreNodes;
-            const auto op_info = coreNodes.operator_impl_info(expr->operation);
-            if(op_info.name.empty()) {
-                // this operator cannot be overloaded
-                diagnoser.error("cannot override this operator", expr);
+            // check if overloaded operator exists
+            const auto func = implsIndex.get_expr_op_impl(coreNodes, container, expr->operation);
+            if (func == nullptr) {
+                diagnoser.error("expected the value to have primitive type or have operator overloaded", expr->firstValue);
+                return typeBuilder.getBoolType();
+            }
+            if(func->params.size() != 2) {
+                // since this expression has two values, we always expect two parameters
+                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
                 return (BaseType*) typeBuilder.getVoidType();
             }
-            const auto child_node = container->child(op_info.name);
-            if(!child_node) {
-                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
-                return (BaseType*) typeBuilder.getVoidType();
-            }
-            if(child_node->kind() == ASTNodeKind::FunctionDecl) {
-                const auto func = child_node->as_function_unsafe();
-                if(func->params.size() != 2) {
-                    // since this expression has two values, we always expect two parameters
-                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                // yes, its overloading an operator
-                return func->returnType;
-            } else if(child_node->kind() == ASTNodeKind::MultiFunctionNode) {
-                const auto multi_node = child_node->as_multi_func_node_unsafe();
-                std::vector<Value*> args { expr->firstValue, expr->secondValue };
-                const auto func = multi_node->func_for_call(args);
-                if(!func) {
-                    diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                if(func->params.size() != 2) {
-                    // since this expression has two values, we always expect two parameters
-                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                // check the second type here that it matches the overloaded parameter
-                if(!func->params[1]->type->satisfies(expr->secondValue, false)) {
-                    diagnoser.error(expr->secondValue) << "value doesn't satisfy the overloaded operator parameter";
-                    return (BaseType*) typeBuilder.getVoidType();
-                }
-                // yes, its overloading an operator
-                return func->returnType;
-            } else {
-                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
-                return (BaseType*) typeBuilder.getVoidType();
-            }
-
+            // yes, its overloading an operator
+            return func->returnType;
         }
     }
 
@@ -261,10 +222,6 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
         return typeBuilder.getULongType();
     }
     return first;
-}
-
-void Expression::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData) {
-    setType(::determine_type(this, typeBuilder, diagnoser, targetData));
 }
 
 uint64_t Expression::byte_size(TargetData& target) {

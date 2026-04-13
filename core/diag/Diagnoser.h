@@ -13,19 +13,6 @@ class Diagnoser {
 public:
 
     /**
-     * this can be set to true, to report early errors
-     * what it does is report the error and store it as well
-     * if our compiler crashes because of an error that happened previously
-     * and we stored it, it will be reported as soon as it happens
-     * this allows us to support --early-errors command line option
-     */
-#ifdef DEBUG
-    bool early_errors = true;
-#else
-    bool early_errors = false;
-#endif
-
-    /**
      * this is set to true, if a single diagnostic with error severity is added
      * this helps to know if errors were added in any process performed, allowing us to
      * avoid moving forward

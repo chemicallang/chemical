@@ -13,6 +13,7 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/CoreNodes.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 class ASTNode;
 
@@ -171,6 +172,12 @@ public:
     CoreNodes& coreNodes;
 
     /**
+     * all 'impl' blocks are indexes in this class, so we can retrieve when user
+     * uses operator overloading for example.
+     */
+    ImplementationsIndex& implsIndex;
+
+    /**
      * ast allocator is the pointer to the allocator that is used to allocate ast nodes
      * globally, because it is used to store usages of generic types, so they are never disposed
      * because usages of ast types are needed to generate implementations based on usage
@@ -265,6 +272,7 @@ public:
             AnnotationController& controller,
             InstantiationsContainer& container,
             CoreNodes& coreNodes,
+            ImplementationsIndex& implsIndex,
             bool is64Bit,
             ASTAllocator& allocator,
             ASTAllocator* modAllocator,

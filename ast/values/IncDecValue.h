@@ -5,6 +5,9 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 
+class CoreNodes;
+class ImplementationsIndex;
+
 class IncDecValue : public Value {
 private:
 
@@ -36,9 +39,7 @@ public:
         setType(newValue->getType());
     }
 
-    chem::string_view get_overloaded_func_name();
-
-    BaseType* determine_type(ASTDiagnoser& diagnoser);
+    BaseType* determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex);
 
     Value* evaluated_value(InterpretScope &scope) override;
 

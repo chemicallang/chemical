@@ -486,39 +486,18 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
         if(can_node) {
             const auto container = can_node->get_members_container();
             if(container) {
-                auto func_name = AssignStatement::overload_op_name(assign->assOp);
-                if(func_name.empty()) {
-                    linker.error("cannot override this operator", assign);
+                const auto func = linker.implsIndex.get_ass_op_impl(linker.coreNodes, container, assign->assOp);
+                if (func == nullptr) {
+                    linker.error(assign) << "couldn't find overloaded operator implementation for assignment operator";
                     return;
                 }
-                const auto child = container->child(func_name);
-                if(!child) {
-                    linker.error(assign) << "expected a function with name '" << func_name << "' for operator implementation";
+                if(func->params.size() != 2) {
+                    linker.error("expected overload implementation to have exactly two parameters", assign);
                     return;
                 }
                 auto& func_type = *linker.current_func_type;
-                if(child->kind() == ASTNodeKind::FunctionDecl) {
-                    const auto func = child->as_function_unsafe();
-                    if(func->params.size() != 2) {
-                        linker.error("expected overload implementation to have exactly two parameters", assign);
-                        return;
-                    }
-                    // check if rhs was moved and mark it
-                    func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
-                } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
-                    const auto node = child->as_multi_func_node_unsafe();
-                    std::vector<Value*> args { assign->lhs, assign->value };
-                    const auto func = node->func_for_call(args);
-                    if(!func) {
-                        linker.error(assign) << "couldn't find function with name '" << func_name << "' for operator implementation that satisfies these arguments";
-                        return;
-                    }
-                    // check if rhs was moved and mark it
-                    func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
-                } else {
-                    linker.error(assign) << "expected a function with name '" << func_name << "' for operator implementation";
-                    return;
-                }
+                // check if rhs was moved and mark it
+                func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
                 return;
             }
         }
@@ -2524,7 +2503,7 @@ void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     // report assignment, if this is a linked parameter / var init
     val->report_assignment_of_chain_id();
     // type determined at symbol resolution must be set
-    value->setType(value->determine_type(linker));
+    value->setType(value->determine_type(linker, linker.coreNodes, linker.implsIndex));
 }
 
 void SymResLinkBody::VisitVariantCase(VariantCase* value) {
@@ -2802,7 +2781,13 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue);
     visit(value->secondValue);
-    value->determine_type(linker.comptime_scope.typeBuilder, linker, linker.comptime_scope.target_data);
+    value->determine_type(
+        linker.comptime_scope.typeBuilder,
+        linker.coreNodes,
+        linker.implsIndex,
+        linker,
+        linker.comptime_scope.target_data
+    );
 }
 
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
@@ -2813,7 +2798,7 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
 
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    indexOp->determine_type(typeBuilder, linker);
+    indexOp->determine_type(typeBuilder, linker.coreNodes, linker.implsIndex, linker);
 
 }
 
@@ -3084,7 +3069,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
     visit(negValue->getValue());
     // determine type for negative value
-    negValue->determine_type(linker.comptime_scope.typeBuilder, linker);
+    negValue->determine_type(linker.comptime_scope.typeBuilder, linker.coreNodes, linker.implsIndex, linker);
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
@@ -3146,7 +3131,7 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
     // determine the type of not value
-    value->determine_type(linker);
+    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {

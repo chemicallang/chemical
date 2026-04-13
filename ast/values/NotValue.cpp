@@ -9,6 +9,7 @@
 #include "NotValue.h"
 #include "BoolValue.h"
 #include "NullValue.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 bool NotValue::primitive() {
     return false;
@@ -26,20 +27,19 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
 
 void verify_bool_ptr_condition(ASTDiagnoser& linker, BaseType* condType, SourceLocation loc);
 
-void NotValue::determine_type(ASTDiagnoser& diagnoser) {
+void NotValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
     const auto type = getValue()->getType();
     // check if operator is overloaded
     const auto node = type->get_linked_canonical_node(true, false);
     if(node) {
         const auto container = node->get_members_container();
         if(container) {
-            const auto child = container->child("not");
-            if(!child || child->kind() != ASTNodeKind::FunctionDecl) {
-                diagnoser.error(this) << "expected a function 'not' to be present for overloading";
+            const auto func = implsIndex.get_not_op_impl(coreNodes, container);
+            if (func == nullptr) {
+                diagnoser.error(this) << "expected 'not' operator overloaded function implementation";
                 setType(type);
                 return;
             }
-            const auto func = child->as_function_unsafe();
             if(func->params.size() != 1) {
                 diagnoser.error(this) << "expected 'not' operator function to have a single parameter";
                 setType(type);

@@ -10,6 +10,9 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
 
+class CoreNodes;
+class ImplementationsIndex;
+
 // A value that's preceded by a not operator !value
 class NotValue : public Value {
 private:
@@ -65,6 +68,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-    void determine_type(ASTDiagnoser& diagnoser);
+    void determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex);
 
 };

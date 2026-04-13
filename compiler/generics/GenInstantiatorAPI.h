@@ -13,6 +13,10 @@ class InstantiationsContainer;
 
 class TypeBuilder;
 
+class CoreNodes;
+
+class ImplementationsIndex;
+
 class GenericInstantiatorAPI {
 private:
     /**
@@ -41,6 +45,8 @@ public:
         CompilerBinder& binder,
         ChildResolver& child_resolver,
         InstantiationsContainer& container,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,

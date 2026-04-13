@@ -21,10 +21,6 @@ Diag Diagnoser::make_diag(const chem::string_view& message, const chem::string_v
 
 void Diagnoser::add_diag(Diag diag) {
     if (diag.severity == DiagSeverity::Error) {
-        if(early_errors) {
-            std::cerr << rang::fg::red << "[Debug_Error] " << diag.message << " at " << diag.path_url.value() << ":"
-                      << diag.range.start.representation() << rang::fg::reset << std::endl;
-        }
         error_count++;
     }
     diagnostics.emplace_back(diag);

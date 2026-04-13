@@ -14,6 +14,7 @@
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/symres/CoreNodes.h"
+#include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/lab/ModuleStorage.h"
 #include "compiler/processor/ModuleDependencyRecord.h"
 #include "ast/base/TypeBuilder.h"
@@ -87,6 +88,12 @@ public:
      * the core module provides declarations to help stuff like operator overloading...
      */
     CoreNodes coreNodes;
+
+    /**
+     * all 'impl' blocks are indexes in this class, so we can retrieve when user
+     * uses operator overloading for example.
+     */
+    ImplementationsIndex implsIndex;
 
     /**
      * lab build compiler options

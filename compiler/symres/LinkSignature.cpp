@@ -304,7 +304,13 @@ void TopLevelLinkSignature::VisitComptimeBlock(ComptimeBlock* node) {
 
 void TopLevelLinkSignature::VisitExpression(Expression* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitExpression(value);
-    value->determine_type(linker.comptime_scope.typeBuilder, linker, linker.comptime_scope.target_data);
+    value->determine_type(
+        linker.comptime_scope.typeBuilder,
+        linker.coreNodes,
+        linker.implsIndex,
+        linker,
+        linker.comptime_scope.target_data
+    );
     if(!linker.comptime_context) {
         linker.error("cannot evaluate expression at runtime outside function body", value);
     }
@@ -343,7 +349,7 @@ void TopLevelLinkSignature::VisitDereferenceValue(DereferenceValue* value) {
 
 void TopLevelLinkSignature::VisitIncDecValue(IncDecValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIncDecValue(value);
-    value->setType(value->determine_type(linker));
+    value->setType(value->determine_type(linker, linker.coreNodes, linker.implsIndex));
     if(!linker.comptime_context) {
         linker.error("cannot increment or decrement value at runtime outside function body", value);
     }
@@ -353,7 +359,7 @@ void TopLevelLinkSignature::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIndexOperator(value);
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    value->determine_type(typeBuilder, linker);
+    value->determine_type(typeBuilder, linker.coreNodes, linker.implsIndex, linker);
     if(!linker.comptime_context) {
         linker.error("cannot index into a value at runtime outside function body", value);
     }
@@ -379,7 +385,7 @@ void TopLevelLinkSignature::VisitLambdaFunction(LambdaFunction* value) {
 void TopLevelLinkSignature::VisitNegativeValue(NegativeValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNegativeValue(value);
     // determine type for negative value
-    value->determine_type(linker.comptime_scope.typeBuilder, linker);
+    value->determine_type(linker.comptime_scope.typeBuilder, linker.coreNodes, linker.implsIndex, linker);
 }
 
 void TopLevelLinkSignature::VisitUnsafeValue(UnsafeValue* value) {
@@ -420,7 +426,7 @@ void TopLevelLinkSignature::VisitPlacementNewValue(PlacementNewValue* value) {
 void TopLevelLinkSignature::VisitNotValue(NotValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNotValue(value);
     // determine the type of not value
-    value->determine_type(linker);
+    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
     if(!linker.comptime_context) {
         linker.error(RUNTIME_EVAL_ERR, value);
     }
@@ -1211,6 +1217,11 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 //     }
 // }
 
+static inline ASTNode* interface_index(InterfaceDefinition* interface) {
+    const auto gen_parent = interface->generic_parent;
+    return gen_parent != nullptr ? gen_parent : ((ASTNode*) interface);
+}
+
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     linker.scope_start();
     // linking interface and struct type
@@ -1255,6 +1266,8 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                 for(const auto func : node->instantiated_functions()) {
                     linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
                 }
+                // store it in index, so it can be retrieved
+                linker.implsIndex.add(interface_index(linked), node->struct_type, node);
                 break;
             case BaseTypeKind::Pointer:
                 // we create shallow clones of default implemented functions
@@ -1266,6 +1279,9 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         break;
                     }
                 }
+                // store it in index, so it can be retrieved
+                // TODO: currently we cannot index pointer types
+                // because pointer types change (reallocated on every occurrence)
                 break;
             case BaseTypeKind::Reference:
                 // we create shallow clones of default implemented functions
@@ -1277,6 +1293,9 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         break;
                     }
                 }
+                // store it in index, so it can be retrieved
+                // TODO: currently we cannot index reference types
+                // because reference types change (reallocated on every occurrence)
                 break;
             case BaseTypeKind::Linked: {
                 const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
@@ -1286,6 +1305,9 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                     case ASTNodeKind::UnionDecl: {
                         const auto container = member_node->as_members_container_unsafe();
                         container->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add(interface_index(linked), container, node);
                         break;
                     }
                     default:
@@ -1302,21 +1324,33 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                     case ASTNodeKind::UnionDecl: {
                         const auto container = member_node->as_members_container_unsafe();
                         container->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add(interface_index(linked), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericStructDecl: {
                         const auto container = member_node->as_gen_struct_def_unsafe();
                         container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add(interface_index(linked), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericVariantDecl:{
                         const auto container = member_node->as_gen_variant_decl_unsafe();
                         container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add(interface_index(linked), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericUnionDecl:{
                         const auto container = member_node->as_gen_union_decl_unsafe();
                         container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add(interface_index(linked), container, node);
                         break;
                     }
                     default:
@@ -1509,6 +1543,38 @@ void index_implementations(AnnotationController& controller, ASTDiagnoser& diagn
     }
 }
 
+void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
+    const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
+    if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto interface = interfaceNode->as_interface_def_unsafe();
+        const auto container = decl->struct_type->get_members_container();
+        if (container) {
+            // for impl decl, impl Interface for Struct <-- Interface extension methods
+            // must be added into the struct so they can be invoked
+            // if method already exists, we must not do that
+            for (const auto extension : interface->extension_functions) {
+                switch (extension->kind()) {
+                    case ASTNodeKind::FunctionDecl:
+                        container->indexes.try_emplace(extension->as_function_unsafe()->name_view(), extension);
+                        continue;
+                    case ASTNodeKind::GenericFuncDecl:
+                        container->indexes.try_emplace(extension->as_gen_func_decl_unsafe()->master_impl->name_view(), extension);
+                        continue;
+                    default:
+                        continue;
+                }
+            }
+        }
+        // why use master (template in generic definition) ?
+        // we must index against the function present in the master (template) interface
+        // because we use that to lookup the implementation
+        const auto masterInterface = interface->generic_parent != nullptr ? interface->generic_parent->as_gen_interface_decl_unsafe()->master_impl : interface;
+        // we also index implementation methods with key of base methods they are overriding
+        // for faster access and to reduce ambiguity
+        index_implementations(linker.controller, linker, decl, masterInterface);
+    }
+}
+
 void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
@@ -1518,35 +1584,9 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::InterfaceDecl:
                 buildContainerIndexes(node->as_members_container_unsafe());
                 continue;
-            case ASTNodeKind::ImplDecl: {
-                const auto decl = node->as_impl_def_unsafe();
-                const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
-                if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
-                    const auto interface = interfaceNode->as_interface_def_unsafe();
-                    const auto container = decl->struct_type->get_members_container();
-                    if (container) {
-                        // for impl decl, impl Interface for Struct <-- Interface extension methods
-                        // must be added into the struct so they can be invoked
-                        // if method already exists, we must not do that
-                        for (const auto extension : interface->extension_functions) {
-                            switch (extension->kind()) {
-                                case ASTNodeKind::FunctionDecl:
-                                    container->indexes.try_emplace(extension->as_function_unsafe()->name_view(), extension);
-                                    continue;
-                                case ASTNodeKind::GenericFuncDecl:
-                                    container->indexes.try_emplace(extension->as_gen_func_decl_unsafe()->master_impl->name_view(), extension);
-                                    continue;
-                                default:
-                                    continue;
-                            }
-                        }
-                    }
-                    // we also index implementation methods with key of base methods they are overriding
-                    // for faster access and to reduce ambiguity
-                    index_implementations(linker.controller, linker, decl, interface);
-                }
+            case ASTNodeKind::ImplDecl:
+                handle_impl_block(linker, node->as_impl_def_unsafe());
                 continue;
-            }
             // for generic containers, we only need to build indexes of the master container
             // because that's where children are resolved from
             case ASTNodeKind::GenericStructDecl:
@@ -1562,7 +1602,7 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
                 buildContainerIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::GenericImplDecl:
-                buildContainerIndexes(node->as_gen_impl_decl_unsafe()->master_impl);
+                handle_impl_block(linker, node->as_gen_impl_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::NamespaceDecl:
                 BuildIndexes(linker, node->as_namespace_unsafe()->nodes);

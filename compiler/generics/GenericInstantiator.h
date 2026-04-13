@@ -47,6 +47,18 @@ public:
     TypeBuilder& typeBuilder;
 
     /**
+     * the nodes in core module are used for getting interfaces
+     */
+    CoreNodes& coreNodes;
+
+    /**
+     * we lookup impl blocks from this
+     * required for determining type of overloaded operators by getting
+     * exact methods from implementations of interfaces for different types
+     */
+    ImplementationsIndex& implsIndex;
+
+    /**
      * this points to the node being instantiated
      * this allows us to check self-referential pointers to generic decls
      */
@@ -81,11 +93,14 @@ public:
         CompilerBinder& binder,
         ChildResolver& child_resolver,
         InstantiationsContainer& container,
+        CoreNodes& coreNodes,
+        ImplementationsIndex& implsIndex,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
         TargetData& targetData
-    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder), targetData(targetData) {
+    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser),
+        typeBuilder(typeBuilder), targetData(targetData), coreNodes(coreNodes), implsIndex(implsIndex) {
 
     }
 

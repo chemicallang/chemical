@@ -631,6 +631,8 @@ set(COMMON_SOURCES
         compiler/symres/TopLevelIfStmtConditionChecker.h
         ast/structures/ForInLoop.h
         compiler/symres/CoreNodes.h
+        compiler/symres/ImplementationsIndex.h
+        compiler/symres/ImplementationsIndex.cpp
 )
 
 # Chemical LSP Executable Target

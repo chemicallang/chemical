@@ -99,25 +99,21 @@ impl core::ops::Ord for StructuralArithBinOpStruct {
         return core::ops::Ordering.Greater
     }
     // TODO: removing this default implementation doesn't work
-    @override
     func lt(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) == core::ops::Ordering.Less
     }
 
     // TODO: removing this default implementation doesn't work
-    @override
     func lte(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) in core::ops::Ordering.Less, core::ops::Ordering.Equal
     }
 
     // TODO: removing this default implementation doesn't work
-    @override
     func gt(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) == core::ops::Ordering.Greater
     }
 
     // TODO: removing this default implementation doesn't work
-    @override
     func gte(&self, other : &StructuralArithBinOpStruct) : bool {
         return cmp(other) in core::ops::Ordering.Greater, core::ops::Ordering.Equal
     }

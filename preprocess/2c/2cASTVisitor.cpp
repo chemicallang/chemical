@@ -4700,6 +4700,10 @@ static void contained_union_functions(ToCAstVisitor& visitor, UnionDef* def) {
 
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     contained_struct_functions(*this, def);
+    // visit the other nodes
+    for (const auto other_node : def->other_nodes()) {
+        visit(other_node);
+    }
 }
 
 void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
@@ -4746,10 +4750,18 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
 
 void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
     generate_contained_functions(*this, def);
+    // visit the other nodes
+    for (const auto other_node : def->other_nodes()) {
+        visit(other_node);
+    }
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
     contained_union_functions(*this, def);
+    // visit the other nodes
+    for (const auto other_node : def->other_nodes()) {
+        visit(other_node);
+    }
 }
 
 void ToCAstVisitor::VisitNamespaceDecl(Namespace *ns) {

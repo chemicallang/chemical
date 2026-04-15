@@ -188,7 +188,7 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpeci
     }
 }
 
-void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime) {
+void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime, bool impl) {
     auto& nodes = decl->get_parsed_nodes_container();
     do {
         const auto tokenType = token->type;
@@ -196,6 +196,15 @@ void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocato
             case TokenType::NewLine:
                 token++;
                 continue;
+            case TokenType::ImplKw: {
+                const auto node = parseImplTokens(allocator, specifier);
+                if (node) {
+                    nodes.emplace_back(node);
+                } else {
+                    error("couldn't parse impl declaration");
+                }
+                continue;
+            }
             case TokenType::PublicKw:
             case TokenType::InternalKw:
             case TokenType::ProtectedKw:
@@ -426,7 +435,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
             return final_decl;
         }
 
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false, true);
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");

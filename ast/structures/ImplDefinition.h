@@ -77,6 +77,17 @@ public:
         return impl;
     }
 
+    ASTNode* copy(ASTAllocator& allocator) final {
+        const auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(
+            {interface_type->copy(allocator), interface_type.encoded_location()},
+            {struct_type->copy(allocator), struct_type.encoded_location()},
+            parent(),
+            encoded_location()
+        );
+        MembersContainer::copy_into(*impl, allocator);
+        return impl;
+    }
+
     inline ASTNode* implementation_of(ASTNode* node) {
         auto found = override_map.find(node);
         if (found == override_map.end()) return nullptr;

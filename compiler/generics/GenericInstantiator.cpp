@@ -825,6 +825,20 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
         }
     }
 
+    // visit the other nodes (other than functions)
+    for (const auto node : impl->other_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                VisitImplDecl(def);
+                impl->adopt(def);
+                continue;
+            }
+            default:
+                visit(node);
+        }
+    }
+
     // end the symbol scope
     table.scope_end();
 
@@ -923,6 +937,20 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
 
             // end the body scope
             table.scope_end();
+        }
+    }
+
+    // visit the other nodes (other than functions)
+    for (const auto node : impl->other_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                VisitImplDecl(def);
+                impl->adopt(def);
+                continue;
+            }
+            default:
+                visit(node);
         }
     }
 
@@ -1123,6 +1151,20 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
 
             // end the body scope
             table.scope_end();
+        }
+    }
+
+    // visit the other nodes (other than functions)
+    for (const auto node : impl->other_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                VisitImplDecl(def);
+                impl->adopt(def);
+                continue;
+            }
+            default:
+                visit(node);
         }
     }
 

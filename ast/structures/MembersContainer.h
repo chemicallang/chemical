@@ -46,6 +46,11 @@ private:
      */
     std::vector<ASTNode*> functions_container;
 
+    /**
+     * other nodes that are not functions, variables or comptime blocks
+     */
+    std::vector<ASTNode*> other_nodes_container;
+
 public:
 
     /**
@@ -143,6 +148,20 @@ public:
      */
     const std::vector<ASTNode*>& functions() {
         return (std::vector<ASTNode*>&) functions_container;
+    }
+
+    /**
+     * nodes other than variables, functions and compile time blocks
+     */
+    const std::vector<ASTNode*>& other_nodes() {
+        return other_nodes_container;
+    }
+
+    /**
+     * get a mutable reference to other nodes
+     */
+    std::vector<ASTNode*>& mut_other_nodes() {
+        return other_nodes_container;
     }
 
     /**
@@ -326,6 +345,27 @@ public:
     inline void shallow_copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::shallow_copy_into(other, allocator);
         shallow_copy_functions_into(other, allocator);
+        other.other_nodes_container = other_nodes_container;
+    }
+
+private:
+    // a helper for copying nodes with an allocator
+    static void copy_nodes_into(ASTAllocator& allocator, std::vector<ASTNode*>& from, std::vector<ASTNode*>& into, ASTNode* new_parent) {
+        into.reserve(from.size());
+        for (const auto func : from) {
+            const auto func_copy = func->copy(allocator);
+            func_copy->set_parent(new_parent);
+            into.emplace_back(func_copy);
+        }
+    }
+public:
+    /**
+     * copy this container into the given container, this includes functions and other nodes
+     */
+    void copy_into(MembersContainer& other, ASTAllocator& allocator) {
+        VariablesContainer::copy_into(other, allocator);
+        copy_nodes_into(allocator, functions_container, other.functions_container, &other);
+        copy_nodes_into(allocator, other_nodes_container, other.other_nodes_container, &other);
     }
 
     /**

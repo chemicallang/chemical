@@ -323,7 +323,7 @@ public:
     /**
      * deep copies this container into the given container
      */
-    void copy_into(VariablesContainer& other, ASTAllocator& allocator, ASTNode* new_parent) {
+    void copy_into(VariablesContainer& other, ASTAllocator& allocator) {
         other.inherited.reserve(inherited.size());
         for(auto& inh : inherited) {
             other.inherited.emplace_back(inh.type.copy(allocator), inh.specifier);
@@ -331,7 +331,7 @@ public:
         other.variables_container.reserve(variables_container.size());
         for(auto& var : variables_container) {
             const auto var_copy = var->copy_member(allocator);
-            var_copy->set_parent(new_parent);
+            var_copy->set_parent(&other);
             other.insert_variable_no_check(var_copy);
         }
     }

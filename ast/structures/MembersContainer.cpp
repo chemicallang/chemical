@@ -30,6 +30,8 @@
 #include "compiler/symres/DeclareTopLevel.h"
 #include <iostream>
 
+#include "ImplDefinition.h"
+
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
@@ -439,6 +441,14 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 insert_func(node->as_gen_func_decl_unsafe());
                 break;
             default:
+                other_nodes_container.emplace_back(node);
+                switch (node->kind()) {
+                    case ASTNodeKind::ImplDecl:
+                        node->as_impl_def_unsafe()->take_members_from_parsed_nodes(linker);
+                        break;
+                    default:
+                        break;
+                }
                 break;
         }
     }

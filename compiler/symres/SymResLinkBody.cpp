@@ -244,6 +244,10 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
     for (const auto func: container->functions()) {
         visit(func);
     }
+    // linking other node's bodies
+    for (const auto node : container->other_nodes()) {
+        visit(node);
+    }
 }
 
 void link_assignable(SymResLinkBody& symRes, Value* lhs, BaseType* expected_type) {

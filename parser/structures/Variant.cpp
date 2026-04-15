@@ -98,6 +98,15 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
             } else {
                 return parseAnyVariantMember(allocator, def, specifier, true);
             }
+        case TokenType::ImplKw: {
+            const auto implNode = parseImplTokens(allocator, specifier);
+            if (implNode) {
+                def->get_parsed_nodes_container().emplace_back(implNode);
+                return true;
+            } else {
+                error("couldn't parse impl declaration");
+            }
+        }
         case TokenType::FuncKw: {
             const auto func = parseFunctionStructureTokens(allocator, specifier, true, false, comptime);
             if(func) {

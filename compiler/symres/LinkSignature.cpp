@@ -749,6 +749,10 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
     for(auto& func : container->functions()) {
         visit(func);
     }
+    // linking other nodes
+    for (const auto node : container->other_nodes()) {
+        visit(node);
+    }
 }
 
 void TopLevelLinkSignature::LinkMembersContainerNoScopeExposed(MembersContainer* container) {
@@ -1217,9 +1221,18 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 //     }
 // }
 
-static inline ASTNode* interface_index(InterfaceDefinition* interface) {
-    const auto gen_parent = interface->generic_parent;
-    return gen_parent != nullptr ? gen_parent : ((ASTNode*) interface);
+static inline ASTNode* interface_for_index(ASTNode* interface) {
+    switch (interface->kind()) {
+        case ASTNodeKind::InterfaceDecl: {
+            const auto gen_parent = interface->as_interface_def_unsafe()->generic_parent;
+            return gen_parent != nullptr ? gen_parent : ((ASTNode*) interface);
+        }
+        case ASTNodeKind::GenericInterfaceDecl:
+            return interface;
+        default:
+            return nullptr;
+    }
+
 }
 
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
@@ -1231,23 +1244,39 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     }
     // this code should be moved to type checking pass
     const auto linked_node = node->interface_type->get_direct_linked_node();
-    const auto linked = linked_node->as_interface_def();
-    if (linked) {
+    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto linked = linked_node->as_interface_def_unsafe();
         if (linked->is_static() && linked->has_implementation()) {
             linker.error("static interface must have only a single implementation", node->encoded_location());
         }
         linked->register_impl(node);
+    } else if (linked_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+        // generic interface specific code here
     } else {
         linker.error("expected type to be an interface", node->encoded_location());
         return;
     }
+    // TODO: remove this for loop
     for(auto& func : node->master_functions()) {
         if(!func->is_override()) {
             func->set_override(true);
         }
     }
+    // we must NOT add indexes if this implementation is inside a generic container
+    // because this can reference generic parameters (in interface/struct type, function return types)
+    // we must let the instantiation occur which will handle this
+    bool is_generic = false;
+    switch (node->parent()->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            is_generic = true;
+            // intentional fall through
+        default:
+            break;
+    }
     LinkMembersContainerNoScope(node);
-    if(node->struct_type) {
+    if(!is_generic && node->struct_type) {
         switch(node->struct_type->kind()) {
             case BaseTypeKind::IntN:
             case BaseTypeKind::String:
@@ -1267,7 +1296,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                     linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
                 }
                 // store it in index, so it can be retrieved
-                linker.implsIndex.add(interface_index(linked), node->struct_type, node);
+                linker.implsIndex.add(interface_for_index(linked_node), node->struct_type, node);
                 break;
             case BaseTypeKind::Pointer:
                 // we create shallow clones of default implemented functions
@@ -1307,7 +1336,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_index(linked), container, node);
+                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
                         break;
                     }
                     default:
@@ -1317,7 +1346,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                 break;
             }
             case BaseTypeKind::Generic: {
-                const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
+                const auto member_node = node->struct_type->as_generic_type_unsafe()->referenced->linked;
                 switch (member_node->kind()) {
                     case ASTNodeKind::StructDecl:
                     case ASTNodeKind::VariantDecl:
@@ -1326,7 +1355,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_index(linked), container, node);
+                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericStructDecl: {
@@ -1334,7 +1363,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_index(linked), container, node);
+                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericVariantDecl:{
@@ -1342,7 +1371,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_index(linked), container, node);
+                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
                         break;
                     }
                     case ASTNodeKind::GenericUnionDecl:{
@@ -1350,7 +1379,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_index(linked), container, node);
+                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
                         break;
                     }
                     default:

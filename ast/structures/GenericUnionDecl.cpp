@@ -22,6 +22,12 @@ void GenericUnionDecl::finalize_signature(ASTAllocator& allocator, UnionDef* ins
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
+    // copying other nodes
+    for (auto& other : inst->mut_other_nodes()) {
+        other = other->copy(allocator);
+        other->set_parent(inst);
+    }
+
 }
 
 void GenericUnionDecl::finalize_body(ASTAllocator& allocator, UnionDef* def) {

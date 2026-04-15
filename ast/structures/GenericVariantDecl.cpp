@@ -24,6 +24,12 @@ void GenericVariantDecl::finalize_signature(ASTAllocator& allocator, VariantDefi
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
+    // copying other nodes
+    for (auto& other : inst->mut_other_nodes()) {
+        other = other->copy(allocator);
+        other->set_parent(inst);
+    }
+
 }
 
 void GenericVariantDecl::finalize_body(ASTAllocator& allocator, VariantDefinition* def) {

@@ -22,6 +22,12 @@ void GenericStructDecl::finalize_signature(ASTAllocator& allocator, StructDefini
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
+    // copying other nodes
+    for (auto& other : inst->mut_other_nodes()) {
+        other = other->copy(allocator);
+        other->set_parent(inst);
+    }
+
 }
 
 void GenericStructDecl::finalize_body(ASTAllocator& allocator, StructDefinition* def) {

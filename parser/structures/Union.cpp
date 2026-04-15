@@ -98,7 +98,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
             return finalDecl;
         }
 
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false, true);
 
         parent_node = prev_parent_node;
 

@@ -774,6 +774,20 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
 }
 
+void handle_new_impl(ASTDiagnoser& diagnoser, ImplDefinition* node, MembersContainer* adopter) {
+    adopter->adopt(node);
+    const auto linked_node = node->interface_type->get_direct_linked_node();
+    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto linked = linked_node->as_interface_def_unsafe();
+        if (linked->is_static() && linked->has_implementation()) {
+            diagnoser.error("static interface must have only a single implementation", node->encoded_location());
+        }
+        linked->register_impl(node);
+    } else {
+        diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
+    }
+}
+
 void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition* impl, size_t itr) {
 
     // set the pointers to gen decl and impl
@@ -831,7 +845,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                impl->adopt(def);
+                handle_new_impl(diagnoser, def, impl);
                 continue;
             }
             default:
@@ -946,7 +960,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                impl->adopt(def);
+                handle_new_impl(diagnoser, def, impl);
                 continue;
             }
             default:
@@ -1160,7 +1174,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                impl->adopt(def);
+                handle_new_impl(diagnoser, def, impl);
                 continue;
             }
             default:

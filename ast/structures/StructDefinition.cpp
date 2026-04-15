@@ -67,10 +67,22 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
         struct_func_gen(gen, instantiated_functions(), declare);
         has_done = true;
     }
+    if (declare) {
+        for (const auto node : other_nodes()) {
+            node->code_gen_declare(gen);
+        }
+    } else {
+        for (const auto node : other_nodes()) {
+            node->code_gen(gen);
+        }
+    }
 }
 
 void StructDefinition::code_gen_external_declare(Codegen &gen) {
     extendable_external_declare(gen);
+    for (const auto node : other_nodes()) {
+        node->code_gen_external_declare(gen);
+    }
 }
 
 llvm::Type* StructMember::llvm_type(Codegen &gen) {

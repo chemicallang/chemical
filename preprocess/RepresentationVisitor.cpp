@@ -422,9 +422,9 @@ void write_variables(RepresentationVisitor& visitor, VariablesContainer* contain
 
 void write_members(RepresentationVisitor& visitor, MembersContainer* container) {
     write_variables(visitor, container);
-    for (const auto field : container->functions()) {
+    for (const auto member : container->evaluated_nodes()) {
         visitor.new_line_and_indent();
-        visitor.visit(field);
+        visitor.visit(member);
     }
 }
 

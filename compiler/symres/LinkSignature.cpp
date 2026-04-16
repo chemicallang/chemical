@@ -746,12 +746,8 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
         }
     }
     // linking functions
-    for(auto& func : container->functions()) {
+    for(auto& func : container->evaluated_nodes()) {
         visit(func);
-    }
-    // linking other nodes
-    for (const auto node : container->other_nodes()) {
-        visit(node);
     }
 }
 
@@ -1160,14 +1156,14 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 // void index_default_implementations(SymbolResolver& resolver, ImplDefinition* implDef, InterfaceDefinition* def, IndexingDefaultImplsKind kind) {
 //     switch (kind) {
 //         case IndexingDefaultImplsKind::Primitive:
-//             for (const auto func : def->functions()) {
+//             for (const auto func : def->evaluated_nodes()) {
 //                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
 //                     resolver.child_resolver.index_primitive_child_try(implDef->struct_type, func->as_function_unsafe()->name_view(), func);
 //                 }
 //             }
 //             break;
 //         case IndexingDefaultImplsKind::Pointer:
-//             for (const auto func : def->functions()) {
+//             for (const auto func : def->evaluated_nodes()) {
 //                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
 //                     if(!resolver.child_resolver.index_ptr_child(implDef->struct_type->as_pointer_type_unsafe(), func->as_function_unsafe()->name_view(), func)) {
 //                         resolver.error("implementation for type is not allowed", implDef->struct_type.encoded_location());
@@ -1177,7 +1173,7 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 //             }
 //             break;
 //         case IndexingDefaultImplsKind::Reference:
-//             for (const auto func : def->functions()) {
+//             for (const auto func : def->evaluated_nodes()) {
 //                 if (func->kind() == ASTNodeKind::FunctionDecl && func->as_function_unsafe()->body.has_value()) {
 //                     if(!resolver.child_resolver.index_ref_child(implDef->struct_type->as_reference_type_unsafe(), func->as_function_unsafe()->name_view(), func)) {
 //                         resolver.error("implementation for type is not allowed", implDef->struct_type.encoded_location());
@@ -1200,7 +1196,7 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 // // the default implementations present in the interface
 // void create_default_implementations(SymbolResolver& resolver, ImplDefinition* implDef, InterfaceDefinition* def) {
 //     auto& allocator = *resolver.ast_allocator;
-//     for (const auto func : def->functions()) {
+//     for (const auto func : def->evaluated_nodes()) {
 //         if (func->kind() == ASTNodeKind::FunctionDecl) {
 //             const auto default_func = func->as_function_unsafe();
 //             if (!default_func->body.has_value()) continue;
@@ -1398,7 +1394,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
 
 bool is_object_safe(InterfaceDefinition* node) {
     // determining if the interface is object safe
-    for(const auto func_node : node->functions()) {
+    for(const auto func_node : node->evaluated_nodes()) {
         switch(func_node->kind()) {
             case ASTNodeKind::FunctionDecl:{
                 const auto func = func_node->as_function_unsafe();
@@ -1535,7 +1531,7 @@ void buildContainerIndexes(MembersContainer* container) {
 }
 
 void index_implementations(AnnotationController& controller, ASTDiagnoser& diagnoser, ImplDefinition* implDef, InterfaceDefinition* interface) {
-    for (const auto node : implDef->functions()) {
+    for (const auto node : implDef->evaluated_nodes()) {
         FunctionDeclaration* func;
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             func = node->as_function_unsafe();

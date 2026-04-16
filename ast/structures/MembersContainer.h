@@ -44,12 +44,7 @@ private:
      * the functions container can contain generic function declarations
      * so we are going to use ASTNode*
      */
-    std::vector<ASTNode*> functions_container;
-
-    /**
-     * other nodes that are not functions, variables or comptime blocks
-     */
-    std::vector<ASTNode*> other_nodes_container;
+    std::vector<ASTNode*> evaluated_container;
 
 public:
 
@@ -116,7 +111,7 @@ public:
      * instantiated functions from generic functions
      */
     InstFuncRange instantiated_functions() {
-        return InstFuncRange(functions_container);
+        return InstFuncRange(evaluated_container);
     }
 
     /**
@@ -124,7 +119,7 @@ public:
      * functions only their master function (which is the blueprint is iterated over)
      */
     MasterFuncRange master_functions() {
-        return MasterFuncRange(functions_container);
+        return MasterFuncRange(evaluated_container);
     }
 
     /**
@@ -132,43 +127,28 @@ public:
      * generic function decl
      */
     FuncNodeRange func_nodes_range() {
-        return FuncNodeRange(functions_container);
+        return FuncNodeRange(evaluated_container);
     }
 
     /**
      * non generic functions ranage
      */
     NonGenFuncRange non_gen_range() {
-        return NonGenFuncRange(functions_container);
-    }
-
-    /**
-     * this gives you the vector of the functions, which could include generic or non generic
-     * functions therefore it's a ASTNode* from which you can get the kind and reinterpret_cast
-     */
-    const std::vector<ASTNode*>& functions() {
-        return (std::vector<ASTNode*>&) functions_container;
-    }
-
-    /**
-     * nodes other than variables, functions and compile time blocks
-     */
-    const std::vector<ASTNode*>& other_nodes() {
-        return other_nodes_container;
-    }
-
-    /**
-     * get a mutable reference to other nodes
-     */
-    std::vector<ASTNode*>& mut_other_nodes() {
-        return other_nodes_container;
+        return NonGenFuncRange(evaluated_container);
     }
 
     /**
      * these are actual nodes that we found after evaluting compile time ifs and all that
      */
-    std::vector<ASTNode*>& evaluated_nodes() {
-        return functions_container;
+    const std::vector<ASTNode*>& evaluated_nodes() {
+        return evaluated_container;
+    }
+
+    /**
+     * these are actual nodes that we found after evaluting compile time ifs and all that
+     */
+    std::vector<ASTNode*>& mut_evaluated_nodes() {
+        return evaluated_container;
     }
 
     VariablesContainer* as_variables_container() {
@@ -317,9 +297,9 @@ public:
     /**
      * shallow copy this container
      */
-    void shallow_copy_functions_into(MembersContainer& other, ASTAllocator& allocator) {
-        other.functions_container.reserve(functions_container.size());
-        for(const auto func : functions_container) {
+    void shallow_copy_evaluated_nodes(MembersContainer& other, ASTAllocator& allocator) {
+        other.evaluated_container.reserve(evaluated_container.size());
+        for(const auto func : evaluated_container) {
             switch(func->kind()) {
                 case ASTNodeKind::FunctionDecl:{
                     const auto func_copy = func->as_function_unsafe()->shallow_copy(allocator);
@@ -334,6 +314,7 @@ public:
                     break;
                 }
                 default:
+                    other.evaluated_container.emplace_back(func);
                     break;
             }
         }
@@ -344,8 +325,7 @@ public:
      */
     inline void shallow_copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::shallow_copy_into(other, allocator);
-        shallow_copy_functions_into(other, allocator);
-        other.other_nodes_container = other_nodes_container;
+        shallow_copy_evaluated_nodes(other, allocator);
     }
 
 private:
@@ -364,8 +344,7 @@ public:
      */
     void copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::copy_into(other, allocator);
-        copy_nodes_into(allocator, functions_container, other.functions_container, &other);
-        copy_nodes_into(allocator, other_nodes_container, other.other_nodes_container, &other);
+        copy_nodes_into(allocator, evaluated_container, other.evaluated_container, &other);
     }
 
     /**

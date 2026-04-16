@@ -165,7 +165,7 @@ void external_implement_declare_node(Codegen& gen, ASTNode* node) {
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::VariantDecl:
             // gotta handle the generic functions inside the structs
-            for(const auto func : node->as_members_container_unsafe()->functions()) {
+            for(const auto func : node->as_members_container_unsafe()->evaluated_nodes()) {
                 if(func->kind() == ASTNodeKind::GenericFuncDecl) {
                     func->code_gen_declare(gen);
                 }
@@ -207,7 +207,7 @@ void external_implement_node(Codegen& gen, ASTNode* node) {
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::VariantDecl:
             // gotta handle the generic functions inside the structs
-            for(const auto func : node->as_members_container_unsafe()->functions()) {
+            for(const auto func : node->as_members_container_unsafe()->evaluated_nodes()) {
                 if(func->kind() == ASTNodeKind::GenericFuncDecl) {
                     func->code_gen(gen);
                 }

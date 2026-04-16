@@ -788,6 +788,28 @@ void handle_new_impl(ASTDiagnoser& diagnoser, ImplDefinition* node, MembersConta
     }
 }
 
+void finalize_member_func_body(GenericInstantiator& instantiator, FunctionDeclaration* func) {
+    if(func->body.has_value()) {
+        // get the table
+        auto& table = instantiator.table;
+
+        // start scope for function body
+        table.scope_start();
+
+        // declare function parameters
+        for(const auto param : func->params) {
+            table.declare(param->name_view(), param);
+        }
+
+        // visit the body
+        instantiator.current_func_type = func;
+        instantiator.visit(func->body.value());
+
+        // end the body scope
+        table.scope_end();
+    }
+}
+
 void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition* impl, size_t itr) {
 
     // set the pointers to gen decl and impl
@@ -805,8 +827,8 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
         table.declare(var->name, var);
     }
 
-    // declare function names before visiting
-    for (const auto func: impl->functions()) {
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 table.declare(func->as_function_unsafe()->name_view(), func);
@@ -820,28 +842,15 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     }
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->master_functions()) {
-        if(func->body.has_value()) {
-            // start scope for function body
-            table.scope_start();
-
-            // declare function parameters
-            for(const auto param : func->params) {
-                table.declare(param->name_view(), param);
-            }
-
-            // visit the body
-            current_func_type = func;
-            visit(func->body.value());
-
-            // end the body scope
-            table.scope_end();
-        }
-    }
-
-    // visit the other nodes (other than functions)
-    for (const auto node : impl->other_nodes()) {
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
         switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
@@ -920,8 +929,8 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
         table.declare(var->name, var);
     }
 
-    // declare function names before visiting
-    for (const auto func: impl->functions()) {
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 table.declare(func->as_function_unsafe()->name_view(), func);
@@ -935,28 +944,15 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
     }
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->master_functions()) {
-        if(func->body.has_value()) {
-            // start scope for function body
-            table.scope_start();
-
-            // declare function parameters
-            for(const auto param : func->params) {
-                table.declare(param->name_view(), param);
-            }
-
-            // visit the body
-            current_func_type = func;
-            visit(func->body.value());
-
-            // end the body scope
-            table.scope_end();
-        }
-    }
-
-    // visit the other nodes (other than functions)
-    for (const auto node : impl->other_nodes()) {
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
         switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
@@ -1034,8 +1030,8 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
         table.declare(var->name, var);
     }
 
-    // declare function names before visiting
-    for (const auto func: impl->functions()) {
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 table.declare(func->as_function_unsafe()->name_view(), func);
@@ -1049,22 +1045,17 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
     }
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->master_functions()) {
-        if(func->body.has_value()) {
-            // start scope for function body
-            table.scope_start();
-
-            // declare function parameters
-            for(const auto param : func->params) {
-                table.declare(param->name_view(), param);
-            }
-
-            // visit the body
-            current_func_type = func;
-            visit(func->body.value());
-
-            // end the body scope
-            table.scope_end();
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            default:
+                visit(node);
         }
     }
 
@@ -1134,8 +1125,8 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
         table.declare(var->name, var);
     }
 
-    // declare function names before visiting
-    for (const auto func: impl->functions()) {
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 table.declare(func->as_function_unsafe()->name_view(), func);
@@ -1149,28 +1140,15 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     }
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->master_functions()) {
-        if(func->body.has_value()) {
-            // start scope for function body
-            table.scope_start();
-
-            // declare function parameters
-            for(const auto param : func->params) {
-                table.declare(param->name_view(), param);
-            }
-
-            // visit the body
-            current_func_type = func;
-            visit(func->body.value());
-
-            // end the body scope
-            table.scope_end();
-        }
-    }
-
-    // visit the other nodes (other than functions)
-    for (const auto node : impl->other_nodes()) {
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
         switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
@@ -1247,8 +1225,8 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
         table.declare(var->name, var);
     }
 
-    // declare function names before visiting
-    for (const auto func: impl->functions()) {
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 table.declare(func->as_function_unsafe()->name_view(), func);
@@ -1262,22 +1240,17 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     }
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->master_functions()) {
-        if(func->body.has_value()) {
-            // start scope for function body
-            table.scope_start();
-
-            // declare function parameters
-            for(const auto param : func->params) {
-                table.declare(param->name_view(), param);
-            }
-
-            // visit the body
-            current_func_type = func;
-            visit(func->body.value());
-
-            // end the body scope
-            table.scope_end();
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            default:
+                visit(node);
         }
     }
 

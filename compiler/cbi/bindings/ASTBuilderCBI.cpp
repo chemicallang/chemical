@@ -899,19 +899,22 @@ BaseType* BaseDefMembergetType(BaseDefMember* member) {
 }
 
 std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def) {
-    return (std::vector<BaseDefMember*>*) &def->variables();
+    return &def->mut_variables();
 }
 
+// TODO: rename
 std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def) {
-    return (std::vector<ASTNode*>*) &def->functions();
+    return &def->mut_evaluated_nodes();
 }
 
+// TODO: rename
 std::vector<ASTNode*>* VariantDefinitiongetFunctions(VariantDefinition* def) {
-    return (std::vector<ASTNode*>*) &def->functions();
+    return &def->mut_evaluated_nodes();
 }
 
+// TODO: rename
 std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def) {
-    return (std::vector<ASTNode*>*) &def->functions();
+    return &def->mut_evaluated_nodes();
 }
 
 std::vector<EnumMember*>* EnumDeclarationgetMembers(EnumDeclaration* decl) {
@@ -1013,8 +1016,9 @@ std::vector<BaseDefMember*>* UnionDefinitiongetMembers(UnionDef* def) {
     return (std::vector<BaseDefMember*>*) &def->variables();
 }
 
+// TODO: rename
 std::vector<ASTNode*>* UnionDefinitiongetFunctions(UnionDef* def) {
-    return (std::vector<ASTNode*>*) &def->functions();
+    return (std::vector<ASTNode*>*) &def->evaluated_nodes();
 }
 
 int ASTNodegetAccessSpecifier(ASTNode* node) {

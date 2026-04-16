@@ -16,9 +16,22 @@ void GenericInterfaceDecl::finalize_signature(ASTAllocator& allocator, Interface
     // copying the variables
     inst->copy_variables_in_place(allocator, inst);
 
-    // finalizing the signature of functions
-    for(const auto func : inst->master_functions()) {
-        GenericFuncDecl::finalize_signature(allocator, func);
+    // finalizing the signature of functions (and copying other nodes)
+    for(auto& node_ptr : inst->mut_evaluated_nodes()) {
+        const auto node = node_ptr;
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                GenericFuncDecl::finalize_signature(allocator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                GenericFuncDecl::finalize_signature(allocator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            default:
+                // copying other nodes
+                node_ptr = node->copy(allocator);
+                node_ptr->set_parent(inst);
+                break;
+        }
     }
 
 }

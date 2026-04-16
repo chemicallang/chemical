@@ -20,6 +20,7 @@ public enum ChemicalTokenType {
     UnsafeKw,
     UnreachableKw,
     InitKw,
+    ReversedKw,
     TryKw,
     CatchKw,
     ThrowKw,

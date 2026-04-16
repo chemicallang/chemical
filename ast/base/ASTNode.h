@@ -326,13 +326,6 @@ public:
     chem::string_view get_node_identifier();
 
     /**
-     * return if this is a variables container
-     */
-    virtual VariablesContainer *as_variables_container() {
-        return nullptr;
-    }
-
-    /**
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(TargetData& target);

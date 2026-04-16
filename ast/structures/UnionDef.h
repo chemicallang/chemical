@@ -99,10 +99,6 @@ public:
         return largest_member_byte_size(target);
     }
 
-    VariablesContainer *as_variables_container() final {
-        return this;
-    }
-
     inline BaseType* known_type() {
         return &linked_type;
     }

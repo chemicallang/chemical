@@ -151,10 +151,6 @@ public:
         return evaluated_container;
     }
 
-    VariablesContainer* as_variables_container() {
-        return this;
-    }
-
     bool getAllMembersDefaultInitialized();
 
     inline void setAllMembersDefaultInitialized(bool value) {

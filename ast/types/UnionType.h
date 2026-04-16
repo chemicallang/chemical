@@ -51,10 +51,6 @@ public:
         return BaseType::kind() == type->kind() && equals(static_cast<UnionType *>(type));
     }
 
-    VariablesContainer * as_variables_container() override {
-        return this;
-    }
-
     ASTNode* linked_node() override {
         return this;
     }

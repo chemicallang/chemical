@@ -919,8 +919,9 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
             return provide_child(resolver, as_variant_member_param_unsafe()->type, name, this);
         }
         case ASTNodeKind::StructType:
+            return ::child((StructType*) this, name);
         case ASTNodeKind::UnionType:
-            return ::child(as_variables_container(), name);
+            return ::child((UnionType*) this, name);
         case ASTNodeKind::UnnamedStruct:
             return ::child(as_unnamed_struct_unsafe(), name);
         case ASTNodeKind::UnnamedUnion:

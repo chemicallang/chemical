@@ -1045,15 +1045,60 @@ BaseType* Value::pure_type_ptr() {
     return getType()->canonical();
 }
 
+bool is_largest_member(VariablesContainerBase* container, std::vector<Value*>& chain, unsigned index) {
+    if (index < chain.size()) {
+        return container->largest_member() == chain[index]->linked_node();
+    } else {
+        return true;
+    }
+}
+
 bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) {
-    ASTNode* linked;
-    VariablesContainer* union_container = nullptr;
     while(index < chain.size()) {
-        linked = chain[index]->linked_node();
-        if(linked && (linked->as_union_def() || linked->as_unnamed_union())) {
-            union_container = linked->as_variables_container();
-        } else if(union_container && linked != union_container->largest_member()) {
-            return true;
+        const auto linked = chain[index]->linked_node();
+        if (linked) {
+            switch (linked->kind()) {
+                case ASTNodeKind::UnionDecl: {
+                    const auto container = linked->as_union_def_unsafe();
+                    if (index + 1 < chain.size()) {
+                        if (container->largest_member() != chain[index + 1]->linked_node()) {
+                            // non-largest member of the union being accessed
+                            // we need to build the chain type
+                            return true;
+                        }
+                        // largest member of the union being accessed
+                        // next member can be a union as well, lets check that
+                        index++;
+                        continue;
+                    } else {
+                        // user didn't access anything inside the union
+                        // so we shouldn't build chain type (return false)
+                        // this is the last value in the chain, so we return
+                        return false;
+                    }
+                }
+                case ASTNodeKind::UnnamedUnion: {
+                    const auto container = linked->as_unnamed_union_unsafe();
+                    if (index + 1 < chain.size()) {
+                        if (container->largest_member() != chain[index + 1]->linked_node()) {
+                            // non-largest member of the union being accessed
+                            // we need to build the chain type
+                            return true;
+                        }
+                        // largest member of the union being accessed
+                        // next member can be a union as well, lets check that
+                        index++;
+                        continue;
+                    } else {
+                        // user didn't access anything inside the union
+                        // so we shouldn't build chain type (return false)
+                        // this is the last value in the chain, so we return
+                        return false;
+                    }
+                }
+                default:
+                    break;
+            }
         }
         index++;
     }

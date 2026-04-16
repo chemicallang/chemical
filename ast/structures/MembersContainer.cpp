@@ -993,7 +993,7 @@ long VariablesContainer::direct_child_index(const chem::string_view& varName) {
 
 bool VariablesContainer::does_override(InterfaceDefinition* interface) {
     for(auto& inherits : inherited) {
-        const auto container = inherits.type->linked_node()->as_variables_container();
+        const auto container = inherits.type->get_members_container();
         if(container == interface || container->does_override(interface)) {
             return true;
         }

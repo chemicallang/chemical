@@ -175,7 +175,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
 }
 
 void MembersContainer::external_declare(Codegen& gen) {
-    for(const auto func : functions()) {
+    for(const auto func : evaluated_nodes()) {
         switch(func->kind()) {
             default:
                 // TODO: multi function nodes could contain generics, which should be handled

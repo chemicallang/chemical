@@ -121,8 +121,6 @@ public:
      */
     void code_gen_function_body(Codegen &gen, FunctionDeclaration* decl);
 
-    void func_gen(Codegen &gen, bool declare);
-
     void code_gen(Codegen &gen, bool declare);
 
     void code_gen_declare(Codegen &gen) final {

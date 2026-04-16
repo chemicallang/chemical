@@ -147,12 +147,40 @@ void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration
 void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
     if(declare) {
         llvm_type(gen);
-        for (auto& func: instantiated_functions()) {
-            func->code_gen_declare(gen, this);
+    }
+    if(declare) {
+        for (auto& node: evaluated_nodes()) {
+            switch (node->kind()) {
+                case ASTNodeKind::FunctionDecl:
+                    node->as_function_unsafe()->code_gen_declare(gen, this);
+                    break;
+                case ASTNodeKind::GenericFuncDecl: {
+                    for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                        func->code_gen_declare(gen, this);
+                    }
+                    break;
+                }
+                default:
+                    node->code_gen_declare(gen);
+                    break;
+            }
         }
     } else {
-        for (auto& func: instantiated_functions()) {
-            func->code_gen_body(gen, this);
+        for (auto& node: evaluated_nodes()) {
+            switch (node->kind()) {
+                case ASTNodeKind::FunctionDecl:
+                    node->as_function_unsafe()->code_gen_body(gen, this);
+                    break;
+                case ASTNodeKind::GenericFuncDecl: {
+                    for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                        func->code_gen_body(gen, this);
+                    }
+                    break;
+                }
+                default:
+                    node->code_gen(gen);
+                    break;
+            }
         }
     }
 }

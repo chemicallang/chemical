@@ -19,25 +19,47 @@ void UnionDef::code_gen_function_body(Codegen &gen, FunctionDeclaration* decl) {
     decl->code_gen_body(gen, this);
 }
 
-void UnionDef::func_gen(Codegen &gen, bool declare) {
-    if(declare) {
-        for (auto &function: instantiated_functions()) {
-            function->code_gen_declare(gen, this);
-        }
-    } else {
-        for (auto &function: instantiated_functions()) {
-            function->code_gen_body(gen, this);
-        }
-    }
-}
-
 void UnionDef::code_gen(Codegen &gen, bool declare) {
     if(is_comptime()) {
         return;
     }
     auto& has_done = declare ? has_declared : has_implemented;
     if(!has_done) {
-        func_gen(gen, declare);
+        if(declare) {
+            for (auto& node: evaluated_nodes()) {
+                switch (node->kind()) {
+                    case ASTNodeKind::FunctionDecl:
+                        node->as_function_unsafe()->code_gen_declare(gen, this);
+                        break;
+                    case ASTNodeKind::GenericFuncDecl: {
+                        for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                            func->code_gen_declare(gen, this);
+                        }
+                        break;
+                    }
+                    default:
+                        node->code_gen_declare(gen);
+                        break;
+                }
+            }
+        } else {
+            for (auto& node: evaluated_nodes()) {
+                switch (node->kind()) {
+                    case ASTNodeKind::FunctionDecl:
+                        node->as_function_unsafe()->code_gen_body(gen, this);
+                        break;
+                    case ASTNodeKind::GenericFuncDecl: {
+                        for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                            func->code_gen_body(gen, this);
+                        }
+                        break;
+                    }
+                    default:
+                        node->code_gen(gen);
+                        break;
+                }
+            }
+        }
         has_done = true;
     }
 }

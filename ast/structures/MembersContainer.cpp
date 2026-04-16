@@ -441,7 +441,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 insert_func(node->as_gen_func_decl_unsafe());
                 break;
             default:
-                other_nodes_container.emplace_back(node);
+                evaluated_container.emplace_back(node);
                 switch (node->kind()) {
                     case ASTNodeKind::ImplDecl:
                         node->as_impl_def_unsafe()->take_members_from_parsed_nodes(linker);
@@ -835,12 +835,12 @@ bool MembersContainer::any_member_has_destructor() {
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
-    functions_container.emplace_back(decl);
+    evaluated_container.emplace_back(decl);
     indexes[decl->name_view()] = decl;
 }
 
 void MembersContainer::insert_func(GenericFuncDecl* decl) {
-    functions_container.emplace_back(decl);
+    evaluated_container.emplace_back(decl);
     indexes[decl->master_impl->name_view()] = decl;
 }
 
@@ -906,7 +906,7 @@ bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDec
             // TODO -1 is being stored as index
             indexes[decl->name_view()] = result.new_multi_func_node;
         }
-        functions_container.emplace_back(decl);
+        evaluated_container.emplace_back(decl);
     }
     return true;
 }

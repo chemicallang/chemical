@@ -280,38 +280,29 @@ public:
 
     void VisitStructDecl(StructDefinition *def) {
         VisitVariables(def->variables());
-        for(const auto func : def->functions()) {
+        for(const auto func : def->evaluated_nodes()) {
             NonRecursiveVisitor<Derived>::visit(func);
-        }
-        for (const auto node : def->other_nodes()) {
-            NonRecursiveVisitor<Derived>::visit(node);
         }
     }
 
     void VisitVariantDecl(VariantDefinition* def) {
         VisitVariables(def->variables());
-        for(const auto func : def->functions()) {
+        for(const auto func : def->evaluated_nodes()) {
             NonRecursiveVisitor<Derived>::visit(func);
-        }
-        for (const auto node : def->other_nodes()) {
-            NonRecursiveVisitor<Derived>::visit(node);
         }
     }
 
     void VisitUnionDecl(UnionDef* def) {
         VisitVariables(def->variables());
-        for(const auto func : def->functions()) {
+        for(const auto func : def->evaluated_nodes()) {
             NonRecursiveVisitor<Derived>::visit(func);
-        }
-        for (const auto node : def->other_nodes()) {
-            NonRecursiveVisitor<Derived>::visit(node);
         }
     }
 
     void VisitImplDecl(ImplDefinition* def) {
         visit_it(def->interface_type);
         visit_it(def->struct_type);
-        for(const auto func : def->functions()) {
+        for(const auto func : def->evaluated_nodes()) {
             NonRecursiveVisitor<Derived>::visit(func);
         }
     }

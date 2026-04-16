@@ -407,41 +407,36 @@ void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) 
     }
 }
 
-void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
-    for(const auto node : nodes) {
-        top_level_position = writer.getPosition();
-        switch(node->kind()) {
-            case ASTNodeKind::GenericFuncDecl:
-                external_implement_gen_func(*this, node->as_gen_func_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericStructDecl:
-                VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
-                break;
-            case ASTNodeKind::GenericUnionDecl:
-                VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericInterfaceDecl:
-                VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericVariantDecl:
-                VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
-                break;
-            case ASTNodeKind::NamespaceDecl:
-                external_implement(node->as_namespace_unsafe()->nodes);
-                break;
-            case ASTNodeKind::StructDecl:
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::VariantDecl: {
-                for(const auto func : node->as_members_container_unsafe()->functions()) {
-                    if(func->kind() == ASTNodeKind::GenericFuncDecl) {
-                        external_implement_gen_func(*this, func->as_gen_func_decl_unsafe());
-                    }
-                }
-                break;
+void ToCAstVisitor::external_implement(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+            external_implement_gen_func(*this, node->as_gen_func_decl_unsafe());
+            break;
+        case ASTNodeKind::GenericStructDecl:
+            VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
+            break;
+        case ASTNodeKind::GenericUnionDecl:
+            VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
+            break;
+        case ASTNodeKind::GenericInterfaceDecl:
+            VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
+            break;
+        case ASTNodeKind::GenericVariantDecl:
+            VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
+            break;
+        case ASTNodeKind::NamespaceDecl:
+            external_implement(node->as_namespace_unsafe()->nodes);
+            break;
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl: {
+            for(const auto node : node->as_members_container_unsafe()->evaluated_nodes()) {
+                external_implement(node);
             }
-            default:
-                break;
+            break;
         }
+        default:
+            break;
     }
 }
 
@@ -3181,8 +3176,6 @@ void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def
     }
 }
 
-static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
-
 void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def) {
     if(!def->has_declared) {
         def->has_declared = true;
@@ -4686,24 +4679,28 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
     write(';');
 }
 
-static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
-    for(auto& func : def->instantiated_functions()) {
-        contained_func_decl(visitor, func, false, def);
-    }
-}
-
-static void contained_union_functions(ToCAstVisitor& visitor, UnionDef* def) {
-    for(auto& func : def->instantiated_functions()) {
-        contained_func_decl(visitor, func, false, def);
+// this function works for structs/variants/unions
+static void visit_struct_contained_nodes(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
+    for (const auto node : def->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                contained_func_decl(visitor, node->as_function_unsafe(), false, def);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                for (const auto inst : node->as_gen_func_decl_unsafe()->instantiations) {
+                    contained_func_decl(visitor, inst, false, def);
+                    break;
+                }
+                break;
+            default:
+                visitor.visit(node);
+                break;
+        }
     }
 }
 
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
-    contained_struct_functions(*this, def);
-    // visit the other nodes
-    for (const auto other_node : def->other_nodes()) {
-        visit(other_node);
-    }
+    visit_struct_contained_nodes(*this, def);
 }
 
 void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
@@ -4742,26 +4739,12 @@ void ToCAstVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
     }
 }
 
-void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
-    for(auto& func : def->instantiated_functions()) {
-        contained_func_decl(visitor, func, false, def);
-    }
-}
-
 void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
-    generate_contained_functions(*this, def);
-    // visit the other nodes
-    for (const auto other_node : def->other_nodes()) {
-        visit(other_node);
-    }
+    visit_struct_contained_nodes(*this, def);
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
-    contained_union_functions(*this, def);
-    // visit the other nodes
-    for (const auto other_node : def->other_nodes()) {
-        visit(other_node);
-    }
+    visit_struct_contained_nodes(*this, def);
 }
 
 void ToCAstVisitor::VisitNamespaceDecl(Namespace *ns) {

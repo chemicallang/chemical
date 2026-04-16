@@ -226,7 +226,7 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, ImplDefinit
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;
-    for(const auto func : functions()) {
+    for(const auto func : evaluated_nodes()) {
         if(func == decl) {
             return i;
         }

@@ -116,7 +116,7 @@ void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     for(const auto var : container->variables()) {
         linker.declare_or_shadow(var->name, var);
     }
-    for (const auto func: container->functions()) {
+    for (const auto func: container->evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);
@@ -153,7 +153,7 @@ void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker)
     for (const auto var: variables()) {
         linker.declare_or_shadow(var->name, var);
     }
-    for(const auto func : functions()) {
+    for(const auto func : evaluated_nodes()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
                 linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);
@@ -238,15 +238,11 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
     }
     SymbolResolverShadowDeclarer declarer(linker);
     // declare all the functions
-    for(auto& func : container->functions()) {
+    for(auto& func : container->evaluated_nodes()) {
         declare_node(declarer, func, AccessSpecifier::Private);
     }
-    for (const auto func: container->functions()) {
+    for (const auto func: container->evaluated_nodes()) {
         visit(func);
-    }
-    // linking other node's bodies
-    for (const auto node : container->other_nodes()) {
-        visit(node);
     }
 }
 
@@ -1531,7 +1527,7 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
     const auto struct_linked = node->struct_type ? node->struct_type->get_direct_linked_struct() : nullptr;
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
-        for (const auto func: linked->functions()) {
+        for (const auto func: linked->evaluated_nodes()) {
             switch(func->kind()) {
                 case ASTNodeKind::FunctionDecl:
                     linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);

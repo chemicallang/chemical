@@ -94,7 +94,7 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* im
     }
 
     // Iterate over all functions in the interface
-    for (auto& node : interface->functions()) {
+    for (auto& node : interface->evaluated_nodes()) {
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             const auto func_node = node->as_function_unsafe();
             if(func_node->body.has_value()) {

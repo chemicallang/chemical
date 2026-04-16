@@ -604,7 +604,17 @@ public:
      * why ? because usage of generics from imported module causes new instantiations
      * which require generating code after both modules have declared themselves
      */
-    void external_implement(std::vector<ASTNode*>& nodes);
+    void external_implement(ASTNode* node);
+
+    /**
+     * this should be used to externally implement multiple nodes
+     */
+    void external_implement(std::vector<ASTNode*>& nodes) {
+        for (const auto node : nodes) {
+            top_level_position = writer.getPosition();
+            external_implement(node);
+        }
+    }
 
     /**
      * its like writing a return statement

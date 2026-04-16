@@ -51,6 +51,13 @@ public:
     }
 
     /**
+     * get a mutable reference to variables container
+     */
+    std::vector<BaseDefMember*>& mut_variables() {
+        return variables_container;
+    }
+
+    /**
      * gets any child (inherited or direct)
      */
     ASTNode* any_child(const chem::string_view& name) {

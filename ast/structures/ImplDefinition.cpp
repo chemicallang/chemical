@@ -126,7 +126,7 @@ void create_default_implementations(Codegen& gen, InterfaceDefinition* interface
         }
     }
     // do direct functions
-    for (const auto funcNode : interface->functions()) {
+    for (const auto funcNode : interface->evaluated_nodes()) {
         if (funcNode->kind() == ASTNodeKind::FunctionDecl) {
             const auto func = funcNode->as_function_unsafe();
             // TODO: we use the name to get the override

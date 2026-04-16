@@ -16,7 +16,8 @@ public interface PtrVec {
 
 }
 
-public struct VecRef<T> : private PtrVec {
+@static
+public interface VecRef<T> : private PtrVec {
 
     func get(&self, i : uint) : *mut T {
         return _get(i) as *mut T;

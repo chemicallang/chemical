@@ -247,15 +247,6 @@ public:
     void llvm_override(Codegen& gen, FunctionDeclaration* declaration);
 
     /**
-     * generate code for all functions in this struct
-     */
-    void struct_func_gen(
-        Codegen& gen,
-        InstFuncRange range,
-        bool declare
-    );
-
-    /**
      * this function is responsible for declaring this single function
      * that is present inside this struct, also read the docs of body
      */

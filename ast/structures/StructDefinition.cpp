@@ -22,22 +22,6 @@
 #include "ast/types/LinkedType.h"
 #include "compiler/mangler/NameMangler.h"
 
-void StructDefinition::struct_func_gen(
-        Codegen& gen,
-        InstFuncRange funcs,
-        bool declare
-) {
-    if(declare) {
-        for (auto& function: funcs) {
-            function->code_gen_declare(gen, this);
-        }
-    } else {
-        for (auto& function: funcs) {
-            function->code_gen_body(gen, this);
-        }
-    }
-}
-
 // tries to override the function present in interface
 // returns true if current function should be skipped because it has been overridden
 // or errored out
@@ -64,25 +48,47 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
     }
     auto& has_done = declare ? has_declared : has_implemented;
     if(!has_done) {
-        struct_func_gen(gen, instantiated_functions(), declare);
+        if(declare) {
+            for (auto& node: evaluated_nodes()) {
+                switch (node->kind()) {
+                    case ASTNodeKind::FunctionDecl:
+                        node->as_function_unsafe()->code_gen_declare(gen, this);
+                        break;
+                    case ASTNodeKind::GenericFuncDecl: {
+                        for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                            func->code_gen_declare(gen, this);
+                        }
+                        break;
+                    }
+                    default:
+                        node->code_gen_declare(gen);
+                        break;
+                }
+            }
+        } else {
+            for (auto& node: evaluated_nodes()) {
+                switch (node->kind()) {
+                    case ASTNodeKind::FunctionDecl:
+                        node->as_function_unsafe()->code_gen_body(gen, this);
+                        break;
+                    case ASTNodeKind::GenericFuncDecl: {
+                        for (const auto func : node->as_gen_func_decl_unsafe()->instantiations) {
+                            func->code_gen_body(gen, this);
+                        }
+                        break;
+                    }
+                    default:
+                        node->code_gen(gen);
+                        break;
+                }
+            }
+        }
         has_done = true;
-    }
-    if (declare) {
-        for (const auto node : other_nodes()) {
-            node->code_gen_declare(gen);
-        }
-    } else {
-        for (const auto node : other_nodes()) {
-            node->code_gen(gen);
-        }
     }
 }
 
 void StructDefinition::code_gen_external_declare(Codegen &gen) {
     extendable_external_declare(gen);
-    for (const auto node : other_nodes()) {
-        node->code_gen_external_declare(gen);
-    }
 }
 
 llvm::Type* StructMember::llvm_type(Codegen &gen) {

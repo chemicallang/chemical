@@ -129,9 +129,15 @@ llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
 }
 
 void InterfaceDefinition::llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {
-    struct_types.reserve(struct_types.size() + functions().size());
-    for(auto& func : functions()) {
-        struct_types.emplace_back(gen.builder->getPtrTy());
+    struct_types.reserve(struct_types.size() + evaluated_nodes().size());
+    for (const auto node : evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+            case ASTNodeKind::GenericFuncDecl:
+                struct_types.emplace_back(gen.builder->getPtrTy());
+            default:
+                continue;
+        }
     }
 }
 

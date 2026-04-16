@@ -29,10 +29,6 @@ public:
 
     }
 
-    VariablesContainer* as_variables_container() override {
-        return this;
-    }
-
     bool equals(StructType *type);
 
     bool is_same(BaseType *type) final {

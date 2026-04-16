@@ -197,10 +197,6 @@ public:
         return def;
     }
 
-    VariablesContainer *as_variables_container() final {
-        return this;
-    }
-
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }

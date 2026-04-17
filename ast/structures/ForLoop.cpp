@@ -9,7 +9,7 @@
 #include "compiler/llvmimpl.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/MembersContainer.h"
-#include "ast/values/VariableIdentifier.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 void ForLoop::code_gen(Codegen &gen) {
 

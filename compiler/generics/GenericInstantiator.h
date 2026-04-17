@@ -12,6 +12,10 @@ class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
 
     /**
+     * annotation controller can be used to access the annotated data
+     */
+    AnnotationController& controller;
+    /**
      * instantiations container contains types for each instantiation
      */
     InstantiationsContainer& container;
@@ -90,6 +94,7 @@ public:
      * the allocator must be an ast allocator
      */
     GenericInstantiator(
+        AnnotationController& controller,
         CompilerBinder& binder,
         ChildResolver& child_resolver,
         InstantiationsContainer& container,
@@ -99,8 +104,9 @@ public:
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
         TargetData& targetData
-    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser),
-        typeBuilder(typeBuilder), targetData(targetData), coreNodes(coreNodes), implsIndex(implsIndex) {
+    ) : controller(controller), child_resolver(child_resolver), binder(binder), container(container),
+        allocator_ptr(&allocator), diagnoser(diagnoser), typeBuilder(typeBuilder), targetData(targetData),
+        coreNodes(coreNodes), implsIndex(implsIndex) {
 
     }
 

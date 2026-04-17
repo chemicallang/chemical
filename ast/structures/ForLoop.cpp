@@ -58,8 +58,8 @@ void ForInLoop::code_gen(Codegen &gen) {
         if (linked) {
             const auto container = linked->get_members_container();
             if (container) {
-                iter_data_fn = container->direct_child_function("data");
-                iter_size_fn = container->direct_child_function("size");
+                iter_data_fn = gen.implsIndex.get_linear_data_impl(gen.coreNodes, container);
+                iter_size_fn = gen.implsIndex.get_linear_size_impl(gen.coreNodes, container);
             }
         }
     }

@@ -1,8 +1,11 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ImplDefinition.h"
+
+#include "GenericInterfaceDecl.h"
 #include "StructMember.h"
 #include "ast/structures/StructDefinition.h"
+#include "compiler/frontend/AnnotationController.h"
 #include "std/except.h"
 
 #ifdef COMPILER_BUILD
@@ -219,5 +222,47 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
             default:
                 return;
         }
+    }
+}
+
+void ImplDefinition::index_implementations(AnnotationController& controller, ASTDiagnoser& diagnoser, InterfaceDefinition* non_master_interface) {
+    // why use master (template in generic definition) ?
+    // we must index against the function present in the master (template) interface
+    // because we use that to lookup the implementation
+    const auto interface = non_master_interface->generic_parent != nullptr ? non_master_interface->generic_parent->as_gen_interface_decl_unsafe()->master_impl : non_master_interface;
+    for (const auto node : evaluated_nodes()) {
+        FunctionDeclaration* func;
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            func = node->as_function_unsafe();
+        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
+            func = node->as_gen_func_decl_unsafe()->master_impl;
+        } else {
+            continue;
+        }
+        InterfaceDefinition* containing;
+        if (func->has_override_parent()) {
+            const auto overrideParent = controller.get_override_parent(func);
+            if (overrideParent == nullptr) {
+                diagnoser.error(func) << "couldn't get override parent";
+                continue;
+            }
+            const auto linked = overrideParent->as_linked_type_unsafe()->linked;
+            if (linked->kind() == ASTNodeKind::InterfaceDecl) {
+                containing = linked->as_interface_def_unsafe();
+            } else if (linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                containing = linked->as_gen_interface_decl_unsafe()->master_impl;
+            } else {
+                diagnoser.error(func) << "override parent must be an interface";
+                continue;
+            }
+        } else {
+            containing = interface;
+        }
+        const auto child = containing->child(func->name_view());
+        if (child == nullptr) {
+            diagnoser.error(func) << "couldn't find base function to override";
+            continue;
+        }
+        override_map[child] = node;
     }
 }

@@ -5,6 +5,8 @@
 #include "ast/base/ast_fwd.h"
 #include <span>
 
+class AnnotationController;
+
 class CompilerBinder;
 
 class GenericInstantiator;
@@ -42,6 +44,7 @@ public:
      * the constructor
      */
     GenericInstantiatorAPI(
+        AnnotationController& controller,
         CompilerBinder& binder,
         ChildResolver& child_resolver,
         InstantiationsContainer& container,

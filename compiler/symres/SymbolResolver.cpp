@@ -31,7 +31,7 @@ SymbolResolver::SymbolResolver(
     ASTAllocator* astAllocator
 ) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
     allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller), coreNodes(coreNodes), implsIndex(implsIndex),
-    genericInstantiator(binder, child_resolver, container, coreNodes, implsIndex, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
+    genericInstantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
@@ -44,7 +44,7 @@ UnresolvedDecl* SymbolResolver::get_unresolved_decl() {
 static FunctionDeclaration* func_of_interface(ASTNode* container, const chem::string_view& interface, const chem::string_view& method) {
     const auto found = container->child(interface);
     if (found == nullptr) return nullptr;
-    // this inteface can be a generic interface
+    // this interface can be a generic interface
     // we can search for child anyway
     const auto child = found->child(method);
     if (child == nullptr || child->kind() != ASTNodeKind::FunctionDecl) return nullptr;
@@ -104,6 +104,13 @@ void SymbolResolver::link_core_nodes() {
 
     coreNodes.ops.index = func_of_interface(opsNode, "Index", "index");
     coreNodes.ops.index_mut = func_of_interface(opsNode, "IndexMut", "index");
+
+    const auto iterableNode = coreNode->child("iterable");
+    if (iterableNode == nullptr || iterableNode->kind() != ASTNodeKind::NamespaceDecl) return;
+    if (iterableNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
+
+    coreNodes.iterable.linear_data = func_of_interface(iterableNode, "Linear", "data");
+    coreNodes.iterable.linear_size = func_of_interface(iterableNode, "Linear", "size");
 
 }
 

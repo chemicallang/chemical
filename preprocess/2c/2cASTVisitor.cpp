@@ -4003,14 +4003,8 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         if (linked) {
             const auto container = linked->get_members_container();
             if (container) {
-                const auto dataFn = container->child("data");
-                if (dataFn && dataFn->kind() == ASTNodeKind::FunctionDecl) {
-                    iter_data_fn = dataFn->as_function_unsafe();
-                }
-                const auto sizeFn = container->child("size");
-                if (sizeFn && sizeFn->kind() == ASTNodeKind::FunctionDecl) {
-                    iter_size_fn = sizeFn->as_function_unsafe();
-                }
+                iter_data_fn = implsIndex.get_linear_data_impl(coreNodes, container);
+                iter_size_fn = implsIndex.get_linear_size_impl(coreNodes, container);
             }
         }
     }

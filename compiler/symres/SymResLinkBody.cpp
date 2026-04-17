@@ -1018,12 +1018,11 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
             linker.error("couldn't get container from expression", node->expr);
             return;
         }
-        const auto data = container->child("data");
-        if (data == nullptr || data->kind() != ASTNodeKind::FunctionDecl) {
-            linker.error("invalid child 'data' from expression", node->expr);
+        const auto iterDataFunc = linker.implsIndex.get_linear_data_impl(linker.coreNodes, container);
+        if (!iterDataFunc) {
+            linker.error("couldn't get 'core::iterable::Linear::data' implementation", node->expr);
             return;
         }
-        const auto iterDataFunc = data->as_function_unsafe();
         if (iterDataFunc->returnType->kind() != BaseTypeKind::Pointer) {
             linker.error("expected 'data' return type to be a pointer", node->expr);
             return;

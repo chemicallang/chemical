@@ -12,6 +12,8 @@
 #include "ast/base/TypeLoc.h"
 #include "ast/structures/InterfaceDefinition.h"
 
+class AnnotationController;
+
 struct ImplDeclAttrs {
 
     AccessSpecifier specifier;
@@ -103,6 +105,12 @@ public:
         const auto i = implementation_of((ASTNode*) base);
         return i ? i->kind() == ASTNodeKind::GenericFuncDecl ? i->as_gen_func_decl_unsafe() : nullptr : nullptr;
     }
+
+    void index_implementations(
+        AnnotationController& controller,
+        ASTDiagnoser& diagnoser,
+        InterfaceDefinition* interface
+    );
 
 #ifdef COMPILER_BUILD
 

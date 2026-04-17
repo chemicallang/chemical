@@ -1217,20 +1217,6 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 //     }
 // }
 
-static inline ASTNode* interface_for_index(ASTNode* interface) {
-    switch (interface->kind()) {
-        case ASTNodeKind::InterfaceDecl: {
-            const auto gen_parent = interface->as_interface_def_unsafe()->generic_parent;
-            return gen_parent != nullptr ? gen_parent : ((ASTNode*) interface);
-        }
-        case ASTNodeKind::GenericInterfaceDecl:
-            return interface;
-        default:
-            return nullptr;
-    }
-
-}
-
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     linker.scope_start();
     // linking interface and struct type
@@ -1292,7 +1278,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                     linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
                 }
                 // store it in index, so it can be retrieved
-                linker.implsIndex.add(interface_for_index(linked_node), node->struct_type, node);
+                linker.implsIndex.add_interface(linked_node, node->struct_type, node);
                 break;
             case BaseTypeKind::Pointer:
                 // we create shallow clones of default implemented functions
@@ -1332,7 +1318,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
+                        linker.implsIndex.add_interface(linked_node, container, node);
                         break;
                     }
                     default:
@@ -1351,7 +1337,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
+                        linker.implsIndex.add_interface(linked_node, container, node);
                         break;
                     }
                     case ASTNodeKind::GenericStructDecl: {
@@ -1359,7 +1345,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
+                        linker.implsIndex.add_interface(linked_node, container, node);
                         break;
                     }
                     case ASTNodeKind::GenericVariantDecl:{
@@ -1367,7 +1353,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
+                        linker.implsIndex.add_interface(linked_node, container, node);
                         break;
                     }
                     case ASTNodeKind::GenericUnionDecl:{
@@ -1375,7 +1361,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
                         container->master_impl->adopt(node);
                         // store it in index, so it can be retrieved
                         // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add(interface_for_index(linked_node), container, node);
+                        linker.implsIndex.add_interface(linked_node, container, node);
                         break;
                     }
                     default:
@@ -1530,44 +1516,6 @@ void buildContainerIndexes(MembersContainer* container) {
     }
 }
 
-void index_implementations(AnnotationController& controller, ASTDiagnoser& diagnoser, ImplDefinition* implDef, InterfaceDefinition* interface) {
-    for (const auto node : implDef->evaluated_nodes()) {
-        FunctionDeclaration* func;
-        if (node->kind() == ASTNodeKind::FunctionDecl) {
-            func = node->as_function_unsafe();
-        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
-            func = node->as_gen_func_decl_unsafe()->master_impl;
-        } else {
-            continue;
-        }
-        InterfaceDefinition* containing;
-        if (func->has_override_parent()) {
-            const auto overrideParent = controller.get_override_parent(func);
-            if (overrideParent == nullptr) {
-                diagnoser.error(func) << "couldn't get override parent";
-                continue;
-            }
-            const auto linked = overrideParent->as_linked_type_unsafe()->linked;
-            if (linked->kind() == ASTNodeKind::InterfaceDecl) {
-                containing = linked->as_interface_def_unsafe();
-            } else if (linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
-                containing = linked->as_gen_interface_decl_unsafe()->master_impl;
-            } else {
-                diagnoser.error(func) << "override parent must be an interface";
-                continue;
-            }
-        } else {
-            containing = interface;
-        }
-        const auto child = containing->child(func->name_view());
-        if (child == nullptr) {
-            diagnoser.error(func) << "couldn't find base function to override";
-            continue;
-        }
-        implDef->override_map[child] = node;
-    }
-}
-
 void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
     const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
     if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
@@ -1590,13 +1538,9 @@ void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
                 }
             }
         }
-        // why use master (template in generic definition) ?
-        // we must index against the function present in the master (template) interface
-        // because we use that to lookup the implementation
-        const auto masterInterface = interface->generic_parent != nullptr ? interface->generic_parent->as_gen_interface_decl_unsafe()->master_impl : interface;
         // we also index implementation methods with key of base methods they are overriding
         // for faster access and to reduce ambiguity
-        index_implementations(linker.controller, linker, decl, masterInterface);
+        decl->index_implementations(linker.controller, linker, interface);
     }
 }
 

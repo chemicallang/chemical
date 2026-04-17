@@ -11,6 +11,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -54,7 +55,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+    GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
@@ -221,7 +222,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+        GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi, true);
     }
@@ -369,7 +370,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // we inlined this type, now we create concrete type by instantiating it
             const auto alias = linked->as_typealias_unsafe();
             if(alias->attrs.is_inlined) {
-                GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+                GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
                 GenericInstantiatorAPI genApi(&instantiator);
                 linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             }
@@ -385,7 +386,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+            GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
@@ -399,7 +400,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+            GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
@@ -413,7 +414,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+            GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
@@ -428,7 +429,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+            GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
@@ -442,7 +443,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
+            GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, getAllocator(), diagnoser, typeBuilder, targetData);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
@@ -774,15 +775,20 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
 }
 
-void handle_new_impl(ASTDiagnoser& diagnoser, ImplDefinition* node, MembersContainer* adopter) {
+void handle_new_impl(GenericInstantiator& instantiator, ImplDefinition* node, MembersContainer* adopter) {
+    auto& diagnoser = instantiator.diagnoser;
     adopter->adopt(node);
     const auto linked_node = node->interface_type->get_direct_linked_node();
     if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
+        auto& implsIndex = instantiator.implsIndex;
+        auto& controller = instantiator.controller;
         const auto linked = linked_node->as_interface_def_unsafe();
         if (linked->is_static() && linked->has_implementation()) {
             diagnoser.error("static interface must have only a single implementation", node->encoded_location());
         }
         linked->register_impl(node);
+        implsIndex.add_interface(linked, adopter, node);
+        node->index_implementations(controller, diagnoser, linked);
     } else {
         diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
     }
@@ -854,7 +860,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                handle_new_impl(diagnoser, def, impl);
+                handle_new_impl(instantiator, def, impl);
                 continue;
             }
             default:
@@ -956,7 +962,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                handle_new_impl(diagnoser, def, impl);
+                handle_new_impl(instantiator, def, impl);
                 continue;
             }
             default:
@@ -1152,7 +1158,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
                 VisitImplDecl(def);
-                handle_new_impl(diagnoser, def, impl);
+                handle_new_impl(instantiator, def, impl);
                 continue;
             }
             default:
@@ -1362,6 +1368,7 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, const std::span<Im
 // Generic Instantiator API
 
 GenericInstantiatorAPI::GenericInstantiatorAPI(
+    AnnotationController& controller,
     CompilerBinder& binder,
     ChildResolver& child_resolver,
     InstantiationsContainer& container,
@@ -1371,7 +1378,7 @@ GenericInstantiatorAPI::GenericInstantiatorAPI(
     ASTDiagnoser& diagnoser,
     TypeBuilder& typeBuilder,
     TargetData& targetData
-) : giPtr(new GenericInstantiator(binder, child_resolver, container, coreNodes, implsIndex, astAllocator, diagnoser, typeBuilder, targetData)) {
+) : giPtr(new GenericInstantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, astAllocator, diagnoser, typeBuilder, targetData)) {
 
 }
 

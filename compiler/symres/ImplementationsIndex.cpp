@@ -5,6 +5,26 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ImplDefinition.h"
 
+void ImplementationsIndex::add_interface(InterfaceDefinition* interface, ASTAny* for_, ImplDefinition* impl) {
+    add(interface->generic_parent != nullptr ? (ASTNode*) interface->generic_parent : interface, for_, impl);
+}
+
+bool ImplementationsIndex::add_interface(ASTNode* interface, ASTAny* for_, ImplDefinition* impl) {
+    switch (interface->kind()) {
+        case ASTNodeKind::InterfaceDecl: {
+            const auto gen_parent = interface->as_interface_def_unsafe()->generic_parent;
+            const auto index_key = gen_parent != nullptr ? (ASTNode*) gen_parent : ((ASTNode*) interface);
+            add(index_key, for_, impl);
+            return true;
+        }
+        case ASTNodeKind::GenericInterfaceDecl:
+            add((ASTNode*) interface, for_, impl);
+            return true;
+        default:
+            return false;
+    }
+}
+
 static FunctionDeclaration* implementation_of(ImplementationsIndex& index, FunctionDeclaration* op_base, ASTAny* for_type) {
     if (op_base == nullptr) {
         return nullptr;
@@ -52,4 +72,12 @@ FunctionDeclaration* ImplementationsIndex::get_neg_op_impl(CoreNodes& coreNodes,
 
 FunctionDeclaration* ImplementationsIndex::get_not_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
     return implementation_of(*this, coreNodes.ops._not, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.linear_data, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.linear_size, (ASTAny*) container);
 }

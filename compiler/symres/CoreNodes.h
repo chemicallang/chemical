@@ -53,10 +53,21 @@ public:
 
 };
 
+class CoreNodesIterable {
+public:
+
+    FunctionDeclaration* linear_data = nullptr;
+
+    FunctionDeclaration* linear_size = nullptr;
+
+};
+
 class CoreNodes {
 public:
 
     CoreNodesOps ops;
+
+    CoreNodesIterable iterable;
 
     /**
      * get information about operator being overloaded, like function name to use
@@ -132,7 +143,7 @@ public:
     }
 
     void clear() {
-        ops = CoreNodesOps{};
+        *this = CoreNodes {};
     }
 
 };

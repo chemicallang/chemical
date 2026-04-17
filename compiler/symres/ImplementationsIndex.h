@@ -51,6 +51,14 @@ public:
         map_.emplace(ImplementationIndexKey{ interface, for_ }, impl);
     }
 
+    /**
+     * this method automatically gets the generic parent and adds that if the interface is generic
+     * otherwise uses the interface as the key node
+     */
+    bool add_interface(ASTNode* interface, ASTAny* for_, ImplDefinition* impl);
+
+    void add_interface(InterfaceDefinition* interface, ASTAny* for_, ImplDefinition* impl);
+
     ImplDefinition* get(ASTNode* interface, ASTAny* for_) {
         const auto it = map_.find(ImplementationIndexKey{ interface, for_ });
         if(it == map_.end()) return nullptr;
@@ -72,5 +80,9 @@ public:
     FunctionDeclaration* get_neg_op_impl(CoreNodes& coreNodes, MembersContainer* container);
 
     FunctionDeclaration* get_not_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container);
 
 };

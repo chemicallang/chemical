@@ -20,6 +20,7 @@ public enum ASTNodeKind {
     WhileLoopStmt,
     DoWhileLoopStmt,
     ForLoopStmt,
+    ForInLoopStmt,
     IfStmt,
     TryStmt,
     ValueNode,

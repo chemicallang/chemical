@@ -3033,10 +3033,19 @@ bool is_return_type_prim_int_like(BaseTypeKind kind) {
 void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     declare_contained_func_non_ending(tld, decl, false, nullptr);
     tld->write(" {");
-    if(is_return_type_prim_int_like(decl->returnType->canonical()->kind())) {
-        tld->new_line_and_indent();
-        tld->write("return 0;");
-        tld->new_line_and_indent();
+    if (decl->body.has_value()) {
+        // default implementation available
+        auto& visitor = tld->visitor;
+        const auto prev_func_type = visitor.current_func_type;
+        visitor.current_func_type = decl;
+        scope_no_parens(visitor, decl->body.value());
+        visitor.current_func_type = prev_func_type;
+    } else {
+        if(is_return_type_prim_int_like(decl->returnType->canonical()->kind())) {
+            tld->new_line_and_indent();
+            tld->write("return 0;");
+            tld->new_line_and_indent();
+        }
     }
     tld->write("};");
 }

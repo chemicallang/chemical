@@ -31,6 +31,10 @@ public enum BaseTypeKind {
     ExpressionType,
     NullPtr,
     ExpressiveString,
+    IfType,
+
+    MaybeRuntime,
+    Runtime,
 
     Unknown
 

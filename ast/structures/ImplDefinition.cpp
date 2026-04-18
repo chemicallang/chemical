@@ -64,6 +64,10 @@ void ImplDefinition::code_gen_bodies(Codegen& gen, InterfaceDefinition* interfac
         }
         if (interface->is_static()) {
             const auto func_pointer = func->llvm_func(gen);
+            // must update the linkage, so strong implementation overrides the weak implementation at link time
+            const auto final_specifier = is_linkage_public(interface->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
+            func_pointer->setLinkage(final_specifier);
+            // override
             gen.cleanFunctionEntryBlock(func_pointer);
             if (decl == nullptr) {
                 // we have a default implementation available
@@ -99,6 +103,38 @@ void ImplDefinition::code_gen_bodies(Codegen& gen, InterfaceDefinition* interfac
     }
 }
 
+void ImplDefinition::strengthen_static_declare(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* node) {
+    const auto prev_user = interface->active_user;
+    interface->active_user = node;
+    const auto final_specifier = is_linkage_public(interface->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
+    for (const auto func: interface->instantiated_functions()) {
+        auto func_ptr = func->get_llvm_data(gen);
+        if (func_ptr == nullptr) {
+            gen.error("couldn't get function pointer when implementing static interface during declaration", func);
+            gen.warn("couldn't implement this impl", this);
+            continue;
+        }
+        // TODO: find a better way to get the implementation function, currently using name
+        // why can't we use the override_map (because that maps functions from the master interface)
+        // however this interface is an instantiated interface (not the template)
+        const auto decl = direct_child_function(func->name_view());
+        if (decl != nullptr) {
+            decl->set_llvm_data(gen, func_ptr);
+        }
+        // clean the function entry block, set new linkage
+        gen.cleanFunctionEntryBlock(func_ptr);
+        func_ptr->setLinkage(final_specifier);
+    }
+    // going over inherited interfaces and calling the same function
+    for (auto& inh : interface->inherited) {
+        const auto can = inh.type->get_direct_linked_interface();
+        if (can) {
+            strengthen_static_declare(gen, can, node);
+        }
+    }
+    interface->active_user = prev_user;
+}
+
 void ImplDefinition::code_gen_declare(Codegen &gen) {
     if(struct_type == nullptr) return;
     const auto linked = interface_type->get_direct_linked_interface();
@@ -112,41 +148,9 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
         linked->code_gen_declare_for_user(gen, struct_def);
     } else {
         if(linked->is_static()) {
-            for (const auto function: instantiated_functions()) {
-                // need to use the function pointer of the interface
-                const auto base_func = linked->direct_or_inherited_function(function->name_view());
-                if(base_func == nullptr) {
-                    gen.error("couldn't override function", function);
-                    function->code_gen_declare_normal(gen);
-                    continue;
-                }
-                const auto func_ptr = base_func->known_func(gen);
-                if(func_ptr == nullptr) {
-                    gen.error("couldn't override function", function);
-                    function->code_gen_declare_normal(gen);
-                    continue;
-                }
-                const auto mod = func_ptr->getParent();
-                if(mod != gen.module.get()) {
-                    // not current module
-                    function->code_gen_declare_normal(gen);
-                } else {
-                    // internal interface, present in current module
-                    // we will implement the interface in place, since its present in current module
-                    function->set_llvm_data(gen, func_ptr);
-                    if(func_ptr->size() == 1) {
-                        // remove the stub block present in functions internal to module
-                        auto& stubEntry = func_ptr->getEntryBlock();
-                        stubEntry.removeFromParent();
-                    }
-                    const auto final_specifier = is_linkage_public(linked->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
-                    // change the function's linkage to internal
-                    func_ptr->setLinkage(final_specifier);
-                    gen.createFunctionBlock(func_ptr);
-                }
-            }
+            strengthen_static_declare(gen, linked, nullptr);
         } else {
-            for (auto& function: instantiated_functions()) {
+            for (const auto function: instantiated_functions()) {
                 function->code_gen_declare_normal(gen);
             }
         }

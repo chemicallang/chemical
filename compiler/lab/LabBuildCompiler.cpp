@@ -587,10 +587,14 @@ void set_generated_instantiations(ASTNode* node) {
         case ASTNodeKind::InterfaceDecl: {
             // interfaces generate vtables for structs
             const auto interface = node->as_interface_def_unsafe();
-#ifdef COMPILER_BUILD
             // indicate vtables have been generated
+#ifdef COMPILER_BUILD
             for(const auto user : interface->users) {
                 interface->vtable_pointers[user] = nullptr;
+            }
+#else
+            for(const auto user : interface->users) {
+                interface->vtable_pointers[user] = true;
             }
 #endif
             break;

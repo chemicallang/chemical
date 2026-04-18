@@ -130,6 +130,8 @@ public:
      */
     void code_gen_bodies(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* user);
 
+    void strengthen_static_declare(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* node);
+
     void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen) final;

@@ -129,18 +129,24 @@ void InterfaceDefinition::code_gen_external_declare_for_user(Codegen& gen, Exten
 }
 
 void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
-    if(is_static()) {
-        extendable_external_declare(gen);
-    } else {
-        for (const auto user: users) {
-            code_gen_external_declare_for_user(gen, user);
-        }
-        if(generates_vtable()) {
-            // we generate the vtables, for which vtables exist we declare them, otherwise we create (implement) vtables
-            // it can be a new user (present in current module), if that's the case, vtable is created for it
-            for (const auto user: users) {
-                create_global_vtable(gen, user, vtable_pointers.contains(user));
+    if (is_static()) {
+        if (users.empty()) {
+            if (has_implementation()) {
+                code_gen_declare_for_user(gen, nullptr);
+            } else {
+                extendable_external_declare(gen);
             }
+            return;
+        }
+    }
+    for (const auto user: users) {
+        code_gen_external_declare_for_user(gen, user);
+    }
+    if(generates_vtable()) {
+        // we generate the vtables, for which vtables exist we declare them, otherwise we create (implement) vtables
+        // it can be a new user (present in current module), if that's the case, vtable is created for it
+        for (const auto user: users) {
+            create_global_vtable(gen, user, vtable_pointers.contains(user));
         }
     }
 }

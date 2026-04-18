@@ -128,14 +128,31 @@ void InterfaceDefinition::code_gen_external_declare_for_user(Codegen& gen, Exten
     active_user = prev_active_user;
 }
 
+void declare_static_interface(Codegen& gen, InterfaceDefinition* interface) {
+    const auto prev_user = interface->active_user;
+    interface->active_user = nullptr;
+    for (const auto func: interface->instantiated_functions()) {
+        const auto key = TraitImplFuncMapKey{ .interface = interface, .for_ = nullptr, .func = func };
+        auto found = gen.trait_impl_func_map.find(key);
+        if(found == gen.trait_impl_func_map.end()) {
+            gen.trait_impl_func_map.emplace(key, func->get_llvm_data(gen));
+        }
+    }
+    // going over inherited interfaces and calling the same function
+    for (auto& inh : interface->inherited) {
+        const auto can = inh.type->get_direct_linked_interface();
+        if (can) {
+            declare_static_interface(gen, can);
+        }
+    }
+    interface->active_user = prev_user;
+}
+
 void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
     if (is_static()) {
         if (users.empty()) {
-            if (has_implementation()) {
-                code_gen_declare_for_user(gen, nullptr);
-            } else {
-                extendable_external_declare(gen);
-            }
+            extendable_external_declare(gen);
+            declare_static_interface(gen, this);
             return;
         }
     }

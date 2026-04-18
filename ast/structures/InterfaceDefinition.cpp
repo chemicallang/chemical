@@ -69,11 +69,9 @@ void InterfaceDefinition::code_gen_declare_for_user(Codegen& gen, ExtendableMemb
 }
 
 void InterfaceDefinition::code_gen_declare(Codegen &gen) {
-    if(is_static()) {
-        for (const auto func: instantiated_functions()) {
-            if(!func->has_been_declared(gen)) {
-                func->code_gen_declare(gen, this);
-            }
+    if (users.empty()) {
+        if (is_static()) {
+            code_gen_declare_for_user(gen, nullptr);
         }
     } else {
         for(const auto use : users) {

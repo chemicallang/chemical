@@ -469,12 +469,10 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
                             if (structNode) {
                                 const auto container = structNode->as_extendable_member_container();
                                 if (container) {
-                                    const auto found = interface->users.find(container);
-                                    if (found != interface->users.end()) {
-                                        auto found_func_ptr = found->second.find(linked->as_function_unsafe());
-                                        if (found_func_ptr != found->second.end()) {
-                                            return found_func_ptr->second.func_pointer;
-                                        }
+                                    const auto key = TraitImplFuncMapKey { .interface = interface, .for_ = container, .func = linked->as_function_unsafe() };
+                                    const auto found = gen.trait_impl_func_map.find(key);
+                                    if (found != gen.trait_impl_func_map.end()) {
+                                        return found->second;
                                     }
                                 }
                             }

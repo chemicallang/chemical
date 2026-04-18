@@ -296,10 +296,10 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                     // scope name and module name of the impl
                     write_mangle_parent_of(*this, stream, interface);
                     // interface name
-                    stream << interface->name_view();
+                    container_name(stream, interface);
                     stream << '_';
                     // struct name (assuming its a extendable container, because struct type is referencing a container member, it has got to be a extendable container)
-                    stream << interface->active_user->name_view();
+                    container_name(stream, interface->active_user);
                     stream << '_';
                 } else {
                     mangle_non_func(stream, interface);
@@ -334,13 +334,13 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                         const auto base_interface = base_func->parent();
                         if (base_interface && base_interface->kind() == ASTNodeKind::InterfaceDecl) {
                             // interface name
-                            stream << base_interface->as_interface_def_unsafe()->name_view();
+                            container_name(stream, base_interface->as_interface_def_unsafe());
                         } else {
-                            stream << interface->name_view();
+                            container_name(stream, interface);
                         }
                         stream << '_';
                         // struct name (assuming its a extendable container, because struct type is referencing a container member, it has got to be a extendable container)
-                        stream << can_node->as_extendable_members_container_unsafe()->name_view();
+                        container_name(stream, can_node->as_extendable_members_container_unsafe());
                         stream << '_';
                     } else {
                         // since this method is on native types, we need to figure out how to mangle it

@@ -323,7 +323,7 @@ ASTNode* BaseType::get_ref_or_linked_node() {
 }
 
 StructDefinition* BaseType::get_direct_linked_struct() {
-    const auto ref_node = get_direct_linked_node();
+    const auto ref_node = get_direct_linked_canonical_node();
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
@@ -333,7 +333,7 @@ MembersContainer* BaseType::get_direct_linked_container() {
 }
 
 InterfaceDefinition* BaseType::get_direct_linked_interface() {
-    const auto ref_node = get_direct_linked_node();
+    const auto ref_node = get_direct_linked_canonical_node();
     return ref_node ? ref_node->as_interface_def() : nullptr;
 }
 
@@ -343,7 +343,7 @@ StructDefinition* BaseType::get_ref_or_linked_struct() {
 }
 
 VariantDefinition* BaseType::get_direct_linked_variant() {
-    const auto ref_node = get_direct_linked_node();
+    const auto ref_node = get_direct_linked_canonical_node();
     return ref_node ? ref_node->as_variant_def() : nullptr;
 }
 

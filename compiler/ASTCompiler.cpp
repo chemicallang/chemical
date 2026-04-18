@@ -332,6 +332,10 @@ int ASTProcessor::compile_module(
     // clearing this after module has compiled prevents reusing function callee's created
     // for this module, forces us to redeclare functions and structs in external module
     gen.mod_ptr_cache.clear();
+    // here we store pointers (function callee values) for functions in different implementations
+    // llvm pointers for functions inside impl blocks (that implement interfaces for structs) are stored here
+    // clearing this has the same advantage of preventing reuse
+    gen.trait_impl_func_map.clear();
 
     return 0;
 

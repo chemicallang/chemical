@@ -14,33 +14,26 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDeclaration* func) {
-    for(auto& use : users) {
-        auto& user = users[use.first];
-        active_user = use.first;
-        auto found = user.find(func);
-        if(found == user.end()) {
-            func->code_gen_declare(gen, this);
-            user[func] = { (llvm::Function*) func->llvm_pointer(gen) };
-        } else {
-            // impl probably came first and basically set the function pointer
-        }
-    }
-    active_user = nullptr;
-}
-
 void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
-    for(auto& use : users) {
-        auto llvm_itr = use.second.find(func);
-        if(llvm_itr == use.second.end()) {
-            gen.error("couldn't find overridable information for function", func);
-            continue;
+    const auto prev_user = active_user;
+    for(const auto user : users) {
+        const auto key = TraitImplFuncMapKey { .interface = this,.for_ = user, .func = func };
+        auto found = gen.trait_impl_func_map.find(key);
+        if (found == gen.trait_impl_func_map.end()) {
+            // this should not happen
+            // we try to declare and override the function
+            // function should have been declared
+            active_user = user;
+            func->code_gen_declare(gen, this);
+            const auto func_ptr = func->get_llvm_data(gen);
+            func->code_gen_override(gen, func_ptr);
+            gen.trait_impl_func_map.emplace(key, func_ptr);
+        } else {
+            active_user = user;
+            func->code_gen_override(gen, found->second);
         }
-        auto& overridable_info = llvm_itr->second;
-        active_user = use.first;
-        func->code_gen_override(gen, overridable_info.func_pointer);
     }
-    active_user = nullptr;
+    active_user = prev_user;
 }
 
 void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
@@ -52,6 +45,29 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
     // however since interface doesn't generate any body so we do nothing
 }
 
+void InterfaceDefinition::code_gen_declare_for_user(Codegen& gen, ExtendableMembersContainerNode* node) {
+    const auto prev_user = active_user;
+    active_user = node;
+    for (const auto func: instantiated_functions()) {
+        const auto key = TraitImplFuncMapKey{ .interface = this, .for_ = node, .func = func };
+        auto found = gen.trait_impl_func_map.find(key);
+        if(found == gen.trait_impl_func_map.end()) {
+            func->code_gen_declare(gen, this);
+            gen.trait_impl_func_map.emplace(key, func->get_llvm_data(gen));
+        } else {
+            // impl probably came first and basically set the function pointer
+        }
+    }
+    // going over inherited interfaces and calling the same function
+    for (auto& inh : inherited) {
+        const auto can = inh.type->get_direct_linked_interface();
+        if (can) {
+            can->code_gen_declare_for_user(gen, node);
+        }
+    }
+    active_user = prev_user;
+}
+
 void InterfaceDefinition::code_gen_declare(Codegen &gen) {
     if(is_static()) {
         for (const auto func: instantiated_functions()) {
@@ -60,8 +76,8 @@ void InterfaceDefinition::code_gen_declare(Codegen &gen) {
             }
         }
     } else {
-        for (const auto& function: instantiated_functions()) {
-            code_gen_declare_for_users(gen, function);
+        for(const auto use : users) {
+            code_gen_declare_for_user(gen, use);
         }
     }
 }
@@ -72,44 +88,60 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
     } else {
         if(generates_vtable()) {
             // generating vtables for each user struct
-            for (auto& user: users) {
-                llvm_build_vtable(gen, user.first);
+            for (const auto user: users) {
+                llvm_build_vtable(gen, user);
             }
         }
     }
+}
+
+void InterfaceDefinition::code_gen_external_declare_for_user(Codegen& gen, ExtendableMembersContainerNode* user) {
+    const auto prev_active_user = user;
+    active_user = user;
+    const auto mod_scope = user->get_mod_scope();
+    if (mod_scope == nullptr) {
+        gen.error("couldn't find module scope", this);
+        gen.warn("couldn't find module scope of user struct when declaring interface (of external module) implementations", user);
+    }
+    for(const auto func : instantiated_functions()) {
+        const auto key = TraitImplFuncMapKey{ this, user, func };
+        auto found = gen.trait_impl_func_map.find(key);
+        if (found == gen.trait_impl_func_map.end()) {
+            // if user is of current module
+            // it means it hasn't ever been implemented (because this interface is external & its a new user)
+            // we must declare the function (create the stub), so impl can generate body later on
+            if (gen.current_module == mod_scope) {
+                // we declare and generate the (stub) body so users (structs) can override it)
+                func->code_gen_declare(gen, this);
+            } else {
+                // external function (needs redeclaration, llvm pointer from another module becomes invalid)
+                func->code_gen_external_declare(gen);
+            }
+            gen.trait_impl_func_map.emplace(key, func->get_llvm_data(gen));
+        }
+    }
+    // going over inherited interfaces and calling the same function
+    for (auto& inh : inherited) {
+        const auto can = inh.type->get_direct_linked_interface();
+        if (can) {
+            can->code_gen_external_declare_for_user(gen, user);
+        }
+    }
+    active_user = prev_active_user;
 }
 
 void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
     if(is_static()) {
         extendable_external_declare(gen);
     } else {
-        // for each function:
-        // we find their users, which contain function pointers, if function pointer exists, we declare the function
-        // if no function pointer exists, we have to assume no implementation exists, and generate as usual, so users can override it
-        for(auto& func : instantiated_functions()) {
-            for (auto& use: users) {
-                auto& user = users[use.first];
-                active_user = use.first;
-                auto found = user.find(func);
-                if(found == user.end()) {
-                    // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
-                    func->code_gen_declare(gen, this);
-                } else {
-                    // since function pointer exists
-                    // however because the function is from other module, this function pointer is invalid in this module
-                    // we must declare the function and reset the function pointer for the user
-                    func->code_gen_external_declare(gen);
-                }
-                user[func] = { (llvm::Function*) func->llvm_pointer(gen) };
-            }
-            active_user = nullptr;
+        for (const auto user: users) {
+            code_gen_external_declare_for_user(gen, user);
         }
         if(generates_vtable()) {
-            // now we regenerate the vtables, for which vtables exist we declare them, otherwise we rebuilt vtables
-            for (auto& use: users) {
-                auto found = vtable_pointers.find(use.first);
-                // we found the vtable, we must redeclare it in this module otherwise we regenerate it
-                create_global_vtable(gen, use.first, found != vtable_pointers.end());
+            // we generate the vtables, for which vtables exist we declare them, otherwise we create (implement) vtables
+            // it can be a new user (present in current module), if that's the case, vtable is created for it
+            for (const auto user: users) {
+                create_global_vtable(gen, user, vtable_pointers.contains(user));
             }
         }
     }
@@ -149,18 +181,14 @@ llvm::StructType* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
 }
 
 void InterfaceDefinition::llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
-    auto found = users.find(for_struct);
-    if(found != users.end()) {
-        for(auto& func : instantiated_functions()) {
-            auto func_res = found->second.find(func);
-            if(func_res != found->second.end()) {
-                llvm_pointers.emplace_back(func_res->second.func_pointer);
-            } else {
-                gen.error((AnnotableNode*) func) << "couldn't find function impl pointer, name '" << func->name_view() << "' for struct '" << for_struct->name_view() << "' for interface '" << name_view() << "'";
-            }
+    for(const auto func : instantiated_functions()) {
+        const auto key = TraitImplFuncMapKey { .interface = this, .for_ = for_struct, .func = func };
+        auto found = gen.trait_impl_func_map.find(key);
+        if (found != gen.trait_impl_func_map.end()) {
+            llvm_pointers.emplace_back(found->second);
+        } else {
+            gen.error((AnnotableNode*) func) << "couldn't find function impl pointer, name '" << func->name_view() << "' for struct '" << for_struct->name_view() << "' for interface '" << name_view() << "'";
         }
-    } else {
-        gen.error((AnnotableNode*) for_struct) << "couldn't find struct '" << for_struct->name_view() << "' implementation pointers for interface '" << name_view() << "'";
     }
 }
 

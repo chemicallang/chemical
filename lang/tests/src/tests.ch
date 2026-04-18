@@ -67,6 +67,7 @@ func run_executable_tests() {
     test_basic_interfaces()
     test_zeroed_value()
     test_struct_values()
+    test_for_in()
 }
 
 public func main(argc : int, argv : **char) : int {

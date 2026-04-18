@@ -62,8 +62,14 @@ bool LinkedType::satisfies(BaseType *other_impure) {
                 } else {
                     const auto interface = linked->as_interface_def_unsafe();
                     if (other_linked->kind() == ASTNodeKind::StructDecl || other_linked->kind() == ASTNodeKind::UnionDecl || other_linked->kind() == ASTNodeKind::VariantDecl) {
-                        auto found = interface->users.find(other_linked->as_extendable_members_container_unsafe());
-                        return found != interface->users.end();
+                        // check if other_linked is a user of interface
+                        // may suck if an interface has too many users (structs implementing it)
+                        for (const auto user : interface->users) {
+                            if (user == other_linked->as_extendable_members_container_unsafe()) {
+                                return true;
+                            }
+                        }
+                        return false;
                     } else if (other_linked->kind() == ASTNodeKind::InterfaceDecl) {
                         return other_linked->as_interface_def_unsafe()->extends_node(interface);
                     } else if(other_linked->kind() == ASTNodeKind::GenericTypeParam) {

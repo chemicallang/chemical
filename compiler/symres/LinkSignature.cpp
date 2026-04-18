@@ -1538,6 +1538,13 @@ void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
                 }
             }
         }
+        // putting indexes of interface into impl
+        auto& container_indexes = decl->indexes;
+        auto& sub_container_indexes = interface->indexes;
+        container_indexes.reserve(container_indexes.size() + sub_container_indexes.size());
+        for(auto& index : sub_container_indexes) {
+            container_indexes.try_emplace(index.first, index.second);
+        }
         // we also index implementation methods with key of base methods they are overriding
         // for faster access and to reduce ambiguity
         decl->index_implementations(linker.controller, linker, interface);

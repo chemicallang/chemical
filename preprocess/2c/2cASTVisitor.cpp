@@ -3527,45 +3527,37 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
         status.has_declared = true;
 
         // either create or declare the vtable, depending on whether it has been declared before
-        for(auto& user : def->users) {
-            const auto linked_struct = user.first;
-            if(linked_struct) {
+        for(const auto linked_struct : def->users) {
 
-                // checking if vtable implementation exists or not
-#ifdef COMPILER_BUILD
-                auto vtable_done = def->vtable_pointers.find(linked_struct);
-                const auto has_vtable_impl = vtable_done != def->vtable_pointers.end();
-#else
-                const auto has_vtable_impl = user.second;
-#endif
+            // checking if vtable implementation exists or not
+            auto vtable_done = def->vtable_pointers.find(linked_struct);
+            const auto has_vtable_impl = vtable_done != def->vtable_pointers.end();
 
-                // if it doesn't exit emit a vtable struct
-                if(!has_vtable_impl) {
+            // if it doesn't exit emit a vtable struct
+            if(!has_vtable_impl) {
 
-                    // declare contained functions for each implementation
-                    auto& use = user;
-                    def->active_user = use.first;
-                    for (auto& func: def->instantiated_functions()) {
-                        declare_contained_func(this, func, false, use.first);
-                    }
-                    def->active_user = nullptr;
+                // declare contained functions for each implementation
+                def->active_user = linked_struct;
+                for (auto& func: def->instantiated_functions()) {
+                    declare_contained_func(this, func, false, linked_struct);
+                }
+                def->active_user = nullptr;
 
-                    // create the v table for each implementation
-                    if(def->generates_vtable()) {
-                        create_v_table(visitor, def, linked_struct);
-                    }
-
-
-                    // setting it true, that vtable implementation exists
-#ifdef COMPILER_BUILD
-                    def->vtable_pointers[linked_struct] = nullptr;
-#else
-                    def->users[linked_struct] = true;
-#endif
-
+                // create the v table for each implementation
+                if(def->generates_vtable()) {
+                    create_v_table(visitor, def, linked_struct);
                 }
 
+
+                // setting it true, that vtable implementation exists
+#ifdef COMPILER_BUILD
+                def->vtable_pointers[linked_struct] = nullptr;
+#else
+                def->vtable_pointers[linked_struct] = true;
+#endif
+
             }
+
         }
     }
 }
@@ -3992,6 +3984,14 @@ void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
     loop_scope(*this, forLoop->body);
 }
 
+void visit_loop_elem_type(ToCAstVisitor& visitor, ForInLoop* node) {
+    if (node->is_reference()) {
+        visitor.visit(node->elem_type->as_reference_type_unsafe()->type);
+    } else {
+        visitor.visit(node->elem_type);
+    }
+}
+
 void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
     const auto exprType = node->expr->getType()->canonical();
@@ -4035,7 +4035,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     auto& temp_var = end_ptr_var_name;
 
     // the current pointer
-    visit(node->elem_type);
+    visit_loop_elem_type(*this, node);
     write("* ");
     if (node->is_reversed()) {
         write(end_ptr_var_name);
@@ -4060,7 +4060,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     new_line_and_indent();
 
     // the end pointer
-    visit(node->elem_type);
+    visit_loop_elem_type(*this, node);
     write("* ");
     if (node->is_reversed()) {
         write(node->id);

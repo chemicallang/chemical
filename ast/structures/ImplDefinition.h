@@ -125,6 +125,11 @@ public:
      */
     void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
 
+    /**
+     * code gen bodies of functions in the given interface by finding implementations in this impl
+     */
+    void code_gen_bodies(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* user);
+
     void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen) final;

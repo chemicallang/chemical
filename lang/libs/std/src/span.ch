@@ -49,6 +49,15 @@ public struct span<T> {
         return _size == 0;
     }
 
+    impl core::iterable::Linear<T> for span<T> {
+        func data(&self) : *T {
+            return _data;
+        }
+        func size(&self) : size_t {
+            return _size
+        }
+    }
+
 }
 
 }

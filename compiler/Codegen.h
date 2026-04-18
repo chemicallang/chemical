@@ -21,6 +21,7 @@
 #include "compiler/backend/include/LLVMArrayDestructor.h"
 #include "CodegenOptions.h"
 #include "compiler/backend/LLVMGen.h"
+#include "utils/TraitImplFuncMapKey.h"
 
 class ASTAllocator;
 
@@ -174,6 +175,13 @@ public:
      * reusing pointers that have become invalid
      */
     std::unordered_map<ASTNode*, llvm::Value*> mod_ptr_cache;
+
+    /**
+     * this keeps track of llvm pointers for functions that we created in different implementations
+     * that implement interfaces for structs
+     * everytime you write 'impl Interface for Struct' we store llvm function pointers in that block here
+     */
+    std::unordered_map<TraitImplFuncMapKey, llvm::Function*, TraitImplFuncMapKeyHash> trait_impl_func_map;
 
     /**
      * TargetTriple , which we are generating code for !

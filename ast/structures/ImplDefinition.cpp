@@ -14,6 +14,7 @@
 #include "compiler/llvmimpl.h"
 
 void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked, ExtendableMembersContainerNode* struct_def) {
+    // TODO: this is not the best way to get the base function
     auto overridden = linked->get_func_with_signature(decl);
     if (overridden.first) {
         const auto interface_def = overridden.first->as_interface_def();
@@ -22,13 +23,14 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
             return;
         }
         if(struct_def && !interface_def->is_static()) {
-            const auto& use = interface_def->users[struct_def];
-            auto found = use.find(overridden.second);
-            if(found == use.end()) {
-                gen.error("failed to override function in impl because declaration not found", (AnnotableNode*) decl);
+            // lets get the function pointer for this base function
+            const auto key = TraitImplFuncMapKey { .interface = interface_def, .for_ = struct_def, .func = overridden.second };
+            auto found = gen.trait_impl_func_map.find(key);
+            if (found == gen.trait_impl_func_map.end()) {
+                gen.error("failed to find declared function pointer when implementing body", decl);
                 return;
             }
-            const auto func_pointer = found->second.func_pointer;
+            const auto func_pointer = found->second;
             decl->set_llvm_data(gen, func_pointer);
             decl->code_gen_override(gen, func_pointer);
         } else {
@@ -49,6 +51,54 @@ void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* d
     code_gen_function(gen, decl, linked, container);
 }
 
+void ImplDefinition::code_gen_bodies(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* user) {
+    for (const auto func : interface->instantiated_functions()) {
+        // TODO: find a better way to get the implementation function, currently using name
+        // why can't we use the override_map (because that maps functions from the master interface)
+        // however this interface is an instantiated interface (not the template)
+        const auto decl = direct_child_function(func->name_view());
+        if (decl == nullptr && !func->body.has_value()) {
+            gen.error("couldn't find implementation function when implementing body", func);
+            gen.warn("failed to implement impl", this);
+            continue;
+        }
+        if (interface->is_static()) {
+            const auto func_pointer = func->llvm_func(gen);
+            gen.cleanFunctionEntryBlock(func_pointer);
+            if (decl == nullptr) {
+                // we have a default implementation available
+                func->code_gen_override(gen, func_pointer);
+            } else {
+                decl->set_llvm_data(gen, func_pointer);
+                decl->code_gen_override(gen, func_pointer);
+            }
+        } else {
+            // lets get the function pointer for this base function
+            const auto key = TraitImplFuncMapKey { .interface = interface, .for_ = user, .func = func };
+            auto found = gen.trait_impl_func_map.find(key);
+            if (found == gen.trait_impl_func_map.end()) {
+                gen.error("failed to find declared function pointer when implementing body", func);
+                gen.warn("failed to implement impl", this);
+                continue;
+            }
+            const auto func_pointer = found->second;
+            if (decl == nullptr) {
+                func->code_gen_override(gen, func_pointer);
+            } else {
+                decl->set_llvm_data(gen, func_pointer);
+                decl->code_gen_override(gen, func_pointer);
+            }
+        }
+    }
+    // going over inherited interfaces to implement the given interface
+    for (auto& inh : interface->inherited) {
+        const auto can = inh.type->get_direct_linked_interface();
+        if (can) {
+            code_gen_bodies(gen, can, user);
+        }
+    }
+}
+
 void ImplDefinition::code_gen_declare(Codegen &gen) {
     if(struct_type == nullptr) return;
     const auto linked = interface_type->get_direct_linked_interface();
@@ -56,27 +106,10 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     const auto canonical_node = struct_type->get_direct_linked_canonical_node();
     const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_def) {
-        // linked->active_user = struct_def;
-        // for (auto& function : instantiated_functions()) {
-        //     auto overridden = linked->get_func_with_signature(function);
-        //     if(overridden.second == nullptr) {
-        //         gen.error("couldn't get base function when determining function pointer", (AnnotableNode*) function);
-        //     } else {
-        //         const auto func = overridden.second;
-        //         const auto func_ptr = func->get_declared_func(gen);
-        //         if(func_ptr == nullptr) {
-        //             // impl probably came before the interface, so now we declare it before interface
-        //             func->code_gen_declare(gen, linked);
-        //             auto& use = linked->users[struct_def];
-        //             const auto new_func_ptr = func->get_llvm_data(gen);
-        //             use[func] = { new_func_ptr, false };
-        //             function->set_llvm_data(gen, new_func_ptr);
-        //         } else {
-        //             function->set_llvm_data(gen, func_ptr);
-        //         }
-        //     }
-        // }
-        // linked->active_user = nullptr;
+        // impl came before interface (but thats not the problem)
+        // or impl exists in this module and interface exists in a non-imported module
+        // in this case we need to declare the methods
+        linked->code_gen_declare_for_user(gen, struct_def);
     } else {
         if(linked->is_static()) {
             for (const auto function: instantiated_functions()) {
@@ -120,42 +153,12 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     }
 }
 
-void create_default_implementations(Codegen& gen, InterfaceDefinition* interface, ImplDefinition* implDef, ExtendableMembersContainerNode* def) {
-    // do inherited functions
-    for (auto& inh : interface->inherited) {
-        const auto node = inh.type->get_direct_linked_canonical_node();
-        if (node && node->kind() == ASTNodeKind::InterfaceDecl) {
-            create_default_implementations(gen, node->as_interface_def_unsafe(), implDef, def);
-        }
-    }
-    // do direct functions
-    for (const auto funcNode : interface->evaluated_nodes()) {
-        if (funcNode->kind() == ASTNodeKind::FunctionDecl) {
-            const auto func = funcNode->as_function_unsafe();
-            // TODO: we use the name to get the override
-            // multiple functions can have the same name, so we must lookup exact function override
-            // currently work is remaining to support syntax to explicitly specify parent
-            const auto overridden = implDef->direct_child_function(func->name_view());
-            if (overridden == nullptr) {
-                auto found_user = interface->users.find(def);
-                if (found_user != interface->users.end()) {
-                    auto llvmPtr = found_user->second.find(func);
-                    if (llvmPtr != found_user->second.end()) {
-                        // found the function pointer
-                        func->code_gen_override(gen, llvmPtr->second.func_pointer);
-                    }
-                }
-            }
-        }
-    }
-}
-
 void ImplDefinition::code_gen(Codegen &gen) {
     const auto linked = interface_type->get_direct_linked_interface();
     const auto canonical_node = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
     const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
     if(struct_type != nullptr && struct_def == nullptr) {
-        // struct type is given, but probably primitive
+        // struct type is given, but no definition, probably primitive
         for (const auto function: instantiated_functions()) {
             function->code_gen_body(gen);
         }
@@ -163,13 +166,10 @@ void ImplDefinition::code_gen(Codegen &gen) {
             linked->create_global_vtable(gen, this, struct_type, false);
         }
     } else {
-        if (linked && struct_def) {
-            create_default_implementations(gen, linked, this, struct_def);
-        }
-        for (const auto function: instantiated_functions()) {
-            code_gen_function(gen, function, linked, struct_def);
-        }
-        if (linked && linked->generates_vtable() && struct_def) {
+        // struct_def nullable is acceptable to this function
+        code_gen_bodies(gen, linked, struct_def);
+        if (linked->generates_vtable() && struct_def) {
+            // this only creates the vtable (if it doesn't already exist)
             linked->llvm_global_vtable(gen, struct_def);
         }
     }
@@ -178,17 +178,27 @@ void ImplDefinition::code_gen(Codegen &gen) {
 void ImplDefinition::code_gen_external_declare(Codegen &gen) {
     // const auto linked = interface_type->linked_node()->as_interface_def();
     if(struct_type == nullptr) return;
+    const auto interface = interface_type->get_direct_linked_interface();
     // struct type is given, but probably primitive
     const auto canonical_node = struct_type->get_direct_linked_canonical_node();
-    const auto struct_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
-    if(struct_def) {
-        // nothing to do here
+    const auto user_def = canonical_node ? canonical_node->as_extendable_member_container() : nullptr;
+    if(user_def) {
+        // suppose user imported a module that contains this impl, but not the interface
+        // we must declare the methods and vtable, so user can call them
+        // but if interface & impl are in the same module, this leads to multiple declarations (because code_gen_external_declare called on both of them)
+        // currently we are letting this happen
+        interface->code_gen_external_declare_for_user(gen, user_def);
+        if(interface->generates_vtable()) {
+            // declare the vtable if it hasn't been declared (because maybe interface is not present in same module, so we must declare)
+            // always declare, creation is handled in code_gen
+            // it will never be a new user, because this impl is present in external module
+            interface->create_global_vtable(gen, user_def, true);
+        }
     } else {
         if(!is_linkage_public(specifier())) {
             return;
         }
-        const auto interface = interface_type->get_direct_linked_interface();
-        for (auto& function: instantiated_functions()) {
+        for (const auto function: instantiated_functions()) {
             function->code_gen_external_declare(gen, AccessSpecifier::Public);
         }
         // just declare the global vtable for this primitive impl Again.

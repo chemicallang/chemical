@@ -324,23 +324,29 @@ public:
         shallow_copy_evaluated_nodes(other, allocator);
     }
 
-private:
-    // a helper for copying nodes with an allocator
-    static void copy_nodes_into(ASTAllocator& allocator, std::vector<ASTNode*>& from, std::vector<ASTNode*>& into, ASTNode* new_parent) {
-        into.reserve(from.size());
-        for (const auto func : from) {
-            const auto func_copy = func->copy(allocator);
-            func_copy->set_parent(new_parent);
-            into.emplace_back(func_copy);
-        }
-    }
-public:
     /**
      * copy this container into the given container, this includes functions and other nodes
      */
     void copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::copy_into(other, allocator);
-        copy_nodes_into(allocator, evaluated_container, other.evaluated_container, &other);
+        auto& from = evaluated_container;
+        auto& into = other.evaluated_container;
+        into.reserve(from.size());
+        for (const auto func : from) {
+            const auto func_copy = func->copy(allocator);
+            func_copy->set_parent(&other);
+            into.emplace_back(func_copy);
+            switch (func_copy->kind()) {
+                case ASTNodeKind::FunctionDecl:
+                    other.indexes.emplace(func_copy->as_function_unsafe()->name_view(), func_copy);
+                    break;
+                case ASTNodeKind::GenericFuncDecl:
+                    other.indexes.emplace(func_copy->as_gen_func_decl_unsafe()->name_view(), func_copy);
+                    break;
+                default:
+                    continue;
+            }
+        }
     }
 
     /**

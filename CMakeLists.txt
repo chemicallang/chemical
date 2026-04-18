@@ -720,6 +720,7 @@ set(COMPILER_SOURCES
         compiler/CodegenOptions.h
         compiler/backend/LLVMGen.h
         compiler/backend/LLVMGen.cpp
+        compiler/utils/TraitImplFuncMapKey.h
 )
 
 # add Compiler executable

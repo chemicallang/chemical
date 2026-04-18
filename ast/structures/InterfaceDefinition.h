@@ -63,14 +63,6 @@ struct InterfaceDefinitionAttrs {
 
 static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
 
-struct OverridableFunctionInfo {
-#ifdef COMPILER_BUILD
-    llvm::Function* func_pointer;
-#else
-    FunctionDeclaration* func_pointer;
-#endif
-};
-
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
@@ -80,22 +72,18 @@ public:
     LinkedType linked_type;
 
     /**
-     * the parent node of the interface
+     * users of this interface,
      */
-    /**
-     * users are registered so we can declare functions before hand
-     */
-#ifdef COMPILER_BUILD
-    tsl::ordered_map<ExtendableMembersContainerNode*, std::unordered_map<FunctionDeclaration*, OverridableFunctionInfo>> users;
-#else
-    tsl::ordered_map<ExtendableMembersContainerNode*, bool> users;
-#endif
-#ifdef COMPILER_BUILD
+    std::vector<ExtendableMembersContainerNode*> users;
+
     /**
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
+#ifdef COMPILER_BUILD
     std::unordered_map<ExtendableMembersContainerNode*, llvm::Value*> vtable_pointers;
+#else
+    std::unordered_map<ExtendableMembersContainerNode*, bool> vtable_pointers;
 #endif
 
     /**
@@ -202,11 +190,7 @@ public:
      * which should be registered by calling register_use_to_inherited_interfaces
      */
     void register_use(ExtendableMembersContainerNode* definition) {
-#ifdef COMPILER_BUILD
-        users[definition] = {};
-#else
-        users[definition] = false;
-#endif
+        users.emplace_back(definition);
         attrs.has_implementation = true;
     }
 
@@ -222,10 +206,6 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    /**
-     * this declaration will be generated for all the users of this interface
-     */
-    void code_gen_declare_for_users(Codegen& gen, FunctionDeclaration* decl);
 
     /**
      * this declaration will be generated for all the users of this interface
@@ -243,6 +223,12 @@ public:
      * read the documentation in this decl
      */
     void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
+     * code_gen_declare for users
+     *
+     */
+    void code_gen_declare_for_user(Codegen& gen, ExtendableMembersContainerNode* node);
 
     /**
      * sets up function pointers for users of this interface
@@ -310,6 +296,11 @@ public:
         auto found = vtable_pointers.find(for_struct);
         return found != vtable_pointers.end() ? found->second : create_global_vtable(gen, for_struct, false);
     }
+
+    /**
+     * externally declares the methods for this interface and inherited
+     */
+    void code_gen_external_declare_for_user(Codegen& gen, ExtendableMembersContainerNode* user);
 
     /**
      * externally declares the

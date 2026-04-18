@@ -584,6 +584,17 @@ void set_generated_instantiations(ASTNode* node) {
             }
             break;
         }
+        case ASTNodeKind::InterfaceDecl: {
+            // interfaces generate vtables for structs
+            const auto interface = node->as_interface_def_unsafe();
+#ifdef COMPILER_BUILD
+            // indicate vtables have been generated
+            for(const auto user : interface->users) {
+                interface->vtable_pointers[user] = nullptr;
+            }
+#endif
+            break;
+        }
         case ASTNodeKind::IfStmt: {
             const auto stmt = node->as_if_stmt_unsafe();
             if(stmt->computed_scope.has_value()) {
@@ -594,29 +605,6 @@ void set_generated_instantiations(ASTNode* node) {
                     }
                 }
             }
-            break;
-        }
-        case ASTNodeKind::InterfaceDecl: {
-            // interfaces generate vtables for structs
-            const auto interface = node->as_interface_def_unsafe();
-#ifdef COMPILER_BUILD
-            // indicate that functions have been generated
-            for(const auto func : interface->instantiated_functions()) {
-                for(auto& use : interface->users) {
-                    auto& user = interface->users[use.first];
-                    user[func] = { nullptr };
-                }
-            }
-            // indicate vtables have been generated
-            for(auto& user : interface->users) {
-                interface->vtable_pointers[user.first] = nullptr;
-            }
-#else
-            // indicate that functions have been generated
-            for(auto user : interface->users) {
-                interface->users[user.first] = true;
-            }
-#endif
             break;
         }
         case ASTNodeKind::GenericStructDecl:{

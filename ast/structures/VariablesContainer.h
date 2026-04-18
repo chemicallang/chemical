@@ -142,9 +142,8 @@ public:
      * a variable is inserted into the container without check
      */
     void insert_variable_no_check(BaseDefMember* member) {
-        const auto index = static_cast<int>(variables_container.size());
         variables_container.emplace_back(member);
-        indexes[member->name] = member;
+        indexes.emplace(member->name, member);
     }
 
     /**
@@ -335,6 +334,10 @@ public:
         for(auto& inh : inherited) {
             other.inherited.emplace_back(inh.type.copy(allocator), inh.specifier);
         }
+        // these indexes will most definitely be replaced
+        // must not leave a single pointer (that lives directly inside this container)
+        // this only ensures that inherited indexes are properly propagated
+        other.indexes = indexes;
         other.variables_container.reserve(variables_container.size());
         for(auto& var : variables_container) {
             const auto var_copy = var->copy_member(allocator);

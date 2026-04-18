@@ -182,6 +182,15 @@ public struct vector<T> {
         }
     }
 
+    impl core::iterable::Linear<T> for vector<T> {
+        func data(&self) : *T {
+            return data_ptr;
+        }
+        func size(&self) : size_t {
+            return data_size
+        }
+    }
+
 }
 
 }

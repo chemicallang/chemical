@@ -1,3 +1,7 @@
+struct ForInSpanPoint {
+    var i : int
+}
+
 func test_for_in_span() {
     test("can iterate over span", () => {
         const arr : []int = [10, 10, 10, 10, 20]
@@ -32,6 +36,42 @@ func test_for_in_span() {
         var total = 0;
         for(var& i in s reversed) {
             total += *i
+        }
+        return total == 70
+    })
+    test("can iterate over span of struct", () => {
+        const arr : []ForInSpanPoint = [ ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 5 }, ForInSpanPoint { i : 15 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 20 }]
+        var s = std::span<ForInSpanPoint>(arr)
+        var total = 0;
+        for(var i in s) {
+            total += i.i
+        }
+        return total == 60
+    })
+    test("can iterate over span of struct in reverse", () => {
+        const arr : []ForInSpanPoint = [ ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 5 }, ForInSpanPoint { i : 15 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 20 }]
+        var s = std::span<ForInSpanPoint>(arr)
+        var total = 0;
+        for(var i in s reversed) {
+            total += i.i
+        }
+        return total == 60
+    })
+    test("can iterate over span of struct using a reference", () => {
+        const arr : []ForInSpanPoint = [ ForInSpanPoint { i : 20 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 20 }]
+        var s = std::span<ForInSpanPoint>(arr)
+        var total = 0;
+        for(var& i in s) {
+            total += i.i
+        }
+        return total == 70
+    })
+    test("can iterate over span of struct using a reference in reverse", () => {
+        const arr : []ForInSpanPoint = [ ForInSpanPoint { i : 20 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 10 }, ForInSpanPoint { i : 20 }]
+        var s = std::span<ForInSpanPoint>(arr)
+        var total = 0;
+        for(var& i in s reversed) {
+            total += i.i
         }
         return total == 70
     })

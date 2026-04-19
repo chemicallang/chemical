@@ -832,6 +832,10 @@ bool is_value_type_pointer_like(Value* value) {
                 }
                 return false;
             }
+            case ASTNodeKind::ForInLoopStmt: {
+                const auto stmt = linked->as_for_in_loop_unsafe();
+                return stmt->is_reference();
+            }
             case ASTNodeKind::CapturedVariable: {
                 const auto cap = linked->as_captured_var_unsafe();
                 if(cap->capture_by_ref) {
@@ -6337,10 +6341,14 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
             }
             case ASTNodeKind::ForInLoopStmt: {
                 const auto stmt = linked->as_for_in_loop_unsafe();
-                if (!stmt->is_reference()) {
-                    write('*');
+                if (stmt->is_reference()) {
+                    write(stmt->id);
+                    return;
                 }
+                write('(');
+                write('*');
                 write(stmt->id);
+                write(')');
                 return;
             }
             case ASTNodeKind::CapturedVariable:{

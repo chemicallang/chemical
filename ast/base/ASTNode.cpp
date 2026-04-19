@@ -641,7 +641,7 @@ BaseType* ASTNode::get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k)
         }
         case ASTNodeKind::ForInLoopStmt: {
             const auto stmt = as_for_in_loop_unsafe();
-            return stmt->elem_type;
+            return stmt->getIterationElementActualType();
         }
         case ASTNodeKind::CapturedVariable: {
             return as_captured_var_unsafe()->known_type();

@@ -192,6 +192,10 @@ llvm::Value* ForInLoop::llvm_load(Codegen& gen, SourceLocation location) {
     return loadInst;
 }
 
+bool ForInLoop::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
+    return elem_type->linked_node()->add_child_index(gen, indexes, name);
+}
+
 #endif
 
 void ForLoop::stopInterpretation() {

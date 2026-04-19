@@ -123,6 +123,8 @@ public:
 
     llvm::Value* llvm_load(Codegen& gen, SourceLocation location) override;
 
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name) override;
+
 #endif
 
     void stopInterpretation() final;

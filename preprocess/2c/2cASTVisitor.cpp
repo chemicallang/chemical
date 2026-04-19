@@ -3985,11 +3985,7 @@ void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
 }
 
 void visit_loop_elem_type(ToCAstVisitor& visitor, ForInLoop* node) {
-    if (node->is_reference()) {
-        visitor.visit(node->elem_type->as_reference_type_unsafe()->type);
-    } else {
-        visitor.visit(node->elem_type);
-    }
+    visitor.visit(node->getIterationElementActualType());
 }
 
 void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {

@@ -101,6 +101,10 @@ public:
         return loop;
     }
 
+    BaseType* getIterationElementActualType() const noexcept {
+        return is_reference() ? elem_type->as_reference_type_unsafe()->type : elem_type;
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final;

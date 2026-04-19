@@ -50,6 +50,7 @@ void ForLoop::code_gen(Codegen &gen) {
 void ForInLoop::code_gen(Codegen &gen) {
     const auto location = encoded_location();
     const auto exprType = expr->getType()->canonical();
+    const auto itrElemType = getIterationElementActualType();
 
     FunctionDeclaration* iter_data_fn = nullptr;
     FunctionDeclaration* iter_size_fn = nullptr;
@@ -97,7 +98,7 @@ void ForInLoop::code_gen(Codegen &gen) {
     llvm::Value* loopPtrAlloca = gen.llvm.CreateAlloca(llvmPtrTy, encoded_location());
 
     llvm::Value* startPtr = dataPtr;
-    llvm::Value* endPtr = gen.builder->CreateGEP(elem_type->llvm_type(gen), dataPtr, { sizeVal }, "", gen.inbounds);
+    llvm::Value* endPtr = gen.builder->CreateGEP(itrElemType->llvm_type(gen), dataPtr, { sizeVal }, "", gen.inbounds);
 
     if (is_reversed()) {
         gen.llvm.CreateStore(endPtr, loopPtrAlloca, encoded_location());
@@ -141,7 +142,7 @@ void ForInLoop::code_gen(Codegen &gen) {
     // decrementing the loop pointer (after loading)
     if (is_reversed()) {
         llvm::Value* p = gen.builder->CreateLoad(elemPtrTy, loopPtrAlloca);
-        p = gen.builder->CreateGEP(elem_type->llvm_type(gen), p, { gen.builder->getInt32(-1) }, "", gen.inbounds);
+        p = gen.builder->CreateGEP(itrElemType->llvm_type(gen), p, { gen.builder->getInt32(-1) }, "", gen.inbounds);
         gen.llvm.CreateStore(p, loopPtrAlloca, encoded_location());
     }
 
@@ -166,7 +167,7 @@ void ForInLoop::code_gen(Codegen &gen) {
     // incrementing the loop pointer
     if (!is_reversed()) {
         llvm::Value* p = gen.builder->CreateLoad(elemPtrTy, loopPtrAlloca);
-        const auto incPtr = gen.builder->CreateGEP(elem_type->llvm_type(gen), p, { gen.builder->getInt32(1) }, "", gen.inbounds);
+        const auto incPtr = gen.builder->CreateGEP(itrElemType->llvm_type(gen), p, { gen.builder->getInt32(1) }, "", gen.inbounds);
         gen.llvm.CreateStore(incPtr, loopPtrAlloca, encoded_location());
     }
 

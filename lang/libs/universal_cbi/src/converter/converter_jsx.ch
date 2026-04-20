@@ -246,54 +246,121 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
     if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
         converter.str.append_view("null");
-         return;
+        return;
+    }
+
+    if(element.componentSignature != null && converter.target == BufferType.JavaScript) {
+        converter.put_chain_in();
+        const signature = element.componentSignature;
+        const location = intrinsics::get_raw_location();
+        const builder = converter.builder;
+        const support = converter.support;
+        var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+
+        var getSizeCall = builder.make_function_call_value(
+            builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location) ]), location),
+            location
+        );
+        var sIdxNameStr = std::string("sIdx_");
+        sIdxNameStr.append_uinteger(element.loc);
+        var sIdxName = builder.allocate_view(sIdxNameStr.to_view());
+        var sIdxVar = builder.make_varinit_stmt(false, false, sIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        converter.vec.push(sIdxVar);
+
+        var base = builder.make_identifier(signature.name, signature.functionNode, false, location);
+        var call = builder.make_function_call_node(base, converter.parent, location);
+        call.get_args().push(pageId);
+        const attrs = converter.build_ssr_attributes(element);
+        call.get_args().push(builder.make_addr_of_value(attrs, true, location));
+
+        const ssrTextStructVal = builder.make_struct_value(support.ssrTextLinkedNode, location);
+        ssrTextStructVal.add_value("data", builder.make_null_value(location));
+        ssrTextStructVal.add_value("size", builder.make_ubigint_value(0, location));
+        call.get_args().push(ssrTextStructVal);
+        converter.vec.push(call);
+
+        converter.str.append_view("(() => { const html = `");
+        converter.put_chain_in();
+
+        const capCall = builder.make_function_call_node(
+            builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location) ]), location),
+            converter.parent,
+            location
+        );
+        capCall.get_args().push(builder.make_identifier(sIdxName, sIdxVar, false, location));
+        converter.vec.push(capCall);
+
+        converter.str.append_view("`; return $_uc_h(html, \"");
+        get_module_scoped_name(signature.functionNode, signature.name, converter.str);
+        converter.str.append_view("\", {");
+        var attrCount = 0u;
+        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+            const attrNode = element.opening.attributes.get(i);
+            if(attrNode.kind == JsNodeKind.JSXAttribute) {
+                if(attrCount > 0) converter.str.append_view(", ");
+                const attr = attrNode as *mut JsJSXAttribute;
+                converter.str.append_view("\"");
+                converter.str.append_view(attr.name);
+                converter.str.append_view("\": ");
+                converter.convertAttributeValue(attr);
+                attrCount++;
+            } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+                if(attrCount > 0) converter.str.append_view(", ");
+                converter.str.append_view("...");
+                converter.convertJsNode((attrNode as *mut JsJSXSpreadAttribute).argument);
+                attrCount++;
+            }
+        }
+        if(!element.children.empty()) {
+            if(attrCount > 0) converter.str.append_view(", ");
+            converter.str.append_view("children: [");
+            for(var i : uint = 0; i < element.children.size(); i++) {
+                if(i > 0) converter.str.append_view(", ");
+                converter.convertJsNode(element.children.get(i));
+            }
+            converter.str.append(']');
+        }
+        converter.str.append_view("}); })()");
+        return;
+    }
+
+    if(element.componentSignature != null && element.componentSignature.mountStrategy != MountStrategy.Universal) {
+        converter.str.append_view("null");
+        return;
     }
 
     converter.str.append_view("$_ur.createElement(");
-
     if(tagNameNode.kind == JsNodeKind.Identifier) {
-        if(element.componentSignature != null) {
-            get_module_scoped_name(element.componentSignature.functionNode , tagName, converter.str);
-        } else {
-            converter.str.append_view(tagName);
-        }
-    } else {
-        converter.convertJsNode(tagNameNode);
-    }
+        if(element.componentSignature != null) get_module_scoped_name(element.componentSignature.functionNode, tagName, converter.str);
+        else converter.str.append_view(tagName);
+    } else converter.convertJsNode(tagNameNode);
 
     converter.str.append_view(", {");
-
     var attrCount = 0u;
     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
         const attrNode = element.opening.attributes.get(i)
         if(attrNode.kind == JsNodeKind.JSXAttribute) {
             if(attrCount > 0) converter.str.append_view(", ");
             const attr = attrNode as *mut JsJSXAttribute
-            var name = attr.name;
-
             converter.str.append_view("\"");
-            converter.str.append_view(name);
+            converter.str.append_view(attr.name);
             converter.str.append_view("\": ");
             converter.convertAttributeValue(attr);
             attrCount++;
         } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
             if(attrCount > 0) converter.str.append_view(", ");
-            const spread = attrNode as *mut JsJSXSpreadAttribute
             converter.str.append_view("...");
-            converter.convertJsNode(spread.argument);
+            converter.convertJsNode((attrNode as *mut JsJSXSpreadAttribute).argument);
             attrCount++;
         }
     }
-
     converter.str.append_view("}");
-
     if(!element.children.empty()) {
         for(var i : uint = 0; i < element.children.size(); i++) {
              converter.str.append_view(", ");
              converter.convertJsNode(element.children.get(i));
         }
     }
-
     converter.str.append_view(")");
 }
 

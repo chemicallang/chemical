@@ -48,5 +48,5 @@ public struct SymResSupport {
     var dataFn : *mut ASTNode = null
     var sizeFn : *mut ASTNode = null
     var childrenParamNode : *mut ASTNode = null
-
+    var capture_html_delta_to_js : *mut ASTNode = null
 }

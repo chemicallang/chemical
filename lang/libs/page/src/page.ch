@@ -218,6 +218,20 @@ public struct HtmlPage {
         pageHeadJs.append_double(value, 3)
     }
 
+    func capture_html_delta_to_js(&mut self, index : ubigint) {
+        const delta_size = pageHtml.size() - index;
+        if(delta_size == 0) return;
+        const delta = pageHtml.data() + index;
+        for(var i = 0u; i < delta_size; i++) {
+            const c = delta[i];
+            if(c == '`') pageJs.append_view("\\`")
+            else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') pageJs.append_view("\\$")
+            else if(c == '\\') pageJs.append_view("\\\\")
+            else pageJs.append(c)
+        }
+        pageHtml.resize(index);
+    }
+
     func appendHtmlTagStart(str : &mut std::string, lang : std::string_view = "", htmlClass : std::string_view = "") {
         if(htmlClass.empty() && lang.empty()) {
             str.append_view("<html>")
@@ -486,6 +500,7 @@ window.$_ucs = ((fn) => {
     };
 })
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
+window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
 window.$__uni_set_prop = ((el, key, value) => {
@@ -556,9 +571,17 @@ window.$__uni_apply_prop = ((el, key, value) => {
 window.$_urn = ((v) => {
     if(v == null || v === false || v === true) return document.createTextNode("");
     if(window.$__uni_is_state(v)) {
-        const n = document.createTextNode(v.value == null ? "" : "" + v.value);
-        v.subscribe((next) => { n.textContent = next == null ? "" : "" + next; });
-        return n;
+        const start = document.createComment("s");
+        const end = document.createComment("e");
+        const f = document.createDocumentFragment();
+        f.appendChild(start);
+        f.appendChild(end);
+        v.subscribe((next) => {
+            while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+            start.after(window.$_urn(next));
+        });
+        start.after(window.$_urn(v.value));
+        return f;
     }
     if(v.nodeType) return v;
     if(Array.isArray(v)) {
@@ -573,9 +596,22 @@ window.$_urn = ((v) => {
         return tpl.content.cloneNode(true);
     }
     if(v && v.t !== undefined) {
+        if(v.t === "__uni_uc") {
+            const { html, name, props } = v.p;
+            const container = document.createElement("div");
+            if (html) {
+                container.innerHTML = html;
+                window.$__uni_dispatch(name, container, props);
+                const f = document.createDocumentFragment();
+                while(container.firstChild) f.appendChild(container.firstChild);
+                return f;
+            }
+            window.$__uni_dispatch(name, container, props);
+            return container;
+        }
         if(v.t === window.$_ur.Fragment) {
             const f = document.createDocumentFragment();
-            for(let i = 0; i < v.c.length; i++) f.appendChild(window.$_urn(v.c[i]));
+            for(let i = 0; i < (v.c || []).length; i++) f.appendChild(window.$_urn(v.c[i]));
             return f;
         }
         if(typeof v.t === "function") {
@@ -586,7 +622,8 @@ window.$_urn = ((v) => {
         const e = document.createElement(v.t);
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
-        for(let i = 0; i < v.c.length; i++) e.appendChild(window.$_urn(v.c[i]));
+        const children = v.c || [];
+        for(let i = 0; i < children.length; i++) e.appendChild(window.$_urn(children[i]));
         return e;
     }
     return document.createTextNode("" + v);
@@ -600,28 +637,35 @@ window.$__uni_hydrate_children = ((parent, values) => {
     }
 })
 window.$__uni_hydrate_node = ((parent, dom, v) => {
-    if(v == null || v === false || v === true) {
-        return dom;
-    }
+    if(v == null || v === false || v === true) return dom;
     if(Array.isArray(v)) {
         let cur = dom;
-        for(let i = 0; i < v.length; i++) {
-            cur = window.$__uni_hydrate_node(parent, cur, v[i]);
-        }
+        for(let i = 0; i < v.length; i++) cur = window.$__uni_hydrate_node(parent, cur, v[i]);
         return cur;
     }
     if(window.$__uni_is_state(v)) {
-        if(dom && dom.nodeType === 3) {
-            dom.textContent = v.value == null ? "" : "" + v.value;
-            v.subscribe((next) => { dom.textContent = next == null ? "" : "" + next; });
-            return dom.nextSibling;
+        if(dom && dom.nodeType === 8 && dom.nodeValue === "s") {
+            const start = dom;
+            let cur = start.nextSibling;
+            while(cur && (cur.nodeType !== 8 || cur.nodeValue !== "e")) cur = cur.nextSibling;
+            const end = cur;
+            v.subscribe((next) => {
+                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+                start.after(window.$_urn(next));
+            });
+            return end ? end.nextSibling : null;
         }
-        const n = document.createTextNode(v.value == null ? "" : "" + v.value);
+        const start = document.createComment("s");
+        const end = document.createComment("e");
         if(parent) {
-            if(dom) parent.insertBefore(n, dom);
-            else parent.appendChild(n);
+            if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
+            else { parent.appendChild(start); parent.appendChild(end); }
         }
-        v.subscribe((next) => { n.textContent = next == null ? "" : "" + next; });
+        v.subscribe((next) => {
+            while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+            start.after(window.$_urn(next));
+        });
+        start.after(window.$_urn(v.value));
         return dom;
     }
     if(typeof v === "string" || typeof v === "number") {
@@ -630,21 +674,23 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             return dom.nextSibling;
         }
         const n = document.createTextNode("" + v);
-        if(parent) {
-            if(dom) parent.insertBefore(n, dom);
-            else parent.appendChild(n);
-        }
+        if(parent) { if(dom) parent.insertBefore(n, dom); else parent.appendChild(n); }
         return dom;
     }
-    if(v && v.__uni_html !== undefined) {
-        // Children already exist in SSR HTML. Leave them in place and let
-        // nested dispatches hydrate any component boundaries inside.
-        return null;
-    }
+    if(v && v.__uni_html !== undefined) return dom; // SSRed content handled by parent
     if(v && v.t !== undefined) {
-        if(v.t === window.$_ur.Fragment) {
-            return window.$__uni_hydrate_node(parent, dom, v.c || []);
+        if(v.t === "__uni_uc") {
+            const { name, props } = v.p;
+            if(dom && dom.nodeType === 1) {
+                window.$__uni_dispatch(name, dom, props);
+                return dom.nextSibling;
+            }
+            const container = document.createElement("div");
+            if(parent) parent.insertBefore(container, dom);
+            window.$__uni_dispatch(name, container, props);
+            return dom;
         }
+        if(v.t === window.$_ur.Fragment) return window.$__uni_hydrate_node(parent, dom, v.c || []);
         if(typeof v.t === "function") {
             const nextProps = v.p ? { ...v.p } : {};
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;

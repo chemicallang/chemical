@@ -140,10 +140,17 @@ func resolve_page_children(
         resolver.error("'pageJs' member is required on 'page' for js to work", loc);
         return false;
     }
+    const capture_html_delta_to_js = page.child("capture_html_delta_to_js");
+    if(capture_html_delta_to_js == null) {
+        resolver.error("'capture_html_delta_to_js' function is required on 'page' for html capture to work", loc);
+        return false;
+    }
+
     support.getHtmlSizeFn = getHtmlSizeFn;
     support.truncateHtmlFn = truncateHtmlFn;
     support.pageHtmlNode = pageHtmlNode;
     support.pageJsNode = pageJsNode;
+    support.capture_html_delta_to_js = capture_html_delta_to_js;
 
     return true
 }

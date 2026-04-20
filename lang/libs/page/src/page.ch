@@ -12,6 +12,7 @@ public struct HtmlPage {
     var pageHeadJs : std::string
 
     var pageJsEnd : std::string
+    var js_hoist_pos : ubigint = 0
 
     // we track which classes are done through this unordered map
     // TODO using ubigint, instead need to use size_t
@@ -188,6 +189,57 @@ public struct HtmlPage {
 
     func append_js_double(&mut self, value : double) {
         pageJs.append_double(value, 3)
+    }
+
+    func get_js_pos(&self) : ubigint {
+        return pageJs.size();
+    }
+
+    func move_js_range(&mut self, fromStart : ubigint, fromEnd : ubigint, index : ubigint) {
+        if (fromStart >= fromEnd || fromEnd > pageJs.size() || index > pageJs.size()) return;
+        if (index >= fromStart && index <= fromEnd) return;
+        
+        pageJs.reserve(pageJs.size());
+        
+        var range_len = fromEnd - fromStart;
+        var p_buf = pageJs.mutable_data();
+
+        var stack_buf : [1024]char;
+        var p_stack = &mut stack_buf[0];
+
+        if (index < fromStart) {
+            var m_start = index;
+            var m_len = fromStart - index;
+            if (m_len <= range_len) {
+                var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
+                memcpy(temp as *mut void, (p_buf + m_start) as *void, m_len);
+                memmove((p_buf + m_start) as *mut void, (p_buf + fromStart) as *void, range_len);
+                memcpy((p_buf + m_start + range_len) as *mut void, temp as *void, m_len);
+                if (m_len > 1024) free(temp as *mut void);
+            } else {
+                var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
+                memcpy(temp as *mut void, (p_buf + fromStart) as *void, range_len);
+                memmove((p_buf + m_start + range_len) as *mut void, (p_buf + m_start) as *void, m_len);
+                memcpy((p_buf + m_start) as *mut void, temp as *void, range_len);
+                if (range_len > 1024) free(temp as *mut void);
+            }
+        } else {
+            var m_start = fromEnd;
+            var m_len = index - fromEnd;
+            if (range_len <= m_len) {
+                var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
+                memcpy(temp as *mut void, (p_buf + fromStart) as *void, range_len);
+                memmove((p_buf + fromStart) as *mut void, (p_buf + m_start) as *void, m_len);
+                memcpy((p_buf + fromStart + m_len) as *mut void, temp as *void, range_len);
+                if (range_len > 1024) free(temp as *mut void);
+            } else {
+                var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
+                memcpy(temp as *mut void, (p_buf + m_start) as *void, m_len);
+                memmove((p_buf + fromStart + m_len) as *mut void, (p_buf + fromStart) as *void, range_len);
+                memcpy((p_buf + fromStart) as *mut void, temp as *void, range_len);
+                if (m_len > 1024) free(temp as *mut void);
+            }
+        }
     }
 
     func append_head_js(&mut self, value : *char, len : size_t) {

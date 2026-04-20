@@ -41,11 +41,4 @@ public:
      */
     inline void new_line_and_indent();
 
-    /**
-     * reset the visitor, to translate another set of nodes
-     */
-    virtual void reset() {
-        // does nothing
-    }
-
 };

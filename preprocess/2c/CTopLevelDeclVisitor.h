@@ -99,6 +99,4 @@ public:
 
     void VisitImplDecl(ImplDefinition *implDefinition);
 
-    void reset();
-
 };

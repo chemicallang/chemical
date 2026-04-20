@@ -3596,10 +3596,6 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
     }
 }
 
-void CTopLevelDeclarationVisitor::reset() {
-
-}
-
 void declare_fat_pointer(ToCAstVisitor& visitor) {
     visitor.fat_pointer_type = "__chemical_fat_pointer__";
     visitor.write("typedef struct {");
@@ -3672,21 +3668,22 @@ void ToCAstVisitor::end_translate() {
     unimplemented_static_interfaces.clear();
 }
 
-void ToCAstVisitor::reset() {
+void ToCAstVisitor::file_level_reset() {
+    allocator.clear();
     local_allocated.clear();
-    evaluated_func_calls.clear();
     destructible_refs.clear();
+    evaluated_func_calls.clear();
+    destructor.file_level_reset();
+    aliases.clear();
+}
+
+void ToCAstVisitor::reset() {
     current_func_type = nullptr;
     indentation_level = 0;
     local_temp_var_i = 0;
     nested_value = false;
     return_redirect_block = "";
-    aliases.clear();
-    tld.reset();
-    before_stmt.reset();
-    after_stmt.reset();
     destructor.reset();
-    tld.reset();
 }
 
 ToCAstVisitor::~ToCAstVisitor() = default;

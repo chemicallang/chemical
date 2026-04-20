@@ -105,10 +105,13 @@ public:
 
     void process_init_value(VarInitStatement *init, Value* value);
 
-    void reset() final {
-        destroy_current_scope = true;
-        new_line_before = true;
+    inline void file_level_reset() {
         destruct_jobs.clear();
+    }
+
+    inline void reset() {
+        new_line_before = true;
+        destroy_current_scope = true;
     }
 
 };

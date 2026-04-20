@@ -522,9 +522,17 @@ public:
     void end_translate();
 
     /**
-     * this should be called after translating one set of nodes (belonging to a single file)
-     * so the visitor can be reused to translate another set of nodes
-     * you could create another visitor, but that might be too expensive
+     * this is file level reset, it will free the allocator (file level)
+     * release any references to nodes or values we stores in this file
+     * if you don't call this, bad code may generate (very rare but does happen)
+     */
+    void file_level_reset();
+
+    /**
+     * this should be called after translating a single module
+     * so the visitor can be reused to translate another module
+     * this makes translating the next module faster (releases allocations to reuse space)
+     * this also makes generating correct code (pointers to old allocations are cleared)
      */
     void reset();
 

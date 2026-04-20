@@ -1534,6 +1534,8 @@ int ASTProcessor::translate_module(
     }
 
     // we will implement the direct dependencies of this module
+    // this loop will implement new generic instantiations
+    // this and the fourth loop generates bodies of functions
     for(const auto dep : dependencies) {
         for(auto& file : dep->direct_files) {
             auto& body = file.result->unit.scope.body;
@@ -1542,7 +1544,13 @@ int ASTProcessor::translate_module(
             c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
 #endif
 
+            // implement new generics
             external_implement_in_c(c_visitor, body, file.abs_path);
+
+            // clear everything we allocated using file allocator to make it re-usable
+            // and other stuff to re use memory (makes it performant)
+            c_visitor.file_level_reset();
+
         }
     }
 
@@ -1562,7 +1570,8 @@ int ASTProcessor::translate_module(
         translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
 
         // clear everything we allocated using file allocator to make it re-usable
-        file_allocator.clear();
+        // and other stuff to re use memory (makes it performant)
+        c_visitor.file_level_reset();
 
     }
 

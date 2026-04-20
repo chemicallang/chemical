@@ -146,11 +146,30 @@ func resolve_page_children(
         return false;
     }
 
+    const getJsPosFn = page.child("get_js_pos");
+    if(getJsPosFn == null) {
+        resolver.error("'get_js_pos' function is required on 'page' for hoisting to work", loc);
+        return false;
+    }
+    const moveJsRangeFn = page.child("move_js_range");
+    if(moveJsRangeFn == null) {
+        resolver.error("'move_js_range' function is required on 'page' for hoisting to work", loc);
+        return false;
+    }
+    const js_hoist_pos = page.child("js_hoist_pos");
+    if(js_hoist_pos == null) {
+        resolver.error("'js_hoist_pos' field is required on 'page' for hoisting to work", loc);
+        return false;
+    }
+
     support.getHtmlSizeFn = getHtmlSizeFn;
     support.truncateHtmlFn = truncateHtmlFn;
     support.pageHtmlNode = pageHtmlNode;
     support.pageJsNode = pageJsNode;
     support.capture_html_delta_to_js = capture_html_delta_to_js;
+    support.getJsPosFn = getJsPosFn;
+    support.moveJsRangeFn = moveJsRangeFn;
+    support.js_hoist_pos = js_hoist_pos;
 
     return true
 }

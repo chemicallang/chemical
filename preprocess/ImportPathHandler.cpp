@@ -230,9 +230,24 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string_view& fi
     return { std::string(filePath), "unknown '@' directive " + std::string(atDirective) + " in import statement"};
 }
 
-std::string canonical_or_absolute(const std::string_view& path) {
+std::string replaced_canonical_path(const std::string_view& path) {
     auto can = canonical_path(path);
-    return can.empty() ? absolute_path(path) : can;
+    if (can.empty()) {
+        std::string_view new_path_to_try;
+        if (path.ends_with("build.lab")) {
+            // try the chemical.mod file
+            new_path_to_try = "chemical.mod";
+        } else if (path.ends_with("chemical.mod")) {
+            // try chemical.mod
+            new_path_to_try = "build.lab";
+        } else {
+            return "";
+        }
+        auto modPath = resolve_sibling(path, new_path_to_try);
+        auto new_can = canonical_path(modPath);
+        if (!new_can.empty()) { return std::move(new_can); }
+    }
+    return std::move(can);
 }
 
 AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& base_path, const std::string_view& import_path) {
@@ -240,12 +255,12 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
     if(first_char == '@') {
         auto result = replace_at_in_path(import_path);
         if(result.error.empty()) {
-            return { canonical_or_absolute(result.replaced), "" };
+            return { replaced_canonical_path(result.replaced), "" };
         } else {
             return { "", result.error };
         }
     }
-    return { canonical_or_absolute((resolve_sibling(base_path, import_path))), "" };
+    return { replaced_canonical_path((resolve_sibling(base_path, import_path))), "" };
 }
 
 ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(

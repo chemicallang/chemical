@@ -458,12 +458,21 @@ const $r_uni_ch = (html, fnName, props) => $_r.createElement(UniReactBridge, { h
         // this is just required for react, solid and preact integration to work
         pageHeadJs.append_view(std::string_view("""
 window.$__uni_hydration_queue = []
-window.$__uni_dispatch = ((fnName, target, props) => {
+window.$__uni_error = ((message, details = "", cause = null) => {
+    const suffix = details ? ": " + details : "";
+    const err = new Error(message + suffix);
+    if(cause) err.cause = cause;
+    throw err;
+})
+window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
+    if(!target) {
+        window.$__uni_error("universal mount target is missing", fnName);
+    }
     const fn = window[fnName]
     if(fn) {
-        window.$__uni_mount(target, fn, props);
+        window.$__uni_mount(target, fn, props, mode);
     } else {
-        window.$__uni_hydration_queue.push([ fnName, target, props ]);
+        window.$__uni_hydration_queue.push([ fnName, target, props, mode ]);
     }
 })
 """))
@@ -556,6 +565,9 @@ window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
 window.$__uni_set_prop = ((el, key, value) => {
+    if(!el) {
+        window.$__uni_error("cannot set property on missing element", "" + key);
+    }
     const v = window.$__uni_value(value);
     if(key === "children" || key === "ref" || key == null) return;
     if(key === "className" || key === "class") {
@@ -574,15 +586,25 @@ window.$__uni_set_prop = ((el, key, value) => {
         } else if(typeof v === "string") {
             el.style.cssText = v;
         } else if(typeof v === "object") {
+            el.removeAttribute("style");
             for(const sk in v) el.style[sk] = window.$__uni_value(v[sk]);
+        } else {
+            window.$__uni_error("invalid style value", typeof v + " on <" + el.tagName.toLowerCase() + ">");
         }
         return;
     }
-    if(key.length > 2 && key[0] === "o" && key[1] === "n" && typeof v === "function") {
+    if(key.length > 2 && key[0] === "o" && key[1] === "n") {
         const eventName = key.substring(2).toLowerCase();
         if(!el.$__uni_events) el.$__uni_events = {};
         const prev = el.$__uni_events[eventName];
         if(prev) el.removeEventListener(eventName, prev);
+        if(v == null || v === false) {
+            delete el.$__uni_events[eventName];
+            return;
+        }
+        if(typeof v !== "function") {
+            window.$__uni_error("event handler must be a function", key + " on <" + el.tagName.toLowerCase() + ">");
+        }
         el.$__uni_events[eventName] = v;
         el.addEventListener(eventName, v);
         return;
@@ -590,27 +612,25 @@ window.$__uni_set_prop = ((el, key, value) => {
     const propType = typeof el[key];
     if(v == null || v === false) {
         if(key in el && typeof el[key] !== "function") {
-            try {
-                if(propType === "boolean") el[key] = false;
-                else el[key] = "";
-            } catch(_) {}
+            if(propType === "boolean") el[key] = false;
+            else el[key] = "";
         }
         el.removeAttribute(key);
         return;
     }
     if(key in el && propType === "boolean") {
-        try {
-            el[key] = !!v;
-            if(v) el.setAttribute(key, "");
-            else el.removeAttribute(key);
-            return;
-        } catch(_) {}
+        el[key] = !!v;
+        if(v) el.setAttribute(key, "");
+        else el.removeAttribute(key);
+        return;
     }
     if(key in el && key !== "list" && key !== "type") {
         try {
             el[key] = v;
             return;
-        } catch(_) {}
+        } catch(err) {
+            window.$__uni_error("failed to assign DOM property", key + " on <" + el.tagName.toLowerCase() + ">", err);
+        }
     }
     el.setAttribute(key, "" + v);
 })
@@ -734,7 +754,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         if(v.t === "__uni_uc") {
             const { name, props } = v.p;
             if(dom && dom.nodeType === 1) {
-                window.$__uni_dispatch(name, dom, props);
+                window.$__uni_dispatch(name, dom, props, "root");
                 return dom.nextSibling;
             }
             const container = document.createElement("div");
@@ -759,13 +779,28 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
     }
     return dom;
 })
-window.$__uni_mount = ((host, comp, props) => {
-    if(!host || !comp) return;
+window.$__uni_mount = ((host, comp, props, mode = "children") => {
+    if(!host) {
+        window.$__uni_error("cannot mount universal component without a host");
+    }
+    if(typeof comp !== "function") {
+        window.$__uni_error("universal component factory is invalid", typeof comp);
+    }
     const out = comp(props || {});
+    if(mode === "root") {
+        const parent = host.parentNode;
+        if(!parent) {
+            window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
+        }
+        window.$__uni_hydrate_node(parent, host, out);
+        return;
+    }
     window.$__uni_hydrate_children(host, [ out ]);
 })
 window.$_uc = ((factory, props) => {
-    if(!factory) return null;
+    if(typeof factory !== "function") {
+        window.$__uni_error("universal factory must be a function", typeof factory);
+    }
     return window.$_urn(factory(props || {}));
 })
 window.$__universal_flush = function() {
@@ -774,9 +809,9 @@ window.$__universal_flush = function() {
         const obj = window.$__uni_hydration_queue[i];
         const fn = window[obj[0]];
         if(fn) {
-            window.$__uni_mount(obj[1], fn, obj[2])
+            window.$__uni_mount(obj[1], fn, obj[2], obj[3])
         } else {
-            console.error("missing component function by name", obj[0]);
+            window.$__uni_error("missing component function by name", obj[0]);
         }
     }
 };

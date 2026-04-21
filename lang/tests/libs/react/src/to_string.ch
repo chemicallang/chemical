@@ -163,6 +163,17 @@ public func react_strict_typeof_check_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function react_lib_test_StrictTypeofCheck(store) { return $_r.createElement(\"div\", {}, !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
 }
 
+#react ParenthesizedTernaryLabel(item) {
+    return <div>{(item.checked ? "[x] " : "[ ] ") + item.text}</div>
+}
+
+@test
+public func react_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ParenthesizedTernaryLabel /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ParenthesizedTernaryLabel(item) { return $_r.createElement(\"div\", {}, (item.checked ? \"[x] \" : \"[ ] \") + item.text); }\n");
+}
+
 #react MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

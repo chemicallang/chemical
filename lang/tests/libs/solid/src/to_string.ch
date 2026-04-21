@@ -141,6 +141,17 @@ public func solid_ternary_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `)); }\n");
 }
 
+#solid DollarIdentifierTest(props) {
+    return <div>{window.$flag ? window.$title : window.$fallback}</div>
+}
+
+@test
+public func solid_dollar_identifier_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <DollarIdentifierTest /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_DollarIdentifierTest(props) { return $_sh(\"div\", {}, () => window.$flag ? window.$title : window.$fallback); }\n");
+}
+
 #solid MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

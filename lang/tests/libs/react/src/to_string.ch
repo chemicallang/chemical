@@ -141,6 +141,17 @@ public func react_ternary_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function react_lib_test_TernaryTest(cond) { return $_r.createElement(\"div\", {}, cond ? $_r.createElement(\"span\", {}, ` a `) : $_r.createElement(\"span\", {}, ` b `)); }\n");
 }
 
+#react DollarIdentifierTest(props) {
+    return <div>{window.$flag ? window.$title : window.$fallback}</div>
+}
+
+@test
+public func react_dollar_identifier_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <DollarIdentifierTest /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_DollarIdentifierTest(props) { return $_r.createElement(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
+}
+
 #react MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

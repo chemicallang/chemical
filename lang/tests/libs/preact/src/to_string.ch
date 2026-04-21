@@ -141,6 +141,17 @@ public func preact_ternary_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function preact_lib_test_TernaryTest(cond) { return $_p.h(\"div\", {}, cond ? $_p.h(\"span\", {}, ` a `) : $_p.h(\"span\", {}, ` b `)); }\n");
 }
 
+#preact DollarIdentifierTest(props) {
+    return <div>{window.$flag ? window.$title : window.$fallback}</div>
+}
+
+@test
+public func preact_dollar_identifier_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <DollarIdentifierTest /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_DollarIdentifierTest(props) { return $_p.h(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
+}
+
 #preact MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

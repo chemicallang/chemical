@@ -104,7 +104,8 @@ void Diag::format(std::ostream& os, const chem::string_view& path, const chem::s
 
 std::ostream& Diag::ansi(std::ostream& os, const chem::string_view& path, const chem::string_view &tag) const {
     os << '[' << tag << "] ";
-    switch (severity.value()) {
+    if (severity.has_value()) {
+        switch (severity.value()) {
         case DiagSeverity::Error:
             os << rang::fg::red << "error: " << rang::fg::reset;
             break;
@@ -117,6 +118,7 @@ std::ostream& Diag::ansi(std::ostream& os, const chem::string_view& path, const 
         case DiagSeverity::Hint:
             os << rang::fg::cyan << "hint: " << rang::fg::reset;
             break;
+        }
     }
     os << message << " at " << path << ':' << (range.start.line + 1) << ':' << (range.start.character + 1);
     return os;

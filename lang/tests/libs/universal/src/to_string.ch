@@ -174,6 +174,20 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
     view_equals(env, page.getJs(), js.to_view())
 }
 
+#universal DollarIdentifierTest(props) {
+    return <div>{window.$flag ? window.$title : window.$fallback}</div>
+}
+
+@test
+public func universal_dollar_identifier_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <DollarIdentifierTest /> }
+
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_DollarIdentifierTest(props) { return $_ur.createElement("div", {}, window.$flag ? window.$title : window.$fallback); }\nwindow.$__uni_dispatch('universal_lib_test_DollarIdentifierTest', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
 #universal EventNested(props) {
     return <button onClick={props.onClick}>{props.children}</button>
 }

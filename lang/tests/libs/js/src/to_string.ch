@@ -109,6 +109,15 @@ public func ternary_operator_work(env : &mut TestEnv) {
 }
 
 @test
+public func dollar_prefixed_identifiers_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        const result = window.$flag ? window.$timeline_find_category() : $timelineFallback
+    }
+    string_equals(env, page.toStringJsOnly(), "const result = window.$flag ? window.$timeline_find_category() : $timelineFallback;");
+}
+
+@test
 public func unary_operator_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {

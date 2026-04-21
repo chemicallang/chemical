@@ -1,7 +1,7 @@
 func (provider : &SourceProvider) read_identifier() {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_')) {
+        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_' || c == '$')) {
             provider.increment();
         } else {
             break;

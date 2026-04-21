@@ -158,8 +158,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 js.chemical_mode = true;
                 return Token { type : JsTokenType.ChemicalStart as int, value : view("${"), position : position }
             }
-            // Treat as identifier start or just $
-            return Token { type : JsTokenType.Identifier as int, value : view("$"), position : position }
+            provider.read_identifier();
+            const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
+            return Token { type : JsTokenType.Identifier as int, value : val, position : position }
         }
         '{' => {
             js.lb_count++;
@@ -356,7 +357,7 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
              return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
         }
         default => {
-            if(isalpha(c as int) || c == '_') {
+            if(isalpha(c as int) || c == '_' || c == '$') {
                 provider.read_identifier();
                 const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
                 const hash = fnv1_hash_view(val);

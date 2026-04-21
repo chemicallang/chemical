@@ -132,6 +132,15 @@ public func calc_works_for_unsupported_property(env : &mut TestEnv) {
 }
 
 @test
+public func color_property_with_var_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color: var(--chx-text-main);
+    }
+    css_equals(env, page.toStringCssOnly(), "color:var(--chx-text-main);");
+}
+
+@test
 public func grid_template_columns_with_minmax_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

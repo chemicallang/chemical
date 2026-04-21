@@ -202,6 +202,20 @@ public func universal_strict_typeof_check_test(env : &mut TestEnv) {
     view_equals(env, page.getJs(), js.to_view())
 }
 
+#universal ParenthesizedTernaryLabel(item) {
+    return <div>{(item.checked ? "[x] " : "[ ] ") + item.text}</div>
+}
+
+@test
+public func universal_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ParenthesizedTernaryLabel /> }
+
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_ParenthesizedTernaryLabel(item) { return $_ur.createElement("div", {}, (item.checked ? "[x] " : "[ ] ") + item.text); }\nwindow.$__uni_dispatch('universal_lib_test_ParenthesizedTernaryLabel', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
 #universal EventNested(props) {
     return <button onClick={props.onClick}>{props.children}</button>
 }

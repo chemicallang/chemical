@@ -163,6 +163,17 @@ public func solid_strict_typeof_check_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function solid_lib_test_StrictTypeofCheck(store) { return $_sh(\"div\", {}, () => !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
 }
 
+#solid ParenthesizedTernaryLabel(item) {
+    return <div>{(item.checked ? "[x] " : "[ ] ") + item.text}</div>
+}
+
+@test
+public func solid_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ParenthesizedTernaryLabel /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_ParenthesizedTernaryLabel(item) { return $_sh(\"div\", {}, () => (item.checked ? \"[x] \" : \"[ ] \") + item.text); }\n");
+}
+
 #solid MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

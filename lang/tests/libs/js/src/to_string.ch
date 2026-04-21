@@ -138,6 +138,15 @@ public func typeof_with_strict_not_equal_works(env : &mut TestEnv) {
 }
 
 @test
+public func parenthesized_ternary_with_member_access_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        const label = (item.checked ? "[x] " : "[ ] ") + item.text;
+    }
+    string_equals(env, page.toStringJsOnly(), "const label = (item.checked ? \"[x] \" : \"[ ] \") + item.text;");
+}
+
+@test
 public func unary_operator_inc_dec_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {

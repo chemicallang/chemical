@@ -207,6 +207,10 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         '=' => {
             if(provider.peek() == '=') {
                 provider.readCharacter();
+                if(provider.peek() == '=') {
+                    provider.readCharacter();
+                    return Token { type : JsTokenType.StrictEqual as int, value : view("==="), position : position }
+                }
                 return Token { type : JsTokenType.EqualEqual as int, value : view("=="), position : position }
             } else if(provider.peek() == '>') {
                 provider.readCharacter();
@@ -217,6 +221,10 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         '!' => {
             if(provider.peek() == '=') {
                 provider.readCharacter();
+                if(provider.peek() == '=') {
+                    provider.readCharacter();
+                    return Token { type : JsTokenType.StrictNotEqual as int, value : view("!=="), position : position }
+                }
                 return Token { type : JsTokenType.NotEqual as int, value : view("!="), position : position }
             }
             return Token { type : JsTokenType.Exclamation as int, value : view("!"), position : position }

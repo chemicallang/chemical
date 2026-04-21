@@ -127,6 +127,17 @@ public func unary_operator_work(env : &mut TestEnv) {
 }
 
 @test
+public func typeof_with_strict_not_equal_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(!store || typeof store !== "object") {
+            return;
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), "if(!store || typeof store !== \"object\"){return;}");
+}
+
+@test
 public func unary_operator_inc_dec_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {

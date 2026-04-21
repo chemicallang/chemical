@@ -284,6 +284,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var unary = node as *mut JsUnaryOp
             if(unary.prefix) {
                 converter.str.append_view(unary.operator);
+                if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
+                    converter.str.append_view(" ")
+                }
                 converter.convertJsNode(unary.operand);
             } else {
                 converter.convertJsNode(unary.operand);

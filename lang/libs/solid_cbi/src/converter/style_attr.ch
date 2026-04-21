@@ -28,6 +28,9 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
             const unary = node as *mut JsUnaryOp;
             if(unary.prefix) {
                 out.append_view(unary.operator);
+                if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
+                    out.append(' ');
+                }
                 return append_js_node_text(unary.operand, out);
             }
             if(!append_js_node_text(unary.operand, out)) return false;

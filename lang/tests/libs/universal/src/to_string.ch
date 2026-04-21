@@ -188,6 +188,20 @@ public func universal_dollar_identifier_test(env : &mut TestEnv) {
     view_equals(env, page.getJs(), js.to_view())
 }
 
+#universal StrictTypeofCheck(store) {
+    return <div>{!store || typeof store !== "object" ? "bad" : "ok"}</div>
+}
+
+@test
+public func universal_strict_typeof_check_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <StrictTypeofCheck /> }
+
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_StrictTypeofCheck(store) { return $_ur.createElement("div", {}, !store || typeof store !== "object" ? "bad" : "ok"); }\nwindow.$__uni_dispatch('universal_lib_test_StrictTypeofCheck', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
 #universal EventNested(props) {
     return <button onClick={props.onClick}>{props.children}</button>
 }

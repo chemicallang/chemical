@@ -152,6 +152,17 @@ public func solid_dollar_identifier_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function solid_lib_test_DollarIdentifierTest(props) { return $_sh(\"div\", {}, () => window.$flag ? window.$title : window.$fallback); }\n");
 }
 
+#solid StrictTypeofCheck(store) {
+    return <div>{!store || typeof store !== "object" ? "bad" : "ok"}</div>
+}
+
+@test
+public func solid_strict_typeof_check_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <StrictTypeofCheck /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_StrictTypeofCheck(store) { return $_sh(\"div\", {}, () => !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+}
+
 #solid MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

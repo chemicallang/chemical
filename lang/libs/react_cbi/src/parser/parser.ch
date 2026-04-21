@@ -569,7 +569,9 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
            token.type == JsTokenType.StarEqual as int ||
            token.type == JsTokenType.SlashEqual as int ||
            token.type == JsTokenType.EqualEqual as int ||
+           token.type == JsTokenType.StrictEqual as int ||
            token.type == JsTokenType.NotEqual as int ||
+           token.type == JsTokenType.StrictNotEqual as int ||
            token.type == JsTokenType.LessThan as int ||
            token.type == JsTokenType.GreaterThan as int ||
            token.type == JsTokenType.LessThanEqual as int ||

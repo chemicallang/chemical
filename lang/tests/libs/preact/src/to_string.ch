@@ -152,6 +152,17 @@ public func preact_dollar_identifier_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function preact_lib_test_DollarIdentifierTest(props) { return $_p.h(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
 }
 
+#preact StrictTypeofCheck(store) {
+    return <div>{!store || typeof store !== "object" ? "bad" : "ok"}</div>
+}
+
+@test
+public func preact_strict_typeof_check_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <StrictTypeofCheck /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_StrictTypeofCheck(store) { return $_p.h(\"div\", {}, !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+}
+
 #preact MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

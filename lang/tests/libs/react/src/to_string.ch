@@ -152,6 +152,17 @@ public func react_dollar_identifier_test(env : &mut TestEnv) {
     view_equals(env, page.getHeadJs(), "function react_lib_test_DollarIdentifierTest(props) { return $_r.createElement(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
 }
 
+#react StrictTypeofCheck(store) {
+    return <div>{!store || typeof store !== "object" ? "bad" : "ok"}</div>
+}
+
+@test
+public func react_strict_typeof_check_test(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <StrictTypeofCheck /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_StrictTypeofCheck(store) { return $_r.createElement(\"div\", {}, !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+}
+
 #react MapTest(items) {
     return <ul>{items.map(i => <li>{i}</li>)}</ul>
 }

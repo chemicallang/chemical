@@ -322,21 +322,21 @@ void check_imports_for_cycles(ImportCycleCheckResult& out, const std::span<ASTFi
     });
 }
 
-void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<chem::string_view, bool, FastHashInternedView, FastEqInternedView>& done_files, ASTFileResult* single_file) {
+// the ast file result
+void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<ASTFileResult*, bool>& done_files, ASTFileResult* single_file) {
     for(auto& file : single_file->imports) {
         flatten(flat_out, done_files, file.result);
     }
-    auto view = chem::string_view(single_file->abs_path);
-    auto found = done_files.find(view);
+    auto found = done_files.find(single_file);
     if(found == done_files.end()) {
-        done_files[view] = true;
+        done_files[single_file] = true;
         flat_out.emplace_back(single_file);
     }
 }
 
 std::vector<ASTFileResult*> flatten(const std::span<ASTFileResult*>& files) {
     std::vector<ASTFileResult*> flat_out;
-    std::unordered_map<chem::string_view, bool, FastHashInternedView, FastEqInternedView> done_files;
+    std::unordered_map<ASTFileResult*, bool> done_files;
     for(auto file : files) {
         flatten(flat_out, done_files, file);
     }

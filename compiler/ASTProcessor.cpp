@@ -782,40 +782,17 @@ bool import_file_in_lab(
     FileInputSource inp_source(abs_path.data());
     const auto err = inp_source.error();
     if(err == nullptr) {
-        // import the file into result (lex and parse)
-        return proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
-    }
-
-    // since an error occurred, if this is an import for build.lab file
-    // and instead of a build.lab file user has a chemical.mod file, we translate it
-    auto prev_msg = err->format();
-    if(abs_path.ends_with(".lab")) {
-        auto modFileNonCan = resolve_sibling(abs_path, "chemical.mod");
-        const auto modFileErr = inp_source.open(modFileNonCan.data());
-        if(!modFileErr) {
-
-            // we must get the canonical path, to make sure we erase duplicates
-            auto modFile = canonical_path(modFileNonCan);
-            if (modFile.empty()) {
-                // unfortunately canonical path failed, this probably won't happen
-                modFile = std::move(modFileNonCan);
-            }
-
-            // lets get a new file id for module file
-            auto modFileId = proc.loc_man.encodeFile(modFile);
-
-            // we also change the absolute path of the file to the new chemical.mod file
-            meta.file_id = modFileId;
-            meta.abs_path = modFile;
-
+        if (abs_path.ends_with(".mod")) {
             return proc.import_mod_file_as_lab(meta, result, use_job_allocator, &inp_source);
-
+        } else {
+            // import the file into result (lex and parse)
+            return proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
         }
     }
 
     // since couldn't import both .lab / .mod we return the original error
     result.continue_processing = false;
-    result.read_error = prev_msg;
+    result.read_error = err->format();
     std::cerr << rang::fg::red << "error: " << rang::fg::reset << "reading file '" << abs_path;
     if (result.stmt != nullptr) {
         std::cerr << "' imported with path '" << result.stmt->getSourcePath();

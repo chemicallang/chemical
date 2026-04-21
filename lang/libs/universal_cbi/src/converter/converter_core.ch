@@ -80,20 +80,50 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     converter.str.append_view(" ");
                     converter.str.append_view(bin.op);
                     converter.str.append_view(" ");
-                    converter.convertJsNode(bin.right);
+                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                        converter.str.append_view("(");
+                        converter.convertJsNode(bin.right);
+                        converter.str.append_view(")");
+                    } else {
+                        converter.convertJsNode(bin.right);
+                    }
                 } else {
-                    converter.convertJsNode(bin.left);
+                    if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
+                        converter.str.append_view("(");
+                        converter.convertJsNode(bin.left);
+                        converter.str.append_view(")");
+                    } else {
+                        converter.convertJsNode(bin.left);
+                    }
                     converter.str.append_view(" ");
                     converter.str.append_view(bin.op);
                     converter.str.append_view(" ");
-                    converter.convertJsNode(bin.right);
+                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                        converter.str.append_view("(");
+                        converter.convertJsNode(bin.right);
+                        converter.str.append_view(")");
+                    } else {
+                        converter.convertJsNode(bin.right);
+                    }
                 }
             } else {
-                converter.convertJsNode(bin.left);
+                if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
+                    converter.str.append_view("(");
+                    converter.convertJsNode(bin.left);
+                    converter.str.append_view(")");
+                } else {
+                    converter.convertJsNode(bin.left);
+                }
                 converter.str.append_view(" ");
                 converter.str.append_view(bin.op);
                 converter.str.append_view(" ");
-                converter.convertJsNode(bin.right);
+                if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                    converter.str.append_view("(");
+                    converter.convertJsNode(bin.right);
+                    converter.str.append_view(")");
+                } else {
+                    converter.convertJsNode(bin.right);
+                }
             }
         }
         JsNodeKind.Ternary => {

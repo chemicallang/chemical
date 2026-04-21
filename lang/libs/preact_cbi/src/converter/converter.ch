@@ -295,11 +295,23 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.BinaryOp => {
             var bin = node as *mut JsBinaryOp
-            converter.convertJsNode(bin.left);
+            if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
+                converter.str.append_view("(");
+                converter.convertJsNode(bin.left);
+                converter.str.append_view(")");
+            } else {
+                converter.convertJsNode(bin.left);
+            }
             converter.str.append_view(" ");
             converter.str.append_view(bin.op);
             converter.str.append_view(" ");
-            converter.convertJsNode(bin.right);
+            if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                converter.str.append_view("(");
+                converter.convertJsNode(bin.right);
+                converter.str.append_view(")");
+            } else {
+                converter.convertJsNode(bin.right);
+            }
         }
         JsNodeKind.Ternary => {
             var tern = node as *mut JsTernary

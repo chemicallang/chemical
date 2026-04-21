@@ -391,10 +391,22 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
         }
         JsNodeKind.BinaryOp => {
             const bin = node as *mut JsBinaryOp;
-            if(!append_js_node_text(bin.left, out)) return false;
+            if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
+                out.append('(');
+                if(!append_js_node_text(bin.left, out)) return false;
+                out.append(')');
+            } else {
+                if(!append_js_node_text(bin.left, out)) return false;
+            }
             out.append(' ');
             out.append_view(bin.op);
             out.append(' ');
+            if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                out.append('(');
+                if(!append_js_node_text(bin.right, out)) return false;
+                out.append(')');
+                return true;
+            }
             return append_js_node_text(bin.right, out);
         }
         JsNodeKind.Ternary => {

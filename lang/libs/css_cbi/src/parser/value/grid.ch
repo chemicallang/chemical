@@ -84,6 +84,8 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                              v2.kind = CSSValueKind.Keyword
                              v2.data = kwVal
                              repeatData.tracks.push(v2)
+                         } else if(cssParser.parseRandomValue(parser, builder, v2)) {
+                             repeatData.tracks.push(v2)
                          } else {
                              break
                          }
@@ -99,6 +101,11 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                      continue
                  }
              }
+        }
+
+        if(cssParser.parseRandomValue(parser, builder, trackValue)) {
+            vals.values.push(trackValue)
+            continue
         }
         
         break

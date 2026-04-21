@@ -50,6 +50,7 @@ func token_needs_space_after(type : TokenType) : bool {
         TokenType.Important,
         TokenType.Id,
         TokenType.ClassName,
+        TokenType.Comma,
         TokenType.RParen => {
             return true;
         }
@@ -95,6 +96,152 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
     value.data = raw_data
 }
 
+func (cssParser : &mut CSSParser) parseRawFunctionValue(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    var raw = std::string()
+    var prev_type = TokenType.Unexpected;
+    var first = true;
+    var depth = 0;
+    var seen_lparen = false;
+
+    while(true) {
+        const token = parser.getToken();
+        if(token.type == TokenType.EndOfFile) {
+            parser.error("expected a ')' to end the function call");
+            break;
+        }
+
+        if(!first && token_needs_space_before(token.type as TokenType) && token_needs_space_after(prev_type as TokenType)) {
+            raw.append(' ')
+        }
+
+        raw.append_view(token.value)
+
+        if(token.type == TokenType.LParen) {
+            depth++;
+            seen_lparen = true;
+        } else if(token.type == TokenType.RParen) {
+            depth--;
+        }
+
+        prev_type = token.type as TokenType
+        first = false
+        parser.increment()
+
+        if(seen_lparen && depth == 0) {
+            break;
+        }
+    }
+
+    var raw_data = builder.allocate<CSSRawValueData>();
+    new (raw_data) CSSRawValueData {
+        value : builder.allocate_view(raw.to_view())
+    }
+    value.kind = CSSValueKind.Raw
+    value.data = raw_data
+}
+
+func (cssParser : &mut CSSParser) parseRandomIdentifierValue(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    token : *mut Token
+) : bool {
+    const next = token + 1;
+    const hash = token.fnv1();
+
+    if(next.type == TokenType.LParen) {
+        switch(hash) {
+            comptime_fnv1_hash("calc"),
+            comptime_fnv1_hash("calc-size") => {
+                parser.increment();
+                cssParser.parseCalc(parser, builder, value);
+                return true;
+            }
+            comptime_fnv1_hash("var"),
+            comptime_fnv1_hash("rgb"),
+            comptime_fnv1_hash("rgba"),
+            comptime_fnv1_hash("hsl"),
+            comptime_fnv1_hash("hsla"),
+            comptime_fnv1_hash("hwb"),
+            comptime_fnv1_hash("lab"),
+            comptime_fnv1_hash("lch"),
+            comptime_fnv1_hash("oklab"),
+            comptime_fnv1_hash("oklch"),
+            comptime_fnv1_hash("color") => {
+                return cssParser.parseIdentifierCSSColor(parser, builder, value, token);
+            }
+            comptime_fnv1_hash("fit-content") => {
+                parser.increment();
+                cssParser.parseFitContentCall(parser, builder, value);
+                return true;
+            }
+            comptime_fnv1_hash("url"),
+            comptime_fnv1_hash("src"),
+            comptime_fnv1_hash("linear-gradient"),
+            comptime_fnv1_hash("repeating-linear-gradient"),
+            comptime_fnv1_hash("radial-gradient"),
+            comptime_fnv1_hash("repeating-radial-gradient"),
+            comptime_fnv1_hash("conic-gradient"),
+            comptime_fnv1_hash("repeating-conic-gradient") => {
+                parser.increment();
+                const image = builder.allocate<BackgroundImageData>();
+                new (image) BackgroundImageData {
+                    url = UrlData()
+                    gradient = GradientData()
+                };
+                image.is_url = true;
+                if(hash == comptime_fnv1_hash("src")) {
+                    image.url.is_source = true;
+                    cssParser.parseUrlValue(parser, builder, image.url)
+                } else if(hash == comptime_fnv1_hash("url")) {
+                    cssParser.parseUrlValue(parser, builder, image.url)
+                } else {
+                    image.is_url = false;
+                    switch(hash) {
+                        comptime_fnv1_hash("linear-gradient") => {
+                            cssParser.parseLinearGradient(parser, builder, image.gradient, false)
+                        }
+                        comptime_fnv1_hash("repeating-linear-gradient") => {
+                            cssParser.parseLinearGradient(parser, builder, image.gradient, true)
+                        }
+                        comptime_fnv1_hash("radial-gradient") => {
+                            cssParser.parseRadialGradient(parser, builder, image.gradient, false)
+                        }
+                        comptime_fnv1_hash("repeating-radial-gradient") => {
+                            cssParser.parseRadialGradient(parser, builder, image.gradient, true)
+                        }
+                        comptime_fnv1_hash("conic-gradient") => {
+                            cssParser.parseConicGradient(parser, builder, image.gradient, false)
+                        }
+                        default => {
+                            cssParser.parseConicGradient(parser, builder, image.gradient, true)
+                        }
+                    }
+                }
+                value.kind = CSSValueKind.BackgroundImage
+                value.data = image
+                return true;
+            }
+            default => {
+                cssParser.parseRawFunctionValue(parser, builder, value);
+                return true;
+            }
+        }
+    }
+
+    if(cssParser.parseIdentifierCSSColor(parser, builder, value, token)) {
+        return true;
+    }
+
+    parser.increment();
+    alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, token.value);
+    return true;
+}
+
 func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();
     switch(token.type) {
@@ -103,9 +250,8 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             alloc_value_length(parser, builder, value, token.value, false);
             return true;
         }
-        TokenType.Identifier => {
-            cssParser.parseIdentifierCSSColor(parser, builder, value, token)
-            return true;
+        TokenType.Identifier, TokenType.PropertyName => {
+            return cssParser.parseRandomIdentifierValue(parser, builder, value, token);
         }
         TokenType.HexColor => {
             cssParser.parseHexColor(parser, builder, token.value, value);

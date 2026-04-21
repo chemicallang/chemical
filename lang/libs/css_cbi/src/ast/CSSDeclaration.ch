@@ -267,6 +267,7 @@ struct UrlData {
 
 }
 
+@direct_init
 struct BackgroundImageData {
 
     var is_url : bool = true;

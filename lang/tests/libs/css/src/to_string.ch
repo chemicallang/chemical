@@ -123,6 +123,24 @@ public func calc_works(env : &mut TestEnv) {
 }
 
 @test
+public func calc_works_for_unsupported_property(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        min-height: calc(100vh - 2.4rem);
+    }
+    css_equals(env, page.toStringCssOnly(), "min-height:calc(100vh - 2.4rem);");
+}
+
+@test
+public func grid_template_columns_with_minmax_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-template-columns: minmax(0, 1fr) 380px;
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-template-columns:minmax(0, 1fr) 380px;");
+}
+
+@test
 public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

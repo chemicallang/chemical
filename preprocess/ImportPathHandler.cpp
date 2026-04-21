@@ -230,17 +230,22 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string_view& fi
     return { std::string(filePath), "unknown '@' directive " + std::string(atDirective) + " in import statement"};
 }
 
+std::string canonical_or_absolute(const std::string_view& path) {
+    auto can = canonical_path(path);
+    return can.empty() ? absolute_path(path) : can;
+}
+
 AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& base_path, const std::string_view& import_path) {
     const auto first_char = import_path[0];
     if(first_char == '@') {
         auto result = replace_at_in_path(import_path);
         if(result.error.empty()) {
-            return { absolute_path(result.replaced), "" };
+            return { canonical_or_absolute(result.replaced), "" };
         } else {
             return { "", result.error };
         }
     }
-    return { absolute_path(resolve_sibling(base_path, import_path)), "" };
+    return { canonical_or_absolute((resolve_sibling(base_path, import_path))), "" };
 }
 
 ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(

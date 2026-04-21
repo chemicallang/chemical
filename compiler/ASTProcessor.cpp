@@ -660,6 +660,13 @@ bool ASTProcessor::figure_out_direct_imports(
             // resolve the import path of this import statement
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, path.view());
 
+            // replaced is empty (this happens when canonical fails)
+            if (replaceResult.replaced.empty()) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve path '" << stmt->getSourcePath() << "' at ";
+                std::cerr << loc_man.formatLocation(stmt->encoded_location()) << std::endl;
+                return false;
+            }
+
             if(replaceResult.error.empty()) {
 
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
@@ -697,7 +704,7 @@ bool ASTProcessor::figure_out_direct_imports(
 
             } else {
 
-                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't replace '@' in the path at ";
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve path '" << stmt->getSourcePath() << "' at ";
                 std::cerr << loc_man.formatLocation(stmt->encoded_location()) << std::endl;
                 return false;
 
@@ -751,11 +758,13 @@ std::optional<FileInputSource> ASTProcessor::make_file_input_source(const char* 
     if(err != nullptr) {
         result.continue_processing = false;
         result.read_error = err->format();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
-        if(!result.read_error.empty()) {
-            std::cerr << " because " << result.read_error;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "reading file '" << abs_path;
+        if (result.stmt != nullptr) {
+            std::cerr << "' imported with path '" << result.stmt->getSourcePath();
         }
-        std::cerr << rang::fg::reset << std::endl;
+        if(!result.read_error.empty()) {
+            std::cerr << "' because " << result.read_error;
+        }
         return std::nullopt;
     }
     return inp_source;
@@ -781,9 +790,16 @@ bool import_file_in_lab(
     // and instead of a build.lab file user has a chemical.mod file, we translate it
     auto prev_msg = err->format();
     if(abs_path.ends_with(".lab")) {
-        auto modFile = resolve_sibling(abs_path, "chemical.mod");
-        const auto modFileErr = inp_source.open(modFile.data());
+        auto modFileNonCan = resolve_sibling(abs_path, "chemical.mod");
+        const auto modFileErr = inp_source.open(modFileNonCan.data());
         if(!modFileErr) {
+
+            // we must get the canonical path, to make sure we erase duplicates
+            auto modFile = canonical_path(modFileNonCan);
+            if (modFile.empty()) {
+                // unfortunately canonical path failed, this probably won't happen
+                modFile = std::move(modFileNonCan);
+            }
 
             // lets get a new file id for module file
             auto modFileId = proc.loc_man.encodeFile(modFile);
@@ -800,11 +816,17 @@ bool import_file_in_lab(
     // since couldn't import both .lab / .mod we return the original error
     result.continue_processing = false;
     result.read_error = prev_msg;
-    std::cerr << rang::fg::red << "error: when reading file '" << abs_path;
+    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "reading file '" << abs_path;
+    if (result.stmt != nullptr) {
+        std::cerr << "' imported with path '" << result.stmt->getSourcePath();
+    }
     if(!result.read_error.empty()) {
         std::cerr << "' because " << result.read_error;
     }
-    std::cerr << rang::fg::reset << std::endl;
+    if (result.stmt != nullptr) {
+        std::cerr << " at " << proc.loc_man.formatLocation(result.stmt->encoded_location());
+    }
+    std::cerr << std::endl;
     return false;
 
 }
@@ -1294,10 +1316,18 @@ bool ASTProcessor::import_chemical_mod_file(
     const auto err = inp_source.error();
     if(err != nullptr) {
         data.read_error = err->format();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "reading file '" << abs_path;
+        // TODO: we don't have access to the importer stmt
+        // if (result.stmt != nullptr) {
+        //     std::cerr << "' imported with path '" << result.stmt->getSourcePath();
+        // }
         if(!data.read_error.empty()) {
-            std::cerr << " because " << data.read_error;
+            std::cerr << "' because " << data.read_error;
         }
+        // TODO: we don't have access to the importer stmt
+        // if (result.stmt != nullptr) {
+        //     std::cerr << " at " << loc_man.formatLocation(result.stmt->encoded_location());
+        // }
         std::cerr << rang::fg::reset << std::endl;
         return false;
     }

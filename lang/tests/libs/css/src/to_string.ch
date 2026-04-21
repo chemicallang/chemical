@@ -150,6 +150,15 @@ public func grid_template_columns_with_minmax_works(env : &mut TestEnv) {
 }
 
 @test
+public func grid_template_columns_with_repeat_and_minmax_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-template-columns:repeat(2, minmax(0, 1fr));");
+}
+
+@test
 public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

@@ -74,16 +74,30 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                          if(cssParser.parseLength(parser, builder, v2)) {
                              repeatData.tracks.push(v2)
                          } else if(t2.type == TokenType.Identifier) {
-                             // Handle auto, min-content etc inside repeat
-                             parser.increment()
-                             var kwVal = builder.allocate<CSSKeywordValueData>()
-                             new (kwVal) CSSKeywordValueData {
-                                 kind = CSSKeywordKind.Auto, // simplified
-                                 value = builder.allocate_view(t2.value)
+                             // Handle keyword tracks before falling back to generic values like minmax()
+                             if(t2.value.equals("auto") ||
+                                 t2.value.equals("min-content") ||
+                                 t2.value.equals("max-content") ||
+                                 t2.value.equals("fit-content")) {
+                                 parser.increment()
+                                 var kwKind = CSSKeywordKind.Auto
+                                 if(t2.value.equals("min-content")) kwKind = CSSKeywordKind.MinContent
+                                 else if(t2.value.equals("max-content")) kwKind = CSSKeywordKind.MaxContent
+                                 else if(t2.value.equals("fit-content")) kwKind = CSSKeywordKind.FitContent
+                                 
+                                 var kwVal = builder.allocate<CSSKeywordValueData>()
+                                 new (kwVal) CSSKeywordValueData {
+                                     kind = kwKind,
+                                     value = builder.allocate_view(t2.value)
+                                 }
+                                 v2.kind = CSSValueKind.Keyword
+                                 v2.data = kwVal
+                                 repeatData.tracks.push(v2)
+                             } else if(cssParser.parseRandomValue(parser, builder, v2)) {
+                                 repeatData.tracks.push(v2)
+                             } else {
+                                 break
                              }
-                             v2.kind = CSSValueKind.Keyword
-                             v2.data = kwVal
-                             repeatData.tracks.push(v2)
                          } else if(cssParser.parseRandomValue(parser, builder, v2)) {
                              repeatData.tracks.push(v2)
                          } else {

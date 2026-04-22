@@ -11,6 +11,8 @@ enum class PatternElseExprKind {
     None,
     Unreachable,
     Return,
+    Break,
+    Continue,
     DefValue,
 
 };

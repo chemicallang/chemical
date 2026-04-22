@@ -91,6 +91,20 @@ void Parser::parsePatternMatchExprAfterId(
                 }
                 break;
             }
+            case TokenType::BreakKw: {
+                token++;
+                patternMatch->elseExpression.kind = PatternElseExprKind::Break;
+                const auto elseExpr = parseExpression(allocator, true, true);
+                if (elseExpr) {
+                    patternMatch->elseExpression.value = elseExpr;
+                }
+                break;
+            }
+            case TokenType::ContinueKw: {
+                token++;
+                patternMatch->elseExpression.kind = PatternElseExprKind::Continue;
+                break;
+            }
             default:{
                 const auto elseExpr = parseExpression(allocator, true, true);
                 if(elseExpr) {

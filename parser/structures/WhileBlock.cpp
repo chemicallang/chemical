@@ -46,9 +46,7 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
     // { statement(s) } with continue & break support
     auto block = parseBraceBlockOrSingleStmt("whileloop", loop, allocator);
     if(block.has_value()) {
-        auto& blk = block.value();
-        loop->body.nodes = std::move(blk.nodes);
-        loop->body.set_parent(blk.parent());
+        loop->body = std::move(block.value());
     } else {
         unexpected_error("expected a brace block { statement(s) } when lexing a while block");
         return loop;

@@ -3730,8 +3730,8 @@ void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {
     write(';');
 }
 
-void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
-    if(node->value) {
+void ToCAstVisitor::writeBreakStmtFor(Value* value) {
+    if(value) {
         if(current_assignable.empty()) {
             write("/** unused assignable **/");
             new_line_and_indent();
@@ -3741,13 +3741,17 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
         }
         auto prev = nested_value;
         nested_value = true;
-        visit(node->value);
+        visit(value);
         nested_value = prev;
         write(';');
         new_line_and_indent();
     }
     destruct_till_loop_scope_above();
     write("break;");
+}
+
+void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
+    writeBreakStmtFor(node->value);
 }
 
 ForInLoop* getParentForInLoop(ASTNode* node) {
@@ -3759,7 +3763,7 @@ ForInLoop* getParentForInLoop(ASTNode* node) {
     return getParentForInLoop(p);
 }
 
-void ToCAstVisitor::VisitContinueStmt(ContinueStatement *stmt) {
+void ToCAstVisitor::writeContinueStmt(ASTNode* stmt) {
     destruct_till_loop_scope_above();
     const auto forIn = getParentForInLoop(stmt);
     if (forIn) {
@@ -3783,6 +3787,10 @@ void ToCAstVisitor::VisitContinueStmt(ContinueStatement *stmt) {
         }
     }
     write("continue;");
+}
+
+void ToCAstVisitor::VisitContinueStmt(ContinueStatement* node) {
+     writeContinueStmt(node);
 }
 
 void ToCAstVisitor::VisitUnreachableStmt(UnreachableStmt *stmt) {
@@ -4621,6 +4629,8 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
 }
 
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
+    const auto prev_scope = current_scope;
+    current_scope = scope;
     for(const auto node : scope->nodes) {
         new_line_and_indent(node->encoded_location());
         before_stmt.visit(node);
@@ -4634,6 +4644,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     }
     auto itr = destructor.destruct_jobs.begin() + destruct_begin;
     destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    current_scope = prev_scope;
 }
 
 void ToCAstVisitor::VisitScope(Scope *scope) {
@@ -6548,78 +6559,97 @@ void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
 void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
 
     const auto elseKind = value->elseExpression.kind;
-    if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
-        const auto type = value->expression->getType();
-        visit(type);
-        switch (type->canonical()->kind()) {
-            case BaseTypeKind::Reference:
-            case BaseTypeKind::Pointer:
-                break;
-            default:
-                write('*');
-                break;
+    switch (elseKind) {
+        case PatternElseExprKind::Unreachable:
+        case PatternElseExprKind::Return:
+        case PatternElseExprKind::Break:
+        case PatternElseExprKind::Continue: {
+            const auto type = value->expression->getType();
+            visit(type);
+            switch (type->canonical()->kind()) {
+                case BaseTypeKind::Reference:
+                case BaseTypeKind::Pointer:
+                    break;
+                default:
+                    write('*');
+                    break;
+            }
+            break;
         }
-    } else if(elseKind == PatternElseExprKind::DefValue) {
-        visit(value->param_names[0]->member_param->type);
+        case PatternElseExprKind::DefValue: {
+            visit(value->param_names[0]->member_param->type);
+            break;
+        }
+        default:
+            break;
     }
+
+    // local variable def
     auto varName = get_local_temp_var_name();
     write(' ');
     write(varName);
     write(" = ");
 
-    if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
-        if(!is_value_param_hidden_pointer(value->expression)) {
-            write('&');
+    switch (elseKind) {
+        case PatternElseExprKind::Unreachable:
+        case PatternElseExprKind::Return:
+        case PatternElseExprKind::Break:
+        case PatternElseExprKind::Continue: {
+            if(!is_value_param_hidden_pointer(value->expression)) {
+                write('&');
+            }
+            visit(value->expression);
+            break;
         }
-        visit(value->expression);
-    } else if(elseKind == PatternElseExprKind::DefValue) {
+        case PatternElseExprKind::DefValue: {
+            const auto type = value->expression->getType();
+            const auto memberId = value->param_names[0];
+            const auto member = memberId->member_param->parent();
+            const auto def = member->parent();
 
-        const auto type = value->expression->getType();
-        const auto memberId = value->param_names[0];
-        const auto member = memberId->member_param->parent();
-        const auto def = member->parent();
-
-        auto varName2 = get_local_temp_var_name();
-        write("({ ");
-        visit(type);
-        switch (type->canonical()->kind()) {
+            auto varName2 = get_local_temp_var_name();
+            write("({ ");
+            visit(type);
+            switch (type->canonical()->kind()) {
             case BaseTypeKind::Reference:
             case BaseTypeKind::Pointer:
                 break;
             default:
                 write('*');
                 break;
-        }
-        write(' ');
-        write(varName2);
-        write(" = ");
-        if(!is_value_param_hidden_pointer(value->expression)) {
-            write('&');
-        }
-        visit(value->expression);
-        write("; ");
-        write(varName2);
-        write("->");
-        write(variant_type_variant_name);
-        write(" == ");
+            }
+            write(' ');
+            write(varName2);
+            write(" = ");
+            if(!is_value_param_hidden_pointer(value->expression)) {
+                write('&');
+            }
+            visit(value->expression);
+            write("; ");
+            write(varName2);
+            write("->");
+            write(variant_type_variant_name);
+            write(" == ");
 
-        writer << def->direct_child_index(member->name);
-        write(" ? ");
-        write(varName2);
-        write("->");
-        write(member->name);
-        write('.');
-        write(memberId->member_param->name);
-        write(" : ");
-        visit(value->elseExpression.value);
-        write("; })");
+            writer << def->direct_child_index(member->name);
+            write(" ? ");
+            write(varName2);
+            write("->");
+            write(member->name);
+            write('.');
+            write(memberId->member_param->name);
+            write(" : ");
+            visit(value->elseExpression.value);
+            write("; })");
+            break;
+        }
+        default:
+            break;
     }
 
-    if(elseKind == PatternElseExprKind::Return) {
-
+    if (elseKind == PatternElseExprKind::Return || elseKind == PatternElseExprKind::Break || elseKind == PatternElseExprKind::Continue) {
         const auto member = value->member;
         const auto def = member->parent();
-
         write(';');
         new_line_and_indent();
         write("if(");
@@ -6631,13 +6661,25 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write(") {");
         indentation_level += 1;
         new_line_and_indent();
-        writeReturnStmtFor(value->elseExpression.value);
+        switch (elseKind) {
+            case PatternElseExprKind::Return:
+                writeReturnStmtFor(value->elseExpression.value);
+                break;
+            case PatternElseExprKind::Break:
+                writeBreakStmtFor(value->elseExpression.value);
+                break;
+            case PatternElseExprKind::Continue:
+                if (current_scope == nullptr) {
+                    error(value) << "current scope is unknown when visiting pattern match expression, please report bug report with source code";
+                } else {
+                    writeContinueStmt(current_scope);
+                }
+                break;
+        }
         indentation_level -= 1;
         new_line_and_indent();
         write('}');
-
     }
-
 
     local_allocated[value] = varName;
 }

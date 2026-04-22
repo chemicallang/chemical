@@ -192,6 +192,11 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
+     * current scope being visited is set when visiting scopes
+     */
+    Scope* current_scope = nullptr;
+
+    /**
      * allocator
      */
     ASTAllocator& allocator;
@@ -659,7 +664,11 @@ public:
 
     void VisitAssignmentStmt(AssignStatement* node);
 
+    void writeBreakStmtFor(Value* value);
+
     void VisitBreakStmt(BreakStatement* node);
+
+    void writeContinueStmt(ASTNode* stmt);
 
     void VisitContinueStmt(ContinueStatement* node);
 

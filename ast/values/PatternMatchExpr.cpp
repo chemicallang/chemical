@@ -2,6 +2,8 @@
 
 #include "PatternMatchExpr.h"
 #include "compiler/symres/SymbolResolver.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/Continue.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/types/VoidType.h"
@@ -88,7 +90,7 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
 
     } else {
 
-        if(elseKind == PatternElseExprKind::Return) {
+        if(elseKind == PatternElseExprKind::Return || elseKind == PatternElseExprKind::Break || elseKind == PatternElseExprKind::Continue) {
 
             const auto mem = member;
             const auto variant_def = mem->parent();
@@ -107,7 +109,26 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
             gen.CreateCondBr(compareResult, returnBlock, endBlock, encoded_location());
 
             gen.SetInsertPoint(returnBlock);
-            gen.writeReturnStmtFor(elseExpression.value, encoded_location());
+
+            switch (elseKind) {
+                case PatternElseExprKind::Return:
+                    gen.writeReturnStmtFor(elseExpression.value, encoded_location());
+                    break;
+                case PatternElseExprKind::Break: {
+                    // TODO: use current scope as parent node
+                    auto stmt = BreakStatement(elseExpression.value, nullptr, encoded_location());
+                    stmt.code_gen(gen);
+                    break;
+                }
+                case PatternElseExprKind::Continue: {
+                    // TODO: use current scope as parent node
+                    auto stmt = ContinueStatement(nullptr, encoded_location());
+                    stmt.code_gen(gen);
+                    break;
+                }
+                default:
+                    break;
+            }
 
             gen.SetInsertPoint(endBlock);
 

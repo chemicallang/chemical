@@ -195,3 +195,14 @@ public func react_event_test(env : &mut TestEnv) {
     #html { <EventTest /> }
     view_equals(env, page.getHeadJs(), "function react_lib_test_EventTest(props) { return $_r.createElement(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }\n");
 }
+
+#react BacktickText(props) {
+    return <p>The code is `sync.status` and `lastSyncedAt`.</p>
+}
+
+@test
+public func react_backtick_in_text(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <BacktickText /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_BacktickText(props) { return $_r.createElement(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
+}

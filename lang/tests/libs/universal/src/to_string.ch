@@ -201,7 +201,18 @@ public func universal_strict_typeof_check_test(env : &mut TestEnv) {
     js.append_expr(`function universal_lib_test_StrictTypeofCheck(store) { return $_ur.createElement("div", {}, !store || typeof store !== "object" ? "bad" : "ok"); }\nwindow.$__uni_dispatch('universal_lib_test_StrictTypeofCheck', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
+#universal BacktickText(props) {
+    return <p>The code is `sync.status` and `lastSyncedAt`.</p>
+}
 
+@test
+public func universal_backtick_in_text(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <BacktickText /> }
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_BacktickText(props) { return $_ur.createElement("p", {}, ${"` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `"}); }\nwindow.$__uni_dispatch('universal_lib_test_BacktickText', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
 #universal ParenthesizedTernaryLabel(item) {
     return <div>{(item.checked ? "[x] " : "[ ] ") + item.text}</div>
 }

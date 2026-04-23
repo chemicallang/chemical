@@ -21,7 +21,11 @@ func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
     while(i < text.size()) {
         const c1 = (text.data()[i] as uint) & 0xFF;
         if (c1 < 0x80) {
-            str.append(c1 as char);
+            if (c1 == '`' as uint) {
+                str.append_view("\\`");
+            } else {
+                str.append(c1 as char);
+            }
             i++;
         } else if ((c1 & 0xE0) == 0xC0) {
             if (i + 1 < text.size()) {

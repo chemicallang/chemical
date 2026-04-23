@@ -195,3 +195,14 @@ public func solid_event_test(env : &mut TestEnv) {
     #html { <EventTest /> }
     view_equals(env, page.getHeadJs(), "function solid_lib_test_EventTest(props) { return $_sh(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }\n");
 }
+
+#solid BacktickText(props) {
+    return <p>The code is `sync.status` and `lastSyncedAt`.</p>
+}
+
+@test
+public func solid_backtick_in_text(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <BacktickText /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_BacktickText(props) { return $_sh(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
+}

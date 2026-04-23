@@ -195,3 +195,14 @@ public func preact_event_test(env : &mut TestEnv) {
     #html { <EventTest /> }
     view_equals(env, page.getHeadJs(), "function preact_lib_test_EventTest(props) { return $_p.h(\"button\", {\"onClick\": () => alert(\"hi\")}, ` click `); }\n");
 }
+
+#preact BacktickText(props) {
+    return <p>The code is `sync.status` and `lastSyncedAt`.</p>
+}
+
+@test
+public func preact_backtick_in_text(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <BacktickText /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_BacktickText(props) { return $_p.h(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
+}

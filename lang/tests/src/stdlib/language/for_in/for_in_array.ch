@@ -7,6 +7,11 @@ struct ForInArrayPoint {
 
 }
 
+variant ForInPattMatchArray {
+    Some(value : int)
+    None()
+}
+
 func test_for_in_array() {
     test("can iterate over array", () => {
         const arr : []int = [10, 10, 10, 10, 20]
@@ -23,6 +28,30 @@ func test_for_in_array() {
             total += i
         }
         return total == 60
+    })
+    test("continue using pattern match, for in iterate over array", () => {
+        const arr : []int = [10, 10, 10, 10, 20]
+        var total = 0;
+        var p = ForInPattMatchArray.None()
+        for(var i, j in arr) {
+            if(j == 2) {
+                var Some(value) = p else continue;
+            }
+            total += i
+        }
+        return total == 50
+    })
+    test("break using pattern match, for in iterate over array", () => {
+        const arr : []int = [10, 10, 10, 10, 20]
+        var total = 0;
+        var p = ForInPattMatchArray.None()
+        for(var i, j in arr) {
+            if(j == 2) {
+                var Some(value) = p else break;
+            }
+            total += i
+        }
+        return total == 20
     })
     test("can iterate over array using a reference", () => {
         const arr : []int = [20, 10, 10, 10, 20]

@@ -96,6 +96,42 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
     value.data = raw_data
 }
 
+func (cssParser : &mut CSSParser) parseRawPropertyValue(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    var raw = std::string()
+    var prev_type = TokenType.Unexpected;
+    var first = true;
+
+    while(true) {
+        const token = parser.getToken();
+        if(token.type == TokenType.Semicolon || token.type == TokenType.EndOfFile) {
+            break;
+        }
+        if(token.type == TokenType.Important) {
+            break;
+        }
+
+        if(!first && token_needs_space_before(token.type as TokenType) && token_needs_space_after(prev_type as TokenType)) {
+            raw.append(' ')
+        }
+
+        raw.append_view(token.value)
+        prev_type = token.type as TokenType
+        first = false
+        parser.increment()
+    }
+
+    var raw_data = builder.allocate<CSSRawValueData>();
+    new (raw_data) CSSRawValueData {
+        value : builder.allocate_view(raw.to_view())
+    }
+    value.kind = CSSValueKind.Raw
+    value.data = raw_data
+}
+
 func (cssParser : &mut CSSParser) parseRawFunctionValue(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

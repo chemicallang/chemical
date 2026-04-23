@@ -26,6 +26,8 @@ func putAllCSSValueParsers(
     map.put(std::string_view("padding"), CSSParser::parsePadding)
     map.put(std::string_view("width"), CSSParser::parseWidth)
     map.put(std::string_view("height"), CSSParser::parseHeight)
+    map.put(std::string_view("flex"), CSSParser::parseRawPropertyValue)
+    map.put(std::string_view("inset"), CSSParser::parseRawPropertyValue)
     map.put(std::string_view("font"), CSSParser::parseFont)
     map.put(std::string_view("font-family"), CSSParser::parseFontFamily)
     map.put(std::string_view("font-weight"), CSSParser::parseFontWeight)

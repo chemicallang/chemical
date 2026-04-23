@@ -7,6 +7,11 @@ struct ForInSpanPoint {
 
 }
 
+variant ForInPattMatchSpan {
+    Some(value : int)
+    None()
+}
+
 func test_for_in_span() {
     test("can iterate over span", () => {
         const arr : []int = [10, 10, 10, 10, 20]
@@ -25,6 +30,32 @@ func test_for_in_span() {
             total += i
         }
         return total == 60
+    })
+    test("continue using pattern match, for in iterate over span", () => {
+        var p = ForInPattMatchSpan.None()
+        const arr : []int = [10, 10, 10, 10, 20]
+        var s = std::span<int>(arr)
+        var total = 0;
+        for(var i, j in s) {
+            if(j == 2) {
+                var Some(value) = p else continue;
+            }
+            total += i
+        }
+        return total == 50
+    })
+    test("break using pattern match, for in iterate over span", () => {
+        var p = ForInPattMatchSpan.None()
+        const arr : []int = [10, 10, 10, 10, 20]
+        var s = std::span<int>(arr)
+        var total = 0;
+        for(var i, j in s) {
+            if(j == 2) {
+                var Some(value) = p else break;
+            }
+            total += i
+        }
+        return total == 20
     })
     test("can iterate over span using a reference", () => {
         const arr : []int = [20, 10, 10, 10, 20]

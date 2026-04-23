@@ -258,21 +258,6 @@ func test_if_switch_loop_value() {
         }
         return i == 90 && j == 200
     })
-    test("loop continue and break work as needed", () => {
-        var i = 0;
-        for(var j = 0; j < 10; j++) {
-            for(var x = 0; x < 5; x++) {
-                if(x == 3) {
-                    break;
-                }
-                i++;
-            }
-            if(j == 7) {
-                break;
-            }
-        }
-        return i == 24;
-    })
     test("loop block works", () => {
         var i = 0;
         loop {

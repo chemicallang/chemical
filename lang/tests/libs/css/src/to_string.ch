@@ -812,6 +812,33 @@ public func nested_queries_test9(env : &mut TestEnv) {
     compl_css_equals(env, got, expected.to_view());
 }
 
+@test
+public func width_min_with_nested_calc_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        width: min(820px, calc(100vw - 48px));
+    }
+    css_equals(env, page.toStringCssOnly(), "width:min(820px, calc(100vw - 48px));");
+}
+
+@test
+public func flex_with_three_part_length_basis_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        flex: 0 0 360px;
+    }
+    css_equals(env, page.toStringCssOnly(), "flex:0 0 360px;");
+}
+
+@test
+public func inset_shorthand_with_auto_value_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        inset: 24px 24px 24px auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "inset:24px 24px 24px auto;");
+}
+
 /**
 
 @test

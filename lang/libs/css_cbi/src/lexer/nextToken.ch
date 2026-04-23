@@ -20,7 +20,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             css.where = CSSLexerWhere.Selector;
             return Token {
                 type : TokenType.Ampersand as int,
-                value : view("&"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -30,7 +30,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
             return Token {
                 type : TokenType.Colon as int,
-                value : view(":"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -40,21 +40,21 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
             return Token {
                 type : TokenType.Semicolon as int,
-                value : view(";"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
         ',' => {
             return Token {
                 type : TokenType.Comma as int,
-                value : view(","),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
         '+' => {
             return Token {
                 type : TokenType.Plus as int,
-                value : view("+"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -91,7 +91,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 
             return Token {
                 type : TokenType.Minus as int,
-                value : view("-"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
 
@@ -118,14 +118,14 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '(' => {
             return Token {
                 type : TokenType.LParen as int,
-                value : view("("),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
         ')' => {
             return Token {
                 type : TokenType.RParen as int,
-                value : view(")"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -133,7 +133,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             css.at_rule = true;
             return Token {
                 type : TokenType.At as int,
-                value : view("@"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -144,7 +144,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(strncmp(start, "important", provider.current_data() - start) == 0) {
                 return Token {
                     type : TokenType.Important as int,
-                    value : view("!important"),
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                     position : position
                 }
             } else {
@@ -177,7 +177,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '%' => {
             return Token {
                 type : TokenType.Percentage as int,
-                value : view("%"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -186,13 +186,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.ContainsSubstr as int,
-                    value : view("*="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             }  else {
                 return Token {
                     type : TokenType.Multiply as int,
-                    value : view("*"),
+                    value : std::string_view(data_ptr, 1),
                     position : position
                 }
             }
@@ -202,7 +202,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.StartsWith as int,
-                    value : view("^="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             }  else {
@@ -223,7 +223,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     css.start_chemical_lb_count = css.lb_count;
                     return Token {
                         type : TokenType.DollarLBrace as int,
-                        value : view("${"),
+                        value : std::string_view(data_ptr, 2),
                         position : position
                     }
                 }
@@ -231,7 +231,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     provider.readCharacter();
                     return Token {
                         type : TokenType.EndsWith as int,
-                        value : view("$="),
+                        value : std::string_view(data_ptr, 2),
                         position : position
                     }
                 }
@@ -249,7 +249,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.DashSeparatedMatch as int,
-                    value : view("|="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             }  else {
@@ -281,13 +281,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.ContainsWord as int,
-                    value : view("~="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             } else {
                 return Token {
                     type : TokenType.GeneralSibling as int,
-                    value : view("~"),
+                    value : std::string_view(data_ptr, 1),
                     position : position
                 }
             }
@@ -297,13 +297,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.GreaterThanOrEqual as int,
-                    value : view(">="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             } else {
                 return Token {
                     type : TokenType.GreaterThan as int,
-                    value : view(">"),
+                    value : std::string_view(data_ptr, 1),
                     position : position
                 }
             }
@@ -313,13 +313,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token {
                     type : TokenType.LessThanOrEqual as int,
-                    value : view("<="),
+                    value : std::string_view(data_ptr, 2),
                     position : position
                 }
             } else {
                 return Token {
                     type : TokenType.LessThan as int,
-                    value : view("<"),
+                    value : std::string_view(data_ptr, 1),
                     position : position
                 }
             }
@@ -350,7 +350,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             } else {
                 return Token {
                     type : TokenType.Divide as int,
-                    value : view("/"),
+                    value : std::string_view(data_ptr, 1),
                     position : position
                 }
             }
@@ -358,7 +358,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '=' => {
             return Token {
                 type : TokenType.Equal as int,
-                value : view("="),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -371,7 +371,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
             return Token {
                 type : TokenType.RBrace as int,
-                value : view("}"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }
@@ -390,7 +390,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
             return Token {
                 type : TokenType.LBrace as int,
-                value : view("{"),
+                value : std::string_view(data_ptr, 1),
                 position : position
             }
         }

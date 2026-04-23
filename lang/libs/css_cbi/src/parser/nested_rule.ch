@@ -24,6 +24,10 @@ func (cssParser : &mut CSSParser) parseNestedRule(om : &mut CSSOM, parser : *mut
     
     // Parse body (declarations or nested rules)
     while(true) {
+        // skip comment tokens
+        while(parser.getToken().type == TokenType.Comment) {
+            parser.increment();
+        }
         var token = parser.getToken();
         switch(token.type) {
              TokenType.RBrace => {

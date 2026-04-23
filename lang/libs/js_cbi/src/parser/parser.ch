@@ -9,7 +9,7 @@ func (jsParser : &mut JsParser) parsePostfixContinuation(parser : *mut Parser, b
         if(t.type == JsTokenType.Dot as int) {
             parser.increment();
             const idToken = parser.getToken();
-            if(idToken.type != JsTokenType.Identifier as int) {
+            if(!isIdOrKw(idToken.type as JsTokenType)) {
                 parser.error("expected identifier after dot");
                 break;
             }

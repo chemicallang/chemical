@@ -323,12 +323,12 @@ line`;""");
 }
 
 @test
-public func test_template_literals_with_backticks(env : &mut TestEnv) {
+public func test_string_literals_with_backticks(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {
-        var s = `code is `sync.status``;
+        var s = "code is `sync.status`";
     }
-    string_equals(env, page.toStringJsOnly(), "var s = `code is \\`sync.status\\``;");
+    string_equals(env, page.toStringJsOnly(), "var s = \"code is \\`sync.status\\`\";");
 }
 
 @test

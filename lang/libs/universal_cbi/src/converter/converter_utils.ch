@@ -71,9 +71,14 @@ func (converter : &mut JsConverter) next_t() : std::string {
     return res
 }
 
-func (converter : &mut JsConverter) is_state_var(name : std::string_view) : bool {
+func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : bool {
     for(var i : uint = 0; i < converter.state_vars.size(); i++) {
         if(converter.state_vars.get(i).equals(name)) {
+            return true;
+        }
+    }
+    for(var i : uint = 0; i < converter.computed_vars.size(); i++) {
+        if(converter.computed_vars.get(i).equals(name)) {
             return true;
         }
     }
@@ -576,7 +581,7 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
         }
         JsNodeKind.Identifier => {
             const id = node as *mut JsIdentifier;
-            if(converter.is_state_var(id.value)) {
+            if(converter.is_reactive_var(id.value)) {
                 return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
             }
             return ssr_js_eval_invalid();
@@ -585,7 +590,7 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
             const mem = node as *mut JsMemberAccess;
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                 const id = mem.object as *mut JsIdentifier;
-                if(converter.is_state_var(id.value)) {
+                if(converter.is_reactive_var(id.value)) {
                     return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
                 }
             }
@@ -632,12 +637,12 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
     if(node == null) return false;
     switch(node.kind) {
         JsNodeKind.Identifier => {
-            return converter.is_state_var((node as *mut JsIdentifier).value);
+            return converter.is_reactive_var((node as *mut JsIdentifier).value);
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
-                return converter.is_state_var((mem.object as *mut JsIdentifier).value);
+                return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
             }
             return converter.jsx_expr_needs_reactive_wrapper(mem.object);
         }
@@ -691,7 +696,7 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
     }
     if(node.kind == JsNodeKind.Identifier) {
         const id = node as *mut JsIdentifier;
-        if(converter.is_state_var(id.value)) {
+        if(converter.is_reactive_var(id.value)) {
             converter.str.append_view(id.value);
             return;
         }
@@ -699,7 +704,7 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
         const mem = node as *mut JsMemberAccess;
         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
             const id = mem.object as *mut JsIdentifier;
-            if(converter.is_state_var(id.value)) {
+            if(converter.is_reactive_var(id.value)) {
                 converter.str.append_view(id.value);
                 return;
             }

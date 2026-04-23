@@ -30,7 +30,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
-            if(converter.is_state_var(id.value)) {
+            if(converter.is_reactive_var(id.value)) {
                 converter.str.append_view(id.value);
                 converter.str.append_view(".value");
             } else {
@@ -45,7 +45,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(unary.operand != null && unary.operand.kind == JsNodeKind.Identifier) {
                 const id = unary.operand as *mut JsIdentifier
                 const is_update = unary.operator.equals(view("++")) || unary.operator.equals(view("--"))
-                if(is_update && converter.is_state_var(id.value)) {
+                if(is_update && converter.is_reactive_var(id.value)) {
                     if(unary.prefix) {
                         converter.str.append_view(unary.operator);
                         converter.str.append_view(id.value);
@@ -73,7 +73,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var bin = node as *mut JsBinaryOp
             if(bin.left != null && bin.left.kind == JsNodeKind.Identifier) {
                 const id = bin.left as *mut JsIdentifier
-                if(converter.is_state_var(id.value) &&
+                if(converter.is_reactive_var(id.value) &&
                     (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
                     converter.str.append_view(id.value);
                     converter.str.append_view(".value");
@@ -166,7 +166,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var mem = node as *mut JsMemberAccess
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
                 const id = mem.object as *mut JsIdentifier
-                if(converter.is_state_var(id.value) && mem.property.equals(view("value"))) {
+                if(converter.is_reactive_var(id.value) && mem.property.equals(view("value"))) {
                     converter.str.append_view(id.value);
                     converter.str.append_view(".value");
                 } else {
@@ -267,6 +267,15 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      converter.convertJsNode(decl.value);
                  }
                  converter.str.append_view(";");
+                 if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
+                     var call = decl.value as *mut JsFunctionCall
+                     if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
+                         var id = call.callee as *mut JsIdentifier
+                         if(id.value.equals(view("$_ucs"))) {
+                             converter.computed_vars.push(decl.name);
+                         }
+                     }
+                 }
              }
         }
         JsNodeKind.If => {
@@ -351,7 +360,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              if(container.expression != null) {
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
-                     if(converter.is_state_var(id.value)) {
+                     if(converter.is_reactive_var(id.value)) {
                          converter.str.append_view(id.value);
                          return;
                      }
@@ -359,7 +368,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      const mem = container.expression as *mut JsMemberAccess
                      if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                          const id = mem.object as *mut JsIdentifier
-                         if(converter.is_state_var(id.value)) {
+                         if(converter.is_reactive_var(id.value)) {
                              converter.str.append_view(id.value);
                              return;
                          }

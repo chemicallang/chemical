@@ -44,7 +44,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         t_counter : 0,
         state_vars : std::vector<std::string_view>(),
         state_inits : std::vector<JsStateInit>(),
-        current_func : funcNode
+        current_func : funcNode,
+        component_props_name : root.signature.propsName
     }
 
     const nodeLocation = value.getEncodedLocation()

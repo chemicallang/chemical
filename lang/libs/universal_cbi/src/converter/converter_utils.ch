@@ -85,6 +85,43 @@ func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : b
     return false;
 }
 
+func (converter : &mut JsConverter) is_component_props_name(name : std::string_view) : bool {
+    return !converter.component_props_name.empty() && converter.component_props_name.equals(name);
+}
+
+func (converter : &mut JsConverter) is_component_props_root(node : *mut JsNode) : bool {
+    return node != null &&
+        node.kind == JsNodeKind.Identifier &&
+        converter.is_component_props_name((node as *mut JsIdentifier).value);
+}
+
+func (converter : &mut JsConverter) is_component_props_read(node : *mut JsNode) : bool {
+    if(node == null) return false;
+    switch(node.kind) {
+        JsNodeKind.Identifier => {
+            return converter.is_component_props_name((node as *mut JsIdentifier).value);
+        }
+        JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            if(converter.is_component_props_root(mem.object)) return true;
+            return converter.is_component_props_read(mem.object);
+        }
+        JsNodeKind.IndexAccess => {
+            const idx = node as *mut JsIndexAccess;
+            return converter.is_component_props_read(idx.object);
+        }
+        default => return false
+    }
+}
+
+func (converter : &mut JsConverter) append_component_prop_value(node : *mut JsNode) {
+    converter.str.append_view("window.$__uni_value(");
+    if(!append_js_node_text(node, converter.str)) {
+        converter.convertJsNode(node);
+    }
+    converter.str.append(')');
+}
+
 func (converter : &mut JsConverter) make_require_component_call(hash : size_t) : *mut FunctionCall {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -637,10 +674,14 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
     if(node == null) return false;
     switch(node.kind) {
         JsNodeKind.Identifier => {
-            return converter.is_reactive_var((node as *mut JsIdentifier).value);
+            const name = (node as *mut JsIdentifier).value;
+            return converter.is_reactive_var(name) || converter.is_component_props_name(name);
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
+            if(converter.is_component_props_read(node) || converter.is_component_props_read(mem.object)) {
+                return true;
+            }
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                 return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
             }
@@ -648,6 +689,9 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
         }
         JsNodeKind.IndexAccess => {
             const idx = node as *mut JsIndexAccess;
+            if(converter.is_component_props_read(node) || converter.is_component_props_read(idx.object)) {
+                return true;
+            }
             return converter.jsx_expr_needs_reactive_wrapper(idx.object) || converter.jsx_expr_needs_reactive_wrapper(idx.index);
         }
         JsNodeKind.UnaryOp => {
@@ -700,14 +744,27 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
             converter.str.append_view(id.value);
             return;
         }
+        if(converter.is_component_props_name(id.value)) {
+            converter.append_component_prop_value(node);
+            return;
+        }
     } else if(node.kind == JsNodeKind.MemberAccess) {
         const mem = node as *mut JsMemberAccess;
+        if(converter.is_component_props_read(node)) {
+            converter.convertJsNode(node);
+            return;
+        }
         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
             const id = mem.object as *mut JsIdentifier;
             if(converter.is_reactive_var(id.value)) {
                 converter.str.append_view(id.value);
                 return;
             }
+        }
+    } else if(node.kind == JsNodeKind.IndexAccess) {
+        if(converter.is_component_props_read(node)) {
+            converter.convertJsNode(node);
+            return;
         }
     }
     if(converter.jsx_expr_needs_reactive_wrapper(node)) {

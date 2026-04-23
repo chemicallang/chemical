@@ -324,12 +324,40 @@ public func universal_empty_block_js(env : &mut TestEnv) {
 #universal MultiState(props) {
     state a = 1;
     state b = 2;
-    return <div>{a} + {b} = {a.value + b.value}</div>
+    return <div>{a} + {b} = {a + b}</div>
 }
 
 @test
 public func universal_multi_state_js(env : &mut TestEnv) {
     // Test multiple state initialization and subscription
+}
+
+#universal PropValueSugar(props) {
+    return <div>{props.user.user.name}</div>
+}
+
+@test
+public func universal_prop_value_sugar_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <PropValueSugar /> }
+
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_PropValueSugar(props) { return $_ur.createElement("div", {}, $_ucs(() => window.$__uni_value(props.user).user.name)); }\nwindow.$__uni_dispatch('universal_lib_test_PropValueSugar', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
+}
+
+#universal PropArraySugar(props) {
+    return <ul>{props.items.map((item) => <li>{item.label}</li>)}</ul>
+}
+
+@test
+public func universal_prop_array_sugar_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <PropArraySugar /> }
+
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_PropArraySugar(props) { return $_ur.createElement("ul", {}, $_ucs(() => window.$__uni_value(props.items).map((item) => $_ur.createElement("li", {}, item.label)))); }\nwindow.$__uni_dispatch('universal_lib_test_PropArraySugar', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    view_equals(env, page.getJs(), js.to_view())
 }
 
 func dummy_class_1(page : &mut HtmlPage) : *char {

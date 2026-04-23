@@ -33,6 +33,8 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(converter.is_reactive_var(id.value)) {
                 converter.str.append_view(id.value);
                 converter.str.append_view(".value");
+            } else if(converter.is_component_props_name(id.value)) {
+                converter.append_component_prop_value(node);
             } else {
                 converter.str.append_view(id.value);
             }
@@ -169,11 +171,15 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 if(converter.is_reactive_var(id.value) && mem.property.equals(view("value"))) {
                     converter.str.append_view(id.value);
                     converter.str.append_view(".value");
+                } else if(converter.is_component_props_name(id.value)) {
+                    converter.append_component_prop_value(node);
                 } else {
                     converter.convertJsNode(mem.object);
                     converter.str.append_view(".");
                     converter.str.append_view(mem.property);
                 }
+            } else if(mem.property.equals(view("value")) && converter.is_component_props_read(mem.object)) {
+                converter.convertJsNode(mem.object);
             } else {
                 converter.convertJsNode(mem.object);
                 converter.str.append_view(".");
@@ -182,7 +188,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.IndexAccess => {
             var idx = node as *mut JsIndexAccess
-            converter.convertJsNode(idx.object);
+            if(converter.is_component_props_read(idx.object)) {
+                converter.append_component_prop_value(idx.object);
+            } else {
+                converter.convertJsNode(idx.object);
+            }
             converter.str.append_view("[");
             converter.convertJsNode(idx.index);
             converter.str.append_view("]");

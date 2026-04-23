@@ -43,5 +43,38 @@ func test_for_loop() {
         // Correct behavior: loop runs exactly 33 times
         return (counter == 33);
     })
+    test("loop continue and break work", () => {
+        var i = 0;
+        for(var j = 0; j < 10; j++) {
+            for(var x = 0; x < 5; x++) {
+                if(x == 3) {
+                    break;
+                }
+                i++;
+            }
+            if(j == 7) {
+                break;
+            }
+        }
+        return i == 24;
+    })
+    test("loop continue and break work with pattern matching", () => {
+        var something = ForLoopPattMatchContinue.None()
+        var i = 0;
+        for(var j = 0; j < 10; j++) {
+            for(var x = 0; x < 5; x++) {
+                if(x == 3) {
+                    // will always cause a break here
+                    var Some(value) = something else break;
+                }
+                i++;
+            }
+            if(j == 7) {
+                // will always cause a break here
+                var Some(value) = something else break;
+            }
+        }
+        return i == 24;
+    })
 
 }

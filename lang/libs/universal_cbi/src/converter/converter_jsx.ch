@@ -19,7 +19,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                  }
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
-                     if(converter.is_state_var(id.value)) {
+                     if(converter.is_reactive_var(id.value)) {
                          converter.str.append_view(id.value);
                          return;
                      }
@@ -27,7 +27,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                      const mem = container.expression as *mut JsMemberAccess
                      if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                          const id = mem.object as *mut JsIdentifier
-                         if(converter.is_state_var(id.value)) {
+                         if(converter.is_reactive_var(id.value)) {
                              converter.str.append_view(id.value);
                              return;
                          }

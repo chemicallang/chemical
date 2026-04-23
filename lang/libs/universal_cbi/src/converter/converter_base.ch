@@ -18,6 +18,7 @@ struct JsConverter {
     var t_counter : int = 0
     var id_counter : int = 0
     var state_vars : std::vector<std::string_view>
+    var computed_vars : std::vector<std::string_view>
     var state_inits : std::vector<JsStateInit>
     var target : BufferType = BufferType.JavaScript
     var current_func : *mut FunctionDeclaration = null

@@ -67,6 +67,7 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
 ) {
     var raw = std::string()
     var prev_type = TokenType.Unexpected;
+    var prev_val = std::string_view("");
     var first = true;
 
     while(true) {
@@ -78,12 +79,16 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
             break;
         }
 
-        if(!first && token_needs_space_before(token.type as TokenType) && token_needs_space_after(prev_type as TokenType)) {
-            raw.append(' ')
+        if(!first) {
+            const prev_end = prev_val.data() + prev_val.size();
+            if(prev_end != token.value.data()) {
+                raw.append(' ')
+            }
         }
 
         raw.append_view(token.value)
         prev_type = token.type as TokenType
+        prev_val = token.value
         first = false
         parser.increment()
     }

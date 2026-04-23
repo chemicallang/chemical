@@ -458,6 +458,9 @@ enum CSSKeywordKind {
     // width or height keywords
     MinContent,
     MaxContent,
+    Min,
+    Max,
+    Clamp,
     FitContent,
     CalcSize,
     Calc,

@@ -564,12 +564,58 @@ window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "v
 window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
+window.$__uni_is_active_editable = ((el) => !!(el && el.isContentEditable && document.activeElement === el))
+window.$__uni_assign_ref = ((el, refValue) => {
+    if(refValue == null || refValue === false) return;
+    if(typeof refValue === "function") {
+        refValue(el);
+        return;
+    }
+    if(typeof refValue === "object" && "current" in refValue) {
+        refValue.current = el;
+    }
+})
+window.$__uni_inner_html_value = ((v) => {
+    if(v && typeof v === "object" && v.__html !== undefined) return v.__html == null ? "" : "" + v.__html;
+    if(v == null || v === false) return "";
+    return "" + v;
+})
+window.$__uni_apply_inner_html = ((el, nextHtml) => {
+    if(!el) return;
+    if(el.innerHTML !== nextHtml) el.innerHTML = nextHtml;
+    el.$__uni_last_inner_html = nextHtml;
+})
+window.$__uni_flush_pending_inner_html = ((el) => {
+    if(!el) return;
+    const pending = el.$__uni_pending_inner_html;
+    if(pending === undefined) return;
+    delete el.$__uni_pending_inner_html;
+    window.$__uni_apply_inner_html(el, pending);
+})
 window.$__uni_set_prop = ((el, key, value) => {
     if(!el) {
         window.$__uni_error("cannot set property on missing element", "" + key);
     }
     const v = window.$__uni_value(value);
-    if(key === "children" || key === "ref" || key == null) return;
+    if(key === "children" || key == null) return;
+    if(key === "ref") {
+        el.$__uni_ref = v;
+        return;
+    }
+    if(key === "dangerouslySetInnerHTML") {
+        const nextHtml = window.$__uni_inner_html_value(v);
+        if(el.isContentEditable && !el.$__uni_inner_html_guard) {
+            el.$__uni_inner_html_guard = true;
+            el.addEventListener("blur", () => window.$__uni_flush_pending_inner_html(el));
+        }
+        if(window.$__uni_is_active_editable(el)) {
+            el.$__uni_pending_inner_html = nextHtml;
+            return;
+        }
+        if(el.$__uni_pending_inner_html !== undefined) delete el.$__uni_pending_inner_html;
+        window.$__uni_apply_inner_html(el, nextHtml);
+        return;
+    }
     if(key === "className" || key === "class") {
         if(v == null || v === false) el.removeAttribute("class");
         else el.setAttribute("class", "" + v);
@@ -696,6 +742,10 @@ window.$_urn = ((v) => {
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         const children = v.c || [];
         for(let i = 0; i < children.length; i++) e.appendChild(window.$_urn(children[i]));
+        if(e.$__uni_ref !== undefined) {
+            window.$__uni_assign_ref(e, e.$__uni_ref);
+            delete e.$__uni_ref;
+        }
         return e;
     }
     return document.createTextNode("" + v);
@@ -774,6 +824,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         if(v.c && v.c.length) {
             window.$__uni_hydrate_children(e, v.c);
+        }
+        if(e.$__uni_ref !== undefined) {
+            window.$__uni_assign_ref(e, e.$__uni_ref);
+            delete e.$__uni_ref;
         }
         return e.nextSibling;
     }

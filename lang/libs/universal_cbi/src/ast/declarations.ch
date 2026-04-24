@@ -9,7 +9,7 @@ public struct JsVarDecl {
 public struct JsFunctionDecl {
     var base : JsNode
     var name : std::string_view
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_async : bool
     var is_generator : bool
@@ -17,7 +17,7 @@ public struct JsFunctionDecl {
 
 public struct JsClassMethod {
     var name : std::string_view
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_static : bool
 }

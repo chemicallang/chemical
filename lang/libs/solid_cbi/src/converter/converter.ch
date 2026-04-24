@@ -439,7 +439,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.str.append_view("(");
              for(var i : uint = 0; i < arrow.params.size(); i++) {
                  if(i > 0) converter.str.append_view(", ");
-                 converter.str.append_view(arrow.params.get(i));
+                 var param = arrow.params.get_ptr(i);
+                 converter.str.append_view(param.name);
+                 if(param.default_value != null) {
+                     converter.str.append_view(" = ");
+                     converter.convertJsNode(param.default_value);
+                 }
              }
              converter.str.append_view(") => ");
              converter.convertJsNode(arrow.body);

@@ -40,7 +40,7 @@ public struct JsIndexAccess {
 
 public struct JsArrowFunction {
     var base : JsNode
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_async : bool
     var contains_jsx : bool

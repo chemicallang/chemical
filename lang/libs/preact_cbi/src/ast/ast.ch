@@ -101,10 +101,15 @@ public struct JsBinaryOp {
     var op : std::string_view
 }
 
+public struct JsParam {
+    var name : std::string_view
+    var default_value : *mut JsNode
+}
+
 public struct JsFunctionDecl {
     var base : JsNode
     var name : std::string_view
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_async : bool
     var is_generator : bool
@@ -129,7 +134,7 @@ public struct JsExpressionStatement {
 
 public struct JsArrowFunction {
     var base : JsNode
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_async : bool
     var contains_jsx : bool
@@ -237,7 +242,7 @@ public struct JsUnaryOp {
 
 public struct JsClassMethod {
     var name : std::string_view
-    var params : std::vector<std::string_view>
+    var params : std::vector<JsParam>
     var body : *mut JsNode
     var is_static : bool
 }

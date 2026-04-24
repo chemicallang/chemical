@@ -47,3 +47,8 @@ public enum JsNodeKind {
 public struct JsNode {
     var kind : JsNodeKind
 }
+
+public struct JsParam {
+    var name : std::string_view
+    var default_value : *mut JsNode
+}

@@ -88,6 +88,7 @@ public enum JsTokenType {
     Export,
     Yield,
     Debugger,
+    Regex,
     JSXText
 }
 

@@ -769,7 +769,13 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
     }
     if(converter.jsx_expr_needs_reactive_wrapper(node)) {
         converter.str.append_view("$_ucs(() => ");
-        converter.convertJsNode(node);
+        if(node.kind == JsNodeKind.ObjectLiteral) {
+            converter.str.append('(');
+            converter.convertJsNode(node);
+            converter.str.append(')');
+        } else {
+            converter.convertJsNode(node);
+        }
         converter.str.append_view(")");
     } else {
         converter.convertJsNode(node);
@@ -778,6 +784,11 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
 
 func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+}
+
+func is_client_only_attribute_name(name : std::string_view) : bool {
+    // These attributes contain JS references (functions, state) and cannot be SSR'd
+    return name.equals("ref") || name.equals("dangerouslySetInnerHTML");
 }
 
 func is_non_ssr_expression(expr : *mut JsNode) : bool {
@@ -837,6 +848,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
 
                 const attr = attrNode as *mut JsJSXAttribute;
                 if(is_event_attribute_name(attr.name)) continue;
+                if(is_client_only_attribute_name(attr.name)) continue;
 
                 if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                     const container = attr.value as *mut JsJSXExpressionContainer;

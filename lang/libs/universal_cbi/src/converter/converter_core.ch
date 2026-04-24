@@ -334,6 +334,25 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.str.append_view(") ");
              converter.convertJsNode(f.body);
         }
+        JsNodeKind.TryCatch => {
+             var t = node as *mut JsTryCatch
+             converter.str.append_view("try ");
+             if(t.tryBlock != null) converter.convertJsNode(t.tryBlock); else converter.str.append_view("{}");
+             if(t.catchBlock != null) {
+                 converter.str.append_view(" catch");
+                 if(!t.catchParam.empty()) {
+                     converter.str.append_view("(");
+                     converter.str.append_view(t.catchParam);
+                     converter.str.append_view(")");
+                 }
+                 converter.str.append_view(" ");
+                 converter.convertJsNode(t.catchBlock);
+             }
+             if(t.finallyBlock != null) {
+                 converter.str.append_view(" finally ");
+                 converter.convertJsNode(t.finallyBlock);
+             }
+        }
         JsNodeKind.JSXElement => {
              converter.convertJSXElement(node as *mut JsJSXElement);
         }

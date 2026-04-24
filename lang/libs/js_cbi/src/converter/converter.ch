@@ -349,7 +349,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var i = 0u
             while(i < func_decl.params.size()) {
                 if(i > 0) converter.str.append_view(", ")
-                converter.str.append_view(func_decl.params.get(i))
+                var param = func_decl.params.get_ptr(i)
+                converter.str.append_view(param.name)
+                if(param.default_value != null) {
+                    converter.str.append_view(" = ")
+                    converter.convertJsNode(param.default_value)
+                }
                 i++
             }
             converter.str.append_view(")")
@@ -373,7 +378,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var i = 0u
             while(i < arrow.params.size()) {
                 if(i > 0) converter.str.append_view(", ")
-                converter.str.append_view(arrow.params.get(i))
+                var param = arrow.params.get_ptr(i)
+                converter.str.append_view(param.name)
+                if(param.default_value != null) {
+                    converter.str.append_view(" = ")
+                    converter.convertJsNode(param.default_value)
+                }
                 i++
             }
             converter.str.append_view(") => ")
@@ -635,7 +645,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 var j = 0u
                 while(j < method.params.size()) {
                     if(j > 0) converter.str.append_view(", ")
-                    converter.str.append_view(method.params.get(j))
+                    var param = method.params.get_ptr(j)
+                    converter.str.append_view(param.name)
+                    if(param.default_value != null) {
+                        converter.str.append_view(" = ")
+                        converter.convertJsNode(param.default_value)
+                    }
                     j++
                 }
                 converter.str.append_view(") ")

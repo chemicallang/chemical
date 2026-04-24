@@ -91,7 +91,7 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
              parser.error("expected ( for method");
         }
 
-        var params = std::vector<std::string_view>();
+        var params = std::vector<JsParam>();
         if(parser.getToken().type != JsTokenType.RParen as int) {
              while(true) {
                  const paramToken = parser.getToken();
@@ -99,9 +99,13 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
                      parser.error("expected identifier");
                      break;
                  }
-                 params.push(builder.allocate_view(paramToken.value));
                  parser.increment();
-
+                 var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null }
+                 if(parser.getToken().type == JsTokenType.Equal as int) {
+                     parser.increment(); // consume =
+                     param.default_value = jsParser.parseExpression(parser, builder);
+                 }
+                 params.push(param);
                  if(parser.getToken().type == JsTokenType.Comma as int) {
                      parser.increment();
                  } else {

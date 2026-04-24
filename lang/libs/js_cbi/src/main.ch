@@ -146,7 +146,7 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     const data_ptr = provider.current_data()
 
     const c = provider.readCharacter();
-    
+
     switch(c) {
         '\0' => {
             return Token { type : JsTokenType.EndOfFile as int, value : view(""), position : position }

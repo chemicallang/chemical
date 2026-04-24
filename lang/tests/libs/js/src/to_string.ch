@@ -444,3 +444,47 @@ public func test_destructuring_in_js_cbi(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), """var [first, second] = state[0];""");
 }
+
+@test
+public func test_function_default_params(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        function greet(name = "World") {
+            return "Hello " + name;
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """function greet(name = "World"){return "Hello " + name;}""");
+}
+
+@test
+public func test_function_multiple_default_params(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        function config(a = 1, b = 2, c = 3) {
+            return a + b + c;
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """function config(a = 1, b = 2, c = 3){return a + b + c;}""");
+}
+
+/** TODO: not passing
+
+@test
+public func test_arrow_function_default_params(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var fn = (x = 10) => x * 2
+    }
+    string_equals(env, page.toStringJsOnly(), """var fn = (x = 10) => x * 2;""");
+}
+
+@test
+public func test_arrow_function_multiple_params_with_defaults(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var calc = (a, b = 5, c = 10) => a + b + c
+    }
+    string_equals(env, page.toStringJsOnly(), """var calc = (a, b = 5, c = 10) => a + b + c;""");
+}
+
+**/

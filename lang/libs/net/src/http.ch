@@ -46,6 +46,42 @@ public namespace http {
             return std::Option.None<std::string>();
         }
 
+        public func get_view(&self, name : &std::string_view) : std::string_view {
+            var i = 0u;
+            while(i < headers.size()) {
+                var p = headers.get_ptr(i);
+                if(strcasecmp(p.first.data(), name.data()) == 0) { return p.second.to_view() }
+                i = i + 1u;
+            }
+            return std::string_view()
+        }
+
+    }
+
+    public struct QueryMap {
+        var pairs : std::vector<std::pair<std::string, std::string>>
+
+        @make
+        func make() {
+            return QueryMap {}
+        }
+
+        @make
+        func make(qs : &std::string_view) {
+            return QueryMap {
+                pairs : parse_query(qs)
+            }
+        }
+
+        public func get(&self, key : &std::string_view) : std::string_view {
+            var i = 0u;
+            while(i < pairs.size()) {
+                var p = pairs.get_ptr(i);
+                if(p.first.equals_view(key)) { return p.second.to_view() }
+                i = i + 1u;
+            }
+            return std::string_view()
+        }
     }
 
     // helper: simple ASCII case-insensitive strcmp
@@ -356,6 +392,7 @@ public namespace http {
     public struct Request {
         var method: std::string;
         var path: std::string;
+        var query : QueryMap;
         var proto: std::string;
         var headers: HeaderMap;
         var body_len: usize;
@@ -366,6 +403,7 @@ public namespace http {
             return Request {
                 method = std::string::empty_str();
                 path = std::string::empty_str();
+                query = QueryMap();
                 proto = std::string::empty_str();
                 headers = HeaderMap();
                 body_len = 0u;
@@ -498,8 +536,8 @@ public namespace http {
     }
 
     // URL decode (percent-decoding)
-    public func url_decode(in_s: &std::string) : std::string {
-        var out = std::string::empty_str();
+    public func url_decode(in_s: &std::string_view) : std::string {
+        var out = std::string();
         var i = 0u;
         while(i < in_s.size()) {
             var c = in_s.get(i);
@@ -523,7 +561,7 @@ public namespace http {
     public func hex_value(c: char) : int { if(c >= '0' && c <= '9') return (c - '0') as int; if(c >= 'A' && c <= 'F') return (c - 'A' + 10) as int; if(c >= 'a' && c <= 'f') return (c - 'a' + 10) as int; return -1 }
 
     // Parse query string into simple vector of pairs
-    public func parse_query(qs: &std::string) : std::vector<std::pair<std::string,std::string>> {
+    public func parse_query(qs: &std::string_view) : std::vector<std::pair<std::string,std::string>> {
         var out = std::vector<std::pair<std::string,std::string>>();
         var i = 0u; var start = 0u;
         while(i <= qs.size()) {
@@ -533,12 +571,12 @@ public namespace http {
                 var found = false;
                 while(eq < i) { if(qs.get(eq) == '=') { found = true; break } eq++ }
                 if(found) {
-                    var k = qs.substring(start, eq);
-                    var v = qs.substring(eq + 1u, i);
+                    var k = qs.subview(start, eq);
+                    var v = qs.subview(eq + 1u, i);
                     out.push_back(std::pair<std::string,std::string>{ first : url_decode(k), second : url_decode(v) });
                 } else if(i > start) {
-                    var k2 = qs.substring(start, i);
-                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(k2), second : std::string::empty_str() });
+                    var k2 = qs.subview(start, i);
+                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(k2), second : std::string() });
                 }
                 start = i + 1u;
             }
@@ -608,7 +646,24 @@ public namespace http {
 
         var req = Request();
         req.method = std::string::constructor((buf + 0) as *char, (sp1 as usize) as size_t);
-        req.path = std::string::constructor((buf + (sp1 as usize + 1)) as *char, ((sp2 as usize) - (sp1 as usize) - 1) as size_t);
+        var full_path = std::string::constructor((buf + (sp1 as usize + 1)) as *char, ((sp2 as usize) - (sp1 as usize) - 1) as size_t);
+        
+        var q_pos = -1;
+        var qi = 0u;
+        while(qi < full_path.size()) {
+            if(full_path.get(qi) == '?') { q_pos = qi as int; break }
+            qi++;
+        }
+        
+        if(q_pos != -1) {
+            req.path = full_path.substring(0u, q_pos as usize);
+            var qs = full_path.substring((q_pos as usize) + 1u, full_path.size());
+            req.query = QueryMap(qs.to_view());
+        } else {
+            req.path = full_path;
+            req.query = QueryMap();
+        }
+
         req.proto = std::string::constructor((buf + (sp2 as usize + 1)) as *char, ((crlf_pos as usize) - (sp2 as usize) - 1) as size_t);
 
         // headers parse: iterate lines separated by CRLF until empty line

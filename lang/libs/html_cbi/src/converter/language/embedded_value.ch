@@ -1,18 +1,45 @@
+// value is the self arg here
+// this makes the call 'value.fn_name(page, bundle)'
+func (converter : &mut ASTConverter) make_write_to_page_call(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode, bundleName : &std::string_view) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var pageArg = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(std::span<*mut Value>([ value as *mut Value, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(pageArg)
+    const pageHead = converter.support.pageNode.child(bundleName);
+    if(pageHead == null) {
+        return call;
+    }
+    var bundleId = builder.make_identifier(bundleName, pageHead, false, location);
+    const bundleAccess = builder.make_access_chain(std::span<*mut Value>([ pageArg, bundleId ]), location)
+    args.push(bundleAccess)
+    return call;
+}
+
+func (converter : &mut ASTConverter) put_html_error(val : &std::string_view) {
+    const value = converter.builder.make_string_value(converter.builder.allocate_view(val), intrinsics::get_raw_location())
+    converter.vec.push(converter.make_char_ptr_value_call(value) as *mut ASTNode);
+}
+
 func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *mut ASTNode, value : *mut Value) {
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            var fnName = if(converter.in_head) std::string_view("writeToPageHead") else std::string_view("writeToPageBody")
+            var fnName = std::string_view("writeToPageHtml")
             const writeFn = node.child(fnName)
             if(writeFn == null) {
-                converter.put_by_type(type, value)
+                converter.put_html_error("'writeToPageHtml' not found on the object");
                 return;
             }
             if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                converter.put_by_type(type, value)
+                converter.put_html_error("'writeToPageHtml' not found on the object");
                 return;
             }
+            var bundleName = if(converter.in_head) std::string_view("pageHead") else std::string_view("pageHtml")
             const fn = writeFn as *mut FunctionDeclaration;
-            const chain = converter.make_call_inside(value, fnName, writeFn);
+            const chain = converter.make_write_to_page_call(value, fnName, writeFn, bundleName);
             converter.vec.push(chain)
         }
         ASTNodeKind.TypealiasStmt => {

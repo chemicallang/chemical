@@ -17,6 +17,7 @@ export memset;
 export fflush;
 export memcpy;
 export strlen;
+export rand;
 
 /**
 public func exit(code : int)

@@ -62,6 +62,41 @@ func (converter : &mut ASTConverter) make_js_double_value_call(value : *mut Valu
     return converter.make_js_value_call_with(value, std::string_view("append_js_double"), converter.support.appendJsDoubleFn)
 }
 
+func (converter : &mut ASTConverter) put_js_error(val : &std::string_view) {
+    const value = converter.builder.make_string_value(converter.builder.allocate_view(val), intrinsics::get_raw_location())
+    converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);
+}
+
+func (converter : &mut ASTConverter) put_by_node_js(type : *mut BaseType, node : *mut ASTNode, value : *mut Value) {
+    switch(node.getKind()) {
+        ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
+            var fnName = std::string_view("writeToPageJs")
+            const writeFn = node.child(fnName)
+            if(writeFn == null) {
+                converter.put_by_type(type, value)
+                return;
+            }
+            if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
+                converter.put_by_type(type, value)
+                return;
+            }
+            var bundleName = std::string_view("pageJs")
+            const fn = writeFn as *mut FunctionDeclaration;
+            const chain = converter.make_write_to_page_call(value, fnName, writeFn, bundleName);
+            converter.vec.push(chain)
+        }
+        ASTNodeKind.TypealiasStmt => {
+            // const stmt = node as *mut TypealiasStatement
+            // const actual_type = stmt.getActualType();
+            // converter.put_by_type_js(actual_type, value);
+            // TODO:
+        }
+        default => {
+            converter.put_js_error(std::string_view("Unsupported value cant be written to js bundle"))
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
     const type = value.getType();
     switch(type.getKind()) {
@@ -87,6 +122,17 @@ func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
         }
         BaseTypeKind.String, BaseTypeKind.Pointer => {
             converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);
+        }
+        BaseTypeKind.Linked => {
+            const linked = type as *mut LinkedType;
+            const node = linked.getLinkedNode();
+            converter.put_by_node_js(type, node, value);
+        }
+        BaseTypeKind.Generic => {
+            const generic = type as *mut GenericType;
+            const linked = generic.getLinkedType();
+            const node = linked.getLinkedNode();
+            converter.put_by_node_js(type, node, value);
         }
         default => {
             converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);

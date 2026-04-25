@@ -1206,6 +1206,17 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
     }
 }
 
+void constructor_not_found_err(Diag& diag, ExtendableMembersContainerNode* parent_struct, FunctionCall* call) {
+    diag << "struct with name " << parent_struct->name_view() << " doesn't have a constructor ";
+    if (call->values.size() == 1) {
+        diag << "for type '";
+        diag << call->values[0]->getType()->representation();
+        diag << "'";
+    } else {
+        diag << "that satisfies given arguments " << call->representation();
+    }
+}
+
 void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call, bool specialize_generic) {
     if(!parent_id->linked) return;
     const auto linked_kind = parent_id->linked->kind();
@@ -1218,7 +1229,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
                 parent_id->linked = constructorFunc;
                 parent_id->setType(constructorFunc->known_type());
             } else {
-                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+                constructor_not_found_err(genApi.getDiagnoser().error(parent_id), parent_struct, call);
             }
             return;
         }
@@ -1232,7 +1243,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
                 parent_id->linked = constructorFunc;
                 parent_id->setType(constructorFunc->known_type());
             } else {
-                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+                constructor_not_found_err(genApi.getDiagnoser().error(parent_id), parent_struct, call);
             }
             return;
         }
@@ -1246,7 +1257,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
                 parent_id->linked = constructorFunc;
                 parent_id->setType(constructorFunc->known_type());
             } else {
-                genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+                constructor_not_found_err(genApi.getDiagnoser().error(parent_id), parent_struct, call);
             }
             return;
         }
@@ -1351,7 +1362,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 setParentType(parent_val, constructorFunc->known_type());
                 return true;
             } else {
-                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();
+                constructor_not_found_err(genApi.getDiagnoser().error(parent_id), parent_struct, this);
                 return false;
             }
         }
@@ -1365,7 +1376,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 setParentType(parent_val, constructorFunc->known_type());
                 return true;
             } else {
-                genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();
+                constructor_not_found_err(genApi.getDiagnoser().error(parent_id), parent_struct, this);
                 return false;
             }
         }

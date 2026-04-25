@@ -703,6 +703,11 @@ ASTNode* child(VariablesContainerBase* container, const chem::string_view& name)
     return found != container->indexes.end() ? found->second : nullptr;
 }
 
+ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
+    auto found = container->indexes.find(name);
+    return found != container->indexes.end() ? found->second : nullptr;
+}
+
 ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
 
 // exclusive method for linked type

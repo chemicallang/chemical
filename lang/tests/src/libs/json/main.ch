@@ -116,3 +116,18 @@ func test_invalid_missing_value(env : &mut TestEnv) {
         env.error("Expected error for missing value in array");
     }
 }
+
+@test
+func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
+    var ph = ASTJsonHandler();
+    var parser = JsonParser(128, 4096);
+    var doc = std::string_view("name=howla&username=howla&email=howla%40gmail.com&password=howla&confirm_password=howla");
+    var r = parser.parse(doc.data(), doc.size(), ph);
+    if (r.ok) {
+        env.error("Expected error for form-urlencoded data being parsed as JSON");
+    } else {
+        if (!std::string_view(r.msg).equals("invalid literal")) {
+             env.error(std::string::constructor(r.msg).to_view());
+        }
+    }
+}

@@ -14,6 +14,11 @@ public struct MultipleAttributeValues {
     var size : u64
 }
 
+public struct SsrCallable {
+    var fn_ptr : (object : *void, page : &mut HtmlPage, buffer : &mut std::string) => void
+    var object : *void
+}
+
 public variant SsrAttributeValue {
     None()
 	Boolean(value : bool)
@@ -25,6 +30,7 @@ public variant SsrAttributeValue {
     PtrChar(value : *char)
     Multiple(value : MultipleAttributeValues)
 	Spread(value : SsrAttributeList)
+	Callable(value : SsrCallable)
 }
 
 public struct SsrAttribute {
@@ -56,7 +62,7 @@ public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrA
     return SsrAttributeValue.None()
 }
 
-func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeValue, space_multiple : bool = false) {
+func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {
             output.append_view("null")   
@@ -74,10 +80,12 @@ func writePrimitiveAttrValue(output : &mut std::string, attrVal : &SsrAttributeV
             var curr = value.data
             const end = curr + value.size
             while(curr != end) {
-                writePrimitiveAttrValue(output, *curr)
+                writePrimitiveAttrValue(page, output, *curr)
                 curr++
-                if(space_multiple && curr != end) { output.append(' '); }
             }
+        }
+        Callable(value) => {
+            value.fn_ptr(value.object, page, output)
         }
         Spread(value) => {} // Unreachable for primitive values
     }
@@ -125,7 +133,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     output.append(' ');
                     output.append_with_len(d.name.data, d.name.size)
                     output.append_view("=\"")
-                    writePrimitiveAttrValue(*output, d.value)
+                    writePrimitiveAttrValue(page, *output, d.value)
                     output.append_view("\"")
                 }
             }
@@ -145,7 +153,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" class=\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(*output, *special.classes[i])
+            writePrimitiveAttrValue(page, *output, *special.classes[i])
         }
         output.append_view("\"")
     }
@@ -155,9 +163,50 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" style=\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(*output, *special.styles[i])
+            writePrimitiveAttrValue(page, *output, *special.styles[i])
         }
         output.append_view("\"")
+    }
+}
+
+func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
+    switch(attrVal) {
+        None() => {
+            output.append_view("null")
+        }
+        Boolean(value) => {
+            if(value) output.append_view("true") else output.append_view("false")
+        }
+        Char(value) => {
+            output.append('\'');
+            output.append(value)
+            output.append('\'');
+        }
+        UInteger(value) => output.append_uinteger(value)
+        Integer(value) => output.append_integer(value)
+        Double(value, precision) => output.append_double(value, precision)
+        Text(value) => {
+            output.append('"');
+            output.append_with_len(value.data, value.size)
+            output.append('"');
+        }
+        PtrChar(value) => {
+            output.append('"');
+            output.append_char_ptr(value)
+            output.append('"');
+        }
+        Multiple(value) => {
+            var curr = value.data
+            const end = curr + value.size
+            while(curr != end) {
+                writeJsPrimitiveAttrValue(page, output, *curr)
+                curr++
+            }
+        }
+        Callable(value) => {
+            value.fn_ptr(value.object, page, output)
+        }
+        Spread(value) => {} // Unreachable for primitive values
     }
 }
 
@@ -195,9 +244,8 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                     *is_first = false
 
                     output.append_with_len(d.name.data, d.name.size)
-                    output.append_view(":\"")
-                    writePrimitiveAttrValue(*output, d.value)
-                    output.append('"')
+                    output.append(':')
+                    writeJsPrimitiveAttrValue(page, *output, d.value)
                 }
             }
         }
@@ -217,7 +265,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("class:\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ')
-            writePrimitiveAttrValue(*output, *special.classes[i])
+            writeJsPrimitiveAttrValue(page, *output, *special.classes[i])
         }
         output.append('"')
         is_first = false
@@ -228,18 +276,22 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("style:\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';')
-            writePrimitiveAttrValue(*output, *special.styles[i])
+            writeJsPrimitiveAttrValue(page, *output, *special.styles[i])
         }
         output.append('"')
     }
 }
 
 public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
-    writePrimitiveAttrValue(page.pageHtml, attrVal)
+    writePrimitiveAttrValue(page, page.pageHtml, attrVal)
 }
 
 public func renderJsAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
-    writePrimitiveAttrValue(page.pageJs, attrVal)
+    writeJsPrimitiveAttrValue(page, page.pageJs, attrVal)
+}
+
+public func renderCssAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
+    writeJsPrimitiveAttrValue(page, page.pageCss, attrVal)
 }
 
 // this function allows libraries like preact, solid and react to move rendered html to js buffer

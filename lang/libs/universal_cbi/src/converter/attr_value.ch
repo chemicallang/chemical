@@ -27,7 +27,7 @@ func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder :
 func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, node : *mut ASTNode, value : *mut Value) : *mut Value {
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            var fnName = std::string_view("getWritableValue")
+            var fnName = std::string_view("getSsrAttributeValue")
             const writeFn = node.child(fnName)
             if(writeFn == null) {
                 return converter.convert_to_attr_value(builder, type, value)

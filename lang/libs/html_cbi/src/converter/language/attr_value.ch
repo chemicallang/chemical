@@ -12,6 +12,16 @@ struct AttrValueConverter {
 
 }
 
+func (converter : &mut AttrValueConverter) noneArgAttrValue(builder : *mut ASTBuilder) : *mut Value {
+    var name = std::string_view("None")
+    const child = converter.ssrAttributeValueNode.child(name)
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
+    var id = builder.make_identifier(name, child, false, location);
+    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    return builder.make_function_call_value(chain, location)
+}
+
 func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder : *mut ASTBuilder, name : &std::string_view, value : *mut Value) : *mut Value {
     const child = converter.ssrAttributeValueNode.child(name)
     const location = intrinsics::get_raw_location();
@@ -27,13 +37,13 @@ func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder :
 func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mut ASTBuilder, type : *mut BaseType, node : *mut ASTNode, value : *mut Value) : *mut Value {
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-            var fnName = std::string_view("getWritableValue")
+            var fnName = std::string_view("getSsrAttributeValue")
             const writeFn = node.child(fnName)
             if(writeFn == null) {
-                return converter.convert_to_attr_value(builder, type, value)
+                return converter.noneArgAttrValue(builder)
             }
             if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                return converter.convert_to_attr_value(builder, type, value)
+                return converter.noneArgAttrValue(builder)
             }
             const location = intrinsics::get_raw_location();
             var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
@@ -43,7 +53,6 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
             var args = call.get_args();
             args.push(base)
             return chain;
-
         }
         ASTNodeKind.TypealiasStmt => {
             const stmt = node as *mut TypealiasStatement

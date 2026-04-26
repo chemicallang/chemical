@@ -433,6 +433,14 @@ public namespace http {
         func set_header_view(&mut self, k : &std::string_view, v : &std::string_view) {
             headers.insert_view(k, v)
         }
+
+        public func set_cors(&mut self, origin : &std::string_view) {
+            set_header_view("Access-Control-Allow-Origin", origin)
+            set_header_view("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+            set_header_view("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            set_header_view("Access-Control-Allow-Credentials", "true")
+        }
+
         func send_headers(&mut self, content_len: usize) {
             if(sent_headers) { return }
 

@@ -612,6 +612,18 @@ BaseType* Value::get_stored_value_type(ASTAllocator& allocator) {
     return linked ? linked->get_stored_value_type(allocator, linked->kind()) : nullptr;
 }
 
+// TODO: convert this into a direct function on the value
+// this should not use linked_ndoe
+ASTNode* direct_linked_node(Value* value) {
+    switch (value->kind()) {
+    case ValueKind::DereferenceValue:
+        return nullptr;
+    default:
+        return value->linked_node();
+    }
+}
+
+
 // stored pointer into a variable, that must be loaded, before using
 bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
     switch(kind()) {
@@ -620,7 +632,7 @@ bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
         default:
             break;
     }
-    auto linked = linked_node();
+    auto linked = direct_linked_node(this);
     return linked != nullptr && linked->is_stored_ptr_or_ref(allocator);
 }
 
@@ -630,7 +642,7 @@ bool Value::is_stored_ref(ASTAllocator& allocator) {
 }
 
 bool Value::is_ptr_or_ref(ASTAllocator& allocator) {
-    auto linked = linked_node();
+    auto linked = direct_linked_node(this);
     return linked != nullptr && linked->is_ptr_or_ref(allocator, linked->kind());
 }
 

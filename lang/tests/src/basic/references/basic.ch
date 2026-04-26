@@ -19,6 +19,18 @@ func take_ref(r : &ReferencableStruct) : int {
     return r.i;
 }
 
+func pass_deref_ref_to_ref(r : &ReferencableStruct) : int {
+    return take_ref(*r)
+}
+
+func take_direct_struct(r : ReferencableStruct) : int {
+    return r.i
+}
+
+func pass_deref_ref_to_direct(r : &ReferencableStruct) : int {
+    return take_direct_struct(*r)
+}
+
 func in_between_ref_pass(r : &ReferencableStruct) : int {
     return take_ref(r);
 }
@@ -262,5 +274,20 @@ func test_references() {
         var j = &mut u
         assign_to_passed_ref(*j)
         return u == 434
+    })
+    test("passing dereference of struct to a reference parameter type works", () => {
+        var r = ReferencableStruct { i : 94853 }
+        var i = pass_deref_ref_to_ref(r)
+        return i == 94853
+    })
+    test("passing dereference of struct to a reference parameter type works", () => {
+        var r = ReferencableStruct { i : 94853 }
+        var i = pass_deref_ref_to_ref(r)
+        return i == 94853
+    })
+    test("passing dereference of struct to a direct parameter type works", () => {
+        var r = ReferencableStruct { i : 34603288 }
+        var i = pass_deref_ref_to_direct(r)
+        return i == 34603288;
     })
 }

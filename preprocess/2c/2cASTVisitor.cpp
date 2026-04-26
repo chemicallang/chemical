@@ -781,6 +781,12 @@ bool is_value_param_pointer_or_ref_like(Value* value) {
     if(val_type->kind() == BaseTypeKind::Reference) {
         return true;
     }
+    switch (value->kind()) {
+        case ValueKind::DereferenceValue:
+            return false;
+        default:
+            break;
+    }
     const auto linked = value->linked_node();
     if(linked) {
         switch(linked->kind()) {
@@ -1222,12 +1228,13 @@ void func_call_single_arg(
     }
     const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
     bool accept_value = true;
+    auto valTypeNonCanon = val->getType();
+    const auto valType = valTypeNonCanon->canonical();
     if(isStructLikeTypePtr && !is_memcpy_ref_str) {
         visitor.write('&');
     } else if(is_param_type_ref && !is_lambda_conversion && !val->is_ptr_or_ref(visitor.allocator)) {
         accept_value = !write_value_for_ref_type(visitor, val, param_type->as_reference_type_unsafe());
     }
-    auto base_type = val->getType();
     if(isStructLikeTypeDecl || (is_param_type_ref && !is_lambda_conversion && !val->is_stored_ptr_or_ref(visitor.allocator))) {
         if (accept_value) {
             visitor.visit(val);
@@ -1237,9 +1244,9 @@ void func_call_single_arg(
                 visitor.write(allocated->second);
             }
         }
-    } else if(!val->reference() && param_type_kind != BaseTypeKind::Pointer && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
+    } else if(!val->reference() && param_type_kind != BaseTypeKind::Pointer && valType->kind() == BaseTypeKind::Array) {
         visitor.write('(');
-        visit_subscript_arr_type(visitor, base_type);
+        visit_subscript_arr_type(visitor, valTypeNonCanon);
         visitor.write(")");
         visitor.accept_mutating_value_explicit(param_type, val);
     } else {

@@ -89,8 +89,8 @@ public namespace net {
             // report platform error and close socket
             comptime if (def.windows) {
                 var e = WSAGetLastError();
-                // simplest: panic with code
-                panic("bind() failed (WSAGetLastError): code");
+                printf("bind() failed (WSAGetLastError): %d\n", e as int);
+                panic("bind() failed (WSAGetLastError)");
             } else {
                 perror("bind() failed");
             }

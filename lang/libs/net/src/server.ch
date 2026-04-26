@@ -118,10 +118,30 @@ public namespace server {
             return null;
         }
 
-        func start(&mut self, port : uint = 8080u) {
+        func start(&mut self, default_port : uint = 8080u) {
             // parse addr into host and port
-            // acceptor will call net.listen_addr
-            self.listen_sock = net.listen_addr("0.0.0.0", port);
+            var host : *char = null
+            var port = default_port
+            
+            var pos = self.cfg.addr.find(":")
+            var host_str = std::string()
+            if (pos != -1u) {
+                if (pos > 0u) {
+                    host_str = self.cfg.addr.substring(0u, pos)
+                    host = host_str.data()
+                }
+                var pstr = self.cfg.addr.substring(pos + 1u, self.cfg.addr.size())
+                if (!pstr.empty()) {
+                    var pval = 0u
+                    for(var i=0u; i<pstr.size(); i++) {
+                        var c = pstr.get(i)
+                        if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
+                    }
+                    if (pval > 0u) port = pval
+                }
+            }
+
+            self.listen_sock = net.listen_addr(host, port);
             self.run = true;
         }
 
@@ -151,7 +171,7 @@ public namespace server {
                     i = i + 1u;
                 }
 
-                printf("Server running with IOCP on port %d\n", port);
+                printf("Server running with IOCP on %s\n", self.cfg.addr.data());
 
                 // Accept loop
                 while (self.run) {

@@ -26,6 +26,11 @@ public func time(arg : *mut time_t) : time_t
 public func clock() : clock_t
 
 /**
+ * The time base for Coordinated Universal Time (UTC)
+ */
+public comptime const TIME_UTC = 1
+
+/**
  * Modifies the timespec object pointed to by ts to hold the current calendar time in the time base base.
  * Other macro constants beginning with TIME_ may be provided by the implementation to indicate additional time bases
  *  If base is TIME_UTC, then

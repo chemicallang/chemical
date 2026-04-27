@@ -33,7 +33,24 @@ func (cssParser : &mut CSSParser) parseAnimation(
             if(easingKind != CSSKeywordKind.Unknown) {
                 parser.increment()
                 anim.easing.kind = easingKind
-                anim.easing.data.keyword = CSSKeywordValueData { kind = easingKind, value = builder.allocate_view(token.value) }
+                if(easingKind == CSSKeywordKind.Linear) {
+                    const next = parser.getToken()
+                    if(next.type == TokenType.LParen) {
+                        anim.easing.data.linear = cssParser.parseLinearEasingPoints(parser, builder)
+                    } else {
+                        anim.easing.data.linear = null
+                    }
+                } else {
+                    anim.easing.data.keyword = CSSKeywordValueData { kind = easingKind, value = builder.allocate_view(token.value) }
+                }
+            } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
+                parser.increment()
+                anim.easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)
+                anim.easing.kind = CSSKeywordKind.CubicBezier
+            } else if(hash == comptime_fnv1_hash("step") || hash == comptime_fnv1_hash("steps")) {
+                parser.increment()
+                anim.easing.data.steps = cssParser.parseStepsFnCall(parser, builder)
+                anim.easing.kind = CSSKeywordKind.Steps
             } else if(hash == comptime_fnv1_hash("infinite")) {
                 parser.increment()
                 var kwVal = builder.allocate<CSSKeywordValueData>()

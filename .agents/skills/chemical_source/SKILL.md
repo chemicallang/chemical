@@ -58,6 +58,14 @@ var p : cool::Pair2 { a : 0, b : 0 }
 var x = cool::pair2_sum(&p)
 ```
 
+#### Exposing a namespace to other modules
+
+You must make the namespace `public` if you want to expose anything inside it to other modules.
+This is a hard rule. Without it you'll get symbol resolution errors. By default every namespace is `internal`, Everything inside it
+is only accessible from inside the same module.
+
+Anything inside the namespace (struct/function/variant) must be also made public if you want to expose it to other modules.
+
 #### Extending (re-opening) a namespace
 The same namespace can appear multiple times in the same file; later blocks extend the namespace and can use earlier declarations.
 
@@ -389,6 +397,24 @@ struct ManagedResource {
     }
 }
 ```
+
+### Access Specifiers
+
+- `public`
+  - Exposed to other modules
+- `private`
+  - Top Level decls only accessible in current file
+  - Struct members/functions only accessible in current struct
+- `internal`
+  - Only exposed to the current module
+- `protected`
+  - Top level decls not exposed to other modules but public at link time
+  - Struct members/functions visible to inheriting structs only
+
+**By default** every top level decl (struct/function/variant/namespace) is `internal`
+
+**by default** every struct member/function is `public`
+
 
 ### Unsafe Code
 

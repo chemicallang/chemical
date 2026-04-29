@@ -597,12 +597,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             }
         }
         JsNodeKind.Ternary => {
-            var ternary = node as *mut JsTernary
-            converter.convertJsNode(ternary.condition)
-            converter.str.append_view(" ? ")
-            converter.convertJsNode(ternary.consequent)
-            converter.str.append_view(" : ")
-            converter.convertJsNode(ternary.alternate)
+            var tern = node as *mut JsTernary
+            converter.str.append_view("(");
+            converter.convertJsNode(tern.condition);
+            converter.str.append_view(" ? ");
+            converter.convertJsNode(tern.consequent);
+            converter.str.append_view(" : ");
+            converter.convertJsNode(tern.alternate);
+            converter.str.append_view(")");
         }
         JsNodeKind.UnaryOp => {
             var unary = node as *mut JsUnaryOp

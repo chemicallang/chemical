@@ -366,11 +366,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.Ternary => {
             var tern = node as *mut JsTernary
+            converter.str.append_view("(");
             converter.convertJsNode(tern.condition);
             converter.str.append_view(" ? ");
             converter.convertJsNode(tern.consequent);
             converter.str.append_view(" : ");
             converter.convertJsNode(tern.alternate);
+            converter.str.append_view(")");
         }
         JsNodeKind.FunctionCall => {
             var call = node as *mut JsFunctionCall

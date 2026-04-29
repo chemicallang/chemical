@@ -5,7 +5,15 @@ public interface SymbolResolver : ASTDiagnoser {
 
     func find(&self, view : &std::string_view) : *mut ASTNode;
 
+    // this function is very direct, doesn't cause shadowing
+    // it will cause an error, even if the current symbol is namespaced
+    // and previous symbol is not
     func declare(&self, view : &std::string_view, node : *mut ASTNode)
+
+    // declare the symbol with default shadowing
+    // symbol shadowed if this present in namespace
+    // by default this should be used
+    func declare_default(&self, view : &std::string_view, node : *mut ASTNode)
 
     // shadows the symbol if already exists, doesn't cause an error
     func declare_or_shadow(&self, view : &std::string_view, node : *mut ASTNode)

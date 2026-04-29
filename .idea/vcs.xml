@@ -16,6 +16,7 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tcclib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/md-icons@v1.0" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mongodb@v1.3" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mongodb@win-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />

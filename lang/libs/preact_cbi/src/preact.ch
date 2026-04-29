@@ -56,7 +56,7 @@ public func preact_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
 public func preact_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare(comp.signature.name, node);
+    resolver.declare_default(comp.signature.name, node);
 }
 
 func fix_support_page_node(

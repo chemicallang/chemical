@@ -193,7 +193,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             var startIdxNameStr = std::string();
             startIdxNameStr.append_view("startIdx_");
-            startIdxNameStr.append_integer(element.loc as bigint);
+            startIdxNameStr.append_uinteger(element.loc);
             var startIdxName = builder2.allocate_view(startIdxNameStr.to_view());
 
             var startIdxVar = builder2.make_varinit_stmt(false, false, startIdxName, builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);

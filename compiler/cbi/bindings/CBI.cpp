@@ -387,6 +387,7 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetAnnotationController", (void*) SymbolResolvergetAnnotationController},
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
+        {"compiler_SymbolResolverdeclare_default", (void*) SymbolResolverdeclare_default},
         {"compiler_SymbolResolverdeclare_or_shadow", (void*) SymbolResolverdeclare_or_shadow},
         {"compiler_SymbolResolverscope_start", (void*) SymbolResolverscope_start},
         {"compiler_SymbolResolverscope_end", (void*) SymbolResolverscope_end},

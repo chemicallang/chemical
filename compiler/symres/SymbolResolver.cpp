@@ -119,7 +119,7 @@ void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previ
     warn(previous) << "symbol has a conflict";
 }
 
-bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* node) {
+bool SymbolResolver::declare_default(const chem::string_view& name, ASTNode* node) {
     const auto previous = table.declare_no_shadow(name, node);
     if(previous == nullptr) {
         return true;

@@ -69,5 +69,5 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 @no_mangle
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare(comp.signature.name, node);
+    resolver.declare_default(comp.signature.name, node);
 }

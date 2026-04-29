@@ -32,6 +32,8 @@ extern "C" {
 
     void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
+    void SymbolResolverdeclare_default(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
+
     void SymbolResolverdeclare_or_shadow(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
     void SymbolResolverscope_start(SymbolResolver* resolver);

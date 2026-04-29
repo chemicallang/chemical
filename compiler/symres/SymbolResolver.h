@@ -97,12 +97,6 @@ private:
     SymbolTable table;
 
     /**
-     * declares a node with string : name
-     * DO NOT USE THIS FUNCTION TO DECLARE SYMBOLS
-     */
-    bool declare_quietly(const chem::string_view &name, ASTNode *node);
-
-    /**
      * will try to override this function, notice the '&' in the previous pointer
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
@@ -446,6 +440,20 @@ public:
      * declare a symbol
      */
     void declare(const chem::string_view &name, ASTNode *node);
+
+    /**
+     * declares a node with string : name
+     * this shadows, if the current symbol is namespaced
+     * its best to use as the default function for declaring symbols
+     */
+    bool declare_default(const chem::string_view &name, ASTNode *node);
+
+    /**
+     * declares a symbol with default shadowing (shadow if previous symbol is namespaced)
+     */
+    inline bool declare_quietly(const chem::string_view& name, ASTNode* node) {
+        return declare_default(name, node);
+    }
 
     /**
      * declares a symbol for which entry already exists

@@ -83,6 +83,10 @@ public struct HtmlPage {
         pageHead.append_with_len(value, len);
     }
 
+    func append_head_view(&mut self, value : &std::string_view) {
+        pageHead.append_view(value);
+    }
+
     func append_head_char_ptr(&mut self, value : *char) {
         pageHead.append_char_ptr(value);
     }

@@ -6,6 +6,8 @@ struct CSSOM {
 
     var media_queries : std::vector<*mut CSSMediaRule>
 
+    var keyframes : std::vector<*mut CSSKeyframesRule>
+
     // chemical values
     var dyn_values : std::vector<*mut Value>
 
@@ -16,7 +18,7 @@ struct CSSOM {
     var support : SymResSupport
 
     func is_hashable(&self) : bool {
-        return dyn_values.empty() && media_queries.empty() && nested_rules.empty()
+        return dyn_values.empty() && media_queries.empty() && nested_rules.empty() && keyframes.empty()
     }
 
 }

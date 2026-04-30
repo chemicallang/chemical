@@ -331,19 +331,31 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
          if(parser.getToken().type != JsTokenType.RBrace as int) {
              while(true) {
                  const t = parser.getToken();
-                 var key = std::string_view();
-                 if(t.type == JsTokenType.Identifier as int || t.type == JsTokenType.String as int) {
-                     key = builder.allocate_view(t.value);
-                     parser.increment();
+                 if(t.type == JsTokenType.ThreeDots as int) {
+                     var spread = jsParser.parseExpression(parser, builder);
+                     props.push(JsProperty { key : std::string_view(), value : spread });
                  } else {
-                     parser.error("expected identifier or string key");
-                     break;
+                     var key = std::string_view();
+                     if(t.type == JsTokenType.Identifier as int || t.type == JsTokenType.String as int) {
+                         key = builder.allocate_view(t.value);
+                         parser.increment();
+                     } else {
+                         parser.error("expected identifier or string key");
+                         break;
+                     }
+                     var val : *mut JsNode = null;
+                     if(parser.increment_if(JsTokenType.Colon as int)) {
+                         val = jsParser.parseExpression(parser, builder);
+                     } else {
+                         var id = builder.allocate<JsIdentifier>()
+                         new (id) JsIdentifier {
+                             base : JsNode { kind : JsNodeKind.Identifier },
+                             value : key
+                         }
+                         val = id as *mut JsNode;
+                     }
+                     props.push(JsProperty { key : key, value : val });
                  }
-                 if(!parser.increment_if(JsTokenType.Colon as int)) {
-                     parser.error("expected :");
-                 }
-                 var val = jsParser.parseExpression(parser, builder);
-                 props.push(JsProperty { key : key, value : val });
                  if(parser.getToken().type == JsTokenType.Comma as int) {
                       parser.increment();
                  } else {

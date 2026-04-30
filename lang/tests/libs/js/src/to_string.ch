@@ -467,6 +467,16 @@ public func test_function_multiple_default_params(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), """function config(a = 1, b = 2, c = 3){return a + b + c;}""");
 }
 
+@test
+public func test_spread_in_object_works_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var y = {}
+        var x = { ...y }
+    }
+    string_equals(env, page.toStringJsOnly(), """var y = {  };var x = { ...y };""");
+}
+
 /** TODO: not passing
 
 @test

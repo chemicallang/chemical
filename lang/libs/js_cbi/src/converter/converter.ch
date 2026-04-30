@@ -440,9 +440,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             while(i < obj.properties.size()) {
                 if(i > 0) converter.str.append_view(", ")
                 var prop = obj.properties.get(i)
-                converter.str.append_view(prop.key)
-                converter.str.append_view(": ")
-                converter.convertJsNode(prop.value)
+                if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                    converter.convertJsNode(prop.value)
+                } else {
+                    converter.str.append_view(prop.key)
+                    converter.str.append_view(": ")
+                    converter.convertJsNode(prop.value)
+                }
                 i++
             }
             converter.str.append_view(" }")

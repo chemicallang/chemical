@@ -96,9 +96,13 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
             for(var i : uint = 0; i < obj.properties.size(); i++) {
                 if(i > 0) out.append_view(", ");
                 const prop = obj.properties.get(i);
-                out.append_view(prop.key);
-                out.append_view(": ");
-                if(!append_js_node_text(prop.value, out)) return false;
+                if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                    if(!append_js_node_text(prop.value, out)) return false;
+                } else {
+                    out.append_view(prop.key);
+                    out.append_view(": ");
+                    if(!append_js_node_text(prop.value, out)) return false;
+                }
             }
             out.append('}');
             return true;
@@ -128,6 +132,7 @@ func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut Js
     for(var i : uint = 0; i < obj.properties.size(); i++) {
         if(i > 0) out.append(';');
         const prop = obj.properties.get(i);
+        if(prop.value != null && prop.value.kind == JsNodeKind.Spread) return view("");
         const stripped = strip_js_string_quotes(prop.key);
         if(stripped.size() < prop.key.size()) {
             // quotes were stripped from property key

@@ -529,7 +529,12 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                             base : JsNode { kind : JsNodeKind.Identifier },
                             value : firstId
                         }
-                        node = id as *mut JsNode;
+                        var paren = builder.allocate<JsParen>()
+                        new (paren) JsParen {
+                            base : JsNode { kind : JsNodeKind.Paren },
+                            expression : id as *mut JsNode
+                        }
+                        node = paren as *mut JsNode;
                     }
                 } else {
                     // (id + ...) -> Expression
@@ -538,11 +543,17 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                         base : JsNode { kind : JsNodeKind.Identifier },
                         value : firstId
                     }
-                    node = jsParser.parsePostfixContinuation(parser, builder, firstNode as *mut JsNode);
+                    node = jsParser.parsePostfixContinuation(parser, builder, firstNode as *mut JsNode);        
                     node = jsParser.parseExpressionContinuation(parser, builder, node);
                     if(!parser.increment_if(JsTokenType.RParen as int)) {
                         parser.error("expected )");
                     }
+                    var paren = builder.allocate<JsParen>()
+                    new (paren) JsParen {
+                        base : JsNode { kind : JsNodeKind.Paren },
+                        expression : node
+                    }
+                    node = paren as *mut JsNode;
                 }
             } else {
                 // (expr)
@@ -550,6 +561,12 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                 if(!parser.increment_if(JsTokenType.RParen as int)) {
                     parser.error("expected )");
                 }
+                var paren = builder.allocate<JsParen>()
+                new (paren) JsParen {
+                    base : JsNode { kind : JsNodeKind.Paren },
+                    expression : node
+                }
+                node = paren as *mut JsNode;
             }
         }
     } else {

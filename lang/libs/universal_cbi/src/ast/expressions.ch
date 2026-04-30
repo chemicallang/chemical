@@ -85,3 +85,8 @@ public struct JsYield {
     var argument : *mut JsNode
     var delegate : bool
 }
+
+public struct JsParen {
+    var base : JsNode
+    var expression : *mut JsNode
+}

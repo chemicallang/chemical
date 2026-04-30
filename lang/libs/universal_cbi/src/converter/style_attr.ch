@@ -58,15 +58,23 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
             return append_js_node_text(bin.right, out);
         }
         JsNodeKind.Ternary => {
-            const tern = node as *mut JsTernary;
-            if(!append_js_node_text(tern.condition, out)) return false;
-            out.append_view(" ? ");
-            if(!append_js_node_text(tern.consequent, out)) return false;
-            out.append_view(" : ");
-            return append_js_node_text(tern.alternate, out);
+             const tern = node as *mut JsTernary;
+             out.append('(');
+             if(!append_js_node_text(tern.condition, out)) return false;
+             out.append_view(" ? ");
+             if(!append_js_node_text(tern.consequent, out)) return false;
+             out.append_view(" : ");
+             const final = append_js_node_text(tern.alternate, out);
+             out.append(')');
+             return final;
         }
-        JsNodeKind.FunctionCall => {
-            const call = node as *mut JsFunctionCall;
+        JsNodeKind.Paren => {
+             out.append('(');
+             if(!append_js_node_text((node as *mut JsParen).expression, out)) return false;
+             out.append(')');
+             return true;
+        }
+        JsNodeKind.FunctionCall => {            const call = node as *mut JsFunctionCall;
             if(!append_js_node_text(call.callee, out)) return false;
             out.append('(');
             for(var i : uint = 0; i < call.args.size(); i++) {

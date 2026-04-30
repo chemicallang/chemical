@@ -7,6 +7,7 @@ func try_build_style_object_text(
     var s = std::string();
     for(var i : uint = 0; i < obj.properties.size(); i++) {
         const prop = obj.properties.get(i);
+        if(prop.value != null && prop.value.kind == JsNodeKind.Spread) return false;
         if(prop.value == null) return false;
         if(prop.value.kind != JsNodeKind.Literal) return false;
         const lit = prop.value as *mut JsLiteral;

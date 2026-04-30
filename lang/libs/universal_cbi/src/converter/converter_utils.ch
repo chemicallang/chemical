@@ -501,12 +501,21 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
             for(var i : uint = 0; i < obj.properties.size(); i++) {
                 if(i > 0) out.append_view(", ");
                 const prop = obj.properties.get(i);
-                out.append_view(prop.key);
-                out.append_view(": ");
-                if(!append_js_node_text(prop.value, out)) return false;
+                if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                    if(!append_js_node_text(prop.value, out)) return false;
+                } else {
+                    out.append_view(prop.key);
+                    out.append_view(": ");
+                    if(!append_js_node_text(prop.value, out)) return false;
+                }
             }
             out.append('}');
             return true;
+        }
+        JsNodeKind.Spread => {
+            const spread = node as *mut JsSpread;
+            out.append_view("...");
+            return append_js_node_text(spread.argument, out);
         }
         default => return false
     }

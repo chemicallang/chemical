@@ -383,9 +383,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view("{");
             for(var i : uint = 0; i < obj.properties.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");
-                converter.str.append_view(obj.properties.get(i).key);
-                converter.str.append_view(": ");
-                converter.convertJsNode(obj.properties.get(i).value);
+                const prop = obj.properties.get(i);
+                if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                    converter.convertJsNode(prop.value);
+                } else {
+                    converter.str.append_view(prop.key);
+                    converter.str.append_view(": ");
+                    converter.convertJsNode(prop.value);
+                }
             }
             converter.str.append_view("}");
         }

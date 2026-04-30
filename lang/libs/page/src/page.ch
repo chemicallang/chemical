@@ -765,9 +765,22 @@ window.$__uni_hydrate_children = ((parent, values) => {
 window.$__uni_hydrate_node = ((parent, dom, v) => {
     if(v == null || v === false || v === true) return dom;
     if(Array.isArray(v)) {
-        let cur = dom;
-        for(let i = 0; i < v.length; i++) cur = window.$__uni_hydrate_node(parent, cur, v[i]);
-        return cur;
+        if(dom && dom.nodeType === 8 && dom.nodeValue === "s") {
+            const start = dom;
+            let cur = start.nextSibling;
+            while(cur && (cur.nodeType !== 8 || cur.nodeValue !== "e")) cur = cur.nextSibling;
+            const end = cur;
+            start.after(window.$_urn(v));
+            return end ? end.nextSibling : null;
+        }
+        const start = document.createComment("s");
+        const end = document.createComment("e");
+        if(parent) {
+            if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
+            else { parent.appendChild(start); parent.appendChild(end); }
+        }
+        start.after(window.$_urn(v));
+        return dom;
     }
     if(window.$__uni_is_state(v)) {
         if(dom && dom.nodeType === 8 && dom.nodeValue === "s") {

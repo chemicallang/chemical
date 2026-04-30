@@ -1726,6 +1726,30 @@ func (converter : &mut ASTConverter) writeMediaNestedRule(rule : *mut CSSNestedR
     }
 }
 
+func (converter : &mut ASTConverter) writeKeyframesRule(rule : *mut CSSKeyframesRule, str : &mut std::string) {
+    str.append_view(std::string_view("@keyframes "))
+    str.append_view(rule.name)
+    str.append_view(std::string_view(" { "))
+
+    var i : uint = 0
+    while(i < rule.keyframes.size()) {
+        var keyframe = rule.keyframes.get(i)
+        str.append_view(keyframe.selector)
+        str.append_view(std::string_view(" { "))
+        
+        var j : uint = 0
+        while(j < keyframe.declarations.size()) {
+            converter.convertDeclaration(keyframe.declarations.get(j))
+            j++
+        }
+        
+        str.append_view(std::string_view(" } "))
+        i++
+    }
+
+    str.append_view(std::string_view("}"))
+}
+
 func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
     str.append_view(std::string_view("@media "))
     
@@ -1957,6 +1981,17 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
             }
             m++;
      }
+
+     // Keyframes
+     var k : uint = 0;
+     while(k < om.keyframes.size()) {
+            var rule = om.keyframes.get(k);
+            converter.writeKeyframesRule(rule, *str);
+            if(!str.empty()) {
+                converter.put_chain_in();
+            }
+            k++;
+     }
 }
 
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
@@ -1965,7 +2000,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const str = &mut converter.str
     var size = om.declarations.size()
     
-    if(size == 0 && om.media_queries.empty() && om.nested_rules.empty()) {
+    if(size == 0 && om.media_queries.empty() && om.nested_rules.empty() && om.keyframes.empty()) {
         // no declarations, no media queries exist
         return;
     }
@@ -2026,6 +2061,18 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
                 converter.put_chain_in();
             }
             j++;
+        }
+
+        // Keyframes
+        var key_size = om.keyframes.size()
+        var k_idx : uint = 0
+        while(k_idx < key_size) {
+            var rule = om.keyframes.get(k_idx)
+            converter.writeKeyframesRule(rule, *str)
+            if(!str.empty()) {
+                converter.put_chain_in();
+            }
+            k_idx++;
         }
 
         // Nested Rules

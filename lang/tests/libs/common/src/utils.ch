@@ -92,6 +92,19 @@ public func css_equals(env : &mut TestEnv, str : &std::string, view : &std::stri
 
 }
 
+public func css_at_rule_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
+
+    if(str.size() < 11) {
+        env.error("css less than expected length");
+    }
+
+    const start = str.data() + 10
+    const end = str.data() + str.size();
+
+    view_equals(env, std::string_view(start, end - start), view)
+
+}
+
 public func compl_css_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
 
     if(str.size() < 10) {

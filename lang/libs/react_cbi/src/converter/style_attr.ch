@@ -59,11 +59,14 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
         }
         JsNodeKind.Ternary => {
             const tern = node as *mut JsTernary;
+            out.append('(');
             if(!append_js_node_text(tern.condition, out)) return false;
             out.append_view(" ? ");
             if(!append_js_node_text(tern.consequent, out)) return false;
             out.append_view(" : ");
-            return append_js_node_text(tern.alternate, out);
+            const final = append_js_node_text(tern.alternate, out);
+            out.append(')');
+            return final;
         }
         JsNodeKind.FunctionCall => {
             const call = node as *mut JsFunctionCall;

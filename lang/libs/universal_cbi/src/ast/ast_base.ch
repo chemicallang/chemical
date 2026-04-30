@@ -41,7 +41,8 @@ public enum JsNodeKind {
     JSXAttribute,
     JSXSpreadAttribute,
     IndexAccess,
-    ArrayDestructuring
+    ArrayDestructuring,
+    Paren
 }
 
 public struct JsNode {

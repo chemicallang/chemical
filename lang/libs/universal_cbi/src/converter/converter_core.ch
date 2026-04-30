@@ -430,6 +430,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.str.append_view(" `");
              }
         }
+        JsNodeKind.Paren => {
+             var paren = node as *mut JsParen
+             converter.str.append('(');
+             converter.convertJsNode(paren.expression);
+             converter.str.append(')');
+        }
         default => {
         }
     }

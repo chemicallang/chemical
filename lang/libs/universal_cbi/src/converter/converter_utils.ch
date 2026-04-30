@@ -457,11 +457,21 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
         }
         JsNodeKind.Ternary => {
             const tern = node as *mut JsTernary;
+            out.append('(');
             if(!append_js_node_text(tern.condition, out)) return false;
             out.append_view(" ? ");
             if(!append_js_node_text(tern.consequent, out)) return false;
             out.append_view(" : ");
-            return append_js_node_text(tern.alternate, out);
+            const final = append_js_node_text(tern.alternate, out);
+            out.append(')');
+            return final;
+        }
+        JsNodeKind.Paren => {
+            const paren = node as *mut JsParen;
+            out.append('(');
+            if(!append_js_node_text(paren.expression, out)) return false;
+            out.append(')');
+            return true;
         }
         JsNodeKind.FunctionCall => {
             const call = node as *mut JsFunctionCall;
@@ -666,6 +676,9 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
             if(!cond.valid || cond.kind != 1) return ssr_js_eval_invalid();
             return converter.eval_ssr_js_expr(if(cond.boolValue) tern.consequent else tern.alternate);
         }
+        JsNodeKind.Paren => {
+            return converter.eval_ssr_js_expr((node as *mut JsParen).expression);
+        }
         default => return ssr_js_eval_invalid()
     }
 }
@@ -728,6 +741,9 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
                 if(converter.jsx_expr_needs_reactive_wrapper(obj.properties.get(i).value)) return true;
             }
             return false;
+        }
+        JsNodeKind.Paren => {
+            return converter.jsx_expr_needs_reactive_wrapper((node as *mut JsParen).expression);
         }
         default => return false
     }

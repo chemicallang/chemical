@@ -45,9 +45,7 @@ func my_html(page : &mut HtmlPage, name : &std::string_view) {
 }
 ```
 
-This is how we handle chemical values, with the minor difference being that we use `${` instead of just `{`
-
-But you may notice that we support top level macros
+This is how we handle chemical values, But you may notice that we support top level macros
 
 `#preact`, `#react`, `#solid`, `#universal` All these component framework libraries are top level macros. The reason being
 that these handle components and that's why.

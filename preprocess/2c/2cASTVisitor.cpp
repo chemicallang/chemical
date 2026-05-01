@@ -226,69 +226,6 @@ void ToCAstVisitor::fwd_declare(ASTNode* node) {
         case ASTNodeKind::UnionDecl:
             fwd_declare_union(*this, node);
             break;
-        case ASTNodeKind::GenericStructDecl:{
-            const auto decl = node->as_gen_struct_def_unsafe();
-            for(const auto inst : decl->instantiations) {
-                fwd_declare_struct(*this, inst);
-            }
-            break;
-        }
-        case ASTNodeKind::GenericVariantDecl:{
-            const auto decl = node->as_gen_variant_decl_unsafe();
-            for(const auto inst : decl->instantiations) {
-                fwd_declare_struct(*this, inst);
-            }
-            break;
-        }
-        case ASTNodeKind::GenericUnionDecl:{
-            const auto decl = node->as_gen_union_decl_unsafe();
-            for(const auto inst : decl->instantiations) {
-                fwd_declare_union(*this, inst);
-            }
-            break;
-        }
-        default:
-            break;
-    }
-}
-
-void ToCAstVisitor::ext_fwd_declare(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::NamespaceDecl:
-            for(const auto child : node->as_namespace_unsafe()->nodes) {
-                ext_fwd_declare(child);
-            }
-            break;
-        case ASTNodeKind::GenericStructDecl:{
-            const auto decl = node->as_gen_struct_def_unsafe();
-            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
-            const auto end = decl->instantiations.data() + decl->instantiations.size();
-            while(start != end) {
-                fwd_declare_struct(*this, *start);
-                start++;
-            }
-            break;
-        }
-        case ASTNodeKind::GenericVariantDecl:{
-            const auto decl = node->as_gen_variant_decl_unsafe();
-            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
-            const auto end = decl->instantiations.data() + decl->instantiations.size();
-            while(start != end) {
-                fwd_declare_struct(*this, *start);
-                start++;
-            }
-            break;
-        }
-        case ASTNodeKind::GenericUnionDecl:{
-            const auto decl = node->as_gen_union_decl_unsafe();
-            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
-            const auto end = decl->instantiations.data() + decl->instantiations.size();
-            while(start != end) {
-                fwd_declare_union(*this, *start);
-                start++;
-            }
-            break;
-        }
         default:
             break;
     }
@@ -299,12 +236,6 @@ void ToCAstVisitor::declare_type_alias(ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::TypealiasStmt:{
             tld.VisitTypealiasStmt(node->as_typealias_unsafe());
-            break;
-        }
-        case ASTNodeKind::GenericTypeDecl: {
-            for(const auto child : node->as_gen_type_decl_unsafe()->instantiations) {
-                tld.VisitTypealiasStmt(child->as_typealias_unsafe());
-            }
             break;
         }
         case ASTNodeKind::NamespaceDecl:
@@ -359,83 +290,7 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
     }
 }
 
-void ToCAstVisitor::external_declare(const std::vector<ASTNode*>& nodes) {
-    for(const auto node : nodes) {
-        switch(node->kind()) {
-            case ASTNodeKind::GenericFuncDecl:
-                tld.VisitGenericFuncDecl(node->as_gen_func_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericStructDecl:
-                tld.VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
-                break;
-            case ASTNodeKind::GenericUnionDecl:
-                tld.VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericInterfaceDecl:
-                tld.VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericVariantDecl:
-                tld.VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
-                break;
-            case ASTNodeKind::GenericTypeDecl:
-                tld.VisitGenericTypeDecl(node->as_gen_type_decl_unsafe());
-                break;
-            case ASTNodeKind::NamespaceDecl:
-                external_declare(node->as_namespace_unsafe()->nodes);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
-
-void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        const auto inst = node->instantiations[i];
-        // new lambdas should be emitted here
-        visitor.top_level_position = visitor.writer.getPosition();
-        // implement the function as usual
-        func_decl_with_name(visitor, inst);
-        i++;
-    }
-}
-
-void ToCAstVisitor::external_implement(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::GenericFuncDecl:
-            external_implement_gen_func(*this, node->as_gen_func_decl_unsafe());
-            break;
-        case ASTNodeKind::GenericStructDecl:
-            VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
-            break;
-        case ASTNodeKind::GenericUnionDecl:
-            VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
-            break;
-        case ASTNodeKind::GenericInterfaceDecl:
-            VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
-            break;
-        case ASTNodeKind::GenericVariantDecl:
-            VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
-            break;
-        case ASTNodeKind::NamespaceDecl:
-            external_implement(node->as_namespace_unsafe()->nodes);
-            break;
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::UnionDecl:
-        case ASTNodeKind::VariantDecl: {
-            for(const auto node : node->as_members_container_unsafe()->evaluated_nodes()) {
-                external_implement(node);
-            }
-            break;
-        }
-        default:
-            break;
-    }
-}
 
 // will write a scope to visitor
 inline void visit_scope_only(ToCAstVisitor& visitor, Scope& scope) {

@@ -566,11 +566,6 @@ public:
     void fwd_declare(ASTNode* node);
 
     /**
-     * forward declare new instantiations of generics
-     */
-    void ext_fwd_declare(ASTNode* node);
-
-    /**
      * forward declare a node
      */
     void declare_type_alias(ASTNode* node);
@@ -590,42 +585,11 @@ public:
     }
 
     /**
-     * forward declare new instantiations of generics
-     */
-    void ext_fwd_declare(const std::vector<ASTNode*>& nodes) {
-        for(const auto node : nodes) {
-            ext_fwd_declare(node);
-        }
-    }
-
-    /**
      * declare type aliases before declaring functions
      */
     void declare_type_aliases(std::vector<ASTNode*>& nodes) {
         for(const auto node : nodes) {
             declare_type_alias(node);
-        }
-    }
-
-    /**
-     * will only declare these external (from another module) nodes
-     */
-    void external_declare(const std::vector<ASTNode*>& nodes);
-
-    /**
-     * will add any implementations from external module
-     * why ? because usage of generics from imported module causes new instantiations
-     * which require generating code after both modules have declared themselves
-     */
-    void external_implement(ASTNode* node);
-
-    /**
-     * this should be used to externally implement multiple nodes
-     */
-    void external_implement(const std::vector<ASTNode*>& nodes) {
-        for (const auto node : nodes) {
-            top_level_position = writer.getPosition();
-            external_implement(node);
         }
     }
 

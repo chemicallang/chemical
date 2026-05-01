@@ -537,27 +537,6 @@ public:
     );
 
     /**
-     * declare the nodes in C, this is called
-     * when the file has been translated in another module
-     * and is being imported in this module for the first time
-     */
-    void external_declare_in_c(
-        ToCAstVisitor& visitor,
-        Scope& import_res,
-        const std::string& file
-    );
-
-    /**
-     * implement the external module, this is called
-     * to generate any generic instantiations we may have imported
-     */
-    void external_implement_in_c(
-        ToCAstVisitor& visitor,
-        Scope& import_res,
-        const std::string& file
-    );
-
-    /**
      * translates the given module to C
      */
     int translate_module(

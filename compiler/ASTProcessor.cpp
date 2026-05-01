@@ -1377,32 +1377,6 @@ void ASTProcessor::translate_to_c(
     visitor.reset_errors();
 }
 
-void ASTProcessor::external_declare_in_c(
-        ToCAstVisitor& visitor,
-        Scope& import_res,
-        const std::string& abs_path
-) {
-    visitor.external_declare(import_res.nodes);
-    if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
-        std::cout << std::endl;
-    }
-    visitor.reset_errors();
-}
-
-void ASTProcessor::external_implement_in_c(
-        ToCAstVisitor& visitor,
-        Scope& import_res,
-        const std::string& abs_path
-) {
-    visitor.external_implement(import_res.nodes);
-    if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
-        std::cout << std::endl;
-    }
-    visitor.reset_errors();
-}
-
 /**
  * these two functions have following purpose
  * 1 - we need to process only direct dependencies, so 'outMods' only contains modules that are given to us in 'inMods'
@@ -1492,58 +1466,6 @@ int ASTProcessor::translate_module(
     // we will declare the direct dependencies of this module
     c_visitor.declare_before_translation(container.get_current_module_instantiations());
 
-//     for(const auto dep : dependencies) {
-//         for(auto& file : dep->direct_files) {
-//             if(file.result != nullptr) {
-//
-//                 auto& body = file.result->unit.scope.body;
-//
-// #ifdef DEBUG
-//                 c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
-// #endif
-//                 c_visitor.ext_fwd_declare(body.nodes);
-//             } else {
-//                 CHEM_THROW_RUNTIME("result is null");
-//             }
-//         }
-//     }
-
-//     // we will forward declare the direct dependencies of this module
-//     // only the newly introduced generics
-//     for(const auto dep : dependencies) {
-//         for(auto& file : dep->direct_files) {
-//             if(file.result != nullptr) {
-//
-//                 auto& body = file.result->unit.scope.body;
-//
-// #ifdef DEBUG
-//                 c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
-// #endif
-//                 c_visitor.ext_fwd_declare(body.nodes);
-//             } else {
-//                 CHEM_THROW_RUNTIME("result is null");
-//             }
-//         }
-//     }
-
-//     // we will declare the direct dependencies of this module
-//     for(const auto dep : dependencies) {
-//         for(auto& file : dep->direct_files) {
-//             if(file.result != nullptr) {
-//
-//                 auto& body = file.result->unit.scope.body;
-//
-// #ifdef DEBUG
-//                 c_visitor.debug_comment(chem::string_view(("ExtDeclare " + file.abs_path)));
-// #endif
-//
-//                 external_declare_in_c(c_visitor, body, file.abs_path);
-//             } else {
-//                 CHEM_THROW_RUNTIME("result is null");
-//             }
-//         }
-//     }
-
     // The second loop deals with declaring files that are present in this module
     // declaring means (only prototypes, no function bodies, struct prototypes...)
     for(auto& file_ptr : module->direct_files) {
@@ -1570,27 +1492,6 @@ int ASTProcessor::translate_module(
     // this loop will implement new generic instantiations
     // this and the fourth loop generates bodies of functions
     c_visitor.translate_after_declaration(container.get_current_module_instantiations());
-
-//     // we will implement the direct dependencies of this module
-//     // this loop will implement new generic instantiations
-//     // this and the fourth loop generates bodies of functions
-//     for(const auto dep : dependencies) {
-//         for(auto& file : dep->direct_files) {
-//             auto& body = file.result->unit.scope.body;
-//
-// #ifdef DEBUG
-//             c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
-// #endif
-//
-//             // implement new generics
-//             external_implement_in_c(c_visitor, body, file.abs_path);
-//
-//             // clear everything we allocated using file allocator to make it re-usable
-//             // and other stuff to re use memory (makes it performant)
-//             c_visitor.file_level_reset();
-//
-//         }
-//     }
 
     // The fourth loop deals with generating function bodies present in the current module
     for(auto& file_ptr : module->direct_files) {

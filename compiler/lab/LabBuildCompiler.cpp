@@ -422,6 +422,12 @@ std::string get_partial_c_path(const std::string_view& build_dir, LabModule* mod
     return resolve_rel_child_path_str(build_dir, f);
 }
 
+std::string get_translated_c_path(const std::string_view& build_dir, LabModule* mod) {
+    auto f = mod->format('.');
+    f.append("/Translated.c");
+    return resolve_rel_child_path_str(build_dir, f);
+}
+
 bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
     const auto verbose = compiler->options->verbose;
     if(use_tcc && module->type == LabModuleType::CPPFile) {
@@ -672,11 +678,48 @@ void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaDat
     }
 }
 
+// this is the single function used for compilation of c
+// it handles files or in memory c program
+// it also can switch between clang and tiny cc based on user options
+int compile_c_to_obj_w_opts(const std::string& out_c_path, const std::string_view& program, const std::string& obj_path, LabBuildCompilerOptions* options, bool use_clang, bool emit_c) {
+
+#ifdef COMPILER_BUILD
+    // check if user wants to compile the c code via clang compiler
+    if (use_clang) {
+        if (!emit_c) writeToFile(out_c_path, program);
+        const auto compile_result = compile_c_file_to_object(out_c_path, job_obj_path, options->exe_path, options->resources_path, job->target_triple.to_view(), {}, options->debug_info || is_debug_or_compl(options->out_mode));
+        if (compile_result != 0) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program using clang, written at " << out_c_path << std::endl;
+            return compile_result;
+        }
+        return 0;
+    }
+#endif
+
+    // compiling the entire C to a single object file
+    int compile_c_result;
+    if (emit_c) {
+        compile_c_result = compile_adding_file(options->exe_path.data(), out_c_path.data(), obj_path.data(), false, options->benchmark, to_tcc_mode(options), {});
+    } else {
+        compile_c_result = compile_c_string(options->exe_path.data(), program.data(), obj_path, false, options->benchmark, to_tcc_mode(options));
+    }
+    if (compile_c_result != 0) {
+        if (!emit_c) writeToFile(out_c_path, program);
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_c_path << std::endl;
+        return compile_c_result;
+    }
+
+    return 0;
+}
+
 int LabBuildCompiler::process_module_tcc_bm(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string_view& build_dir
+        const std::string_view& build_dir,
+        bool single_file,
+        bool use_clang,
+        bool emit_c
 ) {
 
     const auto bm_mod = options->benchmark_modules;
@@ -689,7 +732,7 @@ int LabBuildCompiler::process_module_tcc_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir);
+    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir, single_file, use_clang, emit_c);
     if(result != 0) {
         return result;
     }
@@ -709,7 +752,10 @@ int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string_view& build_dir
+        const std::string_view& build_dir,
+        bool single_file,
+        bool use_clang,
+        bool emit_c
 ) {
 
     // variables
@@ -761,43 +807,6 @@ int LabBuildCompiler::process_module_tcc(
         return 1;
     }
 
-    // check if module has not changed, and use cache appropriately
-    // not changed means object file is also present (we make the check when setting the boolean)
-    if(mod->has_changed.has_value() && !mod->has_changed.value() && !options->check_only) {
-
-        if(verbose) {
-            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
-        }
-
-        // append the partial c output to buffered writer
-        auto partial_c_out = get_partial_c_path(build_dir, mod);
-        if(fs::exists(partial_c_out)) {
-            c_visitor.writer.append_file(partial_c_out.c_str());
-        } else {
-#ifdef DEBUG
-            CHEM_THROW_RUNTIME("missing partial.2c.c, even though module hasn't changed");
-#endif
-        }
-
-        // this will set all the generic instantiations to generated
-        // which means generic decls won't generate those instantiations again
-        // it will also set all structs/variants as declared, so they won't be defined twice (in generated c)
-        process_cached_module(processor, mod->direct_files, true);
-        for(auto& dep : mod->dependencies) {
-            process_cached_module(processor, dep.module->direct_files, true);
-        }
-
-        // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, mod->direct_files);
-
-        // disposing data
-        mod_allocator->clear();
-
-        // the module hasn't changed
-        return 0;
-
-    }
-
     // don't compile when user asked for checking only
     if (options->check_only) {
         if(verbose) {
@@ -810,25 +819,113 @@ int LabBuildCompiler::process_module_tcc(
         return 0;
     }
 
+    // check if module has not changed, and use cache appropriately
+    // not changed means object file is also present (we make the check when setting the boolean)
+    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
+
+        bool cache_succeeded = false;
+
+        if (single_file) {
+
+            // append the partial c output to buffered writer
+            auto partial_c_out = get_partial_c_path(build_dir, mod);
+            if(fs::exists(partial_c_out)) {
+
+                if(verbose) {
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << partial_c_out << "', skipping compilation" << std::endl;
+                }
+
+                // reuse the partial c we generated earlier, since module hasn't changed
+                c_visitor.writer.append_file(partial_c_out.c_str());
+
+                // set the variable
+                cache_succeeded = true;
+
+            } else {
+                if(verbose) {
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't find partial c '" << partial_c_out << "'" << std::endl;
+                }
+            }
+
+        } else {
+
+            // multi file output
+            // each module has its own object file, lets locate that object file and use it for caching
+            // append the partial c output to buffered writer
+            if(fs::exists(mod->object_path.to_view())) {
+
+                if(verbose) {
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << mod->object_path << "', skipping compilation" << std::endl;
+                }
+
+                // assume it will be linked (process_job_tcc takes acare of that)
+                cache_succeeded = true;
+
+            } else {
+                if(verbose) {
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't find object '" << mod->object_path << "'" << std::endl;
+                }
+            }
+
+        }
+
+        if (cache_succeeded) {
+            // this will set all the generic instantiations to generated
+            // which means generic decls won't generate those instantiations again
+            // it will also set all structs/variants as declared, so they won't be defined twice (in generated c)
+            process_cached_module(processor, mod->direct_files, true);
+            for(auto& dep : mod->dependencies) {
+                process_cached_module(processor, dep.module->direct_files, true);
+            }
+
+            // removing non public nodes, because these would be disposed when allocator clears
+            remove_non_public_nodes(processor, mod->direct_files);
+
+            // disposing data
+            mod_allocator->clear();
+
+            // the module hasn't changed
+            return 0;
+        }
+
+    }
+
     if(verbose) {
         std::cout << "[lab] " << "compiling module files" << std::endl;
     }
 
     // the starting point where this module started translating
-    const auto start = c_visitor.writer.current_pos_data();
+    const auto start = c_visitor.writer.getPosition();
+
+    // the point where implementations began (the function bodies)
+    size_t outImplStart = 0;
 
     // compile the whole module
     processor.translate_module(
-            c_visitor, mod
+            c_visitor, mod, outImplStart
     );
 
     if(caching) {
-        // saving all the c this module wrote in a partial file (for caching)
-        auto view = std::string_view(start, c_visitor.writer.current_pos_data() - start);
-        auto partial_c_out = get_partial_c_path(build_dir, mod);
-        writeToFile(partial_c_out, view);
+        if (single_file) {
+            // saving all the c this module wrote in a partial file (for caching)
+            auto view = std::string_view(c_visitor.writer.data() + start, c_visitor.writer.size() - start);
+            auto partial_c_out = get_partial_c_path(build_dir, mod);
+            writeToFile(partial_c_out, view);
+        }
         // save a mod timestamp
         save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true), options->out_mode);
+    }
+
+    // check if compiling object for each module
+    if (!single_file) {
+        // we must compile a object file for this module
+        const auto c_out_path = get_translated_c_path(build_dir, mod);
+        auto finalized = c_visitor.writer.finalized_std_view();
+        if (emit_c) writeToFile(c_out_path, finalized);
+        const auto compile_result = compile_c_to_obj_w_opts(c_out_path, finalized, mod->object_path.to_std_string(), options, use_clang, emit_c);
+        c_visitor.writer.un_finalize_unsafely();
+        if (compile_result != 0) return compile_result;
+        c_visitor.writer.setPositionUnsafely(outImplStart);
     }
 
     if(verbose) {
@@ -1445,6 +1542,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     const auto job_type = exe->type;
 
     const auto is_job_cbi = get_job_type == LabJobType::CBI;
+    const auto is_job_jit = get_job_type == LabJobType::JITExecutable;
+    const auto is_job_intermediate = get_job_type == LabJobType::Intermediate;
+    const auto is_single_file = options->translate_to_single_file || is_job_cbi || is_job_jit;
     // job caching means relink all if all objects are present
     const auto job_caching = !options->check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
     const auto verbose = options->verbose;
@@ -1515,8 +1615,10 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;
 
+        const auto job_obj_exists = fs::exists(job_obj_path);
+
         // check the job object path exists (since we are caching)
-        if (!fs::exists(job_obj_path)) {
+        if (!job_obj_exists) {
 
             // checking which modules have changed
             for (auto& dep: exe->dependencies) {
@@ -1528,7 +1630,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
         }
 
-        if (!has_any_changed) {
+        if (job_obj_exists && !has_any_changed) {
 
             // NOTE: there exists not a single module (or file) that has changed
             // which means we can safely link the previous job object file again
@@ -1595,6 +1697,12 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // begin translation
     c_visitor.prepare_translate();
 
+    // is c emitted for each module and the whole job ?
+    const auto emit_c = is_job_intermediate || options->emit_c;
+
+    // use clang for compilation of c
+    const auto use_clang = use_embedded_clang(job);
+
     // if user only asked us to compile c files, we must not link the chemical object file
     auto did_compile_chemical = false;
 
@@ -1645,9 +1753,14 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir);
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir, is_single_file, use_clang, emit_c);
         if(result != 0) {
             return result;
+        }
+
+        // module's object file must be linked if not a single file compilation
+        if (!is_single_file) {
+            job->objects.emplace_back(mod->object_path.copy());
         }
 
         if(!did_compile_chemical) {
@@ -1657,6 +1770,10 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // add the job obj path to linkables
+    // the job object file is still important
+    // because end_translate generates some function definitions that must be linked
+    // and we use did_compile_chemical because if modules are empty (not a single chemical source module)
+    // we end up linking this
     if(did_compile_chemical) {
         job->objects.emplace_back(job_obj_path);
     }
@@ -1666,46 +1783,29 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     auto program = c_visitor.writer.finalized_std_view();
 
+    // user just wanted to output c
     if(job_type == LabJobType::ToCTranslation) {
         // skip compilation, only c translation required
         writeToFile(job->abs_path.to_std_string(), program);
         return 0;
     }
 
-    const auto intermediate_job = job_type == LabJobType::Intermediate;
-    const auto emit_c = intermediate_job || options->emit_c;
+    // the path where translated c file will be emitted
+    auto out_c_path = resolve_rel_child_path_str(build_dir, "Translated.c");
 
+    // emitting the c file
     if(emit_c) {
-        writeToFile(resolve_rel_child_path_str(build_dir, "Translated.c"), program);
+        writeToFile(out_c_path, program);
     }
 
-    if(intermediate_job || options->check_only) {
+    if(is_job_intermediate || options->check_only) {
         // skip compilation, only intermediates required
         return 0;
     }
 
-#ifdef COMPILER_BUILD
-    // check if user wants to compile the c code via clang compiler
-    if (LabBuildCompiler::use_embedded_clang(job)) {
-        auto tmp_c_file = resolve_rel_child_path_str(build_dir, "Translated.c");
-        if (!emit_c) writeToFile(tmp_c_file, program);
-        const auto compile_result = compile_c_file_to_object(tmp_c_file, job_obj_path, options->exe_path, options->resources_path, job->target_triple.to_view(), {}, options->debug_info || is_debug_or_compl(options->out_mode));
-        if (compile_result != 0) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program using clang, written at " << tmp_c_file << std::endl;
-            return compile_result;
-        }
-        return 0;
-    }
-#endif
-
-    // compiling the entire C to a single object file
-    const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
-    if (compile_c_result != 0) {
-        auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
-        writeToFile(out_path, program);
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
-        return compile_c_result;
-    }
+    // compile c to object at given object path
+    const auto compile_result = compile_c_to_obj_w_opts(out_c_path, program, job_obj_path, options, use_clang, emit_c);
+    if (compile_result != 0) return compile_result;
 
     // cbi and jit jobs are here
     if(get_job_type == LabJobType::CBI) {
@@ -2710,7 +2810,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         }
 
         // compile the module
-        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir);
+        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir, true, false, false);
         if(module_result != 0) {
             return nullptr;
         }
@@ -2826,9 +2926,12 @@ TCCState* LabBuildCompiler::built_lab_file(
         std::cout << "[lab] translating current module to C" << std::endl;
     }
 
+    // unused here
+    std::size_t outImplStart = 0;
+
     // translating the build.lab module
     lab_processor.translate_module(
-        c_visitor, &chemical_lab_module
+        c_visitor, &chemical_lab_module, outImplStart
     );
 
     // end the translation

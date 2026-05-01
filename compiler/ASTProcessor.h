@@ -554,7 +554,8 @@ public:
      */
     int translate_module(
         ToCAstVisitor& visitor,
-        LabModule* module
+        LabModule* module,
+        std::size_t& outImplStart
     );
 
 #ifdef COMPILER_BUILD

@@ -18,7 +18,10 @@ public func solid_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     const builder = resolver.getJobBuilder()
 
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, true, node.getParent(), loc);
+    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, node.getParent(), loc);
+    if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
+        funcDecl.setAccessSpecifier(root.signature.access)
+    }
 
     // func name(page : &mut HtmlPage) : void
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);

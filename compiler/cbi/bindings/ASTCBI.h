@@ -218,6 +218,10 @@ extern "C" {
 
     void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclaration* decl);
 
+    void FunctionDeclarationsetAttributes(FunctionDeclaration* decl, FuncDeclAttributesCBI* attrs);
+
+    void FunctionDeclarationsetAccessSpecifier(FunctionDeclaration* decl, int spec);
+
     void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, InterfaceDefinition* def);
 
     void UnionDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, UnionDef* def);

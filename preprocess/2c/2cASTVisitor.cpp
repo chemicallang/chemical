@@ -3309,6 +3309,13 @@ void declare_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinit
     visitor.mangler.mangle_vtable_name(visitor.writer, interface, implType);
 }
 
+void declare_v_table_for_primitive_impl_extern(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
+    visitor.new_line_and_indent();
+    visitor.write("extern ");
+    declare_v_table_for_primitive_impl(visitor, interface, implType);
+    visitor.write(';');
+}
+
 void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, ImplDefinition* def) {
 
     visitor.new_line_and_indent();
@@ -3357,23 +3364,12 @@ void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
         }
     } else {
         def->active_user = nullptr;
-        if(def->generates_vtable()) {
-            // impl can set has_declared to true
-            // when it finds its false and declares the v table type early so it can use it
-            if (def->has_declared == false) {
-                create_v_table_type(visitor, def);
-            }
+        // impl can set has_declared to true
+        // when it finds its false and declares the v table type early so it can use it
+        if(def->has_declared == false && def->generates_vtable()) {
+            create_v_table_type(visitor, def);
         }
-
         def->has_declared = true;
-
-        // auto create a status
-        auto& status = delayed_primitive_impls[def];
-        for(const auto q : status.queued) {
-            create_v_table_for_primitive_impl(visitor, def, q);
-        }
-        status.queued.clear();
-        status.has_declared = true;
     }
 }
 
@@ -3402,7 +3398,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                         create_v_table_type(visitor, interface_def);
                         interface_def->has_declared = true;
                     }
-                    // we will only declare the vtable (only declare)visitor, interface_def, for_decl
+                    // we will only declare the vtable (only declare)
                     declare_v_table_recursive(visitor, interface_def, for_decl);
                 }
             } else {
@@ -3410,12 +3406,14 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                 for(const auto func : def->instantiated_functions()) {
                     declare_contained_func(this, func, false, nullptr);
                 }
-                // queue generating a vtable or generate one
-                auto& status = delayed_primitive_impls[interface_def];
-                if(status.has_declared) {
-                    create_v_table_for_primitive_impl(visitor, interface_def, def);
-                } else {
-                    status.queued.emplace_back(def);
+                // we will only declare the vtable (only declare)
+                if (interface_def->generates_vtable()) {
+                    // create the vtable type early (if interface is below the impl)
+                    if (!interface_def->has_declared) {
+                        create_v_table_type(visitor, interface_def);
+                        interface_def->has_declared = true;
+                    }
+                    declare_v_table_for_primitive_impl_extern(visitor, interface_def, def->struct_type);
                 }
             }
         }
@@ -4383,12 +4381,16 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
         }
     }
     // overridden functions
-    for(auto& func : def->instantiated_functions()) {
+    for(const auto func : def->instantiated_functions()) {
         contained_func_decl(*this, func, overrides, linked_interface, for_decl);
     }
     // handle static interface implementation
-    if(linked_interface && for_decl && linked_interface->generates_vtable()) {
-        create_v_table_recursive(*this, linked_interface, for_decl);
+    if(linked_interface && linked_interface->generates_vtable()) {
+        if (for_decl) {
+            create_v_table_recursive(*this, linked_interface, for_decl);
+        } else {
+            create_v_table_for_primitive_impl(*this, linked_interface, def);
+        }
     }
 }
 

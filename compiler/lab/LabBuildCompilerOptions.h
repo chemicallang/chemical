@@ -70,7 +70,7 @@ public:
      * this is great for debugging and small projects that want to avoid overhead of multiple objects being linked
      * this is insanely great for optimization of release builds, because compilers are great at optimizing a single c file
      */
-    bool translate_to_single_file = false;
+    bool translate_to_single_file = true;
 
     /**
      * will force use object file format

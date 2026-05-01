@@ -19,8 +19,6 @@ public:
 
     using NonRecursiveVisitor<CTopLevelDeclarationVisitor>::visit;
 
-    std::unordered_map<InterfaceDefinition*, InterfaceVTableTypeStatus> delayed_primitive_impls;
-
     CTopLevelDeclarationVisitor(
             ToCAstVisitor& visitor
     );

@@ -428,14 +428,14 @@ std::string get_translated_c_path(const std::string_view& build_dir, LabModule* 
     return resolve_rel_child_path_str(build_dir, f);
 }
 
-bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
+bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool is_single_file) {
     const auto verbose = compiler->options->verbose;
     if(use_tcc && module->type == LabModuleType::CPPFile) {
         // since cpp file modules are skipped in tiny cc build
         // so we will ignore and assume it hasn't changed
         return false;
     }
-    if(use_tcc && module->type != LabModuleType::CFile) {
+    if(use_tcc && module->type != LabModuleType::CFile && is_single_file) {
         // asked to check the partial c file
         auto partial_c = get_partial_c_path(build_dir, module);
         if(!fs::exists(partial_c)) {
@@ -463,7 +463,7 @@ bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module,
     }
     bool has_deps_changed = false;
     for(auto& dep : module->dependencies) {
-        if(has_module_changed_recursive(compiler, dep.module, build_dir, use_tcc)) {
+        if(has_module_changed_recursive(compiler, dep.module, build_dir, use_tcc, is_single_file)) {
             has_deps_changed = true;
         }
     }
@@ -480,7 +480,7 @@ bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module,
     return has_changed;
 }
 
-bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
+bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool is_single_file) {
     const auto caching = compiler->options->is_caching_enabled;
     const auto verbose = compiler->options->verbose;
     if(!caching) {
@@ -489,7 +489,7 @@ bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std
         }
         return true;
     }
-    return has_module_changed_recursive(compiler, module, build_dir, use_tcc);
+    return has_module_changed_recursive(compiler, module, build_dir, use_tcc, is_single_file);
 }
 
 bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vector<ASTFileResult*>& files, const std::string_view& object_path, const std::string& mod_timestamp_file) {
@@ -1615,14 +1615,14 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;
 
-        const auto job_obj_exists = fs::exists(job_obj_path);
+        const auto job_obj_exists = is_single_file && fs::exists(job_obj_path);
 
         // check the job object path exists (since we are caching)
         if (!job_obj_exists) {
 
             // checking which modules have changed
             for (auto& dep: exe->dependencies) {
-                auto has_changed = has_module_changed(this, dep.module, mods_dir, true);
+                auto has_changed = has_module_changed(this, dep.module, mods_dir, true, is_single_file);
                 if (has_changed) {
                     has_any_changed = true;
                 }
@@ -1895,7 +1895,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         bool has_any_changed = false;
 
         for(auto& dep : job->dependencies) {
-            const auto changed = has_module_changed(this, dep.module, mods_dir, false);
+            const auto changed = has_module_changed(this, dep.module, mods_dir, false, false);
             if(changed) {
                 has_any_changed = true;
             }
@@ -2738,7 +2738,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
         // check which modules have changed
         for (auto& dep: mod_dependencies) {
-            const auto changed = has_module_changed(this, dep.module, lab_mods_dir, true);
+            const auto changed = has_module_changed(this, dep.module, lab_mods_dir, true, true);
             if (changed) {
                 has_any_changed = true;
             }

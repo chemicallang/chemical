@@ -372,6 +372,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("help", CmdOptionType::NoValue),
             CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
             CmdOption("emit-c", "emit-c", CmdOptionType::NoValue),
+            CmdOption("incremental", "incremental", CmdOptionType::NoValue),
             CmdOption("keepc", "keepc", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
@@ -504,6 +505,9 @@ int compiler_main(int argc, char *argv[]) {
         opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
         opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
+        if (options.has_value("incremental", "incremental")) {
+            opts->translate_to_single_file = false;
+        }
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
         if (options.has_value("download")) {
             opts->download_only = true;

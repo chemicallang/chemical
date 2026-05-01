@@ -517,7 +517,7 @@ ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initiali
     return new (builder->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, parent_node, location);
 }
 
-FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
+FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(*name, {returnType, location}, isVariadic, parent_node, location);
 }
 
@@ -981,6 +981,36 @@ void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclar
     out->std_call = attrs.std_call;
     out->dll_import = attrs.dll_import;
     out->dll_export = attrs.dll_export;
+}
+
+void FunctionDeclarationsetAttributes(FunctionDeclaration* decl, FuncDeclAttributesCBI* from) {
+    auto& attrs = decl->attrs;
+    const auto out = from;
+    attrs.specifier = static_cast<AccessSpecifier>(out->specifier);
+    attrs.is_comptime = out->is_comptime;
+    attrs.is_compiler_decl = out->is_compiler_decl;
+    attrs.multi_func_index = out->multi_func_index;
+    attrs.inline_strategy = static_cast<InlineStrategy>(out->inline_strategy);
+    attrs.is_extern = out->is_extern;
+    attrs.is_cpp_mangle = out->is_cpp_mangle;
+    attrs.deprecated = out->deprecated;
+    attrs.is_implicit = out->is_implicit;
+    attrs.is_noReturn = out->is_noReturn;
+    attrs.is_constructor_fn = out->is_constructor_fn;
+    attrs.is_copy_fn = out->is_copy_fn;
+    attrs.is_delete_fn = out->is_delete_fn;
+    attrs.is_unsafe = out->is_unsafe;
+    attrs.is_override = out->is_override;
+    attrs.has_usage = out->has_usage;
+    attrs.no_mangle = out->no_mangle;
+    attrs.is_generated = out->is_generated;
+    attrs.std_call = out->std_call;
+    attrs.dll_import = out->dll_import;
+    attrs.dll_export = out->dll_export;
+}
+
+void FunctionDeclarationsetAccessSpecifier(FunctionDeclaration* decl, int spec) {
+    decl->attrs.specifier = static_cast<AccessSpecifier>(spec);
 }
 
 void InterfaceDefinitiongetAttributes(InterfaceDefinitionAttrsCBI* out, InterfaceDefinition* def) {

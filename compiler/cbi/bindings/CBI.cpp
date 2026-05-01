@@ -361,6 +361,8 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_UnionDefgetMembers", (void*) UnionDefinitiongetMembers },
         { "compiler_UnionDefgetFunctions", (void*) UnionDefinitiongetFunctions },
         { "compiler_FunctionDeclarationgetAttributes", (void*) FunctionDeclarationgetAttributes },
+        { "compiler_FunctionDeclarationsetAttributes", (void*) FunctionDeclarationsetAttributes },
+        { "compiler_FunctionDeclarationsetAccessSpecifier", (void*) FunctionDeclarationsetAccessSpecifier },
         { "compiler_InterfaceDefinitiongetAttributes", (void*) InterfaceDefinitiongetAttributes },
         { "compiler_TypealiasStatementgetAttributes", (void*) TypealiasStatementgetAttributes },
         { "compiler_ASTNodegetAccessSpecifier", (void*) ASTNodegetAccessSpecifier },

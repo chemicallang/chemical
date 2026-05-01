@@ -198,7 +198,7 @@ extern "C" {
 
     ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location);
 
-    FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
+    FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, ASTNode* parent_node, uint64_t location);
 
     FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* parent_node, uint64_t location);
 

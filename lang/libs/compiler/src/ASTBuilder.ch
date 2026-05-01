@@ -426,7 +426,11 @@ public struct FunctionDeclaration : ASTNode {
 
     func getReturnType(&self) : *mut BaseType
 
-    func getAttributes(&self, out : *mut FuncDeclAttributesCBI)
+    func getAttributes(&self) : FuncDeclAttributesCBI
+
+    func setAttributes(&self, attrs : FuncDeclAttributesCBI)
+
+    func setAccessSpecifier(&self, spec : AccessSpecifier);
 
     func isExtensionFn(&self) : bool
 
@@ -843,7 +847,7 @@ public struct ASTBuilder {
 
     func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *mut ForLoop
 
-    func make_function(&self, name : &string_view, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
+    func make_function(&self, name : &string_view, returnType : *BaseType, isVariadic : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
 
     func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, parent_node : *mut ASTNode, location : ubigint) : *mut FunctionParam
 

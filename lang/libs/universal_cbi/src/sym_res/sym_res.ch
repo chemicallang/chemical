@@ -20,7 +20,11 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     // creating the component function
     // func name(page : &mut HtmlPage, attrs : SsrAttributeList) : void
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType, false, true, node.getParent(), loc);
+    const funcDecl = builder.make_function(root.signature.name, voidType, false, node.getParent(), loc);
+    if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
+        funcDecl.setAccessSpecifier(root.signature.access)
+    }
+
     // the first param for the function, page : &mut HtmlPage
     const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
     const ref = builder.make_reference_type(linked, true, loc);

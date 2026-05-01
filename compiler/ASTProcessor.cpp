@@ -1487,39 +1487,62 @@ int ASTProcessor::translate_module(
 
     // we will forward declare the direct dependencies of this module
     // only the newly introduced generics
-    for(const auto dep : dependencies) {
-        for(auto& file : dep->direct_files) {
-            if(file.result != nullptr) {
-
-                auto& body = file.result->unit.scope.body;
-
-#ifdef DEBUG
-                c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
-#endif
-                c_visitor.ext_fwd_declare(body.nodes);
-            } else {
-                CHEM_THROW_RUNTIME("result is null");
-            }
-        }
-    }
+    c_visitor.fwd_declare(container.get_current_module_instantiations());
 
     // we will declare the direct dependencies of this module
-    for(const auto dep : dependencies) {
-        for(auto& file : dep->direct_files) {
-            if(file.result != nullptr) {
+    c_visitor.declare_before_translation(container.get_current_module_instantiations());
 
-                auto& body = file.result->unit.scope.body;
+//     for(const auto dep : dependencies) {
+//         for(auto& file : dep->direct_files) {
+//             if(file.result != nullptr) {
+//
+//                 auto& body = file.result->unit.scope.body;
+//
+// #ifdef DEBUG
+//                 c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
+// #endif
+//                 c_visitor.ext_fwd_declare(body.nodes);
+//             } else {
+//                 CHEM_THROW_RUNTIME("result is null");
+//             }
+//         }
+//     }
 
-#ifdef DEBUG
-                c_visitor.debug_comment(chem::string_view(("ExtDeclare " + file.abs_path)));
-#endif
+//     // we will forward declare the direct dependencies of this module
+//     // only the newly introduced generics
+//     for(const auto dep : dependencies) {
+//         for(auto& file : dep->direct_files) {
+//             if(file.result != nullptr) {
+//
+//                 auto& body = file.result->unit.scope.body;
+//
+// #ifdef DEBUG
+//                 c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
+// #endif
+//                 c_visitor.ext_fwd_declare(body.nodes);
+//             } else {
+//                 CHEM_THROW_RUNTIME("result is null");
+//             }
+//         }
+//     }
 
-                external_declare_in_c(c_visitor, body, file.abs_path);
-            } else {
-                CHEM_THROW_RUNTIME("result is null");
-            }
-        }
-    }
+//     // we will declare the direct dependencies of this module
+//     for(const auto dep : dependencies) {
+//         for(auto& file : dep->direct_files) {
+//             if(file.result != nullptr) {
+//
+//                 auto& body = file.result->unit.scope.body;
+//
+// #ifdef DEBUG
+//                 c_visitor.debug_comment(chem::string_view(("ExtDeclare " + file.abs_path)));
+// #endif
+//
+//                 external_declare_in_c(c_visitor, body, file.abs_path);
+//             } else {
+//                 CHEM_THROW_RUNTIME("result is null");
+//             }
+//         }
+//     }
 
     // The second loop deals with declaring files that are present in this module
     // declaring means (only prototypes, no function bodies, struct prototypes...)
@@ -1546,23 +1569,28 @@ int ASTProcessor::translate_module(
     // we will implement the direct dependencies of this module
     // this loop will implement new generic instantiations
     // this and the fourth loop generates bodies of functions
-    for(const auto dep : dependencies) {
-        for(auto& file : dep->direct_files) {
-            auto& body = file.result->unit.scope.body;
+    c_visitor.translate_after_declaration(container.get_current_module_instantiations());
 
-#ifdef DEBUG
-            c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
-#endif
-
-            // implement new generics
-            external_implement_in_c(c_visitor, body, file.abs_path);
-
-            // clear everything we allocated using file allocator to make it re-usable
-            // and other stuff to re use memory (makes it performant)
-            c_visitor.file_level_reset();
-
-        }
-    }
+//     // we will implement the direct dependencies of this module
+//     // this loop will implement new generic instantiations
+//     // this and the fourth loop generates bodies of functions
+//     for(const auto dep : dependencies) {
+//         for(auto& file : dep->direct_files) {
+//             auto& body = file.result->unit.scope.body;
+//
+// #ifdef DEBUG
+//             c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
+// #endif
+//
+//             // implement new generics
+//             external_implement_in_c(c_visitor, body, file.abs_path);
+//
+//             // clear everything we allocated using file allocator to make it re-usable
+//             // and other stuff to re use memory (makes it performant)
+//             c_visitor.file_level_reset();
+//
+//         }
+//     }
 
     // The fourth loop deals with generating function bodies present in the current module
     for(auto& file_ptr : module->direct_files) {
@@ -1584,6 +1612,10 @@ int ASTProcessor::translate_module(
         c_visitor.file_level_reset();
 
     }
+
+    // this will clear current module instantiations
+    // so we don't translate them again
+    container.clear_current_module_instantiations();
 
     // resetting c visitor to use with another module
     c_visitor.reset();

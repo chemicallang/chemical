@@ -9,6 +9,7 @@
 #include <cassert>
 
 class BaseType;
+class ASTNode;
 
 /**
  * each type inside this span is written for a generic instantiation
@@ -54,8 +55,10 @@ private:
     // fileId → vector of “who to delete” records
     std::unordered_map<unsigned int, std::vector<RegistryEntry>> fileIdRegistry;
 
-public:
+    // we track current module instantiations
+    std::vector<ASTNode*> current_module_instantiations;
 
+public:
     /**
      * this is set by symbol resolver, when linking signature or body of each file
      * this allows us to know which file generic instantiations are coming from
@@ -197,6 +200,27 @@ public:
 
         // finally, drop the empty registry vector
         fileIdRegistry.erase(fileId);
+    }
+
+    /**
+     * track a instantiation created in the current module
+     */
+    void put_current_module_instantiation(ASTNode* node) {
+        current_module_instantiations.emplace_back(node);
+    }
+
+    /**
+     * get all current module instantiations being tracked
+     */
+    const std::vector<ASTNode*>& get_current_module_instantiations() {
+        return current_module_instantiations;
+    }
+
+    /**
+     * clear current module instantiations
+     */
+    void clear_current_module_instantiations() {
+        current_module_instantiations.clear();
     }
 
     /**

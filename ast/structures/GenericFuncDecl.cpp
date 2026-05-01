@@ -107,6 +107,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     impl->generic_parent = this;
     impl->generic_instantiation = (int) instantiations.size();
     instantiations.emplace_back(impl);
+    container.put_current_module_instantiation(impl);
 
     if(body_linked) {
 

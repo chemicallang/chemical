@@ -48,8 +48,6 @@ public:
         declare_union_functions(def);
     }
 
-    void declare_interface(InterfaceDefinition* interface, bool external_declare);
-
     void declare_variant_def_only(VariantDefinition* def);
 
     void declare_variant_functions(VariantDefinition* def);
@@ -75,19 +73,7 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
 
-    void VisitGenericFuncDecl(GenericFuncDecl* node);
-
     void VisitStructDecl(StructDefinition *structDefinition);
-
-    void VisitGenericTypeDecl(GenericTypeDecl* node);
-
-    void VisitGenericStructDecl(GenericStructDecl* node);
-
-    void VisitGenericUnionDecl(GenericUnionDecl* node);
-
-    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
-
-    void VisitGenericVariantDecl(GenericVariantDecl* node);
 
     void VisitVariantDecl(VariantDefinition *variant_def);
 

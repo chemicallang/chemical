@@ -179,14 +179,14 @@ void write_escape_encoded(BufferedWriter& stream, char value) {
     }
 }
 
-void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
+void ToCAstVisitor::declare_before_translation(const std::vector<ASTNode*>& nodes) {
     // declare the top level things with this visitor
     for(const auto node : nodes) {
         tld.visit(node);
     }
 }
 
-void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
+void ToCAstVisitor::translate_after_declaration(const std::vector<ASTNode*>& nodes) {
     // take out values like lambda from within functions
     //for(const auto node : nodes) {
     //    declarer.visit(node);
@@ -359,7 +359,7 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
     }
 }
 
-void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
+void ToCAstVisitor::external_declare(const std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::GenericFuncDecl:
@@ -379,9 +379,6 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
                 break;
             case ASTNodeKind::GenericTypeDecl:
                 tld.VisitGenericTypeDecl(node->as_gen_type_decl_unsafe());
-                break;
-            case ASTNodeKind::InterfaceDecl:
-                tld.declare_interface(node->as_interface_def_unsafe(), true);
                 break;
             case ASTNodeKind::NamespaceDecl:
                 external_declare(node->as_namespace_unsafe()->nodes);
@@ -3120,12 +3117,6 @@ void CTopLevelDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     declare_func(decl);
 }
 
-void CTopLevelDeclarationVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
-    for(const auto impl : node->instantiations) {
-        declare_func(impl);
-    }
-}
-
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
     early_declare_type(visitor, stmt->actual_type, nullptr, true, true);
     visitor.new_line_and_indent();
@@ -3248,41 +3239,6 @@ void CTopLevelDeclarationVisitor::early_declare_union_def(UnionDef* def) {
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
     declare_struct_iterations(def);
-}
-
-void CTopLevelDeclarationVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
-    auto& i = node->total_declared_instantiations;
-    while(i < node->instantiations.size()) {
-        VisitTypealiasStmt(node->instantiations[i++]);
-    }
-}
-
-void CTopLevelDeclarationVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
-    auto& i = node->total_declared_instantiations;
-    while(i < node->instantiations.size()) {
-        VisitStructDecl(node->instantiations[i++]);
-    }
-}
-
-void CTopLevelDeclarationVisitor::VisitGenericUnionDecl(GenericUnionDecl* node) {
-    auto& i = node->total_declared_instantiations;
-    while(i < node->instantiations.size()) {
-        VisitUnionDecl(node->instantiations[i++]);
-    }
-}
-
-void CTopLevelDeclarationVisitor::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
-    auto& i = node->total_declared_instantiations;
-    while(i < node->instantiations.size()) {
-        VisitInterfaceDecl(node->instantiations[i++]);
-    }
-}
-
-void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
-    auto& i = node->total_declared_instantiations;
-    while(i < node->instantiations.size()) {
-        VisitVariantDecl(node->instantiations[i++]);
-    }
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* def) {
@@ -3439,15 +3395,31 @@ void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
     }
 }
 
-void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
-
-    visitor.new_line_and_indent();
+void declare_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
     visitor.write("const");
     visitor.space();
     vtable_type_name(visitor, interface);
-
     visitor.space();
     vtable_name(visitor, interface, definition);
+}
+
+// basically declare vtables for all interfaces in the heirarchy
+void declare_v_table_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
+    for(auto& inh : interface->inherited) {
+        const auto inherited = inh.type->get_direct_linked_interface();
+        if(inherited) {
+            declare_v_table_recursive(visitor, inherited, definition);
+        }
+    }
+    visitor.new_line_and_indent();
+    declare_v_table(visitor, interface, definition);
+    visitor.write(';');
+}
+
+void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
+
+    visitor.new_line_and_indent();
+    declare_v_table(visitor, interface, definition);
     visitor.write(" = ");
     visitor.write('{');
     visitor.indentation_level += 1;
@@ -3462,15 +3434,28 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Exte
     visitor.write(';');
 }
 
-void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, ImplDefinition* def) {
+void create_v_table_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
+    for(auto& inh : interface->inherited) {
+        const auto inherited = inh.type->get_direct_linked_interface();
+        if(inherited) {
+            create_v_table_recursive(visitor, inherited, definition);
+        }
+    }
+    create_v_table(visitor, interface, definition);
+}
 
-    visitor.new_line_and_indent();
+void declare_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
     visitor.write("const");
     visitor.space();
     vtable_type_name(visitor, interface);
-
     visitor.space();
-    visitor.mangler.mangle_vtable_name(visitor.writer, interface, def->struct_type);
+    visitor.mangler.mangle_vtable_name(visitor.writer, interface, implType);
+}
+
+void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, ImplDefinition* def) {
+
+    visitor.new_line_and_indent();
+    declare_v_table_for_primitive_impl(visitor, interface, def->struct_type);
     visitor.write(" = ");
     visitor.write('{');
     visitor.indentation_level += 1;
@@ -3505,29 +3490,25 @@ void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefiniti
 
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def);
 
-void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bool external_declare) {
-    const auto is_static = def->is_static();
-    if(!external_declare) {
-        if(is_static) {
-            for (auto& func: def->instantiated_functions()) {
-                declare_contained_func(this, func, false);
-            }
-            if(!def->is_extern()) {
-                visitor.store_static_interface_for_stub_impl(def);
-            }
-        } else {
-//            for (auto& func: def->instantiated_functions()) {
-//                if(!func->has_self_param()) {
-//                    declare_contained_func(this, func, false);
-//                }
-//            }
+void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
+    if(def->is_static()) {
+        for (const auto func: def->instantiated_functions()) {
+            declare_contained_func(this, func, false);
         }
-    }
-    if(!is_static) {
+        if(!def->is_extern()) {
+            visitor.store_static_interface_for_stub_impl(def);
+        }
+    } else {
         def->active_user = nullptr;
-        if(!external_declare && def->generates_vtable()) {
-            create_v_table_type(visitor, def);
+        if(def->generates_vtable()) {
+            // impl can set has_declared to true
+            // when it finds its false and declares the v table type early so it can use it
+            if (def->has_declared == false) {
+                create_v_table_type(visitor, def);
+            }
         }
+
+        def->has_declared = true;
 
         // auto create a status
         auto& status = delayed_primitive_impls[def];
@@ -3536,45 +3517,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
         }
         status.queued.clear();
         status.has_declared = true;
-
-        // either create or declare the vtable, depending on whether it has been declared before
-        for(const auto linked_struct : def->users) {
-
-            // checking if vtable implementation exists or not
-            auto vtable_done = def->vtable_pointers.find(linked_struct);
-            const auto has_vtable_impl = vtable_done != def->vtable_pointers.end();
-
-            // if it doesn't exit emit a vtable struct
-            if(!has_vtable_impl) {
-
-                // declare contained functions for each implementation
-                def->active_user = linked_struct;
-                for (auto& func: def->instantiated_functions()) {
-                    declare_contained_func(this, func, false, linked_struct);
-                }
-                def->active_user = nullptr;
-
-                // create the v table for each implementation
-                if(def->generates_vtable()) {
-                    create_v_table(visitor, def, linked_struct);
-                }
-
-
-                // setting it true, that vtable implementation exists
-#ifdef COMPILER_BUILD
-                def->vtable_pointers[linked_struct] = nullptr;
-#else
-                def->vtable_pointers[linked_struct] = true;
-#endif
-
-            }
-
-        }
     }
-}
-
-void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
-    declare_interface(def, false);
 }
 
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
@@ -3586,12 +3529,31 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
         }
         if(!interface_def->is_static()) {
             const auto container = def->struct_type->get_members_container();
-            if(container == nullptr) {
+            if (container) {
+                // declare contained functions for each implementation
+                // assuming its a extendable container
+                const auto for_decl = container->as_extendable_members_container_unsafe();
+                interface_def->active_user = for_decl;
+                for (const auto func: interface_def->instantiated_functions()) {
+                    declare_contained_func(this, func, false, for_decl);
+                }
+                interface_def->active_user = nullptr;
+                // generate the vtable
+                if (interface_def->generates_vtable()) {
+                    // create the vtable type early (if interface is below the impl)
+                    if (!interface_def->has_declared) {
+                        create_v_table_type(visitor, interface_def);
+                        interface_def->has_declared = true;
+                    }
+                    // we will only declare the vtable (only declare)visitor, interface_def, for_decl
+                    declare_v_table_recursive(visitor, interface_def, for_decl);
+                }
+            } else {
                 // native primitive type
                 for(const auto func : def->instantiated_functions()) {
                     declare_contained_func(this, func, false, nullptr);
                 }
-                // queue generating a vtable
+                // queue generating a vtable or generate one
                 auto& status = delayed_primitive_impls[interface_def];
                 if(status.has_declared) {
                     create_v_table_for_primitive_impl(visitor, interface_def, def);
@@ -4457,15 +4419,6 @@ void ToCAstVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     func_decl_with_name(*this, decl);
 }
 
-void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        func_decl_with_name(*this, node->instantiations[i]);
-        i++;
-    }
-}
-
 void do_patt_mat_expr(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     const auto elseKind = value->elseExpression.kind;
     const auto type = value->expression->getType();
@@ -4541,7 +4494,8 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
 void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->get_direct_linked_interface();
-    const auto linked_struct = def->struct_type ? def->struct_type->get_direct_linked_struct() : nullptr;
+    const auto linked_container = def->struct_type ? def->struct_type->get_members_container() : nullptr;
+    const auto for_decl = linked_container ? linked_container->as_extendable_members_container_unsafe() : nullptr;
     // handle static interface implementation
     if(linked_interface && linked_interface->is_static()) {
         // stub implementation for the given interface should not be generated
@@ -4549,11 +4503,11 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
         remove_static_interface_for_stub_impl(linked_interface);
     }
     // generate default implementations for functions in interface (which weren't overridden)
-    if(linked_struct && !linked_struct->does_override(linked_interface)) {
-        linked_interface->active_user = linked_struct;
+    if(for_decl && !for_decl->does_override(linked_interface)) {
+        linked_interface->active_user = for_decl;
         for (auto& func: linked_interface->instantiated_functions()) {
             if (!def->contains_direct_func(func->name_view())) {
-                contained_func_decl(*this, func, false, linked_struct);
+                contained_func_decl(*this, func, false, for_decl);
             }
         }
         linked_interface->active_user = nullptr;
@@ -4561,10 +4515,10 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
         for (auto& inherits: linked_interface->inherited) {
             const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
             if (overridden) {
-                overridden->active_user = linked_struct;
+                overridden->active_user = for_decl;
                 for (auto& func: overridden->instantiated_functions()) {
                     if (!def->contains_direct_func(func->name_view())) {
-                        contained_func_decl(*this, func, false, linked_struct);
+                        contained_func_decl(*this, func, false, for_decl);
                     }
                 }
                 overridden->active_user = nullptr;
@@ -4573,7 +4527,11 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     }
     // overridden functions
     for(auto& func : def->instantiated_functions()) {
-        contained_func_decl(*this, func, overrides, linked_interface, linked_struct);
+        contained_func_decl(*this, func, overrides, linked_interface, for_decl);
+    }
+    // handle static interface implementation
+    if(linked_interface && for_decl && linked_interface->generates_vtable()) {
+        create_v_table_recursive(*this, linked_interface, for_decl);
     }
 }
 
@@ -4719,42 +4677,6 @@ static void visit_struct_contained_nodes(ToCAstVisitor& visitor, ExtendableMembe
 
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     visit_struct_contained_nodes(*this, def);
-}
-
-void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        VisitStructDecl(node->instantiations[i]);
-        i++;
-    }
-}
-
-void ToCAstVisitor::VisitGenericUnionDecl(GenericUnionDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        VisitUnionDecl(node->instantiations[i]);
-        i++;
-    }
-}
-
-void ToCAstVisitor::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        VisitInterfaceDecl(node->instantiations[i]);
-        i++;
-    }
-}
-
-void ToCAstVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
-    auto& i = node->total_bodied_instantiations;
-    const auto total = node->instantiations.size();
-    while(i < total) {
-        VisitVariantDecl(node->instantiations[i]);
-        i++;
-    }
 }
 
 void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
@@ -5846,12 +5768,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     complete_func_call_args(*this, call, func_type, false);
     write(')');
 
-}
-
-void ToCAstVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
-    for(const auto inst : node->instantiations) {
-        visit(inst);
-    }
 }
 
 void ToCAstVisitor::VisitStructMember(StructMember *member) {

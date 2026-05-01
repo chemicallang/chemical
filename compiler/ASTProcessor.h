@@ -36,6 +36,8 @@ class ImportPathHandler;
 
 class TypeBuilder;
 
+class InstantiationsContainer;
+
 #ifdef COMPILER_BUILD
 
 class CTranslator;
@@ -100,6 +102,11 @@ public:
      * so we can resolve import statements
      */
     ModuleStorage& mod_storage;
+
+    /**
+     * instantiations container
+     */
+    InstantiationsContainer& container;
 
     /**
      * import mutex is used to synchronize launching of multiple files
@@ -169,12 +176,13 @@ public:
             SymbolResolver* resolver,
             CompilerBinder& binder,
             TypeBuilder& typeBuilder,
+            InstantiationsContainer& container,
             ASTAllocator& job_allocator,
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
     ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder), type_builder(typeBuilder),
         job_allocator(job_allocator), mod_allocator(mod_allocator), mod_storage(mod_storage), file_allocator(file_allocator),
-        controller(controller)
+        container(container), controller(controller)
     {
 
     }

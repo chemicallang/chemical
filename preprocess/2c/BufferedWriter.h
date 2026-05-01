@@ -72,6 +72,14 @@ public:
         return pos_;
     }
 
+    /**
+     * sets the position, where it should write, should be used carefully
+     */
+    [[nodiscard]]
+    inline void setPositionUnsafely(std::size_t position) noexcept {
+        pos_ = position;
+    }
+
     // Reserve at least new_capacity (may allocate). Returns true on success.
     bool reserve_total(size_t new_capacity) noexcept {
         if (new_capacity <= cap_) return true;
@@ -363,6 +371,14 @@ public:
     inline std::string_view finalized_std_view() noexcept {
         append_char('\0');
         return { data(), size() - 1 };
+    }
+
+    /**
+     * should be called carefully, only called right after finalize, no other calls to this should be made
+     * otherwise runtime crashes would occur
+     */
+    inline void un_finalize_unsafely() noexcept {
+        pos_--;
     }
 
     inline std::string_view to_std_view() noexcept {

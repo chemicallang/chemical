@@ -65,6 +65,14 @@ public:
     bool force_recompile_plugins = false;
 
     /**
+     * when true, we translate to a single c file, we generate partial c outputs that can be used for caching
+     * however caching is not effective at this stage because recompilation still hits
+     * this is great for debugging and small projects that want to avoid overhead of multiple objects being linked
+     * this is insanely great for optimization of release builds, because compilers are great at optimizing a single c file
+     */
+    bool translate_to_single_file = true;
+
+    /**
      * will force use object file format
      * // TODO make this by default false, once our bitcode generation is valid
      * // Currently set to true, so object files are emitted

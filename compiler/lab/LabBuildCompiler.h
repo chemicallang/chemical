@@ -196,7 +196,10 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string_view& build_dir
+        const std::string_view& build_dir,
+        bool single_file,
+        bool use_clang,
+        bool emit_c
     );
 
     /**
@@ -206,7 +209,10 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string_view& build_dir
+        const std::string_view& build_dir,
+        bool single_file,
+        bool use_clang,
+        bool emit_c
     );
 
 #ifdef COMPILER_BUILD

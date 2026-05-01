@@ -1471,7 +1471,8 @@ void declare_type_aliases_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, Lab
 
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
-    LabModule* module
+    LabModule* module,
+    std::size_t& outImplStart
 ) {
 
     // let's create a flat vector of direct dependencies, that we want to process
@@ -1539,6 +1540,8 @@ int ASTProcessor::translate_module(
         declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
 
     }
+
+    outImplStart = c_visitor.writer.getPosition();
 
     // we will implement the direct dependencies of this module
     // this loop will implement new generic instantiations

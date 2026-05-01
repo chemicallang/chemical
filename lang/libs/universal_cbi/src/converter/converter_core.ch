@@ -14,10 +14,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.FunctionDecl => {
              var func = node as *mut JsFunctionDecl
+             const is_anon = func.name.empty()
+             if(is_anon) converter.str.append('(');
              if(func.is_async) converter.str.append_view("async ");
-             converter.str.append_view("function ");
+             converter.str.append_view("function");
              if(func.is_generator) converter.str.append('*');
-             if(!func.name.empty()) {
+             if(!is_anon) {
+                 converter.str.append(' ');
                  converter.str.append_view(func.name);
              }
              converter.str.append_view("(");
@@ -32,6 +35,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              }
              converter.str.append_view(") ");
              converter.convertJsNode(func.body);
+             if(is_anon) converter.str.append(')');
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier

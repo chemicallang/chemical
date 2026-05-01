@@ -340,11 +340,15 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.FunctionDecl => {
             var func_decl = node as *mut JsFunctionDecl
+            const is_anon = func_decl.name.empty()
+            if(is_anon) converter.str.append('(');
             if(func_decl.is_async) converter.str.append_view("async ")
             converter.str.append_view("function")
             if(func_decl.is_generator) converter.str.append_view("*")
-            converter.str.append_view(" ")
-            converter.str.append_view(func_decl.name)
+            if(!is_anon) {
+                converter.str.append(' ')
+                converter.str.append_view(func_decl.name)
+            }
             converter.str.append_view("(")
             var i = 0u
             while(i < func_decl.params.size()) {
@@ -359,6 +363,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             }
             converter.str.append_view(")")
             converter.convertJsNode(func_decl.body)
+            if(is_anon) converter.str.append(')');
         }
         JsNodeKind.MemberAccess => {
             var access = node as *mut JsMemberAccess

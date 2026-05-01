@@ -3267,6 +3267,8 @@ void declare_v_table_recursive(ToCAstVisitor& visitor, InterfaceDefinition* inte
         }
     }
     visitor.new_line_and_indent();
+    // we need the extern (apparently), tiny cc considers these declarations definitions and then errors out
+    visitor.write("extern ");
     declare_v_table(visitor, interface, definition);
     visitor.write(';');
 }

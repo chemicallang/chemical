@@ -1689,7 +1689,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     global.backend_context = (BackendContext*) &c_context;
 
     // the processor we use
-    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, *job_allocator, *mod_allocator, *file_allocator);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver, job->target_data);
@@ -1932,7 +1932,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
-    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     code_gen_options.fno_unwind_tables = options->fno_unwind_tables;
     code_gen_options.fno_asynchronous_unwind_tables = options->fno_asynchronous_unwind_tables;
@@ -3149,6 +3149,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             &lab_resolver,
             binder,
             type_builder,
+            instContainer,
             *job_allocator,
             *mod_allocator,
             *file_allocator
@@ -4169,7 +4170,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, implsIndex, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // creating a ast processor is required
-    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, *job_allocator, *mod_allocator, *file_allocator);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver, other_job.target_data);

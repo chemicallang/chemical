@@ -73,12 +73,12 @@ ImplDefinition* GenericImplDecl::register_generic_args(GenericInstantiatorAPI& i
 #endif
     }
 
-    // store the pointer of instantiation
-    instantiations.emplace_back(impl);
-
     // must set this variables, otherwise finalization won't be able to get which concrete implementation to use
     impl->generic_parent = this;
     impl->generic_instantiation = itr.first;
+    // store the pointer of instantiation
+    instantiations.emplace_back(impl);
+    container.put_current_module_instantiation(impl);
 
     if(body_linked) {
 

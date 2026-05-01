@@ -545,18 +545,18 @@ public:
      * declare nodes before translating them
      * suppose to work along with function translate_after_declaration
      */
-    void declare_before_translation(std::vector<ASTNode*>& nodes);
+    void declare_before_translation(const std::vector<ASTNode*>& nodes);
 
     /**
      * translate nodes after declaring them
      * suppose to work along with function declare_before_translation
      */
-    void translate_after_declaration(std::vector<ASTNode*>& nodes);
+    void translate_after_declaration(const std::vector<ASTNode*>& nodes);
 
     /**
      * will translate given nodes
      */
-    inline void declare_and_translate(std::vector<ASTNode*>& nodes) {
+    inline void declare_and_translate(const std::vector<ASTNode*>& nodes) {
         declare_before_translation(nodes);
         translate_after_declaration(nodes);
     }
@@ -583,7 +583,7 @@ public:
     /**
      * forward declare these nodes
      */
-    void fwd_declare(std::vector<ASTNode*>& nodes) {
+    void fwd_declare(const std::vector<ASTNode*>& nodes) {
         for(const auto node : nodes) {
             fwd_declare(node);
         }
@@ -592,7 +592,7 @@ public:
     /**
      * forward declare new instantiations of generics
      */
-    void ext_fwd_declare(std::vector<ASTNode*>& nodes) {
+    void ext_fwd_declare(const std::vector<ASTNode*>& nodes) {
         for(const auto node : nodes) {
             ext_fwd_declare(node);
         }
@@ -610,7 +610,7 @@ public:
     /**
      * will only declare these external (from another module) nodes
      */
-    void external_declare(std::vector<ASTNode*>& nodes);
+    void external_declare(const std::vector<ASTNode*>& nodes);
 
     /**
      * will add any implementations from external module
@@ -622,7 +622,7 @@ public:
     /**
      * this should be used to externally implement multiple nodes
      */
-    void external_implement(std::vector<ASTNode*>& nodes) {
+    void external_implement(const std::vector<ASTNode*>& nodes) {
         for (const auto node : nodes) {
             top_level_position = writer.getPosition();
             external_implement(node);
@@ -732,8 +732,6 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 
-    void VisitGenericFuncDecl(GenericFuncDecl* node);
-
     // TODO handle multi function node
     void VisitMultiFunctionNode(MultiFunctionNode* node) {}
 
@@ -741,17 +739,7 @@ public:
 
     void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    void VisitGenericTypeDecl(GenericTypeDecl* node);
-
     void VisitStructDecl(StructDefinition* node);
-
-    void VisitGenericStructDecl(GenericStructDecl* node);
-
-    void VisitGenericUnionDecl(GenericUnionDecl* node);
-
-    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
-
-    void VisitGenericVariantDecl(GenericVariantDecl* node);
 
     void VisitStructMember(StructMember* node);
 

@@ -537,13 +537,34 @@ public:
     );
 
     /**
+     * declares the module in C (meaning no function bodies, only declarations)
+     * it is used during caching when an object file is found and we just need declarations of a module
+     */
+    int declare_module(
+        ToCAstVisitor& visitor,
+        LabModule* module
+    );
+
+    /**
+     * this is used to implement the function bodies of a dmoule
+     */
+    int implement_module(
+        ToCAstVisitor& visitor,
+        LabModule* module
+    );
+
+    /**
+     * this is the ultimate function, it declares and translates
      * translates the given module to C
      */
-    int translate_module(
+    inline int translate_module(
         ToCAstVisitor& visitor,
-        LabModule* module,
-        std::size_t& outImplStart
-    );
+        LabModule* module
+    ) {
+        const auto dec_status = declare_module(visitor, module);
+        if (dec_status != 0) return dec_status;
+        return implement_module(visitor, module);
+    }
 
 #ifdef COMPILER_BUILD
 

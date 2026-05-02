@@ -1443,15 +1443,10 @@ void declare_type_aliases_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, Lab
     }
 }
 
-int ASTProcessor::translate_module(
+int ASTProcessor::declare_module(
     ToCAstVisitor& c_visitor,
-    LabModule* module,
-    std::size_t& outImplStart
+    LabModule* module
 ) {
-
-    // let's create a flat vector of direct dependencies, that we want to process
-    std::vector<LabModule*> dependencies;
-    shallow_dedupe_sorted(dependencies, module->dependencies);
 
     // forward declare dependencies & dependencies of dependencies & current module
     forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
@@ -1496,7 +1491,15 @@ int ASTProcessor::translate_module(
 
     }
 
-    outImplStart = c_visitor.writer.getPosition();
+    // return for success
+    return 0;
+
+}
+
+int ASTProcessor::implement_module(
+    ToCAstVisitor& c_visitor,
+    LabModule* module
+) {
 
     // comment
 #ifdef DEBUG

@@ -949,7 +949,7 @@ int LabBuildCompiler::process_module_tcc(
             // saving only the declarations (no implementation) (for caching)
             // we save partial.2h.c file declarations (header) file, we read this next time we compile into multiple files
             // if module hasn't changed, we'll just append contents of this file
-            auto view = std::string_view(c_visitor.writer.data() + start, c_visitor.writer.size() - outImplStart);
+            auto view = std::string_view(c_visitor.writer.data() + start, outImplStart - start);
             auto partial_h_out = get_partial_h_path(build_dir, mod);
             writeToFile(partial_h_out, view);
         }

@@ -1459,9 +1459,19 @@ int ASTProcessor::translate_module(
     // declare type aliases
     declare_type_aliases_in_c(c_visitor, this, module, "TypeAliasDeclare");
 
+    // comment
+#ifdef DEBUG
+    c_visitor.debug_comment(chem::string_view("FwdDeclare:Generics " + module->format()));
+#endif
+
     // we will forward declare the direct dependencies of this module
     // only the newly introduced generics
     c_visitor.fwd_declare(container.get_current_module_instantiations());
+
+    // comment
+#ifdef DEBUG
+    c_visitor.debug_comment(chem::string_view("Declare:Generics " + module->format()));
+#endif
 
     // we will declare the direct dependencies of this module
     c_visitor.declare_before_translation(container.get_current_module_instantiations());
@@ -1488,6 +1498,11 @@ int ASTProcessor::translate_module(
 
     outImplStart = c_visitor.writer.getPosition();
 
+    // comment
+#ifdef DEBUG
+    c_visitor.debug_comment(chem::string_view("Implement:Generics " + module->format()));
+#endif
+
     // we will implement the direct dependencies of this module
     // this loop will implement new generic instantiations
     // this and the fourth loop generates bodies of functions
@@ -1497,7 +1512,6 @@ int ASTProcessor::translate_module(
     for(auto& file_ptr : module->direct_files) {
 
         auto& file = *file_ptr.result;
-        auto& result = file;
 
         ASTUnit& unit = file.unit;
 

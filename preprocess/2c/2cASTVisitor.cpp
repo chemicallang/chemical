@@ -472,13 +472,19 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_typ
     visitor.write(name);
 }
 
-void write_function_attrs(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
+void write_function_attrs(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_definition) {
     switch(func_decl->attrs.inline_strategy) {
         case InlineStrategy::InlineHint:
         case InlineStrategy::AlwaysInline:
         case InlineStrategy::OptSize:
         case InlineStrategy::MinSize:
-            visitor.write("inline ");
+            if (is_definition) {
+                if (!func_decl->is_linkage_public()) {
+                    visitor.write("inline ");
+                }
+            } else {
+                visitor.write("inline ");
+            }
             break;
             // TODO: inline attributes require special syntax for each compiler
             // we, would need inline definition for each compiler
@@ -487,14 +493,14 @@ void write_function_attrs(ToCAstVisitor& visitor, FunctionDeclaration* func_decl
     }
 }
 
-void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_static) {
+void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_static, bool is_definition = false) {
     if(func_decl->is_extern()) {
         visitor.write("extern ");
     }
     if(is_static) {
         visitor.write("static ");
     }
-    write_function_attrs(visitor, func_decl);
+    write_function_attrs(visitor, func_decl, is_definition);
     if(func_decl->is_dll_import()) {
         visitor.write("__chem_dllimport ");
     }
@@ -2646,26 +2652,25 @@ void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclarati
     visitor.write(')');
 }
 
-void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc) {
+void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc, bool is_definition = false) {
     if(decl->body.has_value() && !decl->is_linkage_public()) {
         visitor.write("static ");
     }
-    write_function_attrs(visitor, decl);
+    write_function_attrs(visitor, decl, is_definition);
     accept_func_return(visitor, retFunc->returnType);
     visitor.write("(");
     func_ret_func_proto_after_l_paren(visitor, decl, retFunc);
 }
 
-void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
+void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool is_definition = false) {
     if(decl->is_comptime()) {
         return;
     }
     const auto ret_func = decl->returnType->as_function_type();
     if(ret_func && !ret_func->isCapturing()) {
-        func_that_returns_func_proto(visitor, decl, ret_func);
+        func_that_returns_func_proto(visitor, decl, ret_func, is_definition);
     } else {
-        const auto ret_kind = decl->returnType->kind();
-        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_linkage_public());
+        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_linkage_public(), is_definition);
         visitor.write('(');
         func_type_params(visitor, decl);
         visitor.write(')');
@@ -2850,7 +2855,6 @@ void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, Functio
         return;
     }
     tld->visitor.new_line_and_indent();
-    FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     const auto func_parent = decl->parent();
     const auto is_static = decl->body.has_value() && !is_linkage_public(func_parent->specifier());
     const auto decl_return_func_type = decl->returnType->as_function_type();
@@ -3037,7 +3041,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
 }
 
 void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def) {
-    for(auto& func : def->instantiated_functions()) {
+    for(const auto func : def->non_gen_range()) {
         declare_contained_func(this, func, false);
     }
 }
@@ -3080,7 +3084,7 @@ void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_union_functions(UnionDef* def) {
-    for(auto& func : def->instantiated_functions()) {
+    for(const auto func : def->non_gen_range()) {
         declare_contained_func(this, func, false);
     }
 }
@@ -3151,7 +3155,7 @@ void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* de
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_functions(VariantDefinition* def) {
-    for(auto& func : def->instantiated_functions()) {
+    for(const auto func : def->non_gen_range()) {
         declare_contained_func(this, func, false);
     }
 }
@@ -3200,7 +3204,7 @@ void v_table_func_types_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
         }
     }
     // type pointers
-    for(auto& func : interface->instantiated_functions()) {
+    for(const auto func : interface->instantiated_functions()) {
         auto self_param = func->get_self_param();
         vtable_func_type(visitor, func, (self_param ? self_param->name : chem::string_view()));
         visitor.write(';');
@@ -3232,7 +3236,7 @@ void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
             v_table_func_names_recursive(visitor, inherited, definition);
         }
     }
-    for (auto& func: interface->instantiated_functions()) {
+    for (const auto func: interface->instantiated_functions()) {
         visitor.new_line_and_indent();
 
         visitor.write('(');
@@ -3325,7 +3329,7 @@ void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefiniti
     visitor.indentation_level += 1;
 
     // func pointer values
-    for(auto& func : interface->instantiated_functions()) {
+    for(const auto func : interface->instantiated_functions()) {
         if (func->has_self_param()) {
             auto self_param = func->get_self_param();
             if(self_param) {
@@ -3356,7 +3360,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     if(def->is_static()) {
-        for (const auto func: def->instantiated_functions()) {
+        for (const auto func: def->non_gen_range()) {
             declare_contained_func(this, func, false);
         }
         if(!def->is_extern()) {
@@ -3485,7 +3489,7 @@ void ToCAstVisitor::prepare_translate() {
 
 void ToCAstVisitor::end_translate() {
     for(auto& pair : unimplemented_static_interfaces) {
-        for(const auto func : pair.first->instantiated_functions()) {
+        for(const auto func : pair.first->non_gen_range()) {
             create_stub_impl_for_func(&tld, func);
         }
     }
@@ -4011,7 +4015,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(decl_ret_func && !decl_ret_func->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, decl_ret_func);
     } else {
-        declare_func_with_return(visitor, decl);
+        declare_func_with_return(visitor, decl, true);
     }
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
@@ -4193,9 +4197,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
     visitor.new_line_and_indent(decl->encoded_location());
-//    std::string self_pointer_name;
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
-    unsigned i = 0;
     const auto is_static = decl->body.has_value() && (interface ? !is_linkage_public(interface->specifier()) : (def && !is_linkage_public(def->specifier())));
     const auto is_write_self_param = param && interface && interface->is_static() && overrides;
     const auto decl_ret_func = decl->returnType->as_function_type();
@@ -4205,7 +4207,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.write('(');
         func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, 0);
     } else {
-        accept_func_return_with_name(visitor, decl, is_static);
+        accept_func_return_with_name(visitor, decl, is_static, true);
         visitor.write('(');
         func_type_params(visitor, decl, 0, false, is_write_self_param ? param : nullptr);
         visitor.write(')');
@@ -4360,7 +4362,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     // generate default implementations for functions in interface (which weren't overridden)
     if(for_decl && !for_decl->does_override(linked_interface)) {
         linked_interface->active_user = for_decl;
-        for (auto& func: linked_interface->instantiated_functions()) {
+        for (const auto func: linked_interface->instantiated_functions()) {
             if (!def->contains_direct_func(func->name_view())) {
                 contained_func_decl(*this, func, false, for_decl);
             }
@@ -4371,7 +4373,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
             const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
             if (overridden) {
                 overridden->active_user = for_decl;
-                for (auto& func: overridden->instantiated_functions()) {
+                for (const auto func: overridden->instantiated_functions()) {
                     if (!def->contains_direct_func(func->name_view())) {
                         contained_func_decl(*this, func, false, for_decl);
                     }
@@ -4381,7 +4383,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
         }
     }
     // overridden functions
-    for(const auto func : def->instantiated_functions()) {
+    for(const auto func : def->non_gen_range()) {
         contained_func_decl(*this, func, overrides, linked_interface, for_decl);
     }
     // handle static interface implementation
@@ -4520,12 +4522,6 @@ static void visit_struct_contained_nodes(ToCAstVisitor& visitor, ExtendableMembe
         switch (node->kind()) {
             case ASTNodeKind::FunctionDecl:
                 contained_func_decl(visitor, node->as_function_unsafe(), false, def);
-                break;
-            case ASTNodeKind::GenericFuncDecl:
-                for (const auto inst : node->as_gen_func_decl_unsafe()->instantiations) {
-                    contained_func_decl(visitor, inst, false, def);
-                    break;
-                }
                 break;
             default:
                 visitor.visit(node);

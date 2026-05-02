@@ -422,6 +422,12 @@ std::string get_partial_c_path(const std::string_view& build_dir, LabModule* mod
     return resolve_rel_child_path_str(build_dir, f);
 }
 
+std::string get_partial_h_path(const std::string_view& build_dir, LabModule* mod) {
+    auto f = mod->format('.');
+    f.append("/partial.2h.c");
+    return resolve_rel_child_path_str(build_dir, f);
+}
+
 std::string get_translated_c_path(const std::string_view& build_dir, LabModule* mod) {
     auto f = mod->format('.');
     f.append("/Translated.c");
@@ -870,13 +876,34 @@ int LabBuildCompiler::process_module_tcc(
         }
 
         if (cache_succeeded) {
+
+            // now we still need declarations of this module, so other modules can call functions
+            // lets first check declaration file exists, if that exists, reuse that
+            // otherwise we must declare the module ourselves
+            auto partial_h_out = get_partial_h_path(build_dir, mod);
+            if (fs::exists(partial_h_out)) {
+
+                if(verbose) {
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << partial_h_out << "', skipping declaration" << std::endl;
+                }
+
+                // reuse the partial h we generated earlier, since module hasn't changed
+                c_visitor.writer.append_file(partial_h_out.c_str());
+
+            } else {
+
+                // declare it ourselves
+                processor.declare_module(c_visitor, mod);
+
+            }
+
             // this will set all the generic instantiations to generated
             // which means generic decls won't generate those instantiations again
             // it will also set all structs/variants as declared, so they won't be defined twice (in generated c)
             process_cached_module(processor, mod->direct_files, true);
-            for(auto& dep : mod->dependencies) {
-                process_cached_module(processor, dep.module->direct_files, true);
-            }
+
+            // clearing current generics (so they won't be generated in next (dependent) module)
+            processor.container.clear_current_module_instantiations();
 
             // removing non public nodes, because these would be disposed when allocator clears
             remove_non_public_nodes(processor, mod->direct_files);
@@ -897,20 +924,34 @@ int LabBuildCompiler::process_module_tcc(
     // the starting point where this module started translating
     const auto start = c_visitor.writer.getPosition();
 
+    // declare the module
+    const auto dec_status = processor.declare_module(c_visitor, mod);
+    if (dec_status != 0) return dec_status;
+
+    // note starting position of implementation
     // the point where implementations began (the function bodies)
-    size_t outImplStart = 0;
+    const auto outImplStart = c_visitor.writer.getPosition();
 
-    // compile the whole module
-    processor.translate_module(
-            c_visitor, mod, outImplStart
-    );
+    // implement the module
+    const auto impl_status = processor.implement_module(c_visitor, mod);
+    if (impl_status != 0) return impl_status;
 
+    // saving assets related to caching
     if(caching) {
         if (single_file) {
             // saving all the c this module wrote in a partial file (for caching)
+            // we save partial.2c.c file for caching, we read this next time we compile into a single file
+            // if module hasn't changed, we'll just append contents of this file
             auto view = std::string_view(c_visitor.writer.data() + start, c_visitor.writer.size() - start);
             auto partial_c_out = get_partial_c_path(build_dir, mod);
             writeToFile(partial_c_out, view);
+        } else {
+            // saving only the declarations (no implementation) (for caching)
+            // we save partial.2h.c file declarations (header) file, we read this next time we compile into multiple files
+            // if module hasn't changed, we'll just append contents of this file
+            auto view = std::string_view(c_visitor.writer.data() + start, c_visitor.writer.size() - outImplStart);
+            auto partial_h_out = get_partial_h_path(build_dir, mod);
+            writeToFile(partial_h_out, view);
         }
         // save a mod timestamp
         save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true), options->out_mode);
@@ -2926,15 +2967,10 @@ TCCState* LabBuildCompiler::built_lab_file(
         std::cout << "[lab] translating current module to C" << std::endl;
     }
 
-    // unused here
-    std::size_t outImplStart = 0;
+    // translate the module (declare + implement)
+    lab_processor.translate_module(c_visitor, &chemical_lab_module);
 
-    // translating the build.lab module
-    lab_processor.translate_module(
-        c_visitor, &chemical_lab_module, outImplStart
-    );
-
-    // end the translation
+    // end the translation (no more modules to translate)
     c_visitor.end_translate();
 
     // compiling the c output from build.labs

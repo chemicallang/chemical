@@ -124,8 +124,8 @@ private:
                     table.declare(name, (ASTNode*) declaration);
                 } else {
                     // shadow the current symbol
-                    table.declare(name, (ASTNode*) declaration);
                     dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
+                    table.declare(name, (ASTNode*) declaration);
                 }
                 return true;
             };

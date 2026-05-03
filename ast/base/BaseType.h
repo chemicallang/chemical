@@ -257,6 +257,16 @@ public:
     bool isIntegerLikeStorage();
 
     /**
+     * this checks for markers too (generic type parameter marker)
+     */
+    bool isIntegerLikeMarkedStorage();
+
+    /**
+     * this checks for markers too (generic type parameter marker)
+     */
+    bool isIntOrBoolLikeMarkedStorage();
+
+    /**
      * check if this is a char type
      */
     bool isCharType();

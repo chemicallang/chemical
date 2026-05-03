@@ -4757,11 +4757,7 @@ void ToCAstVisitor::VisitIfValue(IfValue* value) {
     writeIfStmtValue(value->stmt);
 }
 
-void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
-    // automatic dereference
-    if(type->pure_type(visitor.allocator)->getLoadableReferredType() != nullptr) {
-        visitor.write('*');
-    }
+inline void switch_expr(ToCAstVisitor& visitor, Value* expr) {
     visitor.visit(expr);
 }
 
@@ -4784,15 +4780,11 @@ void write_switch_expr(ToCAstVisitor& visitor, SwitchStatement* statement) {
                 visitor.write(')');
                 write_accessor(visitor, statement->expression, nullptr);
                 visitor.write(variant_type_variant_name);
-            } else {
-                switch_expr(visitor, statement->expression, known_t);
+                return;
             }
-        } else {
-            switch_expr(visitor, statement->expression, known_t);
         }
-    } else {
-        visitor.visit(statement->expression);
     }
+    visitor.visit(statement->expression);
 }
 
 void ToCAstVisitor::writeSwitchStmtValue(SwitchStatement& stmt, BaseType* type) {

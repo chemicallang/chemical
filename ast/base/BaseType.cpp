@@ -459,6 +459,61 @@ bool BaseType::isIntegerLikeStorage() {
     }
 }
 
+bool BaseType::isIntegerLikeMarkedStorage() {
+    switch(kind()) {
+        case BaseTypeKind::IntN:
+            return true;
+        case BaseTypeKind::Linked:{
+            const auto linked = as_linked_type_unsafe()->linked;
+            switch(linked->kind()) {
+                case ASTNodeKind::EnumDecl:
+                    return true;
+                case ASTNodeKind::TypealiasStmt: {
+                    return linked->as_typealias_unsafe()->actual_type->isIntegerLikeMarkedStorage();
+                }
+                case ASTNodeKind::GenericTypeParam: {
+                    // currently we allow every generic type parameter to be `any`
+                    // meaning we don't check for markers
+                    // once we start checking, `any` would be required
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool BaseType::isIntOrBoolLikeMarkedStorage() {
+    switch(kind()) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Bool:
+            return true;
+        case BaseTypeKind::Linked:{
+            const auto linked = as_linked_type_unsafe()->linked;
+            switch(linked->kind()) {
+                case ASTNodeKind::EnumDecl:
+                    return true;
+                case ASTNodeKind::TypealiasStmt: {
+                    return linked->as_typealias_unsafe()->actual_type->isIntegerLikeMarkedStorage();
+                }
+                case ASTNodeKind::GenericTypeParam: {
+                    // currently we allow every generic type parameter to be `any`
+                    // meaning we don't check for markers
+                    // once we start checking, `any` would be required
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
 bool BaseType::isCharType() {
     if(kind() != BaseTypeKind::IntN) return false;
     return as_intn_type_unsafe()->IntNKind() == IntNTypeKind::Char;

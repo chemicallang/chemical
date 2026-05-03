@@ -42,18 +42,6 @@ llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool a
     const auto expr_type = stmt.expression->getType();
     if(expr_type) {
 
-        // automatic dereference
-        const auto pure_type = expr_type->pure_type(gen.allocator);
-        if(pure_type->kind() == BaseTypeKind::Reference) {
-            const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type(gen.allocator);
-            const auto ref_kind = ref->kind();
-            if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
-                const auto loadInst = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);
-                gen.di.instr(loadInst, stmt.expression);
-                expr_value = loadInst;
-            }
-        }
-
         // variant members
         const auto linked = expr_type->linked_node();
         if(linked) {

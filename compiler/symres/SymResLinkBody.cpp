@@ -764,13 +764,11 @@ VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, 
 
 void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
 
-    auto& expression = stmt->expression;
+    const auto expression = stmt->expression;
     auto& scopes = stmt->scopes;
     auto& cases = stmt->cases;
 
     VariantDefinition* variant_def = nullptr;
-
-    bool result = true;
 
     visit(expression);
 
@@ -782,6 +780,12 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
         }
         // currently only checking for the variant
         stmt->attrs.operating_on_closed_value = true;
+    } else {
+        // check it's a integer type
+        // switching on float, double, reference and other structural types is not allowed
+        if (!expression->getType()->isIntOrBoolLikeMarkedStorage()) {
+            linker.error(expression) << "switch expression should have integer like type (integer or enum)";
+        }
     }
 
 

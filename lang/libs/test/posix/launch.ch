@@ -1,15 +1,15 @@
 @extern
-struct pollfd {
+public struct pollfd {
     var fd : int
     var events : short
     var revents : short
 }
 
 @extern
-func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
+public func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
 
 @extern
-func kill(pid : pid_t, sig : int) : int
+public func kill(pid : pid_t, sig : int) : int
 
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 

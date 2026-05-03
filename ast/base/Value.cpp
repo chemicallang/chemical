@@ -77,8 +77,8 @@ llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifi
     const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
     auto alloc = gen.builder->CreateAlloca(type, nullptr);
     gen.di.instr(alloc, this);
-    const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(value, expected_type, type) : value, alloc);
-    gen.di.instr(store, this);
+    const auto val = expected_type ? gen.implicit_cast(value, expected_type, type) : value;
+    gen.aggregate_store(type, alloc, val, encoded_location());
     return alloc;
 }
 
@@ -138,14 +138,15 @@ unsigned int Value::store_in_struct(
 
     const auto value = llvm_value(gen, expected_type);
 
+    // get the llvm type
+    const auto ll_type = expected_type->canonical()->llvm_type(gen);
+
     llvm::Value* Val = value;
     if(value->getType()->isIntegerTy()) {
-        const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
         Val = gen.implicit_cast(Val, expected_type, ll_type);
     }
 
-    const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
-    gen.di.instr(storeInstr, this);
+    gen.aggregate_store(ll_type, elementPtr, Val, encoded_location());
 
     return index + 1;
 }
@@ -177,14 +178,15 @@ unsigned int Value::store_in_array(
 
     const auto value = llvm_value(gen, expected_type);
 
+    // get the llvm type
+    const auto ll_type = expected_type->canonical()->llvm_type(gen);
+
     llvm::Value* Val = value;
     if(value->getType()->isIntegerTy()) {
-        const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
         Val = gen.implicit_cast(Val, expected_type, ll_type);
     }
 
-    const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
-    gen.di.instr(storeInstr, this);
+    gen.aggregate_store(ll_type, elementPtr, Val, encoded_location());
 
     return index + 1;
 }

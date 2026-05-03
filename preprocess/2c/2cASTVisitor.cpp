@@ -459,15 +459,19 @@ void accept_func_return(ToCAstVisitor& visitor, BaseType* type) {
     }
 }
 
+void accept_func_return(ToCAstVisitor& visitor, BaseType* type, bool is_static) {
+    if (is_static) {
+        visitor.write("static ");
+    }
+    accept_func_return(visitor, type);
+}
+
 // func_type is declared with it's return type and name
 // the last take_parent allows to skip appending one direct parent name, useful
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
 void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_type, const chem::string_view& name, bool is_static) {
-    if(is_static) {
-        visitor.write("static ");
-    }
-    accept_func_return(visitor, func_type->returnType);
+    accept_func_return(visitor, func_type->returnType, is_static);
     visitor.space();
     visitor.write(name);
 }
@@ -2856,11 +2860,10 @@ void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, Functio
     }
     tld->visitor.new_line_and_indent();
     const auto func_parent = decl->parent();
-    const auto is_static = decl->body.has_value() && !is_linkage_public(func_parent->specifier());
+    const auto is_static = (decl->body.has_value() || func_parent->kind() == ASTNodeKind::InterfaceDecl) && !is_linkage_public(func_parent->specifier());
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
-        tld->write("static ");
-        accept_func_return(tld->visitor, decl_return_func_type->returnType);
+        accept_func_return(tld->visitor, decl_return_func_type->returnType, is_static);
         tld->write('(');
         func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, 0);
     } else {

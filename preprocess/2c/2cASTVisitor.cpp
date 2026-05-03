@@ -4348,39 +4348,50 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     }
 }
 
+void generate_default_implementations(ToCAstVisitor& visitor, ImplDefinition* def, InterfaceDefinition* linked_interface, ExtendableMembersContainerNode* for_decl) {
+    linked_interface->active_user = for_decl;
+    for (const auto func: linked_interface->instantiated_functions()) {
+        if (!def->contains_direct_func(func->name_view())) {
+            contained_func_decl(visitor, func, false, for_decl);
+        }
+    }
+    linked_interface->active_user = nullptr;
+    // cover also the inherited interfaces
+    for (auto& inherits: linked_interface->inherited) {
+        const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
+        if (overridden) {
+            generate_default_implementations(visitor, def, overridden, for_decl);
+        }
+    }
+}
+
+
+void mark_stub_no_generate_static_interface(ToCAstVisitor& visitor, InterfaceDefinition* linked_interface) {
+    // handle static interface implementation
+    if(linked_interface && linked_interface->is_static()) {
+        // stub implementation for the given interface should not be generated
+        // because impl implements this interface
+        visitor.remove_static_interface_for_stub_impl(linked_interface);
+    }
+    // cover also the inherited interfaces
+    for (auto& inherits: linked_interface->inherited) {
+        const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
+        if (overridden) {
+            mark_stub_no_generate_static_interface(visitor, overridden);
+        }
+    }
+}
+
 void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->get_direct_linked_interface();
     const auto linked_container = def->struct_type ? def->struct_type->get_members_container() : nullptr;
     const auto for_decl = linked_container ? linked_container->as_extendable_members_container_unsafe() : nullptr;
     // handle static interface implementation
-    if(linked_interface && linked_interface->is_static()) {
-        // stub implementation for the given interface should not be generated
-        // because impl implements this interface
-        remove_static_interface_for_stub_impl(linked_interface);
-    }
+    mark_stub_no_generate_static_interface(*this, linked_interface);
     // generate default implementations for functions in interface (which weren't overridden)
-    if(for_decl && !for_decl->does_override(linked_interface)) {
-        linked_interface->active_user = for_decl;
-        for (const auto func: linked_interface->instantiated_functions()) {
-            if (!def->contains_direct_func(func->name_view())) {
-                contained_func_decl(*this, func, false, for_decl);
-            }
-        }
-        linked_interface->active_user = nullptr;
-        // cover also the inherited interfaces
-        for (auto& inherits: linked_interface->inherited) {
-            const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
-            if (overridden) {
-                overridden->active_user = for_decl;
-                for (const auto func: overridden->instantiated_functions()) {
-                    if (!def->contains_direct_func(func->name_view())) {
-                        contained_func_decl(*this, func, false, for_decl);
-                    }
-                }
-                overridden->active_user = nullptr;
-            }
-        }
+    if(for_decl) {
+        generate_default_implementations(*this, def, linked_interface, for_decl);
     }
     // overridden functions
     for(const auto func : def->non_gen_range()) {

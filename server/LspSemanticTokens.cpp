@@ -700,6 +700,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             pathHandler,
             controller,
             instContainer,
+            coreNodes,
+            implsIndex,
             is64Bit,
             resolver_allocator,
             // these allocators are switched before symbol resolution for each module

@@ -552,6 +552,8 @@ void WorkspaceManager::onSave(const std::string_view& uri) {
             tokenCache.clear();
             filesIndex.clear();
             instContainer.clear();
+            coreNodes.clear();
+            implsIndex.clear();
 
             // this will try to rebuild context from chemical.mod/build.lab file present in project_dir
             build_context_from_build_lab();

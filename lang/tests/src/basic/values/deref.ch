@@ -2,6 +2,15 @@ struct DerefCopyablePoint {
     var a : int
 }
 
+struct DerefStoredPoint {
+    var d : DerefCopyablePoint
+}
+
+variant DerefStoredPointVariant {
+    Some(d : DerefCopyablePoint)
+    None()
+}
+
 func test_dereferences() {
 
     test("dereferencing integer variable pointer works", () => {
@@ -51,5 +60,51 @@ func test_dereferences() {
         return x.a == 40 && d.a == 30
     })
 
+    test("dereferencing trivially copyable struct variable pointer into a struct works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var d2 = DerefStoredPoint { d : *j }
+        return d2.d.a == 30
+    })
+
+    test("dereferencing trivially copyable struct constant pointer into a struct works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        const j = &d
+        var d2 = DerefStoredPoint { d : *j }
+        return d2.d.a == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into a struct causes copy", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var d2 = DerefStoredPoint { d : *j }
+        d2.d.a = 90;
+        return d2.d.a == 90 && d.a == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into a variant works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var d2 = DerefStoredPointVariant.Some(*j)
+        var Some(dx) = d2 else unreachable
+        return dx.a == 30
+    })
+
+    test("dereferencing trivially copyable struct constant pointer into a variant works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        const j = &d
+        var d2 = DerefStoredPointVariant.Some(*j)
+        var Some(dx) = d2 else unreachable
+        return dx.a == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into a variant causes copy", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var d2 = DerefStoredPointVariant.Some(*j)
+        var Some(dx) = d2 else unreachable
+        dx.a = 90;
+        return dx.a == 90 && d.a == 30
+    })
 
 }

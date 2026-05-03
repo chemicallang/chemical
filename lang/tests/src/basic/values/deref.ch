@@ -11,6 +11,15 @@ func take_deref_copyable_point_m(d : DerefCopyablePoint) : int {
     return d.a
 }
 
+func take_deref_copyable_ref_point(d : &DerefCopyablePoint) : int {
+    return d.a
+}
+
+func take_deref_copyable_ref_point_m(d : &mut DerefCopyablePoint) : int {
+    d.a = 938
+    return d.a
+}
+
 struct DerefStoredPoint {
     var d : DerefCopyablePoint
 }
@@ -59,6 +68,18 @@ func test_dereferences() {
         const j = &d
         var x = *j // this would cause a copy
         return x.a == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into a function call reference works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        return take_deref_copyable_ref_point(*j) == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into a function call reference causes a copy", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        return d.a == 30 && take_deref_copyable_ref_point_m(*j) != 30
     })
 
     test("dereferencing trivially copyable struct variable pointer into a function call works", () => {

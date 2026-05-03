@@ -197,6 +197,7 @@ public:
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         const std::string_view& build_dir,
+        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -210,6 +211,7 @@ public:
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         const std::string_view& build_dir,
+        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c

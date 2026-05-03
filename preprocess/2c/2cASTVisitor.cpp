@@ -2850,7 +2850,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     tld->visitor.write(';');
 }
 
-void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* overridden = nullptr) {
+void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     if(decl->is_comptime()) {
         return;
     }
@@ -2872,8 +2872,8 @@ void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, Functio
 }
 
 // when a function is inside struct / interface
-void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* overridden = nullptr) {
-    declare_contained_func_non_ending(tld, decl, overrides, overridden);
+void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
+    declare_contained_func_non_ending(tld, decl);
     tld->write(';');
 }
 
@@ -2898,7 +2898,7 @@ bool is_return_type_prim_int_like(BaseTypeKind kind) {
 
 // functions inside static interface can be implemented here
 void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
-    declare_contained_func_non_ending(tld, decl, false, nullptr);
+    declare_contained_func_non_ending(tld, decl);
     tld->write(" {");
     if (decl->body.has_value()) {
         // default implementation available
@@ -3042,7 +3042,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
 
 void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def) {
     for(const auto func : def->non_gen_range()) {
-        declare_contained_func(this, func, false);
+        declare_contained_func(this, func);
     }
 }
 
@@ -3085,7 +3085,7 @@ void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
 
 void CTopLevelDeclarationVisitor::declare_union_functions(UnionDef* def) {
     for(const auto func : def->non_gen_range()) {
-        declare_contained_func(this, func, false);
+        declare_contained_func(this, func);
     }
 }
 
@@ -3156,7 +3156,7 @@ void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* de
 
 void CTopLevelDeclarationVisitor::declare_variant_functions(VariantDefinition* def) {
     for(const auto func : def->non_gen_range()) {
-        declare_contained_func(this, func, false);
+        declare_contained_func(this, func);
     }
 }
 
@@ -3361,7 +3361,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     if(def->is_static()) {
         for (const auto func: def->non_gen_range()) {
-            declare_contained_func(this, func, false);
+            declare_contained_func(this, func);
         }
         if(!def->is_extern()) {
             visitor.store_static_interface_for_stub_impl(def);
@@ -3392,7 +3392,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                 const auto for_decl = container->as_extendable_members_container_unsafe();
                 interface_def->active_user = for_decl;
                 for (const auto func: interface_def->instantiated_functions()) {
-                    declare_contained_func(this, func, false, for_decl);
+                    declare_contained_func(this, func);
                 }
                 interface_def->active_user = nullptr;
                 // generate the vtable
@@ -3408,7 +3408,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
             } else {
                 // native primitive type
                 for(const auto func : def->instantiated_functions()) {
-                    declare_contained_func(this, func, false, nullptr);
+                    declare_contained_func(this, func);
                 }
                 // we will only declare the vtable (only declare)
                 if (interface_def->generates_vtable()) {

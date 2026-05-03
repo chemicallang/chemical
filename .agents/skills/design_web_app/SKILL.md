@@ -79,6 +79,40 @@ func PutStaticContentInSimplePage(page : &mut HtmlPage) {
 - Everything calculated at compile time or in the server, client side requires that manually handling events and DOM manipulation
 - Components take server side props (because they are native functions)
 
+#### Cannot split #html
+
+You must not do this, an element that begins, must end in the same macro
+
+```chemical
+func InvalidHtml(page : &mut HtmlPage) {
+    #html {
+        <div>
+    }
+    
+    // chemical statements in between
+    if(true) {}
+    
+    #html {
+      </div>
+    }
+}
+```
+Again do NOT write ^ such code.
+
+Here's how to write correct code.
+
+```chemical
+func InvalidHtml(page : &mut HtmlPage) {
+    #html {
+        <div>
+        @{if(true) {
+            // i can write chemical code here
+        }}
+        </div>
+    }
+}
+```
+
 #### Components
 
 To better provide support for JS handling of elements, applying event listeners and DOM manipulation, universal components come into play.

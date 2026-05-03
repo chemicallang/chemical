@@ -32,6 +32,8 @@
 #include "compiler/processor/ModuleFileData.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/frontend/AnnotationController.h"
+#include "compiler/symres/CoreNodes.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 class GlobalInterpretScope;
 
@@ -168,6 +170,16 @@ public:
      * the path handler
      */
     ImportPathHandler pathHandler;
+
+    /**
+     * the interfaces in core module are stored here
+     */
+    CoreNodes coreNodes;
+
+    /**
+     * used to index implementations
+     */
+    ImplementationsIndex implsIndex;
 
     /**
      * we use this to store and remove generic instantiations when required

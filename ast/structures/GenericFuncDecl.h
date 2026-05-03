@@ -75,6 +75,17 @@ public:
         return gen_func;
     }
 
+    GenericFuncDecl* copy(ASTAllocator& allocator) final {
+        const auto gen_func = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(
+            master_impl->copy(allocator),
+            parent(),
+            encoded_location()
+        );
+        gen_func->signature_linked = signature_linked;
+        gen_func->body_linked = body_linked;
+        return gen_func;
+    }
+
     /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic

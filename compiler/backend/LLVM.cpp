@@ -608,13 +608,19 @@ bool VariableIdentifier::add_child_index(Codegen& gen, std::vector<llvm::Value *
 llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
     auto addr = value->getType();
     const auto addr_kind = addr->kind();
+    llvm::Type* deref_type;
     if(addr_kind == BaseTypeKind::Pointer) {
-        return ((PointerType*) (addr))->type->llvm_type(gen);
+        deref_type = ((PointerType*) (addr))->type->llvm_type(gen);
     } else if(addr_kind == BaseTypeKind::Reference) {
-        return ((ReferenceType*) (addr))->type->llvm_type(gen);
+        deref_type = ((ReferenceType*) (addr))->type->llvm_type(gen);
     } else {
         gen.error(this) << "De-referencing a value that is not a pointer " << value->representation();
         return nullptr;
+    }
+    if (deref_type->isAggregateType()) {
+        return gen.builder->getPtrTy();
+    } else {
+        return deref_type;
     }
 }
 
@@ -625,6 +631,9 @@ llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
 llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     const auto llvm_val = value->llvm_value(gen);
     if(expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
+        return llvm_val;
+    }
+    if (llvm_val->getType()->isAggregateType()) {
         return llvm_val;
     }
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), llvm_val, "deref");

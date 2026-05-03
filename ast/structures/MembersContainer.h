@@ -329,22 +329,24 @@ public:
      */
     void copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::copy_into(other, allocator);
-        auto& from = evaluated_container;
-        auto& into = other.evaluated_container;
-        into.reserve(from.size());
-        for (const auto func : from) {
-            const auto func_copy = func->copy(allocator);
-            func_copy->set_parent(&other);
-            into.emplace_back(func_copy);
-            switch (func_copy->kind()) {
-                case ASTNodeKind::FunctionDecl:
-                    other.indexes.emplace(func_copy->as_function_unsafe()->name_view(), func_copy);
+        other.evaluated_container.reserve(evaluated_container.size());
+        for(const auto func : evaluated_container) {
+            switch(func->kind()) {
+                case ASTNodeKind::FunctionDecl:{
+                    const auto func_copy = func->as_function_unsafe()->copy(allocator);
+                    func_copy->set_parent(&other);
+                    other.insert_func(func_copy);
                     break;
-                case ASTNodeKind::GenericFuncDecl:
-                    other.indexes.emplace(func_copy->as_gen_func_decl_unsafe()->name_view(), func_copy);
+                }
+                case ASTNodeKind::GenericFuncDecl: {
+                    const auto func_copy = func->as_gen_func_decl_unsafe()->copy(allocator);
+                    func_copy->set_parent(&other);
+                    other.insert_func(func_copy);
                     break;
+                }
                 default:
-                    continue;
+                    other.evaluated_container.emplace_back(func);
+                    break;
             }
         }
     }

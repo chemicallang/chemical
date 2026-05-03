@@ -708,9 +708,21 @@ public:
     BaseType* parseExpressionType(ASTAllocator& allocator, BaseType* firstType);
 
     /**
+     * basically it doesn't consider post operators like a pointer after the type
+     * this is needed for example user writes i as i64 * y
+     * here i64* <-- is a type and i is NOT being multiplied by y
+     * to solve this we parse using this function which doesn't consider pointer after
+     * the type and * is considered multiplication
+     */
+    TypeLoc parseTypeLocNoPostOps(ASTAllocator& allocator);
+
+    /**
      * parse a single type with location
      */
-    TypeLoc parseTypeLoc(ASTAllocator& allocator);
+    TypeLoc parseTypeLoc(ASTAllocator& allocator) {
+        const auto type = parseTypeLocNoPostOps(allocator);
+        return { parseArrayAndPointerTypesAfterTypeId(allocator, type, type.encoded_location()), type.encoded_location() };
+    }
 
     /**
      * parse a single type

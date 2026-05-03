@@ -429,7 +429,7 @@ BaseType* parseSingleGenType(Parser& parser, ASTAllocator& allocator, SourceLoca
  * dyn mut Phone* <--- mut finds pointer type, makes it's child linked type mutable \n
  * mut Phone** <-- mut finds pointer type, makes it's child pointer type mutable and grand child linked type mutable \n
  */
-TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
+TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
 
     switch(token->type) {
         case TokenType::SelfKw: {
@@ -687,6 +687,5 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             }
             break;
     }
-    type = parseArrayAndPointerTypesAfterTypeId(allocator, type, location);
     return {type, location};
 }

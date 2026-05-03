@@ -717,7 +717,7 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value) {
         case TokenType::AsKw: {
             token++;
             const auto loc = value->encoded_location();
-            auto type = parseTypeLoc(allocator);
+            auto type = parseTypeLocNoPostOps(allocator);
             if (!type) {
                 type = TypeLoc((BaseType*) typeBuilder.getVoidType(), loc);
                 unexpected_error("expected a type for casting after 'as' in expression");

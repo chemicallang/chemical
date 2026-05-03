@@ -103,6 +103,28 @@ func test_dereferences() {
         return d2.d.a == 90 && d.a == 30
     })
 
+    test("dereferencing trivially copyable struct variable pointer into an array works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var arr : [1]DerefCopyablePoint = [ *j ]
+        return arr[0].a == 30
+    })
+
+    test("dereferencing trivially copyable struct constant pointer into an array works", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        const j = &d
+        var arr : [1]DerefCopyablePoint = [ *j ]
+        return arr[0].a == 30
+    })
+
+    test("dereferencing trivially copyable struct variable pointer into an array causes copy", () => {
+        var d = DerefCopyablePoint { a : 30 }
+        var j = &d
+        var arr : [1]DerefCopyablePoint = [ *j ]
+        arr[0].a = 736
+        return arr[0].a == 736 && d.a == 30
+    })
+
     test("dereferencing trivially copyable struct variable pointer into a variant works", () => {
         var d = DerefCopyablePoint { a : 30 }
         var j = &d

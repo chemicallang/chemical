@@ -687,13 +687,13 @@ void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaDat
 // this is the single function used for compilation of c
 // it handles files or in memory c program
 // it also can switch between clang and tiny cc based on user options
-int compile_c_to_obj_w_opts(const std::string& out_c_path, const std::string_view& program, const std::string& obj_path, LabBuildCompilerOptions* options, bool use_clang, bool emit_c) {
+int compile_c_to_obj_w_opts(const std::string& out_c_path, const std::string_view& program, const std::string& obj_path, const std::string_view& target_triple, LabBuildCompilerOptions* options, bool use_clang, bool emit_c) {
 
 #ifdef COMPILER_BUILD
     // check if user wants to compile the c code via clang compiler
     if (use_clang) {
         if (!emit_c) writeToFile(out_c_path, program);
-        const auto compile_result = compile_c_file_to_object(out_c_path, job_obj_path, options->exe_path, options->resources_path, job->target_triple.to_view(), {}, options->debug_info || is_debug_or_compl(options->out_mode));
+        const auto compile_result = compile_c_file_to_object(out_c_path, obj_path, options->exe_path, options->resources_path, target_triple, {}, options->debug_info || is_debug_or_compl(options->out_mode));
         if (compile_result != 0) {
             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program using clang, written at " << out_c_path << std::endl;
             return compile_result;
@@ -723,6 +723,7 @@ int LabBuildCompiler::process_module_tcc_bm(
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         const std::string_view& build_dir,
+        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -738,7 +739,7 @@ int LabBuildCompiler::process_module_tcc_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir, single_file, use_clang, emit_c);
+    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir, target_triple, single_file, use_clang, emit_c);
     if(result != 0) {
         return result;
     }
@@ -759,6 +760,7 @@ int LabBuildCompiler::process_module_tcc(
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         const std::string_view& build_dir,
+        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -963,7 +965,7 @@ int LabBuildCompiler::process_module_tcc(
         const auto c_out_path = get_translated_c_path(build_dir, mod);
         auto finalized = c_visitor.writer.finalized_std_view();
         if (emit_c) writeToFile(c_out_path, finalized);
-        const auto compile_result = compile_c_to_obj_w_opts(c_out_path, finalized, mod->object_path.to_std_string(), options, use_clang, emit_c);
+        const auto compile_result = compile_c_to_obj_w_opts(c_out_path, finalized, mod->object_path.to_std_string(), target_triple, options, use_clang, emit_c);
         c_visitor.writer.un_finalize_unsafely();
         if (compile_result != 0) return compile_result;
         c_visitor.writer.setPositionUnsafely(outImplStart);
@@ -1794,7 +1796,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir, is_single_file, use_clang, emit_c);
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir, job->target_triple.to_view(), is_single_file, use_clang, emit_c);
         if(result != 0) {
             return result;
         }
@@ -1845,7 +1847,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // compile c to object at given object path
-    const auto compile_result = compile_c_to_obj_w_opts(out_c_path, program, job_obj_path, options, use_clang, emit_c);
+    const auto compile_result = compile_c_to_obj_w_opts(out_c_path, program, job_obj_path, job->target_triple.to_view(), options, use_clang, emit_c);
     if (compile_result != 0) return compile_result;
 
     // cbi and jit jobs are here
@@ -2851,7 +2853,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         }
 
         // compile the module
-        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir, true, false, false);
+        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir, job->target_triple.to_view(), true, false, false);
         if(module_result != 0) {
             return nullptr;
         }

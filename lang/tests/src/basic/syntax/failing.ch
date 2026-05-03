@@ -76,7 +76,7 @@ func test_failing_code() {
     test("pointer after type when casting with multiplication doesn't fail", () => {
         var j = 0;
         var i = (j as i64 * 1000i64) + (j as i64 / 1000000i64);
-        return true;
+        return (100 as i64 * 2i64) == 200;
     })
 
 }

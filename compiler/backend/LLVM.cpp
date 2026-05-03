@@ -617,11 +617,7 @@ llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
         gen.error(this) << "De-referencing a value that is not a pointer " << value->representation();
         return nullptr;
     }
-    if (deref_type->isAggregateType()) {
-        return gen.builder->getPtrTy();
-    } else {
-        return deref_type;
-    }
+    return deref_type;
 }
 
 llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
@@ -633,12 +629,21 @@ llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type)
     if(expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
         return llvm_val;
     }
-    if (llvm_val->getType()->isAggregateType()) {
-        return llvm_val;
+    // get the final type
+    const auto final_type = llvm_type(gen);
+    // load the pointer
+    if (final_type->isAggregateType()) {
+        // if its a struct (*struct_ptr), we must create a copy
+        // for example user passes to a function
+        const auto copied = gen.llvm.CreateAlloca(final_type, encoded_location());
+        gen.memcpy_struct(final_type, copied, llvm_val, encoded_location());
+        return copied;
+    } else {
+        // load the pointer and return (non struct type)
+        const auto loadInst = gen.builder->CreateLoad(final_type, llvm_val, "deref");
+        gen.di.instr(loadInst, this);
+        return loadInst;
     }
-    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), llvm_val, "deref");
-    gen.di.instr(loadInst, this);
-    return loadInst;
 }
 
 llvm::Type* ComptimeValue::llvm_type(Codegen &gen) {

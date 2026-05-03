@@ -65,7 +65,7 @@ func test_auto_deref() {
             }
         }
     })
-    test("referenced intN types are automatically de-referenced in switch statements", () => {
+    test("OLD referenced intN types are automatically de-referenced in switch statements", () => {
         var i = 33;
         switch(*give_ref(i)) {
             33 => {
@@ -76,7 +76,7 @@ func test_auto_deref() {
             }
         }
     })
-    test("referenced boolean types are automatically de-referenced in switch statements", () => {
+    test("OLD referenced boolean types are automatically de-referenced in switch statements", () => {
         var i = true;
         switch(*give_ref_bool(i)) {
             true => {

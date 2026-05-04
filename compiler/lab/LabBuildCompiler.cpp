@@ -1192,6 +1192,9 @@ int LabBuildCompiler::process_module_gen(
     if (options->def_assertions_on) {
         emitter_options.assertions_on = true;
     }
+    if (options->tsan) {
+        emitter_options.tsan = true;
+    }
 
     // which files to emit
     if(!mod->llvm_ir_path.empty()) {
@@ -2127,6 +2130,7 @@ int link_objects_now(
         linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->out_mode);
         linkFlags.verbose = options->verbose_link;
         linkFlags.no_pie = options->no_pie;
+        linkFlags.tsan = options->tsan;
         int link_result;
         if(options->use_lld) {
             link_result = lld_link_objects(objects, output_path, options->exe_path, link_libs, lib_search_paths, target_triple, linkFlags);

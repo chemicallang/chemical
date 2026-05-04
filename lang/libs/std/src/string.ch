@@ -750,7 +750,13 @@ public struct string {
     func mutable_data(&mut self) : *mut char {
         switch(state) {
             '0' => {
-                move_const_to_buffer();
+                if (storage.constant.length < STR_BUFF_SIZE) {
+                    move_const_to_buffer();
+                    return &mut storage.sso.buffer[0];
+                } else {
+                    move_data_to_heap(storage.constant.data, storage.constant.length, (storage.constant.length * 2));
+                    return storage.heap.data;
+                }
                 return &mut storage.sso.buffer[0];
             }
             '1' => {

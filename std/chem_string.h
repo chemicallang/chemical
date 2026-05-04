@@ -437,8 +437,13 @@ namespace chem {
         constexpr char* mutable_data() {
             switch(state) {
                 case '0':
-                    move_const_to_buffer();
-                    return &storage.sso.buffer[0];
+                    if (storage.constant.length < STR_BUFF_SIZE) {
+                        move_const_to_buffer();
+                        return &storage.sso.buffer[0];
+                    } else {
+                        move_data_to_heap(storage.constant.data, storage.constant.length, (storage.constant.length * 2));
+                        return storage.heap.data;
+                    }
                 case '1':
                     return &storage.sso.buffer[0];
                 case '2':

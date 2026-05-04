@@ -16,6 +16,8 @@ struct LinkFlags {
 
     bool verbose = false;
 
+    bool tsan = false;
+
 };
 
 int lld_link_objects(

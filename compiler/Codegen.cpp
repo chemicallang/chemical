@@ -73,6 +73,10 @@
 #include <llvm/Target/CodeGenCWrappers.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/Instrumentation/AddressSanitizer.h>
+#include <llvm/Transforms/Instrumentation/DataFlowSanitizer.h>
+#include <llvm/Transforms/Instrumentation/HWAddressSanitizer.h>
+#include <llvm/Transforms/Instrumentation/MemorySanitizer.h>
 #include <llvm/Transforms/Instrumentation/ThreadSanitizer.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Utils.h>
@@ -1528,11 +1532,35 @@ bool save_as_file_type(
                 });
     }
 
-    // Thread sanitizer
-    if (options->tsan) {
+    // Sanitizers
+    if (has_sanitizer(options->sanitizers, SanitizerType::Thread)) {
         pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
             module_pm.addPass(ModuleThreadSanitizerPass());
             module_pm.addPass(createModuleToFunctionPassAdaptor(ThreadSanitizerPass()));
+        });
+    }
+    if (has_sanitizer(options->sanitizers, SanitizerType::Address)) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
+            AddressSanitizerOptions asan_opts;
+            module_pm.addPass(AddressSanitizerPass(asan_opts));
+        });
+    }
+    if (has_sanitizer(options->sanitizers, SanitizerType::Memory)) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
+            MemorySanitizerOptions msan_opts;
+            module_pm.addPass(MemorySanitizerPass(msan_opts));
+        });
+    }
+    if (has_sanitizer(options->sanitizers, SanitizerType::HWAddress)) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
+            HWAddressSanitizerOptions hwasan_opts;
+            module_pm.addPass(HWAddressSanitizerPass(hwasan_opts));
+        });
+    }
+    if (has_sanitizer(options->sanitizers, SanitizerType::DataFlow)) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level, ThinOrFullLTOPhase ltoPhase) {
+            std::vector<std::string> abi_files;
+            module_pm.addPass(DataFlowSanitizerPass(abi_files));
         });
     }
 
@@ -1826,8 +1854,8 @@ int lld_link_objects(
 #endif
     }
 
-    if (flags.tsan) {
-    // TODO: test it, I never tested on windows and apple
+    // Add sanitizer linker flags
+    if (has_sanitizer(flags.sanitizers, SanitizerType::Thread)) {
 #if defined(_WIN32)
         command.emplace_back("-ltsan");
 #elif defined(__APPLE__)
@@ -1835,6 +1863,18 @@ int lld_link_objects(
 #elif defined(__linux__)
         command.emplace_back("-ltsan");
 #endif
+    }
+    if (has_sanitizer(flags.sanitizers, SanitizerType::Address)) {
+        command.emplace_back("-lasan");
+    }
+    if (has_sanitizer(flags.sanitizers, SanitizerType::Memory)) {
+        command.emplace_back("-lmsan");
+    }
+    if (has_sanitizer(flags.sanitizers, SanitizerType::Leak)) {
+        command.emplace_back("-llsan");
+    }
+    if (has_sanitizer(flags.sanitizers, SanitizerType::UndefinedBehavior)) {
+        command.emplace_back("-lubsan");
     }
 
     // invoke lld to create executable
@@ -1877,8 +1917,27 @@ int clang_link_objects(
     if(flags.verbose) {
         clang_flags.emplace_back("-v");
     }
-    if (flags.tsan) {
-        clang_flags.emplace_back("-fsanitize=thread");
+    // Add combined sanitizer flag for clang linking
+    if (flags.sanitizers != SanitizerType::None) {
+        std::string sanitize_flag = "-fsanitize=";
+        bool first = true;
+        auto append_sanitizer = [&](SanitizerType type, const char* name) {
+            if (has_sanitizer(flags.sanitizers, type)) {
+                if (!first) sanitize_flag += ",";
+                sanitize_flag += name;
+                first = false;
+            }
+        };
+        append_sanitizer(SanitizerType::Thread, "thread");
+        append_sanitizer(SanitizerType::Address, "address");
+        append_sanitizer(SanitizerType::Memory, "memory");
+        append_sanitizer(SanitizerType::UndefinedBehavior, "undefined");
+        append_sanitizer(SanitizerType::Leak, "leak");
+        append_sanitizer(SanitizerType::HWAddress, "hwaddress");
+        append_sanitizer(SanitizerType::DataFlow, "dataflow");
+        if (!first) {
+            clang_flags.emplace_back(sanitize_flag);
+        }
     }
 
     for(auto& linkable : linkables) {

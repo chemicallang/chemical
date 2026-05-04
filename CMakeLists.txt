@@ -350,7 +350,6 @@ set(COMMON_SOURCES
         ast/base/AnnotationParent.h
         ast/base/ExtendableMembersContainerNode.h
         compiler/OutputMode.h
-        compiler/CodegenEmitterOptions.h
         ast/statements/ThrowStatement.h
         ast/statements/ThrowStatement.cpp
         ast/structures/Namespace.h
@@ -717,6 +716,8 @@ set(COMPILER_SOURCES
         compiler/ClangCodegen.h
         preprocess/2c/SubVisitor.h
         compiler/backend/include/LLVMArrayDestructor.h
+        compiler/CodegenEmitterOptions.h
+        compiler/SanitizerOptions.h
         compiler/CodegenOptions.h
         compiler/backend/LLVMGen.h
         compiler/backend/LLVMGen.cpp

@@ -20,6 +20,7 @@
 #include "integration/libtcc/LibTccInteg.h"
 #include "utils/Version.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "compiler/SanitizerOptions.h"
 #include "rang.hpp"
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -79,8 +80,11 @@ void print_help() {
                  "--no-caching        -[empty]      no caching will be done\n"
                  "--cpp-like          -[empty]      configure output of c translation to be like c++\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
-                 "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
-                 "" << std::endl;
+                  "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
+                  "--tsan              -[empty]      enable thread sanitizer (data race detection)\n"
+                  "--sanitize          -fsanitize    enable sanitizers: address, memory, thread, undefined, leak, hwaddress, dataflow\n"
+                  "                                    can combine: --sanitize=address,undefined\n"
+                  "" << std::endl;
 
 }
 
@@ -386,6 +390,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("lto", CmdOptionType::NoValue),
             CmdOption("assertions", CmdOptionType::NoValue),
             CmdOption("tsan", CmdOptionType::NoValue),
+            CmdOption("sanitize", "fsanitize", CmdOptionType::SingleValue),
             CmdOption("no-pie", "no-pie", CmdOptionType::NoValue),
             CmdOption("target", "t", CmdOptionType::SingleValue),
             CmdOption("jobs", "j", CmdOptionType::SingleValue),
@@ -554,8 +559,28 @@ int compiler_main(int argc, char *argv[]) {
             opts->def_assertions_on = true;
         }
 #ifdef COMPILER_BUILD
+        // Parse sanitizer options
         if (options.has_value("tsan")) {
-            opts->tsan = true;
+            opts->sanitizers |= SanitizerType::Thread;
+        }
+        auto& sanitize_opt = options.option_new("sanitize", "fsanitize");
+        if (sanitize_opt.has_value()) {
+            std::string sanitize_value(sanitize_opt.value());
+            // Parse comma-separated sanitizer names
+            size_t pos = 0;
+            while (pos < sanitize_value.length()) {
+                size_t comma = sanitize_value.find(',', pos);
+                std::string token = sanitize_value.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+                if (token == "thread") opts->sanitizers |= SanitizerType::Thread;
+                else if (token == "address") opts->sanitizers |= SanitizerType::Address;
+                else if (token == "memory") opts->sanitizers |= SanitizerType::Memory;
+                else if (token == "undefined") opts->sanitizers |= SanitizerType::UndefinedBehavior;
+                else if (token == "leak") opts->sanitizers |= SanitizerType::Leak;
+                else if (token == "hwaddress") opts->sanitizers |= SanitizerType::HWAddress;
+                else if (token == "dataflow") opts->sanitizers |= SanitizerType::DataFlow;
+                if (comma == std::string::npos) break;
+                pos = comma + 1;
+            }
         }
         if(options.has_value("no-pie", "no-pie")) {
             opts->no_pie = true;

@@ -4,6 +4,7 @@
 
 #include "compiler/ASTProcessorOptions.h"
 #include "compiler/OutputMode.h"
+#include "compiler/SanitizerOptions.h"
 
 /**
  * this allows you to control the compilation process
@@ -133,9 +134,9 @@ public:
     bool no_pie = false;
 
     /**
-     * thread sanitizer is enabled or not ?
+     * sanitizer flags for enabling various sanitizers
      */
-    bool tsan = false;
+    SanitizerType sanitizers = SanitizerType::None;
 
     /**
      * should the lld be used directly

@@ -85,6 +85,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/utils/ASTUtils.h"
 #include "InvokeUtils.h"
+#include "ast/values/LambdaFunction.h"
 
 Codegen::Codegen(
         CodegenOptions& options,
@@ -955,27 +956,37 @@ void Codegen::destruct(
 
 llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value, llvm::Value* pointer) {
     // function takes a capturing function type, and we have a lambda
-    if(pure_type->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
-        const auto capFuncTy = pure_type->as_capturing_func_type_unsafe();
-        const auto instanceNode = capFuncTy->instance_type->get_direct_linked_canonical_node();
-        if(instanceNode->kind() == ASTNodeKind::StructDecl) {
-            const auto makeFn = instanceNode->as_struct_def_unsafe()->child("make");
-            if(makeFn->kind() == ASTNodeKind::FunctionDecl) {
-                const auto makeFnDecl = makeFn->as_function_unsafe();
-                if(makeFnDecl->is_comptime()) {
-                    auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
-                    const auto evaluated = eval_comptime(called, makeFnDecl);
-                    if(pointer && evaluated->kind() == ValueKind::FunctionCall) {
-                        const auto call = evaluated->as_func_call_unsafe();
-                        return call->llvm_chain_value(*this, pointer);
-                    } else {
-                        return evaluated->llvm_value(*this);
-                    }
-                }
-            }
-        }
+    if(pure_type->kind() != BaseTypeKind::CapturingFunction || value->kind() != ValueKind::LambdaFunc) {
+        return nullptr;
     }
-    return nullptr;
+    const auto capFuncTy = pure_type->as_capturing_func_type_unsafe();
+    const auto instanceNode = capFuncTy->instance_type->get_direct_linked_canonical_node();
+    if(instanceNode == nullptr || instanceNode->kind() != ASTNodeKind::StructDecl) {
+        error(value) << "capturing function instance must be of struct type";
+        return nullptr;
+    }
+    const auto makeFn = instanceNode->as_struct_def_unsafe()->child("make");
+    if(makeFn->kind() != ASTNodeKind::FunctionDecl) {
+        error(value) << "capturing function instance must have a make comptime function";
+        return nullptr;
+    }
+    const auto makeFnDecl = makeFn->as_function_unsafe();
+    if(!makeFnDecl->is_comptime()) {
+        error(value) << "capturing function instance must have a make comptime function";
+        return nullptr;
+    }
+    const auto lambda_func = value->as_lambda_func_unsafe();
+    // we generate the unpacked lambda value here beforehand
+    // cached func pointer and captured structs are used after this
+    lambda_func->llvm_value_unpacked(*this, nullptr);
+    auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
+    const auto evaluated = eval_comptime(called, makeFnDecl);
+    if(pointer && evaluated->kind() == ValueKind::FunctionCall) {
+        const auto call = evaluated->as_func_call_unsafe();
+        return call->llvm_chain_value(*this, pointer);
+    } else {
+        return evaluated->llvm_value(*this);
+    }
 }
 
 llvm::StructType* Codegen::fat_pointer_type() {

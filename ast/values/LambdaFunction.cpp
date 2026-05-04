@@ -43,7 +43,7 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
                 // we memcpy struct type into the captured struct
                 gen.memcpy_struct(type->llvm_type(gen), ptr, cap->linked->llvm_pointer(gen), cap->encoded_location());
             } else {
-                const auto instr = gen.llvm.CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr, cap);
+                gen.llvm.CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr, cap);
             }
         }
         i++;
@@ -55,6 +55,11 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
     if(lambda->isCapturing()) {
         auto captured = lambda->captured_struct;
         if(!captured) {
+#ifdef DEBUG
+            if (!lambda->captureList.empty()) {
+                CHEM_THROW_RUNTIME("lambda captures, but cached captured struct is null");
+            }
+#endif
             captured = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
         }
         return gen.pack_fat_pointer(lambda->func_ptr, captured, lambda->Value::encoded_location());
@@ -122,6 +127,9 @@ void LambdaFunction::generate_captured_destructor(Codegen &gen) {
 
 llvm::Value* LambdaFunction::llvm_value_unpacked(Codegen &gen, BaseType* expected_type) {
     if(func_ptr) {
+        if(!captureList.empty() && captured_struct == nullptr) {
+            CHEM_THROW_RUNTIME("capturd struct is nullptr");
+        }
         return func_ptr;
     }
     func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), this, scope);

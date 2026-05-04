@@ -385,6 +385,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue),
             CmdOption("lto", CmdOptionType::NoValue),
             CmdOption("assertions", CmdOptionType::NoValue),
+            CmdOption("tsan", CmdOptionType::NoValue),
             CmdOption("no-pie", "no-pie", CmdOptionType::NoValue),
             CmdOption("target", "t", CmdOptionType::SingleValue),
             CmdOption("jobs", "j", CmdOptionType::SingleValue),
@@ -553,6 +554,9 @@ int compiler_main(int argc, char *argv[]) {
             opts->def_assertions_on = true;
         }
 #ifdef COMPILER_BUILD
+        if (options.has_value("tsan")) {
+            opts->tsan = true;
+        }
         if(options.has_value("no-pie", "no-pie")) {
             opts->no_pie = true;
         }

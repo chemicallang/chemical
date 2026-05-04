@@ -133,6 +133,11 @@ public:
     bool no_pie = false;
 
     /**
+     * thread sanitizer is enabled or not ?
+     */
+    bool tsan = false;
+
+    /**
      * should the lld be used directly
      */
     bool use_lld = false;

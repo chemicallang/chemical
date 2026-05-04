@@ -1826,6 +1826,17 @@ int lld_link_objects(
 #endif
     }
 
+    if (flags.tsan) {
+    // TODO: test it, I never tested on windows and apple
+#if defined(_WIN32)
+        command.emplace_back("-ltsan");
+#elif defined(__APPLE__)
+        command.emplace_back("-ltsan");
+#elif defined(__linux__)
+        command.emplace_back("-ltsan");
+#endif
+    }
+
     // invoke lld to create executable
     return invoke_lld(command, target_triple);
 
@@ -1865,6 +1876,9 @@ int clang_link_objects(
     }
     if(flags.verbose) {
         clang_flags.emplace_back("-v");
+    }
+    if (flags.tsan) {
+        clang_flags.emplace_back("-fsanitize=thread");
     }
 
     for(auto& linkable : linkables) {

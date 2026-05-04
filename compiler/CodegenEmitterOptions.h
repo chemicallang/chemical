@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "SanitizerOptions.h"
+
 class CodegenEmitterOptions {
 public:
     bool assertions_on = false;
     bool is_debug = true;
     bool is_small = false;
     bool time_report = true;
-    bool tsan = false;
+    SanitizerType sanitizers = SanitizerType::None;
     bool lto = false;
     bool debug_ir = false;
     const char* asm_path = nullptr;

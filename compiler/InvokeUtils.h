@@ -7,6 +7,7 @@
 #include <string_view>
 #include "std/chem_string_view.h"
 #include "std/chem_string.h"
+#include "SanitizerOptions.h"
 
 struct LinkFlags {
 
@@ -16,7 +17,7 @@ struct LinkFlags {
 
     bool verbose = false;
 
-    bool tsan = false;
+    SanitizerType sanitizers = SanitizerType::None;
 
 };
 

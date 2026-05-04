@@ -1230,6 +1230,11 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 gen.error("expected value to be a lambda function", value);
                 return nullptr;
             }
+#ifdef DEBUG
+            if (value->as_lambda_func_unsafe()->func_ptr == nullptr) {
+                CHEM_THROW_RUNTIME("lambda function pointer null at extraction");
+            }
+#endif
             return value->as_lambda_func_unsafe()->llvm_value_unpacked(gen, nullptr);
         case ExtractionKind::LambdaCapturedPtr: {
             if (value->kind() != ValueKind::LambdaFunc) {

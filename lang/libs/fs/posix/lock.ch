@@ -10,7 +10,7 @@ func lock_file_shared(path : *char) : Result<File, FsError> {
         return Result.Err(e);
     }
     var Ok(f) = fo else unreachable;
-    var r = flock(f.unix.fd, LOCK_SH);
+    var r = flock(f._unix.fd, LOCK_SH);
     if(r != 0) { file_close(&mut f); return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(f);
 }
@@ -23,7 +23,7 @@ func lock_file_exclusive(path : *char) : Result<File, FsError> {
         return Result.Err(e);
     }
     var Ok(f) = fo else unreachable;
-    var r = flock(f.unix.fd, LOCK_EX);
+    var r = flock(f._unix.fd, LOCK_EX);
     if(r != 0) { file_close(&mut f); return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(f);
 }

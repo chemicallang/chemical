@@ -15,32 +15,32 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
     if(opts.append) { flags = flags | O_APPEND; }
     var fd = open(path, flags, 0o666);
     if(fd < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
-    var f : File; f.unix.fd = fd; f.valid = true;
+    var f : File; f._unix.fd = fd; f.valid = true;
     return Result.Ok(f);
 }
 
 public func file_close(f : *mut File) : Result<UnitTy, FsError> {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
-    var r = close(f.unix.fd);
+    var r = close(f._unix.fd);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     f.valid = false;
     return Result.Ok(UnitTy{});
 }
 
 public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-    var n = read(f.unix.fd, buf as *mut void, buf_len);
+    var n = read(f._unix.fd, buf as *mut void, buf_len);
     if(n < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(n as size_t);
 }
 
 public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
-    var n = write(f.unix.fd, buf as *void, buf_len);
+    var n = write(f._unix.fd, buf as *void, buf_len);
     if(n < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(n as size_t);
 }
 
 public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
-    var r = fsync(f.unix.fd);
+    var r = fsync(f._unix.fd);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }
@@ -122,7 +122,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     // return path
     var i : size_t = 0; while(tmpl[i] != 0) { out_path[i] = tmpl[i]; i++ } out_path[i] = 0;
     // wrap fd into File
-    fh.unix.fd = fd; fh.valid = true;
+    fh._unix.fd = fd; fh.valid = true;
     return Result.Ok(UnitTy{});
 }
 

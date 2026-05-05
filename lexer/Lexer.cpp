@@ -463,6 +463,7 @@ void read_zero_starting_number(SourceProvider& provider) {
         case 'B':
             provider.increment();
             read_digits(provider);
+            read_number_suffix(provider);
             return;
     }
     return read_number(provider);

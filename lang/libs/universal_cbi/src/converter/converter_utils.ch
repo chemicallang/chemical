@@ -770,13 +770,17 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
             return;
         }
         if(converter.is_component_props_name(id.value)) {
-            converter.append_component_prop_value(node);
+            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
+            converter.str.append_view(id.value);
             return;
         }
     } else if(node.kind == JsNodeKind.MemberAccess) {
         const mem = node as *mut JsMemberAccess;
         if(converter.is_component_props_read(node)) {
-            converter.convertJsNode(node);
+            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
+            converter.convertJsNode(mem.object);
+            converter.str.append_view(".");
+            converter.str.append_view(mem.property);
             return;
         }
         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
@@ -788,7 +792,12 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
         }
     } else if(node.kind == JsNodeKind.IndexAccess) {
         if(converter.is_component_props_read(node)) {
-            converter.convertJsNode(node);
+            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
+            const idx = node as *mut JsIndexAccess;
+            converter.convertJsNode(idx.object);
+            converter.str.append_view("[");
+            converter.convertJsNode(idx.index);
+            converter.str.append_view("]");
             return;
         }
     }

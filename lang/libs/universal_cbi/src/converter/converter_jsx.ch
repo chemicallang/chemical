@@ -33,10 +33,15 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                          }
                      }
                  }
-                 if(!is_event_attribute_name(attr.name)) {
-                     converter.convert_jsx_runtime_expr(container.expression);
-                     return;
-                 }
+                if(!is_event_attribute_name(attr.name)) {
+                    // Don't wrap component props with window.$__uni_value() - pass them directly for reactivity
+                    if(converter.is_component_props_read(container.expression)) {
+                        converter.convertJsNode(container.expression);
+                    } else {
+                        converter.convert_jsx_runtime_expr(container.expression);
+                    }
+                    return;
+                }
              }
          }
          converter.convertJsNode(attr.value);

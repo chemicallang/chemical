@@ -51,6 +51,8 @@ std::optional<bool> is_condition_enabled(TargetData& target_data, const chem::st
             return target_data.isLinux;
         case hasherFn("isLinux"):
             return target_data.isLinux;
+        case hasherFn("musl"):
+            return target_data.musl;
         case hasherFn("macos"):
             return target_data.macos;
         case hasherFn("freebsd"):

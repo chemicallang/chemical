@@ -97,23 +97,35 @@ func build_child_path(builder : *mut ASTBuilder, parentPath : std::string_view, 
     }
     return builder.allocate_view(p.to_view());
 }
+
+func unwrap_returned_jsx_node(node : *mut JsNode) : *mut JsNode {
+    var current = node;
+    while(current != null && current.kind == JsNodeKind.Paren) {
+        current = (current as *mut JsParen).expression;
+    }
+    return current;
+}
+
 func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
     for(var i : uint = 0; i < block.statements.size(); i++) {
         const stmt = block.statements.get(i);
         if(stmt == null || stmt.kind != JsNodeKind.Return) continue;
         const ret = stmt as *mut JsReturn;
         if(ret.value == null) continue;
-        if(ret.value.kind == JsNodeKind.JSXElement || ret.value.kind == JsNodeKind.JSXFragment) {
-            return ret.value;
+        const value = unwrap_returned_jsx_node(ret.value);
+        if(value == null) continue;
+        if(value.kind == JsNodeKind.JSXElement || value.kind == JsNodeKind.JSXFragment) {
+            return value;
         }
-        if(ret.value.kind == JsNodeKind.Identifier) {
-            const id = ret.value as *mut JsIdentifier;
+        if(value.kind == JsNodeKind.Identifier) {
+            const id = value as *mut JsIdentifier;
             for(var j : uint = 0; j < i; j++) {
                 const prev = block.statements.get(j);
                 if(prev != null && prev.kind == JsNodeKind.VarDecl) {
                     const decl = prev as *mut JsVarDecl;
-                    if(decl.name.equals(id.value) && decl.value != null && (decl.value.kind == JsNodeKind.JSXElement || decl.value.kind == JsNodeKind.JSXFragment)) {
-                        return decl.value;
+                    const declValue = unwrap_returned_jsx_node(decl.value);
+                    if(decl.name.equals(id.value) && declValue != null && (declValue.kind == JsNodeKind.JSXElement || declValue.kind == JsNodeKind.JSXFragment)) {
+                        return declValue;
                     }
                 }
             }

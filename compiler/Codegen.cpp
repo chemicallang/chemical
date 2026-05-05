@@ -1866,6 +1866,15 @@ int lld_link_objects(
         command.emplace_back("-lubsan");
     }
 
+#if defined(__APPLE__)
+    command.emplace_back("-rpath");
+    command.emplace_back("@executable_path");
+#elif defined(__linux__)
+    command.emplace_back("-rpath");
+    command.emplace_back("$ORIGIN");
+    command.emplace_back("--enable-new-dtags"); // Use RUNPATH
+#endif
+
     // invoke lld to create executable
     return invoke_lld(command, target_triple);
 
@@ -1963,6 +1972,13 @@ int clang_link_objects(
 
     clang_flags.emplace_back("-o");
     clang_flags.emplace_back(bin_out);
+
+#if defined(__APPLE__)
+    clang_flags.emplace_back("-Wl,-rpath,@executable_path");
+#elif defined(__linux__)
+    clang_flags.emplace_back("-Wl,-rpath,$ORIGIN");
+    clang_flags.emplace_back("-Wl,--enable-new-dtags");
+#endif
 
     return chemical_clang_main2(clang_flags);
 }

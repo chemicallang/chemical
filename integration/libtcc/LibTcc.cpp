@@ -113,6 +113,16 @@ bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName
             outputType = TCC_OUTPUT_DLL;
         }
     }
+    if (outputType == TCC_OUTPUT_EXE) {
+        // Set RPATH for compiled binaries (non-JIT)
+#if defined(__linux__)
+        // -Wl passes the rpath flag to the internal linker
+        tcc_set_options(s, "-Wl,-rpath,$ORIGIN");
+        tcc_set_options(s, "-Wl,--enable-new-dtags");
+#elif defined(__APPLE__)
+        tcc_set_options(s, "-Wl,-rpath,@executable_path");
+#endif
+    }
     const auto outputRes = tcc_set_output_type(s, outputType);
     if (outputRes == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't set tcc output type" << std::endl;
@@ -186,6 +196,17 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
         std::cerr << "couldn't set tcc output type" << std::endl;
         tcc_delete(s);
         return nullptr;
+    }
+
+    if (outputType == TCC_OUTPUT_EXE) {
+        // Set RPATH for compiled binaries (non-JIT)
+#if defined(__linux__)
+        // -Wl passes the rpath flag to the internal linker
+        tcc_set_options(s, "-Wl,-rpath,$ORIGIN");
+        tcc_set_options(s, "-Wl,--enable-new-dtags");
+#elif defined(__APPLE__)
+        tcc_set_options(s, "-Wl,-rpath,@executable_path");
+#endif
     }
 
     return s;

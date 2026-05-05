@@ -697,23 +697,20 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
     switch(node.kind) {
         JsNodeKind.Identifier => {
             const name = (node as *mut JsIdentifier).value;
-            return converter.is_reactive_var(name) || converter.is_component_props_name(name);
+            if(converter.is_reactive_var(name)) return true;
+            return converter.in_jsx_attribute && converter.is_component_props_name(name);
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
-            if(converter.is_component_props_read(node) || converter.is_component_props_read(mem.object)) {
-                return true;
-            }
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                 return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
             }
+            if(converter.in_jsx_attribute && converter.is_component_props_read(node)) return true;
             return converter.jsx_expr_needs_reactive_wrapper(mem.object);
         }
         JsNodeKind.IndexAccess => {
             const idx = node as *mut JsIndexAccess;
-            if(converter.is_component_props_read(node) || converter.is_component_props_read(idx.object)) {
-                return true;
-            }
+            if(converter.in_jsx_attribute && converter.is_component_props_read(node)) return true;
             return converter.jsx_expr_needs_reactive_wrapper(idx.object) || converter.jsx_expr_needs_reactive_wrapper(idx.index);
         }
         JsNodeKind.UnaryOp => {
@@ -763,42 +760,30 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
         converter.str.append_view("undefined");
         return;
     }
+
+    if(converter.is_component_props_read(node)) {
+        if(converter.is_props_children(node)) {
+            converter.convertJsNode(node);
+            return;
+        }
+        append_js_node_text(node, converter.str);
+        return;
+    }
+
     if(node.kind == JsNodeKind.Identifier) {
         const id = node as *mut JsIdentifier;
         if(converter.is_reactive_var(id.value)) {
             converter.str.append_view(id.value);
             return;
         }
-        if(converter.is_component_props_name(id.value)) {
-            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
-            converter.str.append_view(id.value);
-            return;
-        }
     } else if(node.kind == JsNodeKind.MemberAccess) {
         const mem = node as *mut JsMemberAccess;
-        if(converter.is_component_props_read(node)) {
-            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
-            converter.convertJsNode(mem.object);
-            converter.str.append_view(".");
-            converter.str.append_view(mem.property);
-            return;
-        }
         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
             const id = mem.object as *mut JsIdentifier;
             if(converter.is_reactive_var(id.value)) {
                 converter.str.append_view(id.value);
                 return;
             }
-        }
-    } else if(node.kind == JsNodeKind.IndexAccess) {
-        if(converter.is_component_props_read(node)) {
-            // Don't wrap component props with window.$__uni_value() - pass directly for reactivity
-            const idx = node as *mut JsIndexAccess;
-            converter.convertJsNode(idx.object);
-            converter.str.append_view("[");
-            converter.convertJsNode(idx.index);
-            converter.str.append_view("]");
-            return;
         }
     }
     if(converter.jsx_expr_needs_reactive_wrapper(node)) {

@@ -154,7 +154,9 @@ func build_nested_props_expr(
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;
                 if(expr != null) {
+                    converter.in_jsx_attribute = true;
                     converter.convert_jsx_runtime_expr(expr);
+                    converter.in_jsx_attribute = false;
                 } else {
                     s.append_view("true");
                 }

@@ -777,6 +777,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             return end ? end.nextSibling : cur;
         }
         let cur = dom;
+        if (!cur && parent) {
+            parent.appendChild(window.$_urn(v));
+            return null;
+        }
         for(let i = 0; i < v.length; i++) {
             cur = window.$__uni_hydrate_node(parent, cur, v[i]);
         }
@@ -835,8 +839,14 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
             return window.$__uni_hydrate_node(parent, dom, v.t(nextProps));
         }
-        if(!dom || dom.nodeType !== 1) return dom;
-        const e = dom;
+            if(!dom || dom.nodeType !== 1) {
+                if(!dom && parent) {
+                    const e = window.$_urn(v);
+                    parent.appendChild(e);
+                }
+                return dom;
+            }
+            const e = dom;
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         if(v.c && v.c.length) {

@@ -65,7 +65,7 @@ public struct File {
     if(def.windows) {
         struct { var handle : *mut void; } win;
     } else {
-        struct { var fd : int; } unix;
+        struct { var fd : int; } _unix;
     }
     var valid : bool;
 }

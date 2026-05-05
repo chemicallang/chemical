@@ -476,15 +476,6 @@ bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagn
         diagnoser.error(moved) << message;
         return false;
     }
-    const auto linked = id->linked;
-    const auto linked_kind = linked->kind();
-    if (linked_kind == ASTNodeKind::VarInitStmt) {
-        const auto init = linked->as_var_init_unsafe();
-        init->set_has_move(true);
-    } else if(linked_kind == ASTNodeKind::FunctionParam) {
-        const auto param = linked->as_func_param_unsafe();
-        param->set_has_move(true);
-    }
     mark_moved_no_check(id);
     return true;
 }

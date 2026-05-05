@@ -231,20 +231,6 @@ public:
     }
 
     /**
-     * check this variable has been moved
-     */
-    inline bool get_has_move() const {
-        return attrs.has_move;
-    }
-
-    /**
-     * call it when this variable has been moved
-     */
-    inline void set_has_move(bool value) {
-        attrs.has_move = value;
-    }
-
-    /**
      * get has assignment
      */
     inline bool get_has_assignment() {

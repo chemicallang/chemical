@@ -757,7 +757,6 @@ public struct string {
                     move_data_to_heap(storage.constant.data, storage.constant.length, (storage.constant.length * 2));
                     return storage.heap.data;
                 }
-                return &mut storage.sso.buffer[0];
             }
             '1' => {
                 return &mut storage.sso.buffer[0];

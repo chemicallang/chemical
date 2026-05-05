@@ -770,17 +770,17 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             let cur = start.nextSibling;
             while(cur && (cur.nodeType !== 8 || cur.nodeValue !== "e")) cur = cur.nextSibling;
             const end = cur;
-            start.after(window.$_urn(v));
-            return end ? end.nextSibling : null;
+            cur = start.nextSibling;
+            for(let i = 0; i < v.length; i++) {
+                cur = window.$__uni_hydrate_node(parent, cur, v[i]);
+            }
+            return end ? end.nextSibling : cur;
         }
-        const start = document.createComment("s");
-        const end = document.createComment("e");
-        if(parent) {
-            if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
-            else { parent.appendChild(start); parent.appendChild(end); }
+        let cur = dom;
+        for(let i = 0; i < v.length; i++) {
+            cur = window.$__uni_hydrate_node(parent, cur, v[i]);
         }
-        start.after(window.$_urn(v));
-        return dom;
+        return cur;
     }
     if(window.$__uni_is_state(v)) {
         if(dom && dom.nodeType === 8 && dom.nodeValue === "s") {

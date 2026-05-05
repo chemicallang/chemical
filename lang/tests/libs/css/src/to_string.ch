@@ -430,6 +430,15 @@ public func border_shorthand_with_radius_works(env : &mut TestEnv) {
 }
 
 @test
+public func transform_with_calc_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform: translateX(calc(-100% - 24px));
+    }
+    css_equals(env, page.toStringCssOnly(), "transform:translateX(calc(-100% - 24px));");
+}
+
+@test
 public func transform_multiple_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

@@ -236,14 +236,15 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
 func (cssParser : &mut CSSParser) parseLength(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
-    value : &mut CSSValue
+    value : &mut CSSValue,
+    required_unit : bool = true
 ) : bool {
 
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value)
+            alloc_value_length(parser, builder, value, token.value, required_unit)
             return true;
         }
         TokenType.LBrace, TokenType.DollarLBrace => {

@@ -752,30 +752,30 @@ func (converter : &mut ASTConverter) writeAnimationValueData(value : &mut CSSAni
     }
 }
 
-func writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
 
-    writeLength(ptr.length, str)
+    converter.writeValue(ptr.value)
 
-    if(ptr.next != null && ptr.next.length.kind != CSSLengthKind.Unknown) {
+    if(ptr.next != null && ptr.next.value.kind != CSSValueKind.Unknown) {
         str.append(',')
-        writeTransformNode(*ptr.next, str)
+        converter.writeTransformNode(*ptr.next, str)
     }
 
 }
 
-func writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
 
     str.append_view(ptr.transformFunction.value)
     str.append('(')
     if(ptr.node != null) {
-        writeTransformNode(*ptr.node, str)
+        converter.writeTransformNode(*ptr.node, str)
     } else {
         str.append_view(std::string_view("none"))
     }
     str.append(')')
     if(ptr.next != null) {
         str.append(' ')
-        writeTransformValueData(*ptr.next, str)
+        converter.writeTransformValueData(*ptr.next, str)
     }
 
 }
@@ -1402,7 +1402,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             if(ptr.node == null && ptr.transformFunction.kind != CSSKeywordKind.Perspective) {
                 str.append_view(std::string_view("none"))
             } else {
-                writeTransformValueData(*ptr, str)
+                converter.writeTransformValueData(*ptr, str)
             }
 
         }

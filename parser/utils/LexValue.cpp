@@ -1103,12 +1103,15 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
     std::size_t bit_width_index = value_size;
     // bit width size
     uint8_t bit_width_size = 0;
+    const auto is_suffix_digit = [](char c) {
+        return c >= '0' && c <= '9';
+    };
 
     if(value_size > 2) {
         const auto sec_last_index = value_size - 2;
         const auto sec_last = value[sec_last_index];
         // considering u8 or i8, or ui8
-        if(sec_last == 'i') {
+        if(sec_last == 'i' && is_suffix_digit(last_char)) {
             if(value_size > 3 && value[value_size - 3] == 'u') {
                 // u before i, means ui8 unsigned int
                 is_unsigned = true;
@@ -1120,7 +1123,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 suffix_index = sec_last_index;
             }
             bit_width_size = 1;
-        } else if(sec_last == 'u' && last_char != 'u' && last_char != 'U') {
+        } else if(sec_last == 'u' && is_suffix_digit(last_char)) {
             // at second last position i8 or u8 only 8 is valid as a single character
             is_unsigned = true;
             bit_width_index = last_char_index;
@@ -1130,7 +1133,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
             const auto third_last_index = value_size - 3;
             const auto third_last = value[third_last_index];
             // considering i16, i32, i64, u16, u32, u64, ui16, ui32, ui64
-            if(third_last == 'i') {
+            if(third_last == 'i' && is_suffix_digit(sec_last) && is_suffix_digit(last_char)) {
                 if(value_size > 4 && value[value_size - 4] == 'u') {
                     // u before i, means ui16, ui32 or ui64
                     is_unsigned = true;
@@ -1141,7 +1144,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                     suffix_index = third_last_index;
                 }
                 bit_width_size = 2;
-            } else if(third_last == 'u') {
+            } else if(third_last == 'u' && is_suffix_digit(sec_last) && is_suffix_digit(last_char)) {
                 is_unsigned = true;
                 bit_width_index = sec_last_index;
                 suffix_index = third_last_index;
@@ -1150,7 +1153,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 // considering i128, u128, ui128
                 const auto fourth_last_index = value_size - 4;
                 const auto fourth_last = value[fourth_last_index];
-                if(fourth_last == 'i') {
+                if(fourth_last == 'i' && is_suffix_digit(third_last) && is_suffix_digit(sec_last) && is_suffix_digit(last_char)) {
                     if(value_size > 5 && value[value_size - 5] == 'u') {
                         // u before i means ui128
                         is_unsigned = true;
@@ -1161,7 +1164,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                         bit_width_index = third_last_index;
                     }
                     bit_width_size = 3;
-                } else if(fourth_last == 'u') {
+                } else if(fourth_last == 'u' && is_suffix_digit(third_last) && is_suffix_digit(sec_last) && is_suffix_digit(last_char)) {
                     is_unsigned = true;
                     suffix_index = fourth_last_index;
                     bit_width_index = third_last_index;
@@ -1246,14 +1249,16 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
         case 'U':
         case 'u': {
             // mut_value[last_char_index] = '\0';
-            const auto num_val = parse_num(value, suffix_index, strtoul);
+            const auto parse_size = suffix_index == value_size ? last_char_index : suffix_index;
+            const auto num_val = parse_num(value, parse_size, strtoul);
             // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<IntNumValue>()) IntNumValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error};
         }
         case 'i':
         case 'I': {
             // mut_value[last_char_index] = '\0';
-            const auto num_val = parse_num(value, suffix_index, strtol);
+            const auto parse_size = suffix_index == value_size ? last_char_index : suffix_index;
+            const auto num_val = parse_num(value, parse_size, strtol);
             // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<IntNumValue>()) IntNumValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error};
         }
@@ -1264,7 +1269,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 const auto sec_last = value[sec_last_index];
                 if(sec_last == 'u' || sec_last == 'U') {
                     // mut_value[sec_last_index] = '\0';
-                    const auto num_value = parse_num(value, last_char_index, strtoul);
+                    const auto num_value = parse_num(value, sec_last_index, strtoul);
                     // mut_value[sec_last_index] = sec_last;
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue(num_value.result, typeBuilder.getULongType(), location), err.empty() ? num_value.error : err };
                 }

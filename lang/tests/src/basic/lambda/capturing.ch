@@ -287,5 +287,18 @@ func test_capturing_lambda() {
         var x = f()
         return x.value == 265
     })
+    test("capturing lambdas can capture other lambdas by value", () => {
+        var final = 0;
+        if(true) {
+            var f : std::function<() => int> = () => {
+                return 33;
+            }
+            var cap : std::function<() => int> = |f|() => {
+                return f()
+            }
+            final = cap();
+        }
+        return final == 33;
+    })
     test_capturing_lambda_destruction()
 }

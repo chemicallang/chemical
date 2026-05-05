@@ -86,14 +86,6 @@ public:
         attrs.is_implicit = value;
     }
 
-    inline bool get_has_move() const noexcept {
-        return attrs.has_move;
-    }
-
-    inline void set_has_move(bool value) {
-        attrs.has_move = value;
-    }
-
     inline bool get_has_assignment() const noexcept {
         return attrs.has_assignment;
     }

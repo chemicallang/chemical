@@ -478,17 +478,6 @@ llvm::Function* create_func(
     return fn;
 }
 
-bool get_has_move(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::VarInitStmt:
-            return node->as_var_init_unsafe()->get_has_move();
-        case ASTNodeKind::FunctionParam:
-            return node->as_func_param_unsafe()->get_has_move();
-        default:
-            return false;
-    }
-}
-
 llvm::Value* createDropFlag(Codegen & gen, SourceLocation location) {
     // create a boolean flag
     const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
@@ -548,7 +537,7 @@ std::optional<Destructible> create_destructible_with_drop_flag(
     if(container) {
         const auto destructor = container->destructor_func();
         if(destructor) {
-            const auto dropFlag = oldDropFlag ? oldDropFlag : get_has_move(node) ? createDropFlag(gen, location) : nullptr;
+            const auto dropFlag = oldDropFlag ? oldDropFlag : createDropFlag(gen, location);
             return create_destructible(
                     pointer, dropFlag, node, containerNode
             );
@@ -593,7 +582,7 @@ std::optional<Destructible> create_destructible_for(
             if(container->destructor_func() == nullptr) {
                 return std::nullopt;
             }
-            const auto dropFlag = oldDropFlag ? oldDropFlag : get_has_move(node) ? createDropFlag(gen, node->encoded_location()) : nullptr;
+            const auto dropFlag = oldDropFlag ? oldDropFlag : createDropFlag(gen, node->encoded_location());
             return create_arr_destructible(
                     pointer, dropFlag, node, arrType->get_array_size(), linkedNode->known_type()
             );

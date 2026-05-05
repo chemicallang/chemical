@@ -48,7 +48,8 @@ func (cssParser : &mut CSSParser) parseTransform(
                             break;
                         }
                     }
-                    if(cssParser.parseNumberOrLengthInto(parser, builder, node.length)) {
+                    // Use parseLength which handles numbers, lengths, calc(), and var()
+                    if(cssParser.parseLength(parser, builder, node.value, false)) {
 
                         parser.incrementToken(TokenType.Comma)
 

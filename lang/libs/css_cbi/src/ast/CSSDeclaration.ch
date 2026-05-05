@@ -433,7 +433,7 @@ struct CSSListStyleValueData {
 
 struct CSSTransformLengthNode {
 
-    var length : CSSLengthValueData
+    var value : CSSValue
 
     var next : *mut CSSTransformLengthNode
 

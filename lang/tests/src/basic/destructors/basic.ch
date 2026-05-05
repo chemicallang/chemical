@@ -21,6 +21,16 @@ struct Destructible {
 
 }
 
+struct CallerDeletableGeneric<T> {
+    func push(&self, value : T) {}
+    func push_back(&self, value : T) { push(value) }
+}
+
+// this function forces instantiation of CallerDeletableGeneric when linking signature
+func push_back_caller_del_gen(v : CallerDeletableGeneric<Destructible>, d : Destructible) {
+    v.push_back(d)
+}
+
 variant DestructibleVariant {
     Movable(value : Destructible)
 }
@@ -1079,5 +1089,17 @@ func test_destructors() {
         var e = &mut d
         destruct[0] e // shouldn't cause destruction, because array size is 0
         return count == 0
+    })
+    test("destructor is called exactly once when generic function that is used is monomorphized during signature linking", () => {
+        var count = 0
+        if(true) {
+            var d = Destructible {
+                data : 739, count : &mut count, lamb : destruct_inc_count
+            }
+            push_back_caller_del_gen(CallerDeletableGeneric<Destructible> {}, d)
+            // d would not be destructed here (because moved)
+            // and d would only be destructed once inside the push (not push_back)
+        }
+        return count == 1
     })
 }

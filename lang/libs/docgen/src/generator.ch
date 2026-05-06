@@ -469,7 +469,7 @@ func generate_sitemap(config : &DocConfig, urls : &std::vector<std::string>) {
             xml.append('/');
         }
         
-        xml.append_view(urls.get(i).to_view());
+        xml.append_view(urls.get_ptr(i).to_view());
         xml.append_view("</loc>\n  </url>\n");
         i++;
     }

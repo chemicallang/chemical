@@ -16,6 +16,8 @@ class ASTAny;
 
 class Codegen;
 
+struct ASTFileResult;
+
 /**
  * the debug information visitor is created for emitting debug information
  * the object of debug info builder is created once for each task (executable)
@@ -69,6 +71,11 @@ public:
      * these are only created when self referential data types are used
      */
     std::vector<std::pair<ASTNode*, llvm::DICompositeType*>> replaceAbleTypes;
+
+    /**
+     * file scopes created for files are cached
+     */
+    std::unordered_map<ASTFileResult*, llvm::DIFile*> fileScopes;
 
     /**
      * create a info visitor for a single module
@@ -147,6 +154,16 @@ public:
      * this ends the current di compile unit
      */
     void end_di_compile_unit();
+
+    /**
+     * start file scope for given file result
+     */
+    void start_file_scope(ASTFileResult* meta);
+
+    /**
+     * end the file scope
+     */
+    void end_file_scope();
 
     /**
      * starts a nested function scope

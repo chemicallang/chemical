@@ -96,7 +96,7 @@ void ASTProcessor::determine_module_files(
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
                 // all these files belong to the given module, so it's scope will be used
-                files.emplace_back(fileId, &module->module_scope, std::move(abs_path), nullptr);
+                files.emplace_back(fileId, &module->module_scope, std::move(abs_path));
             }
             return;
         }
@@ -116,7 +116,7 @@ void ASTProcessor::determine_module_files(
                     getFilesInDirectory(filePaths, dir_path_p);
                     for (auto& abs_path : filePaths) {
                         auto fileId = loc_man.encodeFile(abs_path);
-                        files.emplace_back(fileId, &module->module_scope, abs_path, nullptr);
+                        files.emplace_back(fileId, &module->module_scope, abs_path);
                     }
                 } else if(dir_path.ends_with(".ch")) {
                     auto dir_path_view = dir_path.to_view();
@@ -126,7 +126,7 @@ void ASTProcessor::determine_module_files(
                         continue;
                     } else {
                         auto fileId = loc_man.encodeFile(abs_path);
-                        files.emplace_back(fileId, &module->module_scope, abs_path, nullptr);
+                        files.emplace_back(fileId, &module->module_scope, abs_path);
                     }
                 } else {
                     std::cerr << rang::fg::red << "error: " << rang::fg::reset << "path '" << dir_path << "' in module '" << *module << "' is not a directory or a chemical file" << std::endl;
@@ -507,8 +507,8 @@ bool ASTProcessor::import_chemical_files_direct(
         // we must try to store chem::string_view into the fileData, from the beginning
         const auto ptr = new ASTFileResult(file_id, "", fileData.module);
         // copy the metadata into it
-        *static_cast<ASTFileMetaData*>(ptr) = fileData;
         fileData.result = ptr;
+        *static_cast<ASTFileMetaData*>(ptr) = fileData;
         // cache uses std::unique_ptr to destruct it
         // we must store in cache, otherwise we'll have a memory leak
         cache.emplace(file_id, ptr);
@@ -882,7 +882,6 @@ bool ASTProcessor::import_chemical_files_direct_with_tokens(
         // copy the metadata into it
         *static_cast<ASTFileMetaData*>(ptr) = fileData;
         fileData.result = ptr;
-        ptr->result = ptr; // Ensure the result points to itself for CBI access
         // cache uses std::unique_ptr to destruct it
         // we must store in cache, otherwise we'll have a memory leak
         cache.emplace(file_id, ptr);
@@ -940,7 +939,6 @@ bool ASTProcessor::parse_chemical_file(
     result.file_id = fileId;
     result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
-    result.diCompileUnit = nullptr;
 
     auto& unit = result.unit;
 
@@ -1031,7 +1029,6 @@ bool ASTProcessor::import_chemical_file(
     result.file_id = fileId;
     result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
-    result.diCompileUnit = nullptr;
 
     auto& unit = result.unit;
 
@@ -1126,7 +1123,6 @@ bool ASTProcessor::import_chemical_file_with_tokens(
     result.file_id = fileId;
     result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
-    result.diCompileUnit = nullptr;
 
     auto& unit = result.unit;
 

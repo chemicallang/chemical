@@ -46,6 +46,10 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::StructType *llvm_get_stored_type(Codegen& gen);
+
+    void llvm_store_type(Codegen& gen, llvm::StructType* type);
+
     llvm::Type *llvm_type(Codegen &gen) final;
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;

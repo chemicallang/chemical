@@ -97,9 +97,9 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    void code_gen_declare(Codegen &gen) override;
+    void code_gen_declare(Codegen &gen) override {}
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) override {}
 
     void code_gen_external_declare(Codegen &gen) override;
 

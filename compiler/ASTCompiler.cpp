@@ -144,44 +144,21 @@ int ASTProcessor::compile_module(
     std::vector<LabModule*> dependencies;
     shallow_dedupe_sorted(dependencies, module->dependencies);
 
+    // creating a compile unit
+    const auto compileUnit = gen.di.createDiCompileUnit(module->direct_files.empty() ? chem::string_view("") : chem::string_view(module->direct_files.front().abs_path));
+    gen.di.start_di_compile_unit(compileUnit);
+
     // we will declare the direct dependencies of this module
     for(const auto dep : dependencies) {
         for(auto& metaFile : dep->direct_files) {
-            if(metaFile.result != nullptr) {
-                auto& file = *metaFile.result;
-                auto& body = file.unit.scope.body;
-                auto& abs_path = file.abs_path;
 
-                // this is probably a different module, so we'll declare the file (if not declared)
-                if(gen.di.isEnabled) {
+            auto& file = *metaFile.result;
+            auto& body = file.unit.scope.body;
+            auto& abs_path = file.abs_path;
 
-                    // we create the file di compile unit again
-                    // that's because every module has a single di builder
-                    // when the module completes it dies along with compile units
-                    // so we create it again
-                    const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
-                    const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
-                    file.diCompileUnit = fileDiCompileUnit;
+            // declare external nodes
+            external_declare_nodes(gen, body, file.abs_path);
 
-                    // start the di compile unit
-                    gen.di.start_di_compile_unit(fileDiCompileUnit);
-
-                    // declare external nodes
-                    external_declare_nodes(gen, body, file.abs_path);
-
-                    // end the di compile unit scope
-                    gen.di.end_di_compile_unit();
-
-                } else {
-
-                    // declare external nodes
-                    external_declare_nodes(gen, body, file.abs_path);
-
-                }
-
-            } else {
-                CHEM_THROW_RUNTIME("result is null");
-            }
         }
     }
 
@@ -202,98 +179,64 @@ int ASTProcessor::compile_module(
 
         auto& abs_path = file.abs_path;
 
-        if(gen.di.isEnabled) {
-
-            // create  di compile unit and attach it to the file
-            const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
-            const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
-
-            // attach the unit to file
-            file.diCompileUnit = fileDiCompileUnit;
-
-            // start the unit
-            gen.di.start_di_compile_unit(fileDiCompileUnit);
-
-            // compiling the nodes
-            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
-
-            // end the current unit
-            gen.di.end_di_compile_unit();
-
-        } else {
-
-            // compiling the nodes
-            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
-
-        }
+        // compiling the nodes
+        code_gen_declare(gen, unit.scope.body.nodes, abs_path);
 
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();
 
     }
 
-    // we will implement declare the direct dependencies of this module
-    for(const auto dep : dependencies) {
-        for(auto& metaFile : dep->direct_files) {
-            if(metaFile.result != nullptr) {
-                auto& file = *metaFile.result;
-                auto& body = file.unit.scope.body;
+    // these are the generically monomorphized instantiations
+    // that were created by this module
+    auto& instantiations = container.get_current_module_instantiations();
 
-                // this is probably a different module, so we'll declare the file (if not declared)
-                if(gen.di.isEnabled) {
+    // we track for which files we created new di units
+    // we must set them to null (so they don't get reused)
+    std::vector<ASTFileResult*> newly_created_di_units;
 
-                    // start the di compile unit
-                    gen.di.start_di_compile_unit(file.diCompileUnit);
-
-                    // declare external nodes
-                    code_gen_external_implement_declare(gen, body.nodes, file.abs_path);
-
-                    // end the di compile unit scope
-                    gen.di.end_di_compile_unit();
-
-                } else {
-
-                    // declare external nodes
-                    code_gen_external_implement_declare(gen, body.nodes, file.abs_path);
-
-                }
-
-            } else {
-                CHEM_THROW_RUNTIME("result is null");
-            }
+    // declaring the generic instantiations created in this module
+    for (const auto node : instantiations) {
+        const auto file_scope = node->get_file_scope();
+        if (file_scope == nullptr) {
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("couldn't get file scope from a generically monomorphized declaration");
+#endif
+            continue;
         }
+        const auto result = file_scope->meta.result;
+        if (result == nullptr) {
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("couldn't get file result from a generically monomorphized declaration");
+#endif
+            continue;
+        }
+
+        // just declare
+        node->code_gen_declare(gen);
+
     }
 
-    // we will implement the direct dependencies of this module
-    for(const auto dep : dependencies) {
-        for(auto& metaFile : dep->direct_files) {
-            if(metaFile.result != nullptr) {
-                auto& file = *metaFile.result;
-                auto& body = file.unit.scope.body;
-
-                // this is probably a different module, so we'll declare the file (if not declared)
-                if(gen.di.isEnabled) {
-
-                    // start the di compile unit
-                    gen.di.start_di_compile_unit(file.diCompileUnit);
-
-                    // declare external nodes
-                    code_gen_external_implement(gen, body.nodes, file.abs_path);
-
-                    // end the di compile unit scope
-                    gen.di.end_di_compile_unit();
-
-                } else {
-
-                    // declare external nodes
-                    code_gen_external_implement(gen, body.nodes, file.abs_path);
-
-                }
-
-            } else {
-                CHEM_THROW_RUNTIME("result is null");
-            }
+    // implementing the generic instantiations created in this module
+    for (const auto node : instantiations) {
+        const auto file_scope = node->get_file_scope();
+        if (file_scope == nullptr) {
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("couldn't get file scope from a generically monomorphized declaration");
+#endif
+            continue;
         }
+        const auto result = file_scope->meta.result;
+        if (result == nullptr) {
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("couldn't get file result from a generically monomorphized declaration");
+#endif
+            continue;
+        }
+
+        // implement the node
+        node->code_gen(gen);
+
     }
 
     // The fourth loop also only compiles the files that present inside this module
@@ -305,29 +248,24 @@ int ASTProcessor::compile_module(
 
         ASTUnit& unit = file.unit;
 
-        if(gen.di.isEnabled) {
-
-            // start the unit
-            gen.di.start_di_compile_unit(file.diCompileUnit);
-
-            // compiling the nodes
-            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
-
-            // end the current unit
-            gen.di.end_di_compile_unit();
-
-        } else {
-
-            // compiling the nodes
-            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
-
-        }
+        // compiling the nodes
+        code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
 
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();
 
     }
 
+    // end the di compile unit
+    // this causes struct types to die
+    gen.di.end_di_compile_unit();
+    // this is really important
+    // it removes cached types, cached scopes
+    // if this is not called, freed memory can make into next module's compilation
+    gen.di.finalize();
+    // clear the generic instantiations for this module in the container
+    // so these don't get generated when generating code for the next module
+    container.clear_current_module_instantiations();
     // here we store struct types, function callee values to reuse them inside module
     // clearing this after module has compiled prevents reusing function callee's created
     // for this module, forces us to redeclare functions and structs in external module

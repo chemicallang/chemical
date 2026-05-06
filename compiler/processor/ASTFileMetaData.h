@@ -68,6 +68,19 @@ struct ASTFileMetaData {
     }
 
     /**
+     * the file meta data
+     */
+    constexpr ASTFileMetaData(
+            unsigned int file_id,
+            ModuleScope* module,
+            std::string abs_path,
+            ASTFileResult* result
+    ) : file_id(file_id), private_symbol_range(0, 0),
+        module(module), abs_path(std::move(abs_path)), result(result) {
+
+    }
+
+    /**
      * constructor
      */
     ASTFileMetaData(

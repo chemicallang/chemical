@@ -153,24 +153,6 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 
 #ifdef COMPILER_BUILD
 
-void GenericFuncDecl::code_gen_declare(Codegen &gen) {
-    auto i = total_bodied_instantiations;
-    const auto total = instantiations.size();
-    while(i < total) {
-        instantiations[i]->code_gen_declare(gen);
-        i++;
-    }
-}
-
-void GenericFuncDecl::code_gen(Codegen &gen) {
-    auto& i = total_bodied_instantiations;
-    const auto total = instantiations.size();
-    while(i < total) {
-        instantiations[i]->code_gen(gen);
-        i++;
-    }
-}
-
 void GenericFuncDecl::code_gen_external_declare(Codegen &gen) {
     unsigned i = 0;
     const auto total = total_bodied_instantiations;

@@ -163,12 +163,12 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
 }
 
 llvm::StructType* StructDefinition::llvm_stored_type(Codegen& gen) {
-    return llvm_struct_type;
+    auto found = gen.ctx_ptr_cache.find(this);
+    return found != gen.ctx_ptr_cache.end() ? ((llvm::StructType*) found->second) : nullptr;
 }
 
 void StructDefinition::llvm_store_type(Codegen& gen, llvm::StructType* type) {
-    // auto creation
-    llvm_struct_type = type;
+    gen.ctx_ptr_cache[this] = type;
 }
 
 llvm::StructType* StructDefinition::with_elements_type(
@@ -185,7 +185,7 @@ llvm::StructType* StructDefinition::with_elements_type(
 }
 
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    if(auto stored = llvm_stored_type(gen)) return stored;
+    if(const auto stored = llvm_stored_type(gen)) return stored;
     const auto new_type = with_elements_type(gen, elements_type(gen), is_anonymous());
     llvm_store_type(gen, new_type);
     return new_type;
@@ -199,8 +199,20 @@ llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<Value*> 
     return with_elements_type(gen, elements_type(gen, values, index), true);
 }
 
+llvm::StructType* UnnamedStruct::llvm_get_stored_type(Codegen& gen) {
+    auto found = gen.ctx_ptr_cache.find(this);
+    return found != gen.ctx_ptr_cache.end() ? ((llvm::StructType*) found->second) : nullptr;
+}
+
+void UnnamedStruct::llvm_store_type(Codegen& gen, llvm::StructType* type) {
+    gen.ctx_ptr_cache[this] = type;
+}
+
 llvm::Type* UnnamedStruct::llvm_type(Codegen &gen) {
-    return llvm::StructType::get(*gen.ctx, direct_variables_type(gen));
+    if (const auto found = llvm_get_stored_type(gen)) return found;
+    const auto created = llvm::StructType::get(*gen.ctx, direct_variables_type(gen));
+    llvm_store_type(gen, created);
+    return created;
 }
 
 llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {

@@ -177,6 +177,11 @@ public:
     std::unordered_map<ASTNode*, llvm::Value*> mod_ptr_cache;
 
     /**
+     * context pointer cache, it is only destroyed when the llvm context is destroyed
+     */
+    std::unordered_map<ASTNode*, llvm::Type*> ctx_ptr_cache;
+
+    /**
      * this keeps track of llvm pointers for functions that we created in different implementations
      * that implement interfaces for structs
      * everytime you write 'impl Interface for Struct' we store llvm function pointers in that block here

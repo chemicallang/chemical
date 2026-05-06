@@ -248,7 +248,9 @@ void finalizeReplaceableType(DebugInfoBuilder& di) {
 
 void DebugInfoBuilder::finalize() {
     cachedTypes.clear();
+    replaceAbleTypes.clear();
     diScopes.clear();
+    diCompileUnit = nullptr;
     builder->finalize();
 }
 
@@ -452,12 +454,14 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
             builder->createExpression()
         );
     } else {
+        const auto Ty = to_di_type(*this, init->known_type(), false);
+        auto cloned = Ty->clone();
         llvm::DILocalVariable* Var = builder->createAutoVariable(
                 diScopes.back(),
                 to_ref(init->name_view()),
                 diCompileUnit->getFile(),
                 location.start.line + 1,
-                to_di_type(*this, init->known_type(), false)
+                Ty
         );
         const auto loc = di_loc(location.start);
         if (!init->is_const() && llvm::isa<llvm::Instruction>(val) && !llvm::isa<llvm::PHINode>(val)) {

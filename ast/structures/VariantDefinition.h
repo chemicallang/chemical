@@ -27,13 +27,6 @@ public:
     VariantDeclAttributes attrs;
     LinkedType ref_type;
 
-#ifdef COMPILER_BUILD
-    /**
-     * the llvm struct type
-     */
-    llvm::StructType* llvm_struct_type = nullptr;
-#endif
-
     /**
      * constructor
      */
@@ -140,6 +133,10 @@ public:
     llvm::Value* get_param_pointer(Codegen& gen, llvm::Type* type, llvm::Value* pointer, VariantMemberParam* param);
 
     llvm::Value* get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param);
+
+    llvm::StructType* llvm_stored_type(Codegen& gen);
+
+    void llvm_store_type(Codegen& gen, llvm::StructType* type);
 
     llvm::Type* llvm_type(Codegen &gen) final;
 

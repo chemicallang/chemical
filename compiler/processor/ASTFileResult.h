@@ -26,11 +26,6 @@ struct ASTFileResult : ASTFileMetaData {
     ChildrenMapNode* children = nullptr;
 
     /**
-     * the compile unit
-     */
-    llvm::DICompileUnit* diCompileUnit = nullptr;
-
-    /**
      * the imported files by this file, these files don't contain duplicates
      * or already imported files
      */
@@ -70,7 +65,7 @@ struct ASTFileResult : ASTFileMetaData {
             unsigned int file_id,
             std::string abs_path,
             ModuleScope* module
-    ) : ASTFileMetaData(file_id, module, std::move(abs_path)),
+    ) : ASTFileMetaData(file_id, module, std::move(abs_path), this),
         continue_processing(true), unit(*this, module)
     {
 

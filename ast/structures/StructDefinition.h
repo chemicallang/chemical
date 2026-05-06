@@ -78,14 +78,6 @@ private:
 public:
     LinkedType linked_type;
 
-#ifdef COMPILER_BUILD
-    /**
-     * the key here is the generic iteration, where as the value corresponds to
-     * a llvm struct type, we create a struct type once, and then cache it
-     */
-    llvm::StructType* llvm_struct_type = nullptr;
-#endif
-
     /**
      * @brief Construct a new StructDeclaration object.
      *

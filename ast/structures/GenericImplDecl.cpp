@@ -136,25 +136,6 @@ ImplDefinition* GenericImplDecl::instantiate_type(GenericInstantiatorAPI& instan
 
 #ifdef COMPILER_BUILD
 
-void GenericImplDecl::code_gen_declare(Codegen &gen) {
-    auto& i = total_declared_instantiations;
-    const auto total = instantiations.size();
-    while(i < total) {
-        instantiations[i]->code_gen_declare(gen);
-        i++;
-    }
-}
-
-void GenericImplDecl::code_gen(Codegen &gen) {
-    auto i = total_bodied_instantiations;
-    const auto total = instantiations.size();
-    while(i < total) {
-        instantiations[i]->code_gen(gen);
-        i++;
-    }
-    total_bodied_instantiations = instantiations.size();
-}
-
 void GenericImplDecl::code_gen_external_declare(Codegen &gen) {
     // only declare the instantiations that have been bodied
     auto i = 0;

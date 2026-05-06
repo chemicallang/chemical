@@ -1173,9 +1173,6 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
-    // finalizing the di builder
-    gen.di.finalize();
-
     // disposing data
     mod_allocator->clear();
 
@@ -2611,8 +2608,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
     std::string path(path_view);
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, nullptr);
     ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module.module_scope);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, &labFileResult);
 
     // import the file into result (lex and parse)
     // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules

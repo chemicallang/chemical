@@ -101,13 +101,20 @@ llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* poi
     return gen.builder->CreateGEP(specific_payload_type, casted_payload_ptr, paramIdxList, "", gen.inbounds);
 }
 
+llvm::StructType* VariantDefinition::llvm_stored_type(Codegen& gen) {
+    auto found = gen.ctx_ptr_cache.find(this);
+    return found != gen.ctx_ptr_cache.end() ? ((llvm::StructType*) found->second) : nullptr;
+}
+
+void VariantDefinition::llvm_store_type(Codegen& gen, llvm::StructType* type) {
+    gen.ctx_ptr_cache[this] = type;
+}
+
 llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
-    if(llvm_struct_type) {
-        return llvm_struct_type;
-    }
+    if(const auto stored = llvm_stored_type(gen)) return stored;
     const auto largest = largest_member()->as_variant_member_unsafe();
     const auto type = llvm_type_with_member(gen, largest, is_anonymous());
-    llvm_struct_type = type;
+    llvm_store_type(gen, type);
     return type;
 }
 

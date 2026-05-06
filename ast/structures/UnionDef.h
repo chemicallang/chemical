@@ -28,10 +28,6 @@ public:
     UnionDeclAttributes attrs;
     LinkedType linked_type;
 
-#ifdef COMPILER_BUILD
-    llvm::StructType* llvm_struct_type = nullptr;
-#endif
-
     UnionDef(
         chem::string_view identifier,
         ASTNode* parent_node,
@@ -135,13 +131,9 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
 
-    inline llvm::StructType *llvm_union_get_stored_type() {
-        return llvm_struct_type;
-    }
+    llvm::StructType *llvm_get_stored_type(Codegen& gen);
 
-    inline void llvm_union_type_store(llvm::StructType* type) {
-        llvm_struct_type = type;
-    }
+    void llvm_store_type(Codegen& gen, llvm::StructType* type);
 
     bool add_child_index(
         Codegen &gen,

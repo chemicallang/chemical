@@ -156,8 +156,23 @@ int ASTProcessor::compile_module(
             auto& body = file.unit.scope.body;
             auto& abs_path = file.abs_path;
 
-            // declare external nodes
-            external_declare_nodes(gen, body, file.abs_path);
+            if (gen.di.isEnabled) {
+
+                // start the file scope
+                gen.di.start_file_scope(metaFile.result);
+
+                // declare external nodes
+                external_declare_nodes(gen, body, file.abs_path);
+
+                // end the file scope
+                gen.di.end_file_scope();
+
+            } else {
+
+                // declare external nodes
+                external_declare_nodes(gen, body, file.abs_path);
+
+            }
 
         }
     }
@@ -179,8 +194,23 @@ int ASTProcessor::compile_module(
 
         auto& abs_path = file.abs_path;
 
-        // compiling the nodes
-        code_gen_declare(gen, unit.scope.body.nodes, abs_path);
+        if (gen.di.isEnabled) {
+
+            // start the file scope
+            gen.di.start_file_scope(&result);
+
+            // compiling the nodes
+            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
+
+            // end the file scope
+            gen.di.end_file_scope();
+
+        } else {
+
+            // compiling the nodes
+            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
+
+        }
 
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();
@@ -212,8 +242,23 @@ int ASTProcessor::compile_module(
             continue;
         }
 
-        // just declare
-        node->code_gen_declare(gen);
+        if (gen.di.isEnabled) {
+
+            // start the file scope
+            gen.di.start_file_scope(result);
+
+            // just declare
+            node->code_gen_declare(gen);
+
+            // end the file scope
+            gen.di.end_file_scope();
+
+        } else {
+
+            // just declare
+            node->code_gen_declare(gen);
+
+        }
 
     }
 
@@ -234,8 +279,23 @@ int ASTProcessor::compile_module(
             continue;
         }
 
-        // implement the node
-        node->code_gen(gen);
+        if (gen.di.isEnabled) {
+
+            // start the file scope
+            gen.di.start_file_scope(result);
+
+            // implement the node
+            node->code_gen(gen);
+
+            // end the file scope
+            gen.di.end_file_scope();
+
+        } else {
+
+            // implement the node
+            node->code_gen(gen);
+
+        }
 
     }
 
@@ -248,8 +308,23 @@ int ASTProcessor::compile_module(
 
         ASTUnit& unit = file.unit;
 
-        // compiling the nodes
-        code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
+        if (gen.di.isEnabled) {
+
+            // start the file scope
+            gen.di.start_file_scope(&result);
+
+            // compiling the nodes
+            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
+
+            // end the file scope
+            gen.di.end_file_scope();
+
+        } else {
+
+            // compiling the nodes
+            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
+
+        }
 
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();

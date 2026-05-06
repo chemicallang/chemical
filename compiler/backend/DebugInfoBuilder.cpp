@@ -36,6 +36,8 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/values/FunctionCall.h"
+#include "compiler/processor/ASTFileMetaData.h"
+#include "compiler/processor/ASTFileResult.h"
 
 inline LocationManager::LocationPosData loc_node(DebugInfoBuilder* visitor, SourceLocation loc) {
     return visitor->loc_man.getLocationPos(loc);
@@ -84,6 +86,27 @@ llvm::DICompileUnit* DebugInfoBuilder::createDiCompileUnit(const chem::string_vi
     );
     diScopes.clear();
     return diCompileUnit;
+}
+
+void DebugInfoBuilder::start_file_scope(ASTFileResult* meta) {
+    auto found = fileScopes.find(meta);
+    if (found != fileScopes.end()) {
+        diScopes.emplace_back(found->second);
+        return;
+    }
+    auto [fileName, dirPath] = splitPath(chem::string_view(meta->abs_path));
+    auto createdFileScope = builder->createFile(fileName, dirPath);
+    diScopes.emplace_back(createdFileScope);
+}
+
+void DebugInfoBuilder::end_file_scope() {
+#ifdef DEBUG
+    auto final = diScopes.back();
+    if (final->getFile() == nullptr) {
+        CHEM_THROW_RUNTIME("ending a scope that is not a file");
+    }
+#endif
+    diScopes.pop_back();
 }
 
 void DebugInfoBuilder::start_di_compile_unit(llvm::DICompileUnit* unit) {
@@ -251,6 +274,7 @@ void DebugInfoBuilder::finalize() {
     replaceAbleTypes.clear();
     diScopes.clear();
     diCompileUnit = nullptr;
+    fileScopes.clear();
     builder->finalize();
 }
 

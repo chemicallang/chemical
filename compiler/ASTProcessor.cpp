@@ -550,7 +550,7 @@ TypeVerifyFileResult type_verify_file_task(
     ASTDiagnoser diagnoser(processor->loc_man);
 
     // run verification
-    type_verify(diagnoser, processor->file_allocator, file->unit.scope.body.nodes);
+    type_verify(processor->resolver->implsIndex, diagnoser, processor->file_allocator, file->unit.scope.body.nodes);
 
     result.has_errors = diagnoser.has_errors();
     result.diagnostics = std::move(diagnoser.diagnostics);

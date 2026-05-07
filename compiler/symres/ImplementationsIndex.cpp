@@ -25,6 +25,24 @@ bool ImplementationsIndex::add_interface(ASTNode* interface, ASTAny* for_, ImplD
     }
 }
 
+ImplDefinition* ImplementationsIndex::get_impl(InterfaceDefinition* interface, ASTAny* for_) {
+    return get(interface->generic_parent != nullptr ? (ASTNode*) interface->generic_parent : interface, for_);
+}
+
+ImplDefinition* ImplementationsIndex::get_impl(ASTNode* interface, ASTAny* for_) {
+    switch (interface->kind()) {
+        case ASTNodeKind::InterfaceDecl: {
+            const auto gen_parent = interface->as_interface_def_unsafe()->generic_parent;
+            const auto index_key = gen_parent != nullptr ? (ASTNode*) gen_parent : ((ASTNode*) interface);
+            return get(index_key, for_);
+        }
+        case ASTNodeKind::GenericInterfaceDecl:
+            return get((ASTNode*) interface, for_);
+        default:
+            return nullptr;
+    }
+}
+
 static FunctionDeclaration* implementation_of(ImplementationsIndex& index, FunctionDeclaration* op_base, ASTAny* for_type) {
     if (op_base == nullptr) {
         return nullptr;

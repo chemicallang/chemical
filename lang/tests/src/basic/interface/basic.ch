@@ -42,11 +42,13 @@ struct Point3828 {
     var b : int
 }
 
-impl DelegateInterface2342 for Point3828 {
+impl IndirectlyInheritedInterface9328 for Point3828 {
     func multiply(&self) : int {
         return a * b;
     }
 }
+
+impl DelegateInterface2342 for Point3828 {}
 
 func use_of_static_inter_bef_def(s : &static_interface_after_usage) : int {
     return s.give()

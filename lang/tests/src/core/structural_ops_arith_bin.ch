@@ -87,6 +87,13 @@ impl core::ops::PartialEq<&StructuralArithBinOpStruct> for StructuralArithBinOpS
         return a != other.a && b != other.b
     }
 }
+
+impl core::ops::PartialOrd<core::ops::Ordering, StructuralArithBinOpStruct> for StructuralArithBinOpStruct {
+    func partial_cmp(&self, other : &StructuralArithBinOpStruct) : core::ops::Option<core::ops::Ordering> {
+        return core::ops::Option.None<core::ops::Ordering>()
+    }
+}
+
 impl core::ops::Ord for StructuralArithBinOpStruct {
     func cmp(&self, other : &StructuralArithBinOpStruct) : core::ops::Ordering {
         // no time to write the compare

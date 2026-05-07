@@ -293,20 +293,24 @@ struct ChildStructImplementsGrandpa {
     var b : int
 }
 
-impl ParentInterface for ChildStructImplementsGrandpa {
+impl GrandpaInterface for ChildStructImplementsGrandpa {
     func give(&self) : int {
         return a + b;
     }
 }
 
+impl ParentInterface for ChildStructImplementsGrandpa {}
+
 struct PlaceboOverrideGrandparentChild {
 }
 
-impl ParentInterface for PlaceboOverrideGrandparentChild {
+impl GrandpaInterface for PlaceboOverrideGrandparentChild {
     func give(&self) : int {
         return 383
     }
 }
+
+impl ParentInterface for PlaceboOverrideGrandparentChild {}
 
 struct DefaultConstructedPoint {
     var a : int

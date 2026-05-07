@@ -3266,13 +3266,7 @@ void declare_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Ext
 }
 
 // basically declare vtables for all interfaces in the heirarchy
-void declare_v_table_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
-    for(auto& inh : interface->inherited) {
-        const auto inherited = inh.type->get_direct_linked_interface();
-        if(inherited) {
-            declare_v_table_recursive(visitor, inherited, definition);
-        }
-    }
+void declare_v_table_extern(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
     visitor.new_line_and_indent();
     // we need the extern (apparently), tiny cc considers these declarations definitions and then errors out
     visitor.write("extern ");
@@ -3296,16 +3290,6 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Exte
     visitor.write('}');
 
     visitor.write(';');
-}
-
-void create_v_table_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
-    for(auto& inh : interface->inherited) {
-        const auto inherited = inh.type->get_direct_linked_interface();
-        if(inherited) {
-            create_v_table_recursive(visitor, inherited, definition);
-        }
-    }
-    create_v_table(visitor, interface, definition);
 }
 
 void declare_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
@@ -3406,7 +3390,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                         interface_def->has_declared = true;
                     }
                     // we will only declare the vtable (only declare)
-                    declare_v_table_recursive(visitor, interface_def, for_decl);
+                    declare_v_table_extern(visitor, interface_def, for_decl);
                 }
             } else {
                 // native primitive type
@@ -4403,7 +4387,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     // handle static interface implementation
     if(linked_interface && linked_interface->generates_vtable()) {
         if (for_decl) {
-            create_v_table_recursive(*this, linked_interface, for_decl);
+            create_v_table(*this, linked_interface, for_decl);
         } else {
             create_v_table_for_primitive_impl(*this, linked_interface, def);
         }
@@ -7019,6 +7003,14 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             if(linked.as_interface_def_unsafe()->active_user) {
                 write("struct ");
                 mangle(linked.as_interface_def_unsafe()->active_user);
+            } else {
+                write("void*");
+            }
+            return;
+        case ASTNodeKind::GenericInterfaceDecl:
+            if (linked.as_gen_interface_decl_unsafe()->master_impl->active_user) {
+                write("struct ");
+                mangle(linked.as_gen_interface_decl_unsafe()->master_impl->active_user);
             } else {
                 write("void*");
             }

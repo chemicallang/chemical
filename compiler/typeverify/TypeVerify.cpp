@@ -9,6 +9,7 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/MembersContainer.h"
+#include "compiler/symres/ImplementationsIndex.h"
 #include "core/source/LocationManager.h"
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type) {
@@ -73,7 +74,20 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
     }
 }
 
-void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
+static bool is_empty_interface(ASTNode* node) {
+    switch (node->kind()) {
+        case ASTNodeKind::InterfaceDecl:
+            if (node->as_interface_def_unsafe()->evaluated_nodes().empty()) return true;
+            return false;
+        case ASTNodeKind::GenericInterfaceDecl:
+            if (node->as_gen_interface_decl_unsafe()->master_impl->evaluated_nodes().empty()) return true;
+            return false;
+        default:
+            return false;
+    }
+}
+
+void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
 
     // so why always select the master (template) interface
     // because we need to get the base function, which has been indexed, to look up
@@ -86,10 +100,17 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* im
     }
 
     // First, verify inherited interfaces
-    for (auto& inh : interface->inherited) {
-        const auto canonical_node = inh.type->get_direct_linked_canonical_node();
-        if(canonical_node->kind() == ASTNodeKind::InterfaceDecl) {
-            verify_interface_implementation(diagnoser, implementor, canonical_node->as_interface_def_unsafe());
+    if (!interface->inherited.empty()) {
+        const auto container = implementor->struct_type->get_members_container();
+        const auto for_ = container ? ((ASTAny*) container) : ((ASTAny*) implementor->struct_type.getType());
+        for (auto& inh : interface->inherited) {
+            const auto canonical_node = inh.type->get_direct_linked_canonical_node();
+            if (canonical_node == nullptr) continue;
+            const auto impl = index.get_impl(canonical_node, for_);
+            if (impl == nullptr) {
+                // if (is_empty_interface(canonical_node)) continue;
+                diagnoser.error(implementor) << "no implementation of interface '" << inh.type->representation() << "' could be found for '" << implementor->struct_type->representation() << '\'';
+            }
         }
     }
 
@@ -135,7 +156,7 @@ void verify_interface_implementation(ASTDiagnoser& diagnoser, ImplDefinition* im
     }
 }
 
-void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
+void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
     TypeVerifier verifier(allocator, diagnoser);
     for(const auto node : nodes) {
         switch(node->kind()) {
@@ -160,7 +181,7 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
             }
             case ASTNodeKind::NamespaceDecl: {
                 const auto ns = node->as_namespace_unsafe();
-                type_verify(diagnoser, allocator, ns->nodes);
+                type_verify(index, diagnoser, allocator, ns->nodes);
                 break;
             }
             case ASTNodeKind::ImplDecl: {
@@ -169,7 +190,7 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
                      const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
                      if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
                          const auto interface = interface_node->as_interface_def_unsafe();
-                         verify_interface_implementation(diagnoser, implDecl, interface);
+                         verify_interface_implementation(index, diagnoser, implDecl, interface);
                      }
                 }
                 break;

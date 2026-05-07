@@ -65,6 +65,10 @@ public:
         return it->second;
     }
 
+    ImplDefinition* get_impl(ASTNode* interface, ASTAny* for_);
+
+    ImplDefinition* get_impl(InterfaceDefinition* interface, ASTAny* for_);
+
     void clear() {
         map_.clear();
     }

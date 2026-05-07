@@ -107,7 +107,6 @@ public:
     }
 
     void index_implementations(
-        AnnotationController& controller,
         ASTDiagnoser& diagnoser,
         InterfaceDefinition* interface
     );

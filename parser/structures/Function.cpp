@@ -329,30 +329,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         }
     }
 
-    if (member && token->type == TokenType::ColonSym) {
-        token++;
-        auto& id_token = *token;
-        if (id_token.type == TokenType::Identifier) {
-            if ((token + 1)->type != TokenType::ColonSym) {
-                // single id
-                const auto ty = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(
-                    allocate_view(allocator, id_token.value)
-                );
-                controller.mark_override_parent(decl, ty);
-                token++;
-            } else {
-                token++;
-                const auto ty = parseLinkedValueType(allocator, &id_token, loc_single(id_token));
-                controller.mark_override_parent(decl, (BaseType*) ty);
-            }
-            // this would let it know
-            decl->set_has_override_parent(true);
-        } else {
-            error("expected identifier after '::' for override parent");
-            return decl;
-        }
-    }
-
     auto name = consumeIdentifierOrKeyword();
 
     if(!name) {

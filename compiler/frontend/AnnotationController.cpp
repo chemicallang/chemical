@@ -336,7 +336,6 @@ void AnnotationController::initialize() {
             { "test.retry", { nullptr, "test.retry", AnnotationDefType::Marker }},
             { "test.benchmark", { nullptr, "test.benchmark", AnnotationDefType::Marker }},
 
-            {"override.parent", { nullptr, "override.parent", AnnotationDefType::Marker }},
     };
 
     // reserving memory for faster operations
@@ -371,24 +370,6 @@ bool AnnotationController::mark_single(ASTNode* node, AnnotationDefinition& defi
             break;
     }
     return false;
-}
-
-void AnnotationController::mark_override_parent(FunctionDeclaration* func_decl, BaseType* type) {
-    const auto definition = get_definition("override.parent");
-    // hacking, storing type pointer as a value
-    std::vector<Value*> arguments;
-    arguments.reserve(1);
-    arguments.emplace_back((Value*) ((void*) type));
-    mark((ASTNode*) func_decl, *definition, arguments);
-}
-
-BaseType* AnnotationController::get_override_parent(FunctionDeclaration* func_decl) {
-    const auto args = get_args((ASTNode*) func_decl, "override.parent");
-    if (args == nullptr) return nullptr;
-    // it should never be empty;
-    if (args->empty()) return nullptr;
-    // we always store a base type pointer as a value*
-    return ((BaseType*) ((void*) args->front()));
 }
 
 bool AnnotationController::handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments) {

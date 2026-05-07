@@ -1,21 +1,5 @@
 public namespace bcrypt {
 
-// Win32 Externs for Randomness
-@extern func CryptAcquireContextA(phProv : *mut usize, pszContainer : *char, pszProvider : *char, dwProvType : uint, dwFlags : uint) : bool
-@extern func CryptGenRandom(hProv : usize, dwLen : uint, pbBuffer : *mut u8) : bool
-@extern func CryptReleaseContext(hProv : usize, dwFlags : uint) : bool
-
-const PROV_RSA_FULL = 1u
-const CRYPT_VERIFYCONTEXT = 0xF0000000u
-
-func get_random_bytes(buf : *mut u8, len : uint) : bool {
-    var hProv : usize = 0u
-    if(!CryptAcquireContextA(&mut hProv, null, null, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) return false
-    var ok = CryptGenRandom(hProv, len, buf)
-    CryptReleaseContext(hProv, 0u)
-    return ok
-}
-
 public func generate_salt(cost : int) : std::string {
     var entropy : [16]u8
     if(!get_random_bytes(&mut entropy[0], 16u)) return std::string()

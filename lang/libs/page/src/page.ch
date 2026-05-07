@@ -564,6 +564,41 @@ window.$_ucs = ((fn) => {
         }
     };
 })
+window.$__uni_current_instance = null;
+window.$_r = {
+    useEffect: (fn, deps) => {
+        const inst = window.$__uni_current_instance;
+        if(!inst) return;
+        if(!inst.effects) inst.effects = [];
+        inst.effects.push({ fn, deps, lastDeps: null, cleanup: null });
+    },
+    useLayoutEffect: (fn, deps) => {
+        const inst = window.$__uni_current_instance;
+        if(!inst) return;
+        if(!inst.layoutEffects) inst.layoutEffects = [];
+        inst.layoutEffects.push({ fn, deps, lastDeps: null, cleanup: null });
+    }
+}
+window.$__uni_run_effects = ((inst, effects) => {
+    if(!effects) return;
+    for(let i = 0; i < effects.length; i++) {
+        const eff = effects[i];
+        let changed = !eff.lastDeps;
+        if(!changed && eff.deps) {
+            for(let j = 0; j < eff.deps.length; j++) {
+                if(window.$__uni_value(eff.deps[j]) !== eff.lastDeps[j]) {
+                    changed = true; break;
+                }
+            }
+        }
+        if(changed) {
+            if(eff.cleanup) eff.cleanup();
+            eff.cleanup = eff.fn();
+            if(eff.deps) eff.lastDeps = eff.deps.map(window.$__uni_value);
+            else eff.lastDeps = [];
+        }
+    }
+})
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
 window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
@@ -867,16 +902,23 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     if(typeof comp !== "function") {
         window.$__uni_error("universal component factory is invalid", typeof comp);
     }
+    // Set up instance tracking for effects
+    const prevInstance = window.$__uni_current_instance;
+    const inst = {};
+    window.$__uni_current_instance = inst;
     const out = comp(props || {});
+    window.$__uni_current_instance = prevInstance;
     if(mode === "root") {
         const parent = host.parentNode;
         if(!parent) {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
         window.$__uni_hydrate_node(parent, host, out);
+        if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
+    if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
 })
 window.$_uc = ((factory, props) => {
     if(typeof factory !== "function") {

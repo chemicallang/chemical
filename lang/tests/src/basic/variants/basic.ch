@@ -225,7 +225,7 @@ variant VariantInheritedDelegateImpl {
     Some(value : int)
 }
 
-impl VariantInheritableGiverInterfaceDelegate for VariantInheritedDelegateImpl {
+impl VariantInheritableGiverInterface for VariantInheritedDelegateImpl {
     func give(&self) : int {
         switch(self) {
             None() => { return -2; }
@@ -234,6 +234,9 @@ impl VariantInheritableGiverInterfaceDelegate for VariantInheritedDelegateImpl {
     }
 }
 
+impl VariantInheritableGiverInterfaceDelegate for VariantInheritedDelegateImpl {
+
+}
 
 variant AlignmentTest42 {
     Large(s : std::string)

@@ -781,14 +781,13 @@ void handle_new_impl(GenericInstantiator& instantiator, ImplDefinition* node, Me
     const auto linked_node = node->interface_type->get_direct_linked_node();
     if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
         auto& implsIndex = instantiator.implsIndex;
-        auto& controller = instantiator.controller;
         const auto linked = linked_node->as_interface_def_unsafe();
         if (linked->is_static() && linked->has_implementation()) {
             diagnoser.error("static interface must have only a single implementation", node->encoded_location());
         }
         linked->register_impl(node);
         implsIndex.add_interface(linked, adopter, node);
-        node->index_implementations(controller, diagnoser, linked);
+        node->index_implementations(diagnoser, linked);
     } else {
         diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
     }

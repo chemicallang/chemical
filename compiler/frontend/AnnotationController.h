@@ -237,10 +237,6 @@ public:
     // returns true on error
     bool mark_single(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments);
 
-    void mark_override_parent(FunctionDeclaration* func_decl, BaseType* type);
-
-    BaseType* get_override_parent(FunctionDeclaration* func_decl);
-
     void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
         std::lock_guard lock(marker_mutex);
         marked.emplace(MarkedAnnotatedNode{node, definition.name}, std::move(arguments));

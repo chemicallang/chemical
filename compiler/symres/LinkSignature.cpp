@@ -623,13 +623,6 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     auto& linker = sig.linker;
     linker.scope_start();
 
-    // override parent is given only to member functions
-    // we check if it has one and then visit that
-    if (node->has_override_parent()) {
-        const auto override_parent = linker.controller.get_override_parent(node);
-        if (override_parent != nullptr) sig.VisitTypeNoNullCheck(override_parent);
-    }
-
     // visiting the signature of the function
     for(auto param : node->params) {
         if(param->is_implicit()) {
@@ -1547,7 +1540,7 @@ void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
         }
         // we also index implementation methods with key of base methods they are overriding
         // for faster access and to reduce ambiguity
-        decl->index_implementations(linker.controller, linker, interface);
+        decl->index_implementations(linker, interface);
     }
 }
 

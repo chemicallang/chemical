@@ -239,7 +239,7 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
     }
 }
 
-void ImplDefinition::index_implementations(AnnotationController& controller, ASTDiagnoser& diagnoser, InterfaceDefinition* non_master_interface) {
+void ImplDefinition::index_implementations(ASTDiagnoser& diagnoser, InterfaceDefinition* non_master_interface) {
     // why use master (template in generic definition) ?
     // we must index against the function present in the master (template) interface
     // because we use that to lookup the implementation
@@ -253,26 +253,7 @@ void ImplDefinition::index_implementations(AnnotationController& controller, AST
         } else {
             continue;
         }
-        InterfaceDefinition* containing;
-        if (func->has_override_parent()) {
-            const auto overrideParent = controller.get_override_parent(func);
-            if (overrideParent == nullptr) {
-                diagnoser.error(func) << "couldn't get override parent";
-                continue;
-            }
-            const auto linked = overrideParent->as_linked_type_unsafe()->linked;
-            if (linked->kind() == ASTNodeKind::InterfaceDecl) {
-                containing = linked->as_interface_def_unsafe();
-            } else if (linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
-                containing = linked->as_gen_interface_decl_unsafe()->master_impl;
-            } else {
-                diagnoser.error(func) << "override parent must be an interface";
-                continue;
-            }
-        } else {
-            containing = interface;
-        }
-        const auto child = containing->child(func->name_view());
+        const auto child = interface->child(func->name_view());
         if (child == nullptr) {
             diagnoser.error(func) << "couldn't find base function to override";
             continue;

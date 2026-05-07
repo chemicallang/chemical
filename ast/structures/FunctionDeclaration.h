@@ -159,12 +159,6 @@ struct FuncDeclAttributes {
      */
     bool dll_export = false;
 
-    /**
-     * if this is true, this function has an override parent stored in annotation controller
-     * which can be retrieved
-     */
-    bool has_override_parent = false;
-
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -401,14 +395,6 @@ public:
 
     inline bool is_auto_called_func() {
         return is_delete_fn() || is_constructor_fn();
-    }
-
-    inline bool has_override_parent() {
-        return attrs.has_override_parent;
-    }
-
-    inline void set_has_override_parent(bool value) {
-        attrs.has_override_parent = value;
     }
 
     /**

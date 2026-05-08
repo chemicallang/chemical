@@ -787,7 +787,6 @@ void handle_new_impl(GenericInstantiator& instantiator, ImplDefinition* node, Me
         }
         linked->register_impl(node);
         implsIndex.add_interface(linked, adopter, node);
-        node->index_implementations(diagnoser, linked);
     } else {
         diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
     }

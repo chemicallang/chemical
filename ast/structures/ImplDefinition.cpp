@@ -238,26 +238,3 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
         }
     }
 }
-
-void ImplDefinition::index_implementations(ASTDiagnoser& diagnoser, InterfaceDefinition* non_master_interface) {
-    // why use master (template in generic definition) ?
-    // we must index against the function present in the master (template) interface
-    // because we use that to lookup the implementation
-    const auto interface = non_master_interface->generic_parent != nullptr ? non_master_interface->generic_parent->as_gen_interface_decl_unsafe()->master_impl : non_master_interface;
-    for (const auto node : evaluated_nodes()) {
-        FunctionDeclaration* func;
-        if (node->kind() == ASTNodeKind::FunctionDecl) {
-            func = node->as_function_unsafe();
-        } else if (node->kind() == ASTNodeKind::GenericFuncDecl) {
-            func = node->as_gen_func_decl_unsafe()->master_impl;
-        } else {
-            continue;
-        }
-        const auto child = interface->child(func->name_view());
-        if (child == nullptr) {
-            diagnoser.error(func) << "couldn't find base function to override";
-            continue;
-        }
-        override_map[child] = node;
-    }
-}

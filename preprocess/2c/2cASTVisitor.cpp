@@ -581,6 +581,32 @@ inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, 
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
+bool is_value_param_hidden_pointer_non_ref(Value* value) {
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type;
+                return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
+            }
+            case ASTNodeKind::StructMember:{
+                const auto type = linked->as_struct_member_unsafe()->type;
+                if(type->is_reference()) {
+                    return true;
+                }
+                return false;
+            }
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+// structs, or variants or references to them are passed in functions as pointers
+// if you took address of using '&' of the parameter that is already reference or pointer
+// we must not write '&' in the output C
 bool is_value_param_hidden_pointer(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
@@ -952,7 +978,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
                 return;
             }
         }
-        if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer(value)) {
+        if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer_non_ref(value)) {
             write('*');
         }
     }

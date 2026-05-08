@@ -129,7 +129,17 @@ struct RefGiveStruct {
     }
 }
 
+func copying_trivially_copyable_from_ref_works(c : &RefGiveStruct) : int {
+    var d = *c
+    return d.i
+}
+
 func test_references() {
+    test("copying trivially copyable from by dereference of reference works", () => {
+        var c = RefGiveStruct { i : 2394 }
+        var r = copying_trivially_copyable_from_ref_works(c)
+        return r == 2394;
+    })
     test("assignment to passed mutable reference via constructor works", () => {
         var j = AssignableReferencableStruct(22)
         assign_to_ref_struct(j)

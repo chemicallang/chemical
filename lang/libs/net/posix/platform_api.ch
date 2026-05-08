@@ -4,6 +4,7 @@ public namespace net {
     @extern protected func socket(af:int, typ:int, protocol:int): int;
     @extern protected func bind(s: int, name:*char, namelen:int): int;
     @extern protected func listen(s: int, backlog:int): int;
+    @extern protected func connect(s: int, name:*char, namelen:int): int;
     @extern protected func accept(s: int, addr:*mut char, addrlen:*mut int): int;
     @extern protected func recv(s: int, buf:*mut char, len:int, flags:int): int;
     @extern protected func send(s: int, buf:*char, len:int, flags:int): int;
@@ -30,6 +31,7 @@ public namespace net {
     func sock_socket(af:int, typ:int, proto:int) : Socket { return socket(af, typ, proto) as Socket }
     func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return bind(s as int, addr, addrlen) }
     func sock_listen(s:Socket, backlog:int) : int { return listen(s as int, backlog) }
+    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return connect(s as int, addr, addrlen) }
     func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return accept(s as int, addr, addrlen) as Socket }
     func sock_recv(s:Socket, buf:*mut char, len:int) : int { return recv(s as int, buf, len, 0) }
     func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as int, buf, len, 0) }

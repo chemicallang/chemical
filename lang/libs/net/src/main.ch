@@ -135,4 +135,48 @@ public namespace net {
 
     public func close_socket(s: Socket) { sock_close(s) }
 
+    public func dial(addr_str:*char, port: uint) : Socket {
+        startup();
+        var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
+        if (s == 0 as Socket || (s as longlong) < 0) {
+            return 0 as Socket;
+        }
+
+        // prepare sockaddr_in
+        var addr = sockaddr_in{
+            sin_family: (AF_INET as u16),
+            sin_port: htons_port(port as u16),
+            sin_addr: in_addr{ s_addr: 0u },
+            sin_zero: ['\0','\0','\0','\0','\0','\0','\0','\0']
+        };
+
+        if(addr_str != null) {
+            var ret = inet_pton(AF_INET as int, addr_str, &addr.sin_addr.s_addr as *mut char);
+            if(ret != 1) {
+                // if it's not a numeric IP, we should use getaddrinfo
+                // for now, let's just support numeric IPs to keep it simple and safe
+                // or we can try a very basic getaddrinfo usage
+                
+                // fallback to getaddrinfo
+                var hints: [64]char; // enough for addrinfo struct
+                memset(&mut hints[0], 0, 64);
+                // setting ai_family (at offset 4 usually, but we can just use 0 for any)
+                // this is risky without proper struct definition
+                // let's just return 0 for now if inet_pton fails
+                sock_close(s);
+                return 0 as Socket;
+            }
+        } else {
+            // connecting to null addr? probably localhost
+            inet_pton(AF_INET as int, "127.0.0.1", &addr.sin_addr.s_addr as *mut char);
+        }
+
+        if(sock_connect(s, &addr as *char, sizeof(sockaddr_in) as int) != 0) {
+            sock_close(s);
+            return 0 as Socket;
+        }
+
+        return s;
+    }
+
 }

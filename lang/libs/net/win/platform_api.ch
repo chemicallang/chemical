@@ -8,6 +8,7 @@ public namespace net {
     @dllimport @stdcall @extern protected func socket(af:int, typ:int, protocol:int): uintptr_t;
     @dllimport @stdcall @extern protected func bind(s: uintptr_t, name:*char, namelen:int): int;
     @dllimport @stdcall @extern protected func listen(s: uintptr_t, backlog:int): int;
+    @dllimport @stdcall @extern protected func connect(s: uintptr_t, name:*char, namelen:int): int;
     @dllimport @stdcall @extern protected func accept(s: uintptr_t, addr:*mut char, addrlen:*mut int): uintptr_t;
     @dllimport @stdcall @extern protected func recv(s: uintptr_t, buf:*mut char, len:int, flags:int): int;
     @dllimport @stdcall @extern protected func send(s: uintptr_t, buf:*char, len:int, flags:int): int;
@@ -38,6 +39,7 @@ public namespace net {
     func sock_socket(af:int, typ:int, proto:int) : Socket { return socket(af, typ, proto) as Socket }
     func sock_bind(s:Socket, addr:*char, addrlen:int) : int { return bind(s as uintptr_t, addr, addrlen) }
     func sock_listen(s:Socket, backlog:int) : int { return listen(s as uintptr_t, backlog) }
+    func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return connect(s as uintptr_t, addr, addrlen) }
     func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return accept(s as uintptr_t, addr, addrlen) as Socket }
     func sock_recv(s:Socket, buf:*mut char, len:int) : int { return recv(s as uintptr_t, buf, len, 0) }
     func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as uintptr_t, buf, len, 0) }

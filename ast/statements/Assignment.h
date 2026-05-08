@@ -16,8 +16,6 @@ public:
 
     Value* lhs;
     Value* value;
-    // TODO there's no usage of this, remove this
-    InterfaceDefinition* definition;
     Operation assOp;
 
     /**

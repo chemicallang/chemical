@@ -53,9 +53,6 @@ void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* d
 
 void ImplDefinition::code_gen_bodies(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* user) {
     for (const auto func : interface->instantiated_functions()) {
-        // TODO: find a better way to get the implementation function, currently using name
-        // why can't we use the override_map (because that maps functions from the master interface)
-        // however this interface is an instantiated interface (not the template)
         const auto decl = direct_child_function(func->name_view());
         if (decl == nullptr && !func->body.has_value()) {
             gen.error("couldn't find implementation function when implementing body", func);
@@ -94,13 +91,6 @@ void ImplDefinition::code_gen_bodies(Codegen& gen, InterfaceDefinition* interfac
             }
         }
     }
-    // going over inherited interfaces to implement the given interface
-    for (auto& inh : interface->inherited) {
-        const auto can = inh.type->get_direct_linked_interface();
-        if (can) {
-            code_gen_bodies(gen, can, user);
-        }
-    }
 }
 
 void ImplDefinition::strengthen_static_declare(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* node) {
@@ -114,9 +104,6 @@ void ImplDefinition::strengthen_static_declare(Codegen& gen, InterfaceDefinition
             gen.warn("couldn't implement this impl", this);
             continue;
         }
-        // TODO: find a better way to get the implementation function, currently using name
-        // why can't we use the override_map (because that maps functions from the master interface)
-        // however this interface is an instantiated interface (not the template)
         const auto decl = direct_child_function(func->name_view());
         if (decl != nullptr) {
             decl->set_llvm_data(gen, func_ptr);
@@ -124,13 +111,6 @@ void ImplDefinition::strengthen_static_declare(Codegen& gen, InterfaceDefinition
         // clean the function entry block, set new linkage
         gen.cleanFunctionEntryBlock(func_ptr);
         func_ptr->setLinkage(final_specifier);
-    }
-    // going over inherited interfaces and calling the same function
-    for (auto& inh : interface->inherited) {
-        const auto can = inh.type->get_direct_linked_interface();
-        if (can) {
-            strengthen_static_declare(gen, can, node);
-        }
     }
     interface->active_user = prev_user;
 }

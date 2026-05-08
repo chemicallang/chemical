@@ -44,6 +44,51 @@ bool is_variant_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool re
     }
 }
 
+bool LinkedType::is_same(BaseType *other) {
+    if (other->kind() != BaseTypeKind::Linked) {
+        return false;
+    }
+    const auto other_linked = other->as_linked_type_unsafe()->linked;
+    switch (linked->kind()) {
+        case ASTNodeKind::GenericTypeParam: {
+            if (other_linked->kind() == ASTNodeKind::GenericTypeParam) {
+                const auto gen_param = linked->as_generic_type_param_unsafe();
+                if (gen_param->traits.empty()) {
+                    const auto known = gen_param->known_type();
+                    if (known) {
+                        return known->satisfies(other);
+                    } else {
+                        return true;
+                    }
+                } else {
+                    const auto o_gen = other_linked->as_generic_type_param_unsafe();
+                    if(o_gen == linked) {
+                        return true;
+                    }
+                    if(gen_param->traits.size() != o_gen->traits.size()) {
+                        return false;
+                    }
+                    unsigned i = 0;
+                    const auto total = gen_param->traits.size();
+                    while(i < total) {
+                        auto& first = gen_param->traits[i];
+                        auto& second = o_gen->traits[i];
+                        if(!first->satisfies(second)) {
+                            return false;
+                        }
+                        i++;
+                    }
+                    return false;
+                }
+            } else {
+                return linked == other_linked;
+            }
+        }
+        default:
+            return linked == other_linked;
+    }
+}
+
 bool LinkedType::satisfies(BaseType *other_impure) {
     if(!linked) {
         return false;

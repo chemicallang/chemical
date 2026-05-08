@@ -705,4 +705,10 @@ func test_basic_generics() {
         var obj = generic_identifier_replacement_test<generic_id_repl_Creator2>()
         return obj.a == 234 && obj.b == 432
     })
+    /**
+     test("public generic can use a non public generic and instantiate it", () => {
+            var v = GenPublicUseNonPublic<int> {}
+            return v.give() == 83332
+        })
+    **/
 }

@@ -1519,17 +1519,10 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 
 void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
     const auto linked_node = node->interface_type->get_direct_linked_canonical_node();
-    if(!linked_node) {
-        return;
-    }
-    const auto linked = linked_node->as_interface_def();
-    if(!linked) {
-        return;
-    }
+    const auto linked = linked_node ? linked_node->as_interface_def() : nullptr;
     linker.scope_start();
     const auto struct_linked = node->struct_type ? node->struct_type->get_direct_linked_struct() : nullptr;
-    const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
-    if(!overrides_interface) {
+    if(linked) {
         for (const auto func: linked->evaluated_nodes()) {
             switch(func->kind()) {
                 case ASTNodeKind::FunctionDecl:
@@ -1547,13 +1540,10 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
     if(struct_linked) {
         struct_linked->redeclare_inherited_members(linker);
         struct_linked->redeclare_variables_and_functions(linker);
-
         // make struct adopt all the methods of interface
         // this should be done when the struct has been linked
         // if its body is being linked, we don't want to call the methods in interface
-        if(!overrides_interface) {
-            struct_linked->adopt(linked);
-        }
+        if (linked) struct_linked->adopt(linked);
     }
     LinkMembersContainerNoScope(node);
     linker.scope_end();

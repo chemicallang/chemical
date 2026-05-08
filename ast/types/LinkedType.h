@@ -48,9 +48,7 @@ public:
         return linked;
     }
 
-    bool is_same(BaseType *other) final {
-        return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
-    }
+    bool is_same(BaseType *other) final;
 
     bool satisfies(BaseType *type) final;
 

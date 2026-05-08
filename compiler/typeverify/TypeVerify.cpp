@@ -85,6 +85,38 @@ void TypeVerifier::VisitPlacementNewValue(PlacementNewValue *value) {
 
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
+    if (is_generic_public_context) {
+        const auto last_linked = call->parent_val->get_chain_last_linked();
+        if (last_linked) {
+            switch (last_linked->kind()) {
+                case ASTNodeKind::GenericFuncDecl: {
+                    if (!is_linkage_public(last_linked->as_gen_func_decl_unsafe()->master_impl->specifier())) {
+                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericStructDecl: {
+                    if (!is_linkage_public(last_linked->as_gen_struct_def_unsafe()->master_impl->specifier())) {
+                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericUnionDecl: {
+                    if (!is_linkage_public(last_linked->as_gen_union_decl_unsafe()->master_impl->specifier())) {
+                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                    }
+                    break;
+                }
+                case ASTNodeKind::VariantMember: {
+                    const auto p = last_linked->as_variant_member_unsafe()->parent();
+                    if (p->generic_parent && !is_linkage_public(p->generic_parent->as_gen_variant_decl_unsafe()->specifier())) {
+                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                    }
+                    break;
+                }
+            }
+        }
+    }
     auto func_type = call->function_type();
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
@@ -366,4 +398,84 @@ void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
     current_func_type = func;
     RecursiveVisitor::VisitLambdaFunction(func);
     current_func_type = prev;
+}
+
+void TypeVerifier::VisitLinkedType(LinkedType* type) {
+    if (is_generic_public_context) {
+        // TODO: errors aren't being reported properly because linked types don't store location at the moment
+        const auto errStr = std::string_view("using a non-public type in a public generic declaration is not allowed, please use public / protected");
+        switch (type->linked->kind()) {
+            case ASTNodeKind::GenericStructDecl:
+                if (!is_linkage_public(type->linked->as_gen_struct_def_unsafe()->master_impl->specifier())) {
+                    diagnoser.error(type->linked) << errStr;
+                }
+                break;
+            case ASTNodeKind::GenericVariantDecl:
+                if (!is_linkage_public(type->linked->as_gen_variant_decl_unsafe()->master_impl->specifier())) {
+                    diagnoser.error(type->linked) << errStr;
+                }
+                break;
+            case ASTNodeKind::GenericUnionDecl:
+                if (!is_linkage_public(type->linked->as_gen_union_decl_unsafe()->master_impl->specifier())) {
+                    diagnoser.error(type->linked) << errStr;
+                }
+                break;
+            case ASTNodeKind::GenericInterfaceDecl:
+                if (!is_linkage_public(type->linked->as_gen_interface_decl_unsafe()->master_impl->specifier())) {
+                    diagnoser.error(type->linked) << errStr;
+                }
+                break;
+            default:
+                return;
+        }
+    }
+}
+
+void TypeVerifier::VisitGenericFuncDecl(GenericFuncDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericTypeDecl(GenericTypeDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericStructDecl(GenericStructDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericUnionDecl(GenericUnionDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericVariantDecl(GenericVariantDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
+    const auto prev_gen_public = is_generic_public_context;
+    is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    visit(node->master_impl);
+    is_generic_public_context = prev_gen_public;
 }

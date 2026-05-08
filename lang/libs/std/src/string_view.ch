@@ -99,6 +99,103 @@ public namespace std {
             return subview(s, e + 1);
         }
 
+        func to_i8(&self) : std::Result<i8, std::string_view> {
+            switch(to_i64()) {
+                Ok(v) => return std::Result.Ok(v as i8)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_i16(&self) : std::Result<i16, std::string_view> {
+            switch(to_i64()) {
+                Ok(v) => return std::Result.Ok(v as i16)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_i32(&self) : std::Result<i32, std::string_view> {
+            switch(to_i64()) {
+                Ok(v) => return std::Result.Ok(v as i32)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_i64(&self) : std::Result<i64, std::string_view> {
+            var res : i64 = 0
+            var sign : i64 = 1
+            var i : size_t = 0
+            while (i < _size && isspace(_data[i])) i++
+            if (i == _size) return std::Result.Err(std::string_view("empty string"))
+            if (_data[i] == '-') {
+                sign = -1
+                i++
+            } else if (_data[i] == '+') {
+                i++
+            }
+            if (i == _size || !isdigit(_data[i])) return std::Result.Err(std::string_view("invalid format"))
+            while (i < _size && isdigit(_data[i])) {
+                res = res * 10 + (_data[i] - '0') as i64
+                i++
+            }
+            while (i < _size && isspace(_data[i])) i++
+            if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
+            return std::Result.Ok(res * sign)
+        }
+
+        func to_u8(&self) : std::Result<u8, std::string_view> {
+            switch(to_u64()) {
+                Ok(v) => return std::Result.Ok(v as u8)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_u16(&self) : std::Result<u16, std::string_view> {
+            switch(to_u64()) {
+                Ok(v) => return std::Result.Ok(v as u16)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_u32(&self) : std::Result<u32, std::string_view> {
+            switch(to_u64()) {
+                Ok(v) => return std::Result.Ok(v as u32)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_u64(&self) : std::Result<u64, std::string_view> {
+            var res : u64 = 0
+            var i : size_t = 0
+            while (i < _size && isspace(_data[i])) i++
+            if (i == _size) return std::Result.Err(std::string_view("empty string"))
+            if (_data[i] == '+') i++
+            if (i == _size || !isdigit(_data[i])) return std::Result.Err(std::string_view("invalid format"))
+            while (i < _size && isdigit(_data[i])) {
+                res = res * 10 + (_data[i] - '0') as u64
+                i++
+            }
+            while (i < _size && isspace(_data[i])) i++
+            if (i < _size) return std::Result.Err(std::string_view("trailing characters"))
+            return std::Result.Ok(res)
+        }
+
+        func to_int(&self) : std::Result<int, std::string_view> {
+            switch(to_i32()) {
+                Ok(v) => return std::Result.Ok(v as int)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+        func to_uint(&self) : std::Result<uint, std::string_view> {
+            switch(to_u32()) {
+                Ok(v) => return std::Result.Ok(v as uint)
+                Err(e) => return std::Result.Err(e)
+            }
+        }
+
+        func to_float(&self) : std::Result<float, std::string_view> {
+            var s = std::string(self)
+            return s.to_float()
+        }
+
+        func to_double(&self) : std::Result<double, std::string_view> {
+            var s = std::string(self)
+            return s.to_double()
+        }
+
         func split(&self, delim : char) : std::vector<std::string_view> {
             var res = std::vector<std::string_view>();
             var start = 0u;

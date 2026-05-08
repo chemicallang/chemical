@@ -20,7 +20,7 @@ func <T> gen_assign_to_addr(value : *mut T) {
 }
 
 func <T> gen_take_addr_of(value : T) : T {
-    gen_assign_to_addr(&value)
+    gen_assign_to_addr(&mut value)
     return value
 }
 

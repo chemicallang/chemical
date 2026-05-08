@@ -14,7 +14,11 @@ class BaseType;
 
 class ImplementationsIndex;
 
-void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type);
+void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type);
+
+inline void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type) {
+    unsatisfied_type_err(diagnoser, value, type);
+}
 
 void type_verify(
     ImplementationsIndex& index,

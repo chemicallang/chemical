@@ -12,7 +12,7 @@
 #include "compiler/symres/ImplementationsIndex.h"
 #include "core/source/LocationManager.h"
 
-void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type) {
+void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type) {
     const auto val_type = value->getType();
     if(val_type) {
         diagnoser.error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
@@ -24,11 +24,63 @@ void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Valu
 void TypeVerifier::VisitArrayValue(ArrayValue* val) {
     RecursiveVisitor<TypeVerifier>::VisitArrayValue(val);
     auto& elemType = val->known_elem_type();
-    for(const auto value : val->values) {
-        if (!elemType->satisfies(value, false)) {
-            unsatisfied_type_err(diagnoser, allocator, value, elemType);
+    if (elemType) {
+        if (elemType->kind() == BaseTypeKind::Void) {
+            diagnoser.error("array element type cannot be void", val);
+            return;
+        }
+        const auto def = elemType->get_direct_linked_struct();
+        if(def) {
+            unsigned i = 0;
+            while (i < val->values.size()) {
+                const auto value = val->values[i];
+                visit(value);
+                const auto implicit = def->implicit_constructor_func(value);
+                if(implicit) {
+                    // TODO: handle implicit constructor
+                } else if(!elemType->satisfies(value, false)) {
+                    unsatisfied_type_err(diagnoser, value, elemType);
+                }
+                i++;
+            }
+            return;
+        }
+        for(const auto value : val->values) {
+            visit(value);
+            if(!elemType->satisfies(value, false)) {
+                unsatisfied_type_err(diagnoser, value, elemType);
+            }
         }
     }
+}
+
+void verify_placement_new(ASTDiagnoser& linker, TypeLoc ptrType, Value* value) {
+    switch(ptrType->kind()) {
+        case BaseTypeKind::Pointer:{
+            const auto child_type = ptrType->as_pointer_type_unsafe()->type;
+            if (!child_type->satisfies(value, false)) {
+                linker.error("value does not satisfy the pointer value type", value);
+            }
+            return;
+        }
+        case BaseTypeKind::Linked:{
+            const auto linked = ptrType->as_linked_type_unsafe()->linked;
+            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+                verify_placement_new(linker, linked->as_typealias_unsafe()->actual_type, value);
+                return;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    linker.error("expected pointer value to be of pointer type", ptrType.encoded_location());
+}
+
+void TypeVerifier::VisitPlacementNewValue(PlacementNewValue *value) {
+    RecursiveVisitor::VisitPlacementNewValue(value);
+    // verify the type
+    verify_placement_new(diagnoser, { value->pointer->getType(), value->pointer->encoded_location() }, value->value);
 }
 
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
@@ -156,47 +208,162 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
     }
 }
 
-void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
-    TypeVerifier verifier(allocator, diagnoser);
-    for(const auto node : nodes) {
-        switch(node->kind()) {
-            case ASTNodeKind::VarInitStmt: {
-                const auto stmt = node->as_var_init_unsafe();
-                if(!stmt->attrs.signature_resolved) {
-                    continue;
-                }
-                auto& type = stmt->type;
-                auto& value = stmt->value;
-                if(type && value && !stmt->type->satisfies(value, false)) {
-                    unsatisfied_type_err(diagnoser, allocator, value, type);
-                }
-                if(value) {
-                    verifier.visit(stmt->value);
-                }
-                // check var init is non-destructible type
-                if(stmt->is_top_level() && stmt->is_never_destructed() == false && stmt->known_type()->get_destructor() != nullptr) {
-                    diagnoser.error(stmt) << "top level variables or constants must be non-destructible, or must use @never_destructed annotation";
-                }
-                break;
-            }
-            case ASTNodeKind::NamespaceDecl: {
-                const auto ns = node->as_namespace_unsafe();
-                type_verify(index, diagnoser, allocator, ns->nodes);
-                break;
-            }
-            case ASTNodeKind::ImplDecl: {
-                const auto implDecl = node->as_impl_def_unsafe();
-                if (implDecl->interface_type) {
-                     const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
-                     if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
-                         const auto interface = interface_node->as_interface_def_unsafe();
-                         verify_interface_implementation(index, diagnoser, implDecl, interface);
-                     }
-                }
-                break;
-            }
-            default:
-                continue;
+void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
+    if(!stmt->attrs.signature_resolved) {
+        return;
+    }
+    auto& type = stmt->type;
+    const auto value = stmt->value;
+    if(type) {
+        visit(type);
+    }
+    if(value) {
+        visit(value);
+    }
+    if(type && value && !stmt->type->satisfies(value, false)) {
+        unsatisfied_type_err(diagnoser, allocator, value, type);
+    }
+    if(stmt->known_type()->kind() == BaseTypeKind::Void) {
+        diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
+    }
+    if (stmt->is_top_level()) {
+        // check var init is non-destructible type
+        if(stmt->is_never_destructed() == false && stmt->known_type()->get_destructor() != nullptr) {
+            diagnoser.error(stmt) << "top level variables or constants must be non-destructible, or must use @never_destructed annotation";
         }
     }
+}
+
+void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
+    TypeVerifier verifier(index, allocator, diagnoser);
+    for(const auto node : nodes) {
+        verifier.visit(node);
+    }
+}
+
+void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
+    RecursiveVisitor::VisitImplDecl(implDecl);
+    if (implDecl->interface_type) {
+        const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
+        if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
+            const auto interface = interface_node->as_interface_def_unsafe();
+            verify_interface_implementation(index, diagnoser, implDecl, interface);
+        }
+    }
+}
+
+void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
+    if (stmt->computed_scope.has_value()) {
+        const auto scope = stmt->computed_scope.value();
+        if (scope) {
+            visit(scope);
+        }
+        return;
+    }
+    RecursiveVisitor::VisitIfStmt(stmt);
+}
+
+void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
+
+    RecursiveVisitor::VisitAssignmentStmt(assign);
+
+    const auto lhs = assign->lhs;
+    const auto value = assign->value;
+    const auto lhsType = lhs->getType();
+
+    // check if operator is overloaded
+    // direct assignment cannot be overloaded
+    if(assign->assOp != Operation::Assignment) {
+        const auto can_node = lhsType->get_linked_canonical_node(true, false);
+        if(can_node) {
+            const auto container = can_node->get_members_container();
+            if(container) {
+                // operator is overloaded, currently no check is being performed here
+                return;
+            }
+        }
+    }
+
+    // check assignment satisfies the lhs type
+    switch(assign->assOp){
+        case Operation::Assignment:
+            if (!lhsType->satisfies(value, true)) {
+                unsatisfied_type_err(diagnoser, value, lhsType);
+            }
+            break;
+        case Operation::Addition:
+        case Operation::Subtraction:
+            if(lhsType->kind() == BaseTypeKind::Pointer) {
+                const auto rhsType = value->getType()->canonical();
+                if(rhsType->kind() != BaseTypeKind::IntN) {
+                    unsatisfied_type_err(diagnoser, value, lhsType);
+                }
+            } else if (!lhsType->satisfies(value, true)) {
+                unsatisfied_type_err(diagnoser, value, lhsType);
+            }
+            break;
+        default:
+            break;
+    }
+
+}
+
+void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
+    RecursiveVisitor::VisitReturnStmt(node);
+    auto& value = node->value;
+    if (value) {
+        const auto func_type = current_func_type;
+        if(func_type->data.signature_resolved && func_type->returnType) {
+            const auto func = func_type->as_function();
+            if(func && func->is_constructor_fn()) {
+                return;
+            }
+            const auto implicit = func_type->returnType->implicit_constructor_for(value);
+            if (implicit &&
+                // this check means current function is not the implicit constructor we're trying to link for value
+                // basically an implicit constructor can has a value returned of a type for which it's an implicit constructor of (in comptime)
+                implicit != func_type &&
+                // this check means current function's parent (if it's inside a struct) is not the same parent as the implicit constructor parent
+                // meaning implicit constructor and the function that's going to use the implicit constructor can't be inside same container
+                (func && func->parent() != implicit->parent())
+            ) {
+                // TODO: handle implicit constructor
+                return;
+            }
+            if(!func_type->returnType->satisfies(value, false)) {
+                unsatisfied_type_err(diagnoser, value, func_type->returnType);
+            }
+        }
+    } else {
+        const auto func_type = current_func_type;
+        if(func_type->returnType && func_type->returnType->kind() != BaseTypeKind::Void) {
+            diagnoser.error(node) << "function expects a non void return of type '" << func_type->returnType->representation() << "'";
+        }
+    }
+
+}
+
+void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
+    // visiting the signature of the function
+    for(auto param : decl->params) {
+        // default values aren't verified during link signature
+        // because they may not have been linked at that time
+        if(param->defValue) {
+            const auto imp_constructor = param->type->implicit_constructor_for(param->defValue);
+            if(imp_constructor == nullptr && !param->type->satisfies(param->defValue, false)) {
+                unsatisfied_type_err(diagnoser, param->defValue, param->type);
+            }
+        }
+    }
+    const auto prev = current_func_type;
+    current_func_type = decl;
+    RecursiveVisitor::VisitFunctionDecl(decl);
+    current_func_type = prev;
+}
+
+void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
+    const auto prev = current_func_type;
+    current_func_type = func;
+    RecursiveVisitor::VisitLambdaFunction(func);
+    current_func_type = prev;
 }

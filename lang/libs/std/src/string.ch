@@ -796,6 +796,33 @@ public struct string {
         return std::string_view(data(), size())
     }
 
+    func to_i8(&self) : std::Result<i8, std::string_view> { return to_view().to_i8() }
+    func to_i16(&self) : std::Result<i16, std::string_view> { return to_view().to_i16() }
+    func to_i32(&self) : std::Result<i32, std::string_view> { return to_view().to_i32() }
+    func to_i64(&self) : std::Result<i64, std::string_view> { return to_view().to_i64() }
+    func to_u8(&self) : std::Result<u8, std::string_view> { return to_view().to_u8() }
+    func to_u16(&self) : std::Result<u16, std::string_view> { return to_view().to_u16() }
+    func to_u32(&self) : std::Result<u32, std::string_view> { return to_view().to_u32() }
+    func to_u64(&self) : std::Result<u64, std::string_view> { return to_view().to_u64() }
+    func to_int(&self) : std::Result<int, std::string_view> { return to_view().to_int() }
+    func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
+    func to_float(&self) : std::Result<float, std::string_view> {
+        var end : *mut char = null
+        var res = strtof(data() as *mut char, &mut end)
+        if (end == data()) return std::Result.Err(std::string_view("invalid format"))
+        while (end != null && *end != '\0' && isspace(*end as int)) end++
+        if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
+        return std::Result.Ok(res)
+    }
+    func to_double(&self) : std::Result<double, std::string_view> {
+        var end : *mut char = null
+        var res = strtod(data() as *mut char, &mut end)
+        if (end == data()) return std::Result.Err(std::string_view("invalid format"))
+        while (end != null && *end != '\0' && isspace(*end as int)) end++
+        if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
+        return std::Result.Ok(res)
+    }
+
     // TODO: unstable, no interface involved, signature not stable
     // TODO: no verification of signature
     // TODO: hardcoded type StringStream, generic function support required

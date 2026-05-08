@@ -1538,9 +1538,6 @@ void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
         for(auto& index : sub_container_indexes) {
             container_indexes.try_emplace(index.first, index.second);
         }
-        // we also index implementation methods with key of base methods they are overriding
-        // for faster access and to reduce ambiguity
-        decl->index_implementations(linker, interface);
     }
 }
 

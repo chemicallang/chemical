@@ -187,11 +187,39 @@ public namespace std {
         }
 
         func to_float(&self) : std::Result<float, std::string_view> {
+            if (_size == 0) return std::Result.Err(std::string_view("empty string"))
+            if (_size < 128) {
+                var buf : [128]char
+                unsafe {
+                    memcpy(&mut buf[0], _data, _size)
+                    buf[_size] = '\0'
+                    var end : *mut char = null
+                    var res = strtof(&mut buf[0] as *mut char, &mut end)
+                    if (end == &buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
+                    while (end != null && *end != '\0' && isspace(*end as int)) end++
+                    if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
+                    return std::Result.Ok(res)
+                }
+            }
             var s = std::string(self)
             return s.to_float()
         }
 
         func to_double(&self) : std::Result<double, std::string_view> {
+            if (_size == 0) return std::Result.Err(std::string_view("empty string"))
+            if (_size < 128) {
+                var buf : [128]char
+                unsafe {
+                    memcpy(&mut buf[0], _data, _size)
+                    buf[_size] = '\0'
+                    var end : *mut char = null
+                    var res = strtod(&mut buf[0] as *mut char, &mut end)
+                    if (end == &buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
+                    while (end != null && *end != '\0' && isspace(*end as int)) end++
+                    if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
+                    return std::Result.Ok(res)
+                }
+            }
             var s = std::string(self)
             return s.to_double()
         }

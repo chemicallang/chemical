@@ -12,49 +12,30 @@ func test_http_get(env : &mut TestEnv) {
     });
     
     var thread = srv.serve_async(8081u);
-    std::concurrent.sleep_ms(100u);
+    std.concurrent.sleep_ms(100u);
     
     var client = net::Client();
     var res_result = client.get("http://127.0.0.1:8081/hello");
     
     if(res_result is Result.Err) {
-        env.error("GET failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8081u);
+        var Err(e) = res_result else unreachable;
+        env.error(e.data());
+        srv.shutdown();
         thread.join();
         return;
     }
     
     var Ok(res) = res_result else unreachable;
-    
-    if(res.status != 200u) {
-        env.error("Status mismatch");
-        srv.run = false;
-        net::dial("127.0.0.1", 8081u);
-        thread.join();
-        return;
-    }
-    
+    if(res.status != 200u) { env.error("Status mismatch"); }
     var body_opt = res.body.read_to_string();
-    if(body_opt is std.Result.Err) {
+    if(body_opt is std.Option.None) {
         env.error("Read body failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8081u);
-        thread.join();
         return;
     }
     var Some(body) = body_opt else unreachable
+    if(!body.equals_view("world")) { env.error("Body mismatch"); }
     
-    if(!body.equals_with_len("world", 5)) {
-        env.error("Body mismatch");
-        srv.run = false;
-        net::dial("127.0.0.1", 8081u);
-        thread.join();
-        return;
-    }
-    
-    srv.run = false;
-    net::dial("127.0.0.1", 8081u);
+    srv.shutdown();
     thread.join();
 }
 
@@ -67,101 +48,215 @@ func test_http_post(env : &mut TestEnv) {
     srv.router.add("POST", "/echo", ||(req, res) => {
         var body_opt = req.body.read_to_string();
         if(body_opt is std.Option.None) {
-            res.status = 400u;
-            res.write_string(std::string::make_no_len("no body"));
-            return;
+            res.status = 400u; res.write_string(std::string::make_no_len("no body")); return;
         }
         var Some(body) = body_opt else unreachable
-        res.write_string(std::replace(body, std::string()));
+        res.write_string(body);
     });
     
     var thread = srv.serve_async(8082u);
-    std::concurrent.sleep_ms(100u);
+    std.concurrent.sleep_ms(100u);
     
     var client = net::Client();
     var res_result = client.post("http://127.0.0.1:8082/echo", "hello echo", "text/plain");
     
     if(res_result is Result.Err) {
-        env.error("POST failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8082u);
+        var Err(e) = res_result else unreachable;
+        env.error(e.data());
+        srv.shutdown();
         thread.join();
         return;
     }
     
     var Ok(res) = res_result else unreachable;
-    
     var body_opt = res.body.read_to_string();
     if(body_opt is std.Option.None) {
         env.error("Read body failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8082u);
-        thread.join();
         return;
     }
     var Some(body) = body_opt else unreachable
+    if(!body.equals_view("hello echo")) { env.error("Body mismatch"); }
     
-    if(!body.equals_with_len("hello echo", 10)) {
-        env.error("Body mismatch");
-        srv.run = false;
-        net::dial("127.0.0.1", 8082u);
-        thread.join();
-        return;
-    }
-    
-    srv.run = false;
-    net::dial("127.0.0.1", 8082u);
+    srv.shutdown();
     thread.join();
 }
 
 @test
-func test_http_query_params(env : &mut TestEnv) {
+func test_http_404(env : &mut TestEnv) {
     var cfg = server::ServerConfig();
     cfg.addr = std::string::make_no_len("127.0.0.1:8083");
     var srv = server::Server(cfg);
     
-    srv.router.add("GET", "/query", ||(req, res) => {
-        var name = req.query.get("name");
-        var out = std::string::make_no_len("hello ");
-        out.append_view(name);
-        res.write_string(out);
-    });
-    
     var thread = srv.serve_async(8083u);
-    std::concurrent.sleep_ms(100u);
+    std.concurrent.sleep_ms(100u);
     
     var client = net::Client();
-    var res_result = client.get("http://127.0.0.1:8083/query?name=chemical");
+    var res_result = client.get("http://127.0.0.1:8083/notfound");
     
     if(res_result is Result.Err) {
-        env.error("GET with query failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8083u);
+        var Err(e) = res_result else unreachable;
+        env.error(e.data());
+        srv.shutdown();
         thread.join();
         return;
     }
     
     var Ok(res) = res_result else unreachable;
+    if(res.status != 404u) { env.error("Expected 404"); }
     
-    var body_opt = res.body.read_to_string();
-    if(body_opt is std.Option.None) {
-        env.error("Read body failed");
-        srv.run = false;
-        net::dial("127.0.0.1", 8083u);
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_http_headers(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8084");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("GET", "/headers", ||(req, res) => {
+        var val = req.headers.get("X-Test-Header");
+        if(val is std.Option.None) {
+            res.status = 400u; res.write_string(std::string::make_no_len("missing header")); return;
+        }
+        var Some(v) = val else unreachable
+        res.set_header(std::string::make_no_len("X-Response-Header"), std::replace(v, std::string()));
+        res.write_string(std::string::make_no_len("ok"));
+    });
+    
+    var thread = srv.serve_async(8084u);
+    std.concurrent.sleep_ms(100u);
+    
+    var client = net::Client();
+    var u_opt = http::URL::parse("http://127.0.0.1:8084/headers");
+    var Some(u) = u_opt else unreachable;
+    var rb = http::RequestBuilder("GET", u);
+    rb.header("X-Test-Header", "chemical-rocks");
+    
+    var res_result = client.request(rb);
+    
+    if(res_result is Result.Err) {
+        var Err(e) = res_result else unreachable;
+        env.error(e.data());
+        srv.shutdown();
         thread.join();
         return;
     }
-    var Some(body) = body_opt else unreachable
     
-    if(!body.equals_with_len("hello chemical", 14)) {
-        env.error("Body mismatch");
-        srv.run = false;
-        net::dial("127.0.0.1", 8083u);
-        thread.join();
+    var Ok(res) = res_result else unreachable;
+    var resp_h = res.headers.get("X-Response-Header");
+    if(resp_h is std.Option.None) {
+        env.error("Missing response header");
         return;
     }
+    var Some(rv) = resp_h else unreachable
+    if(!rv.equals_view("chemical-rocks")) { env.error("Header value mismatch"); }
     
-    srv.run = false;
-    net::dial("127.0.0.1", 8083u);
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_http_put_delete(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8085");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("PUT", "/update", ||(req, res) => {
+        res.write_string(std::string::make_no_len("updated"));
+    });
+    srv.router.add("DELETE", "/delete", ||(req, res) => {
+        res.write_string(std::string::make_no_len("deleted"));
+    });
+    
+    var thread = srv.serve_async(8085u);
+    std.concurrent.sleep_ms(100u);
+    
+    var client = net::Client();
+    
+    var res1 = client.put("http://127.0.0.1:8085/update", "data", "text/plain");
+    if(res1 is std.Result.Err) {
+        env.error("PUT failed"); srv.shutdown(); thread.join(); return;
+    }
+    var Ok(r1) = res1 else unreachable
+    var b1 = r1.body.read_to_string().take();
+    if(!b1.equals_view("updated")) { env.error("PUT response mismatch"); }
+    
+    var res2 = client.delete("http://127.0.0.1:8085/delete");
+    if(res2 is std.Result.Err) {
+        env.error("DELETE failed"); srv.shutdown(); thread.join(); return;
+    }
+    var Ok(r2) = res2 else unreachable
+    var b2 = r2.body.read_to_string().take();
+    if(!b2.equals_view("deleted")) { env.error("DELETE response mismatch"); }
+    
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_http_query_params_builder(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8086");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("GET", "/query", ||(req, res) => {
+        var q = req.query.get("q");
+        res.write_string(std::string::view_make(q));
+    });
+    
+    var thread = srv.serve_async(8086u);
+    std.concurrent.sleep_ms(100u);
+    
+    var u_opt = http::URL::parse("http://127.0.0.1:8086/query");
+    var Some(u) = u_opt else unreachable;
+    var rb = http::RequestBuilder("GET", u);
+    rb.query("q", "hello-world");
+    
+    var client = net::Client();
+    var res_result = client.request(rb);
+    if(res_result is std.Result.Err) {
+        env.error("Request failed"); srv.shutdown(); thread.join(); return;
+    }
+    var Ok(res) = res_result else unreachable
+    var body = res.body.read_to_string().take();
+    if(!body.equals_view("hello-world")) { env.error("Query param mismatch"); }
+    
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_http_large_body(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8087");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("POST", "/large", ||(req, res) => {
+        var body_opt = req.body.read_to_string();
+        if(body_opt is std.Option.None) {
+            res.status = 400u; return;
+        }
+        var Some(body) = body_opt else unreachable
+        res.write_string(body);
+    });
+    
+    var thread = srv.serve_async(8087u);
+    std.concurrent.sleep_ms(100u);
+    
+    var large_data = std::string();
+    for(var i=0u; i<10000u; i++) { large_data.append('A'); }
+    
+    var client = net::Client();
+    var res_result = client.post("http://127.0.0.1:8087/large", large_data.to_view(), "text/plain");
+
+    if(res_result is std.Result.Err) {
+        env.error("Large POST failed"); srv.shutdown(); thread.join(); return;
+    }
+    var Ok(res) = res_result else unreachable
+    var body = res.body.read_to_string().take();
+    if(body.size() != 10000u) { env.error("Large body size mismatch"); }
+    
+    srv.shutdown();
     thread.join();
 }

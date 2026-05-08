@@ -15,8 +15,8 @@ public namespace net {
     public func set_recv_timeout(s:Socket, secs: long, usecs: long) {
         var tv = timeval{ tv_sec: secs, tv_usec: usecs };
         // level SOL_SOCKET and optname SO_RCVTIMEO constants (platform dependent)
-        const SOL_SOCKET = 1
-        const SO_RCVTIMEO = 0x1006 // value often different; if incorrect, tests will fail — we can adjust per platform
+        const SOL_SOCKET = if(def.windows) 0xFFFF else 1
+        const SO_RCVTIMEO = if(def.windows) 0x1006 else 20
         sock_setsockopt(s, SOL_SOCKET as int, SO_RCVTIMEO as int, ( &mut tv ) as *char, sizeof(timeval) as int);
     }
 

@@ -1,128 +1,154 @@
 public namespace http {
 
-    public struct Response {
-        var status: uint;
-        var status_text: std::string;
-        var proto: std::string;
-        var headers: HeaderMap;
-        var body_len: usize;
-        var body: Body;
+    public struct URL {
+        var scheme: std::string;
+        var host: std::string;
+        var port: uint;
+        var path: std::string;
+        var query: std::string;
 
         @constructor func constructor() {
-            return Response {
-                status = 200u;
-                status_text = std::string();
-                proto = std::string();
-                headers = HeaderMap();
-                body_len = 0u;
-                body : Body()
+            return URL {
+                scheme = std::string::make_no_len("http"),
+                host = std::string(),
+                port = 80u,
+                path = std::string::make_no_len("/"),
+                query = std::string()
             }
+        }
+
+        public func parse(url_str: &std::string_view) : std::Option<URL> {
+            var u = *url_str;
+            var res = URL();
+
+            if(u.starts_with("http://")) {
+                res.scheme = std::string::make_no_len("http");
+                u = u.skip(7u);
+            } else if(u.starts_with("https://")) {
+                res.scheme = std::string::make_no_len("https");
+                res.port = 443u;
+                u = u.skip(8u);
+            }
+
+            var slash = u.find("/");
+            var host_port = std::string_view();
+            if(slash == std::NPOS) {
+                host_port = u;
+                res.path = std::string::make_no_len("/");
+            } else {
+                host_port = u.subview(0u, slash);
+                var full_path = u.subview(slash, u.size());
+                var qmark = full_path.find("?");
+                if(qmark == std::NPOS) {
+                    res.path = std::string::view_make(full_path);
+                } else {
+                    res.path = std::string::view_make(full_path.subview(0u, qmark));
+                    res.query = std::string::view_make(full_path.subview(qmark + 1u, full_path.size()));
+                }
+            }
+
+            var colon = host_port.find(":");
+            if(colon == std::NPOS) {
+                res.host = std::string::view_make(host_port);
+            } else {
+                res.host = std::string::view_make(host_port.subview(0u, colon));
+                var pstr = host_port.subview(colon + 1u, host_port.size());
+                var pval = 0u;
+                for(var i=0u; i<pstr.size(); i++) {
+                    var c = pstr.get(i);
+                    if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
+                }
+                if(pval > 0u) { res.port = pval }
+            }
+
+            if(res.host.empty()) { return std::Option.None<URL>() }
+            return std::Option.Some<URL>(res);
         }
     }
 
-    public func read_response_incremental(s: net::Socket, buf: &mut io::Buffer, timeout_secs: long, max_header_bytes: usize) : std::Option<Response> {
-        net::set_recv_timeout(s, timeout_secs, 0);
-        loop {
-            var i = 0u; var found = false; var crlfpos = 0u;
-            while(i + 3 < buf.len()) {
-                if(buf.get_byte(i) == '\r' as u8 && buf.get_byte(i+1u) == '\n' as u8 &&
-                   buf.get_byte(i+2u) == '\r' as u8 && buf.get_byte(i+3u) == '\n' as u8) {
-                    found = true;
-                    crlfpos = i + 4u;
-                    break;
-                }
+    public struct RequestBuilder {
+        var method: std::string;
+        var url: URL;
+        var headers: HeaderMap;
+        var body: std::string;
+
+        @constructor func constructor(m: *char, u: URL) {
+            return RequestBuilder {
+                method = std::string::make_no_len(m),
+                url = u,
+                headers = HeaderMap(),
+                body = std::string()
+            }
+        }
+
+        public func header(&mut self, k: *char, v: *char) : &mut RequestBuilder {
+            headers.insert(std::string::make_no_len(k), std::string::make_no_len(v));
+            return self;
+        }
+        
+        public func header_view(&mut self, k: &std::string_view, v: &std::string_view) : &mut RequestBuilder {
+            headers.insert(std::string::view_make(k), std::string::view_make(v));
+            return self;
+        }
+
+        public func query(&mut self, k: std::string_view, v: std::string_view) : &mut RequestBuilder {
+            if(!url.query.empty()) { url.query.append('&') }
+            url.query.append_view(k);
+            url.query.append('=');
+            url.query.append_view(v);
+            return self;
+        }
+
+        public func set_body(&mut self, b: &std::string_view, content_type: *char = null) : &mut RequestBuilder {
+            body = std::string::view_make(b);
+            if(content_type != null) {
+                headers.insert(std::string::make_no_len("Content-Type"), std::string(content_type));
+            }
+            return self;
+        }
+
+        public func build(&self) : std::string {
+            var out = std::string();
+            out.append_string(method);
+            out.append(' ');
+            out.append_string(url.path);
+            if(!url.query.empty()) {
+                out.append('?');
+                out.append_string(url.query);
+            }
+            out.append_view(" HTTP/1.1\r\nHost: ");
+            out.append_string(url.host);
+            if((url.scheme.equals_with_len("http", 4) && url.port != 80u) || (url.scheme.equals_with_len("https", 5) && url.port != 443u)) {
+                out.append(':');
+                out.append_uinteger(url.port);
+            }
+            out.append_view("\r\n");
+
+            if(body.size() > 0u) {
+                out.append_view("Content-Length: ");
+                out.append_uinteger(body.size() as ubigint);
+                out.append_view("\r\n");
+            }
+            
+            if(headers.get("User-Agent") is std::Option.None) {
+                out.append_view("User-Agent: chemical-client/0.1\r\n");
+            }
+
+            var i = 0u;
+            while(i < headers.headers.size()) {
+                var p = headers.headers.get_ptr(i);
+                out.append_string(p.first);
+                out.append_view(": ");
+                out.append_string(p.second);
+                out.append_view("\r\n");
                 i++;
             }
-            if(found) {
-                var ptr = buf.as_ptr();
-                var res_opt = parse_response_from_bytes(ptr, crlfpos, s);
-                if(res_opt is std::Option.Some) {
-                    buf.consume(crlfpos);
-                    var Some(res) = res_opt else unreachable;
-                    // attach body source
-                    var body_len: isize = -1;
-                    var chunked = false;
-                    if(res.body_len > 0u) { body_len = res.body_len as isize; }
-                    var te_opt = res.headers.get("Transfer-Encoding");
-                    if(te_opt is std::Option.Some) {
-                        var Some(te) = te_opt else unreachable;
-                        if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
-                    }
-                    res.body = http.Body.make_body(s, buf as *mut io::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
-                    return std::Option.Some<Response>(std::replace(res, Response()));
-                } else { return std::Option.None<Response>() }
+            out.append_view("Connection: close\r\n\r\n");
+            if(body.size() > 0u) {
+                out.append_string(body);
             }
-            if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
-            var tmp : [DEFAULT_READ_BUF]u8;
-            var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
-            if(n <= 0) { return std::Option.None<Response>() }
-            buf.append_bytes(&mut tmp[0], n as usize);
+            return out;
         }
-    }
-
-    func parse_response_from_bytes(buf:*u8, n: usize, s: net::Socket) : std::Option<Response> {
-        var crlf_pos = -1;
-        var j = 0u;
-        while(j + 1 < n) {
-            if(buf[j] == '\r' as u8 && buf[j+1] == '\n' as u8) { crlf_pos = j as int; break }
-            j++;
-        }
-        if(crlf_pos == -1) { return std::Option.None<Response>() }
-
-        // proto SP status SP status_text
-        var sp1 = -1; var sp2 = -1; var k = 0u;
-        while(k < (crlf_pos as usize)) {
-            if(buf[k] == ' ' as u8 && sp1 == -1) { sp1 = k as int }
-            else if(buf[k] == ' ' as u8 && sp2 == -1) { sp2 = k as int; break }
-            k++
-        }
-        if(sp1 == -1 || sp2 == -1) { return std::Option.None<Response>() }
-
-        var res = Response();
-        res.proto = std::string::constructor((buf + 0) as *char, (sp1 as usize) as size_t);
-        var status_str = std::string::constructor((buf + (sp1 as usize + 1)) as *char, ((sp2 as usize) - (sp1 as usize) - 1) as size_t);
-        
-        var status_val = 0u;
-        for(var i=0u; i<status_str.size(); i++) {
-            var c = status_str.get(i);
-            if(c >= '0' && c <= '9') { status_val = status_val * 10u + (c as uint - '0' as uint) }
-        }
-        res.status = status_val;
-        res.status_text = std::string::constructor((buf + (sp2 as usize + 1)) as *char, ((crlf_pos as usize) - (sp2 as usize) - 1) as size_t);
-
-        var line_start = (crlf_pos as usize) + 2;
-        while(line_start + 1 < n) {
-            var line_end = line_start;
-            while(line_end + 1 < n) {
-                if(buf[line_end] == '\r' as u8 && buf[line_end+1] == '\n' as u8) { break }
-                line_end = line_end + 1
-            }
-            if(line_end >= n) { break }
-            if(line_end == line_start) { break }
-
-            var colon = -1; var p = line_start;
-            while(p < line_end) {
-                if(buf[p] == ':' as u8) { colon = p as int; break }
-                p = p + 1
-            }
-            if(colon != -1) {
-                var name = std::string::constructor((buf + line_start) as *char, ((colon as usize) - line_start) as size_t);
-                var vstart = (colon as usize) + 1;
-                while(vstart < line_end && buf[vstart] == ' ' as u8) { vstart = vstart + 1 }
-                var value = std::string::constructor((buf + vstart) as *char, (line_end - vstart) as size_t);
-                res.headers.insert(name, value);
-            }
-            line_start = line_end + 2;
-        }
-
-        var cl_opt = res.headers.get("Content-Length");
-        if(cl_opt is std::Option.Some) {
-            var Some(v) = cl_opt else unreachable;
-            var val = 0u; var ii = 0u;
-            while(ii < v.size()) { var c = v.get(ii); if(c >= '0' && c <= '9') { val = val * 10u + (c as usize - '0' as usize) } ii = ii + 1u }
-            res.body_len = val;
-        }
-        return std::Option.Some<Response>(res);
     }
 }
 
@@ -130,89 +156,62 @@ public namespace net {
 
     public struct Client {
         var timeout_secs: long;
+        var max_response_header_bytes: usize;
 
         @constructor func constructor() {
-            return Client { timeout_secs : 10 }
+            return Client {
+                timeout_secs = 10,
+                max_response_header_bytes = 64u * 1024u
+            }
         }
 
-        func request(&self, method: &std::string_view, url: &std::string_view, body: &std::string_view = "", content_type: &std::string_view = "") : std::Result<http::Response, std::string> {
-            // parse simple URL: http://host:port/path
-            var host = std::string();
-            var port = 80u;
-            var path = std::string();
-
-            var u = *url;
-            if(u.starts_with("http://")) { u = u.skip(7u) }
-            
-            var slash = u.find("/");
-            var host_port = std::string();
-            if(slash == std::NPOS) {
-                host_port = std::string::view_make(u);
-                path.append('/');
-            } else {
-                host_port = std::string::view_make(u.subview(0u, slash));
-                path = std::string::view_make(u.subview(slash, u.size()));
+        public func request(&self, req_builder: &http::RequestBuilder) : std::Result<http::Response, std::string> {
+            var s = net::dial(req_builder.url.host.data(), req_builder.url.port);
+            if(s == 0u || (s as longlong) < 0) {
+                return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to connect"));
             }
 
-            var colon = host_port.find(":");
-            if(colon == -1u) {
-                host = host_port;
-            } else {
-                host = host_port.substring(0u, colon);
-                var pstr = host_port.substring(colon + 1u, host_port.size());
-                var pval = 0u;
-                for(var i=0u; i<pstr.size(); i++) {
-                    var c = pstr.get(i);
-                    if(c >= '0' && c <= '9') { pval = pval * 10u + (c as uint - '0' as uint) }
-                }
-                if(pval > 0u) { port = pval }
-            }
-
-            var s = net::dial(host.data(), port);
-            if(s == 0u || (s as longlong) < 0) { return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to connect")) }
-
-            var req_str = std::string();
-            req_str.append_view(method);
-            req_str.append(' ');
-            req_str.append_string(path);
-            req_str.append_view(" HTTP/1.1\r\n");
-            req_str.append_view("Host: ");
-            req_str.append_string(host);
-            req_str.append_view("\r\n");
-            
-            if(body.size() > 0u) {
-                req_str.append_view("Content-Length: ");
-                req_str.append_uinteger(body.size() as ubigint);
-                req_str.append_view("\r\n");
-                if(content_type.size() > 0u) {
-                    req_str.append_view("Content-Type: ");
-                    req_str.append_view(content_type);
-                    req_str.append_view("\r\n");
-                }
-            }
-            req_str.append_view("Connection: close\r\n\r\n");
-            if(body.size() > 0u) {
-                req_str.append_view(body);
-            }
-
-            net::send_all(s, req_str.data(), req_str.size() as int);
+            var req_data = req_builder.build();
+            net::send_all(s, req_data.data(), req_data.size() as int);
 
             var buf = io::Buffer();
-            var res_opt = http::read_response_incremental(s, buf, self.timeout_secs, 64u * 1024u);
+            var res_opt = http::read_response_incremental(s, buf, self.timeout_secs, self.max_response_header_bytes);
             if(res_opt is std::Option.None) {
                 net::close_socket(s);
-                return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to read response"))
+                return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to read response (timeout or connection closed)"));
             }
 
             return std::Result.Ok<http::Response, std::string>(res_opt.take());
         }
 
-        public func get(&self, url: &std::string_view) : std::Result<http::Response, std::string> {
-            return request("GET", url);
+        public func get(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var rb = http::RequestBuilder("GET", u);
+            return self.request(rb);
         }
 
-        public func post(&self, url: &std::string_view, body: &std::string_view, content_type: &std::string_view) : std::Result<http::Response, std::string> {
-            return request("POST", url, body, content_type);
+        public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var rb = http::RequestBuilder("POST", u);
+            rb.set_body(body, content_type);
+            return self.request(rb);
+        }
+        
+        public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var rb = http::RequestBuilder("PUT", u);
+            rb.set_body(body, content_type);
+            return self.request(rb);
+        }
+
+        public func delete(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var rb = http::RequestBuilder("DELETE", u);
+            return self.request(rb);
         }
     }
 

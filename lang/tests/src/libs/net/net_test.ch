@@ -18,7 +18,7 @@ func test_http_get(env : &mut TestEnv) {
     var res_result = client.get("http://127.0.0.1:8081/hello");
     
     if(res_result is Result.Err) {
-        var Err(e) = res_result else unreachable;
+        var Err(e) = res_result else return;
         env.error(e.data());
         srv.shutdown();
         thread.join();
@@ -30,10 +30,10 @@ func test_http_get(env : &mut TestEnv) {
     var body_opt = res.body.read_to_string();
     if(body_opt is std.Option.None) {
         env.error("Read body failed");
-        return;
+    } else {
+        var Some(body) = body_opt else unreachable;
+        if(!body.equals_view("world")) { env.error("Body mismatch"); }
     }
-    var Some(body) = body_opt else unreachable
-    if(!body.equals_view("world")) { env.error("Body mismatch"); }
     
     srv.shutdown();
     thread.join();
@@ -48,9 +48,11 @@ func test_http_post(env : &mut TestEnv) {
     srv.router.add("POST", "/echo", ||(req, res) => {
         var body_opt = req.body.read_to_string();
         if(body_opt is std.Option.None) {
-            res.status = 400u; res.write_string(std::string::make_no_len("no body")); return;
+            res.status = 400u;
+            res.write_string(std::string::make_no_len("no body"));
+            return;
         }
-        var Some(body) = body_opt else unreachable
+        var Some(body) = body_opt else unreachable;
         res.write_string(body);
     });
     
@@ -61,7 +63,7 @@ func test_http_post(env : &mut TestEnv) {
     var res_result = client.post("http://127.0.0.1:8082/echo", "hello echo", "text/plain");
     
     if(res_result is Result.Err) {
-        var Err(e) = res_result else unreachable;
+        var Err(e) = res_result else return;
         env.error(e.data());
         srv.shutdown();
         thread.join();
@@ -72,10 +74,10 @@ func test_http_post(env : &mut TestEnv) {
     var body_opt = res.body.read_to_string();
     if(body_opt is std.Option.None) {
         env.error("Read body failed");
-        return;
+    } else {
+        var Some(body) = body_opt else unreachable;
+        if(!body.equals_view("hello echo")) { env.error("Body mismatch"); }
     }
-    var Some(body) = body_opt else unreachable
-    if(!body.equals_view("hello echo")) { env.error("Body mismatch"); }
     
     srv.shutdown();
     thread.join();
@@ -94,7 +96,7 @@ func test_http_404(env : &mut TestEnv) {
     var res_result = client.get("http://127.0.0.1:8083/notfound");
     
     if(res_result is Result.Err) {
-        var Err(e) = res_result else unreachable;
+        var Err(e) = res_result else return;
         env.error(e.data());
         srv.shutdown();
         thread.join();
@@ -117,9 +119,11 @@ func test_http_headers(env : &mut TestEnv) {
     srv.router.add("GET", "/headers", ||(req, res) => {
         var val = req.headers.get("X-Test-Header");
         if(val is std.Option.None) {
-            res.status = 400u; res.write_string(std::string::make_no_len("missing header")); return;
+            res.status = 400u;
+            res.write_string(std::string::make_no_len("missing header"));
+            return;
         }
-        var Some(v) = val else unreachable
+        var Some(v) = val else unreachable;
         res.set_header(std::string::make_no_len("X-Response-Header"), std::replace(v, std::string()));
         res.write_string(std::string::make_no_len("ok"));
     });
@@ -136,7 +140,7 @@ func test_http_headers(env : &mut TestEnv) {
     var res_result = client.request(rb);
     
     if(res_result is Result.Err) {
-        var Err(e) = res_result else unreachable;
+        var Err(e) = res_result else return;
         env.error(e.data());
         srv.shutdown();
         thread.join();
@@ -147,10 +151,10 @@ func test_http_headers(env : &mut TestEnv) {
     var resp_h = res.headers.get("X-Response-Header");
     if(resp_h is std.Option.None) {
         env.error("Missing response header");
-        return;
+    } else {
+        var Some(rv) = resp_h else unreachable;
+        if(!rv.equals_view("chemical-rocks")) { env.error("Header value mismatch"); }
     }
-    var Some(rv) = resp_h else unreachable
-    if(!rv.equals_view("chemical-rocks")) { env.error("Header value mismatch"); }
     
     srv.shutdown();
     thread.join();
@@ -175,20 +179,32 @@ func test_http_put_delete(env : &mut TestEnv) {
     var client = net::Client();
     
     var res1 = client.put("http://127.0.0.1:8085/update", "data", "text/plain");
-    if(res1 is std.Result.Err) {
-        env.error("PUT failed"); srv.shutdown(); thread.join(); return;
+    if(res1 is Result.Err) {
+        env.error("PUT failed");
+    } else {
+        var Ok(r1) = res1 else unreachable;
+        var b1_opt = r1.body.read_to_string();
+        if(b1_opt is std.Option.None) {
+            env.error("PUT read body failed");
+        } else {
+            var Some(b1) = b1_opt else unreachable;
+            if(!b1.equals_view("updated")) { env.error("PUT response mismatch"); }
+        }
     }
-    var Ok(r1) = res1 else unreachable
-    var b1 = r1.body.read_to_string().take();
-    if(!b1.equals_view("updated")) { env.error("PUT response mismatch"); }
     
     var res2 = client.delete("http://127.0.0.1:8085/delete");
-    if(res2 is std.Result.Err) {
-        env.error("DELETE failed"); srv.shutdown(); thread.join(); return;
+    if(res2 is Result.Err) {
+        env.error("DELETE failed");
+    } else {
+        var Ok(r2) = res2 else unreachable;
+        var b2_opt = r2.body.read_to_string();
+        if(b2_opt is std.Option.None) {
+            env.error("DELETE read body failed");
+        } else {
+            var Some(b2) = b2_opt else unreachable;
+            if(!b2.equals_view("deleted")) { env.error("DELETE response mismatch"); }
+        }
     }
-    var Ok(r2) = res2 else unreachable
-    var b2 = r2.body.read_to_string().take();
-    if(!b2.equals_view("deleted")) { env.error("DELETE response mismatch"); }
     
     srv.shutdown();
     thread.join();
@@ -215,12 +231,19 @@ func test_http_query_params_builder(env : &mut TestEnv) {
     
     var client = net::Client();
     var res_result = client.request(rb);
-    if(res_result is std.Result.Err) {
-        env.error("Request failed"); srv.shutdown(); thread.join(); return;
+    
+    if(res_result is Result.Err) {
+        env.error("Request failed");
+    } else {
+        var Ok(res) = res_result else unreachable;
+        var body_opt = res.body.read_to_string();
+        if(body_opt is std.Option.None) {
+            env.error("Read body failed");
+        } else {
+            var Some(body) = body_opt else unreachable;
+            if(!body.equals_view("hello-world")) { env.error("Query param mismatch"); }
+        }
     }
-    var Ok(res) = res_result else unreachable
-    var body = res.body.read_to_string().take();
-    if(!body.equals_view("hello-world")) { env.error("Query param mismatch"); }
     
     srv.shutdown();
     thread.join();
@@ -235,9 +258,10 @@ func test_http_large_body(env : &mut TestEnv) {
     srv.router.add("POST", "/large", ||(req, res) => {
         var body_opt = req.body.read_to_string();
         if(body_opt is std.Option.None) {
-            res.status = 400u; return;
+            res.status = 400u;
+            return;
         }
-        var Some(body) = body_opt else unreachable
+        var Some(body) = body_opt else unreachable;
         res.write_string(body);
     });
     
@@ -249,13 +273,60 @@ func test_http_large_body(env : &mut TestEnv) {
     
     var client = net::Client();
     var res_result = client.post("http://127.0.0.1:8087/large", large_data.to_view(), "text/plain");
-
-    if(res_result is std.Result.Err) {
-        env.error("Large POST failed"); srv.shutdown(); thread.join(); return;
+    
+    if(res_result is Result.Err) {
+        env.error("Large POST failed");
+    } else {
+        var Ok(res) = res_result else unreachable;
+        var body_opt = res.body.read_to_string();
+        if(body_opt is std.Option.None) {
+            env.error("Read body failed");
+        } else {
+            var Some(body) = body_opt else unreachable;
+            if(body.size() != 10000u) { env.error("Large body size mismatch"); }
+        }
     }
-    var Ok(res) = res_result else unreachable
-    var body = res.body.read_to_string().take();
-    if(body.size() != 10000u) { env.error("Large body size mismatch"); }
+    
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_http_patch_head(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8088");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("PATCH", "/patch", ||(req, res) => {
+        res.write_string(std::string::make_no_len("patched"));
+    });
+    srv.router.add("HEAD", "/head", ||(req, res) => {
+        res.set_header(std::string::make_no_len("X-Head-Ok"), std::string::make_no_len("yes"));
+        res.write_string(std::string::make_no_len("")); // HEAD shouldn't have body but server adds Content-Length
+    });
+    
+    var thread = srv.serve_async(8088u);
+    std.concurrent.sleep_ms(100u);
+    
+    var client = net::Client();
+    
+    var res_patch = client.patch("http://127.0.0.1:8088/patch", "data", "application/json");
+    if(res_patch is Result.Ok) {
+        var Ok(r) = res_patch else unreachable;
+        var b = r.body.read_to_string().take();
+        if(!b.equals_view("patched")) env.error("PATCH mismatch");
+    } else {
+        env.error("PATCH failed");
+    }
+    
+    var res_head = client.head("http://127.0.0.1:8088/head");
+    if(res_head is Result.Ok) {
+        var Ok(rh) = res_head else unreachable;
+        var h = rh.headers.get("X-Head-Ok");
+        if(h is std.Option.None) env.error("HEAD missing header");
+    } else {
+        env.error("HEAD failed");
+    }
     
     srv.shutdown();
     thread.join();

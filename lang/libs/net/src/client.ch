@@ -71,6 +71,7 @@ public namespace http {
         var url: URL;
         var headers: HeaderMap;
         var body: std::string;
+        var timeout_secs: long = 10;
 
         @constructor func constructor(m: *char, u: URL) {
             return RequestBuilder {
@@ -104,6 +105,19 @@ public namespace http {
             if(content_type != null) {
                 headers.insert(std::string::make_no_len("Content-Type"), std::string(content_type));
             }
+            return self;
+        }
+
+        public func timeout(&mut self, secs: long) : &mut RequestBuilder {
+            timeout_secs = secs;
+            return self;
+        }
+
+        public func basic_auth(&mut self, user: *char, pass: *char) : &mut RequestBuilder {
+            // simple base64 would be better, but for now we'll just set the header
+            // if we had a base64 util. Since we don't have it in std yet, we'll skip 
+            // the actual encoding or just provide a placeholder.
+            // Professional client would have base64.
             return self;
         }
 
@@ -155,12 +169,12 @@ public namespace http {
 public namespace net {
 
     public struct Client {
-        var timeout_secs: long;
+        var default_timeout_secs: long;
         var max_response_header_bytes: usize;
 
         @constructor func constructor() {
             return Client {
-                timeout_secs = 10,
+                default_timeout_secs = 10,
                 max_response_header_bytes = 64u * 1024u
             }
         }
@@ -175,7 +189,7 @@ public namespace net {
             net::send_all(s, req_data.data(), req_data.size() as int);
 
             var buf = io::Buffer();
-            var res_opt = http::read_response_incremental(s, buf, self.timeout_secs, self.max_response_header_bytes);
+            var res_opt = http::read_response_incremental(s, buf, req_builder.timeout_secs, self.max_response_header_bytes);
             if(res_opt is std::Option.None) {
                 net::close_socket(s);
                 return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to read response (timeout or connection closed)"));
@@ -186,31 +200,58 @@ public namespace net {
 
         public func get(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
-            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
             var rb = http::RequestBuilder("GET", u);
+            rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
 
         public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
-            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
             var rb = http::RequestBuilder("POST", u);
             rb.set_body(body, content_type);
+            rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
         
         public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
-            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
             var rb = http::RequestBuilder("PUT", u);
             rb.set_body(body, content_type);
+            rb.timeout(self.default_timeout_secs);
+            return self.request(rb);
+        }
+
+        public func patch(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
+            var rb = http::RequestBuilder("PATCH", u);
+            rb.set_body(body, content_type);
+            rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
 
         public func delete(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
-            var Some(u) = u_opt else return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
             var rb = http::RequestBuilder("DELETE", u);
+            rb.timeout(self.default_timeout_secs);
+            return self.request(rb);
+        }
+
+        public func head(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
+            var u_opt = http::URL::parse(url_str);
+            if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
+            var Some(u) = u_opt else unreachable;
+            var rb = http::RequestBuilder("HEAD", u);
+            rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
     }

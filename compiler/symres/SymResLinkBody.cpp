@@ -503,28 +503,6 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
         }
     }
 
-    // check assignment satisfies the lhs type
-    switch(assign->assOp){
-        case Operation::Assignment:
-            if (!lhsType->satisfies(value, true)) {
-                linker.unsatisfied_type_err(value, lhsType);
-            }
-            break;
-        case Operation::Addition:
-        case Operation::Subtraction:
-            if(lhsType->kind() == BaseTypeKind::Pointer) {
-                const auto rhsType = value->getType()->canonical();
-                if(rhsType->kind() != BaseTypeKind::IntN) {
-                    linker.unsatisfied_type_err(value, lhsType);
-                }
-            } else if (!lhsType->satisfies(value, true)) {
-                linker.unsatisfied_type_err(value, lhsType);
-            }
-            break;
-        default:
-            break;
-    }
-
     // we should report has assignment, even if it's a different operator
     // so the parameter can be allocated in a temporary variable for modification
     lhs->report_assignment_of_chain_id();
@@ -667,14 +645,6 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
                 link_with_implicit_constructor(*this, implicit, value);
                 return;
             }
-            if(!func_type->returnType->satisfies(value, false)) {
-                linker.unsatisfied_type_err(value, func_type->returnType);
-            }
-        }
-    } else {
-        const auto func_type = linker.current_func_type;
-        if(func_type->returnType && func_type->returnType->kind() != BaseTypeKind::Void) {
-            linker.error(node) << "function expects a non void return of type '" << func_type->returnType->representation() << "'";
         }
     }
 }
@@ -923,9 +893,6 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
                 } else if(!as_array->has_explicit_size()) {
                     as_array->set_array_size(arr_type->get_array_size());
                 }
-            }
-            if(!type->satisfies(value, false)) {
-                linker.unsatisfied_type_err(value, type);
             }
         }
     }
@@ -1220,17 +1187,6 @@ void verify_has_return(SymbolResolver& linker, Scope& scope, SourceLocation loca
 }
 
 void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
-    // visiting the signature of the function
-    for(auto param : node->params) {
-        // default values aren't verified during link signature
-        // because they may not have been linked at that time
-        if(param->defValue) {
-            const auto imp_constructor = param->type->implicit_constructor_for(param->defValue);
-            if(imp_constructor == nullptr && !param->type->satisfies(param->defValue, false)) {
-                linker.unsatisfied_type_err(param->defValue, param->type);
-            }
-        }
-    }
     if(node->body.has_value()) {
         // if has body declare params
         linker.scope_start();
@@ -2708,8 +2664,6 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
                 const auto implicit = def->implicit_constructor_func(value);
                 if(implicit) {
                     link_with_implicit_constructor(*this, implicit, value);
-                } else if(!elemType->satisfies(value, false)) {
-                    linker.unsatisfied_type_err(value, elemType);
                 }
                 i++;
             }
@@ -2726,9 +2680,6 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
         }
         if(known_elem_type) {
             current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
-            if(!known_elem_type->satisfies(value, false)) {
-                linker.unsatisfied_type_err(value, known_elem_type);
-            }
         }
         i++;
     }
@@ -3089,36 +3040,11 @@ void SymResLinkBody::VisitNewTypedValue(NewTypedValue* value) {
     visit(value->type);
 }
 
-void verify_placement_new(SymbolResolver& linker, TypeLoc ptrType, Value* value) {
-    switch(ptrType->kind()) {
-        case BaseTypeKind::Pointer:{
-            const auto child_type = ptrType->as_pointer_type_unsafe()->type;
-            if (!child_type->satisfies(value, false)) {
-                linker.error("value does not satisfy the pointer value type", value);
-            }
-            return;
-        }
-        case BaseTypeKind::Linked:{
-            const auto linked = ptrType->as_linked_type_unsafe()->linked;
-            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
-                verify_placement_new(linker, linked->as_typealias_unsafe()->actual_type, value);
-                return;
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    linker.error("expected pointer value to be of pointer type", ptrType.encoded_location());
-}
-
 void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     visit(value->pointer);
     visit(value->value);
     // type of the value determined at symbol resolution must be set
     value->ptr_type.type = value->value->getType();
-    // verify the type
-    verify_placement_new(linker, { value->pointer->getType(), value->pointer->encoded_location() }, value->value);
 }
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {
@@ -3325,8 +3251,6 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             auto implicit = mem_type->implicit_constructor_for(val_ptr);
             if(implicit) {
                 link_with_implicit_constructor(*this, implicit, val_ptr);
-            } else if(!mem_type->satisfies(value, false)) {
-                linker.unsatisfied_type_err(value, mem_type);
             }
         }
     }

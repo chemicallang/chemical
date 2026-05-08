@@ -28,6 +28,11 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
+     * using this we check, if non-public generics are being instantiated in public generic declarations
+     */
+    bool is_generic_public_context = false;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -43,12 +48,6 @@ public:
 
     void VisitAssignmentStmt(AssignStatement *assign);
 
-    void VisitStructValue(StructValue *val);
-
-    void VisitArrayValue(ArrayValue *val);
-
-    void VisitFunctionCall(FunctionCall *call);
-
     void VisitImplDecl(ImplDefinition* def);
 
     void VisitIfStmt(IfStatement *stmt);
@@ -57,7 +56,17 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *decl);
 
+    // Types
+
+    void VisitLinkedType(LinkedType* type);
+
     // Values
+
+    void VisitStructValue(StructValue *val);
+
+    void VisitArrayValue(ArrayValue *val);
+
+    void VisitFunctionCall(FunctionCall *call);
 
     void VisitLambdaFunction(LambdaFunction *func);
 
@@ -66,33 +75,19 @@ public:
     // -------- Generic Declarations ------------
     // -------- Only Template is visited --------
 
-    void VisitGenericFuncDecl(GenericFuncDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericFuncDecl(GenericFuncDecl* node);
 
-    void VisitGenericTypeDecl(GenericTypeDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericTypeDecl(GenericTypeDecl* node);
 
-    void VisitGenericStructDecl(GenericStructDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericStructDecl(GenericStructDecl* node);
 
-    void VisitGenericUnionDecl(GenericUnionDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericUnionDecl(GenericUnionDecl* node);
 
-    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
 
-    void VisitGenericVariantDecl(GenericVariantDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericVariantDecl(GenericVariantDecl* node);
 
-    void VisitGenericImplDecl(GenericImplDecl* node) {
-        visit(node->master_impl);
-    }
+    void VisitGenericImplDecl(GenericImplDecl* node);
 
 
 };

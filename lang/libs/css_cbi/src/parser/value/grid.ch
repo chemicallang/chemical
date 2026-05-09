@@ -165,7 +165,7 @@ func (cssParser : &mut CSSParser) parseGridLineOrPair(
         if(cssParser.parseGridLine(parser, builder, second)) {
             var pair = builder.allocate<CSSValuePair>()
             new (pair) CSSValuePair()
-            pair.first = value
+            pair.first = *value
             pair.second = second;
             value.kind = CSSValueKind.Pair
             value.data = pair

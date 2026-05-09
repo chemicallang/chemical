@@ -100,7 +100,7 @@ func alloc_value_length_raw(
     var number_value = builder.allocate<CSSLengthValueData>()
     new (number_value) CSSLengthValueData {
         kind : CSSLengthKind.Unknown,
-        value : view
+        value : *view
     }
     const lenKind = parseLengthKindSafe(parser, builder);
     if(lenKind != CSSLengthKind.Unknown) {
@@ -139,7 +139,7 @@ func alloc_value_num_length_raw(
     var number_value = builder.allocate<CSSLengthValueData>()
     new (number_value) CSSLengthValueData {
         kind : CSSLengthKind.Unknown,
-        value : view
+        value : *view
     }
     const lenKind = parseLengthKindSafe(parser, builder);
     if(lenKind != CSSLengthKind.Unknown) {

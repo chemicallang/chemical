@@ -5,7 +5,7 @@ func (map : &mut std::unordered_map<std::string_view, *void>) put(view : &std::s
         printf("INSERTED %s ALREADY CONTAINS PARSER\n", view.data());
         fflush(null)
     }
-    map.insert(view, val)
+    map.insert(*view, val)
 }
 
 func putAllCSSValueParsers(

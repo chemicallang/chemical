@@ -39,7 +39,7 @@ public namespace server {
 
         // production handler: parse request, route, and respond
         func handle_conn(&self, s: net::Socket) {
-            printf("DEBUG: handle_conn entry sock=%lu\n", s);
+            
             if (s == 0u || (s as longlong) < 0) {
                 printf("handle_conn: invalid socket {}\n");
                 net::close_socket(s); return;
@@ -48,11 +48,11 @@ public namespace server {
             var buf = io.Buffer();
             var req_opt = http.read_request_incremental(s, buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
-                printf("DEBUG: handle_conn read_request failed socket=%lu\n", s);
+                
                 net::close_socket(s); return;
             }
             var Some(req) = req_opt else unreachable;
-            printf("DEBUG: handle_conn parsed request method=%s path=%s sock=%lu\n", req.method.data(), req.path.data(), s);
+            
 
             var body_len: isize = -1;
             var chunked = false;
@@ -71,22 +71,21 @@ public namespace server {
             var resw = http.ResponseWriter(s, req.method);
 
             if (route != null) {
-                printf("DEBUG: handle_conn invoking handler sock=%lu\n", s);
+                
                 route.handler(req_opt.take(), resw);
-                printf("DEBUG: handle_conn handler returned sock=%lu\n", s);
+                
             } else {
-                printf("DEBUG: handle_conn no route found sock=%lu\n", s);
+                
                 resw.status = 404u;
                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
             net::close_socket(s);
-            printf("DEBUG: handle_conn finished socket=%lu\n", s);
+            
         }
 
         // accept loop — submit work to threadpool
-        // TEMP: accept inline to isolate threadpool / closure issues
         func accept_main(arg : *void) : *void {
             var S = arg as *mut Server;
             while (S.run) {

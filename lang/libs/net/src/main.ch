@@ -35,7 +35,7 @@ public namespace net {
 
     // listen by address string and port using getaddrinfo -> bind -> listen loop
     public func listen_addr(addr_str:*char, port: uint) : Socket {
-        printf("DEBUG: listen_addr start addr=%s port=%u\n", if(addr_str!=null) addr_str else "NULL", port);
+        
         startup();
         // create socket
         var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
@@ -137,7 +137,7 @@ public namespace net {
     public func close_socket(s: Socket) { sock_close(s) }
 
     public func dial(addr_str:*char, port: uint) : Socket {
-        printf("DEBUG: dial start addr=%s port=%u\n", if(addr_str!=null) addr_str else "NULL", port);
+        
         startup();
         
         var addrinfo: *mut char = null;
@@ -159,7 +159,7 @@ public namespace net {
         
         var ret = sock_getaddrinfo(addr_str, &port_str[0], null, &mut addrinfo);
         if(ret != 0) {
-            printf("DEBUG: dial getaddrinfo failed ret=%d\n", ret);
+            
             return 0 as Socket;
         }
 
@@ -173,13 +173,13 @@ public namespace net {
             
             s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
             if(s != 0 as Socket && (s as longlong) >= 0) {
-                printf("DEBUG: dial connecting...\n");
+                
                 if(sock_connect(s, ai_addr_ptr, ai_addrlen as int) == 0) {
-                    printf("DEBUG: dial success sock=%lu\n", s);
+                    
                     sock_freeaddrinfo(addrinfo);
                     return s;
                 }
-                printf("DEBUG: dial connect failed\n");
+                
                 sock_close(s);
             }
             
@@ -188,7 +188,7 @@ public namespace net {
             s = 0 as Socket;
         }
 
-        printf("DEBUG: dial failed after trying all addrinfo\n");
+        
         sock_freeaddrinfo(addrinfo);
         return 0 as Socket;
     }

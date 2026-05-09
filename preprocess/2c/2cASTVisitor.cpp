@@ -1818,53 +1818,6 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
 
 }
 
-void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier) {
-    auto eval = evaluated_func_val(visitor, decl, call);
-    const auto eval_struct_val = eval->as_struct_value();
-    if(eval_struct_val) {
-        allocate_struct_by_name(visitor, eval_struct_val->linked_extendable(), identifier);
-    }
-    process_init_value(eval, identifier);
-}
-
-void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_view& identifier) {
-    if(!value) return;
-    const auto val_type = value->getType();
-    if(!val_type->isStructLikeType()) return;
-    FunctionCall* call_ptr;
-    switch(value->val_kind()) {
-        case ValueKind::AccessChain:
-            call_ptr = value->as_access_chain_unsafe()->values.back()->as_func_call();
-            if(!call_ptr) return;
-            break;
-        case ValueKind::FunctionCall:
-            call_ptr = value->as_func_call_unsafe();
-            break;
-        default:
-            return;
-    }
-    auto& call = *call_ptr;
-    const auto parent = call.parent_val->linked_node();
-    const auto parent_kind = parent->kind();
-    if(ASTNode::isFunctionDecl(parent_kind) && parent->as_function_unsafe()->is_comptime()) {
-        process_comp_time_call(parent->as_function_unsafe(), &call, identifier);
-        return;
-    } else {
-        auto func_type = call.function_type();
-        if(func_type) {
-            auto linked = func_type->returnType->linked_node();
-            if(linked) {
-                const auto linked_kind = linked->kind();
-                if (linked_kind == ASTNodeKind::StructDecl || linked_kind == ASTNodeKind::VariantDecl) {
-                    allocate_struct_for_func_call(visitor, linked->as_extendable_members_container_unsafe(), &call, func_type, identifier);
-                } else if (linked_kind == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type(visitor.allocator)->kind() == BaseTypeKind::Dynamic) {
-                    allocate_fat_pointer_for_value(visitor, &call, identifier, nullptr);
-                }
-            }
-        }
-    }
-}
-
 void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
 //    if (!init->type) {
 //        init->type = init->value->getType();

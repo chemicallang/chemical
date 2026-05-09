@@ -280,10 +280,6 @@ public:
         attrs.never_destructed = value;
     }
 
-    Value* holding_value() final {
-        return value;
-    }
-
     BaseType* known_type();
 
     BaseType* known_type_or_err() {

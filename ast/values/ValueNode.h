@@ -37,11 +37,6 @@ public:
 
     }
 
-
-    Value *holding_value() final {
-        return value;
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final;

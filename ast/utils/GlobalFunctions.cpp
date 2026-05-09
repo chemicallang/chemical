@@ -379,11 +379,8 @@ Value* resolve_ref(Value* val, InterpretScope *call_scope) {
     Value* value = nullptr;
     if(val->reference()) {
         auto linked = val->linked_node();
-        if(linked && !linked->as_func_param()) {
-            auto holding = linked->holding_value();
-            if(holding) {
-                value = holding;
-            }
+        if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
+            value = linked->as_var_init_unsafe()->value;
         } else {
             value = val->evaluated_value(*call_scope);
         }

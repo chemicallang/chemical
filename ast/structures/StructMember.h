@@ -81,10 +81,6 @@ public:
         return is_const();
     }
 
-    Value *holding_value() final {
-        return defValue ? defValue : nullptr;
-    }
-
     inline BaseType *known_type() {
         return type;
     }

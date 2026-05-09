@@ -94,10 +94,6 @@ public:
         attrs.has_assignment = true;
     }
 
-    Value *holding_value() final {
-        return defValue;
-    }
-
     unsigned calculate_c_or_llvm_index(FunctionType* func_type);
 
     inline BaseType *known_type() {

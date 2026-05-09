@@ -290,13 +290,6 @@ public:
     }
 
     /**
-     * any value held by this node, for example var init statement can hold an initializer
-     */
-    virtual Value* holding_value() {
-        return nullptr;
-    }
-
-    /**
      * The type for this node, this could be type of value of var init
      */
     inline BaseType* known_type() {

@@ -39,6 +39,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 #include <iostream>
+#include "ast/values/ValueNode.h"
 #include "std/except.h"
 
 #ifdef COMPILER_BUILD
@@ -1013,7 +1014,7 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
         case ASTNodeKind::ValueWrapper:
             return node->as_value_wrapper_unsafe()->value;
         case ASTNodeKind::ValueNode:
-            return node->holding_value();
+            return node->as_value_node_unsafe()->value;
         case ASTNodeKind::IfStmt:
             return get_first_value_from_value_node(((IfStatement*) node)->ifBody.nodes.back());
         case ASTNodeKind::SwitchStmt: {

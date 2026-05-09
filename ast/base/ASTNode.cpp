@@ -343,10 +343,7 @@ chem::string_view ASTNode::get_node_identifier() {
 
 uint64_t ASTNode::byte_size(TargetData& target) {
     auto holdingType = known_type();
-    if(holdingType) return holdingType->byte_size(target);
-    auto holdingValue = holding_value();
-    if(holdingValue) return holdingValue->byte_size(target);
-    CHEM_THROW_RUNTIME("unknown byte size for linked node");
+    return holdingType->byte_size(target);
 }
 
 ASTNode* ASTNode::root_parent() {

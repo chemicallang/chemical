@@ -39,6 +39,7 @@ public namespace server {
 
         // production handler: parse request, route, and respond
         func handle_conn(&self, s: net::Socket) {
+            printf("DEBUG: handle_conn entry sock=%lu\n", s);
             if (s == 0u || (s as longlong) < 0) {
                 printf("handle_conn: invalid socket {}\n");
                 net::close_socket(s); return;
@@ -47,52 +48,41 @@ public namespace server {
             var buf = io.Buffer();
             var req_opt = http.read_request_incremental(s, buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
-                // printf("handle_conn: read_request_incremental -> None for socket=%d\n", s);
+                printf("DEBUG: handle_conn read_request failed socket=%lu\n", s);
                 net::close_socket(s); return;
             }
-            // printf("handle_conn: parsed request for socket=%d\n", s);
             var Some(req) = req_opt else unreachable;
+            printf("DEBUG: handle_conn parsed request method=%s path=%s sock=%lu\n", req.method.data(), req.path.data(), s);
 
-            // do NOT read the body yet — create a lazy Body and give it to the handler via req.body_source
             var body_len: isize = -1;
             var chunked = false;
-            // set body_len from req.body_len (was parsed from Content-Length), else -1
             if(req.body_len > 0u) { body_len = req.body_len as isize; }
-            // detect chunked
             var te_opt = req.headers.get("Transfer-Encoding");
             if(te_opt is std::Option.Some) {
                 var Some(te) = te_opt else unreachable;
                 if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
             }
 
-            // attach body source to request (we avoid copying the buffer: pass pointer)
             req.body = http.Body.make_body(s, &mut buf as *mut io::Buffer, body_len, chunked, self.cfg.header_timeout_secs * 4, self.cfg.max_body_bytes);
-
-            // printf("handle_conn: method='%s' path='%s'\n", req.method.data(), req.path.data());
 
             var params = std::vector<std::pair<std::string,std::string>>();
             var route = self.router.match_route(req.method, req.path, &mut params);
 
-            var resw = http.ResponseWriter(s);
-
-            // printf("handle_conn: total headers in response writer = %d\n", resw.headers.headers.size());
+            var resw = http.ResponseWriter(s, req.method);
 
             if (route != null) {
-                // printf("handle_conn: invoking handler for socket=%d\n", s);
-
-                // call the handler with the actual Request object
+                printf("DEBUG: handle_conn invoking handler sock=%lu\n", s);
                 route.handler(req_opt.take(), resw);
-
-                // printf("handle_conn: handler returned for socket=%d\n", s);
+                printf("DEBUG: handle_conn handler returned sock=%lu\n", s);
             } else {
-                // printf("handle_conn: no handler matched, sending 404 for socket=%d\n", s);
+                printf("DEBUG: handle_conn no route found sock=%lu\n", s);
                 resw.status = 404u;
                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
             net::close_socket(s);
-            // printf("handle_conn: closed socket=%d\n", s);
+            printf("DEBUG: handle_conn finished socket=%lu\n", s);
         }
 
         // accept loop — submit work to threadpool
@@ -102,7 +92,9 @@ public namespace server {
             while (S.run) {
                 var s = net.accept_socket(S.listen_sock);
                 if (s == 0u || (s as longlong) < 0) {
-                    std.concurrent.sleep_ms(1u);
+                    // Timeout or error (e.g. socket closed).
+                    // If run is false, exit; otherwise keep looping.
+                    if (!S.run) { break; }
                     continue;
                 }
 
@@ -114,7 +106,9 @@ public namespace server {
                     S.handle_conn(s);
                 });
             }
-            // printf("accept_main: exiting\n");
+            // Clean up the listening socket
+            net.close_socket(S.listen_sock);
+            S.listen_sock = 0u;
             return null;
         }
 
@@ -142,6 +136,9 @@ public namespace server {
             }
 
             self.listen_sock = net.listen_addr(host, port);
+            // Set a short recv timeout on the listening socket so accept() doesn't block forever.
+            // This allows the accept loop to periodically check the run flag.
+            net::set_recv_timeout(self.listen_sock, 0, 100000); // 100ms
             self.run = true;
         }
 
@@ -277,7 +274,7 @@ public namespace server {
                              // Route
                              var params = std::vector<std::pair<std::string,std::string>>();
                              var route = self.router.match_route(req.method, req.path, &mut params);
-                             var resw = http.ResponseWriter(s);
+                             var resw = http.ResponseWriter(s, &req.method);
 
                              if (route != null) {
                                  route.handler(req_opt.take(), resw);
@@ -328,7 +325,8 @@ public namespace server {
 
         func shutdown(&mut self) {
             run = false;
-            net.close_socket(listen_sock);
+            // accept_main will close listen_sock when it exits the loop.
+            // We just need to set run = false here.
         }
     }
 }

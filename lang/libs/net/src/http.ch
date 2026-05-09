@@ -19,11 +19,12 @@ public namespace http {
         }
 
         func print(&self) {
-            var start = headers.data()
-            const end = start + headers.size()
+            var i = 0u;
             printf("headers:\n");
-            while(start != end) {
-                printf("\theader '%s' : '%s'\n", start.first.data(), start.second.data());
+            while(i < headers.size()) {
+                var p = headers.get_ptr(i);
+                printf("\theader '%s' : '%s'\n", p.first.data(), p.second.data());
+                i = i + 1u;
             }
         }
 
@@ -113,6 +114,7 @@ public namespace http {
         // chunked state
         var cur_chunk_left: usize;           // bytes left in current chunk when chunked==true
         var seen_total: usize;               // how many body bytes have been delivered to user (enforce max_body)
+        var owns_buf: bool;                  // whether this Body owns the buf pointer (must free it)
 
         @make
         func empty_make() {
@@ -124,8 +126,17 @@ public namespace http {
                 timeout_secs = 0
                 max_body = 0
                 closed = false
-                cur_chunk_left = 0
-                seen_total = 0
+                cur_chunk_left = 0u
+                seen_total = 0u
+                owns_buf = false
+            }
+        }
+
+        @delete
+        func destruct(&mut self) {
+            if(self.owns_buf && self.buf != null) {
+                delete self.buf;
+                self.buf = null;
             }
         }
 
@@ -136,7 +147,8 @@ public namespace http {
             content_len: isize,    // -1 if unknown
             chunked: bool,
             timeout_secs: long,
-            max_body: usize
+            max_body: usize,
+            owns: bool = false
         ) : Body {
             return Body{
                 sock: sock,
@@ -147,10 +159,10 @@ public namespace http {
                 max_body: max_body,
                 closed: false,
                 cur_chunk_left: 0u,
-                seen_total: 0u
+                seen_total: 0u,
+                owns_buf: owns
             };
         }
-
     }
 
     // low-level recv helper that honors timeout and returns <=0 on error/timeout
@@ -179,11 +191,11 @@ public namespace http {
     }
 
     // PUBLIC: read up to `cap` bytes into dst; returns number of bytes read or <=0 on error.
-    // This function supports Content-Length and chunked transfer (basic).
     func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
         if(b.closed) { return 0 } // EOF for closed
         // Enforce max_body
         if(b.max_body > 0u && b.seen_total >= b.max_body) { return -1 } // too large
+        
         // If chunked mode -> decode chunk frames
         if(b.chunked) {
             // If current chunk has data, use it first
@@ -195,7 +207,10 @@ public namespace http {
                 // if need more and socket provides, recv more
                 while(total_read < want) {
                     var n = body_recv(&mut b, &mut dst[total_read], want - total_read);
-                    if(n <= 0) { return -1 }
+                    if(n <= 0) { 
+                        printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+                        return -1 
+                    }
                     total_read = total_read + (n as usize);
                 }
                 b.cur_chunk_left = b.cur_chunk_left - want;
@@ -210,7 +225,10 @@ public namespace http {
                     if(c < 2) {
                         var rem = 2 - c;
                         var n = body_recv(&mut b, &mut tmp[c], rem);
-                        if(n <= 0) { return -1 }
+                        if(n <= 0) { 
+                            printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+                            return -1 
+                        }
                     }
                     // ignore values, just discard
                 }
@@ -239,10 +257,14 @@ public namespace http {
                 }
             }
             // if linebuf still empty, read bytes from socket until CRLF
-            while(linebuf.size() == 0u) {
+            var found_crlf = false;
+            while(!found_crlf) {
                 var tmp : [64]u8;
                 var n = body_recv(&mut b, &mut tmp[0], 64);
-                if(n <= 0) { return -1 }
+                if(n <= 0) { 
+                    printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+                    return -1 
+                }
                 // append into a small temporary string searching for CRLF
                 var i = 0;
                 while(i < n) {
@@ -252,6 +274,14 @@ public namespace http {
                     if(L >= 2 && linebuf.get(L-2u) == '\r' && linebuf.get(L-1u) == '\n') {
                         // strip trailing CRLF
                         linebuf = linebuf.substring(0u, L-2u);
+                        found_crlf = true;
+                        // we should ideally keep leftover bytes in i+1..n, but for simplicity
+                        // and since chunk size is small, we assume it fits or next read handles it.
+                        // Actually, we must put leftovers back into b.buf!
+                        if((i as usize) + 1u < (n as usize)) {
+                            var rem_n = (n as usize) - ((i as usize) + 1u);
+                            if(b.buf != null) { b.buf.append_bytes(&mut tmp[i + 1], rem_n) }
+                        }
                         break;
                     }
                     i = i + 1;
@@ -293,7 +323,10 @@ public namespace http {
                     if(!found) {
                         var tmp : [DEFAULT_READ_BUF]u8;
                         var n = body_recv(&mut b, &mut tmp[0], DEFAULT_READ_BUF);
-                        if(n <= 0) { return -1 }
+                        if(n <= 0) { 
+                            printf("DEBUG: Body::read trailer EOF/error n=%d\n", n);
+                            return -1 
+                        }
                         // append to buffer for next iteration
                         if(b.buf != null) { b.buf.append_bytes(&mut tmp[0], n as usize) }
                     }
@@ -317,11 +350,15 @@ public namespace http {
             var total = copied;
             while(total < want) {
                 var n = body_recv(&mut b, &mut dst[total], want - total);
-                if(n <= 0) { return -1 }
+                if(n <= 0) { 
+                    printf("DEBUG: Body::read known-len EOF/error n=%d\n", n);
+                    return -1 
+                }
                 total = total + (n as usize);
             }
             b.remaining = b.remaining - (total as isize);
             b.seen_total = b.seen_total + total;
+            printf("DEBUG: Body::read known-len total=%d remaining=%d\n", total, b.remaining);
             if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
             return (total as int);
         } else {
@@ -336,9 +373,13 @@ public namespace http {
             }
             // otherwise, read from socket
             var n = body_recv(&mut b, dst, cap);
-            if(n <= 0) { return (0) } // EOF or error -> return 0 for EOF
+            if(n <= 0) { 
+                printf("DEBUG: Body::read stream EOF n=%d\n", n);
+                return (0) 
+            } // EOF or error -> return 0 for EOF
             b.seen_total = b.seen_total + (n as usize);
             if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
+            printf("DEBUG: Body::read stream read=%d\n", n);
             return n;
         }
     }
@@ -463,13 +504,20 @@ public namespace http {
                         if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                     }
                     res.body = http.Body.make_body(s, buf as *mut io::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
+                    printf("DEBUG: read_response_incremental success status=%u\n", res.status);
                     return std::Option.Some<Response>(std::replace(res, Response()));
-                } else { return std::Option.None<Response>() }
+                } else { 
+                    printf("DEBUG: read_response_incremental parse_response_from_bytes returned None\n");
+                    return std::Option.None<Response>() 
+                }
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
             var tmp : [DEFAULT_READ_BUF]u8;
             var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
-            if(n <= 0) { return std::Option.None<Response>() }
+            if(n <= 0) { 
+                printf("DEBUG: read_response_incremental recv_all returned %d (EOF/error)\n", n);
+                return std::Option.None<Response>() 
+            }
             buf.append_bytes(&mut tmp[0], n as usize);
         }
     }
@@ -544,13 +592,15 @@ public namespace http {
         var headers: HeaderMap;
         var status: uint;
         var sent_headers: bool;
+        var is_head: bool;
 
-        @constructor func constructor(s: net::Socket) {
+        @constructor func constructor(s: net::Socket, method : &std::string) {
             return ResponseWriter {
                 sock = s;
                 headers = HeaderMap()
                 status = 200u;
-                sent_headers = false
+                sent_headers = false;
+                is_head = method.equals_view("HEAD")
             }
         }
 
@@ -580,7 +630,11 @@ public namespace http {
 
             // Content-Length
             out.append_view(std::string_view("Content-Length: "));
-            out.append_uinteger(content_len as ubigint);
+            if (is_head) {
+                out.append_uinteger(0u);
+            } else {
+                out.append_uinteger(content_len as ubigint);
+            }
             out.append_view(std::string_view("\r\n"));
 
             // Other headers
@@ -595,14 +649,22 @@ public namespace http {
             }
 
             // End of header section
-            out.append_view(std::string_view("\r\n"));
+            out.append_view(std::string_view("Connection: close\r\n\r\n"));
 
             net::send_all(sock, out.data(), out.size() as int);
             sent_headers = true;
         }
-        func write_string(&mut self, s: &std::string) { send_headers(s.size()); net::send_all(sock, s.data(), s.size() as int) }
+        func write_string(&mut self, s: &std::string) { 
+            send_headers(s.size()); 
+            if (!is_head) {
+                net::send_all(sock, s.data(), s.size() as int);
+            }
+        }
         func write_view(&mut self, v : &std::string_view) {
-            send_headers(v.size()); net::send_all(sock, v.data(), v.size() as int)
+            send_headers(v.size()); 
+            if (!is_head) {
+                net::send_all(sock, v.data(), v.size() as int);
+            }
         }
 
         // Adds a zero-copy send_file method to ResponseWriter.

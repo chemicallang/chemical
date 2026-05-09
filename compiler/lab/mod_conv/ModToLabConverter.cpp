@@ -175,6 +175,12 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
                 if(stmt->isRemoteImport()) {
+                    const auto has_if = stmt->if_condition != nullptr;
+                    if(has_if) {
+                        output << "\tif(";
+                        writeIfConditional(stmt->if_condition, output);
+                        output << ") {\n\t";
+                    }
                     // remote import
                     // ctx.fetch_mod_dependency(__chx_job, mod, ImportRepo{...});
                     output << "\tctx.fetch_mod_dependency(__chx_job, mod, ImportRepo {\n";
@@ -211,6 +217,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
                     output << "\t\tlocation: intrinsics::get_raw_location(),\n";
                     output << "\t});\n";
+                    if (has_if) {
+                        output << "\t}\n";
+                    }
                 }
                 break;
             }

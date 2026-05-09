@@ -9,6 +9,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnionDef.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/types/ReferenceType.h"
 
@@ -18,6 +19,18 @@ uint64_t LinkedType::byte_size(TargetData& data) {
 
 bool is_struct_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {
     if(reference && linked->as_struct_def_unsafe()->destructor_func()) {
+        return false;
+    }
+    if (linked == other_linked) {
+        return true;
+    } else {
+        const auto container = other_linked->get_members_container();
+        return container && container->extends_node(linked);
+    }
+}
+
+bool is_union_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {
+    if(reference && linked->as_union_def_unsafe()->destructor_func()) {
         return false;
     }
     if (linked == other_linked) {
@@ -146,11 +159,15 @@ bool LinkedType::satisfies(BaseType *other_impure) {
             if(other_linked) {
                 return is_struct_linked_satisfies(linked, other_linked, false);
             } else {
-                if(other->kind() == BaseTypeKind::Reference) {
-                    return is_struct_linked_satisfies(linked, other->as_reference_type_unsafe()->type->get_direct_linked_node(), true);
-                } else {
-                    break;
-                }
+                break;
+            }
+        }
+        case ASTNodeKind::UnionDecl: {
+            const auto other_linked = other->get_direct_linked_node();
+            if(other_linked) {
+                return is_union_linked_satisfies(linked, other_linked, false);
+            } else {
+                break;
             }
         }
         case ASTNodeKind::VariantDecl: {
@@ -158,11 +175,7 @@ bool LinkedType::satisfies(BaseType *other_impure) {
             if(other_linked) {
                 return is_variant_linked_satisfies(linked, other_linked, false);
             } else {
-                if(other->kind() == BaseTypeKind::Reference) {
-                    return is_variant_linked_satisfies(linked, other->as_reference_type_unsafe()->type->get_direct_linked_node(), true);
-                } else {
-                    break;
-                }
+                break;
             }
         }
         case ASTNodeKind::TypealiasStmt: {

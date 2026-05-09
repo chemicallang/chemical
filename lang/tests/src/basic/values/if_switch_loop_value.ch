@@ -20,6 +20,28 @@ func if_val_view_param_conditional_if(cond : bool, v : if_val_view) : if_val_vie
     return second;
 }
 
+struct if_val_fake_string_view_33 {
+    func to_string(&self, ptr : *mut int) : if_val_fake_string_33 {
+        return { d_count : ptr }
+    }
+    func empty(&self) : bool {
+        return true;
+    }
+}
+
+struct if_val_fake_string_33 {
+    var d_count : *mut int
+    func c_str(&self) : *char {
+        return null;
+    }
+    @delete
+    func delete(&mut self) {
+        *d_count = *d_count + 1
+    }
+}
+
+func if_val_fake_atoi(a : *char) : int { return 0; }
+
 func test_if_switch_loop_value() {
     test("constructible values inside if conditionals work - 1", () => {
         var x = if_val_view_param_conditional_if(true, if_val_view{ d : 98 })
@@ -362,4 +384,20 @@ func test_if_switch_loop_value() {
         }
         return j.data == 10
     })
+    /** TODO: this doesn't compile on c translation backends
+    test("correctly destructs struct in if value block", () => {
+        // this syntax used to fail because destruction took place inside the '({' c block
+        // it generated invalid c
+        var limit_str = if_val_fake_string_view_33();
+        var converted_d_count : int = 0
+        var limit = if(limit_str.empty()) 10 else if_val_fake_atoi(limit_str.to_string(&mut converted_d_count).c_str())
+        if(converted_d_count != 1) return false;
+        var final_d_count : int = 0
+        if(true) {
+            var s = if_val_fake_string_33 { d_count : &mut final_d_count }
+        }
+        if(final_d_count != 0) return false;
+        return true;
+    })
+    **/
 }

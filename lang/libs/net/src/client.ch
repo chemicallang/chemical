@@ -179,24 +179,27 @@ public namespace net {
             }
         }
 
-        public func request(&self, req_builder: &http::RequestBuilder) : std::Result<http::Response, std::string> {
-            var s = net::dial(req_builder.url.host.data(), req_builder.url.port);
-            if(s == 0u || (s as longlong) < 0) {
-                return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to connect"));
-            }
-
-            var req_data = req_builder.build();
-            net::send_all(s, req_data.data(), req_data.size() as int);
-
-            var buf = io::Buffer();
-            var res_opt = http::read_response_incremental(s, buf, req_builder.timeout_secs, self.max_response_header_bytes);
-            if(res_opt is std::Option.None) {
-                net::close_socket(s);
-                return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to read response (timeout or connection closed)"));
-            }
-
-            return std::Result.Ok<http::Response, std::string>(res_opt.take());
+    public func request(&self, req_builder: &http::RequestBuilder) : std::Result<http::Response, std::string> {
+        var s = net::dial(req_builder.url.host.data(), req_builder.url.port);
+        if(s == 0u || (s as longlong) < 0) {
+            return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to connect"));
         }
+
+        var req_data = req_builder.build();
+        net::send_all(s, req_data.data(), req_data.size() as int);
+
+        var buf_ptr = new io::Buffer(); // heap-allocate to survive request() return
+        var res_opt = http::read_response_incremental(s, *buf_ptr, req_builder.timeout_secs, self.max_response_header_bytes);
+        if(res_opt is std::Option.None) {
+            delete buf_ptr; // free heap buffer on failure
+            net::close_socket(s);
+            return std::Result.Err<http::Response, std::string>(std::string::make_no_len("failed to read response (timeout or connection closed)"));
+        }
+
+        var res = res_opt.take();
+        res.body.owns_buf = true; // mark body as owner of the heap buffer
+        return std::Result.Ok<http::Response, std::string>(res);
+    }
 
         public func get(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);

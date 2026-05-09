@@ -1,6 +1,28 @@
 using namespace std;
 using namespace net;
 
+// Waits for the server to be ready on the given port
+func wait_for_server_ready(env: &mut TestEnv, port: uint, srv: *mut server::Server, thread: *mut std.concurrent.Thread) {
+    var ready = false;
+    var attempts = 0u;
+    while(!ready && attempts < 50u) {
+        var s = net::dial("127.0.0.1", port);
+        if(s != 0u && (s as longlong) > 0) {
+            net::close_socket(s);
+            ready = true;
+        } else {
+            std.concurrent.sleep_ms(10u);
+            attempts = attempts + 1u;
+        }
+    }
+    if(!ready) {
+        env.error("Server did not become ready");
+        srv.shutdown();
+        thread.join();
+        return;
+    }
+}
+
 @test
 func test_http_get(env : &mut TestEnv) {
     var cfg = server::ServerConfig();
@@ -12,8 +34,7 @@ func test_http_get(env : &mut TestEnv) {
     });
     
     var thread = srv.serve_async(8081u);
-    std.concurrent.sleep_ms(100u);
-    
+    wait_for_server_ready(env, 8081u, &mut srv, &mut thread);
     var client = net::Client();
     var res_result = client.get("http://127.0.0.1:8081/hello");
     

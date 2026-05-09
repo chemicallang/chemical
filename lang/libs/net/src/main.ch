@@ -35,6 +35,7 @@ public namespace net {
 
     // listen by address string and port using getaddrinfo -> bind -> listen loop
     public func listen_addr(addr_str:*char, port: uint) : Socket {
+        printf("DEBUG: listen_addr start addr=%s port=%u\n", if(addr_str!=null) addr_str else "NULL", port);
         startup();
         // create socket
         var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
@@ -136,47 +137,61 @@ public namespace net {
     public func close_socket(s: Socket) { sock_close(s) }
 
     public func dial(addr_str:*char, port: uint) : Socket {
+        printf("DEBUG: dial start addr=%s port=%u\n", if(addr_str!=null) addr_str else "NULL", port);
         startup();
-        var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
-        if (s == 0 as Socket || (s as longlong) < 0) {
+        
+        var addrinfo: *mut char = null;
+        var port_str : [8]char;
+        // manually convert port to string
+        var p = port; var i = 0;
+        if (p == 0) { port_str[0] = '0'; port_str[1] = '\0'; }
+        else {
+            var tmp : [8]char; var cnt = 0;
+            while(p > 0) { tmp[cnt] = (p % 10 + '0' as uint) as char; p = p / 10; cnt = cnt + 1; }
+            while(cnt > 0) { port_str[i] = tmp[cnt-1]; i = i + 1; cnt = cnt - 1; }
+            port_str[i] = '\0';
+        }
+        
+        var hints : [64]char; // assuming size of addrinfo
+        // set ai_family=AF_INET, ai_socktype=SOCK_STREAM
+        // This is fragile as struct definition is opaque. 
+        // Let's pass null hints for now to get any address.
+        
+        var ret = sock_getaddrinfo(addr_str, &port_str[0], null, &mut addrinfo);
+        if(ret != 0) {
+            printf("DEBUG: dial getaddrinfo failed ret=%d\n", ret);
             return 0 as Socket;
         }
 
-        // prepare sockaddr_in
-        var addr = sockaddr_in{
-            sin_family: (AF_INET as u16),
-            sin_port: htons_port(port as u16),
-            sin_addr: in_addr{ s_addr: 0u },
-            sin_zero: ['\0','\0','\0','\0','\0','\0','\0','\0']
-        };
-
-        if(addr_str != null) {
-            var ret = inet_pton(AF_INET as int, addr_str, &addr.sin_addr.s_addr as *mut char);
-            if(ret != 1) {
-                // if it's not a numeric IP, we should use getaddrinfo
-                // for now, let's just support numeric IPs to keep it simple and safe
-                // or we can try a very basic getaddrinfo usage
-                
-                // fallback to getaddrinfo
-                var hints: [64]char; // enough for addrinfo struct
-                memset(&mut hints[0], 0, 64);
-                // setting ai_family (at offset 4 usually, but we can just use 0 for any)
-                // this is risky without proper struct definition
-                // let's just return 0 for now if inet_pton fails
+        // iterate addrinfo (linked list)
+        var s: Socket = 0 as Socket;
+        var curr = addrinfo;
+        while(curr != null) {
+            // Getting ai_addr (offset 24 on 64bit)
+            var ai_addr_ptr = *(((curr as usize) + 24u) as *mut *mut char);
+            var ai_addrlen = *(((curr as usize) + 16u) as *mut usize);
+            
+            s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
+            if(s != 0 as Socket && (s as longlong) >= 0) {
+                printf("DEBUG: dial connecting...\n");
+                if(sock_connect(s, ai_addr_ptr, ai_addrlen as int) == 0) {
+                    printf("DEBUG: dial success sock=%lu\n", s);
+                    sock_freeaddrinfo(addrinfo);
+                    return s;
+                }
+                printf("DEBUG: dial connect failed\n");
                 sock_close(s);
-                return 0 as Socket;
             }
-        } else {
-            // connecting to null addr? probably localhost
-            inet_pton(AF_INET as int, "127.0.0.1", &addr.sin_addr.s_addr as *mut char);
+            
+            // move to next
+            curr = *(((curr as usize) + 40u) as *mut *mut char); // ai_next is usually at 40 on 64bit
+            s = 0 as Socket;
         }
 
-        if(sock_connect(s, &addr as *char, sizeof(sockaddr_in) as int) != 0) {
-            sock_close(s);
-            return 0 as Socket;
-        }
-
-        return s;
+        printf("DEBUG: dial failed after trying all addrinfo\n");
+        sock_freeaddrinfo(addrinfo);
+        return 0 as Socket;
     }
+
 
 }

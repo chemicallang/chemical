@@ -680,10 +680,27 @@ bool BaseType::satisfies(Value* value, bool assignment) {
 
 unsigned BaseType::type_alignment(TargetData& data) {
     switch(kind()) {
-        case BaseTypeKind::Any:
+        case BaseTypeKind::Struct: {
+            const auto st = as_struct_type_unsafe();
+            size_t maxAlign = 1;
+            for(const auto member : st->variables()) {
+                const auto align = (size_t) member->known_type()->type_alignment(data);
+                if(align > maxAlign) maxAlign = align;
+            }
+            return (unsigned) maxAlign;
+        }
+        case BaseTypeKind::Union: {
+            const auto ut = as_union_type_unsafe();
+            size_t maxAlign = 1;
+            for(const auto member : ut->variables()) {
+                const auto align = (size_t) member->known_type()->type_alignment(data);
+                if(align > maxAlign) maxAlign = align;
+            }
+            return (unsigned) maxAlign;
+        }
         case BaseTypeKind::Array:
-        case BaseTypeKind::Struct:
-        case BaseTypeKind::Union:
+            return as_array_type_unsafe()->elem_type->type_alignment(data);
+        case BaseTypeKind::Any:
         case BaseTypeKind::LongDouble:
         case BaseTypeKind::Complex:
         case BaseTypeKind::Float128:
@@ -718,6 +735,18 @@ unsigned BaseType::type_alignment(TargetData& data) {
         case BaseTypeKind::Literal:
             return as_literal_type_unsafe()->underlying->type_alignment(data);
         case BaseTypeKind::Linked: {
+            const auto linked = as_linked_type_unsafe()->linked;
+            if(linked) {
+                const auto container = linked->get_members_container();
+                if(container) {
+                    size_t maxAlign = 1;
+                    for(const auto member : container->variables()) {
+                        const auto align = (size_t) member->known_type()->type_alignment(data);
+                        if(align > maxAlign) maxAlign = align;
+                    }
+                    return (unsigned) maxAlign;
+                }
+            }
             const auto pure = as_linked_type_unsafe()->canonical();
             if(pure == this) {
                 return 8;

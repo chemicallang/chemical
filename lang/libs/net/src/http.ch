@@ -133,10 +133,9 @@ public namespace http {
         }
 
         @delete
-        func destruct(&mut self) {
+        func destruct(&self) {
             if(self.owns_buf && self.buf != null) {
                 delete self.buf;
-                self.buf = null;
             }
         }
 
@@ -208,7 +207,7 @@ public namespace http {
                 while(total_read < want) {
                     var n = body_recv(&mut b, &mut dst[total_read], want - total_read);
                     if(n <= 0) { 
-                        printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+
                         return -1 
                     }
                     total_read = total_read + (n as usize);
@@ -226,7 +225,7 @@ public namespace http {
                         var rem = 2 - c;
                         var n = body_recv(&mut b, &mut tmp[c], rem);
                         if(n <= 0) { 
-                            printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+
                             return -1 
                         }
                     }
@@ -262,7 +261,7 @@ public namespace http {
                 var tmp : [64]u8;
                 var n = body_recv(&mut b, &mut tmp[0], 64);
                 if(n <= 0) { 
-                    printf("DEBUG: Body::read chunked EOF/error n=%d\n", n);
+                    
                     return -1 
                 }
                 // append into a small temporary string searching for CRLF
@@ -324,7 +323,7 @@ public namespace http {
                         var tmp : [DEFAULT_READ_BUF]u8;
                         var n = body_recv(&mut b, &mut tmp[0], DEFAULT_READ_BUF);
                         if(n <= 0) { 
-                            printf("DEBUG: Body::read trailer EOF/error n=%d\n", n);
+                            
                             return -1 
                         }
                         // append to buffer for next iteration
@@ -351,14 +350,14 @@ public namespace http {
             while(total < want) {
                 var n = body_recv(&mut b, &mut dst[total], want - total);
                 if(n <= 0) { 
-                    printf("DEBUG: Body::read known-len EOF/error n=%d\n", n);
+                    
                     return -1 
                 }
                 total = total + (n as usize);
             }
             b.remaining = b.remaining - (total as isize);
             b.seen_total = b.seen_total + total;
-            printf("DEBUG: Body::read known-len total=%d remaining=%d\n", total, b.remaining);
+            
             if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
             return (total as int);
         } else {
@@ -374,12 +373,12 @@ public namespace http {
             // otherwise, read from socket
             var n = body_recv(&mut b, dst, cap);
             if(n <= 0) { 
-                printf("DEBUG: Body::read stream EOF n=%d\n", n);
+                
                 return (0) 
             } // EOF or error -> return 0 for EOF
             b.seen_total = b.seen_total + (n as usize);
             if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
-            printf("DEBUG: Body::read stream read=%d\n", n);
+            
             return n;
         }
     }
@@ -504,10 +503,10 @@ public namespace http {
                         if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                     }
                     res.body = http.Body.make_body(s, buf as *mut io::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
-                    printf("DEBUG: read_response_incremental success status=%u\n", res.status);
+                    
                     return std::Option.Some<Response>(std::replace(res, Response()));
                 } else { 
-                    printf("DEBUG: read_response_incremental parse_response_from_bytes returned None\n");
+                    
                     return std::Option.None<Response>() 
                 }
             }
@@ -515,7 +514,7 @@ public namespace http {
             var tmp : [DEFAULT_READ_BUF]u8;
             var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { 
-                printf("DEBUG: read_response_incremental recv_all returned %d (EOF/error)\n", n);
+                
                 return std::Option.None<Response>() 
             }
             buf.append_bytes(&mut tmp[0], n as usize);

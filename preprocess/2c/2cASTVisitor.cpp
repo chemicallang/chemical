@@ -1818,13 +1818,6 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
 
 }
 
-void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
-//    if (!init->type) {
-//        init->type = init->value->getType();
-//    }
-    RecursiveVisitor::VisitVarInitStmt(init);
-}
-
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
     ToCAstVisitor &visitor
 ) : SubVisitor(visitor) {

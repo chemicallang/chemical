@@ -17,8 +17,6 @@ public:
 
     void VisitVariableIdentifier(VariableIdentifier *identifier) ;
 
-    void VisitVarInitStmt(VarInitStatement *init) ;
-
     void VisitScope(Scope *scope) {
         // do nothing
     }

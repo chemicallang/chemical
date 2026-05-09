@@ -27,9 +27,14 @@ int invoke_capturing_out(const std::vector<std::string> &command_args, std::stri
     }
 #endif
 
-    char temp_buffer[500];
-    while (fgets(temp_buffer, 500, pipe) != nullptr) {
-        buffer << temp_buffer;
+    char temp_buffer[4096];
+    while (true) {
+        size_t bytes_read = fread(temp_buffer, 1, sizeof(temp_buffer), pipe);
+        if (bytes_read > 0) {
+            buffer.write(temp_buffer, bytes_read);
+        } else {
+            if (feof(pipe) || ferror(pipe)) break;
+        }
     }
 
 #ifdef _WIN32

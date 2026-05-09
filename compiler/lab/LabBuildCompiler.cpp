@@ -4433,22 +4433,38 @@ struct RemoteImportProgress {
 
     void finish() {
         int current_total = total.load();
-        if (completed >= current_total && errors.empty() && current_total > 0) {
-            // Keep the 100% status on screen and move to next line
-            std::cout << std::endl;
-        } else {
-            // Clear the line if there were errors or if it was interrupted
-            std::cout << "\r";
-            for (int i = 0; i < last_width; ++i) std::cout << " ";
-            std::cout << "\r" << std::flush;
-        }
-        if (!errors.empty()) {
-            for (const auto& err : errors) {
-                std::cerr << err;
+        int done = completed.load();
+        
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (done >= current_total && errors.empty() && current_total > 0) {
+                // Keep the 100% status on screen and move to next line
+                std::cout << std::endl;
+            } else {
+                // Clear the line if there were errors or if it was interrupted
+                std::cout << "\r";
+                for (int i = 0; i < last_width; ++i) std::cout << " ";
+                std::cout << "\r" << std::flush;
+            }
+            
+            if (!errors.empty()) {
+                for (const auto& err : errors) {
+                    std::cerr << err;
+                }
+                errors.clear();
             }
         }
+        
+        is_first_time_printing = true;
+        last_width = 0;
     }
 };
+
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 static int run_git_and_capture(const std::string& cmd, std::string& output) {
 #ifdef _WIN32
@@ -4458,8 +4474,23 @@ static int run_git_and_capture(const std::string& cmd, std::string& output) {
 #endif
     if (!pipe) return -1;
     char buffer[4096];
-    while (fgets(buffer, sizeof(buffer), pipe)) {
-        output += buffer;
+    int fd = fileno(pipe);
+    while (true) {
+#ifdef _WIN32
+        int bytes_read = _read(fd, buffer, sizeof(buffer));
+#else
+        ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
+#endif
+        if (bytes_read > 0) {
+            output.append(buffer, (size_t)bytes_read);
+        } else if (bytes_read == 0) {
+            break;
+        } else {
+#ifndef _WIN32
+            if (errno == EINTR) continue;
+#endif
+            break;
+        }
     }
 #ifdef _WIN32
     return _pclose(pipe);
@@ -4508,7 +4539,13 @@ static int download_remote_import(
             url = "https://" + url;
         }
 
+#ifdef _WIN32
         std::string git_base = "git -c advice.detachedHead=false ";
+        std::string null_dev = "NUL";
+#else
+        std::string git_base = "GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true SSH_ASKPASS=true git -c advice.detachedHead=false ";
+        std::string null_dev = "/dev/null";
+#endif
         std::vector<std::string> arg_list;
         
         if(!import->commit.empty()) {
@@ -4528,7 +4565,7 @@ static int download_remote_import(
         }
 
         for (const auto& args : arg_list) {
-            std::string cmd = git_base + args + " 2>&1";
+            std::string cmd = git_base + args + " < " + null_dev + " 2>&1";
             std::string output;
             int result = run_git_and_capture(cmd, output);
             if (result != 0) {
@@ -4628,9 +4665,10 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
             }
         }
 
+        progress.finish();
+
         if (final_status != 0) break;
     }
     
-    progress.finish();
     return final_status;
 }

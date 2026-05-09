@@ -549,9 +549,14 @@ std::string cmd_read_out(const std::string& command) {
         return ""; // Return empty string on failure
     }
 
-    char buffer[128];
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        result += buffer;
+    char buffer[4096];
+    while (true) {
+        size_t bytes_read = fread(buffer, 1, sizeof(buffer), pipe);
+        if (bytes_read > 0) {
+            result.append(buffer, bytes_read);
+        } else {
+            if (feof(pipe) || ferror(pipe)) break;
+        }
     }
 
 #ifdef _WIN32

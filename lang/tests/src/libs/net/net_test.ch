@@ -810,3 +810,78 @@ func test_high_concurrency_stress(env : &mut TestEnv) {
     srv.shutdown();
     thread.join();
 }
+
+struct TestCaptured2345 {
+    var success_count : uint;
+    var count_lock : std.mutex
+}
+
+@test
+func test_multiple_clients_concurrent(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8101");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("GET", "/echo/:id", ||(req, res) => {
+        res.write_string(std::string::make_no_len("ok"));
+    });
+    
+    var thread = srv.serve_async(8101u);
+    std.concurrent.sleep_ms(100u);
+
+    var captured : TestCaptured2345 = {
+        success_count = 0u
+        count_lock = std.mutex()
+    }
+    
+    var t1 = std.concurrent.spawn(||(arg : *void) => {
+        var cap = arg as *mut TestCaptured2345
+        var client = net::Client();
+        for(var i=0u; i<10u; i++) {
+            var res = client.get(std::string_view("http://127.0.0.1:8101/echo/1"));
+            if(res is Result.Ok) {
+                cap.count_lock.lock();
+                cap.success_count = cap.success_count + 1u;
+                cap.count_lock.unlock();
+            }
+        }
+        return null;
+    }, &mut captured);
+    
+    var t2 = std.concurrent.spawn(||(arg : *void) => {
+        var cap = arg as *mut TestCaptured2345
+        var client = net::Client();
+        for(var i=0u; i<10u; i++) {
+            var res = client.get(std::string_view("http://127.0.0.1:8101/echo/2"));
+            if(res is Result.Ok) {
+                cap.count_lock.lock();
+                cap.success_count = cap.success_count + 1u;
+                cap.count_lock.unlock();
+            }
+        }
+        return null;
+    }, &mut captured);
+    
+    var t3 = std.concurrent.spawn(||(arg : *void) => {
+        var cap = arg as *mut TestCaptured2345
+        var client = net::Client();
+        for(var i=0u; i<10u; i++) {
+            var res = client.get(std::string_view("http://127.0.0.1:8101/echo/3"));
+            if(res is Result.Ok) {
+                cap.count_lock.lock();
+                cap.success_count = cap.success_count + 1u;
+                cap.count_lock.unlock();
+            }
+        }
+        return null;
+    }, &mut captured);
+    
+    t1.join();
+    t2.join();
+    t3.join();
+    
+    if(captured.success_count != 30u) { env.error("Expected 30 successful requests"); }
+    
+    srv.shutdown();
+    thread.join();
+}

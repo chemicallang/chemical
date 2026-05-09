@@ -705,8 +705,12 @@ func test_basic_generics() {
         var obj = generic_identifier_replacement_test<generic_id_repl_Creator2>()
         return obj.a == 234 && obj.b == 432
     })
-     test("public generic can use protected generic declarations and instantiate it", () => {
+    test("public generic can use protected generic declarations and instantiate it", () => {
         var v = GenPublicUseNonPublic<int> {}
         return v.give() == 83334
+    })
+    test("monomorphization of a struct present in a module that is not directly inherited works", () => {
+        var s = ExposedGenSecond<int> { value : 9473 }
+        return s.give() == 9474
     })
 }

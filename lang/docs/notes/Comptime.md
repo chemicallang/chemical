@@ -1,6 +1,22 @@
 THIS IS A CONCEPT, IT MAY CONTAIN BUGS, IT MAY LITERALLY BE IMPOSSIBLE BECAUSE OF AN
 IMPLEMENTATION BARRIER, TREAT IT LIKE AN UNFINISHED PROPOSAL
 
+UPDATE NOTE:
+every function's signature is now stored in global allocator, this complicates things less
+which means the function collected during parsing because of an annotation is valid memory
+
+CURRENT BEST SOLUTION:
+The only solution to this problem is that we ban collector annotations inside comptime if statements
+and introduce an annotation @if(test, windows) this means annotation is applied if on windows
+user can use this annotation only outside the comptime if
+
+// if windows or linux, apply test and extern annotation
+// why force '@' so annotation can be searched
+// why special syntax, because current annotation is just a call like syntax which becomes ambiguous
+@if windows || linux (@test, @extern)
+
+OLD DOC:
+
 ### Comptime
 
 comptime in chemical has never received any attention, because I was very focused on developing

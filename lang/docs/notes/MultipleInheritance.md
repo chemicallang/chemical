@@ -4,7 +4,7 @@ IMPLEMENTATION BARRIER, TREAT IT LIKE AN UNFINISHED PROPOSAL
 CURRENTLY THIS DOCUMENT IS EXTREMELY UN PROFESSIONAL
 
 We have a lot of stuff in chemical, that aids the implementation of inheritance and avoiding
-virtuality, allowing more and more multiple inheritance without consequences !
+virtuality.
 
 This document just discusses one of the problems and explores a potential solution to avoiding
 getters in interfaces by redirecting symbols at compile time, It's an unfinished proposal

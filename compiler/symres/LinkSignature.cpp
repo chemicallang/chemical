@@ -1686,9 +1686,6 @@ void LinkGlobalVariableValues(TopLevelLinkSignature& visitor, std::vector<ASTNod
                         visitor.visit(stmt->value);
                     }
                 }
-                if(!linker.has_errors() && stmt->known_type()->kind() == BaseTypeKind::Void) {
-                    linker.error(node) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
-                }
                 continue;
             }
             case ASTNodeKind::NamespaceDecl: {

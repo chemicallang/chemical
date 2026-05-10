@@ -873,9 +873,6 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
     if(value) {
         visit(value, node->type_ptr_fast());
     }
-    if(node->known_type()->kind() == BaseTypeKind::Void) {
-        linker.error(node) << "variable with name '" << node->name_view() << "' type can't be of type void";
-    }
 
     // special symbol declaration that checks for duplicate symbols
     linker.declare_local_var(node->id_view(), node, lambda_scope_start, in_lambda_scope);

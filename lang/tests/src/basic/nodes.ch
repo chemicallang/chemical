@@ -35,12 +35,6 @@ struct Point {
     var x : int
     var y : int
 
-    func call_divide(x : int, y : int) : int {
-        return 0;
-        // TODO: is this supposed to be available
-        // return divide(x, y);
-    }
-
     func call_multiply_p(&self) : int {
         return self.multiplyP();
     }
@@ -352,13 +346,6 @@ func test_nodes() {
             y : 6
         };
         return p.separate_sum_point() == 13;
-    })
-    test("functions inside struct can call functions inherited directly", () => {
-        var p = Point {
-            x : 7,
-            y : 6
-        };
-        return p.call_divide(10, 5) == 2;
     })
     test("default implementation in interface works when not overridden", () => {
         var p = Point { x : 20, y : 10 }

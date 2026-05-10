@@ -139,7 +139,7 @@ func test_new() {
         var Some(value) = *ptr else return false
         var result = value
         dealloc ptr
-        return value == 763
+        return result == 763
     })
 
 }

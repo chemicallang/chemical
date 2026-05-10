@@ -14,7 +14,6 @@ impl core::ops::Increment for PrimUnaryArithTestStruct {
         b++
         return self
     }
-    @override
     func inc_post(&mut self) : PrimUnaryArithTestStruct {
         var temp = PrimUnaryArithTestStruct {
             a : a,

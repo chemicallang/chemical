@@ -46,33 +46,26 @@ struct Point {
 }
 
 impl Calculator for Point {
-    @override
     func divide(x : int, y : int) : int {
         return x / y;
     }
 
-    @override
     func divideP(&self) : int {
         return self.x / self.y;
     }
 
-    @override
     func avg(&self) : int {
         return sumP() / 2;
     }
 
-    // add override keyword to indicate its overriding function present above
-    @override
     func sum(x : int, y : int) : int {
         return x + y;
     }
 
-    @override
     func multiplyP(&self) : int {
         return self.x * self.y;
     }
 
-    @override
     func dividePOverride(&self) : int {
         return divideP() + 2;
     }
@@ -135,7 +128,6 @@ struct DefFuncStruct {
 }
 
 impl DefFuncInterface for DefFuncStruct {
-    @override
     func sum(&self) : int {
         return a + b;
     }
@@ -202,7 +194,6 @@ func call_it(z : dyn ZeroImplTestInterface) {
 impl AfterInterfaceDefFunc for BeforeStructDefFunc {}
 struct BeforeStructDefFunc {}
 impl AfterInterfaceDefFunc for BeforeStructOverrideFunc {
-    @override
     func give(&self) : int {
         return 91535
     }

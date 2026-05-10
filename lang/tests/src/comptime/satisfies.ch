@@ -291,12 +291,12 @@ func test_satisfies() {
         type T = &BaseSatisfies11
         return intrinsics::satisfies<T, T>()
     })
-    test("direct struct satisfies a reference type but not the other way around when shallow copyable", () => {
+    test("direct struct satisfies a reference type but not the other way around", () => {
         type T = EmptySatisfies
         type K = &EmptySatisfies
-        return intrinsics::satisfies<K, T>() && intrinsics::satisfies<T, K>()
+        return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
     })
-    test("direct struct satisfies a reference type but not the other way around when NOT shallow copyable", () => {
+    test("direct struct satisfies a reference type but not the other way around", () => {
         type T = EmptySatisfies22
         type K = &EmptySatisfies22
         return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()

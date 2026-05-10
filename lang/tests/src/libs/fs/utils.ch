@@ -9,15 +9,6 @@ public func env_fail(env : &mut TestEnv, msg : *char) {
 public func env_info(env : &mut TestEnv, msg : *char) {
     env.info(msg);
 }
-
-public func expect_true(env : &mut TestEnv, cond : bool, msg : *char) : bool {
-    if(!cond) {
-        env.error(msg);
-        return false;
-    }
-    return true;
-}
-
 public func expect_eq_usize(env : &mut TestEnv, actual : size_t, expected : size_t, msg : *char) : bool {
     if(actual != expected) {
         env.error(msg);

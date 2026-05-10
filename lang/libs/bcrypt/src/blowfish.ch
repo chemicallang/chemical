@@ -244,25 +244,15 @@ public func bf_crypt(key : std::string_view, setting : std::string_view) : std::
             ctx.P[i] ^= expanded_key[i]
         }
         
-        L = 0u; R = 0u
-        for(var i = 0; i < 18; i += 2) {
-            bf_encrypt(ctx, L, R)
-            ctx.P[i] = L
-            ctx.P[i+1] = R
-        }
-        for(var i = 0; i < 4; i++) {
-            for(var j = 0; j < 256; j += 2) {
-                bf_encrypt(ctx, L, R)
-                ctx.S[i][j] = L
-                ctx.S[i][j+1] = R
-            }
-        }
+        bf_body(ctx)
         
         for(var i = 0; i < 16; i += 4) {
             ctx.P[i] ^= salt_binary[0]; ctx.P[i+1] ^= salt_binary[1]
             ctx.P[i+2] ^= salt_binary[2]; ctx.P[i+3] ^= salt_binary[3]
         }
         ctx.P[16] ^= salt_binary[0]; ctx.P[17] ^= salt_binary[1]
+        
+        bf_body(ctx)
         
         count--
     }

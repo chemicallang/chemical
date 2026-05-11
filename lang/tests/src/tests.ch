@@ -98,7 +98,6 @@ func run_executable_tests() {
     test_segmented_vector();
     test_conversions();
     test_thread_pool()
-    // TODO: test bcrypt module
 
 }
 

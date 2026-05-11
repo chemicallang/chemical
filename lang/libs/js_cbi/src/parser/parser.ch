@@ -858,9 +858,11 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         }
         return ifStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Return as int) {
+        var returnLine = token.position.line;
         parser.increment();
         var val : *mut JsNode = null;
-        if(parser.getToken().type != JsTokenType.SemiColon as int) {
+        if(parser.getToken().type != JsTokenType.SemiColon as int &&
+           parser.getToken().position.line == returnLine) {
             val = jsParser.parseExpression(parser, builder);
         }
         var ret = builder.allocate<JsReturn>()

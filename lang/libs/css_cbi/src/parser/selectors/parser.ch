@@ -163,6 +163,9 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
             comp.simple_selectors.push(simple);
             last_line = token.position.line;
             last_char = token.position.character + token.value.size();
+            if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
+                last_char++; // account for '.' or '#' prefix not included in value
+            }
             first = false;
         } else {
             break; 

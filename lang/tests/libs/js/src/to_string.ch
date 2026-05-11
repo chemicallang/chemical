@@ -105,7 +105,7 @@ public func ternary_operator_work(env : &mut TestEnv) {
     #js {
         const c = 10 > 5 ? 10 : 5
     }
-    string_equals(env, page.toStringJsOnly(), "const c = 10 > 5 ? 10 : 5;");
+    string_equals(env, page.toStringJsOnly(), "const c = (10 > 5 ? 10 : 5);");
 }
 
 @test
@@ -114,7 +114,7 @@ public func dollar_prefixed_identifiers_work(env : &mut TestEnv) {
     #js {
         const result = window.$flag ? window.$timeline_find_category() : $timelineFallback
     }
-    string_equals(env, page.toStringJsOnly(), "const result = window.$flag ? window.$timeline_find_category() : $timelineFallback;");
+    string_equals(env, page.toStringJsOnly(), "const result = (window.$flag ? window.$timeline_find_category() : $timelineFallback);");
 }
 
 @test
@@ -143,7 +143,7 @@ public func parenthesized_ternary_with_member_access_works(env : &mut TestEnv) {
     #js {
         const label = (item.checked ? "[x] " : "[ ] ") + item.text;
     }
-    string_equals(env, page.toStringJsOnly(), "const label = (item.checked ? \"[x] \" : \"[ ] \") + item.text;");
+    string_equals(env, page.toStringJsOnly(), "const label = ((item.checked ? \"[x] \" : \"[ ] \")) + item.text;");
 }
 
 @test
@@ -400,7 +400,7 @@ public func test_export_statements(env : &mut TestEnv) {
         export function z() {}
         export class C {}
     }
-    string_equals(env, page.toStringJsOnly(), """export default 10;export default function (){}export var x = 1;export const y = 2;export function z(){}export class C {}""");
+    string_equals(env, page.toStringJsOnly(), """export default 10;export default (function(){})export var x = 1;export const y = 2;export function z(){}export class C {}""");
 }
 
 @test

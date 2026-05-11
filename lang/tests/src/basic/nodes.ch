@@ -749,3 +749,21 @@ func some_func_modifies_file_like_struct_idk() {
 }
 
 // ------------- EXISTENCE TEST END --------------
+
+// ------------- EXISTENCE TEST BEGIN ---------------
+
+
+func take_array_from_struct_member_as_a_pointer(initial : [18]uint) {
+
+}
+
+struct array_containing_struct {
+    public var P : [18]uint
+}
+
+func call_array_taking_function() {
+    var c = array_containing_struct { P : [] }
+    take_array_from_struct_member_as_a_pointer(c.P)
+}
+
+// ------------- EXISTENCE TEST END --------------

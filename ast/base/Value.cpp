@@ -199,7 +199,7 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
 }
 
 llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr, SourceLocation location) {
-    if(known_t->isStructLikeType()) {
+    if(type->isAggregateType() || known_t->isStructLikeType()) {
         return ptr;
     }
     const auto loadInstr = gen.builder->CreateLoad(type, ptr);

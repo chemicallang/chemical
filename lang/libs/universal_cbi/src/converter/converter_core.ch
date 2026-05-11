@@ -39,7 +39,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
-            if(converter.is_reactive_var(id.value)) {
+            if(converter.is_reactive_var(id.value) && !converter.skip_reactive_deref) {
                 converter.str.append_view(id.value);
                 converter.str.append_view(".value");
             } else if(converter.is_component_props_name(id.value)) {
@@ -149,6 +149,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.FunctionCall => {
             var call = node as *mut JsFunctionCall
+            var is_hook = false
             if(call.callee.kind == JsNodeKind.Identifier) {
                 var id = call.callee as *mut JsIdentifier
                 var name = id.value
@@ -163,6 +164,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     comptime_fnv1_hash("useLayoutEffect"),
                     comptime_fnv1_hash("useErrorBoundary") => {
                          converter.str.append_view("$_r.")
+                         is_hook = true
                     }
                     default => {}
                 }
@@ -171,7 +173,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view("(");
             for(var i : uint = 0; i < call.args.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");
+                if(is_hook && i == call.args.size() - 1 && call.args.size() >= 2) {
+                    converter.skip_reactive_deref = true;
+                }
                 converter.convertJsNode(call.args.get(i));
+                converter.skip_reactive_deref = false;
             }
             converter.str.append_view(")");
         }

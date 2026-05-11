@@ -527,6 +527,33 @@ public func test_let_const_decls(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), "let count = 0;const name = \"test\";");
 }
 
+@test
+public func test_empty_string_with_single_quotes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var s = form ? form.value : ''
+    }
+    string_equals(env, page.toStringJsOnly(), "var s = (form ? form.value : '');");
+}
+
+@test
+public func test_empty_blocks_in_if_else(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(x) {} else {}
+    }
+    string_equals(env, page.toStringJsOnly(), "if(x){} else {}");
+}
+
+@test
+public func test_empty_blocks_in_else_if(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(x) {} else if(y) {} else {}
+    }
+    string_equals(env, page.toStringJsOnly(), "if(x){} else if(y){} else {}");
+}
+
 /** TODO: not passing
 
 @test

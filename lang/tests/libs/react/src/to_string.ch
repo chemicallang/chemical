@@ -254,3 +254,70 @@ public func react_if_return_guard(env : &mut TestEnv) {
     #html { <IfReturnGuard /> }
     view_equals(env, page.getHeadJs(), "function react_lib_test_IfReturnGuard(props) { if(props.cond) return null; return $_r.createElement(\"span\", {}, ` ok `); }\n");
 }
+
+#react ComplexBody(props) {
+    var x = 10
+    const name = "test"
+    if(x > 5) {
+        return <div>{name}</div>
+    }
+    return <span>small</span>
+}
+
+@test
+public func react_complex_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ComplexBody /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ComplexBody(props) { var x = 10; const name = \"test\"; if(x > 5) { return $_r.createElement(\"div\", {}, name); } return $_r.createElement(\"span\", {}, ` small `); }\n");
+}
+
+#react ForLoopBody(props) {
+    var items = []
+    for(var i = 0; i < 3; i++) {
+        items.push(i)
+    }
+    return <div>{items}</div>
+}
+
+@test
+public func react_for_loop_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ForLoopBody /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ForLoopBody(props) { var items = []; for(var i = 0;i < 3;i++) { items.push(i); } return $_r.createElement(\"div\", {}, items); }\n");
+}
+
+#react FnCallBody(props) {
+    var result = props.greet("hello")
+    return <div>{result}</div>
+}
+
+@test
+public func react_fn_call_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <FnCallBody /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_FnCallBody(props) { var result = props.greet(\"hello\"); return $_r.createElement(\"div\", {}, result); }\n");
+}
+
+#react ObjectInBody(props) {
+    var obj = { a : 1, b : "two" }
+    return <div>{obj.a}</div>
+}
+
+@test
+public func react_object_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ObjectInBody /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ObjectInBody(props) { var obj = {a: 1, b: \"two\"}; return $_r.createElement(\"div\", {}, obj.a); }\n");
+}
+
+#react ArrowFnInBody(props) {
+    var double = (n) => n * 2
+    return <div>{double(5)}</div>
+}
+
+@test
+public func react_arrow_fn_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ArrowFnInBody /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ArrowFnInBody(props) { var double = (n) => n * 2; return $_r.createElement(\"div\", {}, double(5)); }\n");
+}

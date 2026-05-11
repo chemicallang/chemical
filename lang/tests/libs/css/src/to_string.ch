@@ -1703,4 +1703,21 @@ public func safe_area_inset_and_env_vars_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "padding-top:env(safe-area-inset-top, 20px);");
 }
+
+@test
+public func compound_class_selector_no_space(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        &.active { display: block; }
+        &.foo.bar { color: red; }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(classView)
+    expected.append_view(".active { display:block;}");
+    expected.append_view(classView)
+    expected.append_view(".foo.bar { color:red;}");
+    compl_css_equals(env, got, expected.to_view());
+}
 **/

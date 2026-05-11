@@ -1,10 +1,25 @@
 func progress_styles(page : &mut HtmlPage) : *char {
     return #css {
+        appearance: none;
         width: 100%;
-        height: 12px;
-        accent-color: var(--chx-accent);
+        height: 8px;
         border-radius: 999px;
         background: var(--chx-surface-2);
+        border: 0;
+        overflow: hidden;
+        &::-webkit-progress-bar {
+            border-radius: 999px;
+            background: var(--chx-surface-2);
+        }
+        &::-webkit-progress-value {
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--chx-accent), #6366f1);
+            transition: width 0.3s ease;
+        }
+        &::-moz-progress-bar {
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--chx-accent), #6366f1);
+        }
     }
 }
 

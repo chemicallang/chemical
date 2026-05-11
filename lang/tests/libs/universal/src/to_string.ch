@@ -456,3 +456,50 @@ public func test_preact_in_universal_ssr(env : &mut TestEnv) {
     html.append_expr(`<div id="u${page.getComponentId(0)}"><div><script>$_pm(document.currentScript, universal_lib_test_MyPreactComp, {title: "Preact"});</script></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
+
+#universal ElseIfEmptyTest(props) {
+    var c = props.c
+    if(c == 'a') {
+        return <span>A</span>
+    } else if(c == '\r') {} else {
+        return <span>other</span>
+    }
+    return null
+}
+
+@test
+public func universal_else_if_empty_block(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ElseIfEmptyTest /> }
+}
+
+#universal SingleQuoteEmptyTest(props) {
+    var msg = props.msg
+    var subj = msg ? msg : ''
+    return <span>{subj}</span>
+}
+
+@test
+public func universal_single_quote_empty(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SingleQuoteEmptyTest msg="hello" /> }
+}
+
+#universal UseEffectDepsTest(props) {
+    state count = 0
+    useEffect(() => {
+        if(count > 5) { count = 0 }
+    }, [count])
+    return <span>{count}</span>
+}
+
+@test
+public func universal_use_effect_deps(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <UseEffectDepsTest /> }
+    var js = std::string()
+    js.append_expr(`function universal_lib_test_UseEffectDepsTest(props) { const count = $_us(0); $_r.useEffect(() => { if(count.value > 5) { count.value = 0; } }, [count]); return $_ur.createElement("span", {}, count); }
+window.$__uni_dispatch('universal_lib_test_UseEffectDepsTest', document.getElementById('u${page.getComponentId(0)}'), {});
+`)
+    view_equals(env, page.getJs(), js.to_view());
+}

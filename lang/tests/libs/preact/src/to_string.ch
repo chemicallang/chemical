@@ -254,3 +254,70 @@ public func preact_if_return_guard(env : &mut TestEnv) {
     #html { <IfReturnGuard /> }
     view_equals(env, page.getHeadJs(), "function preact_lib_test_IfReturnGuard(props) { if(props.cond) return null; return $_p.h(\"span\", {}, ` ok `); }\n");
 }
+
+#preact ComplexBody(props) {
+    var x = 10
+    const name = "test"
+    if(x > 5) {
+        return <div>{name}</div>
+    }
+    return <span>small</span>
+}
+
+@test
+public func preact_complex_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ComplexBody /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ComplexBody(props) { var x = 10; const name = \"test\"; if(x > 5) { return $_p.h(\"div\", {}, name); } return $_p.h(\"span\", {}, ` small `); }\n");
+}
+
+#preact ForLoopBody(props) {
+    var items = []
+    for(var i = 0; i < 3; i++) {
+        items.push(i)
+    }
+    return <div>{items}</div>
+}
+
+@test
+public func preact_for_loop_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ForLoopBody /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ForLoopBody(props) { var items = []; for(var i = 0;i < 3;i++) { items.push(i); } return $_p.h(\"div\", {}, items); }\n");
+}
+
+#preact FnCallBody(props) {
+    var result = props.greet("hello")
+    return <div>{result}</div>
+}
+
+@test
+public func preact_fn_call_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <FnCallBody /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_FnCallBody(props) { var result = props.greet(\"hello\"); return $_p.h(\"div\", {}, result); }\n");
+}
+
+#preact ObjectInBody(props) {
+    var obj = { a : 1, b : "two" }
+    return <div>{obj.a}</div>
+}
+
+@test
+public func preact_object_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ObjectInBody /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ObjectInBody(props) { var obj = {a: 1, b: \"two\"}; return $_p.h(\"div\", {}, obj.a); }\n");
+}
+
+#preact ArrowFnInBody(props) {
+    var double = (n) => n * 2
+    return <div>{double(5)}</div>
+}
+
+@test
+public func preact_arrow_fn_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ArrowFnInBody /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ArrowFnInBody(props) { var double = (n) => n * 2; return $_p.h(\"div\", {}, double(5)); }\n");
+}

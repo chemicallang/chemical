@@ -857,7 +857,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                VisitImplDecl(def);
+                FinalizeNestedImpl(def);
                 handle_new_impl(instantiator, def, impl);
                 continue;
             }
@@ -959,7 +959,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                VisitImplDecl(def);
+                FinalizeNestedImpl(def);
                 handle_new_impl(instantiator, def, impl);
                 continue;
             }
@@ -1155,7 +1155,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                VisitImplDecl(def);
+                FinalizeNestedImpl(def);
                 handle_new_impl(instantiator, def, impl);
                 continue;
             }
@@ -1176,6 +1176,77 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     // reset back the pointers to null
     current_gen = nullptr;
     current_impl_ptr = nullptr;
+}
+
+void GenericInstantiator::FinalizeNestedImpl(ImplDefinition* impl) {
+
+    // ----
+    // lets do signature first
+    // ----
+
+    visit_it(impl->interface_type);
+    visit_it(impl->struct_type);
+
+    // visiting variables
+    for(auto& var : impl->variables()) {
+        visit(var);
+    }
+    // visiting functions
+    for(const auto func : impl->master_functions()) {
+        // finalize the signature of functions
+        FinalizeSignature(func);
+    }
+
+    // ------
+    // lets do body now
+    // ------
+
+    // create a symbol scope
+    table.scope_start();
+
+    // declare variables
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
+    }
+
+    // declare functions / (other declarable nodes) before visiting
+    for (const auto func: impl->evaluated_nodes()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // visiting function bodies (only bodies, because we finalized signature above)
+    auto& instantiator  = *this;
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                finalize_member_func_body(instantiator, node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                FinalizeNestedImpl(def);
+                handle_new_impl(instantiator, def, impl);
+                continue;
+            }
+            default:
+                visit(node);
+        }
+    }
+
+    // end the symbol scope
+    table.scope_end();
+
 }
 
 void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinition* impl, size_t itr) {

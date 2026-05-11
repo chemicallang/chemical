@@ -3790,6 +3790,17 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
     FunctionDeclaration* iter_data_fn = nullptr;
     FunctionDeclaration* iter_size_fn = nullptr;
+    FunctionDeclaration* chunk_begin_fn = nullptr;
+    FunctionDeclaration* chunk_valid_fn = nullptr;
+    FunctionDeclaration* chunk_current_fn = nullptr;
+    FunctionDeclaration* chunk_next_fn = nullptr;
+    FunctionDeclaration* chunk_rbegin_fn = nullptr;
+    FunctionDeclaration* chunk_previous_fn = nullptr;
+    FunctionDeclaration* chunk_total_size_fn = nullptr;
+    FunctionDeclaration* iterable_begin_fn = nullptr;
+    FunctionDeclaration* iterable_valid_fn = nullptr;
+    FunctionDeclaration* iterable_current_fn = nullptr;
+    FunctionDeclaration* iterable_next_fn = nullptr;
     if (exprType->kind() != BaseTypeKind::Array) {
         const auto linked = exprType->get_linked_node(true, false);
         if (linked) {
@@ -3797,6 +3808,17 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
             if (container) {
                 iter_data_fn = implsIndex.get_linear_data_impl(coreNodes, container);
                 iter_size_fn = implsIndex.get_linear_size_impl(coreNodes, container);
+                chunk_begin_fn = implsIndex.get_chunked_begin_chunks_impl(coreNodes, container);
+                chunk_valid_fn = implsIndex.get_chunked_valid_chunk_impl(coreNodes, container);
+                chunk_current_fn = implsIndex.get_chunked_current_chunk_impl(coreNodes, container);
+                chunk_next_fn = implsIndex.get_chunked_next_chunk_impl(coreNodes, container);
+                chunk_rbegin_fn = implsIndex.get_chunked_rbegin_chunks_impl(coreNodes, container);
+                chunk_previous_fn = implsIndex.get_chunked_previous_chunk_impl(coreNodes, container);
+                chunk_total_size_fn = implsIndex.get_chunked_total_size_impl(coreNodes, container);
+                iterable_begin_fn = implsIndex.get_iterable_begin_impl(coreNodes, container);
+                iterable_valid_fn = implsIndex.get_iterable_valid_impl(coreNodes, container);
+                iterable_current_fn = implsIndex.get_iterable_current_impl(coreNodes, container);
+                iterable_next_fn = implsIndex.get_iterable_next_impl(coreNodes, container);
             }
         }
     }
@@ -3806,7 +3828,8 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     new_line_and_indent();
 
     // evaluating expression into a variable
-    const auto is_direct_struct = iter_data_fn && exprType->kind() != BaseTypeKind::Reference;
+    const auto has_interface_iter = iter_data_fn || chunk_current_fn || iterable_current_fn;
+    const auto is_direct_struct = has_interface_iter && exprType->kind() != BaseTypeKind::Reference;
     auto expr_var = get_local_temp_var_name();
     visit(node->expr->getType());
     if (is_direct_struct) {
@@ -3821,6 +3844,289 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     visit(node->expr);
     write(';');
     new_line_and_indent();
+
+    if (node->iteration_kind == ForInLoopIterationKind::Chunked) {
+        auto chunk_cursor_var = get_local_temp_var_name();
+        auto chunk_var = get_local_temp_var_name();
+        auto inner_end_var = get_local_temp_var_name();
+        const auto chunkCursorIsStruct = (node->is_reversed() ? chunk_rbegin_fn : chunk_begin_fn)->returnType->isStructLikeType();
+
+        visit((node->is_reversed() ? chunk_rbegin_fn : chunk_begin_fn)->returnType);
+        write(' ');
+        write(chunk_cursor_var);
+        if (chunkCursorIsStruct) {
+            write("; ");
+            mangle(node->is_reversed() ? chunk_rbegin_fn : chunk_begin_fn);
+            write("(&");
+            write(chunk_cursor_var);
+            write(", ");
+            write(expr_var);
+            write(");");
+        } else {
+            write(" = ");
+            mangle(node->is_reversed() ? chunk_rbegin_fn : chunk_begin_fn);
+            write('(');
+            write(expr_var);
+            write(");");
+        }
+        new_line_and_indent();
+
+        if (node->index_init != nullptr) {
+            visit(node->index_init->known_type());
+            write(' ');
+            write(node->index_init->id_view());
+            write(" = ");
+            if (node->is_reversed_counter()) {
+                mangle(chunk_total_size_fn);
+                write('(');
+                write(expr_var);
+                write(')');
+            } else {
+                write('0');
+            }
+            write(';');
+            new_line_and_indent();
+        }
+
+        write("while(");
+        mangle(chunk_valid_fn);
+        write('(');
+        write(expr_var);
+        write(", ");
+        if (chunkCursorIsStruct) {
+            write('&');
+        }
+        write(chunk_cursor_var);
+        write(")) {");
+        indentation_level += 1;
+        new_line_and_indent();
+
+        visit(chunk_current_fn->returnType);
+        write(' ');
+        write(chunk_var);
+        write("; ");
+        mangle(chunk_current_fn);
+        write("(&");
+        write(chunk_var);
+        write(", ");
+        write(expr_var);
+        write(", ");
+        if (chunkCursorIsStruct) {
+            write('&');
+        }
+        write(chunk_cursor_var);
+        write(");");
+        new_line_and_indent();
+
+        visit_loop_elem_type(*this, node);
+        write("* ");
+        if (node->is_reversed()) {
+            write(inner_end_var);
+        } else {
+            write(node->id);
+        }
+        write(" = ");
+        write(chunk_var);
+        write(".ptr;");
+        new_line_and_indent();
+
+        visit_loop_elem_type(*this, node);
+        write("* ");
+        if (node->is_reversed()) {
+            write(node->id);
+        } else {
+            write(inner_end_var);
+        }
+        write(" = ");
+        if (node->is_reversed()) {
+            write(inner_end_var);
+        } else {
+            write(node->id);
+        }
+        write(" + ");
+        write(chunk_var);
+        write(".len;");
+        new_line_and_indent();
+
+        write("while(");
+        write(node->id);
+        write(" != ");
+        write(inner_end_var);
+        write(") {");
+
+        if (node->index_init != nullptr && node->is_reversed_counter()) {
+            write('\t');
+            write(node->index_init->id_view());
+            write("--;");
+        }
+        if (node->is_reversed()) {
+            write('\t');
+            write(node->id);
+            write("--;");
+        }
+
+        loop_scope_no_parens(*this, node->body);
+
+        if (node->index_init != nullptr && !node->is_reversed_counter()) {
+            write('\t');
+            write(node->index_init->id_view());
+            write("++;");
+        }
+        if (!node->is_reversed()) {
+            write('\t');
+            write(node->id);
+            write("++;");
+        }
+
+        new_line_and_indent();
+        write('}');
+        new_line_and_indent();
+
+        if (chunkCursorIsStruct) {
+            auto next_chunk_cursor_var = get_local_temp_var_name();
+            visit((node->is_reversed() ? chunk_previous_fn : chunk_next_fn)->returnType);
+            write(' ');
+            write(next_chunk_cursor_var);
+            write("; ");
+            mangle(node->is_reversed() ? chunk_previous_fn : chunk_next_fn);
+            write("(&");
+            write(next_chunk_cursor_var);
+            write(", ");
+            write(expr_var);
+            write(", &");
+            write(chunk_cursor_var);
+            write(");");
+            new_line_and_indent();
+            write(chunk_cursor_var);
+            write(" = ");
+            write(next_chunk_cursor_var);
+            write(';');
+        } else {
+            write(chunk_cursor_var);
+            write(" = ");
+            mangle(node->is_reversed() ? chunk_previous_fn : chunk_next_fn);
+            write('(');
+            write(expr_var);
+            write(", ");
+            write(chunk_cursor_var);
+            write(");");
+        }
+
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+        return;
+    }
+
+    if (node->iteration_kind == ForInLoopIterationKind::Iterable) {
+        auto cursor_var = get_local_temp_var_name();
+        const auto cursorIsStruct = iterable_begin_fn->returnType->isStructLikeType();
+
+        visit(iterable_begin_fn->returnType);
+        write(' ');
+        write(cursor_var);
+        if (cursorIsStruct) {
+            write("; ");
+            mangle(iterable_begin_fn);
+            write("(&");
+            write(cursor_var);
+            write(", ");
+            write(expr_var);
+            write(");");
+        } else {
+            write(" = ");
+            mangle(iterable_begin_fn);
+            write('(');
+            write(expr_var);
+            write(");");
+        }
+        new_line_and_indent();
+
+        if (node->index_init != nullptr) {
+            visit(node->index_init->known_type());
+            write(' ');
+            write(node->index_init->id_view());
+            write(" = 0;");
+            new_line_and_indent();
+        }
+
+        write("while(");
+        mangle(iterable_valid_fn);
+        write('(');
+        write(expr_var);
+        write(", ");
+        if (cursorIsStruct) {
+            write('&');
+        }
+        write(cursor_var);
+        write(")) {");
+        indentation_level += 1;
+        new_line_and_indent();
+
+        visit_loop_elem_type(*this, node);
+        write("* ");
+        write(node->id);
+        write(" = ");
+        mangle(iterable_current_fn);
+        write('(');
+        write(expr_var);
+        write(", ");
+        if (cursorIsStruct) {
+            write('&');
+        }
+        write(cursor_var);
+        write(");");
+
+        loop_scope_no_parens(*this, node->body);
+
+        new_line_and_indent();
+        if (cursorIsStruct) {
+            auto next_cursor_var = get_local_temp_var_name();
+            visit(iterable_next_fn->returnType);
+            write(' ');
+            write(next_cursor_var);
+            write("; ");
+            mangle(iterable_next_fn);
+            write("(&");
+            write(next_cursor_var);
+            write(", ");
+            write(expr_var);
+            write(", &");
+            write(cursor_var);
+            write(");");
+            new_line_and_indent();
+            write(cursor_var);
+            write(" = ");
+            write(next_cursor_var);
+            write(';');
+        } else {
+            write(cursor_var);
+            write(" = ");
+            mangle(iterable_next_fn);
+            write('(');
+            write(expr_var);
+            write(", ");
+            write(cursor_var);
+            write(");");
+        }
+
+        if (node->index_init != nullptr) {
+            write('\t');
+            write(node->index_init->id_view());
+            write("++;");
+        }
+
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+        return;
+    }
 
     // the end pointer variable name
     auto end_ptr_var_name = get_local_temp_var_name();

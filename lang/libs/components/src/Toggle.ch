@@ -20,29 +20,29 @@ func toggle_styles(page : &mut HtmlPage) : *char {
             &:focus-visible + .chx-switch-track {
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
             }
-            &[checked] + .chx-checkbox-box {
+            &:checked + .chx-checkbox-box {
                 background: var(--chx-primary);
                 border-color: var(--chx-primary);
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
             }
-            &[checked] + .chx-checkbox-box .chx-checkbox-mark {
+            &:checked + .chx-checkbox-box .chx-checkbox-mark {
                 opacity: 1;
             }
-            &[checked] + .chx-radio-box {
+            &:checked + .chx-radio-box {
                 background: var(--chx-primary);
                 border-color: var(--chx-primary);
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
             }
-            &[checked] + .chx-radio-box .chx-radio-dot {
+            &:checked + .chx-radio-box .chx-radio-dot {
                 opacity: 1;
                 transform: scale(1);
             }
-            &[checked] + .chx-switch-track {
+            &:checked + .chx-switch-track {
                 background: rgba(59, 130, 246, 0.16);
                 border-color: rgba(59, 130, 246, 0.32);
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10);
             }
-            &[checked] + .chx-switch-track .chx-switch-thumb {
+            &:checked + .chx-switch-track .chx-switch-thumb {
                 transform: translateX(20px);
             }
         }

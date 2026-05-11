@@ -760,6 +760,18 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view(tagName);
     converter.str.append_view("\", ");
     
+    var hasSpread = false;
+    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
+        if(element.opening.attributes.get(i).kind == JsNodeKind.JSXSpreadAttribute) {
+            hasSpread = true;
+            break;
+        }
+    }
+    
+    if(hasSpread) {
+        converter.str.append_view("$_s.mergeProps(");
+    }
+    
     converter.str.append_view("{");
     
     var attrCount = 0;
@@ -863,6 +875,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     }
     
     converter.str.append_view("}");
+    if(hasSpread) {
+        converter.str.append_view(")");
+    }
     
     if(!element.children.empty()) {
         for(var i : uint = 0; i < element.children.size(); i++) {

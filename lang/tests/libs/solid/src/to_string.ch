@@ -94,7 +94,7 @@ public func solid_numeric_prop(env : &mut TestEnv) {
 public func solid_spread_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SpreadProps /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", {}, props, {}); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", $_s.mergeProps({}, props, {})); }\n");
 }
 
 #solid FragmentTest(props) {
@@ -205,4 +205,52 @@ public func solid_backtick_in_text(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <BacktickText /> }
     view_equals(env, page.getHeadJs(), "function solid_lib_test_BacktickText(props) { return $_sh(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
+}
+
+#solid VarDeclTest(props) {
+    var x = 10
+    return <div>{x}</div>
+}
+
+@test
+public func solid_var_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <VarDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_VarDeclTest(props) { var x = 10; return $_sh(\"div\", {}, x); }\n");
+}
+
+#solid ConstStringTest(props) {
+    const name = "test"
+    return <div>{name}</div>
+}
+
+@test
+public func solid_const_string_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ConstStringTest /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_ConstStringTest(props) { const name = \"test\"; return $_sh(\"div\", {}, name); }\n");
+}
+
+#solid LetDeclTest(props) {
+    let count = 0
+    return <div>{count}</div>
+}
+
+@test
+public func solid_let_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <LetDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_LetDeclTest(props) { let count = 0; return $_sh(\"div\", {}, count); }\n");
+}
+
+#solid IfReturnGuard(props) {
+    if(props.cond) return null
+    return <span>ok</span>
+}
+
+@test
+public func solid_if_return_guard(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <IfReturnGuard /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_IfReturnGuard(props) { if(props.cond) return null; return $_sh(\"span\", {}, ` ok `); }\n");
 }

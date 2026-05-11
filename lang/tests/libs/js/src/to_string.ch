@@ -477,6 +477,56 @@ public func test_spread_in_object_works_js(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), """var y = {  };var x = { ...y };""");
 }
 
+@test
+public func test_if_return_no_semicolon_asi(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(x) return
+        fetch()
+    }
+    string_equals(env, page.toStringJsOnly(), "if(x)return;fetch();");
+}
+
+@test
+public func test_if_throw_new_error(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(!res.ok) throw new Error("HTTP " + res.status)
+        return res.json()
+    }
+    string_equals(env, page.toStringJsOnly(), "if(!res.ok)throw new Error(\"HTTP \" + res.status);return res.json();");
+}
+
+@test
+public func test_throw_statement_alone(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        throw new Error("msg")
+    }
+    string_equals(env, page.toStringJsOnly(), "throw new Error(\"msg\");");
+}
+
+@test
+public func test_var_number_string_bool(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var n = 42
+        var s = "hello"
+        var b = true
+    }
+    string_equals(env, page.toStringJsOnly(), "var n = 42;var s = \"hello\";var b = true;");
+}
+
+@test
+public func test_let_const_decls(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        let count = 0
+        const name = "test"
+    }
+    string_equals(env, page.toStringJsOnly(), "let count = 0;const name = \"test\";");
+}
+
 /** TODO: not passing
 
 @test

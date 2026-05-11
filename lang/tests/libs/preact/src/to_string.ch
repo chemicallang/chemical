@@ -206,3 +206,51 @@ public func preact_backtick_in_text(env : &mut TestEnv) {
     #html { <BacktickText /> }
     view_equals(env, page.getHeadJs(), "function preact_lib_test_BacktickText(props) { return $_p.h(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
 }
+
+#preact VarDeclTest(props) {
+    var x = 10
+    return <div>{x}</div>
+}
+
+@test
+public func preact_var_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <VarDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_VarDeclTest(props) { var x = 10; return $_p.h(\"div\", {}, x); }\n");
+}
+
+#preact ConstStringTest(props) {
+    const name = "test"
+    return <div>{name}</div>
+}
+
+@test
+public func preact_const_string_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ConstStringTest /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ConstStringTest(props) { const name = \"test\"; return $_p.h(\"div\", {}, name); }\n");
+}
+
+#preact LetDeclTest(props) {
+    let count = 0
+    return <div>{count}</div>
+}
+
+@test
+public func preact_let_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <LetDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_LetDeclTest(props) { let count = 0; return $_p.h(\"div\", {}, count); }\n");
+}
+
+#preact IfReturnGuard(props) {
+    if(props.cond) return null
+    return <span>ok</span>
+}
+
+@test
+public func preact_if_return_guard(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <IfReturnGuard /> }
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_IfReturnGuard(props) { if(props.cond) return null; return $_p.h(\"span\", {}, ` ok `); }\n");
+}

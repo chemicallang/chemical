@@ -206,3 +206,51 @@ public func react_backtick_in_text(env : &mut TestEnv) {
     #html { <BacktickText /> }
     view_equals(env, page.getHeadJs(), "function react_lib_test_BacktickText(props) { return $_r.createElement(\"p\", {}, ` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `); }\n");
 }
+
+#react VarDeclTest(props) {
+    var x = 10
+    return <div>{x}</div>
+}
+
+@test
+public func react_var_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <VarDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_VarDeclTest(props) { var x = 10; return $_r.createElement(\"div\", {}, x); }\n");
+}
+
+#react ConstStringTest(props) {
+    const name = "test"
+    return <div>{name}</div>
+}
+
+@test
+public func react_const_string_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ConstStringTest /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ConstStringTest(props) { const name = \"test\"; return $_r.createElement(\"div\", {}, name); }\n");
+}
+
+#react LetDeclTest(props) {
+    let count = 0
+    return <div>{count}</div>
+}
+
+@test
+public func react_let_decl_in_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <LetDeclTest /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_LetDeclTest(props) { let count = 0; return $_r.createElement(\"div\", {}, count); }\n");
+}
+
+#react IfReturnGuard(props) {
+    if(props.cond) return null
+    return <span>ok</span>
+}
+
+@test
+public func react_if_return_guard(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <IfReturnGuard /> }
+    view_equals(env, page.getHeadJs(), "function react_lib_test_IfReturnGuard(props) { if(props.cond) return null; return $_r.createElement(\"span\", {}, ` ok `); }\n");
+}

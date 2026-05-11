@@ -289,3 +289,25 @@ public #universal EmptyState(props) {
 public #universal StatCard(props) {
     return <section {...props} class={${stat_card_styles(page)}}>{props.children}</section>
 }
+
+public #universal Dropdown(props) {
+    var menuId = props.id + "-menu"
+    return <div style="position:relative;display:inline-block;">
+        <Button id={props.id + "-trg"}>{props.trigger}</Button>
+        <Menu id={menuId} style="display:none;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;">
+            {props.children}
+        </Menu>
+    </div>
+}
+
+public #universal DropdownItem(props) {
+    return <MenuItem {...props}>{props.children}</MenuItem>
+}
+
+public func dropdownInit(page : &mut HtmlPage, id : &std::string_view) {
+    page.pageJs.append_view("(function(){var t=document.getElementById('")
+    page.pageJs.append_view(id)
+    page.pageJs.append_view("-trg');var m=document.getElementById('")
+    page.pageJs.append_view(id)
+    page.pageJs.append_view("-menu');if(t&&m){t.addEventListener('click',function(){m.style.display=m.style.display==='none'?'':'none';});document.addEventListener('click',function(e){if(!t.contains(e.target)&&!m.contains(e.target)){m.style.display='none';}});}})();")
+}

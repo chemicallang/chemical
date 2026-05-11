@@ -89,4 +89,26 @@ public:
 
     FunctionDeclaration* get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container);
 
+    FunctionDeclaration* get_chunked_begin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_valid_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_current_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_next_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_rbegin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_previous_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_chunked_total_size_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_iterable_begin_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_iterable_valid_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_iterable_current_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container);
+
 };

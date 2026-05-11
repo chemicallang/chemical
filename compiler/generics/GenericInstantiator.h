@@ -261,6 +261,8 @@ public:
 
     void FinalizeBody(GenericVariantDecl* gen_decl, VariantDefinition* decl, size_t itr);
 
+    void FinalizeNestedImpl(ImplDefinition* def);
+
     void FinalizeSignature(GenericImplDecl* gen_decl, ImplDefinition* decl, size_t itr);
 
     void FinalizeBody(GenericImplDecl* gen_decl, ImplDefinition* decl, size_t itr);

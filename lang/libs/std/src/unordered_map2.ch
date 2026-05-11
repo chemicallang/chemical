@@ -200,6 +200,29 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         return it;
     }
 
+    impl core::iterable::Iterable<unordered_map_node<Key, Value>, unordered_map_iterator<Key, Value>> for unordered_map<Key, Value> {
+
+        func begin(&self) : unordered_map_iterator<Key, Value> {
+            return iterator()
+        }
+
+        func valid(&self, c : unordered_map_iterator<Key, Value>) : bool {
+            return c.valid()
+        }
+
+        func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
+            return *c.node
+        }
+
+        func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+            // TODO: without explicit type it doesn't work
+            var next_cursor : unordered_map_iterator<Key, Value> = c
+            next_cursor.next()
+            return next_cursor
+        }
+
+    }
+
 };
 
 public struct unordered_map_iterator<Key, Value> {

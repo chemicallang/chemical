@@ -95,6 +95,7 @@ func run_executable_tests() {
     test_result_type();
     test_constructors();
     test_unordered_map();
+    test_segmented_vector();
     test_conversions();
     test_thread_pool()
     // TODO: test bcrypt module

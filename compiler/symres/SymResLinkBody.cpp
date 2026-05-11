@@ -42,6 +42,9 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/GenericType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
@@ -956,6 +959,25 @@ void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
     linker.scope_end();
 }
 
+static void set_for_in_elem_type(ForInLoop* node, BaseType* elem_type) {
+    if (node->is_reference()) {
+        node->elem_type->as_reference_type_unsafe()->type = elem_type;
+    } else {
+        node->elem_type = elem_type;
+    }
+}
+
+static BaseType* chunk_element_type(FunctionDeclaration* current_chunk_func) {
+    BaseType* ret = current_chunk_func->returnType;
+    if (ret->kind() == BaseTypeKind::Generic) {
+        const auto gen = ret->as_generic_type_unsafe();
+        if (!gen->types.empty()) {
+            return gen->types.front();
+        }
+    }
+    return nullptr;
+}
+
 void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
     linker.scope_start();
     visit(node->expr);
@@ -971,10 +993,11 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
             return;
         }
         if (node->is_reference()) {
-            node->elem_type->as_reference_type_unsafe()->type = arrType->elem_type;
+            set_for_in_elem_type(node, arrType->elem_type);
         } else {
-            node->elem_type = arrType->elem_type;
+            set_for_in_elem_type(node, arrType->elem_type);
         }
+        node->iteration_kind = ForInLoopIterationKind::Array;
     } else {
         const auto linked = type->get_linked_node(true, false);
         if (!linked) {
@@ -987,19 +1010,70 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
             return;
         }
         const auto iterDataFunc = linker.implsIndex.get_linear_data_impl(linker.coreNodes, container);
-        if (!iterDataFunc) {
-            linker.error("couldn't get 'core::iterable::Linear::data' implementation", node->expr);
-            return;
-        }
-        if (iterDataFunc->returnType->kind() != BaseTypeKind::Pointer) {
-            linker.error("expected 'data' return type to be a pointer", node->expr);
-            return;
-        }
-        const auto ty = iterDataFunc->returnType->as_pointer_type_unsafe()->type;;
-        if (node->is_reference()) {
-            node->elem_type->as_reference_type_unsafe()->type = ty;
+        if (iterDataFunc) {
+            const auto iterSizeFunc = linker.implsIndex.get_linear_size_impl(linker.coreNodes, container);
+            if (!iterSizeFunc) {
+                linker.error("couldn't get 'core::iterable::Linear::size' implementation", node->expr);
+                return;
+            }
+            if (iterDataFunc->returnType->kind() != BaseTypeKind::Pointer) {
+                linker.error("expected 'core::iterable::Linear::data' return type to be a pointer", node->expr);
+                return;
+            }
+            const auto ty = iterDataFunc->returnType->as_pointer_type_unsafe()->type;
+            set_for_in_elem_type(node, ty);
+            node->iteration_kind = ForInLoopIterationKind::Linear;
         } else {
-            node->elem_type = ty;
+            const auto chunkCurrentFunc = linker.implsIndex.get_chunked_current_chunk_impl(linker.coreNodes, container);
+            if (chunkCurrentFunc) {
+                const auto beginFunc = linker.implsIndex.get_chunked_begin_chunks_impl(linker.coreNodes, container);
+                const auto validFunc = linker.implsIndex.get_chunked_valid_chunk_impl(linker.coreNodes, container);
+                const auto nextFunc = linker.implsIndex.get_chunked_next_chunk_impl(linker.coreNodes, container);
+                const auto totalSizeFunc = linker.implsIndex.get_chunked_total_size_impl(linker.coreNodes, container);
+                if (!beginFunc || !validFunc || !nextFunc || !totalSizeFunc) {
+                    linker.error("expected complete 'core::iterable::Chunked' implementation", node->expr);
+                    return;
+                }
+                const auto elem = chunk_element_type(chunkCurrentFunc);
+                if (!elem) {
+                    linker.error("expected 'core::iterable::Chunked::current_chunk' to return core::iterable::Chunk<T>", node->expr);
+                    return;
+                }
+                if (node->is_reversed()) {
+                    const auto rbeginFunc = linker.implsIndex.get_chunked_rbegin_chunks_impl(linker.coreNodes, container);
+                    const auto previousFunc = linker.implsIndex.get_chunked_previous_chunk_impl(linker.coreNodes, container);
+                    if (!rbeginFunc || !previousFunc) {
+                        linker.error("reversed iteration requires 'core::iterable::Chunked::rbegin_chunks' and 'previous_chunk' implementations", node->expr);
+                        return;
+                    }
+                }
+                set_for_in_elem_type(node, elem);
+                node->iteration_kind = ForInLoopIterationKind::Chunked;
+            } else {
+                const auto iterableCurrentFunc = linker.implsIndex.get_iterable_current_impl(linker.coreNodes, container);
+                if (!iterableCurrentFunc) {
+                    linker.error("expected container to implement 'core::iterable::Linear', 'core::iterable::Chunked', or 'core::iterable::Iterable'", node->expr);
+                    return;
+                }
+                const auto beginFunc = linker.implsIndex.get_iterable_begin_impl(linker.coreNodes, container);
+                const auto validFunc = linker.implsIndex.get_iterable_valid_impl(linker.coreNodes, container);
+                const auto nextFunc = linker.implsIndex.get_iterable_next_impl(linker.coreNodes, container);
+                if (!beginFunc || !validFunc || !nextFunc) {
+                    linker.error("expected complete 'core::iterable::Iterable' implementation", node->expr);
+                    return;
+                }
+                if (node->is_reversed()) {
+                    linker.error("reversed iteration is not supported for 'core::iterable::Iterable' containers", node->expr);
+                    return;
+                }
+                if (iterableCurrentFunc->returnType->kind() != BaseTypeKind::Reference) {
+                    linker.error("expected 'core::iterable::Iterable::current' return type to be a reference", node->expr);
+                    return;
+                }
+                const auto ty = iterableCurrentFunc->returnType->as_reference_type_unsafe()->type;
+                set_for_in_elem_type(node, ty);
+                node->iteration_kind = ForInLoopIterationKind::Iterable;
+            }
         }
     }
 

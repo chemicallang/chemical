@@ -60,6 +60,28 @@ public:
 
     FunctionDeclaration* linear_size = nullptr;
 
+    FunctionDeclaration* chunked_begin_chunks = nullptr;
+
+    FunctionDeclaration* chunked_valid_chunk = nullptr;
+
+    FunctionDeclaration* chunked_current_chunk = nullptr;
+
+    FunctionDeclaration* chunked_next_chunk = nullptr;
+
+    FunctionDeclaration* chunked_rbegin_chunks = nullptr;
+
+    FunctionDeclaration* chunked_previous_chunk = nullptr;
+
+    FunctionDeclaration* chunked_total_size = nullptr;
+
+    FunctionDeclaration* iterable_begin = nullptr;
+
+    FunctionDeclaration* iterable_valid = nullptr;
+
+    FunctionDeclaration* iterable_current = nullptr;
+
+    FunctionDeclaration* iterable_next = nullptr;
+
 };
 
 class CoreNodes {

@@ -11,6 +11,7 @@
 #include "Scope.h"
 #include "ast/statements/VarInit.h"
 #include "ast/types/ReferenceType.h"
+#include <cstdint>
 
 struct ForInLoopAttributes {
 
@@ -24,6 +25,14 @@ struct ForInLoopAttributes {
 
 };
 
+enum class ForInLoopIterationKind : uint8_t {
+    Unknown,
+    Array,
+    Linear,
+    Chunked,
+    Iterable
+};
+
 class ForInLoop : public LoopASTNode {
 public:
 
@@ -34,6 +43,7 @@ public:
     // calculated during sym res
     // the type of element
     BaseType* elem_type = nullptr;
+    ForInLoopIterationKind iteration_kind = ForInLoopIterationKind::Unknown;
 
 #ifdef COMPILER_BUILD
     llvm::Value* id_ptr = nullptr;
@@ -97,6 +107,7 @@ public:
             encoded_location()
         );
         loop->attrs = attrs;
+        loop->iteration_kind = iteration_kind;
         body.copy_into(loop->body, allocator, loop);
         return loop;
     }

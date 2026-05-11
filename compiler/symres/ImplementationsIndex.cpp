@@ -99,3 +99,47 @@ FunctionDeclaration* ImplementationsIndex::get_linear_data_impl(CoreNodes& coreN
 FunctionDeclaration* ImplementationsIndex::get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container) {
     return implementation_of(*this, coreNodes.iterable.linear_size, (ASTAny*) container);
 }
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_begin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_begin_chunks, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_valid_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_valid_chunk, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_current_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_current_chunk, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_next_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_next_chunk, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_rbegin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_rbegin_chunks, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_previous_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_previous_chunk, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_chunked_total_size_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.chunked_total_size, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_iterable_begin_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.iterable_begin, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_iterable_valid_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.iterable_valid, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_iterable_current_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.iterable_current, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.iterable_next, (ASTAny*) container);
+}

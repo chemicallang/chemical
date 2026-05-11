@@ -112,6 +112,19 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.iterable.linear_data = func_of_interface(iterableNode, "Linear", "data");
     coreNodes.iterable.linear_size = func_of_interface(iterableNode, "Linear", "size");
 
+    coreNodes.iterable.chunked_begin_chunks = func_of_interface(iterableNode, "Chunked", "begin_chunks");
+    coreNodes.iterable.chunked_valid_chunk = func_of_interface(iterableNode, "Chunked", "valid_chunk");
+    coreNodes.iterable.chunked_current_chunk = func_of_interface(iterableNode, "Chunked", "current_chunk");
+    coreNodes.iterable.chunked_next_chunk = func_of_interface(iterableNode, "Chunked", "next_chunk");
+    coreNodes.iterable.chunked_rbegin_chunks = func_of_interface(iterableNode, "Chunked", "rbegin_chunks");
+    coreNodes.iterable.chunked_previous_chunk = func_of_interface(iterableNode, "Chunked", "previous_chunk");
+    coreNodes.iterable.chunked_total_size = func_of_interface(iterableNode, "Chunked", "total_size");
+
+    coreNodes.iterable.iterable_begin = func_of_interface(iterableNode, "Iterable", "begin");
+    coreNodes.iterable.iterable_valid = func_of_interface(iterableNode, "Iterable", "valid");
+    coreNodes.iterable.iterable_current = func_of_interface(iterableNode, "Iterable", "current");
+    coreNodes.iterable.iterable_next = func_of_interface(iterableNode, "Iterable", "next");
+
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

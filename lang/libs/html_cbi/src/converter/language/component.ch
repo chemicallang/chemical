@@ -93,11 +93,21 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 parent : converter.parent
             }
 
-            // constructing ssr attributes
+            // constructing ssr attributes (dedup by keeping last occurrence)
             var pushedCount : ubigint = 0;
             for(var i = 0u; i < element.attributes.size(); i++) {
                 const attr = element.attributes.get(i)
                 if(is_event_attribute_name(attr.name) || has_non_ssr_attr_value(attr.value)) continue;
+                // skip if a later attribute with same name exists
+                var is_duplicate : bool = false;
+                for(var j = i + 1u; j < element.attributes.size(); j++) {
+                    const nextAttr = element.attributes.get(j)
+                    if(nextAttr.name.equals(attr.name)) {
+                        is_duplicate = true;
+                        break;
+                    }
+                }
+                if(is_duplicate) continue;
 
                 // constructing a ssr text for the attribute name
                 const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
@@ -110,7 +120,13 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
                 // constructing a ssr value
                 const attrValue = attr.value;
-                if(attrValue.kind == AttributeValueKind.Chemical) {
+                if(attrValue == null) {
+                    // boolean attribute (e.g., disabled, checked) - emit as text "true"
+                    const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location);
+                    textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(std::string_view("true")), location));
+                    textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(4, location));
+                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
+                } else if(attrValue.kind == AttributeValueKind.Chemical) {
                     var chemAttrValue = attrValue as *mut ChemicalAttributeValue
                     var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
 

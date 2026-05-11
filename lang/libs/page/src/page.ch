@@ -714,7 +714,7 @@ window.$__uni_set_prop = ((el, key, value) => {
             el[key] = v;
             return;
         } catch(err) {
-            window.$__uni_error("failed to assign DOM property", key + " on <" + el.tagName.toLowerCase() + ">", err);
+            // fall through to setAttribute below
         }
     }
     el.setAttribute(key, "" + v);

@@ -360,6 +360,20 @@ public func universal_prop_array_sugar_js(env : &mut TestEnv) {
     view_equals(env, page.getJs(), js.to_view())
 }
 
+#universal SpreadWithDuplicateAttr(props) {
+    return <div {...props} title="static"></div>
+}
+
+@test
+public func universal_spread_duplicate_attr_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SpreadWithDuplicateAttr title="dynamic" /> }
+
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="static"></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
 func dummy_class_1(page : &mut HtmlPage) : *char {
     return "dc_1"
 }

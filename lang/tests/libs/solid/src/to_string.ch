@@ -94,7 +94,7 @@ public func solid_numeric_prop(env : &mut TestEnv) {
 public func solid_spread_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SpreadProps /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", $_s.mergeProps({}, props, {})); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_SpreadProps(props) { return $_sh(\"div\", {}, props, {}); }\n");
 }
 
 #solid FragmentTest(props) {
@@ -138,7 +138,7 @@ public func solid_component_props(env : &mut TestEnv) {
 public func solid_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `)); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_TernaryTest(cond) { return $_sh(\"div\", {}, () => (cond ? $_sh(\"span\", {}, ` a `) : $_sh(\"span\", {}, ` b `))); }\n");
 }
 
 #solid DollarIdentifierTest(props) {
@@ -149,7 +149,7 @@ public func solid_ternary_test(env : &mut TestEnv) {
 public func solid_dollar_identifier_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <DollarIdentifierTest /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_DollarIdentifierTest(props) { return $_sh(\"div\", {}, () => window.$flag ? window.$title : window.$fallback); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_DollarIdentifierTest(props) { return $_sh(\"div\", {}, (window.$flag ? window.$title : window.$fallback)); }\n");
 }
 
 #solid StrictTypeofCheck(store) {
@@ -160,7 +160,7 @@ public func solid_dollar_identifier_test(env : &mut TestEnv) {
 public func solid_strict_typeof_check_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StrictTypeofCheck /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_StrictTypeofCheck(store) { return $_sh(\"div\", {}, () => !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_StrictTypeofCheck(store) { return $_sh(\"div\", {}, (!store || typeof store !== \"object\" ? \"bad\" : \"ok\")); }\n");
 }
 
 #solid ParenthesizedTernaryLabel(item) {
@@ -171,7 +171,7 @@ public func solid_strict_typeof_check_test(env : &mut TestEnv) {
 public func solid_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ParenthesizedTernaryLabel /> }
-    view_equals(env, page.getHeadJs(), "function solid_lib_test_ParenthesizedTernaryLabel(item) { return $_sh(\"div\", {}, () => (item.checked ? \"[x] \" : \"[ ] \") + item.text); }\n");
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_ParenthesizedTernaryLabel(item) { return $_sh(\"div\", {}, ((item.checked ? \"[x] \" : \"[ ] \")) + item.text); }\n");
 }
 
 #solid MapTest(items) {

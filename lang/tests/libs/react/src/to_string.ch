@@ -138,7 +138,7 @@ public func react_component_props(env : &mut TestEnv) {
 public func react_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function react_lib_test_TernaryTest(cond) { return $_r.createElement(\"div\", {}, cond ? $_r.createElement(\"span\", {}, ` a `) : $_r.createElement(\"span\", {}, ` b `)); }\n");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_TernaryTest(cond) { return $_r.createElement(\"div\", {}, (cond ? $_r.createElement(\"span\", {}, ` a `) : $_r.createElement(\"span\", {}, ` b `))); }\n");
 }
 
 #react DollarIdentifierTest(props) {
@@ -149,7 +149,7 @@ public func react_ternary_test(env : &mut TestEnv) {
 public func react_dollar_identifier_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <DollarIdentifierTest /> }
-    view_equals(env, page.getHeadJs(), "function react_lib_test_DollarIdentifierTest(props) { return $_r.createElement(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_DollarIdentifierTest(props) { return $_r.createElement(\"div\", {}, (window.$flag ? window.$title : window.$fallback)); }\n");
 }
 
 #react StrictTypeofCheck(store) {
@@ -160,7 +160,7 @@ public func react_dollar_identifier_test(env : &mut TestEnv) {
 public func react_strict_typeof_check_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StrictTypeofCheck /> }
-    view_equals(env, page.getHeadJs(), "function react_lib_test_StrictTypeofCheck(store) { return $_r.createElement(\"div\", {}, !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_StrictTypeofCheck(store) { return $_r.createElement(\"div\", {}, (!store || typeof store !== \"object\" ? \"bad\" : \"ok\")); }\n");
 }
 
 #react ParenthesizedTernaryLabel(item) {
@@ -171,7 +171,7 @@ public func react_strict_typeof_check_test(env : &mut TestEnv) {
 public func react_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ParenthesizedTernaryLabel /> }
-    view_equals(env, page.getHeadJs(), "function react_lib_test_ParenthesizedTernaryLabel(item) { return $_r.createElement(\"div\", {}, (item.checked ? \"[x] \" : \"[ ] \") + item.text); }\n");
+    view_equals(env, page.getHeadJs(), "function react_lib_test_ParenthesizedTernaryLabel(item) { return $_r.createElement(\"div\", {}, ((item.checked ? \"[x] \" : \"[ ] \")) + item.text); }\n");
 }
 
 #react MapTest(items) {

@@ -138,7 +138,7 @@ public func preact_component_props(env : &mut TestEnv) {
 public func preact_ternary_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <TernaryTest /> }
-    view_equals(env, page.getHeadJs(), "function preact_lib_test_TernaryTest(cond) { return $_p.h(\"div\", {}, cond ? $_p.h(\"span\", {}, ` a `) : $_p.h(\"span\", {}, ` b `)); }\n");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_TernaryTest(cond) { return $_p.h(\"div\", {}, (cond ? $_p.h(\"span\", {}, ` a `) : $_p.h(\"span\", {}, ` b `))); }\n");
 }
 
 #preact DollarIdentifierTest(props) {
@@ -149,7 +149,7 @@ public func preact_ternary_test(env : &mut TestEnv) {
 public func preact_dollar_identifier_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <DollarIdentifierTest /> }
-    view_equals(env, page.getHeadJs(), "function preact_lib_test_DollarIdentifierTest(props) { return $_p.h(\"div\", {}, window.$flag ? window.$title : window.$fallback); }\n");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_DollarIdentifierTest(props) { return $_p.h(\"div\", {}, (window.$flag ? window.$title : window.$fallback)); }\n");
 }
 
 #preact StrictTypeofCheck(store) {
@@ -160,7 +160,7 @@ public func preact_dollar_identifier_test(env : &mut TestEnv) {
 public func preact_strict_typeof_check_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <StrictTypeofCheck /> }
-    view_equals(env, page.getHeadJs(), "function preact_lib_test_StrictTypeofCheck(store) { return $_p.h(\"div\", {}, !store || typeof store !== \"object\" ? \"bad\" : \"ok\"); }\n");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_StrictTypeofCheck(store) { return $_p.h(\"div\", {}, (!store || typeof store !== \"object\" ? \"bad\" : \"ok\")); }\n");
 }
 
 #preact ParenthesizedTernaryLabel(item) {
@@ -171,7 +171,7 @@ public func preact_strict_typeof_check_test(env : &mut TestEnv) {
 public func preact_parenthesized_ternary_with_member_access_test(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ParenthesizedTernaryLabel /> }
-    view_equals(env, page.getHeadJs(), "function preact_lib_test_ParenthesizedTernaryLabel(item) { return $_p.h(\"div\", {}, (item.checked ? \"[x] \" : \"[ ] \") + item.text); }\n");
+    view_equals(env, page.getHeadJs(), "function preact_lib_test_ParenthesizedTernaryLabel(item) { return $_p.h(\"div\", {}, ((item.checked ? \"[x] \" : \"[ ] \")) + item.text); }\n");
 }
 
 #preact MapTest(items) {

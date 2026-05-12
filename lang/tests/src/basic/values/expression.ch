@@ -360,7 +360,7 @@ func test_bodmas() {
     })
     test("int << u8 with shift=12", () => {
         var shift : u8 = 12
-        var result : uint = 1 << shift
+        var result : int = (1 << shift) as int
         return result == 4096
     })
     test("parenthesized expressions can be casted", () => {

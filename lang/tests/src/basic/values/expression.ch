@@ -478,6 +478,46 @@ func test_bodmas() {
         return result == 1020u
     })
 
+    test("char >= u8 uses unsigned comparison when char < u8 value", () => {
+        var x : char = 32
+        var y : u8 = 0x80u
+        // 32 >= 128 should be false
+        // bug (signed i8): 32 >= -128 -> true
+        return !(x >= y)
+    })
+
+    test("char <= u8 uses unsigned comparison when char < u8 value", () => {
+        var x : char = 32
+        var y : u8 = 0x80u
+        // 32 <= 128 should be true
+        // bug (signed i8): 32 <= -128 -> false
+        return x <= y
+    })
+
+    test("char < u8 uses unsigned comparison", () => {
+        var x : char = 32
+        var y : u8 = 0x80u
+        // 32 < 128 should be true
+        // bug (signed i8): 32 < -128 -> false
+        return x < y
+    })
+
+    test("u8 > char uses unsigned comparison", () => {
+        var x : u8 = 0x80u
+        var y : char = 32
+        // 128 > 32 should be true
+        // bug (signed i8): -128 > 32 -> false
+        return x > y
+    })
+
+    test("u8 >= char uses unsigned comparison", () => {
+        var x : u8 = 0x80u
+        var y : char = 32
+        // 128 >= 32 should be true
+        // bug (signed i8): -128 >= 32 -> false
+        return x >= y
+    })
+
 }
 
 // test vectors (., .., a, .a)

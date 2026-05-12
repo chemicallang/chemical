@@ -24,23 +24,33 @@ inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
 }
 
-void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation) {
+void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation, TargetData& targetData) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         const auto is_shift = operation == Operation::LeftShift || operation == Operation::RightShift;
         if(is_shift) {
-            // for shifts, the result type is the left operand's type
-            // never replace the left literal; promote the right literal to left's type
             if(secondValue->val_kind() == ValueKind::IntN) {
-                auto value = ((IntNumValue*)secondValue)->get_num_value();
-                secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+                auto valNType = (IntNType*) secondValue->getType()->canonical();
+                auto targetNType = (IntNType*) firstType;
+                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
+                    auto value = ((IntNumValue*)secondValue)->get_num_value();
+                    secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+                }
             }
         } else {
             if(firstValue->val_kind() == ValueKind::IntN) {
-                auto value = ((IntNumValue*)firstValue)->get_num_value();
-                firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
+                auto valNType = (IntNType*) firstValue->getType()->canonical();
+                auto targetNType = (IntNType*) secondType;
+                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
+                    auto value = ((IntNumValue*)firstValue)->get_num_value();
+                    firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
+                }
             } else if(secondValue->val_kind() == ValueKind::IntN){
-                auto value = ((IntNumValue*)secondValue)->get_num_value();
-                secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+                auto valNType = (IntNType*) secondValue->getType()->canonical();
+                auto targetNType = (IntNType*) firstType;
+                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
+                    auto value = ((IntNumValue*)secondValue)->get_num_value();
+                    secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+                }
             }
         }
     }

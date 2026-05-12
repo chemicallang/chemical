@@ -40,14 +40,14 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
             if(firstValue->val_kind() == ValueKind::IntN) {
                 auto valNType = (IntNType*) firstValue->getType()->canonical();
                 auto targetNType = (IntNType*) secondType;
-                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
+                if(valNType->num_bits(targetData) < targetNType->num_bits(targetData)) {
                     auto value = ((IntNumValue*)firstValue)->get_num_value();
                     firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
                 }
             } else if(secondValue->val_kind() == ValueKind::IntN){
                 auto valNType = (IntNType*) secondValue->getType()->canonical();
                 auto targetNType = (IntNType*) firstType;
-                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
+                if(valNType->num_bits(targetData) < targetNType->num_bits(targetData)) {
                     auto value = ((IntNumValue*)secondValue)->get_num_value();
                     secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
                 }

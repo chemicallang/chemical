@@ -223,6 +223,39 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
 
     }
 
+    impl core::iterable::ReversibleIterable<unordered_map_node<Key, Value>, unordered_map_iterator<Key, Value>> for unordered_map<Key, Value> {
+        func rbegin(&self) : unordered_map_iterator<Key, Value> {
+            var it = iterator()
+            var prev : unordered_map_iterator<Key, Value> = it
+            while (it.valid()) {
+                prev = it
+                it.next()
+            }
+            return prev
+        }
+
+        func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
+            var it = iterator()
+            var prev : unordered_map_iterator<Key, Value> = unordered_map_iterator<Key, Value> {
+                map : &self,
+                bucket : 0,
+                node : null
+            }
+            while (it.valid()) {
+                if (it.bucket == c.bucket && it.node == c.node) {
+                    return prev
+                }
+                prev = it
+                it.next()
+            }
+            return prev
+        }
+
+        func count(&self) : size_t {
+            return size()
+        }
+    }
+
 };
 
 public struct unordered_map_iterator<Key, Value> {

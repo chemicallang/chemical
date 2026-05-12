@@ -125,6 +125,10 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.iterable.iterable_current = func_of_interface(iterableNode, "Iterable", "current");
     coreNodes.iterable.iterable_next = func_of_interface(iterableNode, "Iterable", "next");
 
+    coreNodes.iterable.reversible_iterable_rbegin = func_of_interface(iterableNode, "ReversibleIterable", "rbegin");
+    coreNodes.iterable.reversible_iterable_previous = func_of_interface(iterableNode, "ReversibleIterable", "previous");
+    coreNodes.iterable.reversible_iterable_count = func_of_interface(iterableNode, "ReversibleIterable", "count");
+
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

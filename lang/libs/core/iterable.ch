@@ -55,6 +55,16 @@ public interface Iterable<T, Cursor> {
 
 }
 
+public interface ReversibleIterable<T, Cursor> : Iterable<T, Cursor> {
+
+    func rbegin(&self) : Cursor
+
+    func previous(&self, c : Cursor) : Cursor
+
+    func count(&self) : u64
+
+}
+
 }
 
 }

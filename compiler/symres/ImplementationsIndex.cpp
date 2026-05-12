@@ -143,3 +143,15 @@ FunctionDeclaration* ImplementationsIndex::get_iterable_current_impl(CoreNodes& 
 FunctionDeclaration* ImplementationsIndex::get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container) {
     return implementation_of(*this, coreNodes.iterable.iterable_next, (ASTAny*) container);
 }
+
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_rbegin_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.reversible_iterable_rbegin, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_previous_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.reversible_iterable_previous, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_count_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.iterable.reversible_iterable_count, (ASTAny*) container);
+}

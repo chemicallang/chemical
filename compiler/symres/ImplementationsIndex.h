@@ -111,4 +111,10 @@ public:
 
     FunctionDeclaration* get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container);
 
+    FunctionDeclaration* get_reversible_iterable_rbegin_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_reversible_iterable_previous_impl(CoreNodes& coreNodes, MembersContainer* container);
+
+    FunctionDeclaration* get_reversible_iterable_count_impl(CoreNodes& coreNodes, MembersContainer* container);
+
 };

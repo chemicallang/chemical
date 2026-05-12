@@ -3960,6 +3960,11 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
         loop_scope_no_parens(*this, node->body);
 
+        new_line_and_indent();
+        write(node->c_continue_label);
+        write(":;");
+        new_line_and_indent();
+
         if (node->index_init != nullptr && !node->is_reversed_counter()) {
             write('\t');
             write(node->index_init->id_view());
@@ -3973,10 +3978,6 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
         new_line_and_indent();
         write('}');
-        new_line_and_indent();
-
-        write(node->c_continue_label);
-        write(":;");
         new_line_and_indent();
 
         if (chunkCursorIsStruct) {

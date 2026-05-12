@@ -78,6 +78,7 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
 
 void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, FunctionTypeBody* curr_func) {
     const auto values_size = chain->values.size();
+    if (values_size <= 1) return;
     unsigned i = 1;
     while (i < values_size) {
         const auto id = chain->values[i]->as_identifier_unsafe();
@@ -123,6 +124,8 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
     } else {
         // since it's not a identifier, we must visit it
         visit(val);
+        // now we must relink because parent has probably changed type
+        relink_parent(value, *this, current_func_type);
     }
 
     // type can change because of generics, so we keep track of it in every value

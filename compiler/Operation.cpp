@@ -121,7 +121,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
             return true;
         }
         auto first_unsigned = firstKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned();
-        auto second_unsigned = secondKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned();
+        auto second_unsigned = secondKind == BaseTypeKind::IntN && ((IntNType*) secondType)->is_unsigned();
         if((first_unsigned && !second_unsigned) || (!first_unsigned && second_unsigned)) {
             info("Operation between two IntN types, where one of them is unsigned and the other signed is error prone", first);
         }

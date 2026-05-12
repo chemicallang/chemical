@@ -45,7 +45,6 @@ public:
     // the type of element
     BaseType* elem_type = nullptr;
     ForInLoopIterationKind iteration_kind = ForInLoopIterationKind::Unknown;
-    std::string c_continue_label;
 
 #ifdef COMPILER_BUILD
     llvm::Value* id_ptr = nullptr;
@@ -110,7 +109,6 @@ public:
         );
         loop->attrs = attrs;
         loop->iteration_kind = iteration_kind;
-        loop->c_continue_label = c_continue_label;
         body.copy_into(loop->body, allocator, loop);
         return loop;
     }

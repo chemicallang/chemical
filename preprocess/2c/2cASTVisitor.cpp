@@ -3554,30 +3554,11 @@ void ToCAstVisitor::writeContinueStmt(ASTNode* stmt) {
     destruct_till_loop_scope_above();
     const auto forIn = getParentForInLoop(stmt);
     if (forIn) {
-        if (!forIn->c_continue_label.empty()) {
-            write("goto ");
-            write(forIn->c_continue_label);
-            write(';');
-            return;
-        }
-
-        write(forIn->id);
-        if (forIn->is_reversed()) {
-            write("--;");
-        } else {
-            write("++;");
-        }
-        new_line_and_indent();
-
-        if (forIn->index_init != nullptr) {
-            write(forIn->index_init->id_view());
-            if (forIn->is_reversed_counter()) {
-                write("--;");
-            } else {
-                write("++;");
-            }
-            new_line_and_indent();
-        }
+        std::string c_continue_label = "continue_" + std::to_string(forIn->encoded_location().encoded);
+        write("goto ");
+        write(c_continue_label);
+        write(';');
+        return;
     }
     write("continue;");
 }
@@ -3816,8 +3797,11 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     write(';');
     new_line_and_indent();
 
+    // creating the continue label
+    // in case user does continue on it
+    std::string c_continue_label = "continue_" + std::to_string(node->encoded_location().encoded);
+
     if (node->iteration_kind == ForInLoopIterationKind::Chunked) {
-        node->c_continue_label = get_local_temp_var_name() + "_continue";
 
         // get all the functions implementations
         const auto linked = exprType->get_linked_node(true, false);
@@ -3961,7 +3945,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         loop_scope_no_parens(*this, node->body);
 
         new_line_and_indent();
-        write(node->c_continue_label);
+        write(c_continue_label);
         write(":;");
         new_line_and_indent();
 
@@ -4020,7 +4004,6 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     }
 
     if (node->iteration_kind == ForInLoopIterationKind::Iterable) {
-        node->c_continue_label = get_local_temp_var_name() + "_continue";
 
         // get the iterable interface functions' implementations
         const auto linked = exprType->get_linked_node(true, false);
@@ -4113,7 +4096,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         loop_scope_no_parens(*this, node->body);
 
         new_line_and_indent();
-        write(node->c_continue_label);
+        write(c_continue_label);
         write(":;");
         new_line_and_indent();
         if (cursorIsStruct) {
@@ -4183,7 +4166,6 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     // the end pointer variable name
     auto end_ptr_var_name = get_local_temp_var_name();
     auto& temp_var = end_ptr_var_name;
-    node->c_continue_label = get_local_temp_var_name() + "_continue";
 
     // the current pointer
     visit_loop_elem_type(*this, node);
@@ -4297,7 +4279,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     loop_scope_no_parens(*this, node->body);
 
     new_line_and_indent();
-    write(node->c_continue_label);
+    write(c_continue_label);
     write(":;");
 
     // incrementing counter

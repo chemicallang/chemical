@@ -8,11 +8,14 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/accountlib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/components" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@v1.3" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/market" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/market/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline" vcs="Git" />

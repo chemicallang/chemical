@@ -3788,48 +3788,13 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
     const auto exprType = node->expr->getType()->canonical();
 
-    FunctionDeclaration* iter_data_fn = nullptr;
-    FunctionDeclaration* iter_size_fn = nullptr;
-    FunctionDeclaration* chunk_begin_fn = nullptr;
-    FunctionDeclaration* chunk_valid_fn = nullptr;
-    FunctionDeclaration* chunk_current_fn = nullptr;
-    FunctionDeclaration* chunk_next_fn = nullptr;
-    FunctionDeclaration* chunk_rbegin_fn = nullptr;
-    FunctionDeclaration* chunk_previous_fn = nullptr;
-    FunctionDeclaration* chunk_total_size_fn = nullptr;
-    FunctionDeclaration* iterable_begin_fn = nullptr;
-    FunctionDeclaration* iterable_valid_fn = nullptr;
-    FunctionDeclaration* iterable_current_fn = nullptr;
-    FunctionDeclaration* iterable_next_fn = nullptr;
-    if (exprType->kind() != BaseTypeKind::Array) {
-        const auto linked = exprType->get_linked_node(true, false);
-        if (linked) {
-            const auto container = linked->get_members_container();
-            if (container) {
-                iter_data_fn = implsIndex.get_linear_data_impl(coreNodes, container);
-                iter_size_fn = implsIndex.get_linear_size_impl(coreNodes, container);
-                chunk_begin_fn = implsIndex.get_chunked_begin_chunks_impl(coreNodes, container);
-                chunk_valid_fn = implsIndex.get_chunked_valid_chunk_impl(coreNodes, container);
-                chunk_current_fn = implsIndex.get_chunked_current_chunk_impl(coreNodes, container);
-                chunk_next_fn = implsIndex.get_chunked_next_chunk_impl(coreNodes, container);
-                chunk_rbegin_fn = implsIndex.get_chunked_rbegin_chunks_impl(coreNodes, container);
-                chunk_previous_fn = implsIndex.get_chunked_previous_chunk_impl(coreNodes, container);
-                chunk_total_size_fn = implsIndex.get_chunked_total_size_impl(coreNodes, container);
-                iterable_begin_fn = implsIndex.get_iterable_begin_impl(coreNodes, container);
-                iterable_valid_fn = implsIndex.get_iterable_valid_impl(coreNodes, container);
-                iterable_current_fn = implsIndex.get_iterable_current_impl(coreNodes, container);
-                iterable_next_fn = implsIndex.get_iterable_next_impl(coreNodes, container);
-            }
-        }
-    }
     // so index_id won't conflict with other loops
     write('{');
     indentation_level += 1;
     new_line_and_indent();
 
     // evaluating expression into a variable
-    const auto has_interface_iter = iter_data_fn || chunk_current_fn || iterable_current_fn;
-    const auto is_direct_struct = has_interface_iter && exprType->kind() != BaseTypeKind::Reference;
+    const auto is_direct_struct = node->iteration_kind != ForInLoopIterationKind::Array && exprType->kind() != BaseTypeKind::Reference;
     auto expr_var = get_local_temp_var_name();
     visit(node->expr->getType());
     if (is_direct_struct) {
@@ -3846,6 +3811,27 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     new_line_and_indent();
 
     if (node->iteration_kind == ForInLoopIterationKind::Chunked) {
+
+        // get all the functions implementations
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked == nullptr) {
+            error(node) << "couldn't get the linked node for chunked iteration";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container == nullptr) {
+            error(node) << "couldn't get the members container for chunked iteration";
+            return;
+        }
+        const auto chunk_begin_fn = implsIndex.get_chunked_begin_chunks_impl(coreNodes, container);
+        const auto chunk_valid_fn = implsIndex.get_chunked_valid_chunk_impl(coreNodes, container);
+        const auto chunk_current_fn = implsIndex.get_chunked_current_chunk_impl(coreNodes, container);
+        const auto chunk_next_fn = implsIndex.get_chunked_next_chunk_impl(coreNodes, container);
+        const auto chunk_rbegin_fn = implsIndex.get_chunked_rbegin_chunks_impl(coreNodes, container);
+        const auto chunk_previous_fn = implsIndex.get_chunked_previous_chunk_impl(coreNodes, container);
+        const auto chunk_total_size_fn = implsIndex.get_chunked_total_size_impl(coreNodes, container);
+
+        // chunked iteration setup
         auto chunk_cursor_var = get_local_temp_var_name();
         auto chunk_var = get_local_temp_var_name();
         auto inner_end_var = get_local_temp_var_name();
@@ -4022,6 +4008,23 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     }
 
     if (node->iteration_kind == ForInLoopIterationKind::Iterable) {
+
+        // get the iterable interface functions' implementations
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked == nullptr) {
+            error(node) << "couldn't get the linked node for iteration";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container == nullptr) {
+            error(node) << "couldn't get the members container for iteration";
+            return;
+        }
+        const auto iterable_begin_fn = implsIndex.get_iterable_begin_impl(coreNodes, container);
+        const auto iterable_valid_fn = implsIndex.get_iterable_valid_impl(coreNodes, container);
+        const auto iterable_current_fn = implsIndex.get_iterable_current_impl(coreNodes, container);
+        const auto iterable_next_fn = implsIndex.get_iterable_next_impl(coreNodes, container);
+
         auto cursor_var = get_local_temp_var_name();
         const auto cursorIsStruct = iterable_begin_fn->returnType->isStructLikeType();
 
@@ -4126,6 +4129,21 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         new_line_and_indent();
         write('}');
         return;
+    }
+
+    // if we are not iterating over an array
+    // get the data & size functions for linear iteration
+    FunctionDeclaration* iter_data_fn = nullptr;
+    FunctionDeclaration* iter_size_fn = nullptr;
+    if (exprType->kind() != BaseTypeKind::Array) {
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked) {
+            const auto container = linked->get_members_container();
+            if (container) {
+                iter_data_fn = implsIndex.get_linear_data_impl(coreNodes, container);
+                iter_size_fn = implsIndex.get_linear_size_impl(coreNodes, container);
+            }
+        }
     }
 
     // the end pointer variable name

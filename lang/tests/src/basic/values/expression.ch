@@ -518,6 +518,40 @@ func test_bodmas() {
         return x >= y
     })
 
+    test("char >= u8 typed literal directly in comparison when char < u8 value", () => {
+        var x : char = 32
+        // 0x80u8 stays as u8 with replace_number_values fix; unsigned cmp: 32 >= 128 = false
+        return !(x >= 0x80u8)
+    })
+
+    test("char <= u8 typed literal directly in comparison when char < u8 value", () => {
+        var x : char = 32
+        // 0x80u8 stays as u8; unsigned cmp: 32 <= 128 = true
+        return x <= 0x80u8
+    })
+
+    test("char < u8 typed literal directly in comparison", () => {
+        var x : char = 32
+        return x < 0x80u8
+    })
+
+    test("u8 > char typed literal directly in comparison", () => {
+        var y : char = 32
+        // 0x80u8 stays as u8; unsigned cmp: 128 > 32 = true
+        return 0x80u8 > y
+    })
+
+    test("u8 >= char typed literal directly in comparison", () => {
+        var y : char = 32
+        return 0x80u8 >= y
+    })
+
+    test("bcrypt-style combined check with direct u8 typed literals", () => {
+        var c1 : char = 0x30
+        // Both 0x20u8 and 0x80u8 stay as u8 with fix; unsigned cmp: 48 >= 32 and 48 < 128
+        return !(c1 < 0x20u8 || c1 >= 0x80u8)
+    })
+
 }
 
 // test vectors (., .., a, .a)

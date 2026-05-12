@@ -1026,26 +1026,10 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
         } else {
             const auto chunkCurrentFunc = linker.implsIndex.get_chunked_current_chunk_impl(linker.coreNodes, container);
             if (chunkCurrentFunc) {
-                const auto beginFunc = linker.implsIndex.get_chunked_begin_chunks_impl(linker.coreNodes, container);
-                const auto validFunc = linker.implsIndex.get_chunked_valid_chunk_impl(linker.coreNodes, container);
-                const auto nextFunc = linker.implsIndex.get_chunked_next_chunk_impl(linker.coreNodes, container);
-                const auto totalSizeFunc = linker.implsIndex.get_chunked_total_size_impl(linker.coreNodes, container);
-                if (!beginFunc || !validFunc || !nextFunc || !totalSizeFunc) {
-                    linker.error("expected complete 'core::iterable::Chunked' implementation", node->expr);
-                    return;
-                }
                 const auto elem = chunk_element_type(chunkCurrentFunc);
                 if (!elem) {
                     linker.error("expected 'core::iterable::Chunked::current_chunk' to return core::iterable::Chunk<T>", node->expr);
                     return;
-                }
-                if (node->is_reversed()) {
-                    const auto rbeginFunc = linker.implsIndex.get_chunked_rbegin_chunks_impl(linker.coreNodes, container);
-                    const auto previousFunc = linker.implsIndex.get_chunked_previous_chunk_impl(linker.coreNodes, container);
-                    if (!rbeginFunc || !previousFunc) {
-                        linker.error("reversed iteration requires 'core::iterable::Chunked::rbegin_chunks' and 'previous_chunk' implementations", node->expr);
-                        return;
-                    }
                 }
                 set_for_in_elem_type(node, elem);
                 node->iteration_kind = ForInLoopIterationKind::Chunked;
@@ -1053,13 +1037,6 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
                 const auto iterableCurrentFunc = linker.implsIndex.get_iterable_current_impl(linker.coreNodes, container);
                 if (!iterableCurrentFunc) {
                     linker.error("expected container to implement 'core::iterable::Linear', 'core::iterable::Chunked', or 'core::iterable::Iterable'", node->expr);
-                    return;
-                }
-                const auto beginFunc = linker.implsIndex.get_iterable_begin_impl(linker.coreNodes, container);
-                const auto validFunc = linker.implsIndex.get_iterable_valid_impl(linker.coreNodes, container);
-                const auto nextFunc = linker.implsIndex.get_iterable_next_impl(linker.coreNodes, container);
-                if (!beginFunc || !validFunc || !nextFunc) {
-                    linker.error("expected complete 'core::iterable::Iterable' implementation", node->expr);
                     return;
                 }
                 if (node->is_reversed()) {

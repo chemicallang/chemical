@@ -448,6 +448,35 @@ func test_bodmas() {
     test("phi xor lowering \"long_chain_merge(..)\"", () => { return long_chain_merge(&dotdot_u16[0]) == true });
     test("phi xor lowering \"long_chain_merge(a)\"", () => { return long_chain_merge(&a_u16[0]) == true });
     test("phi xor lowering \"long_chain_merge(.a)\"", () => { return long_chain_merge(&dota_u16[0]) == true });
+    test("u8 | uint typed literal promotes to uint", () => {
+        var b : u8 = 0xFF
+        var result = b | 0x100u
+        return result == 511u
+    })
+
+    test("u8 | uint typed literal with value beyond u8 range", () => {
+        var zero : u8 = 0
+        var result = zero | 0x1FFu
+        return result == 511u
+    })
+
+    test("u8 + uint typed literal promotes to uint", () => {
+        var small : u8 = 200
+        var result = small + 1000u
+        return result == 1200u
+    })
+
+    test("u8 + int untyped literal that does not fit in u8", () => {
+        var small : u8 = 200
+        var result = small + 2000
+        return result == 2200
+    })
+
+    test("u8 << uint typed literal should not narrow result", () => {
+        var b : u8 = 0xFF
+        var result = b << 2u
+        return result == 1020u
+    })
 
 }
 

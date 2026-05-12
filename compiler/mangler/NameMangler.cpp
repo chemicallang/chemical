@@ -329,9 +329,8 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                     if(can_node) {
                         // scope name and module name of the interface
                         write_mangle_parent_of(*this, stream, interface);
-                        // get the base function (interface can be different)
-                        // TODO: try to use direct function here
-                        const auto base_func = interface->base_function_with_name(decl->name_view());
+                        // get the base function
+                        const auto base_func = interface->direct_child_function(decl->name_view());
                         const auto base_interface = base_func->parent();
                         if (base_interface && base_interface->kind() == ASTNodeKind::InterfaceDecl) {
                             // interface name

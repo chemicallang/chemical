@@ -218,14 +218,27 @@ void ForInLoop::code_gen(Codegen &gen) {
         const auto iterable_valid_fn = gen.implsIndex.get_iterable_valid_impl(gen.coreNodes, container);
         const auto iterable_current_fn = gen.implsIndex.get_iterable_current_impl(gen.coreNodes, container);
         const auto iterable_next_fn = gen.implsIndex.get_iterable_next_impl(gen.coreNodes, container);
+        const auto iterable_rbegin_fn = gen.implsIndex.get_reversible_iterable_rbegin_impl(gen.coreNodes, container);
+        const auto iterable_previous_fn = gen.implsIndex.get_reversible_iterable_previous_impl(gen.coreNodes, container);
+        const auto iterable_count_fn = gen.implsIndex.get_reversible_iterable_count_impl(gen.coreNodes, container);
+        const auto startFn = is_reversed() ? iterable_rbegin_fn : iterable_begin_fn;
+        const auto stepFn = is_reversed() ? iterable_previous_fn : iterable_next_fn;
+        if (!startFn || !stepFn) {
+            gen.error(this) << "missing iterable cursor functions";
+            return;
+        }
+        if (is_reversed() && !iterable_count_fn) {
+            gen.error(this) << "missing reversible iterable count function";
+            return;
+        }
 
-        const auto cursorIsStruct = iterable_begin_fn->returnType->isStructLikeType();
-        const auto cursorTy = iterable_begin_fn->returnType->llvm_type(gen);
+        const auto cursorIsStruct = startFn->returnType->isStructLikeType();
+        const auto cursorTy = startFn->returnType->llvm_type(gen);
         const auto cursorAlloca = gen.llvm.CreateAlloca(cursorTy, encoded_location());
         if (cursorIsStruct) {
-            call_for_in_interface_fn(gen, iterable_begin_fn, { exprPtr }, encoded_location(), cursorAlloca);
+            call_for_in_interface_fn(gen, startFn, { exprPtr }, encoded_location(), cursorAlloca);
         } else {
-            auto cursorInit = call_for_in_interface_fn(gen, iterable_begin_fn, { exprPtr }, encoded_location());
+            auto cursorInit = call_for_in_interface_fn(gen, startFn, { exprPtr }, encoded_location());
             gen.llvm.CreateStore(cursorInit, cursorAlloca, encoded_location());
         }
 
@@ -233,7 +246,14 @@ void ForInLoop::code_gen(Codegen &gen) {
         if (index_init) {
             const auto indexPtr = gen.llvm.CreateAlloca(indexType, encoded_location());
             index_init->llvm_ptr = indexPtr;
-            gen.llvm.CreateStore(llvm::ConstantInt::get(indexType, 0), index_init->llvm_ptr, encoded_location());
+            llvm::Value* initialIdx = nullptr;
+            if (is_reversed_counter()) {
+                auto countCall = call_for_in_interface_fn(gen, iterable_count_fn, { exprPtr }, encoded_location());
+                initialIdx = gen.implicit_cast(countCall, index_init->type, indexType);
+            } else {
+                initialIdx = llvm::ConstantInt::get(indexType, 0);
+            }
+            gen.llvm.CreateStore(initialIdx, index_init->llvm_ptr, encoded_location());
         }
 
         auto condBlock = llvm::BasicBlock::Create(*gen.ctx, "forin.iter.cond", gen.current_function);
@@ -258,16 +278,18 @@ void ForInLoop::code_gen(Codegen &gen) {
         gen.SetInsertPoint(incBlock);
         cursorVal = cursorIsStruct ? cursorAlloca : gen.builder->CreateLoad(cursorTy, cursorAlloca);
         if (cursorIsStruct) {
-            auto nextCursorPtr = call_for_in_interface_fn(gen, iterable_next_fn, { exprPtr, cursorVal }, encoded_location());
+            auto nextCursorPtr = call_for_in_interface_fn(gen, stepFn, { exprPtr, cursorVal }, encoded_location());
             auto nextCursor = gen.builder->CreateLoad(cursorTy, nextCursorPtr);
             gen.llvm.CreateStore(nextCursor, cursorAlloca, encoded_location());
         } else {
-            auto nextCursor = call_for_in_interface_fn(gen, iterable_next_fn, { exprPtr, cursorVal }, encoded_location());
+            auto nextCursor = call_for_in_interface_fn(gen, stepFn, { exprPtr, cursorVal }, encoded_location());
             gen.llvm.CreateStore(nextCursor, cursorAlloca, encoded_location());
         }
         if (index_init) {
             llvm::Value* idx = gen.builder->CreateLoad(indexType, index_init->llvm_ptr);
-            idx = gen.builder->CreateAdd(idx, llvm::ConstantInt::get(idx->getType(), 1));
+            idx = is_reversed_counter()
+                ? gen.builder->CreateSub(idx, llvm::ConstantInt::get(idx->getType(), 1))
+                : gen.builder->CreateAdd(idx, llvm::ConstantInt::get(idx->getType(), 1));
             gen.llvm.CreateStore(idx, index_init->llvm_ptr, encoded_location());
         }
         gen.CreateBr(condBlock, location);

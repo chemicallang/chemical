@@ -1040,8 +1040,13 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
                     return;
                 }
                 if (node->is_reversed()) {
-                    linker.error("reversed iteration is not supported for 'core::iterable::Iterable' containers", node->expr);
-                    return;
+                    const auto rbeginFunc = linker.implsIndex.get_reversible_iterable_rbegin_impl(linker.coreNodes, container);
+                    const auto previousFunc = linker.implsIndex.get_reversible_iterable_previous_impl(linker.coreNodes, container);
+                    const auto countFunc = linker.implsIndex.get_reversible_iterable_count_impl(linker.coreNodes, container);
+                    if (!rbeginFunc || !previousFunc || !countFunc) {
+                        linker.error("reversed iteration requires 'core::iterable::ReversibleIterable' implementation", node->expr);
+                        return;
+                    }
                 }
                 if (iterableCurrentFunc->returnType->kind() != BaseTypeKind::Reference) {
                     linker.error("expected 'core::iterable::Iterable::current' return type to be a reference", node->expr);

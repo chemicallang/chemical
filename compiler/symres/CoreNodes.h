@@ -82,6 +82,12 @@ public:
 
     FunctionDeclaration* iterable_next = nullptr;
 
+    FunctionDeclaration* reversible_iterable_rbegin = nullptr;
+
+    FunctionDeclaration* reversible_iterable_previous = nullptr;
+
+    FunctionDeclaration* reversible_iterable_count = nullptr;
+
 };
 
 class CoreNodes {

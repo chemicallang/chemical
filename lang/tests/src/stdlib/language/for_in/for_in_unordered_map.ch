@@ -46,4 +46,29 @@ func test_for_in_unordered_map() {
 
         return total == 23
     })
+
+    test("continue works in unordered_map for-in", () => {
+        var map = std::unordered_map<int, int>()
+        map.insert(1, 5)
+        map.insert(2, 7)
+        map.insert(3, 11)
+        var total = 0
+        for(var entry in map) {
+            if(entry.key == 2) continue;
+            total += entry.value
+        }
+        return total == 16
+    })
+
+    test("can iterate over unordered_map in reverse", () => {
+        var map = std::unordered_map<int, int>()
+        map.insert(1, 5)
+        map.insert(2, 7)
+        map.insert(3, 11)
+        var total = 0
+        for(var entry in map reversed) {
+            total += entry.value
+        }
+        return total == 23
+    })
 }

@@ -3554,6 +3554,12 @@ void ToCAstVisitor::writeContinueStmt(ASTNode* stmt) {
     destruct_till_loop_scope_above();
     const auto forIn = getParentForInLoop(stmt);
     if (forIn) {
+        if (!forIn->c_continue_label.empty()) {
+            write("goto ");
+            write(forIn->c_continue_label);
+            write(';');
+            return;
+        }
 
         write(forIn->id);
         if (forIn->is_reversed()) {
@@ -3811,6 +3817,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     new_line_and_indent();
 
     if (node->iteration_kind == ForInLoopIterationKind::Chunked) {
+        node->c_continue_label = get_local_temp_var_name() + "_continue";
 
         // get all the functions implementations
         const auto linked = exprType->get_linked_node(true, false);
@@ -3968,6 +3975,10 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         write('}');
         new_line_and_indent();
 
+        write(node->c_continue_label);
+        write(":;");
+        new_line_and_indent();
+
         if (chunkCursorIsStruct) {
             auto next_chunk_cursor_var = get_local_temp_var_name();
             visit((node->is_reversed() ? chunk_previous_fn : chunk_next_fn)->returnType);
@@ -4008,6 +4019,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     }
 
     if (node->iteration_kind == ForInLoopIterationKind::Iterable) {
+        node->c_continue_label = get_local_temp_var_name() + "_continue";
 
         // get the iterable interface functions' implementations
         const auto linked = exprType->get_linked_node(true, false);
@@ -4024,16 +4036,21 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         const auto iterable_valid_fn = implsIndex.get_iterable_valid_impl(coreNodes, container);
         const auto iterable_current_fn = implsIndex.get_iterable_current_impl(coreNodes, container);
         const auto iterable_next_fn = implsIndex.get_iterable_next_impl(coreNodes, container);
+        const auto iterable_rbegin_fn = implsIndex.get_reversible_iterable_rbegin_impl(coreNodes, container);
+        const auto iterable_previous_fn = implsIndex.get_reversible_iterable_previous_impl(coreNodes, container);
+        const auto iterable_count_fn = implsIndex.get_reversible_iterable_count_impl(coreNodes, container);
+        const auto iterable_start_fn = node->is_reversed() ? iterable_rbegin_fn : iterable_begin_fn;
+        const auto iterable_step_fn = node->is_reversed() ? iterable_previous_fn : iterable_next_fn;
 
         auto cursor_var = get_local_temp_var_name();
-        const auto cursorIsStruct = iterable_begin_fn->returnType->isStructLikeType();
+        const auto cursorIsStruct = iterable_start_fn->returnType->isStructLikeType();
 
-        visit(iterable_begin_fn->returnType);
+        visit(iterable_start_fn->returnType);
         write(' ');
         write(cursor_var);
         if (cursorIsStruct) {
             write("; ");
-            mangle(iterable_begin_fn);
+            mangle(iterable_start_fn);
             write("(&");
             write(cursor_var);
             write(", ");
@@ -4041,7 +4058,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
             write(");");
         } else {
             write(" = ");
-            mangle(iterable_begin_fn);
+            mangle(iterable_start_fn);
             write('(');
             write(expr_var);
             write(");");
@@ -4052,7 +4069,16 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
             visit(node->index_init->known_type());
             write(' ');
             write(node->index_init->id_view());
-            write(" = 0;");
+            write(" = ");
+            if (node->is_reversed_counter()) {
+                mangle(iterable_count_fn);
+                write('(');
+                write(expr_var);
+                write(')');
+            } else {
+                write('0');
+            }
+            write(';');
             new_line_and_indent();
         }
 
@@ -4086,13 +4112,16 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         loop_scope_no_parens(*this, node->body);
 
         new_line_and_indent();
+        write(node->c_continue_label);
+        write(":;");
+        new_line_and_indent();
         if (cursorIsStruct) {
             auto next_cursor_var = get_local_temp_var_name();
-            visit(iterable_next_fn->returnType);
+            visit(iterable_step_fn->returnType);
             write(' ');
             write(next_cursor_var);
             write("; ");
-            mangle(iterable_next_fn);
+            mangle(iterable_step_fn);
             write("(&");
             write(next_cursor_var);
             write(", ");
@@ -4108,7 +4137,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         } else {
             write(cursor_var);
             write(" = ");
-            mangle(iterable_next_fn);
+            mangle(iterable_step_fn);
             write('(');
             write(expr_var);
             write(", ");
@@ -4119,7 +4148,11 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
         if (node->index_init != nullptr) {
             write('\t');
             write(node->index_init->id_view());
-            write("++;");
+            if (node->is_reversed_counter()) {
+                write("--;");
+            } else {
+                write("++;");
+            }
         }
 
         indentation_level -= 1;
@@ -4149,6 +4182,7 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
     // the end pointer variable name
     auto end_ptr_var_name = get_local_temp_var_name();
     auto& temp_var = end_ptr_var_name;
+    node->c_continue_label = get_local_temp_var_name() + "_continue";
 
     // the current pointer
     visit_loop_elem_type(*this, node);
@@ -4260,6 +4294,10 @@ void ToCAstVisitor::VisitForInLoopStmt(ForInLoop* node) {
 
     // body
     loop_scope_no_parens(*this, node->body);
+
+    new_line_and_indent();
+    write(node->c_continue_label);
+    write(":;");
 
     // incrementing counter
     if (node->index_init != nullptr && !node->is_reversed_counter()) {

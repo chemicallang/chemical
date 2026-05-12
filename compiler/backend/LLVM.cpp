@@ -732,7 +732,7 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto prev_firstValue = firstValue;
     auto prev_secondValue = secondValue;
 
-    replace_number_values(gen.allocator, gen.comptime_scope.typeBuilder, first_pure, second_pure, operation);
+    replace_number_values(gen.allocator, gen.comptime_scope.typeBuilder, first_pure, second_pure, operation, gen.comptime_scope.target_data);
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
 

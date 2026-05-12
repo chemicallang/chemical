@@ -24,14 +24,24 @@ inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
 }
 
-void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType) {
+void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
-        if(firstValue->val_kind() == ValueKind::IntN) {
-            auto value = ((IntNumValue*)firstValue)->get_num_value();
-            firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
-        } else if(secondValue->val_kind() == ValueKind::IntN){
-            auto value = ((IntNumValue*)secondValue)->get_num_value();
-            secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+        const auto is_shift = operation == Operation::LeftShift || operation == Operation::RightShift;
+        if(is_shift) {
+            // for shifts, the result type is the left operand's type
+            // never replace the left literal; promote the right literal to left's type
+            if(secondValue->val_kind() == ValueKind::IntN) {
+                auto value = ((IntNumValue*)secondValue)->get_num_value();
+                secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+            }
+        } else {
+            if(firstValue->val_kind() == ValueKind::IntN) {
+                auto value = ((IntNumValue*)firstValue)->get_num_value();
+                firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
+            } else if(secondValue->val_kind() == ValueKind::IntN){
+                auto value = ((IntNumValue*)secondValue)->get_num_value();
+                secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
+            }
         }
     }
     const auto first = getEnumDecl(firstType);
@@ -175,9 +185,11 @@ BaseType* Expression::get_determined_type(
         const auto secondIntNKind = second_intN->IntNKind();
         const auto first_literal = isUntypedIntegerLiteral(expr->firstValue, firstIntNKind);
         const auto second_literal = isUntypedIntegerLiteral(expr->secondValue, secondIntNKind);
+        const auto is_shift = expr->operation == Operation::LeftShift || expr->operation == Operation::RightShift;
         // coercing literals to the other value's type
+        // for shifts, the result type is the left operand's type, so never coerce the left literal
         if(first_literal && !second_literal) {
-            if(fits_into(expr->firstValue->as_int_num_value_unsafe(), second_intN, targetData)) {
+            if(!is_shift && fits_into(expr->firstValue->as_int_num_value_unsafe(), second_intN, targetData)) {
                 expr->firstValue->setType(second);
                 return second;
             }
@@ -189,7 +201,7 @@ BaseType* Expression::get_determined_type(
         }
         // selecting appropriate types based on first and second signed ness and bitwidth
         // we are matching c's behavior with this logic
-        const auto is_first_greater_in_bits = first_intN->greater_than_in_bits(second_intN);
+        const auto is_first_greater_in_bits = first_intN->greater_than_in_bits(second_intN, targetData);
         const auto is_first_unsigned = first_intN->is_unsigned();
         const auto is_second_unsigned = second_intN->is_unsigned();
         if(is_first_unsigned && !is_second_unsigned) {

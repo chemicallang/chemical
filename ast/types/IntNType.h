@@ -171,8 +171,8 @@ public:
     /**
      * checks if this type is bigger in terms of bit width, than the given type
      */
-    bool greater_than_in_bits(IntNType* type) {
-        return to_unsigned_kind(IntNKind()) > to_unsigned_kind(type->IntNKind());
+    bool greater_than_in_bits(IntNType* type, TargetData& target) {
+        return num_bits(target) > type->num_bits(target);
     }
 
     bool is_same(BaseType *type) final {

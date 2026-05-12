@@ -72,45 +72,28 @@ void ForInLoop::code_gen(Codegen &gen) {
     const auto exprType = expr->getType()->canonical();
     const auto itrElemType = getIterationElementActualType();
 
-    FunctionDeclaration* iter_data_fn = nullptr;
-    FunctionDeclaration* iter_size_fn = nullptr;
-    FunctionDeclaration* chunk_begin_fn = nullptr;
-    FunctionDeclaration* chunk_valid_fn = nullptr;
-    FunctionDeclaration* chunk_current_fn = nullptr;
-    FunctionDeclaration* chunk_next_fn = nullptr;
-    FunctionDeclaration* chunk_rbegin_fn = nullptr;
-    FunctionDeclaration* chunk_previous_fn = nullptr;
-    FunctionDeclaration* chunk_total_size_fn = nullptr;
-    FunctionDeclaration* iterable_begin_fn = nullptr;
-    FunctionDeclaration* iterable_valid_fn = nullptr;
-    FunctionDeclaration* iterable_current_fn = nullptr;
-    FunctionDeclaration* iterable_next_fn = nullptr;
-    if (exprType->kind() != BaseTypeKind::Array) {
-        const auto linked = exprType->get_linked_node(true, false);
-        if (linked) {
-            const auto container = linked->get_members_container();
-            if (container) {
-                iter_data_fn = gen.implsIndex.get_linear_data_impl(gen.coreNodes, container);
-                iter_size_fn = gen.implsIndex.get_linear_size_impl(gen.coreNodes, container);
-                chunk_begin_fn = gen.implsIndex.get_chunked_begin_chunks_impl(gen.coreNodes, container);
-                chunk_valid_fn = gen.implsIndex.get_chunked_valid_chunk_impl(gen.coreNodes, container);
-                chunk_current_fn = gen.implsIndex.get_chunked_current_chunk_impl(gen.coreNodes, container);
-                chunk_next_fn = gen.implsIndex.get_chunked_next_chunk_impl(gen.coreNodes, container);
-                chunk_rbegin_fn = gen.implsIndex.get_chunked_rbegin_chunks_impl(gen.coreNodes, container);
-                chunk_previous_fn = gen.implsIndex.get_chunked_previous_chunk_impl(gen.coreNodes, container);
-                chunk_total_size_fn = gen.implsIndex.get_chunked_total_size_impl(gen.coreNodes, container);
-                iterable_begin_fn = gen.implsIndex.get_iterable_begin_impl(gen.coreNodes, container);
-                iterable_valid_fn = gen.implsIndex.get_iterable_valid_impl(gen.coreNodes, container);
-                iterable_current_fn = gen.implsIndex.get_iterable_current_impl(gen.coreNodes, container);
-                iterable_next_fn = gen.implsIndex.get_iterable_next_impl(gen.coreNodes, container);
-            }
-        }
-    }
-
     // 1. Evaluate expression into a variable if needed
     llvm::Value* exprPtr = expr->llvm_pointer(gen);
 
     if (iteration_kind == ForInLoopIterationKind::Chunked) {
+
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked == nullptr) {
+            gen.error(this) << "couldn't get linked node for chunked iteration";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container == nullptr) {
+            gen.error(this) << "couldn't get container for chunked iteration";
+        }
+        const auto chunk_begin_fn = gen.implsIndex.get_chunked_begin_chunks_impl(gen.coreNodes, container);
+        const auto chunk_valid_fn = gen.implsIndex.get_chunked_valid_chunk_impl(gen.coreNodes, container);
+        const auto chunk_current_fn = gen.implsIndex.get_chunked_current_chunk_impl(gen.coreNodes, container);
+        const auto chunk_next_fn = gen.implsIndex.get_chunked_next_chunk_impl(gen.coreNodes, container);
+        const auto chunk_rbegin_fn = gen.implsIndex.get_chunked_rbegin_chunks_impl(gen.coreNodes, container);
+        const auto chunk_previous_fn = gen.implsIndex.get_chunked_previous_chunk_impl(gen.coreNodes, container);
+        const auto chunk_total_size_fn = gen.implsIndex.get_chunked_total_size_impl(gen.coreNodes, container);
+
         const auto beginFunc = is_reversed() ? chunk_rbegin_fn : chunk_begin_fn;
         const auto stepFunc = is_reversed() ? chunk_previous_fn : chunk_next_fn;
         const auto cursorIsStruct = beginFunc->returnType->isStructLikeType();
@@ -220,6 +203,22 @@ void ForInLoop::code_gen(Codegen &gen) {
     }
 
     if (iteration_kind == ForInLoopIterationKind::Iterable) {
+
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked == nullptr) {
+            gen.error(this) << "couldn't get linked node for iteration";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container == nullptr) {
+            gen.error(this) << "couldn't get container for iteration";
+        }
+
+        const auto iterable_begin_fn = gen.implsIndex.get_iterable_begin_impl(gen.coreNodes, container);
+        const auto iterable_valid_fn = gen.implsIndex.get_iterable_valid_impl(gen.coreNodes, container);
+        const auto iterable_current_fn = gen.implsIndex.get_iterable_current_impl(gen.coreNodes, container);
+        const auto iterable_next_fn = gen.implsIndex.get_iterable_next_impl(gen.coreNodes, container);
+
         const auto cursorIsStruct = iterable_begin_fn->returnType->isStructLikeType();
         const auto cursorTy = iterable_begin_fn->returnType->llvm_type(gen);
         const auto cursorAlloca = gen.llvm.CreateAlloca(cursorTy, encoded_location());
@@ -286,6 +285,19 @@ void ForInLoop::code_gen(Codegen &gen) {
         const auto arrType = exprType->as_array_type_unsafe();
         sizeVal = gen.builder->getInt64(arrType->get_array_size());
     } else {
+
+        const auto linked = exprType->get_linked_node(true, false);
+        if (linked == nullptr) {
+            gen.error(this) << "couldn't get linked node for linear iteration";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container == nullptr) {
+            gen.error(this) << "couldn't get container for linear iteration";
+        }
+        const auto iter_data_fn = gen.implsIndex.get_linear_data_impl(gen.coreNodes, container);
+        const auto iter_size_fn = gen.implsIndex.get_linear_size_impl(gen.coreNodes, container);
+
         if (iter_data_fn) {
             const auto dataCallInstr = gen.builder->CreateCall(iter_data_fn->llvm_func(gen), { exprPtr });
             dataPtr = dataCallInstr;

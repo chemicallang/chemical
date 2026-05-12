@@ -343,6 +343,26 @@ func test_bodmas() {
         var result : int = value << 2; // Arithmetic left shift
         return result == expected;
     })
+    test("uint << u8 with shift=4", () => {
+        var shift : u8 = 4
+        var result : uint = 1u << shift
+        return result == 16u
+    })
+    test("uint << u8 with shift=8", () => {
+        var shift : u8 = 8
+        var result : uint = 1u << shift
+        return result == 256u
+    })
+    test("uint << u8 with shift=12", () => {
+        var shift : u8 = 12
+        var result : uint = 1u << shift
+        return result == 4096u
+    })
+    test("int << u8 with shift=12", () => {
+        var shift : u8 = 12
+        var result : uint = 1 << shift
+        return result == 4096
+    })
     test("parenthesized expressions can be casted", () => {
         var v = (10 + 20) as ushort
         return v == 30

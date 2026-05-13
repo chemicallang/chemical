@@ -396,7 +396,7 @@ llvm::AllocaInst* NegativeValue::llvm_allocate(Codegen &gen, const std::string &
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            const auto func = gen.implsIndex.get_not_op_impl(gen.coreNodes, container);
+            const auto func = gen.implsIndex.get_neg_op_impl(gen.coreNodes, container);
             if (func == nullptr) {
                 gen.error(this) << "couldn't find operator overload implementation";
                 return Value::llvm_allocate(gen, identifier, expected_type);

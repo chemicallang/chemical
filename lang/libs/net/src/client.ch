@@ -205,7 +205,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("GET", u);
+            var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
@@ -214,7 +214,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("POST", u);
+            var rb = http::RequestBuilder("POST", std::replace(u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
@@ -224,7 +224,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("PUT", u);
+            var rb = http::RequestBuilder("PUT", std::replace(u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
@@ -234,7 +234,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("PATCH", u);
+            var rb = http::RequestBuilder("PATCH", std::replace(u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
@@ -244,7 +244,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("DELETE", u);
+            var rb = http::RequestBuilder("DELETE", std::replace(u, http::URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }
@@ -253,7 +253,7 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("HEAD", u);
+            var rb = http::RequestBuilder("HEAD", std::replace(u, http::URL()));
             rb.timeout(self.default_timeout_secs);
             return self.request(rb);
         }

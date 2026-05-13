@@ -372,10 +372,11 @@ StructDefinition* BaseType::get_direct_non_movable_struct() {
 
 inline FunctionType* get_func_type_from_linked(LinkedType* type) {
     const auto l = type->linked;
-    if(l->kind() == ASTNodeKind::TypealiasStmt) {
-        return l->as_typealias_unsafe()->actual_type->get_canonical_function_type();
-    } else {
-        return nullptr;
+    switch (l->kind()) {
+        case ASTNodeKind::TypealiasStmt:
+            return l->as_typealias_unsafe()->actual_type->get_canonical_function_type();
+        default:
+            return nullptr;
     }
 }
 

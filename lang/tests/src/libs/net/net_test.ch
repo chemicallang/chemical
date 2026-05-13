@@ -134,7 +134,7 @@ func test_http_headers(env : &mut TestEnv) {
     var client = net::Client();
     var u_opt = http::URL::parse("http://127.0.0.1:8084/headers");
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", u);
+    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
     rb.header("X-Test-Header", "chemical-rocks");
     
     var res_result = client.request(rb);
@@ -226,7 +226,7 @@ func test_http_query_params_builder(env : &mut TestEnv) {
     
     var u_opt = http::URL::parse("http://127.0.0.1:8086/query");
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", u);
+    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
     rb.query("q", "hello-world");
     
     var client = net::Client();
@@ -464,7 +464,7 @@ func test_multiple_headers(env : &mut TestEnv) {
     var client = net::Client();
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8092/multi-headers"));
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", u);
+    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
     rb.header("X-Header-1", "value1");
     rb.header("X-Header-2", "value2");
     
@@ -538,7 +538,7 @@ func test_query_param_encoding(env : &mut TestEnv) {
     // URL encode the query param value to send literal %20
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8093/encoded"));
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", u);
+    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
     // %25 encodes to %, so server will see hello%20world after decoding
     rb.query("q", "hello%2520world");
     

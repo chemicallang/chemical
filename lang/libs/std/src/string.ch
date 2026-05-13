@@ -808,7 +808,7 @@ public struct string {
     func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
     func to_float(&self) : std::Result<float, std::string_view> {
         var end : *mut char = null
-        var res = strtof(data() as *mut char, &mut end)
+        var res = strtod(data() as *mut char, &mut end) as float
         if (end == data()) return std::Result.Err(std::string_view("invalid format"))
         while (end != null && *end != '\0' && isspace(*end as int)) end++
         if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))

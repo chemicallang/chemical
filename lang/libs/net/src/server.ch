@@ -273,7 +273,9 @@ public namespace server {
                              // Route
                              var params = std::vector<std::pair<std::string,std::string>>();
                              var route = self.router.match_route(req.method, req.path, &mut params);
-                             var resw = http.ResponseWriter(s, &req.method);
+                             // TODO: compiler thinks req.method is being moved, ResponseWriter has a reference type
+                             //     this happens because in generic context the call doesn't link with constructor fast
+                             var resw = http.ResponseWriter(s, req.method.copy());
 
                              if (route != null) {
                                  route.handler(req_opt.take(), resw);

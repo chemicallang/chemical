@@ -331,17 +331,27 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                         write_mangle_parent_of(*this, stream, interface);
                         // get the base function
                         const auto base_func = interface->direct_child_function(decl->name_view());
-                        const auto base_interface = base_func->parent();
-                        if (base_interface && base_interface->kind() == ASTNodeKind::InterfaceDecl) {
-                            // interface name
-                            container_name(stream, base_interface->as_interface_def_unsafe());
-                        } else {
+                        if (base_func == nullptr) {
+                            // base function doesn't exist
+                            // user probably wrote just another function
                             container_name(stream, interface);
+                            stream << '_';
+                            // struct name (assuming its a extendable container, because struct type is referencing a container member, it has got to be a extendable container)
+                            container_name(stream, can_node->as_extendable_members_container_unsafe());
+                            stream << '_';
+                        } else {
+                            const auto base_interface = base_func->parent();
+                            if (base_interface && base_interface->kind() == ASTNodeKind::InterfaceDecl) {
+                                // interface name
+                                container_name(stream, base_interface->as_interface_def_unsafe());
+                            } else {
+                                container_name(stream, interface);
+                            }
+                            stream << '_';
+                            // struct name (assuming its a extendable container, because struct type is referencing a container member, it has got to be a extendable container)
+                            container_name(stream, can_node->as_extendable_members_container_unsafe());
+                            stream << '_';
                         }
-                        stream << '_';
-                        // struct name (assuming its a extendable container, because struct type is referencing a container member, it has got to be a extendable container)
-                        container_name(stream, can_node->as_extendable_members_container_unsafe());
-                        stream << '_';
                     } else {
                         // since this method is on native types, we need to figure out how to mangle it
                         write_mangle_parent_of(*this, stream, def);

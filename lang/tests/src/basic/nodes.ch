@@ -767,3 +767,23 @@ func call_array_taking_function() {
 }
 
 // ------------- EXISTENCE TEST END --------------
+
+// ------------- EXISTENCE TEST BEGIN ---------------
+
+interface existence_impl_extra_func_interface {
+    func give(&self) : int
+}
+
+struct existence_impl_extra_func_struct {}
+
+impl existence_impl_extra_func_interface for existence_impl_extra_func_struct {
+    func give(&self) : int {
+        return 0;
+    }
+    func extra_method_no_base_func_impl_existence(&self) {
+        // the method doesn't have a base function
+        // this test checks this method can exist
+    }
+}
+
+// ------------- EXISTENCE TEST END --------------

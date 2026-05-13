@@ -1231,12 +1231,6 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
         linker.error("expected type to be an interface", node->encoded_location());
         return;
     }
-    // TODO: remove this for loop
-    for(auto& func : node->master_functions()) {
-        if(!func->is_override()) {
-            func->set_override(true);
-        }
-    }
     // we must NOT add indexes if this implementation is inside a generic container
     // because this can reference generic parameters (in interface/struct type, function return types)
     // we must let the instantiation occur which will handle this

@@ -415,6 +415,19 @@ static inline int atomic_compare_exchange_strong_u16(unsigned short volatile * o
 
 #ifdef __TINYC__
 
+#define InterlockedCompareExchange16 ManualInterlockedCompareExchange16
+
+static inline unsigned short ManualInterlockedCompareExchange16(unsigned short volatile * dest, unsigned short exchange, unsigned short comparand) {
+    unsigned short result;
+    __asm__ volatile (
+        "lock cmpxchgw %[exchange], %[dest]"
+        : "=a" (result), [dest] "+m" (*dest)
+        : [exchange] "q" (exchange), "a" (comparand)
+        : "memory"
+    );
+    return result;
+}
+
 static inline unsigned short ManualInterlockedOr16(unsigned short volatile * dest, unsigned short value) {
     unsigned short oldValue;
     do {
@@ -442,6 +455,62 @@ static inline unsigned short ManualInterlockedAnd16(unsigned short volatile * de
 #define InterlockedXor16 ManualInterlockedXor16
 #define InterlockedAnd16 ManualInterlockedAnd16
 
+
+/* u32 bitwise ops for TCC */
+static inline unsigned ManualInterlockedOr32(unsigned volatile * dest, unsigned value) {
+    unsigned oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange((void *)dest, oldValue | value, oldValue) != oldValue);
+    return oldValue;
+}
+
+static inline unsigned ManualInterlockedXor32(unsigned volatile * dest, unsigned value) {
+    unsigned oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange((void *)dest, oldValue ^ value, oldValue) != oldValue);
+    return oldValue;
+}
+
+static inline unsigned ManualInterlockedAnd32(unsigned volatile * dest, unsigned value) {
+    unsigned oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange((void *)dest, oldValue & value, oldValue) != oldValue);
+    return oldValue;
+}
+#define InterlockedOr ManualInterlockedOr32
+#define InterlockedXor ManualInterlockedXor32
+#define InterlockedAnd ManualInterlockedAnd32
+
+/* u64 bitwise ops for TCC */
+static inline unsigned long long ManualInterlockedOr64(unsigned long long volatile * dest, unsigned long long value) {
+    unsigned long long oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange64((LONGLONG volatile *)dest, (LONGLONG)(oldValue | value), (LONGLONG)oldValue) != (LONGLONG)oldValue);
+    return oldValue;
+}
+
+static inline unsigned long long ManualInterlockedXor64(unsigned long long volatile * dest, unsigned long long value) {
+    unsigned long long oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange64((LONGLONG volatile *)dest, (LONGLONG)(oldValue ^ value), (LONGLONG)oldValue) != (LONGLONG)oldValue);
+    return oldValue;
+}
+
+static inline unsigned long long ManualInterlockedAnd64(unsigned long long volatile * dest, unsigned long long value) {
+    unsigned long long oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange64((LONGLONG volatile *)dest, (LONGLONG)(oldValue & value), (LONGLONG)oldValue) != (LONGLONG)oldValue);
+    return oldValue;
+}
+#define InterlockedOr64 ManualInterlockedOr64
+#define InterlockedXor64 ManualInterlockedXor64
+#define InterlockedAnd64 ManualInterlockedAnd64
 
 #endif
 

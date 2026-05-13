@@ -81,7 +81,13 @@ llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, Valu
             if (grandparent && grandparent->kind() == ASTNodeKind::ImplDecl) {
                 const auto implDecl = grandparent->as_impl_def_unsafe();
                 if (implDecl->struct_type && isPrimitiveImplType(implDecl->struct_type)) {
-                    return grandpa->loadable_llvm_pointer(gen, location);
+                    const auto grandpa_type = grandpa->getType();
+                    if(!(implDecl->struct_type->is_pointer_or_ref()) && grandpa_type && grandpa_type->is_pointer_or_ref()) {
+                        // impl int, impl long etc. with grandpa already being a pointer/reference:
+                        // don't wrap in alloca, pass reference value directly
+                    } else {
+                        return grandpa->loadable_llvm_pointer(gen, location);
+                    }
                 }
             }
         }
@@ -226,7 +232,25 @@ llvm::Value* FunctionCall::arg_value(
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue()) {
             argValue = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
         } else {
-            argValue = value->llvm_pointer(gen);
+            if(!is_param_ref) {
+                // pass-by-value for struct types: create a copy to preserve value semantics
+                const auto val_type = value->getType();
+                if(val_type) {
+                    const auto cnode = val_type->get_linked_canonical_node(true, false);
+                    if(cnode && ASTNode::isStoredStructDecl(cnode->kind())) {
+                        auto copy = gen.builder->CreateAlloca(value->llvm_type(gen));
+                        gen.di.instr(copy, value->encoded_location());
+                        gen.memcpy_struct(value->llvm_type(gen), copy, value->llvm_pointer(gen), value->encoded_location());
+                        argValue = copy;
+                    } else {
+                        argValue = value->llvm_pointer(gen);
+                    }
+                } else {
+                    argValue = value->llvm_pointer(gen);
+                }
+            } else {
+                argValue = value->llvm_pointer(gen);
+            }
         }
     } else {
         if(i != -1) {

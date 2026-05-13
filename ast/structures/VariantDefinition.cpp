@@ -285,7 +285,11 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
 
 llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     const auto switch_statement = parent();
-    const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
+    auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
+    const auto expr_type = switch_statement->expression->getType();
+    if(expr_type && expr_type->kind() == BaseTypeKind::Pointer) {
+        holder_pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), holder_pointer);
+    }
     const auto linked_member = member_param->parent();
     const auto linked_def = linked_member->parent();
     return linked_def->get_param_pointer(gen, holder_pointer, member_param);

@@ -14,6 +14,11 @@ public namespace net {
     @extern protected func freeaddrinfo(res:*mut char): void;
 
 
+    @extern protected func fcntl(fd: int, cmd: int, ...): int;
+    comptime const F_GETFL = 3
+    comptime const F_SETFL = 4
+    comptime const O_NONBLOCK = 2048
+
     // file I/O + sendfile
     @extern protected func open(path:*char, flags:int, mode:int): int;
     @extern protected func lseek(fd:int, offset: longlong, whence:int): longlong;
@@ -39,5 +44,10 @@ public namespace net {
     func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return setsockopt(s as int, level, optname, optval, optlen) }
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
     func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
+
+    public func set_nonblocking(s: Socket) {
+        var flags = fcntl(s as int, F_GETFL, 0);
+        fcntl(s as int, F_SETFL, flags | O_NONBLOCK);
+    }
 
 }

@@ -91,9 +91,10 @@ public namespace server {
             while (S.run) {
                 var s = net.accept_socket(S.listen_sock);
                 if (s == 0u || (s as longlong) < 0) {
-                    // Timeout or error (e.g. socket closed).
-                    // If run is false, exit; otherwise keep looping.
+                    // Timeout or error (e.g. socket closed or would-block).
+                    // Sleep briefly before retry so we don't busy-wait.
                     if (!S.run) { break; }
+                    std.concurrent.sleep_ms(10u);
                     continue;
                 }
 
@@ -135,9 +136,15 @@ public namespace server {
             }
 
             self.listen_sock = net.listen_addr(host, port);
-            // Set a short recv timeout on the listening socket so accept() doesn't block forever.
-            // This allows the accept loop to periodically check the run flag.
-            net::set_recv_timeout(self.listen_sock, 0, 100000); // 100ms
+            comptime if(def.windows) {
+                // On Windows, SO_RCVTIMEO doesn't affect accept().
+                // Use non-blocking mode instead so the accept loop can check the run flag.
+                net::set_nonblocking(self.listen_sock);
+            } else {
+                // Set a short recv timeout on the listening socket so accept() doesn't block forever.
+                // This allows the accept loop to periodically check the run flag.
+                net::set_recv_timeout(self.listen_sock, 0, 100000); // 100ms
+            }
             self.run = true;
         }
 

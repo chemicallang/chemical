@@ -27,12 +27,19 @@ public namespace net {
         dwFlags: u32
     ) : int;
 
+    @dllimport @stdcall @extern protected func ioctlsocket(s: uintptr_t, cmd: long, argp: *mut u32): int;
+    comptime const FIONBIO : long = 0x8004667E
+
     // constants used
     // comptime const GENERIC_READ = 0x80000000u;
     // comptime const FILE_SHARE_READ = 0x00000001u;
     // comptime const OPEN_EXISTING = 3u;
 
-    func startup() { var dummy : [32]char; WSAStartup(0x202 as ushort, &mut dummy[0]); }
+    func startup() {
+        // WSADATA is ~400 bytes, [32]char is too small and causes stack corruption
+        var wsaData : [512]char;
+        WSAStartup(0x202 as ushort, &mut wsaData[0]);
+    }
     func cleanup() { WSACleanup() }
 
     // wrappers
@@ -47,5 +54,10 @@ public namespace net {
     func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return setsockopt(s as uintptr_t, level, optname, optval, optlen) }
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
     func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
+
+    public func set_nonblocking(s: Socket) {
+        var argp: u32 = 1u;
+        ioctlsocket(s as uintptr_t, FIONBIO, &mut argp);
+    }
 
 }

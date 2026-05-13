@@ -13,17 +13,23 @@ public namespace net {
 
     // helper: set socket recv timeout (seconds + microseconds)
     public func set_recv_timeout(s:Socket, secs: long, usecs: long) {
-        var tv = timeval{ tv_sec: secs, tv_usec: usecs };
-        // level SOL_SOCKET and optname SO_RCVTIMEO constants (platform dependent)
         const SOL_SOCKET = if(def.windows) 0xFFFF else 1
         const SO_RCVTIMEO = if(def.windows) 0x1006 else 20
-        sock_setsockopt(s, SOL_SOCKET as int, SO_RCVTIMEO as int, ( &mut tv ) as *char, sizeof(timeval) as int);
+        comptime if(def.windows) {
+            // Windows expects DWORD timeout in milliseconds, not struct timeval
+            var timeout_ms: u32 = (secs * 1000 + usecs / 1000) as u32;
+            sock_setsockopt(s, SOL_SOCKET as int, SO_RCVTIMEO as int, &timeout_ms as *char, sizeof(u32) as int);
+        } else {
+            var tv = timeval{ tv_sec: secs, tv_usec: usecs };
+            sock_setsockopt(s, SOL_SOCKET as int, SO_RCVTIMEO as int, (&mut tv) as *char, sizeof(timeval) as int);
+        }
     }
 
     // helper: set keep alive
     public func set_keep_alive(s:Socket, enable: bool) {
-        const SOL_SOCKET = 1;
-        const SO_KEEPALIVE = 8;
+        // Windows SOL_SOCKET = 0xFFFF, POSIX = 1
+        const SOL_SOCKET = if(def.windows) 0xFFFF else 1
+        const SO_KEEPALIVE = if(def.windows) 8 else 9
         var optval: int = if(enable) 1 else 0;
         sock_setsockopt(s, SOL_SOCKET as int, SO_KEEPALIVE as int, &optval as *char, sizeof(int) as int);
     }
@@ -39,8 +45,17 @@ public namespace net {
         startup();
         // create socket
         var s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
-        if (s == 0 as Socket) {
-            panic("socket() failed");
+        comptime if(def.windows) {
+            // Windows returns INVALID_SOCKET (~0) on failure, which is not 0
+            if (s == 0 as Socket || (s as longlong) < 0) {
+                var e = WSAGetLastError();
+                printf("socket() failed (WSAGetLastError): %d\n", e as int);
+                panic("socket() failed");
+            }
+        } else {
+            if (s == 0 as Socket) {
+                panic("socket() failed");
+            }
         }
 
         // prepare sockaddr_in
@@ -69,8 +84,8 @@ public namespace net {
         }
 
         // setsockopt SO_REUSEADDR
-        const SOL_SOCKET = 1;
-        const SO_REUSEADDR = 2;
+        const SOL_SOCKET = if(def.windows) 0xFFFF else 1
+        const SO_REUSEADDR = if(def.windows) 4 else 2
         var optval: int = 1;
         var setr = sock_setsockopt(s, SOL_SOCKET as int, SO_REUSEADDR as int, &optval as *char, sizeof(int) as int);
         if(setr != 0) {
@@ -167,8 +182,13 @@ public namespace net {
         var s: Socket = 0 as Socket;
         var curr = addrinfo;
         while(curr != null) {
-            // Getting ai_addr (offset 24 on 64bit)
-            var ai_addr_ptr = *(((curr as usize) + 24u) as *mut *mut char);
+            // Layout on 64-bit:
+            // POSIX: ai_flags(4) ai_family(4) ai_socktype(4) ai_protocol(4) ai_addrlen(4) pad(4) ai_addr(8) ai_canonname(8) ai_next(8)
+            //   => ai_addr at +24, ai_addrlen at +16, ai_next at +40
+            // Windows: ai_flags(4) ai_family(4) ai_socktype(4) ai_protocol(4) ai_addrlen(8) ai_canonname(8) ai_addr(8) ai_next(8)
+            //   => ai_addr at +32, ai_addrlen at +16, ai_next at +40
+            const AI_ADDR_OFFSET = if(def.windows) 32 else 24
+            var ai_addr_ptr = *(((curr as usize) + AI_ADDR_OFFSET) as *mut *mut char);
             var ai_addrlen = *(((curr as usize) + 16u) as *mut usize);
             
             s = sock_socket(AF_INET as int, SOCK_STREAM as int, IPPROTO_TCP as int);
@@ -183,8 +203,8 @@ public namespace net {
                 sock_close(s);
             }
             
-            // move to next
-            curr = *(((curr as usize) + 40u) as *mut *mut char); // ai_next is usually at 40 on 64bit
+            // move to next (ai_next is at +40 on both POSIX and Windows x64)
+            curr = *(((curr as usize) + 40u) as *mut *mut char);
             s = 0 as Socket;
         }
 

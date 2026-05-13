@@ -62,32 +62,6 @@ llvm::Value* cast_int_to_ptr(Codegen& gen, llvm::Value* value, llvm::Type* targe
 
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
 
-    // automatically dereference reference types
-    // TODO: this code block should be removed, once we stop hitting these paths
-    if(firstType->kind() == BaseTypeKind::Reference) {
-        const auto ref_type = firstType->as_reference_type_unsafe();
-        const auto referred = ref_type->type->pure_type(allocator);
-        const auto ref_kind = referred->kind();
-        if(BaseType::isLoadableReferencee(ref_kind)) {
-            const auto loadInst = builder->CreateLoad(referred->llvm_type(*this), lhs);
-            di.instr(loadInst, first);
-            lhs = loadInst;
-            firstType = referred;
-        }
-    }
-    // TODO: this code block should be removed, once we stop hitting these paths
-    if(secondType->kind() == BaseTypeKind::Reference) {
-        const auto ref_type = secondType->as_reference_type_unsafe();
-        const auto referred = ref_type->type->pure_type(allocator);
-        const auto ref_kind = referred->kind();
-        if(BaseType::isLoadableReferencee(ref_kind)) {
-            const auto loadInst = builder->CreateLoad(referred->llvm_type(*this), rhs);
-            di.instr(loadInst, second);
-            rhs = loadInst;
-            secondType = referred;
-        }
-    }
-
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
         const auto secType = rhs->getType();

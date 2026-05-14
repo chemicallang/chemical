@@ -1,5 +1,7 @@
 module crashsave
 
+source "common.ch"
+
 source "win" if windows && !tcc
 source "posix" if !windows && !tcc
 

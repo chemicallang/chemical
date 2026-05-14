@@ -1,10 +1,3 @@
-/* execinfo.h - backtrace support */
-@extern
-public func backtrace(buffer : *mut *void, size : int) : int
-
-@extern
-public func backtrace_symbols(buffer : *mut *void, size : int) : *mut *mut char
-
 /* unistd.h */
 @extern
 public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t

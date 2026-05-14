@@ -1,110 +1,139 @@
-/* Helper: run addr2line and capture first line of output (file:line), return 0 on success */
-func addr2line_for_exec(exe_path : *char, addr_offset_hex : *char, out_buf : *char, out_sz : size_t) : int {
-    /* Build command: addr2line -e <exe_path> -f -p <offset>  (we use -f -p to get function+file:line)
-       We'll use popen to read output. */
-    var cmd : [4096]char;
-    /* Quote exe_path minimally (not robust against quotes). This is simple and workable. */
-    snprintf(cmd, sizeof(cmd), "addr2line -e \"%s\" -f -p %s", exe_path, addr_offset_hex);
-    var fp = popen(cmd, "r");
-    if (!fp) return -1;
-    if (fgets(out_buf, out_sz as int, fp) == NULL) {
-        pclose(fp);
-        return -1;
-    }
-    /* trim newline */
-    var len = strlen(out_buf);
-    if (len && out_buf[len-1] == '\n') out_buf[len-1] = '\0';
-    pclose(fp);
-    return 0;
-}
+/* execinfo.h - backtrace support */
+@extern
+public func backtrace(buffer : *mut *void, size : int) : int
 
-/* Get executable path into out[sz] (Linux /proc method) */
+@extern
+public func backtrace_symbols(buffer : *mut *void, size : int) : *mut *mut char
+
+/* unistd.h */
+@extern
+public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t
+
+@extern
+public func _exit(status : int) : void
+
+var g_crashing : int = 0
+var g_on_crash : () => void = null
+
+/* Get executable path via /proc/self/exe */
 func get_exec_path(out : *mut char, sz : size_t) : int {
-    var linkbuf : [64]char;
-    snprintf(linkbuf, sizeof(linkbuf), "/proc/%d/exe", getpid() as int);
-    var n = readlink(linkbuf, out, sz - 1);
+    var n = readlink("/proc/self/exe", out, sz - 1);
     if (n < 0) return -1;
-    if (n >= sz as ssize_t) n = sz - 1;
+    if (n >= sz as ssize_t) n = (sz - 1) as ssize_t;
     out[n] = '\0';
     return 0;
 }
 
-/* Crash handler for Linux signals */
-func handle_crash_linux(sig : int) {
+/* Run addr2line with the given offset/address */
+func addr2line_lookup(exe_path : *char, offset_str : *char, out_buf : *mut char, out_sz : size_t) : int {
+    var cmd : [4096]char;
+    snprintf(cmd, sizeof(cmd), "addr2line -e \"%s\" -f -C -p %s 2>/dev/null", exe_path, offset_str);
+    var fp = popen(cmd, "r");
+    if (!fp) return -1;
+    var ret = fgets(out_buf, out_sz as int, fp);
+    pclose(fp);
+    if (ret == null) return -1;
+    var len = strlen(out_buf);
+    if (len > 0 && out_buf[len-1] == '\n') out_buf[len-1] = '\0';
+    return 0;
+}
+
+/* Extract the offset from a backtrace_symbols line and resolve it.
+   Format: "binary(func+0xOFFSET) [0xADDR]" or "binary(+0xOFFSET) [0xADDR]" or "binary() [0xADDR]"
+   For PIE: offset inside () is the ELF offset (correct for addr2line).
+   For non-PIE: fall back to address in []. */
+func resolve_symbol(sym : *mut char, exe_path : *char, out_buf : *mut char, out_sz : size_t) : int {
+    var p = sym;
+    while (*p != '\0' && *p != '(') ++p;
+    if (*p == '\0') return -1;
+    var paren_end_mark = p;
+    while (*paren_end_mark != '\0' && *paren_end_mark != ')') ++paren_end_mark;
+    if (*paren_end_mark == '\0') return -1;
+    /* look for "+0x" inside parens */
+    p = p + 1;
+    while (p < paren_end_mark) {
+        if (*p == '+') {
+            var next = p + 1;
+            if (*next == '0' && (*(next+1) == 'x' || *(next+1) == 'X')) {
+                /* found offset, extract it */
+                var hex_str = next;
+                var hex_end = hex_str;
+                while (hex_end < paren_end_mark) ++hex_end;
+                var hex_len = (hex_end - hex_str) as size_t;
+                var hex_buf : [256]char;
+                if (hex_len > 0 && hex_len < sizeof(hex_buf) as size_t) {
+                    memcpy(hex_buf as *mut void, hex_str as *void, hex_len);
+                    hex_buf[hex_len] = '\0';
+                    return addr2line_lookup(exe_path, hex_buf, out_buf, out_sz);
+                }
+            }
+        }
+        ++p;
+    }
+    /* fallback: extract address from "[0x...]" */
+    p = sym;
+    while (*p != '\0' && *p != '[') ++p;
+    if (*p == '\0') return -1;
+    var addr_start = p + 1;
+    p = addr_start;
+    while (*p != '\0' && *p != ']') ++p;
+    if (*p == '\0') return -1;
+    var addr_len = (p - addr_start) as size_t;
+    var addr_buf : [256]char;
+    if (addr_len == 0 || addr_len >= sizeof(addr_buf) as size_t) return -1;
+    memcpy(addr_buf as *mut void, addr_start as *void, addr_len);
+    addr_buf[addr_len] = '\0';
+    return addr2line_lookup(exe_path, addr_buf, out_buf, out_sz);
+}
+
+/* Signal handler */
+func handle_crash_linux(sig : int) : void {
+    if (g_crashing) {
+        _exit(1);
+    }
+    g_crashing = 1;
+    if (g_on_crash) {
+        g_on_crash();
+    }
+
+    fprintf(stderr, "Program crashed with signal %d\n", sig);
+    fprintf(stderr, "Dumping backtrace.\n");
+
     var bt : [256]*void;
     var size = backtrace(bt, 256);
-    var exe_path : [4096]char;
-    memset(exe_path, 0, sizeof(exe_path))
-
-    get_exec_path(exe_path, sizeof(exe_path));
-
-    printf("%s: Program crashed with signal %d\n", __FUNCTION__, sig);
-    printf("Dumping backtrace.\n");
 
     var strings = backtrace_symbols(bt, size);
     if (!strings) {
-        printf("-- no backtrace symbols --\n");
-        return;
-    }
+        fprintf(stderr, "-- no backtrace symbols --\n");
+    } else {
+        var exe_path : [4096]char;
+        memset(exe_path as *mut void, 0, sizeof(exe_path));
+        get_exec_path(exe_path, sizeof(exe_path));
 
-    for (var i : int = 1; i < size; ++i) {
-        /* backtrace_symbols output typically contains "binary(+0xoffset) [0xaddr]" or similar.
-         * We will try to extract the +0xoffset part; fallback to printing the pointer.
-         */
-        var sym = strings[i];
-        /* find '+' and ')' */
-        var p_plus: *mut char = null;
-        var p_paren : *mut char = null;
-        var p = sym;
-        while (*p != '\0') {
-            if (*p == '+') { p_plus = p; break; }
-            ++p;
-        }
-        p = sym;
-        while (*p != '\0') {
-            if (*p == ')') { p_paren = p; break; }
-            ++p;
-        }
-        var offset_buf : [64]char;
-        memset(offset_buf, 0, sizeof(offset_buf))
-        var got_offset : int = 0;
-        if (p_plus && p_paren && p_paren > p_plus) {
-            var offlen = (p_paren - p_plus - 1) as size_t;
-            if (offlen < sizeof(offset_buf)) {
-                memcpy(offset_buf, p_plus + 1, offlen);
-                offset_buf[offlen] = '\0';
-                got_offset = 1;
-            }
-        }
-        if (got_offset) {
+        for (var i : int = 1; i < size; ++i) {
+            var sym = strings[i];
             var resolved : [1024]char;
-            memset(resolved, 0, sizeof(resolved))
-            if (addr2line_for_exec(exe_path, offset_buf, resolved, sizeof(resolved)) == 0) {
-                printf("[%d] %s\n", i, resolved);
+            memset(resolved as *mut void, 0, sizeof(resolved));
+            if (exe_path[0] != '\0' && resolve_symbol(sym, exe_path, resolved, sizeof(resolved)) == 0) {
+                fprintf(stderr, "  [%d] %s\n", i, resolved);
             } else {
-                /* fallback to raw symbol */
-                printf("[%d] %s\n", i, sym);
+                fprintf(stderr, "  [%d] %s\n", i, sym);
             }
-        } else {
-            printf("[%d] %s\n", i, sym);
         }
     }
 
-    free(strings);
-    printf("-- END OF BACKTRACE --\n");
-    /* abort to let OS handle the rest */
+    fprintf(stderr, "-- END OF BACKTRACE --\n");
+    fflush(null);
     abort();
 }
 
-/* Install / disable utilities for Linux */
+/* Install signal handlers */
 public func install_crash_handler(exe_path : *char, onCrash : () => void) {
+    g_on_crash = onCrash;
     signal(SIGSEGV, handle_crash_linux);
     signal(SIGFPE, handle_crash_linux);
     signal(SIGILL, handle_crash_linux);
 }
 
 func uninstall_crash_handler() {
-    signal(SIGSEGV, SIG_DFL);
-    signal(SIGFPE, SIG_DFL);
-    signal(SIGILL, SIG_DFL);
 }

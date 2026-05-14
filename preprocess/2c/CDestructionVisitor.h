@@ -49,6 +49,17 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
+    std::vector<DestructionJob> stmt_destruct_jobs;
+
+    void queue_stmt_destruct(
+            const chem::string_view& self_name,
+            ASTNode* initializer,
+            MembersContainer* linked,
+            bool is_pointer = false
+    );
+
+    void dispatch_stmt_jobs();
+
     void destruct(
             const chem::string_view& self_name,
             MembersContainer* linked,

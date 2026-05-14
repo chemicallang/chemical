@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
-#include "CAfterStmtVisitor.h"
 #include "CDestructionVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
@@ -172,14 +171,6 @@ public:
      * before passing them to functions for initialization
      */
     CBeforeStmtVisitor before_stmt;
-
-    /**
-     * after writing a statement, the whole usage of the value has been final for example
-     * x.y.z().d here z calls a function that returns a struct which has d as a member
-     * after this statement completes, we've stored d in a variable, the struct returned by z
-     * may have a destructor we may like to call
-     */
-    CAfterStmtVisitor after_stmt;
 
     /**
      * this destruction visitor, calls destructors on things when it's required

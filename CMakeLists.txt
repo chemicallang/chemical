@@ -418,7 +418,6 @@ set(COMMON_SOURCES
         ast/base/ASTUnit.h
         server/model/ASTResult.h
         preprocess/2c/CBeforeStmtVisitor.h
-        preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h

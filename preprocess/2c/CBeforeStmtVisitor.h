@@ -11,6 +11,8 @@ public:
 
     using SubVisitor::SubVisitor;
 
+    bool destruct_call = false;
+
     void VisitFunctionCall(FunctionCall *call);
 
     void VisitAccessChain(AccessChain *chain);

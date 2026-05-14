@@ -111,7 +111,6 @@
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
 #include "CBeforeStmtVisitor.h"
-#include "CAfterStmtVisitor.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
@@ -126,7 +125,7 @@ ToCAstVisitor::ToCAstVisitor(
     bool debug_info,
     bool minify
 ) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator),
-    before_stmt(*this), after_stmt(*this), tld(*this), destructor(*this),
+    before_stmt(*this), tld(*this), destructor(*this),
     loc_man(manager), line_directives(debug_info), minify(minify), ASTDiagnoser(manager),
     coreNodes(coreNodes), implsIndex(implsIndex)
 {
@@ -1579,14 +1578,23 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {
-        // TODO
-//        const auto value = evaluated_func_val(visitor, func_decl, call);
-//        visit(value);
         return;
     }
 
-    // visit the values
-    RecursiveVisitor::VisitFunctionCall(call);
+    // Visit children with proper destruct_call toggling.
+    // parent_val chain elements may need destruction after the expression.
+    // values (arguments) are consumed by this call and don't need destruction.
+    bool is_chain_call = destruct_call;
+    destruct_call = true;
+    visit(call->parent_val);
+    destruct_call = false;
+    for(auto& arg : call->generic_list) {
+        visit(arg);
+    }
+    for(auto& val : call->values) {
+        visit(val);
+    }
+    destruct_call = is_chain_call;
 
     // get function type
     const auto func_type = call->function_type();
@@ -1600,23 +1608,35 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                 const auto capType = returnType->as_capturing_func_type_unsafe();
                 const auto instanceType = capType->instance_type;
                 const auto return_linked = instanceType->get_direct_linked_node();
-                const auto temp_name = visitor.get_local_temp_var_name();
-                const auto temp_name_view = chem::string_view(temp_name);
+                const auto temp_name_view = visitor.get_local_temp_var_name_view();
                 allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
                 write(';');
                 visitor.new_line_and_indent();
-                visitor.local_allocated[call] = temp_name;
+                visitor.local_allocated[call] = std::string(temp_name_view.data(), temp_name_view.size());
+                // chain elements get their destruct queued
+                if(is_chain_call && return_linked) {
+                    auto container = return_linked->as_extendable_member_container();
+                    if(container && container->destructor_func()) {
+                        visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, false);
+                    }
+                }
             } else {
                 const auto return_linked = returnType->get_direct_linked_node();
                 if (return_linked) {
                     const auto returnKind = return_linked->kind();
                     if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                        const auto temp_name = visitor.get_local_temp_var_name();
-                        const auto temp_name_view = chem::string_view(temp_name);
+                        const auto temp_name_view = visitor.get_local_temp_var_name_view();
                         allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
                         write(';');
                         visitor.new_line_and_indent();
-                        visitor.local_allocated[call] = temp_name;
+                        visitor.local_allocated[call] = std::string(temp_name_view.data(), temp_name_view.size());
+                        // chain elements get their destruct queued
+                        if(is_chain_call) {
+                            auto container = return_linked->as_members_container_unsafe();
+                            if(container && container->destructor_func()) {
+                                visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, false);
+                            }
+                        }
                     }
                 }
             }
@@ -1645,11 +1665,14 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                     visitor.visit(param_type->as_reference_type_unsafe()->type);
                     visitor.write('*');
                     visitor.space();
-                    auto temp_name = visitor.get_local_temp_var_name();
+                    const auto temp_name_view = visitor.get_local_temp_var_name_view();
+                    const std::string temp_name(temp_name_view.data(), temp_name_view.size());
                     visitor.write_str(temp_name);
                     visitor.write(';');
                     visitor.new_line_and_indent();
                     visitor.destructible_refs[arg] = temp_name;
+                    // queue destruct for this ref temp (it's a pointer, so is_pointer=true)
+                    visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, true);
                 }
             }
             i++;
@@ -1996,160 +2019,6 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     accept_movable_ref_value(visitor, type, assign->value);
 
 }
-
-void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
-    int index = ((int) chain->values.size()) - (destruct_last ? 1 : 2);
-    while(index >= 0) {
-        const auto call = chain->values[index]->as_func_call();
-        if(call) {
-            const auto decl = call->safe_linked_func();
-            if(decl && decl->is_comptime()) {
-                auto eval = visitor.evaluated_func_calls.find(call);
-                if(eval != visitor.evaluated_func_calls.end()) {
-                    const auto comp_chain = eval->second->as_access_chain();
-                    if(comp_chain) {
-                        destruct_chain(comp_chain, true);
-                    } else {
-                        visit(eval->second);
-                    }
-                } else {
-                    std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
-                }
-                return;
-            }
-            auto func_type = call->function_type();
-            if(func_type->returnType->isStructLikeType()) {
-                auto linked = func_type->returnType->linked_node();
-                if(linked->as_struct_def()) {
-                    const auto struct_def = linked->as_struct_def();
-                    auto destructor = struct_def->destructor_func();
-                    if(destructor) {
-                        auto destructible = visitor.local_allocated.find(call);
-                        if (destructible != visitor.local_allocated.end()) {
-                            visitor.destructor.destruct(
-                                    chem::string_view(destructible->second.data(), destructible->second.size()),
-                                    struct_def,
-                                    destructor,
-                                    false
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        index--;
-    }
-}
-
-void CAfterStmtVisitor::VisitAccessChain(AccessChain *chain) {
-    RecursiveVisitor::VisitAccessChain(chain);
-}
-
-void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
-
-    const auto linked = call->parent_val->linked_node();
-    // enum member can't be called, we're using it as a no value
-    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
-
-    // handle variant calls
-    if(linked_kind == ASTNodeKind::VariantMember) {
-        return;
-    }
-
-    // handling comptime functions
-    if(func_decl && func_decl->is_comptime()) {
-        // TODO
-//        const auto value = evaluated_func_val(visitor, func_decl, call);
-//        visit(value);
-        return;
-    }
-
-    // get function type
-    const auto func_type = call->function_type();
-
-    // functions that return struct are handled in this block of code
-    if(destruct_call) {
-        if ((!func_decl || !func_decl->is_comptime())) {
-            const auto returnType = func_type->returnType->canonical();
-            const auto returnTypeKind = returnType->kind();
-            if (returnTypeKind != BaseTypeKind::Dynamic) {
-                const auto return_linked = returnType->get_direct_linked_node();
-                if (return_linked) {
-                    const auto returnKind = return_linked->kind();
-                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl ||
-                        returnKind == ASTNodeKind::UnionDecl) {
-                        auto container = return_linked->as_members_container_unsafe();
-                        const auto destr = container->destructor_func();
-                        if (destr) {
-                            auto found = visitor.local_allocated.find(call);
-                            auto temp_name = found != visitor.local_allocated.end() ? chem::string_view(found->second) : chem::string_view("NOT_ALLOCATED");
-                            visitor.new_line_and_indent();
-                            visitor.mangle(destr);
-                            visitor.write("(&");
-                            visitor.write(temp_name);
-                            visitor.write(");");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // visit the values
-    if(destruct_call) {
-        visit(call->parent_val);
-        destruct_call = false;
-        for(auto val : call->values) {
-            visit(val);
-        }
-        destruct_call = true;
-    } else {
-        destruct_call = true;
-        visit(call->parent_val);
-        destruct_call = false;
-        for(auto val : call->values) {
-            visit(val);
-        }
-    }
-
-    unsigned int i = 0;
-    for(auto& val : call->values) {
-
-        if(func_type) {
-            const auto arg = val;
-            const auto argType = arg->getType()->canonical();
-            const auto param = func_type->func_param_for_arg_at(i);
-            const auto param_type = param->type->canonical();
-            // passing a function call or struct value to a reference, whereas the struct is destructible
-            if (param_type->kind() == BaseTypeKind::Reference && argType->kind() != BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-                const auto container = param_type->as_reference_type_unsafe()->type->get_members_container();
-                if (container) {
-                    const auto destr = container->destructor_func();
-                    if (destr) {
-                        visitor.new_line_and_indent();
-                        visitor.mangle(destr);
-                        visitor.write('(');
-                        visitor.write_str(visitor.destructible_refs[arg]);
-                        visitor.write(");");
-                    }
-                }
-            }
-        }
-
-
-        const auto chain = val->as_access_chain();
-        if(chain) {
-            // if we ever pass struct as a reference, where struct is created at call time
-            // we can set destruct_last to true, to destruct the struct after this call
-//            destruct_chain(chain, false);
-        } else {
-                visit(val);
-        }
-        i++;
-    }
-}
-
 void CDestructionVisitor::destruct(const chem::string_view& self_name, MembersContainer* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
     if(new_line_before) {
         visitor.new_line_and_indent();
@@ -2239,6 +2108,38 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
         }
         queue_destruct(self_name, initializer, linked->as_extendable_member_container());
     }
+}
+
+void CDestructionVisitor::queue_stmt_destruct(
+        const chem::string_view& self_name,
+        ASTNode* initializer,
+        MembersContainer* linked,
+        bool is_pointer
+) {
+    if(!linked) return;
+    auto destructorFunc = linked->destructor_func();
+    if(destructorFunc) {
+        stmt_destruct_jobs.emplace_back(DestructionJob{
+                .type = DestructionJobType::Default,
+                .self_name = self_name,
+                .drop_flag_name = std::string(),
+                .initializer = initializer,
+                .default_job = {
+                        linked,
+                        destructorFunc,
+                        is_pointer
+                }
+        });
+    }
+}
+
+void CDestructionVisitor::dispatch_stmt_jobs() {
+    int i = ((int) stmt_destruct_jobs.size()) - 1;
+    while(i >= 0) {
+        destruct(stmt_destruct_jobs[i], nullptr);
+        i--;
+    }
+    stmt_destruct_jobs.clear();
 }
 
 void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, MembersContainer* parent_node, FunctionDeclaration* destructorFunc) {
@@ -4719,7 +4620,7 @@ inline void visit_scope_node(ToCAstVisitor& visitor, ASTNode* node) {
     visitor.new_line_and_indent(node->encoded_location());
     visitor.before_stmt.visit(node);
     visitor.visit(node);
-    visitor.after_stmt.visit(node);
+    visitor.destructor.dispatch_stmt_jobs();
 }
 
 // this is only done in scopes where it is inside if value and switch value
@@ -4739,20 +4640,20 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
             case ASTNodeKind::IfStmt:
                 before_stmt.visit(node);
                 writeIfStmtValue(*node->as_if_stmt_unsafe());
-                after_stmt.visit(node);
+                destructor.dispatch_stmt_jobs();
                 break;
             case ASTNodeKind::SwitchStmt: {
                 const auto stmt = node->as_switch_stmt_unsafe();
                 before_stmt.visit(stmt);
                 writeSwitchStmtValue(*stmt, stmt->known_type());
-                after_stmt.visit(stmt);
+                destructor.dispatch_stmt_jobs();
                 break;
             }
             case ASTNodeKind::LoopBlock: {
                 const auto stmt = node->as_loop_block_unsafe();
                 before_stmt.visit(stmt);
                 writeLoopStmtValue(*stmt, stmt->known_type());
-                after_stmt.visit(stmt);
+                destructor.dispatch_stmt_jobs();
                 break;
             }
             default:
@@ -4776,7 +4677,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
         new_line_and_indent(node->encoded_location());
         before_stmt.visit(node);
         visit(node);
-        after_stmt.visit(node);
+        destructor.dispatch_stmt_jobs();
     }
     if(destructor.destroy_current_scope) {
         destructor.dispatch_jobs_from_no_clean((int) destruct_begin);

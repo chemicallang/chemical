@@ -14,7 +14,7 @@ public namespace net {
     @extern protected func freeaddrinfo(res:*mut char): void;
 
 
-    @extern protected func fcntl(fd: int, cmd: int, ...): int;
+    @extern protected func fcntl(fd: int, cmd: int, _ : any...): int;
     comptime const F_GETFL = 3
     comptime const F_SETFL = 4
     comptime const O_NONBLOCK = 2048

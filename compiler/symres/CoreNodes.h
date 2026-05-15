@@ -93,28 +93,14 @@ public:
 class CoreNodesStream {
 public:
 
-    FunctionDeclaration* stream_write_i8 = nullptr;
-    FunctionDeclaration* stream_write_i16 = nullptr;
-    FunctionDeclaration* stream_write_i32 = nullptr;
-    FunctionDeclaration* stream_write_i64 = nullptr;
-    FunctionDeclaration* stream_write_u8 = nullptr;
-    FunctionDeclaration* stream_write_u16 = nullptr;
-    FunctionDeclaration* stream_write_u32 = nullptr;
-    FunctionDeclaration* stream_write_u64 = nullptr;
-    FunctionDeclaration* stream_write_char = nullptr;
-    FunctionDeclaration* stream_write_uchar = nullptr;
-    FunctionDeclaration* stream_write_short = nullptr;
-    FunctionDeclaration* stream_write_ushort = nullptr;
-    FunctionDeclaration* stream_write_int = nullptr;
-    FunctionDeclaration* stream_write_uint = nullptr;
-    FunctionDeclaration* stream_write_long = nullptr;
-    FunctionDeclaration* stream_write_ulong = nullptr;
-    FunctionDeclaration* stream_write_longlong = nullptr;
-    FunctionDeclaration* stream_write_ulonglong = nullptr;
-    FunctionDeclaration* stream_write_float = nullptr;
-    FunctionDeclaration* stream_write_double = nullptr;
+    FunctionDeclaration* stream_write_signed = nullptr;
+    FunctionDeclaration* stream_write_unsigned = nullptr;
     FunctionDeclaration* stream_write_str = nullptr;
     FunctionDeclaration* stream_write_str_no_len = nullptr;
+    FunctionDeclaration* stream_write_float = nullptr;
+    FunctionDeclaration* stream_write_double = nullptr;
+    FunctionDeclaration* stream_write_char = nullptr;
+    FunctionDeclaration* stream_write_uchar = nullptr;
 
 };
 

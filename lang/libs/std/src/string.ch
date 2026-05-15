@@ -848,42 +848,22 @@ public struct StringStream {
 impl core::stream::Stream for StringStream {
 
     @override
-    func writeI8(&mut self, value : i8) {
+    func writeChar(&mut self, value : char) {
         str.append(value)
     }
 
     @override
-    func writeI16(&mut self, value : i16) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeI32(&mut self, value : i32) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeI64(&mut self, value : i64) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeU8(&mut self, value : u8) {
+    func writeUChar(&mut self, value : uchar) {
         str.append(value as char)
     }
 
     @override
-    func writeU16(&mut self, value : u16) {
-        str.append_uinteger(value)
+    func writeSigned(&mut self, value : bigint) {
+        str.append_integer(value)
     }
 
     @override
-    func writeU32(&mut self, value : u32) {
-        str.append_uinteger(value)
-    }
-
-    @override
-    func writeU64(&mut self, value : u64) {
+    func writeUnsigned(&mut self, value : ubigint) {
         str.append_uinteger(value)
     }
 
@@ -895,56 +875,6 @@ impl core::stream::Stream for StringStream {
     @override
     func writeStrNoLen(&mut self, value : *char) {
         str.append_with_len(value, strlen(value))
-    }
-
-    @override
-    func writeChar(&mut self, value : char) {
-        str.append(value)
-    }
-
-    @override
-    func writeUChar(&mut self, value : uchar) {
-        str.append(value as char)
-    }
-
-    @override
-    func writeShort(&mut self, value : short) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeUShort(&mut self, value : ushort) {
-        str.append_uinteger(value)
-    }
-
-    @override
-    func writeInt(&mut self, value : int) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeUInt(&mut self, value : uint) {
-        str.append_uinteger(value)
-    }
-
-    @override
-    func writeLong(&mut self, value : long) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeULong(&mut self, value : ulong) {
-        str.append_uinteger(value)
-    }
-
-    @override
-    func writeLongLong(&mut self, value : longlong) {
-        str.append_integer(value)
-    }
-
-    @override
-    func writeULongLong(&mut self, value : ulonglong) {
-        str.append_uinteger(value)
     }
 
     @override

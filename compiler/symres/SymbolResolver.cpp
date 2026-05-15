@@ -133,28 +133,14 @@ void SymbolResolver::link_core_nodes() {
     if (streamNode == nullptr || streamNode->kind() != ASTNodeKind::NamespaceDecl) return;
     if (streamNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
 
-    coreNodes.stream.stream_write_i8 = func_of_interface(streamNode, "Stream", "writeI8");
-    coreNodes.stream.stream_write_i16 = func_of_interface(streamNode, "Stream", "writeI16");
-    coreNodes.stream.stream_write_i32 = func_of_interface(streamNode, "Stream", "writeI32");
-    coreNodes.stream.stream_write_i64 = func_of_interface(streamNode, "Stream", "writeI64");
-    coreNodes.stream.stream_write_u8 = func_of_interface(streamNode, "Stream", "writeU8");
-    coreNodes.stream.stream_write_u16 = func_of_interface(streamNode, "Stream", "writeU16");
-    coreNodes.stream.stream_write_u32 = func_of_interface(streamNode, "Stream", "writeU32");
-    coreNodes.stream.stream_write_u64 = func_of_interface(streamNode, "Stream", "writeU64");
-    coreNodes.stream.stream_write_char = func_of_interface(streamNode, "Stream", "writeChar");
-    coreNodes.stream.stream_write_uchar = func_of_interface(streamNode, "Stream", "writeUChar");
-    coreNodes.stream.stream_write_short = func_of_interface(streamNode, "Stream", "writeShort");
-    coreNodes.stream.stream_write_ushort = func_of_interface(streamNode, "Stream", "writeUShort");
-    coreNodes.stream.stream_write_int = func_of_interface(streamNode, "Stream", "writeInt");
-    coreNodes.stream.stream_write_uint = func_of_interface(streamNode, "Stream", "writeUInt");
-    coreNodes.stream.stream_write_long = func_of_interface(streamNode, "Stream", "writeLong");
-    coreNodes.stream.stream_write_ulong = func_of_interface(streamNode, "Stream", "writeULong");
-    coreNodes.stream.stream_write_longlong = func_of_interface(streamNode, "Stream", "writeLongLong");
-    coreNodes.stream.stream_write_ulonglong = func_of_interface(streamNode, "Stream", "writeULongLong");
-    coreNodes.stream.stream_write_float = func_of_interface(streamNode, "Stream", "writeFloat");
-    coreNodes.stream.stream_write_double = func_of_interface(streamNode, "Stream", "writeDouble");
+    coreNodes.stream.stream_write_signed = func_of_interface(streamNode, "Stream", "writeSigned");
+    coreNodes.stream.stream_write_unsigned = func_of_interface(streamNode, "Stream", "writeUnsigned");
     coreNodes.stream.stream_write_str = func_of_interface(streamNode, "Stream", "writeStr");
     coreNodes.stream.stream_write_str_no_len = func_of_interface(streamNode, "Stream", "writeStrNoLen");
+    coreNodes.stream.stream_write_float = func_of_interface(streamNode, "Stream", "writeFloat");
+    coreNodes.stream.stream_write_double = func_of_interface(streamNode, "Stream", "writeDouble");
+    coreNodes.stream.stream_write_char = func_of_interface(streamNode, "Stream", "writeChar");
+    coreNodes.stream.stream_write_uchar = func_of_interface(streamNode, "Stream", "writeUChar");
 
 }
 

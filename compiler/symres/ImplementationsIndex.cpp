@@ -155,3 +155,91 @@ FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_previous_impl
 FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_count_impl(CoreNodes& coreNodes, MembersContainer* container) {
     return implementation_of(*this, coreNodes.iterable.reversible_iterable_count, (ASTAny*) container);
 }
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_i8_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_i8, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_i16_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_i16, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_i32_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_i32, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_i64_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_i64, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_u8_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_u8, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_u16_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_u16, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_u32_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_u32, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_u64_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_u64, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_char_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_char, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_uchar_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_uchar, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_short_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_short, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_ushort_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_ushort, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_int_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_int, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_uint_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_uint, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_long_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_long, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_ulong_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_ulong, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_longlong_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_longlong, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_ulonglong_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_ulonglong, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_float_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_float, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_double_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_double, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_str_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_str, (ASTAny*) container);
+}
+
+FunctionDeclaration* ImplementationsIndex::get_stream_write_str_no_len_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.stream.stream_write_str_no_len, (ASTAny*) container);
+}

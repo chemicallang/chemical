@@ -1,48 +1,24 @@
 impl core::stream::Stream for CommandLineStream {
-    func writeI8(&self, value : i8) {
+
+    @override
+    func writeChar(&self, value : char) {
         fwrite(&value, 1, 1, get_stdout());
     }
 
-    func writeI16(&self, value : i16) {
-        var buf : [32]char;
-        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    func writeI32(&self, value : i32) {
-        var buf : [32]char;
-        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
-        fwrite(&buf[0], 1, len, get_stdout());
+    @override
+    func writeUChar(&self, value : uchar) {
+        fwrite(&value, 1, 1, get_stdout());
     }
 
     @override
-    func writeI64(&self, value : i64) {
+    func writeSigned(&self, value : bigint) {
         var buf : [64]char;
         var len = self.i64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());
     }
 
     @override
-    func writeU8(&self, value : u8) {
-        fwrite(&value, 1, 1, get_stdout());
-    }
-
-    @override
-    func writeU16(&self, value : u16) {
-        var buf : [32]char;
-        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeU32(&self, value : u32) {
-        var buf : [32]char;
-        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeU64(&self, value : u64) {
+    func writeUnsigned(&self, value : ubigint) {
         var buf : [64]char;
         var len = self.u64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());
@@ -59,74 +35,7 @@ impl core::stream::Stream for CommandLineStream {
     }
 
     @override
-    func writeChar(&self, value : char) {
-        fwrite(&value, 1, 1, get_stdout());
-    }
-
-    @override
-    func writeUChar(&self, value : uchar) {
-        fwrite(&value, 1, 1, get_stdout());
-    }
-
-    @override
-    func writeShort(&self, value : short) {
-        var buf : [32]char;
-        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeUShort(&self, value : ushort) {
-        var buf : [32]char;
-        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeInt(&self, value : int) {
-        var buf : [32]char;
-        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeUInt(&self, value : uint) {
-        var buf : [32]char;
-        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeLong(&self, value : long) {
-        var buf : [48]char;
-        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeULong(&self, value : ulong) {
-        var buf : [48]char;
-        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeLongLong(&self, value : longlong) {
-        var buf : [64]char;
-        var len = self.i64_to_chars(&mut buf[0], value);
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
-    func writeULongLong(&self, value : ulonglong) {
-        var buf : [64]char;
-        var len = self.u64_to_chars(&mut buf[0], value);
-        fwrite(&buf[0], 1, len, get_stdout());
-    }
-
-    @override
     func writeFloat(&self, value : float) {
-        // default precision 6
         var buf : [128]char;
         var len = self.float_to_chars(&mut buf[0], value, 6);
         fwrite(&buf[0], 1, len, get_stdout());
@@ -134,7 +43,6 @@ impl core::stream::Stream for CommandLineStream {
 
     @override
     func writeDouble(&self, value : double) {
-        // default precision 6 (matches printf default)
         var buf : [256]char;
         var len = self.double_to_chars(&mut buf[0], value, 6);
         fwrite(&buf[0], 1, len, get_stdout());

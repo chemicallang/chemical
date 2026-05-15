@@ -2249,105 +2249,26 @@ public:
             }
         } else {
             switch(t->kind()) {
-                case BaseTypeKind::IntN:
-                    switch(t->as_intn_type_unsafe()->IntNKind()) {
-                        case IntNTypeKind::I8: {
-                            const auto impl = implsIndex->get_stream_write_i8_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeI8", parent_node, loc);
-                        }
-                        case IntNTypeKind::I16: {
-                            const auto impl = implsIndex->get_stream_write_i16_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeI16", parent_node, loc);
-                        }
-                        case IntNTypeKind::I32: {
-                            const auto impl = implsIndex->get_stream_write_i32_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeI32", parent_node, loc);
-                        }
-                        case IntNTypeKind::I64: {
-                            const auto impl = implsIndex->get_stream_write_i64_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeI64", parent_node, loc);
-                        }
-                        case IntNTypeKind::U8: {
-                            const auto impl = implsIndex->get_stream_write_u8_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeU8", parent_node, loc);
-                        }
-                        case IntNTypeKind::U16: {
-                            const auto impl = implsIndex->get_stream_write_u16_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeU16", parent_node, loc);
-                        }
-                        case IntNTypeKind::U32: {
-                            const auto impl = implsIndex->get_stream_write_u32_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeU32", parent_node, loc);
-                        }
-                        case IntNTypeKind::U64: {
-                            const auto impl = implsIndex->get_stream_write_u64_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeU64", parent_node, loc);
-                        }
-                        // handling c like types
-                        case IntNTypeKind::Char: {
-                            const auto impl = implsIndex->get_stream_write_char_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeChar", parent_node, loc);
-                        }
-                        case IntNTypeKind::UChar: {
-                            const auto impl = implsIndex->get_stream_write_uchar_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeUChar", parent_node, loc);
-                        }
-                        case IntNTypeKind::Short: {
-                            const auto impl = implsIndex->get_stream_write_short_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeShort", parent_node, loc);
-                        }
-                        case IntNTypeKind::UShort: {
-                            const auto impl = implsIndex->get_stream_write_ushort_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeUShort", parent_node, loc);
-                        }
-                        case IntNTypeKind::Int: {
-                            const auto impl = implsIndex->get_stream_write_int_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeInt", parent_node, loc);
-                        }
-                        case IntNTypeKind::UInt: {
-                            const auto impl = implsIndex->get_stream_write_uint_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeUInt", parent_node, loc);
-                        }
-                        case IntNTypeKind::Long: {
-                            const auto impl = implsIndex->get_stream_write_long_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeLong", parent_node, loc);
-                        }
-                        case IntNTypeKind::ULong: {
-                            const auto impl = implsIndex->get_stream_write_ulong_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeULong", parent_node, loc);
-                        }
-                        case IntNTypeKind::LongLong: {
-                            const auto impl = implsIndex->get_stream_write_longlong_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeLongLong", parent_node, loc);
-                        }
-                        case IntNTypeKind::ULongLong: {
-                            const auto impl = implsIndex->get_stream_write_ulonglong_impl(*coreNodes, container);
-                            if(!impl) return nullptr;
-                            return write_call(typeBuilder, allocator, selfId, val, impl, "writeULongLong", parent_node, loc);
-                        }
-                        default:
-#ifdef DEBUG
-                            CHEM_THROW_RUNTIME("unexpected branch1: intrinsics::put_str_expr");
-#endif
-                            return nullptr;
+                case BaseTypeKind::IntN: {
+                    const auto intKind = t->as_intn_type_unsafe()->IntNKind();
+                    if(intKind == IntNTypeKind::Char) {
+                        const auto impl = implsIndex->get_stream_write_char_impl(*coreNodes, container);
+                        if(!impl) return nullptr;
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeChar", parent_node, loc);
+                    } else if(intKind == IntNTypeKind::UChar) {
+                        const auto impl = implsIndex->get_stream_write_uchar_impl(*coreNodes, container);
+                        if(!impl) return nullptr;
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUChar", parent_node, loc);
+                    } else if(IntNType::is_unsigned(intKind)) {
+                        const auto impl = implsIndex->get_stream_write_unsigned_impl(*coreNodes, container);
+                        if(!impl) return nullptr;
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeUnsigned", parent_node, loc);
+                    } else {
+                        const auto impl = implsIndex->get_stream_write_signed_impl(*coreNodes, container);
+                        if(!impl) return nullptr;
+                        return write_call(typeBuilder, allocator, selfId, val, impl, "writeSigned", parent_node, loc);
                     }
+                }
                 case BaseTypeKind::Float: {
                     const auto impl = implsIndex->get_stream_write_float_impl(*coreNodes, container);
                     if(!impl) return nullptr;
@@ -3219,7 +3140,6 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     TopLevelDeclSymDeclare declarer(resolver);
 
     // this would re-insert the children into extended map of namespaces
-    // TODO: do not visit the namespace for this
     declarer.visit(&container.intrinsics_namespace);
 
     // TODO these symbols will be removed when module ends

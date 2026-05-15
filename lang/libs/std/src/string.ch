@@ -845,7 +845,7 @@ public struct StringStream {
 
 }
 
-impl Stream for StringStream {
+impl core::stream::Stream for StringStream {
 
     @override
     func writeI8(&mut self, value : i8) {

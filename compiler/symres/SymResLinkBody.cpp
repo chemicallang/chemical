@@ -75,17 +75,12 @@ void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
 void link_seq(SymResLinkBody& visitor, Scope& scope) {
     auto& nodes = scope.nodes;
     if(nodes.empty()) return;
-    const auto curr_func = visitor.linker.current_func_type;
-    if(curr_func) {
-        const auto moved_ids_begin = curr_func->moved_identifiers.size();
-        const auto moved_chains_begin = curr_func->moved_chains.size();
-        visitor.VisitScope(&scope);
-        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
-            curr_func->erase_moved_ids_after(moved_ids_begin);
-            curr_func->erase_moved_chains_after(moved_chains_begin);
-        }
-    } else {
-        visitor.VisitScope(&scope);
+    const auto moved_ids_begin = visitor.moved_identifiers.size();
+    const auto moved_chains_begin = visitor.moved_chains.size();
+    visitor.VisitScope(&scope);
+    if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
+        visitor.erase_moved_ids_after(moved_ids_begin);
+        visitor.erase_moved_chains_after(moved_chains_begin);
     }
 }
 
@@ -99,19 +94,17 @@ void link_seq_backing_moves(
         std::vector<VariableIdentifier*>& moved_ids,
         std::vector<AccessChain*>& moved_chains
 ) {
-    const auto curr_func = visitor.linker.current_func_type;
-    if(!curr_func) return;
 
     // where the moved ids / chains of if body begin
-    const auto if_moved_ids_begin = curr_func->moved_identifiers.size();
-    const auto if_moved_chains_begin = curr_func->moved_chains.size();
+    const auto if_moved_ids_begin = visitor.moved_identifiers.size();
+    const auto if_moved_chains_begin = visitor.moved_chains.size();
 
     // link the body
     link_seq(visitor, scope);
 
     // save all the moved identifiers / chains inside the if body to temporary location
-    curr_func->save_moved_ids_after(moved_ids, if_moved_ids_begin);
-    curr_func->save_moved_chains_after(moved_chains, if_moved_chains_begin);
+    visitor.save_moved_ids_after(moved_ids, if_moved_ids_begin);
+    visitor.save_moved_chains_after(moved_chains, if_moved_chains_begin);
 }
 
 void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
@@ -329,9 +322,9 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     // the last item holds the type for this access chain
     chain->setType(values[last]->getType());
 
-    if(check_validity && linker.current_func_type) {
+    if(check_validity) {
         // check chain for validity, if it's moved or members have been moved
-        linker.current_func_type->check_chain(chain, assignment, linker);
+        check_chain(chain, assignment, linker);
     }
 }
 
@@ -356,9 +349,9 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         } else {
             identifier->linked = sym->activeNode;
             identifier->setType(identifier->linked->known_type());
-            if (check_access && linker.current_func_type) {
+            if (check_access) {
                 // check for validity if accessible or assignable (because moved)
-                linker.current_func_type->check_id(identifier, linker);
+                check_id(identifier, linker);
             }
             identifier->process_linked(&linker, linker.current_func_type);
             return;
@@ -368,9 +361,9 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     if(linked) {
         identifier->linked = linked;
         identifier->setType(linked->known_type());
-        if (check_access && linker.current_func_type) {
+        if (check_access) {
             // check for validity if accessible or assignable (because moved)
-            linker.current_func_type->check_id(identifier, linker);
+            check_id(identifier, linker);
         }
         identifier->process_linked(&linker, linker.current_func_type);
         return;
@@ -498,9 +491,8 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
                     linker.error("expected overload implementation to have exactly two parameters", assign);
                     return;
                 }
-                auto& func_type = *linker.current_func_type;
                 // check if rhs was moved and mark it
-                func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
+                mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
                 return;
             }
         }
@@ -510,15 +502,11 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     // so the parameter can be allocated in a temporary variable for modification
     lhs->report_assignment_of_chain_id();
 
-    // if overloaded operator is being called, lhs will not be un-moved
-    // because all operator overloaded take self (lhs) as mut ref
-    auto& func_type = *linker.current_func_type;
-
     // check if rhs was moved and mark it
-    func_type.mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
+    mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
 
     // unmove the lhs
-    func_type.mark_un_moved_lhs_value(lhs, lhs->getType());
+    mark_un_moved_lhs_value(lhs, lhs->getType());
 
 }
 
@@ -835,11 +823,8 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
     }
 
     // restoring all the moved identifiers and chains, in all the scopes
-    const auto curr_func = linker.current_func_type;
-    if(curr_func) {
-        curr_func->restore_moved_ids(moved_ids);
-        curr_func->restore_moved_chains(moved_chains);
-    }
+    restore_moved_ids(moved_ids);
+    restore_moved_chains(moved_chains);
 
 }
 
@@ -882,7 +867,7 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
 
     if (attrs.signature_resolved) {
         if(value) {
-            linker.current_func_type->mark_moved_value(linker.allocator, value, node->known_type(), linker, type != nullptr);
+            mark_moved_value(linker.allocator, value, node->known_type(), linker, type != nullptr);
         }
         if(type && value) {
             const auto as_array = value->as_array_value();
@@ -1243,8 +1228,18 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
     if(node->body.has_value()) {
         // if has body declare params
         linker.scope_start();
+
+        // save the function type
         auto prev_func_type = linker.current_func_type;
         linker.current_func_type = node;
+
+        // save moved ids and clear so we
+        auto prev_moved_ids = moved_identifiers;
+        auto prev_moved_chains = moved_chains;
+        moved_identifiers.clear();
+        moved_chains.clear();
+
+        // linking
         for (const auto param : node->params) {
             visit(param);
         }
@@ -1259,6 +1254,14 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
             linker.comptime_context = false;
         }
         linker.scope_end();
+
+        // restore previous moved ids and chains
+        moved_identifiers.clear();
+        moved_chains.clear();
+        moved_identifiers.insert(moved_identifiers.end(), prev_moved_ids.begin(), prev_moved_ids.end());
+        moved_chains.insert(moved_chains.end(), prev_moved_chains.begin(), prev_moved_chains.end());
+
+        // retore the function type
         linker.current_func_type = prev_func_type;
     }
 
@@ -1499,11 +1502,6 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
         }
     }
 
-    // current func type is only not present when its a top level if
-    // or maybe during parsing malformed code can cause it
-    const auto curr_func = linker.current_func_type;
-    if(!curr_func) return;
-
     // temporary moved identifiers and chains
     std::vector<VariableIdentifier*> moved_ids;
     std::vector<AccessChain*> moved_chains;
@@ -1521,8 +1519,8 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
         linker.scope_end();
     }
 
-    curr_func->restore_moved_ids(moved_ids);
-    curr_func->restore_moved_chains(moved_chains);
+    restore_moved_ids(moved_ids);
+    restore_moved_chains(moved_chains);
 
 }
 
@@ -1691,7 +1689,6 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
     auto& values = call->values;
     auto& linker = visitor.linker;
 
-    auto& current_func = *linker.current_func_type;
     const auto parent = parent_val->get_chain_last_linked();
     if(parent) {
         const auto variant_mem = parent->as_variant_member();
@@ -1707,7 +1704,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                     const auto param = (variant_mem->values.begin() + i)->second;
                     const auto expected_type = param->type;
                     visitor.visit(&value, expected_type);
-                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                    visitor.mark_moved_value(linker.allocator, &value, expected_type, linker);
                 } else {
                     linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(total_params) << " given " << std::to_string(values_size);
                 }
@@ -1746,7 +1743,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
             if(param) {
                 const auto expected_type = param->type;
                 visitor.visit(&value, expected_type);
-                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                visitor.mark_moved_value(linker.allocator, &value, expected_type, linker);
             } else {
                 linker.error(&value) << "too many arguments given, expected " << std::to_string(func_param_size) << " given " << std::to_string(values_size);
             }
@@ -1772,7 +1769,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
             auto& value = *value_ptr;
             // expected_type -> nullptr (because user is probably calling constructor, and we can only know which constructor to call, after arguments are linked and their type is known)
             visitor.visit(&value, nullptr);
-            current_func.mark_moved_value(linker.allocator, &value, nullptr, linker);
+            visitor.mark_moved_value(linker.allocator, &value, nullptr, linker);
             i++;
         }
 
@@ -2723,7 +2720,6 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
             return;
         }
     }
-    auto& current_func_type = *linker.current_func_type;
     auto& known_elem_type = elemType;
     unsigned i = 0;
     for(auto& value : values) {
@@ -2732,7 +2728,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
             known_elem_type = TypeLoc(value->getType(), known_elem_type.getLocation());
         }
         if(known_elem_type) {
-            current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+            mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
         }
         i++;
     }
@@ -2956,11 +2952,20 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     auto& params = lambVal->params;
     auto& captureList = lambVal->captureList;
 
+    // set the current function type
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = lambVal;
 
     const auto canonical_exp = expected_type ? expected_type->canonical() : nullptr;
     auto func_type = canonical_exp ? get_func_type_from_exp_type(canonical_exp) : nullptr;
+
+    // before we start linking lambda, we must save current moved identifiers and chains
+    auto prev_moved_ids = moved_identifiers;
+    auto prev_moved_chains = moved_chains;
+
+    // clear the current
+    moved_identifiers.clear();
+    moved_chains.clear();
 
     if(!func_type) {
 
@@ -3031,23 +3036,21 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
             }
         }
 
-        if(prev_func_type) {
-            for (const auto captured: captureList) {
-                if (captured->capture_by_ref) {
-                    continue;
-                }
-                // we have to allocate an identifier to mark it moved
-                // maybe design for this should change a little
-                // TODO: this identifier doesn't allow us to check if value has been moved prior
-                // because is_moved is used to check
-                const auto identifier = new(linker.ast_allocator->allocate<VariableIdentifier>()) VariableIdentifier(
-                        captured->name, captured->encoded_location(), false
-                );
-                identifier->linked = captured->linked;
-                identifier->setType(captured->linked->known_type());
-                // we must move the identifiers in capture list
-                prev_func_type->mark_moved_value(linker.allocator, identifier, captured->linked->known_type(), linker, false);
+        for (const auto captured: captureList) {
+            if (captured->capture_by_ref) {
+                continue;
             }
+            // we have to allocate an identifier to mark it moved
+            // maybe design for this should change a little
+            // TODO: this identifier doesn't allow us to check if value has been moved prior
+            // because is_moved is used to check
+            const auto identifier = new(linker.ast_allocator->allocate<VariableIdentifier>()) VariableIdentifier(
+                    captured->name, captured->encoded_location(), false
+            );
+            identifier->linked = captured->linked;
+            identifier->setType(captured->linked->known_type());
+            // we must move the identifiers in capture list
+            mark_moved_value(linker.allocator, identifier, captured->linked->known_type(), linker, false);
         }
 
         lambVal->setIsCapturing(true);
@@ -3059,7 +3062,16 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
         verify_has_return(linker, lambVal->scope, lambVal->encoded_location());
     }
 
+    // restore the previous function type
     linker.current_func_type = prev_func_type;
+
+    // now that linking has been performed of the lambda
+    // moved ids and chains have been checked
+    moved_identifiers.clear();
+    moved_chains.clear();
+    // we append the previously stored ids and chains
+    moved_identifiers.insert(moved_identifiers.end(), prev_moved_ids.begin(), prev_moved_ids.end());
+    moved_chains.insert(moved_chains.end(), prev_moved_chains.begin(), prev_moved_chains.end());
 
 }
 
@@ -3285,7 +3297,6 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             visit(arg);
         }
     }
-    auto& current_func_type = *linker.current_func_type;
     // linking values
     for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
@@ -3300,7 +3311,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         const auto member = structValue->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
-            current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
+            mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
             auto implicit = mem_type->implicit_constructor_for(val_ptr);
             if(implicit) {
                 link_with_implicit_constructor(*this, implicit, val_ptr);
@@ -3362,4 +3373,504 @@ void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {
         // TODO: must verify that an implementation exists
     }
 
+}
+
+// -----------------------------------------
+// ------------ Movement API ---------------
+// -----------------------------------------
+
+// first chain is contained in other chain
+// other chain's value size is bigger or equal to first chain
+bool first_chain_is_contained_in(AccessChain& first, AccessChain& other_ptr) {
+    unsigned j = 0;
+    for(auto& value_ptr : first.values) {
+        auto& value = *value_ptr;
+        auto& other = *other_ptr.values[j];
+        if(!value.is_equal(&other)) {
+            return false;
+        }
+        j++;
+    }
+    return true;
+}
+
+bool SymResLinkBody::un_move_chain(AccessChain* chain_ptr) {
+    if(moved_chains.empty()) return false;
+    auto& chain = *chain_ptr;
+    if(chain.values.size() == 1) {
+        auto id = chain.values[0]->as_identifier();
+        if(id && un_move_exact_id(id)) {
+            return true;
+        }
+    }
+    for(auto it = moved_chains.begin(); it != moved_chains.end(); ++it) {
+        auto& moved = **it;
+        if(moved.values.size() >= chain.values.size() && first_chain_is_contained_in(chain, moved)) {
+            // Erase the element at the iterator position
+            it = moved_chains.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+VariableIdentifier* SymResLinkBody::find_moved_id(VariableIdentifier* id) {
+    for(auto& moved : moved_identifiers) {
+        if(moved->linked == id->linked) {
+            return moved;
+        }
+    }
+    return nullptr;
+}
+
+bool SymResLinkBody::un_move_exact_id(VariableIdentifier* id) {
+    if(moved_identifiers.empty()) return false;
+    unsigned i = 0;
+    for(auto& moved : moved_identifiers) {
+        if(moved->linked == id->linked) {
+            moved_identifiers.erase(moved_identifiers.begin() + i);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+bool SymResLinkBody::un_move_chain_with_first_id(VariableIdentifier* id) {
+    unsigned i = 0;
+    for(auto& moved : moved_chains) {
+        auto& chain = *moved;
+        auto& first_value = *chain.values[0];
+        auto moved_id = first_value.as_identifier();
+        if(moved_id && moved_id->linked == id->linked) {
+            moved_chains.erase(moved_chains.begin() + i);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+bool SymResLinkBody::un_move_id(VariableIdentifier* id) {
+    return un_move_exact_id(id) || un_move_chain_with_first_id(id);
+}
+
+// for example when consider_nested_members and consider_last_member are true:
+// for given 'm' if only 'm.x' has been moved, we return it (nested members considered)
+// for given 'm.x' if only 'm' has been moved, we return it (parent member considered)
+// for given 'm.x' if only 'm.y' has been moved, we return null (unrelated not considered)
+// for given 'm.x' if only 'm.x' has been moved, we return it (last member considered)
+//
+// for example when consider_nested_members and consider_last_member are false:
+// for given 'm.x' if only 'm.x.y' has been moved, we return null (nested members not considered)
+// for given 'm.x' if only 'm' has been moved, we return it (parent member being considered)
+// for given 'm.x' if only 'm.y' has been moved, we return null (unrelated nor considered)
+// for given 'm.x' if only 'm.x' has been moved, we return null (last member not considered)
+AccessChain* SymResLinkBody::find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member) {
+    auto first_value = chain.values[0];
+    const auto first_value_kind = first_value->val_kind();
+    AccessChain* smallest = nullptr;
+    for(auto& moved_chain_ptr : moved_chains) {
+        auto& moved_chain = *moved_chain_ptr;
+        const auto moved_size = moved_chain.values.size();
+        // since finding the smallest moved chain that matches with the given chain
+        if(smallest && smallest->values.size() < moved_size) {
+            continue;
+        }
+        auto& moved_chain_first = moved_chain.values[0];
+        if(first_value->is_equal(moved_chain_first, first_value_kind, moved_chain_first->val_kind())) {
+            const auto given_size = chain.values.size();
+            // check for nested members or not ?
+            if(!consider_nested_members && moved_size > given_size) continue;
+            // check for last member
+            if(!consider_last_member && moved_size == given_size) continue;
+            auto matching = true;
+            const auto less_size = std::min(moved_size, consider_last_member ? given_size : given_size - 1);
+            unsigned i = 1; // zero has already been checked
+            while(i < less_size) {
+                if(!moved_chain.values[i]->is_equal(chain.values[i])) {
+                    matching = false;
+                    break;
+                }
+                i++;
+            }
+            if(matching) {
+                smallest = moved_chain_ptr;
+            }
+        }
+    }
+    return smallest;
+}
+
+AccessChain* SymResLinkBody::find_smallest_moved_access_chain(VariableIdentifier* id) {
+    AccessChain* smallest = nullptr;
+    for(auto& chain : moved_chains) {
+        auto& moved_chain = *chain;
+        if(smallest && smallest->values.size() < moved_chain.values.size()) {
+            continue;
+        }
+        auto& other_first = *moved_chain.values[0];
+        if(id->is_equal(&other_first, ValueKind::Identifier, other_first.val_kind())) {
+            smallest = chain;
+        }
+    }
+    return smallest;
+}
+
+AccessChain* SymResLinkBody::find_moved_access_chain(VariableIdentifier* id) {
+    for(auto& chain : moved_chains) {
+        auto& moved_chain = *chain;
+        auto& other_first = *moved_chain.values[0];
+        if(id->is_equal(&other_first, ValueKind::Identifier, other_first.val_kind())) {
+            return chain;
+        }
+    }
+    return nullptr;
+}
+
+Value* SymResLinkBody::find_moved_chain_value(VariableIdentifier* id) {
+    auto found = find_moved_id(id);
+    if(found) return found;
+    return find_smallest_moved_access_chain(id);
+}
+
+Value* SymResLinkBody::find_moved_chain_value(AccessChain* chain_ptr) {
+    auto& chain = *chain_ptr;
+    auto& first_value = *chain.values[0];
+    const auto first_id = first_value.as_identifier();
+    if(first_id) {
+        if(chain.values.size() == 1) {
+            return find_moved_chain_value(first_id);
+        } else {
+            auto found = find_moved_id(first_id);
+            if(found) return found;
+        }
+    }
+    return find_partially_matching_moved_chain(chain, true, true);
+}
+
+void SymResLinkBody::mark_moved_no_check(AccessChain* chain) {
+    if(chain->values.size() == 1 && chain->values[0]->val_kind() == ValueKind::Identifier) {
+        moved_identifiers.emplace_back(chain->values[0]->as_identifier());
+    } else {
+        moved_chains.emplace_back(chain);
+    }
+    chain->set_is_moved(true);
+}
+
+void SymResLinkBody::mark_moved_no_check(VariableIdentifier* id) {
+    moved_identifiers.emplace_back(id);
+    id->is_moved = true;
+}
+
+bool SymResLinkBody::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser) {
+    Value* moved;
+    if(assigning) {
+        moved = find_partially_matching_moved_chain(*chain, false, false);
+    } else {
+        moved = find_moved_chain_value(chain);
+    }
+    if(moved) {
+        auto& diag = diagnoser.error((ASTNode*) chain);
+        diag << "cannot " << (assigning ? "assign" : "access") << " \'" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error((ASTNode*) moved) << message;
+        return false;
+    }
+    return true;
+}
+
+bool SymResLinkBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
+    const auto moved = find_moved_chain_value(id);
+    if(moved) {
+        auto& diag = diagnoser.error(id);
+        diag << "cannot access identifier '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error(moved) << message;
+        return false;
+    }
+    return true;
+}
+
+bool SymResLinkBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
+    const auto moved = find_moved_chain_value(id);
+    if(moved) {
+        auto& diag = diagnoser.error(id);
+        diag << "cannot move '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error(moved) << message;
+        return false;
+    }
+    mark_moved_no_check(id);
+    return true;
+}
+
+bool SymResLinkBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
+    const auto chain = value->as_access_chain();
+    if(chain) {
+        if(chain->values.size() == 1) {
+            auto id = chain->values.back()->as_identifier();
+            if(id) {
+                auto did = mark_moved_id(id, diagnoser);
+                if(did) {
+                    chain->set_is_moved(true);
+                }
+                return did;
+            }
+        }
+        const auto moved = find_moved_chain_value(chain);
+        if(moved) {
+            auto& diag = diagnoser.error((ASTNode*) chain);
+            diag << "cannot move '" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
+            auto message = diag.message;
+            diagnoser.error((ASTNode*) moved) << message;
+            return false;
+        }
+        mark_moved_no_check(chain);
+        return true;
+    } else {
+        const auto id = value->as_identifier();
+        if(id) {
+            return mark_moved_id(id, diagnoser);
+        }
+    }
+    return false;
+}
+
+bool is_func_call(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::FunctionCall:
+            return true;
+        case ValueKind::AccessChain:
+            return is_func_call(value->as_access_chain_unsafe()->values.back());
+        default:
+            return false;
+    }
+}
+
+bool SymResLinkBody::is_value_movable(Value* value_ptr, BaseType* type) {
+    auto& value = *value_ptr;
+    const auto canonical = type->canonical();
+    switch(canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return false;
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        default:
+            break;
+    }
+    if(is_func_call(value_ptr)) {
+        return false;
+    }
+    const auto linked_def = type->get_direct_linked_struct();
+    if(linked_def && linked_def->MembersContainer::requires_moving()) {
+        return true;
+    }
+    return false;
+}
+
+bool is_generic_instantiation(ASTNode* gen_node, ASTNode* inst_node) {
+    // checking if inst node is one of its instantiations
+    switch(gen_node->kind()) {
+        case ASTNodeKind::GenericStructDecl: {
+            const auto gen_decl = gen_node->as_gen_struct_def_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        case ASTNodeKind::GenericUnionDecl: {
+            const auto gen_decl = gen_node->as_gen_union_decl_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        case ASTNodeKind::GenericVariantDecl: {
+            const auto gen_decl = gen_node->as_gen_variant_decl_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            return false;
+    }
+    return false;
+}
+
+bool is_movable(VariableIdentifier* id) {
+    switch(id->linked->kind()) {
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::PatternMatchId:
+        case ASTNodeKind::VariantCaseVariable:
+            return false;
+        default:
+            return true;
+    }
+}
+
+bool SymResLinkBody::mark_moved_value(
+        ASTAllocator& allocator,
+        Value* value_ptr,
+        BaseType* expected_type_non_canon,
+        ASTDiagnoser& diagnoser,
+        bool check_implicit_constructors
+) {
+    auto& value = *value_ptr;
+    switch(value.kind()) {
+        case ValueKind::AccessChain:
+            if(value.as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall) {
+                return false;
+            }
+            break;
+        case ValueKind::FunctionCall:
+            return false;
+        case ValueKind::StructValue:
+            return false;
+        default:
+            break;
+    }
+    const auto expected_type = expected_type_non_canon ? expected_type_non_canon->canonical() : nullptr;
+    const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
+    if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer || expected_type_kind == BaseTypeKind::String || expected_type_kind == BaseTypeKind::Dynamic) {
+        return false;
+    }
+    const auto createdType = value.getType();
+    if(!createdType) return false;
+    const auto type = createdType->canonical();
+    const auto linked_node = type->get_direct_linked_node();
+    if(!linked_node) {
+        return false;
+    }
+    const auto linked_node_kind = linked_node->kind();
+    // TODO this doesn't account for typealiases
+    if(linked_node_kind == ASTNodeKind::GenericTypeParam) {
+        return mark_moved_value(&value, diagnoser);
+    }
+    if(!ASTNode::isMembersContainer(linked_node_kind)) {
+        return false;
+    }
+    const auto linked_def = linked_node->as_members_container_unsafe();
+    if(linked_def->destructor_func() == nullptr) {
+        return false;
+    }
+    bool final = false;
+    if(expected_type) {
+        const auto pure_expected = expected_type->pure_type(allocator);
+        const auto pure_expected_kind = pure_expected->kind();
+        const auto expected_node = pure_expected->get_ref_or_linked_node();
+        if(!expected_node) {
+            if(expected_type_kind != BaseTypeKind::Any) {
+                diagnoser.error("cannot move a struct to a non struct type", &value);
+            }
+            return false;
+        }
+        switch(value.kind()) {
+            case ValueKind::Identifier:
+                if(!is_movable(value.as_identifier_unsafe())) {
+                    diagnoser.error("cannot move this value without re-initializing memory", &value);
+                    return false;
+                }
+                break;
+            case ValueKind::AccessChain: {
+                auto chain = value.as_access_chain_unsafe();
+                const auto last_value = chain->values.back();
+                if (last_value->kind() == ValueKind::Identifier && !is_movable(last_value->as_identifier_unsafe())) {
+                    diagnoser.error("cannot move this value without re-initializing memory", &value);
+                    return false;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+        if(expected_node->kind() == ASTNodeKind::GenericTypeParam) {
+            return mark_moved_value(&value, diagnoser);
+        }
+        if (expected_node == (ASTNode*) linked_def) {
+            final = mark_moved_value(&value, diagnoser);
+        } else {
+            if(is_generic_instantiation(expected_node, linked_def)) {
+                final = mark_moved_value(&value, diagnoser);
+            } else {
+                const auto implicit = pure_expected->implicit_constructor_for(&value);
+                if (implicit && check_implicit_constructors) {
+                    auto& param_type = *implicit->params[0]->type->canonical();
+                    if (!param_type.is_reference()) { // not a reference type (requires moving)
+                        final = mark_moved_value(&value, diagnoser);
+                    }
+                } else {
+                    diagnoser.error("unknown value being moved, where the struct types don't match", &value);
+                    return false;
+                }
+            }
+        }
+    } else {
+        final = mark_moved_value(&value, diagnoser);
+    }
+    if(final) {
+        return true;
+    }
+    return false;
+}
+
+bool SymResLinkBody::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type) {
+    if(!value_type || !is_value_movable(value_ptr, value_type)) {
+        return false;
+    }
+    auto& value = *value_ptr;
+    switch(value.val_kind()) {
+        case ValueKind::AccessChain:{
+            const auto chain = value.as_access_chain_unsafe();
+            if(chain->values.size() == 1 && chain->values.front()->kind() == ValueKind::Identifier) {
+                const auto id = chain->values.back()->as_identifier_unsafe();
+                if(un_move_id(id)) {
+                    chain->set_is_moved(true);
+                    id->is_moved = true;
+                    return true;
+                } else {
+                    chain->set_is_moved(false);
+                    id->is_moved = false;
+                }
+            } else {
+                // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
+                // we set this to true, so assignment doesn't destruct before the store
+                if (un_move_chain(chain)) {
+                    // setting true, to indicate that value was moved before, and this should not be destructed
+                    // we set this to true, so assignment doesn't destruct before the store
+                    chain->set_is_moved(true);
+                    return true;
+                } else {
+                    // setting false, to indicate that value is not moved, and this should be destructed
+                    chain->set_is_moved(false);
+                }
+            }
+            break;
+        }
+        case ValueKind::Identifier: {
+            const auto id = value.as_identifier_unsafe();
+            // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
+            // we set this to true, so assignment doesn't destruct before the store
+            if(un_move_id(id)) {
+                // setting true, to indicate that value was moved before, and this should not be destructed
+                // we set this to true, so assignment doesn't destruct before the store
+                id->is_moved = true;
+                return true;
+            } else {
+                // setting false, to indicate that value is not moved, and this should be destructed
+                id->is_moved = false;
+            }
+            break;
+        }
+        default:
+            return false;
+    }
+    return false;
 }

@@ -1785,19 +1785,10 @@ void Codegen::conditional_destruct(
 
 void destruct_current_scope(Codegen& gen, Value* returnValue, SourceLocation location) {
     if(!gen.has_current_block_ended) {
-        const auto func_type = gen.current_func_type;
-        VariableIdentifier temp_id("", location, false);
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
             auto& nodePair = gen.destruct_nodes[i];
-            // before we send this node for destruction, we must emit an error
-            // if it's nested member has been moved somewhere, because we canot
-            temp_id.linked = nodePair.getInitializer();
-            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                gen.conditional_destruct(nodePair, returnValue, location);
-            } else {
-                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer()->encoded_location(), location);
-            }
+            gen.conditional_destruct(nodePair, returnValue, location);
             i--;
         }
         gen.destroy_current_scope = false;

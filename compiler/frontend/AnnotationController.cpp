@@ -102,15 +102,6 @@ void annot_handler_delete(Parser* parser, ASTNode* node, std::vector<Value*>& ar
     }
 }
 
-void annot_handler_override(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    const auto func = node->as_function();
-    if(func) {
-        func->set_override(true);
-    } else {
-        parser->error("couldn't make the function override");
-    }
-}
-
 void annot_handler_unsafe(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
@@ -300,7 +291,6 @@ void AnnotationController::initialize() {
             { "constructor", { annot_handler_constructor, "constructor", AnnotationDefType::Handler } },
             { "make", { annot_handler_constructor, "make", AnnotationDefType::Handler } },
             { "delete", { annot_handler_delete, "delete", AnnotationDefType::Handler } },
-            { "override", { annot_handler_override, "override", AnnotationDefType::Handler } },
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
             { "never_destructed", { annot_handler_never_destructed, "never_destructed", AnnotationDefType::Handler } },
             { "stdcall", { annot_handler_stdcall, "stdcall", AnnotationDefType::Handler } },

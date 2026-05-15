@@ -847,42 +847,34 @@ public struct StringStream {
 
 impl core::stream::Stream for StringStream {
 
-    @override
     func writeChar(&mut self, value : char) {
         str.append(value)
     }
 
-    @override
     func writeUChar(&mut self, value : uchar) {
         str.append(value as char)
     }
 
-    @override
     func writeSigned(&mut self, value : bigint) {
         str.append_integer(value)
     }
 
-    @override
     func writeUnsigned(&mut self, value : ubigint) {
         str.append_uinteger(value)
     }
 
-    @override
     func writeStr(&mut self, value : *char, length : ubigint) {
         str.append_with_len(value, length)
     }
 
-    @override
     func writeStrNoLen(&mut self, value : *char) {
         str.append_with_len(value, strlen(value))
     }
 
-    @override
     func writeFloat(&mut self, value : float) {
         str.append_double(value as double, 3)
     }
 
-    @override
     func writeDouble(&mut self, value : double) {
         str.append_double(value as double, 3)
     }

@@ -1,0 +1,140 @@
+name: CI Docker multi-arch build & push
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REPO: chemicallang/chemical
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download Dockerfiles
+        run: |
+          mkdir -p scripts/docker
+          curl -fsSL -o scripts/docker/Dockerfile "https://raw.githubusercontent.com/chemicallang/chemical/main/scripts/docker/Dockerfile"
+          curl -fsSL -o scripts/docker/alpine-glibc.Dockerfile "https://raw.githubusercontent.com/chemicallang/chemical/main/scripts/docker/alpine-glibc.Dockerfile"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push ubuntu image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-ubuntu
+            ${{ env.REPO }}:${{ env.VERSION }}-ubuntu
+          build-args: |
+            BASE_IMAGE=ubuntu:24.04
+            RELEASE_PLATFORM=linux
+            VARIANT=
+            VERSION=${{ env.VERSION }}
+
+      - name: Build & push tcc-ubuntu image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-tcc-ubuntu
+            ${{ env.REPO }}:${{ env.VERSION }}-tcc-ubuntu
+          build-args: |
+            BASE_IMAGE=ubuntu:24.04
+            RELEASE_PLATFORM=linux
+            VARIANT=tcc
+            VERSION=${{ env.VERSION }}
+
+      - name: Build & push alpine image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-alpine
+            ${{ env.REPO }}:${{ env.VERSION }}-alpine
+          build-args: |
+            BASE_IMAGE=alpine:3.20
+            RELEASE_PLATFORM=linux-alpine
+            VARIANT=
+            VERSION=${{ env.VERSION }}
+
+      - name: Build & push tcc-alpine image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-tcc-alpine
+            ${{ env.REPO }}:${{ env.VERSION }}-tcc-alpine
+          build-args: |
+            BASE_IMAGE=alpine:3.20
+            RELEASE_PLATFORM=linux-alpine
+            VARIANT=tcc
+            VERSION=${{ env.VERSION }}
+
+      - name: Build & push alpine glibc image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/alpine-glibc.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-alpine-glibc
+            ${{ env.REPO }}:${{ env.VERSION }}-alpine-glibc
+          build-args: |
+            BASE_IMAGE=frolvlad/alpine-glibc
+            RELEASE_PLATFORM=linux
+            VARIANT=
+            VERSION=${{ env.VERSION }}
+
+      - name: Build & push tcc-alpine glibc image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: scripts/docker/alpine-glibc.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REPO }}:latest-tcc-alpine-glibc
+            ${{ env.REPO }}:${{ env.VERSION }}-tcc-alpine-glibc
+          build-args: |
+            BASE_IMAGE=frolvlad/alpine-glibc
+            RELEASE_PLATFORM=linux
+            VARIANT=tcc
+            VERSION=${{ env.VERSION }}

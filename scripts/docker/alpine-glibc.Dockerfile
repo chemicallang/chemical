@@ -27,4 +27,7 @@ RUN if grep -q -i alpine /etc/os-release 2>/dev/null; then \
 # download and run official installer script
 RUN wget -qO- https://raw.githubusercontent.com/chemicallang/chemical/main/scripts/download.sh | bash -s
 
+# Add to path
+ENV PATH="/opt/chemical:$PATH"
+
 CMD ["chemical", "--help"]

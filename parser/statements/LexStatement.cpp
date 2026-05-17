@@ -35,7 +35,7 @@ AccessSpecifier get_specifier_from(TokenType type) {
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier spec, bool comptime) {
     switch (token->type) {
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, false, true, comptime);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, spec, true, comptime);
         case TokenType::ComptimeKw:
             if(comptime) {
                 error("already inside comptime context");
@@ -58,7 +58,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
         case TokenType::ImplKw:
-            return (ASTNode*) parseImplTokens(allocator, spec);
+            return (ASTNode*) parseImplTokens(allocator, mod_allocator, spec);
         case TokenType::TypeKw:
             return (ASTNode*) parseTypealiasStatement(allocator, spec);
         case TokenType::NamespaceKw:
@@ -78,10 +78,10 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::PublicKw:
             token++;
-            return parseTopLevelAccessSpecifiedDecl(global_allocator, AccessSpecifier::Public, comptime);
+            return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Public, comptime);
         case TokenType::ProtectedKw:
             token++;
-            return parseTopLevelAccessSpecifiedDecl(global_allocator, AccessSpecifier::Protected, comptime);
+            return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Protected, comptime);
         case TokenType::PrivateKw:
             token++;
             return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Private, comptime);
@@ -126,13 +126,11 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal);
         case TokenType::ImplKw:
-            return (ASTNode*) parseImplTokens(allocator, AccessSpecifier::Internal);
+            return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal);
         case TokenType::IfKw:
-            // top level if can contain public declarations, which is why it needs to be allocated
-            // on global allocator, so other modules can import nodes inside the if
-            return (ASTNode*) parseIfStatement(global_allocator, false, false, true, true);
+            return (ASTNode*) parseIfStatement(allocator, false, false, true, true);
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true, comptime);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, AccessSpecifier::Internal, true, comptime);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
         case TokenType::ExportKw:

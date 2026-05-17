@@ -35,6 +35,8 @@ public struct Arena {
         }
     }
 
+    // TODO: remove retained, once we have runtime magic val
+    @retained
     func allocate_size(&mut self, size : size_t, align : size_t) : *mut void {
         // Handle alignment
         var p = self.current_ptr as size_t;
@@ -65,6 +67,8 @@ public struct Arena {
         self.cleanup_fns.push(CleanupEntry { instance_ptr : obj as *mut void, cleanup_fn : cleanup_fn })
     }
 
+    // TODO: remove retained, once we have runtime magic val
+    @retained
     public func allocate_with_cleanup(&mut self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
         var obj = allocate_size(obj_size, alignment);
         store_cleanup(obj, cleanup_fn);

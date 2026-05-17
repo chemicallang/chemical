@@ -3,8 +3,8 @@
 #include "parser/Parser.h"
 #include "ast/statements/Export.h"
 
-ASTNode* Parser::parseExportStatement(ASTAllocator& passed_allocator) {
-    auto& allocator = global_allocator;
+ASTNode* Parser::parseExportStatement(ASTAllocator& allocator) {
+
     const auto loc = loc_single(token);
     token++; // move past 'export'
 

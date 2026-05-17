@@ -131,7 +131,7 @@ void Parser::parseIfStatement(
                 // because public nodes inside if stmt still use global allocator and
                 // non public nodes will use this module allocator, because we explicitly
                 // remove these nodes when the module has generated code
-                auto block = parseTopLevelBraceBlock(mod_allocator, "else");
+                auto block = parseTopLevelBraceBlock(allocator, "else");
                 if(block.has_value()) {
                     statement->elseBody = std::move(block.value());
                 } else {

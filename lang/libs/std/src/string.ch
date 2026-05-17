@@ -47,6 +47,8 @@ impl Eq for string {
     }
 }
 
+// TODO: remove retained, once we have runtime magic val support
+@retained
 public struct string {
 
     union {

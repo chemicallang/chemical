@@ -28,9 +28,14 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
-     * using this we check, if non-public generics are being instantiated in public generic declarations
+     * using this we check, if non-retained generics are being instantiated in public generic declarations
      */
     bool is_generic_public_context = false;
+
+    /**
+     * using this we check, if a public comptime function is calling a non-retained function
+     */
+    bool is_public_comptime_context = false;
 
     /**
      * constructor

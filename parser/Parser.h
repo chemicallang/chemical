@@ -922,7 +922,7 @@ public:
      * parses a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool member, bool allow_extensions, bool comptime);
+    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool allow_extensions, bool comptime);
 
     /**
      * parses a interface structure
@@ -947,7 +947,7 @@ public:
     /**
      * parses members of a container, for example (struct / union members) or even compile time if statements
      */
-    void parseContainerMembersInto(VariablesContainerBase* container, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime, bool impl = false);
+    void parseContainerMembersInto(VariablesContainerBase* container, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool comptime, bool impl = false);
 
     /**
      * parses a struct block
@@ -962,7 +962,7 @@ public:
     /**
      * parses variant members and functions into the variant definition
      */
-    bool parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime);
+    bool parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime);
 
     /**
      * parses a struct block
@@ -982,7 +982,7 @@ public:
     /**
      * parses impl token
      */
-    ASTNode* parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier);
 
     /**
      * parses a enum block

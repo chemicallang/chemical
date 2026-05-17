@@ -246,20 +246,11 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool member, bool allow_extensions, bool is_comptime) {
+ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool allow_extensions, bool is_comptime) {
 
     if(!consumeToken(TokenType::FuncKw)) {
         return nullptr;
     }
-
-    // comptime functions must be allocated on global allocator
-    // they can be called from external modules, without being public
-    auto& body_allocator = is_comptime ? global_allocator : passed_allocator;
-    // this allocator is for the prototype
-    // all member functions (inside structs/variants), must allocate prototypes on global allocator
-    // because they can be used with imported public generic structs, which may declare them in another modules (not because of usage)
-    // because generics don't check whether the type being used with it is valid in another module
-    auto& allocator = global_allocator;
 
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("", { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
     annotate(decl);
@@ -380,10 +371,31 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         decl->returnType = { typeBuilder.getVoidType(), location };
     }
 
-    auto block = parseBraceBlock("function", decl, body_allocator);
+    // HARD_RULE:
+    // the body of a comptime function and generic function is allocated on the job allocator
+    // other than that every other function allocates their bodies on the module allocator
+    // unless user explicitly specifies to retain the function for calling it in comptime functions
+    bool use_allocator = false;
+    if (decl->is_body_retained()) {
+        use_allocator = true;
+    } else if (is_comptime || final_node->kind() == ASTNodeKind::GenericFuncDecl) {
+        decl->set_is_body_retained(true);
+        use_allocator = true;
+    } else if (&body_allocator == &allocator) {
+        decl->set_is_body_retained(true);
+        use_allocator = true;
+    }
+    auto& body_allocator_final = use_allocator ? allocator : body_allocator;
+
+    // parsing body
+    auto block = parseBraceBlock("function", decl, body_allocator_final);
     if(block.has_value()) {
         decl->body.emplace(block->parent(), block->encoded_location());
         decl->body->nodes = std::move(block->nodes);
+    } else {
+        if (decl->is_extern()) {
+            decl->set_is_body_retained(true);
+        }
     }
     parent_node = prev_parent_node;
 

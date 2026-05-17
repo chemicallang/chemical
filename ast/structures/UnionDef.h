@@ -19,6 +19,11 @@ struct UnionDeclAttributes {
     bool anonymous = false;
 
     bool is_no_mangle = false;
+    
+    /**
+     * are bodies of functions inside this struct retained across modules
+     */
+    bool retained_body = false;
 
 };
 
@@ -80,6 +85,14 @@ public:
 
     inline void set_no_mangle(bool no_mangle) {
         attrs.is_no_mangle = no_mangle;
+    }
+
+    inline bool is_body_retained() const noexcept {
+        return attrs.retained_body;
+    }
+
+    void set_is_body_retained(bool value) noexcept {
+        attrs.retained_body = value;
     }
 
     UnionDef* shallow_copy(ASTAllocator& allocator) {

@@ -1,4 +1,5 @@
 @direct_init
+@retained
 struct Pair66 {
 
     var a : int
@@ -125,6 +126,7 @@ func ret_struct_implicit_b() : Pair66 {
     return false;
 }
 
+@retained
 struct CompTimeCounter {
     @constructor
     comptime func constructor(thing : %runtime<*mut int>) {

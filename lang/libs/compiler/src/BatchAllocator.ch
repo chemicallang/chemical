@@ -1,5 +1,6 @@
 
 @compiler.interface
+@retained // TODO: remove retained, once we have runtime magic val
 public interface BatchAllocator {
 
     /**
@@ -12,10 +13,12 @@ public interface BatchAllocator {
 
 // adds +1 to size to accomodate for the last null terminator \0 in string
 // allocates string with size
+@retained // TODO: remove retained, once we have runtime magic val
 public func (allocator : &mut BatchAllocator) allocate_str_size(size : size_t) : *mut char {
     return allocator.allocate_size(sizeof(char) * size + 1, alignof(char))
 }
 
+@retained // TODO: remove retained, once we have runtime magic val
 public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : size_t) : *mut char {
     const ptr = allocator.allocate_size(sizeof(char) * (size + 1), alignof(char))
     memcpy(ptr, data, size)
@@ -23,6 +26,7 @@ public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : 
     return ptr;
 }
 
+@retained // TODO: remove retained, once we have runtime magic val
 public func (allocator : &mut BatchAllocator) allocate_view(view : &std::string_view) : std::string_view {
     return std::string_view(allocator.allocate_str(view.data(), view.size()), view.size());
 }

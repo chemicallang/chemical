@@ -1,3 +1,4 @@
+@retained
 public func fnv1a_hash_32(str : *char) : uint {
     var ptr = str;
     var hash : uint = 2166136261U;
@@ -14,6 +15,7 @@ public func fnv1a_hash_32(str : *char) : uint {
     return hash;
 }
 
+@retained
 public func fnv1_hash_view(view : &std::string_view) : size_t {
     var ptr = view.data();
     const end = ptr + view.size()
@@ -27,6 +29,7 @@ public func fnv1_hash_view(view : &std::string_view) : size_t {
     return hash;
 }
 
+@retained
 public func fnv1_hash(s : *char) : size_t {
     var ptr = s;
     var hash : size_t = 0xcbf29ce484222325 as size_t;

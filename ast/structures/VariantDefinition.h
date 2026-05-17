@@ -19,6 +19,11 @@ struct VariantDeclAttributes {
 
     bool is_no_mangle = false;
 
+    /**
+     * are bodies of functions inside this struct retained across modules
+     */
+    bool retained_body = false;
+
 };
 
 class VariantDefinition : public ExtendableMembersContainerNode {
@@ -62,6 +67,7 @@ public:
     inline void set_compiler_decl(bool value) {
         attrs.is_comptime = value;
         attrs.is_compiler_decl = value;
+        attrs.retained_body = value;
     }
 
     inline bool is_deprecated() {
@@ -86,6 +92,14 @@ public:
 
     inline void set_no_mangle(bool no_mangle) {
         attrs.is_no_mangle = no_mangle;
+    }
+
+    inline bool is_body_retained() const noexcept {
+        return attrs.retained_body;
+    }
+
+    void set_is_body_retained(bool value) noexcept {
+        attrs.retained_body = value;
     }
 
     bool is_exported_fast() {

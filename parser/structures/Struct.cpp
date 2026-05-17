@@ -66,7 +66,7 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
             return decl;
         }
 
-        parseContainerMembersInto(decl, allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(decl, allocator, allocator, AccessSpecifier::Public, false);
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
@@ -86,34 +86,9 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
 }
 
-IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier);
+IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier);
 
-std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocator& allocator, const std::string_view& forThing, AccessSpecifier specifier);
-
-UnsafeBlock* parseMemberUnsafeBlock(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
-    auto& tok = *parser.token;
-    if(tok.type == TokenType::UnsafeKw) {
-        parser.token++;
-        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parser.parent_node, parser.loc_single(tok));
-        auto block = parseMemberBraceBlockOrValueNode(parser, allocator, "unsafe_block", specifier);
-        if(block.has_value()) {
-            unsafe->scope = std::move(block.value());
-        } else {
-            parser.error("expected a braced block after 'unsafe' keyword");
-            return nullptr;
-        }
-        return unsafe;
-    } else {
-        return nullptr;
-    }
-}
-
-ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpecifier specifier, bool comptime) {
-    // struct members need to be allocated globally
-    // because they are part of struct prototype, which should always be allocated globally
-    // because structs can be used with imported public generic structs, internal structs would need to be
-    // declared in another module
-    auto& allocator = parser.global_allocator;
+ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool comptime) {
     switch(parser.token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw:
@@ -126,7 +101,7 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& fn_allocat
             if(parser.token->type == TokenType::LBrace) {
                 return (ASTNode*) parser.parseComptimeBlockNoKw(allocator);
             } else {
-                return parseAccessSpecifiedMemberStmt(parser, fn_allocator, specifier, true);
+                return parseAccessSpecifiedMemberStmt(parser, allocator, body_allocator, specifier, true);
             }
         case TokenType::AliasKw:
             return (ASTNode*) parser.parseAliasStatement(allocator, specifier);
@@ -137,18 +112,13 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& fn_allocat
         case TokenType::UnionKw:
             return parser.parseUnnamedUnion(allocator, specifier);
         case TokenType::FuncKw:
-            return parser.parseFunctionStructureTokens(fn_allocator, specifier, true, false, comptime);
+            return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
         default:
             return nullptr;
     }
 }
 
-ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpecifier specifier, bool comptime) {
-    // struct members need to be allocated globally
-    // because they are part of struct prototype, which should always be allocated globally
-    // because structs can be used with imported public generic structs, internal structs would need to be
-    // declared in another module
-    auto& allocator = parser.global_allocator;
+ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool comptime) {
     const auto tokenType = parser.token->type;
     switch(tokenType) {
         case TokenType::VarKw:
@@ -162,16 +132,14 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpeci
             if(parser.token->type == TokenType::LBrace) {
                 return (ASTNode*) parser.parseComptimeBlockNoKw(allocator);
             } else {
-                return parseAccessSpecifiedMemberStmt(parser, fn_allocator, specifier, true);
+                return parseAccessSpecifiedMemberStmt(parser, allocator, body_allocator, specifier, true);
             }
-        case TokenType::UnsafeKw:
-            return (ASTNode*) parseMemberUnsafeBlock(parser, allocator, specifier);
         case TokenType::AliasKw:
             return (ASTNode*) parser.parseAliasStatement(allocator, specifier);
         case TokenType::HashMacro:
             return parser.parseMacroNodeTopLevel(allocator, specifier, CBIFunctionType::ParseMacroMemberNode);
         case TokenType::IfKw:
-            return (ASTNode*) parseMemberIfStatement(parser, allocator, specifier);
+            return (ASTNode*) parseMemberIfStatement(parser, allocator, body_allocator, specifier);
         case TokenType::TypeKw:
             return (ASTNode*) parser.parseTypealiasStatement(allocator, specifier);
         case TokenType::StructKw:{
@@ -181,14 +149,14 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpeci
             return parser.parseUnnamedUnion(allocator, specifier);
         }
         case TokenType::FuncKw: {
-            return parser.parseFunctionStructureTokens(fn_allocator, specifier, true, false, comptime);
+            return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
         }
         default:
             return nullptr;
     }
 }
 
-void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime, bool impl) {
+void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool comptime, bool impl) {
     auto& nodes = decl->get_parsed_nodes_container();
     do {
         const auto tokenType = token->type;
@@ -197,7 +165,7 @@ void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocato
                 token++;
                 continue;
             case TokenType::ImplKw: {
-                const auto node = parseImplTokens(allocator, specifier);
+                const auto node = parseImplTokens(allocator, body_allocator, specifier);
                 if (node) {
                     nodes.emplace_back(node);
                 } else {
@@ -215,7 +183,7 @@ void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocato
                     specifier = get_specifier_from(tokenType);
                     continue;
                 } else {
-                    const auto member = parseAccessSpecifiedMemberStmt(*this, allocator, get_specifier_from(tokenType), comptime);
+                    const auto member = parseAccessSpecifiedMemberStmt(*this, allocator, body_allocator, get_specifier_from(tokenType), comptime);
                     if(member) {
                         nodes.emplace_back(member);
                         consumeToken(TokenType::SemiColonSym);
@@ -228,7 +196,7 @@ void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocato
             default:
                 break;
         }
-        auto member = parseMemberStmt(*this, allocator, specifier, comptime);
+        auto member = parseMemberStmt(*this, allocator, body_allocator, specifier, comptime);
         if(member) {
             nodes.emplace_back(member);
             consumeToken(TokenType::SemiColonSym);
@@ -238,10 +206,10 @@ void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocato
     } while(token->type != TokenType::RBrace);
 }
 
-void parseMultipleMemberStmts(Parser& parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes, AccessSpecifier specifier, bool comptime) {
+void parseMultipleMemberStmts(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, std::vector<ASTNode*>& nodes, AccessSpecifier specifier, bool comptime) {
     while(true) {
         parser.consumeNewLines();
-        auto stmt = parseMemberStmt(parser, allocator, specifier, comptime);
+        auto stmt = parseMemberStmt(parser, allocator, body_allocator, specifier, comptime);
         if(stmt) {
             nodes.emplace_back(stmt);
         } else {
@@ -253,7 +221,7 @@ void parseMultipleMemberStmts(Parser& parser, ASTAllocator& allocator, std::vect
     }
 }
 
-std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocator& allocator, const std::string_view& forThing, AccessSpecifier specifier) {
+std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, const std::string_view& forThing, AccessSpecifier specifier) {
 
     // whitespace and new lines
     parser.consumeNewLines();
@@ -261,7 +229,7 @@ std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocat
     // starting brace
     auto lb = parser.consumeOfType(TokenType::LBrace);
     if (!lb) {
-        auto nested_stmt = parseMemberStmt(parser, allocator, specifier, false);
+        auto nested_stmt = parseMemberStmt(parser, allocator, body_allocator, specifier, false);
         if (nested_stmt) {
             parser.consumeNewLines();
             if (parser.consumeToken(TokenType::SemiColonSym)) {
@@ -275,7 +243,7 @@ std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocat
     Scope scope(parser.parent_node, 0);
 
     // multiple statements
-    parseMultipleMemberStmts(parser, allocator, scope.nodes, specifier, false);
+    parseMultipleMemberStmts(parser, allocator, body_allocator, scope.nodes, specifier, false);
 
     // ending brace
     auto rb = parser.consumeOfType(TokenType::RBrace);
@@ -290,7 +258,7 @@ std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocat
 
 }
 
-std::optional<std::pair<Value*, Scope>> parseMemberIfExprAndBlock(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+std::optional<std::pair<Value*, Scope>> parseMemberIfExprAndBlock(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier) {
 
     auto lp = parser.consumeOfType(TokenType::LParen);
     if (!lp) {
@@ -311,7 +279,7 @@ std::optional<std::pair<Value*, Scope>> parseMemberIfExprAndBlock(Parser& parser
         return std::pair { expr, Scope { parser.parent_node, parser.loc_single(lp) } };
     }
 
-    auto blk = parseMemberBraceBlockOrValueNode(parser, allocator, "if", specifier);
+    auto blk = parseMemberBraceBlockOrValueNode(parser, allocator, body_allocator, "if", specifier);
     if(blk.has_value()) {
         return std::pair { expr, std::move(blk.value()) };
     } else {
@@ -321,7 +289,7 @@ std::optional<std::pair<Value*, Scope>> parseMemberIfExprAndBlock(Parser& parser
 
 }
 
-IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier) {
 
     auto& first = *parser.token;
     if(first.type != TokenType::IfKw) {
@@ -332,7 +300,7 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
 
     auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parser.parent_node, parser.loc_single(first));
 
-    auto exprBlock = parseMemberIfExprAndBlock(parser, allocator, specifier);
+    auto exprBlock = parseMemberIfExprAndBlock(parser, allocator, body_allocator, specifier);
     if(exprBlock.has_value()) {
         auto& exprBlockValue = exprBlock.value();
         statement->condition = exprBlockValue.first;
@@ -348,14 +316,14 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
     while (parser.consumeToken(TokenType::ElseKw)) {
         parser.consumeNewLines();
         if(parser.consumeToken(TokenType::IfKw)) {
-            auto exprBlock2 = parseMemberIfExprAndBlock(parser, allocator, specifier);
+            auto exprBlock2 = parseMemberIfExprAndBlock(parser, allocator, body_allocator, specifier);
             if(exprBlock2.has_value()) {
                 statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
             } else {
                 return statement;
             }
         } else {
-            auto block = parseMemberBraceBlockOrValueNode(parser, allocator, "else", specifier);
+            auto block = parseMemberBraceBlockOrValueNode(parser, allocator, body_allocator, "else", specifier);
             if(block.has_value()) {
                 statement->elseBody = std::move(block.value());
             } else {
@@ -370,15 +338,8 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
 
 }
 
-ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeToken(TokenType::StructKw)) {
-
-        // all the structs are allocated on global allocator
-        // WHY? because when used with imported public generics, the generics tend to instantiate with types
-        // referencing the internal structs, which now must be declared inside another module
-        // because generics don't check whether the type being used with it is valid in another module
-        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
-        auto& allocator = global_allocator;
 
         auto identifier = consumeIdentifierOrKeyword();
         if (!identifier) {
@@ -435,7 +396,19 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
             return final_decl;
         }
 
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false, true);
+        bool use_allocator = false;
+        if (decl->is_body_retained()) {
+            use_allocator = true;
+        } else if (final_decl->kind() == ASTNodeKind::GenericStructDecl) {
+            use_allocator = true;
+            decl->set_is_body_retained(true);
+        }
+
+        // bodies of functions will be allocated on the passed allocator only if
+        // containing is a generic struct, otherwise we can allocate on mod_allocator
+        auto& body_allocator = use_allocator ? allocator : mod_allocator;
+
+        parseContainerMembersInto(decl, allocator, body_allocator, AccessSpecifier::Public, false, true);
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");

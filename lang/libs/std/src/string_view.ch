@@ -1,5 +1,7 @@
 public namespace std {
 
+    // TODO: remove retained, once we have runtime magic value support
+    @retained
     public struct string_view {
 
         var _data : *char

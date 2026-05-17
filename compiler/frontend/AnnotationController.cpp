@@ -157,6 +157,29 @@ void annot_handler_const(Parser* parser, ASTNode* node, std::vector<Value*>& arg
     // TODO: not yet implemented
 }
 
+void annot_handler_retained(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    switch(node->kind()) {
+        case ASTNodeKind::FunctionDecl:
+            node->as_function_unsafe()->set_is_body_retained(true);
+            return;
+        case ASTNodeKind::StructDecl:
+            node->as_struct_def_unsafe()->set_is_body_retained(true);
+            return;
+        case ASTNodeKind::UnionDecl:
+            node->as_union_def_unsafe()->set_is_body_retained(true);
+            return;
+        case ASTNodeKind::VariantDecl:
+            node->as_variant_def_unsafe()->set_is_body_retained(true);
+            return;
+        case ASTNodeKind::InterfaceDecl:
+            node->as_interface_def_unsafe()->set_is_body_retained(true);
+            return;
+        default:
+            parser->error("couldn't make the node 'retained'");
+            return;
+    }
+}
+
 void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_no_mangle(true)) {
         parser->error("couldn't make the node no_mangle");
@@ -299,6 +322,7 @@ void AnnotationController::initialize() {
             { "no_init", { annot_handler_no_init, "no_init", AnnotationDefType::Handler } },
             { "anonymous", { annot_handler_anonymous, "anonymous", AnnotationDefType::Handler } },
             { "const", { annot_handler_const, "const", AnnotationDefType::Handler } },
+            { "retained", { annot_handler_retained, "retained", AnnotationDefType::Handler } },
             { "extern", { annot_handler_extern, "extern", AnnotationDefType::Handler } },
             { "implicit", { annot_handler_implicit, "implicit", AnnotationDefType::Handler } },
             { "direct_init", { annot_handler_direct_init, "direct_init", AnnotationDefType::Handler } },

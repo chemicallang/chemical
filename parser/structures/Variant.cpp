@@ -80,7 +80,7 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
     }
 }
 
-bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime) {
+bool Parser::parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime) {
     auto annotation = parseAnnotation(allocator);
     if(annotation) {
         return true;
@@ -96,10 +96,10 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
                 def->get_parsed_nodes_container().emplace_back(blk);
                 return true;
             } else {
-                return parseAnyVariantMember(allocator, def, specifier, true);
+                return parseAnyVariantMember(allocator, body_allocator, def, specifier, true);
             }
         case TokenType::ImplKw: {
-            const auto implNode = parseImplTokens(allocator, specifier);
+            const auto implNode = parseImplTokens(allocator, body_allocator, specifier);
             if (implNode) {
                 def->get_parsed_nodes_container().emplace_back(implNode);
                 return true;
@@ -108,7 +108,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
             }
         }
         case TokenType::FuncKw: {
-            const auto func = parseFunctionStructureTokens(allocator, specifier, true, false, comptime);
+            const auto func = parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
             if(func) {
                 def->get_parsed_nodes_container().emplace_back(func);
                 return true;
@@ -116,7 +116,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
             break;
         }
         default:
-            auto variantMember = parseVariantMember(global_allocator, def);
+            auto variantMember = parseVariantMember(allocator, def);
             if(variantMember) {
 //                def->get_parsed_nodes_container().emplace_back(variantMember);
                 if(!def->insert_variable(variantMember)) {
@@ -128,7 +128,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
     return false;
 }
 
-ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeToken(TokenType::VariantKw)) {
 
         auto id = consumeIdentifierOrKeyword();
@@ -136,13 +136,6 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
             error("expected a identifier as struct name");
             return nullptr;
         }
-
-        // all the structs are allocated on global allocator
-        // WHY? because when used with imported public generics, the generics tend to instantiate with types
-        // referencing the internal structs, which now must be declared inside another module
-        // because generics don't check whether the type being used with it is valid in another module
-        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
-        auto& allocator = global_allocator;
 
         const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, loc_single(id), specifier);
         annotate(decl);
@@ -175,6 +168,18 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
 
         }
 
+        bool use_allocator = false;
+        if (decl->is_body_retained()) {
+            use_allocator = true;
+        } else if (finalDecl->kind() == ASTNodeKind::GenericVariantDecl) {
+            use_allocator = true;
+            decl->set_is_body_retained(true);
+        }
+
+        // bodies of functions will be allocated on the passed allocator only if
+        // containing is a generic struct, otherwise we can allocate on mod_allocator
+        auto& body_allocator = use_allocator ? allocator : mod_allocator;
+
         // parsing the inheritance list
         if(consumeToken(TokenType::ColonSym)) {
             do {
@@ -195,7 +200,7 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
 
         do {
             consumeNewLines();
-            if(parseAnyVariantMember(passed_allocator, decl, AccessSpecifier::Public, false)) {
+            if(parseAnyVariantMember(allocator, body_allocator, decl, AccessSpecifier::Public, false)) {
                 switch(token->type) {
                     case TokenType::SemiColonSym:
                     case TokenType::CommaSym:

@@ -159,6 +159,13 @@ struct FuncDeclAttributes {
      */
     bool dll_export = false;
 
+    /**
+     * is body retained across modules, if this is false
+     * the body of the function is dropped after the module has compiled
+     * the dependent module must not instantiate this function or call it using comptime
+     */
+    bool retained_body = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -235,6 +242,7 @@ public:
     inline void set_compiler_decl(bool value) {
         attrs.is_comptime = value;
         attrs.is_compiler_decl = value;
+        attrs.retained_body = value;
     }
 
     inline void set_specifier_fast(AccessSpecifier specifier) {
@@ -391,6 +399,14 @@ public:
 
     inline void set_is_generated_fn(bool value) {
         attrs.is_generated = value;
+    }
+
+    inline bool is_body_retained() {
+        return attrs.retained_body;
+    }
+
+    inline void set_is_body_retained(bool value) {
+        attrs.retained_body = value;
     }
 
     inline bool is_auto_called_func() {

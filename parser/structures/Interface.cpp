@@ -8,7 +8,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 
-ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
 
@@ -20,13 +20,6 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
             unexpected_error("expected interface name after the interface keyword");
             return nullptr;
         }
-
-        // all the structs are allocated on global allocator
-        // WHY? because when used with imported public generics, the generics tend to instantiate with types
-        // referencing the internal structs, which now must be declared inside another module
-        // because generics don't check whether the type being used with it is valid in another module
-        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
-        auto& allocator = global_allocator;
 
         auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
         annotate(decl);
@@ -76,8 +69,24 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
             return finalDecl;
         }
 
+        bool use_allocator = false;
+        if (decl->is_body_retained()) {
+            use_allocator = true;
+        } else if (finalDecl->kind() == ASTNodeKind::GenericInterfaceDecl) {
+            use_allocator = true;
+            decl->set_is_body_retained(true);
+        } else if (is_linkage_public(specifier)) {
+            // default implementations exist in interface methods that must be kept cross module for instantiations
+            use_allocator = true;
+            decl->set_is_body_retained(false);
+        }
+
+        // bodies of functions will be allocated on the passed allocator only if
+        // container is a generic interface, otherwise we can allocate on mod_allocator
+        auto& body_allocator = use_allocator ? allocator : mod_allocator;
+
         parent_node = finalDecl;
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(decl, allocator, body_allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {

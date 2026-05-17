@@ -67,6 +67,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
     return null;
 }
 
+@retained
 public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
 
     if(argc == 0) {

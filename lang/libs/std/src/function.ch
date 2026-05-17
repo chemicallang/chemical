@@ -2,6 +2,7 @@ public namespace std {
 
 public type destructor_type = (obj : *mut void) => void
 
+@retained
 public struct default_function_instance {
 
     // the pointer to function we are going to call

@@ -83,34 +83,117 @@ void TypeVerifier::VisitPlacementNewValue(PlacementNewValue *value) {
     verify_placement_new(diagnoser, { value->pointer->getType(), value->pointer->encoded_location() }, value->value);
 }
 
+constexpr auto NonPublicDeclCallError = "calling a non-public function in a public generic declaration is not allowed, please use public/protected";
+constexpr auto NonPublicDeclError = "non-public decl is being called in a public generic context, please use public/protected";
+
+constexpr auto NonRetainedDeclCallError = "calling a non-retained function in a public generic declaration is not allowed, please use @retained annotation";
+constexpr auto NonRetainedDeclError = "non-retained decl is being called in a public generic context, please use @retained annotation";
+
+constexpr auto NonRetainedDeclCallComptimeError = "calling a non-retained function in a public comptime declaration is not allowed, please use @retained annotation";
+constexpr auto NonRetainedDeclComptimeError = "non-retained decl is being called in a public comptime context, please use @retained annotation";
+
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     if (is_generic_public_context) {
         const auto last_linked = call->parent_val->get_chain_last_linked();
         if (last_linked) {
             switch (last_linked->kind()) {
+                case ASTNodeKind::FunctionDecl: {
+                    if (last_linked->as_function_unsafe()->is_comptime()) {
+                        break;
+                    }
+                    if (!is_linkage_public(last_linked->as_function_unsafe()->specifier())) {
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(last_linked) << NonRetainedDeclError;
+                    }
+                    break;
+                }
                 case ASTNodeKind::GenericFuncDecl: {
+                    if (last_linked->as_gen_func_decl_unsafe()->master_impl->is_comptime()) {
+                        break;
+                    }
                     if (!is_linkage_public(last_linked->as_gen_func_decl_unsafe()->master_impl->specifier())) {
-                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(last_linked) << NonRetainedDeclError;
                     }
                     break;
                 }
                 case ASTNodeKind::GenericStructDecl: {
                     if (!is_linkage_public(last_linked->as_gen_struct_def_unsafe()->master_impl->specifier())) {
-                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(last_linked) << NonRetainedDeclError;
                     }
                     break;
                 }
                 case ASTNodeKind::GenericUnionDecl: {
                     if (!is_linkage_public(last_linked->as_gen_union_decl_unsafe()->master_impl->specifier())) {
-                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(last_linked) << NonRetainedDeclError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericVariantDecl: {
+                    if (!is_linkage_public(last_linked->as_gen_variant_decl_unsafe()->master_impl->specifier())) {
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(last_linked) << NonRetainedDeclError;
                     }
                     break;
                 }
                 case ASTNodeKind::VariantMember: {
                     const auto p = last_linked->as_variant_member_unsafe()->parent();
-                    if (p->generic_parent && !is_linkage_public(p->generic_parent->as_gen_variant_decl_unsafe()->specifier())) {
-                        diagnoser.error(call) << "calling a non-public function in a public generic declaration is not allowed, please use public / protected";
+                    if (p->generic_parent && !p->generic_parent->as_gen_variant_decl_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallError;
+                        diagnoser.info(p) << NonRetainedDeclError;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    if (is_public_comptime_context) {
+        const auto last_linked = call->parent_val->get_chain_last_linked();
+        if (last_linked) {
+            switch (last_linked->kind()) {
+                case ASTNodeKind::FunctionDecl: {
+                    if (!last_linked->as_function_unsafe()->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(last_linked) << NonRetainedDeclComptimeError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericFuncDecl: {
+                    if (!last_linked->as_gen_func_decl_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(last_linked) << NonRetainedDeclComptimeError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericStructDecl: {
+                    if (!last_linked->as_gen_struct_def_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(last_linked) << NonRetainedDeclComptimeError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericUnionDecl: {
+                    if (!last_linked->as_gen_union_decl_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(last_linked) << NonRetainedDeclComptimeError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::GenericVariantDecl: {
+                    if (!last_linked->as_gen_variant_decl_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(last_linked) << NonRetainedDeclComptimeError;
+                    }
+                    break;
+                }
+                case ASTNodeKind::VariantMember: {
+                    const auto p = last_linked->as_variant_member_unsafe()->parent();
+                    if (p->generic_parent && !p->generic_parent->as_gen_variant_decl_unsafe()->master_impl->is_body_retained()) {
+                        diagnoser.error(call) << NonRetainedDeclCallComptimeError;
+                        diagnoser.info(p) << NonRetainedDeclComptimeError;
                     }
                     break;
                 }
@@ -387,10 +470,17 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
             }
         }
     }
+    const auto prev_pub_comptime = is_public_comptime_context;
+    is_public_comptime_context = prev_pub_comptime || (decl->is_comptime() && is_linkage_public(decl->specifier()));
+
     const auto prev = current_func_type;
     current_func_type = decl;
+
     RecursiveVisitor::VisitFunctionDecl(decl);
+
     current_func_type = prev;
+    is_public_comptime_context = prev_pub_comptime;
+
 }
 
 void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {

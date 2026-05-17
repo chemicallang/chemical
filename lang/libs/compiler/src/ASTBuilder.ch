@@ -602,6 +602,7 @@ public type CrossModuleSymbolDeclarerFn = (obj : *mut void, name : &std::string_
 public type CrossModuleSymbolDeclarerProxyFn = (obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) => void
 
 @compiler.interface
+@retained
 public struct ASTBuilder {
 
     var allocator : *mut BatchAllocator
@@ -879,6 +880,7 @@ public struct ASTBuilder {
 
 }
 
+@retained
 public func (builder : &mut ASTBuilder) allocate_size(obj_size : size_t, alignment : size_t) : *mut char {
     return builder.allocator.allocate_size(obj_size, alignment);
 }

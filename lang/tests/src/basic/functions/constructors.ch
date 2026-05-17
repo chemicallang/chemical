@@ -34,6 +34,8 @@ struct constructable_obj_comptime {
     }
 
     @constructor
+    // TODO: remove retained, once we have runtime magic val
+    @retained
     func constructor(value : *char, length : size_t) {
         return constructable_obj_comptime {
             data = null;

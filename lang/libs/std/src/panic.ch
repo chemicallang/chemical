@@ -4,6 +4,7 @@ public struct Location {
     var character : uint
 }
 
+@retained
 public func raw_panic(message : *char, location : Location) {
     printf("panic with message '%s' at '%s:%d:%d'\n", message, location.filename, location.line, location.character);
     abort()

@@ -271,14 +271,14 @@ void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
         if (res == NamespaceMergeResult::Merge) {
             const auto root = previous->as_namespace_unsafe();
             ns->root = root;
-            // namespace attributes are propagated to all namespaces with same name ?
-            // TODO propagate namespace attributes
-            // attrs = root->attrs;
             if (ns->specifier() < root->specifier()) {
                 linker.error(ns) << "access specifier of this namespace must be at least '"
                                    << to_string(root->specifier()) << "' to match previous";
                 return;
             }
+            // namespace attributes are propagated to all namespaces with same name ?
+            // TODO propagate namespace attributes
+            // attrs = root->attrs;
             linker.scope_start();
             root->declare_extended_in_linker(linker);
             for (auto& node: ns->nodes) {

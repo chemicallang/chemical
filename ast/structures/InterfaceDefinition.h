@@ -59,9 +59,12 @@ struct InterfaceDefinitionAttrs {
      */
     bool non_dyn = false;
 
-};
+    /**
+     * are bodies of functions inside this struct retained across modules
+     */
+    bool retained_body = false;
 
-static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
+};
 
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
@@ -169,6 +172,14 @@ public:
 
     inline void set_non_dynamic(bool value) {
         attrs.non_dyn = value;
+    }
+
+    inline bool is_body_retained() const noexcept {
+        return attrs.retained_body;
+    }
+
+    void set_is_body_retained(bool value) noexcept {
+        attrs.retained_body = value;
     }
 
     inline bool generates_vtable() {

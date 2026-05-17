@@ -239,6 +239,8 @@ func send_lambda_struct(data : int, count : *mut int, lamb : (d : Destructible) 
 
 var my_string_destr_count : int = 0
 
+// TODO: remove retained, once we have runtime magic val
+@retained
 struct my_string {
 
     @constructor

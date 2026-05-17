@@ -494,6 +494,8 @@ public namespace lab {
         return final;
     }
 
+    // TODO: remove retained, once runtime magic val support is available
+    @retained
     public func curr_dir_of(path : *char, len : size_t) : std::string {
         return parent_path(std::string_view(path, len))
     }
@@ -505,6 +507,8 @@ public namespace lab {
         return intrinsics::wrap(curr_dir_of(loc_path, loc_path_size)) as std::string
     }
 
+    // TODO: remove retained, once runtime magic val support is available
+    @retained
     public func view_of(path : *char, len : size_t) : std::string_view {
         return std::string_view(path, len)
     }
@@ -516,6 +520,8 @@ public namespace lab {
         return intrinsics::wrap(view_of(loc_path, loc_path_size)) as std::string_view
     }
 
+    // TODO: remove retained, once runtime magic val support is available
+    @retained
     public func appended_str(str : std::string, path : *char) : std::string {
         str.append_char_ptr(path)
         return str;

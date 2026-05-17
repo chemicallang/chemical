@@ -69,6 +69,11 @@ struct StructDeclAttributes {
      */
     bool is_extern = false;
 
+    /**
+     * are bodies of functions inside this struct retained across modules
+     */
+    bool retained_body = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -118,6 +123,7 @@ public:
     inline void set_compiler_decl(bool value) noexcept {
         attrs.is_comptime = value;
         attrs.is_compiler_decl = value;
+        attrs.retained_body = value;
     }
 
     inline bool is_direct_init() const noexcept {
@@ -174,6 +180,14 @@ public:
 
     inline void set_extern(bool value) noexcept {
         attrs.is_extern = value;
+    }
+
+    inline bool is_body_retained() const noexcept {
+        return attrs.retained_body;
+    }
+
+    void set_is_body_retained(bool value) noexcept {
+        attrs.retained_body = value;
     }
 
     inline bool has_destructor() {

@@ -92,7 +92,7 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
 }
 
 void Parser::parse(std::vector<ASTNode*>& nodes) {
-    parseTopLevelMultipleStatements(mod_allocator, nodes);
+    parseTopLevelMultipleStatements(global_allocator, nodes);
 }
 
 Value* Parser::getErroredValue(ASTAllocator& allocator) {

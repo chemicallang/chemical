@@ -23,7 +23,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
         auto prev_parent_node = parent_node;
         parent_node = decl;
-        parseContainerMembersInto(decl, allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(decl, allocator, allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 
         if(!consumeToken(TokenType::RBrace)) {
@@ -45,7 +45,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     if(consumeToken(TokenType::UnionKw)) {
 
@@ -54,13 +54,6 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
             error("expected a identifier as struct name");
             return nullptr;
         }
-
-        // all the structs are allocated on global allocator
-        // WHY? because when used with imported public generics, the generics tend to instantiate with types
-        // referencing the internal structs, which now must be declared inside another module
-        // because generics don't check whether the type being used with it is valid in another module
-        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
-        auto& allocator = global_allocator;
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
         annotate(decl);
@@ -98,7 +91,19 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
             return finalDecl;
         }
 
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false, true);
+        bool use_allocator = false;
+        if (decl->is_body_retained()) {
+            use_allocator = true;
+        } else if (finalDecl->kind() == ASTNodeKind::GenericUnionDecl) {
+            use_allocator = true;
+            decl->set_is_body_retained(true);
+        }
+
+        // bodies of functions will be allocated on the passed allocator only if
+        // containing is a generic struct, otherwise we can allocate on mod_allocator
+        auto& body_allocator = use_allocator ? allocator : mod_allocator;
+
+        parseContainerMembersInto(decl, allocator, body_allocator, AccessSpecifier::Public, false, true);
 
         parent_node = prev_parent_node;
 

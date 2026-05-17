@@ -250,6 +250,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
             child->linked = (ASTNode*) linker.get_unresolved_decl();
             child->setType(child->linked->known_type());
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
+            linker.info(parent) << "declaration doesn't contain child by name '" << child->value << "'";
             parent = child->linked;
         }
         i++;

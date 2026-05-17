@@ -209,12 +209,68 @@ void TopLevelDeclSymDeclare::VisitInterfaceDecl(InterfaceDefinition* node) {
     linker.declare_node(node->name_view(), node, node->specifier(), false);
 }
 
+enum class NamespaceMergeResult {
+    Duplicate,
+    Merge,
+    NoMerge
+};
+
+bool namespace_parent_chain_equals(Namespace* p1, Namespace* p2) {
+    if (p1->name_view() != p2->name_view()) {
+        return false;
+    }
+    const auto pp1 = p1->parent();
+    const auto pp2 = p2->parent();
+    // both of them have no parents -> equal
+    if (pp1 == nullptr && pp2 == nullptr) return true;
+    // one of them has a parent -> not equal
+    if (pp1 == nullptr || pp2 == nullptr) return false;
+    // parents don't have the same kind -> not equal
+    if (pp1->kind() != pp2->kind()) return false;
+    // both have namespace as parents (keep comparing)
+    if (pp1->kind() == ASTNodeKind::NamespaceDecl) return namespace_parent_chain_equals(pp1->as_namespace_unsafe(), pp2->as_namespace_unsafe());
+    // both can have file scope as parent (different files still mean equal parent chains)
+    return true;
+}
+
+NamespaceMergeResult merge_namespace_result(ASTNode* previous, Namespace* ns) {
+    if (previous->kind() != ASTNodeKind::NamespaceDecl) {
+        // previous is not a namespace
+        // if current namespace is namespaced, just don't merge
+        const auto p = ns->parent();
+        if (p && p->kind() == ASTNodeKind::NamespaceDecl) {
+            return NamespaceMergeResult::NoMerge;
+        }
+        return NamespaceMergeResult::Duplicate;
+    }
+    const auto prev_ns = previous->as_namespace_unsafe();
+    const auto p = ns->parent();
+    if (p && p->kind() == ASTNodeKind::NamespaceDecl) {
+        const auto pp = prev_ns->parent();
+        if (pp == nullptr) return NamespaceMergeResult::NoMerge;
+        // current is namespaced, previous is not
+        if (pp->kind() != ASTNodeKind::NamespaceDecl) {
+            return NamespaceMergeResult::NoMerge;
+        }
+        // don't merge namespaces that are in separate namespaces themselves (must have same no of parents & namespaces must have same names)
+        if (!namespace_parent_chain_equals(p->as_namespace_unsafe(), pp->as_namespace_unsafe())) {
+            return NamespaceMergeResult::NoMerge;
+        }
+    }
+    return NamespaceMergeResult::Merge;
+}
+
 void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
-    auto& root = ns->root;
     auto previous = linker.find(ns->name());
     if (previous) {
-        root = previous->as_namespace();
-        if (root) {
+        const auto res = merge_namespace_result(previous, ns);
+        if (res == NamespaceMergeResult::Duplicate) {
+            linker.dup_sym_error(ns->name(), previous, ns);
+            return;
+        }
+        if (res == NamespaceMergeResult::Merge) {
+            const auto root = previous->as_namespace_unsafe();
+            ns->root = root;
             // namespace attributes are propagated to all namespaces with same name ?
             // TODO propagate namespace attributes
             // attrs = root->attrs;
@@ -233,23 +289,22 @@ void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
                 ::declare_node(declarer, node, AccessSpecifier::Private);
             }
             linker.scope_end();
-        } else {
-            linker.dup_sym_error(ns->name(), previous, ns);
+            return;
         }
-    } else {
-        linker.declare_node(ns->name(), ns, ns->specifier(), false);
-        linker.scope_start();
-        // declare top level all nodes inside the namespace
-        for (auto& node: ns->nodes) {
-            visit(node);
-        }
-        // we do not check for duplicate symbols here, because nodes are being declared first time
-        MapSymbolDeclarer declarer(ns->extended);
-        for (const auto node: ns->nodes) {
-            ::declare_node(declarer, node, AccessSpecifier::Private);
-        }
-        linker.scope_end();
     }
+    // no merge:
+    linker.declare_node(ns->name(), ns, ns->specifier(), false);
+    linker.scope_start();
+    // declare top level all nodes inside the namespace
+    for (auto& node: ns->nodes) {
+        visit(node);
+    }
+    // we do not check for duplicate symbols here, because nodes are being declared first time
+    MapSymbolDeclarer declarer(ns->extended);
+    for (const auto node: ns->nodes) {
+        ::declare_node(declarer, node, AccessSpecifier::Private);
+    }
+    linker.scope_end();
 }
 
 void TopLevelDeclSymDeclare::VisitStructMember(StructMember* node) {

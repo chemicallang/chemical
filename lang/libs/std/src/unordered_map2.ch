@@ -167,6 +167,23 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         return false;
     }
 
+    // Remove all key-value pairs
+    func clear(&mut self) : void {
+        for (var i = 0; i < capacity; i++) {
+            var currentNode = table[i];
+            while (currentNode != null) {
+                var nextNode = currentNode.next;
+                // Call destructors on the key and value before freeing the node
+                destruct &currentNode.key;
+                destruct &currentNode.value;
+                dealloc currentNode;
+                currentNode = nextNode;
+            }
+            table[i] = null;
+        }
+        _size = 0;
+    }
+
     // Get the size of the map
     func size(&self) : size_t {
         return _size;

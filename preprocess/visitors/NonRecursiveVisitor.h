@@ -322,6 +322,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitBitwiseNot(BitwiseNot* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitNullValue(NullValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -790,6 +794,9 @@ public:
             case ValueKind::NotValue:
                 static_cast<Derived*>(this)->VisitNotValue((NotValue*) value);
                 return;
+            case ValueKind::BitwiseNot:
+                static_cast<Derived*>(this)->VisitBitwiseNot((BitwiseNot*) value);
+                return;
             case ValueKind::NullValue:
                 static_cast<Derived*>(this)->VisitNullValue((NullValue*) value);
                 return;
@@ -1175,6 +1182,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(NotValue* value) {
         static_cast<Derived*>(this)->VisitNotValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BitwiseNot* value) {
+        static_cast<Derived*>(this)->VisitBitwiseNot(value);
     }
     inline void VisitByPtrTypeNoNullCheck(NullValue* value) {
         static_cast<Derived*>(this)->VisitNullValue(value);

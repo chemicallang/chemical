@@ -134,6 +134,8 @@ extern "C" {
 
     NotValue* ASTBuildermake_not_value(ASTBuilder* builder, Value* value, uint64_t location);
 
+    BitwiseNot* ASTBuildermake_bitwise_not(ASTBuilder* builder, Value* value, uint64_t location);
+
     NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location);
 
     IntNumValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location);

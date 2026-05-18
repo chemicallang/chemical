@@ -53,6 +53,10 @@ public interface Not<Output> {
     func not(&self) : Output;
 }
 
+public interface BitNot<Output> {
+    func bitnot(&self) : Output;
+}
+
 public interface Increment {
     // ++x
     func inc_pre(&mut self) : &Self;

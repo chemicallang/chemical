@@ -89,6 +89,7 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/Negative.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/BlockValue.h"
@@ -179,6 +180,10 @@ public:
     }
 
     void VisitNotValue(NotValue* value) {
+        visit_it(value->getValue());
+    }
+
+    void VisitBitwiseNot(BitwiseNot* value) {
         visit_it(value->getValue());
     }
 

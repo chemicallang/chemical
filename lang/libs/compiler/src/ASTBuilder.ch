@@ -266,6 +266,8 @@ public struct NegativeValue : Value {}
 
 public struct NotValue : Value {}
 
+public struct BitwiseNot : Value {}
+
 public struct NullValue : Value {}
 
 public struct NumberValue : Value {}
@@ -779,6 +781,8 @@ public struct ASTBuilder {
     func make_negative_value(&self, value : *Value, location : ubigint) : *mut NegativeValue
 
     func make_not_value(&self, value : *Value, location : ubigint) : *mut NotValue
+
+    func make_bitwise_not(&self, value : *Value, location : ubigint) : *mut BitwiseNot
 
     func make_null_value(&self, location : ubigint) : *mut NullValue
 

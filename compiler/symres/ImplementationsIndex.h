@@ -85,6 +85,8 @@ public:
 
     FunctionDeclaration* get_not_op_impl(CoreNodes& coreNodes, MembersContainer* container);
 
+    FunctionDeclaration* get_bitnot_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+
     FunctionDeclaration* get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container);
 
     FunctionDeclaration* get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container);

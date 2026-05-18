@@ -21,6 +21,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "MaybeRuntimeType.h"
 #include "RuntimeType.h"
 

@@ -551,6 +551,11 @@ void GenericInstantiator::VisitNotValue(NotValue* value) {
     value->determine_type(diagnoser, coreNodes, implsIndex);
 }
 
+void GenericInstantiator::VisitBitwiseNot(BitwiseNot* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitBitwiseNot(value);
+    value->determine_type(diagnoser, coreNodes, implsIndex);
+}
+
 static bool embedded_traverse(void* data, ASTAny* item) {
     const auto visitor = static_cast<GenericInstantiator*>(data);
     switch(item->any_kind()) {

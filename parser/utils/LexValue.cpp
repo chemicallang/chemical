@@ -813,6 +813,8 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return (Value*) parseNumberValue(allocator);
         case TokenType::NotSym:
             return (Value*) parseNotValue(allocator);
+        case TokenType::BitNotSym:
+            return (Value*) parseBitwiseNot(allocator);
         case TokenType::MinusSym:
             return (Value*) parseNegativeValue(allocator);
         case TokenType::HashMacro:
@@ -853,6 +855,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseParenExpression(allocator);
         case TokenType::NotSym:
             return parseAfterValue(allocator, (Value*) parseNotValue(allocator));
+        case TokenType::BitNotSym:
+            return parseAfterValue(allocator, (Value*) parseBitwiseNot(allocator));
         case TokenType::MinusSym:
             return parseAfterValue(allocator, (Value*) parseNegativeValue(allocator));
         case TokenType::HashMacro:

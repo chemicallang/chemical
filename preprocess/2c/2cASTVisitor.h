@@ -789,6 +789,8 @@ public:
 
     void VisitNotValue(NotValue* value);
 
+    void VisitBitwiseNot(BitwiseNot* value);
+
     void VisitNullValue(NullValue* value);
 
     void VisitSizeOfValue(SizeOfValue* value);

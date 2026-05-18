@@ -41,6 +41,7 @@ const auto CmpLTEOpCStr = "<=";
 const auto BitwiseAndOpCStr = "&";
 const auto BitwiseOrOpCStr = "|";
 const auto BitwiseXOROpCStr = "^";
+const auto BitwiseNotOpCStr = "~";
 const auto LeftShiftOpCStr = "<<";
 const auto RightShiftOpCStr = ">>";
 const auto ScopeResOpCStr = "::";
@@ -813,6 +814,8 @@ Token Lexer::getNextToken() {
             return Token(TokenType::ModSym, view_str(ModOpCStr), pos);
         case '^':
             return Token(TokenType::CaretUpSym, view_str(BitwiseXOROpCStr), pos);
+        case '~':
+            return Token(TokenType::BitNotSym, view_str(BitwiseNotOpCStr), pos);
         case '!':
             if(provider.increment('=')) {
                 return Token(TokenType::NotEqualSym, view_str(CmpNotEqualOpCStr), pos);

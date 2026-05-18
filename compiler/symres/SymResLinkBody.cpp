@@ -396,6 +396,7 @@ bool is_assignable(Value* lhs) {
         case ValueKind::Double:
         case ValueKind::NullValue:
         case ValueKind::NotValue:
+        case ValueKind::BitwiseNot:
         case ValueKind::NegativeValue:
         case ValueKind::NewValue:
         case ValueKind::NewTypedValue:
@@ -1931,6 +1932,8 @@ Value* getNonComptimeValueByKind(BaseType* type, Value* value) {
             return getNonComptimeValue(type, value->as_negative_value_unsafe()->getValue());
         case ValueKind::NotValue:
             return getNonComptimeValue(type, value->as_negative_value_unsafe()->getValue());
+        case ValueKind::BitwiseNot:
+            return getNonComptimeValue(type, value->as_bitwise_not_unsafe()->getValue());
         case ValueKind::ArrayValue: {
             auto& values = value->as_array_value_unsafe()->values;
             if(values.empty()) {
@@ -3115,6 +3118,12 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
     // determine the type of not value
+    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
+}
+
+void SymResLinkBody::VisitBitwiseNot(BitwiseNot* value) {
+    visit(value->getValue());
+    // determine the type of bitwise not value
     value->determine_type(linker, linker.coreNodes, linker.implsIndex);
 }
 

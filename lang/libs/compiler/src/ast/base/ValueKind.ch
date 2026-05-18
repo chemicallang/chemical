@@ -27,6 +27,7 @@ public enum ValueKind {
     FunctionCall,
     NegativeValue,
     NotValue,
+    BitwiseNot,
     NullValue,
     SizeOfValue,
     UnsafeValue,

@@ -40,6 +40,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
@@ -452,6 +453,48 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 
 void NotValue::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) {
     value->llvm_conditional_branch(gen, otherwise_block, then_block);
+}
+
+llvm::Value *BitwiseNot::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto val_type = value->getType();
+    const auto can_node = val_type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            const auto func = gen.implsIndex.get_bitnot_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return gen.builder->getInt32(0);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            return called ? called : gen.builder->getInt32(0);
+        }
+    }
+    const auto val = value->llvm_value(gen);
+    return gen.builder->CreateNot(val);
+}
+
+llvm::AllocaInst* BitwiseNot::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    const auto val_type = value->getType();
+    const auto can_node = val_type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            const auto func = gen.implsIndex.get_bitnot_op_impl(gen.coreNodes, container);
+            if (func == nullptr) {
+                gen.error(this) << "couldn't find operator overload implementation";
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            const auto called = call_single_param_op_impl(gen, func, value);
+            if (called == nullptr) return Value::llvm_allocate(gen, identifier, expected_type);
+            if(llvm::isa<llvm::AllocaInst>(called)) {
+                return (llvm::AllocaInst*) called;
+            } else {
+                return Value::llvm_alloca_store(gen, expected_type, called);
+            }
+        }
+    }
+    return Value::llvm_allocate(gen, identifier, expected_type);
 }
 
 llvm::AllocaInst* NotValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {

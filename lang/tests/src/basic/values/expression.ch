@@ -552,6 +552,20 @@ func test_bodmas() {
         return !(c1 < 0x20u8 || c1 >= 0x80u8)
     })
 
+    test("bitwise not on compile-time integer zero", () => {
+        return ~0 == 0xFFFFFFFFFFFFFFFF
+    })
+    test("bitwise not on compile-time integer one", () => {
+        // ~1 on uint64 = 0xFFFFFFFFFFFFFFFE
+        return ~1 == 0xFFFFFFFFFFFFFFFE
+    })
+    test("bitwise not on variable", () => {
+        var x : int = 42
+        var y = ~x
+        // ~42 = -43 in two's complement for signed int
+        return y == ~42
+    })
+
 }
 
 // test vectors (., .., a, .a)

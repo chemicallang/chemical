@@ -32,6 +32,7 @@
 #include "ast/values/IsValue.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/VariableIdentifier.h"
@@ -371,6 +372,10 @@ NegativeValue* ASTBuildermake_negative_value(ASTBuilder* builder, Value* value, 
 
 NotValue* ASTBuildermake_not_value(ASTBuilder* builder, Value* value, uint64_t location) {
     return new (builder->allocate<NotValue>()) NotValue(value, location);
+}
+
+BitwiseNot* ASTBuildermake_bitwise_not(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<BitwiseNot>()) BitwiseNot(value, location);
 }
 
 NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location) {

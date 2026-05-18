@@ -381,36 +381,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              var container = node as *mut JsJSXExpressionContainer
              if(converter.target == BufferType.HTML) {
                  if(container.expression != null) {
-                     if(container.expression.kind == JsNodeKind.ChemicalValue) {
-                         converter.convertChemicalValue(container.expression as *mut JsChemicalValue);
-                     } else if(converter.is_props_children(container.expression)) {
-                         const builder = converter.builder;
-                         const location = intrinsics::get_raw_location();
-                          var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-                          var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
-                          
-                          var appendCall = builder.make_function_call_node(
-                              builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
-                              converter.parent,
-                              location
-                          );
-                          const dataIdNode = converter.support.childrenParamNode.child("data");
-                          const sizeIdNode = converter.support.childrenParamNode.child("size");
-                          const childrenDataAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
-                          const childrenSizeAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
-                          const appendCallParams = appendCall.get_args();
-                          appendCallParams.push(childrenDataAccess);
-                          appendCallParams.push(childrenSizeAccess);
-                          
-                          converter.vec.push(appendCall);
-                     } else if(container.expression.kind == JsNodeKind.MemberAccess) {
-                         const mem = container.expression as *mut JsMemberAccess;
-                         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
-                             const v = converter.make_ssr_prop_v_call(mem.property);
-                             const call = converter.render_ssr_value_call(v);
-                             converter.vec.push(call);
-                         }
-                     }
+                     converter.convert_jsx_ssr_expression(container.expression);
                  }
                  return;
              }

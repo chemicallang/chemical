@@ -801,6 +801,183 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
     }
 }
 
+func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNode) {
+    if(node == null) return;
+
+    switch(node.kind) {
+        JsNodeKind.BinaryOp => {
+            var bin = node as *mut JsBinaryOp;
+            if(bin.op.equals(view("&&"))) {
+                const leftVal = converter.convert_js_expr_to_ssr_bool_value(bin.left);
+                if(leftVal != null) {
+                    const builder = converter.builder;
+                    const location = intrinsics::get_raw_location();
+
+                    const ifStmt = builder.make_if_stmt(leftVal, converter.parent, location);
+                    const oldVec = converter.vec;
+                    converter.vec = ifStmt.get_body();
+
+                    converter.convert_jsx_ssr_expression(bin.right);
+
+                    converter.vec = oldVec;
+                    converter.vec.push(ifStmt as *mut ASTNode);
+                    return;
+                }
+            } else if(bin.op.equals(view("||"))) {
+                const leftBoolVal = converter.convert_js_expr_to_ssr_bool_value(bin.left);
+                if(leftBoolVal != null) {
+                    const builder = converter.builder;
+                    const location = intrinsics::get_raw_location();
+
+                    const ifStmt = builder.make_if_stmt(leftBoolVal, converter.parent, location);
+                    const oldVec = converter.vec;
+                    
+                    // If left is truthy, render left
+                    converter.vec = ifStmt.get_body();
+                    converter.convert_jsx_ssr_expression(bin.left);
+                    
+                    // Else, render right
+                    converter.vec = ifStmt.add_else_body();
+                    converter.convert_jsx_ssr_expression(bin.right);
+
+                    converter.vec = oldVec;
+                    converter.vec.push(ifStmt as *mut ASTNode);
+                    return;
+                }
+            }
+        }
+        JsNodeKind.Ternary => {
+            var tern = node as *mut JsTernary;
+            const condVal = converter.convert_js_expr_to_ssr_bool_value(tern.condition);
+            if(condVal != null) {
+                const builder = converter.builder;
+                const location = intrinsics::get_raw_location();
+
+                const ifStmt = builder.make_if_stmt(condVal, converter.parent, location);
+                const oldVec = converter.vec;
+
+                // Then block
+                converter.vec = ifStmt.get_body();
+                converter.convert_jsx_ssr_expression(tern.consequent);
+
+                // Else block
+                converter.vec = ifStmt.add_else_body();
+                converter.convert_jsx_ssr_expression(tern.alternate);
+
+                converter.vec = oldVec;
+                converter.vec.push(ifStmt as *mut ASTNode);
+                return;
+            }
+        }
+        JsNodeKind.JSXElement, JsNodeKind.JSXFragment => {
+            converter.convertJsNode(node);
+        }
+        JsNodeKind.Paren => {
+            var paren = node as *mut JsParen;
+            converter.convert_jsx_ssr_expression(paren.expression);
+        }
+        JsNodeKind.ChemicalValue => {
+            converter.convertChemicalValue(node as *mut JsChemicalValue);
+        }
+        JsNodeKind.MemberAccess => {
+            if(converter.is_component_props_read(node)) {
+                if(converter.is_props_children(node)) {
+                    // children handled specially in JSXExpressionContainer or here?
+                    // if it's props.children, we want to append it to page
+                    const builder = converter.builder;
+                    const location = intrinsics::get_raw_location();
+                    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+                    var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
+
+                    var appendCall = builder.make_function_call_node(
+                        builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
+                        converter.parent,
+                        location
+                    );
+                    const dataIdNode = converter.support.childrenParamNode.child("data");
+                    const sizeIdNode = converter.support.childrenParamNode.child("size");
+                    const childrenDataAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
+                    const childrenSizeAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
+                    const appendCallParams = appendCall.get_args();
+                    appendCallParams.push(childrenDataAccess);
+                    appendCallParams.push(childrenSizeAccess);
+
+                    converter.vec.push(appendCall as *mut ASTNode);
+                } else {
+                    const mem = node as *mut JsMemberAccess;
+                    const v = converter.make_ssr_prop_v_call(mem.property);
+                    
+                    const builder = converter.builder;
+                    const location = intrinsics::get_raw_location();
+                    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+                    
+                    var call = builder.make_function_call_node(
+                        builder.make_identifier("renderHtmlChildValue", converter.support.renderHtmlChildValueFn, false, location),
+                        converter.parent,
+                        location
+                    );
+                    call.get_args().push(pageId);
+                    call.get_args().push(v);
+                    
+                    converter.vec.push(call as *mut ASTNode);
+                }
+            }
+        }
+        JsNodeKind.Literal, JsNodeKind.Identifier => {
+             // For literals or other expressions, we might want to render them
+             // but only if they are not props.
+             // Actually, if it's a literal string, we should append it to HTML.
+             if(node.kind == JsNodeKind.Literal) {
+                 var lit = node as *mut JsLiteral;
+                 if(lit.value.size() >= 2 && (lit.value.get(0) == '"' || lit.value.get(0) == '\'' || lit.value.get(0) == '`')) {
+                     converter.str.append_view(strip_js_string_quotes(lit.value));
+                     converter.put_chain_in();
+                     return;
+                 }
+             }
+             // For other types, we might need a general way to render them to HTML
+             // But for now let's stick to what we have.
+        }
+        default => {}
+    }
+}
+
+func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mut JsNode) : *mut Value {
+    if(node == null) return null;
+
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    if(node.kind == JsNodeKind.MemberAccess) {
+        if(converter.is_component_props_read(node)) {
+            const mem = node as *mut JsMemberAccess;
+            const v = converter.make_ssr_prop_v_call(mem.property);
+            const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+            truthyCall.get_args().push(v);
+            return truthyCall as *mut Value;
+        }
+    }
+
+    if(node.kind == JsNodeKind.Literal) {
+        var lit = node as *mut JsLiteral;
+        if(lit.value.equals(view("true"))) return builder.make_bool_value(true, location) as *mut Value;
+        if(lit.value.equals(view("false"))) return builder.make_bool_value(false, location) as *mut Value;
+    }
+
+    if(node.kind == JsNodeKind.UnaryOp) {
+        var unary = node as *mut JsUnaryOp;
+        if(unary.operator.equals(view("!"))) {
+            const operandVal = converter.convert_js_expr_to_ssr_bool_value(unary.operand);
+            if(operandVal != null) {
+                return builder.make_not_value(operandVal, location) as *mut Value;
+            }
+        }
+    }
+
+    return null;
+}
+
 func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
 }

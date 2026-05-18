@@ -62,6 +62,23 @@ public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrA
     return SsrAttributeValue.None()
 }
 
+public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
+    switch(val) {
+        None() => return false
+        Boolean(v) => return v
+        Char(v) => return v != '\0'
+        UInteger(v) => return v != 0
+        Integer(v) => return v != 0
+        Double(v, _) => return v != 0.0
+        Text(v) => return v.size > 0
+        PtrChar(v) => return v != null && v[0] != '\0'
+        Multiple(v) => return v.size > 0
+        Spread(_) => return true
+        Callable(_) => return true
+        default => return false
+    }
+}
+
 func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {
@@ -323,6 +340,14 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
 
 public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
     writePrimitiveAttrValue(page, page.pageHtml, attrVal)
+}
+
+public func renderHtmlChildValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
+    switch(attrVal) {
+        None() => {}
+        Boolean(_) => {}
+        default => writePrimitiveAttrValue(page, page.pageHtml, attrVal)
+    }
 }
 
 public func renderJsAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {

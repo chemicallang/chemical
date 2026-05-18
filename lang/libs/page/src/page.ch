@@ -527,11 +527,24 @@ window.$_ucs = ((fn) => {
     let cached;
     const subs = [];
     let depUnsubs = [];
+    let children = [];
     const emit = () => {
         const snapshot = subs.slice();
         for(let i = 0; i < snapshot.length; i++) snapshot[i](cached);
     };
+    const dispose = () => {
+        for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();
+        depUnsubs = [];
+        for(let i = 0; i < children.length; i++) {
+            if(children[i].$_uc_dispose) children[i].$_uc_dispose();
+        }
+        children = [];
+    };
     const recompute = () => {
+        for(let i = 0; i < children.length; i++) {
+            if(children[i].$_uc_dispose) children[i].$_uc_dispose();
+        }
+        children = [];
         for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();
         depUnsubs = [];
         const deps = [];
@@ -539,8 +552,17 @@ window.$_ucs = ((fn) => {
         window.$__uni_current_tracker = (dep) => {
             if(dep && deps.indexOf(dep) < 0) deps.push(dep);
         };
+        const prevChild = window.$__uni_child_tracker;
+        window.$__uni_child_tracker = (child) => {
+            if(child && children.indexOf(child) < 0) children.push(child);
+        };
         cached = fn();
+        window.$__uni_child_tracker = prevChild;
         window.$__uni_current_tracker = prev;
+        for(let i = 0; i < children.length; i++) {
+            if(children[i].$_uc_dispose) children[i].$_uc_dispose();
+        }
+        children = [];
         for(let i = 0; i < deps.length; i++) {
             const dep = deps[i];
             if(dep && typeof dep.subscribe === "function") {
@@ -550,7 +572,7 @@ window.$_ucs = ((fn) => {
         emit();
     };
     recompute();
-    return {
+    const signal = {
         get value() {
             if(window.$__uni_current_tracker) window.$__uni_current_tracker(this);
             return cached;
@@ -563,6 +585,9 @@ window.$_ucs = ((fn) => {
             };
         }
     };
+    signal.$_uc_dispose = dispose;
+    if(window.$__uni_child_tracker) window.$__uni_child_tracker(signal);
+    return signal;
 })
 window.$__uni_current_instance = null;
 window.$_r = {

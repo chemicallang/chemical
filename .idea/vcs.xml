@@ -13,8 +13,6 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@v1.3" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/market" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/market/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />

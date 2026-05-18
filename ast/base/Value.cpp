@@ -520,6 +520,7 @@ bool Value::isValueKindRValue(ValueKind kind) {
         case ValueKind::Double:
         case ValueKind::Float:
         case ValueKind::NegativeValue:
+        case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
             return true;
@@ -580,6 +581,7 @@ bool Value::isValueRValue() {
         case ValueKind::Double:
         case ValueKind::Float:
         case ValueKind::NegativeValue:
+        case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
             return true;

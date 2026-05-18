@@ -433,6 +433,15 @@ void TopLevelLinkSignature::VisitNotValue(NotValue* value) {
     }
 }
 
+void TopLevelLinkSignature::VisitBitwiseNot(BitwiseNot* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitBitwiseNot(value);
+    // determine the type of bitwise not value
+    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
 void TopLevelLinkSignature::VisitPatternMatchExpr(PatternMatchExpr* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitPatternMatchExpr(value);
     // TODO: maybe pattern match expression should be a node

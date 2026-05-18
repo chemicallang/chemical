@@ -86,6 +86,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/UnsafeValue.h"
@@ -832,6 +833,11 @@ void RepresentationVisitor::VisitNegativeValue(NegativeValue *negValue) {
 void RepresentationVisitor::VisitNotValue(NotValue *notValue) {
     write('!');
     visit(notValue->getValue());
+}
+
+void RepresentationVisitor::VisitBitwiseNot(BitwiseNot *bitwiseNot) {
+    write('~');
+    visit(bitwiseNot->getValue());
 }
 
 void RepresentationVisitor::VisitNullValue(NullValue *nullValue) {

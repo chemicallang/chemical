@@ -212,6 +212,8 @@ class NegativeValue;
 
 class NotValue;
 
+class BitwiseNot;
+
 class NullValue;
 
 class MultipleValue;

@@ -109,6 +109,8 @@ public:
 
     void VisitNotValue(NotValue* value);
 
+    void VisitBitwiseNot(BitwiseNot* value);
+
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
     void VisitBlockValue(BlockValue* value);

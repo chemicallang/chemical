@@ -92,6 +92,10 @@ FunctionDeclaration* ImplementationsIndex::get_not_op_impl(CoreNodes& coreNodes,
     return implementation_of(*this, coreNodes.ops._not, (ASTAny*) container);
 }
 
+FunctionDeclaration* ImplementationsIndex::get_bitnot_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
+    return implementation_of(*this, coreNodes.ops.bitnot, (ASTAny*) container);
+}
+
 FunctionDeclaration* ImplementationsIndex::get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container) {
     return implementation_of(*this, coreNodes.iterable.linear_data, (ASTAny*) container);
 }

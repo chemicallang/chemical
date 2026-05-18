@@ -68,6 +68,7 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.ops.rem = func_of_interface(opsNode, "Rem", "rem");
     coreNodes.ops.neg = func_of_interface(opsNode, "Neg", "neg");
     coreNodes.ops._not = func_of_interface(opsNode, "Not", "not");
+    coreNodes.ops.bitnot = func_of_interface(opsNode, "BitNot", "bitnot");
 
     coreNodes.ops.add_assign = func_of_interface(opsNode, "AddAssign", "add_assign");
     coreNodes.ops.sub_assign = func_of_interface(opsNode, "SubAssign", "sub_assign");

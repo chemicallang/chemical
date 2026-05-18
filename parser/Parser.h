@@ -1159,6 +1159,11 @@ public:
     NotValue* parseNotValue(ASTAllocator& allocator);
 
     /**
+     * parses a single bitwise not value
+     */
+    BitwiseNot* parseBitwiseNot(ASTAllocator& allocator);
+
+    /**
      * parses a single negative value
      */
     NegativeValue* parseNegativeValue(ASTAllocator& allocator);

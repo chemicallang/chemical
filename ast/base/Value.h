@@ -832,6 +832,10 @@ public:
         return k == ValueKind::NotValue;
     }
 
+    static constexpr inline bool isBitwiseNot(ValueKind k) {
+        return k == ValueKind::BitwiseNot;
+    }
+
     static constexpr inline bool isNullValue(ValueKind k) {
         return k == ValueKind::NullValue;
     }
@@ -934,6 +938,10 @@ public:
 
     inline NotValue* as_not_value() {
         return isNotValue(val_kind()) ? ((NotValue*) this) : nullptr;
+    }
+
+    inline BitwiseNot* as_bitwise_not() {
+        return isBitwiseNot(val_kind()) ? ((BitwiseNot*) this) : nullptr;
     }
 
     inline NullValue* as_null_value() {
@@ -1057,6 +1065,11 @@ public:
     inline NotValue* as_not_value_unsafe() {
         CHECK_CAST(ValueKind::NotValue);
         return ((NotValue*) this);
+    }
+
+    inline BitwiseNot* as_bitwise_not_unsafe() {
+        CHECK_CAST(ValueKind::BitwiseNot);
+        return ((BitwiseNot*) this);
     }
 
     inline NullValue* as_null_value_unsafe() {

@@ -36,6 +36,7 @@ enum class ValueKind : uint8_t {
     FunctionCall,
     NegativeValue,
     NotValue,
+    BitwiseNot,
     NullValue,
     SizeOfValue,
     UnsafeValue,

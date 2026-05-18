@@ -198,6 +198,7 @@ set(COMMON_SOURCES
         ast/values/FunctionCall.h
         ast/values/IndexOperator.h
         ast/values/NotValue.h
+        ast/values/BitwiseNot.h
         ast/values/BoolValue.h
         ast/values/ArrayValue.h
         ast/values/VariableIdentifier.h
@@ -249,6 +250,7 @@ set(COMMON_SOURCES
         ast/values/CharValue.cpp
         ast/values/StringValue.cpp
         ast/values/NotValue.cpp
+        ast/values/BitwiseNot.cpp
         ast/values/Negative.cpp
         ast/values/FunctionCall.cpp
         ast/values/BoolValue.cpp

@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/Negative.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/IsValue.h"
@@ -314,6 +315,27 @@ NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
                 return new (allocator.allocate<NotValue>()) NotValue(acValue, loc_single(tok));
             } else {
                 error("expected an expression after '!' not");
+                return nullptr;
+            }
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+BitwiseNot* Parser::parseBitwiseNot(ASTAllocator& allocator) {
+    auto& tok = *token;
+    if (tok.type == TokenType::BitNotSym) {
+        token++;
+        auto parenExpression = parseParenExpression(allocator);
+        if(parenExpression) {
+            return new (allocator.allocate<BitwiseNot>()) BitwiseNot(parenExpression, loc_single(tok));
+        } else {
+            auto acValue = parsePostIncDec(allocator, parseAccessChainOrValueNoAfter(allocator, false), &tok);
+            if(acValue) {
+                return new (allocator.allocate<BitwiseNot>()) BitwiseNot(acValue, loc_single(tok));
+            } else {
+                error("expected an expression after '~' bitwise not");
                 return nullptr;
             }
         }

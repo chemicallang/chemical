@@ -227,6 +227,8 @@ public:
 
     void VisitNotValue(NotValue* value);
 
+    void VisitBitwiseNot(BitwiseNot* value);
+
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 
     void FinalizeSignature(TypealiasStatement* decl);

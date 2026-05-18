@@ -94,6 +94,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/BitwiseNot.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
@@ -6773,6 +6774,26 @@ void ToCAstVisitor::VisitNotValue(NotValue *notValue) {
         }
     }
     write('!');
+    visit(val);
+}
+
+void ToCAstVisitor::VisitBitwiseNot(BitwiseNot *bitwiseNot) {
+    const auto val = bitwiseNot->getValue();
+    const auto type = val->getType();
+    const auto node = type->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            const auto func = implsIndex.get_bitnot_op_impl(coreNodes, container);
+            if (func == nullptr) {
+                error(bitwiseNot) << "couldn't get overloaded operator implementation function";
+                return;
+            }
+            call_single_arg_operator_func(*this, func, val);
+            return;
+        }
+    }
+    write('~');
     visit(val);
 }
 

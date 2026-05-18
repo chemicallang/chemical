@@ -325,6 +325,8 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             return parseNumberValue(allocator);
         case TokenType::NotSym:
             return (Value*) parseNotValue(allocator);
+        case TokenType::BitNotSym:
+            return (Value*) parseBitwiseNot(allocator);
         case TokenType::MinusSym:
             return (Value*) parseNegativeValue(allocator);
         case TokenType::HashMacro:

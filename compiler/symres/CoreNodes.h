@@ -15,6 +15,7 @@ public:
     FunctionDeclaration* rem = nullptr;
     FunctionDeclaration* neg = nullptr;
     FunctionDeclaration* _not = nullptr;
+    FunctionDeclaration* bitnot = nullptr;
 
     FunctionDeclaration* add_assign = nullptr;
     FunctionDeclaration* sub_assign = nullptr;

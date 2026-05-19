@@ -85,6 +85,65 @@ func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : b
     return false;
 }
 
+func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsNode) : bool {
+    if(node == null) return false;
+    switch(node.kind) {
+        JsNodeKind.Identifier => {
+            return converter.is_reactive_var((node as *mut JsIdentifier).value);
+        }
+        JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
+                return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
+            }
+            return converter.expr_references_reactive_var(mem.object);
+        }
+        JsNodeKind.IndexAccess => {
+            const idx = node as *mut JsIndexAccess;
+            return converter.expr_references_reactive_var(idx.object) || converter.expr_references_reactive_var(idx.index);
+        }
+        JsNodeKind.UnaryOp => {
+            return converter.expr_references_reactive_var((node as *mut JsUnaryOp).operand);
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            return converter.expr_references_reactive_var(bin.left) || converter.expr_references_reactive_var(bin.right);
+        }
+        JsNodeKind.Ternary => {
+            const tern = node as *mut JsTernary;
+            return converter.expr_references_reactive_var(tern.condition) ||
+                converter.expr_references_reactive_var(tern.consequent) ||
+                converter.expr_references_reactive_var(tern.alternate);
+        }
+        JsNodeKind.FunctionCall => {
+            const call = node as *mut JsFunctionCall;
+            if(converter.expr_references_reactive_var(call.callee)) return true;
+            for(var i : uint = 0; i < call.args.size(); i++) {
+                if(converter.expr_references_reactive_var(call.args.get(i))) return true;
+            }
+            return false;
+        }
+        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
+            const arr = node as *mut JsArrayLiteral;
+            for(var i : uint = 0; i < arr.elements.size(); i++) {
+                if(converter.expr_references_reactive_var(arr.elements.get(i))) return true;
+            }
+            return false;
+        }
+        JsNodeKind.ObjectLiteral => {
+            const obj = node as *mut JsObjectLiteral;
+            for(var i : uint = 0; i < obj.properties.size(); i++) {
+                if(converter.expr_references_reactive_var(obj.properties.get(i).value)) return true;
+            }
+            return false;
+        }
+        JsNodeKind.Paren => {
+            return converter.expr_references_reactive_var((node as *mut JsParen).expression);
+        }
+        default => return false
+    }
+}
+
 func (converter : &mut JsConverter) is_component_props_name(name : std::string_view) : bool {
     return !converter.component_props_name.empty() && converter.component_props_name.equals(name);
 }

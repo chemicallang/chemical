@@ -1,0 +1,37 @@
+import lab
+import std
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@test_env/build.lab" as testEnvMod
+import "@page/build.lab" as pageMod
+import "@universal_cbi/build.lab" as universalCbiMod
+import "@html_cbi/build.lab" as htmlCbiMod
+
+public func build(ctx : *mut BuildContext, job : *mut LabJob) : *mut Module {
+
+    const curr_file_path = lab::get_my_path()
+    const cached = ctx.get_cached(job, curr_file_path);
+    if(cached != null) return cached;
+
+    const cstd_module = cstdMod.build(ctx, job)
+    if(cstd_module == null) return null
+    const std_module = stdMod.build(ctx, job)
+    if(std_module == null) return null
+    const test_env_module = testEnvMod.build(ctx, job)
+    if(test_env_module == null) return null
+    const page_module = pageMod.build(ctx, job)
+    if(page_module == null) return null
+    const universal_cbi_module = universalCbiMod.build(ctx, job)
+    if(universal_cbi_module == null) return null
+    const html_cbi_module = htmlCbiMod.build(ctx, job)
+    if(html_cbi_module == null) return null
+
+    const common_path = lab::rel_path_to("../common")
+    const common_module = ctx.chemical_dir_module(std::string_view(""), std::string_view("common"), std::string_view(common_path), [ std_module, cstd_module, test_env_module ])
+
+    const path = lab::rel_path_to("src")
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("universal_lib_test"), std::string_view(path), [ cstd_module, std_module, page_module, universal_cbi_module, html_cbi_module, common_module, test_env_module ])
+
+    ctx.set_cached(job, curr_file_path, module)
+    return module;
+}

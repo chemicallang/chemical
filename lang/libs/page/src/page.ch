@@ -559,10 +559,6 @@ window.$_ucs = ((fn) => {
         cached = fn();
         window.$__uni_child_tracker = prevChild;
         window.$__uni_current_tracker = prev;
-        for(let i = 0; i < children.length; i++) {
-            if(children[i].$_uc_dispose) children[i].$_uc_dispose();
-        }
-        children = [];
         for(let i = 0; i < deps.length; i++) {
             const dep = deps[i];
             if(dep && typeof dep.subscribe === "function") {

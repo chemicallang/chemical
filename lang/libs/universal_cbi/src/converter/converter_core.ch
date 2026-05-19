@@ -293,25 +293,40 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  }
                  converter.str.append_view(");");
              } else {
-                 converter.str.append_view(decl.keyword);
-                 converter.str.append_view(" ");
-                 if(decl.pattern != null) {
-                     converter.convertJsNode(decl.pattern);
-                 } else {
-                     converter.str.append_view(decl.name);
-                 }
-                 if(decl.value != null) {
-                     converter.str.append_view(" = ");
-                     converter.convertJsNode(decl.value);
-                 }
-                 converter.str.append_view(";");
+                 var is_existing_ucs = false;
                  if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
                      var call = decl.value as *mut JsFunctionCall
                      if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
                          var id = call.callee as *mut JsIdentifier
                          if(id.value.equals(view("$_ucs"))) {
-                             converter.computed_vars.push(decl.name);
+                             is_existing_ucs = true;
                          }
+                     }
+                 }
+                 var should_wrap_in_ucs = decl.value != null && !decl.name.empty() && decl.pattern == null &&
+                     !is_existing_ucs && converter.expr_references_reactive_var(decl.value);
+                 if(should_wrap_in_ucs) {
+                     converter.computed_vars.push(decl.name);
+                     converter.str.append_view("const ");
+                     converter.str.append_view(decl.name);
+                     converter.str.append_view(" = $_ucs(() => ");
+                     converter.convertJsNode(decl.value);
+                     converter.str.append_view(");");
+                 } else {
+                     converter.str.append_view(decl.keyword);
+                     converter.str.append_view(" ");
+                     if(decl.pattern != null) {
+                         converter.convertJsNode(decl.pattern);
+                     } else {
+                         converter.str.append_view(decl.name);
+                     }
+                     if(decl.value != null) {
+                         converter.str.append_view(" = ");
+                         converter.convertJsNode(decl.value);
+                     }
+                     converter.str.append_view(";");
+                     if(is_existing_ucs) {
+                         converter.computed_vars.push(decl.name);
                      }
                  }
              }

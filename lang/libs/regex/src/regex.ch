@@ -87,15 +87,10 @@ public namespace regex {
             if(self.start_state < 0) {
                 return Captures { matched : false, positions : std::vector<i64>() }
             }
-            var text_len = text.size()
-            var i : size_t = 0
-            while(i <= text_len) {
-                var positions = std::vector<i64>()
-                var found = find_captures(self.states, self.classes, self.start_state, text, i, self.num_captures, &mut positions)
-                if(found) {
-                    return Captures { matched : true, positions : positions }
-                }
-                i = i + 1
+            var positions = std::vector<i64>()
+            var found = find_captures_from(self.states, self.classes, self.start_state, text, 0, self.num_captures, &mut positions)
+            if(found) {
+                return Captures { matched : true, positions : positions }
             }
             return Captures { matched : false, positions : std::vector<i64>() }
         }
@@ -105,9 +100,8 @@ public namespace regex {
             var pos : size_t = 0
             var text_len = text.size()
             while(pos <= text_len) {
-                var start_out : i64 = 0
-                var end_out : i64 = 0
-                var found = find_from(self.states, self.classes, self.start_state, text, pos, &mut start_out, &mut end_out)
+                var captures = std::vector<i64>()
+                var found = find_captures_from(self.states, self.classes, self.start_state, text, pos, self.num_captures, &mut captures)
                 if(!found) {
                     while(pos < text_len) {
                         result.append(text.get(pos))
@@ -116,16 +110,15 @@ public namespace regex {
                     break
                 }
 
+                var start_out = captures.get(0)
+                var end_out = captures.get(1)
+
                 while(pos < (start_out as size_t)) {
                     result.append(text.get(pos))
                     pos = pos + 1
                 }
-                
-                var replen : size_t = 0
-                while(replen < replacement.size()) {
-                    result.append(replacement.get(replen))
-                    replen = replen + 1
-                }
+
+                append_replacement(result, replacement, captures, text)
                 
                 if(pos == (end_out as size_t)) {
                     if(pos < text_len) {
@@ -291,6 +284,11 @@ public namespace regex {
             p.error.append_view("trailing backslash")
             return -1
         }
+        if(c == 'n' as i64) return 10
+        if(c == 'r' as i64) return 13
+        if(c == 't' as i64) return 9
+        if(c == 'f' as i64) return 12
+        if(c == 'v' as i64) return 11
         if(c == 'd' as i64) return -2
         if(c == 'D' as i64) return -3
         if(c == 'w' as i64) return -4
@@ -334,7 +332,11 @@ public namespace regex {
             first = false
 
             var lo = parse_class_item(p)
-            if(lo < 0) return -1
+            if(lo == -1) return -1
+            if(is_escape_class(lo)) {
+                append_escape_class_ranges(cd, lo)
+                continue
+            }
 
             c = peek_char(p)
             if(c == '-' as i64) {
@@ -367,7 +369,11 @@ public namespace regex {
         var idx = classes.size() as i64
         classes.push(CharClass { ranges : std::vector<CharRange>(), negated : false })
         var cd = classes.get_ptr(idx as size_t)
-        
+        append_escape_class_ranges(cd, esc)
+        return idx
+    }
+
+    internal func append_escape_class_ranges(cd : *mut CharClass, esc : i64) {
         if(esc == -2) {
             cd.ranges.push(CharRange { lo : 48, hi : 57 })
         } else if(esc == -3) {
@@ -392,7 +398,6 @@ public namespace regex {
             cd.ranges.push(CharRange { lo : 9, hi : 13 })
             cd.ranges.push(CharRange { lo : 32, hi : 32 })
         }
-        return idx
     }
 
     // =========================================================================
@@ -452,10 +457,16 @@ public namespace regex {
         group_count : *mut i64) : Frag {
 
         var frag = parse_concatenation(p, states, classes, group_count)
+        if(!p.error.empty()) {
+            return frag
+        }
 
         while(peek_char(p) == '|' as i64) {
             advance_char(p)
             var rhs = parse_concatenation(p, states, classes, group_count)
+            if(!p.error.empty()) {
+                return frag
+            }
 
             var split = new_state(states, 1, 0, 0, frag.start, rhs.start, 0)
 
@@ -476,6 +487,9 @@ public namespace regex {
         group_count : *mut i64) : Frag {
 
         var frag = parse_repetition(p, states, classes, group_count)
+        if(!p.error.empty()) {
+            return frag
+        }
 
         loop {
             var c = peek_char(p)
@@ -483,6 +497,9 @@ public namespace regex {
                 break
             }
             var rhs = parse_repetition(p, states, classes, group_count)
+            if(!p.error.empty()) {
+                return frag
+            }
 
             patch_list(frag.outs, rhs.start, states)
 
@@ -499,6 +516,9 @@ public namespace regex {
         group_count : *mut i64) : Frag {
 
         var frag = parse_atom(p, states, classes, group_count)
+        if(!p.error.empty()) {
+            return frag
+        }
 
         var c = peek_char(p)
         if(c == '*' as i64) {
@@ -534,6 +554,12 @@ public namespace regex {
             frag.start = split
         }
 
+        var next = peek_char(p)
+        if(next == '*' as i64 || next == '+' as i64 || next == '?' as i64) {
+            p.error.append_view("multiple repeat at pos ")
+            p.error.append_integer(p.pos as bigint)
+        }
+
         return frag
     }
 
@@ -545,6 +571,12 @@ public namespace regex {
         var c = peek_char(p)
         if(c < 0) {
             p.error.append_view("unexpected end of pattern")
+            return make_empty_frag()
+        }
+
+        if(c == '*' as i64 || c == '+' as i64 || c == '?' as i64) {
+            p.error.append_view("nothing to repeat at pos ")
+            p.error.append_integer(p.pos as bigint)
             return make_empty_frag()
         }
 
@@ -977,6 +1009,23 @@ public namespace regex {
         return false
     }
 
+    internal func find_captures_from(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        start_state : i64, text : std::string_view,
+        search_start : size_t, num_captures : i64,
+        positions_out : *mut std::vector<i64>) : bool {
+
+        var text_len = text.size()
+        var i = search_start
+        while(i <= text_len) {
+            if(find_captures(states, classes, start_state, text, i, num_captures, positions_out)) {
+                return true
+            }
+            i = i + 1
+        }
+        return false
+    }
+
     internal func find_match(states : &std::vector<NFAState>,
         classes : &std::vector<CharClass>,
         start : i64, text : std::string_view,
@@ -1019,6 +1068,39 @@ public namespace regex {
             i = i + 1
         }
         return false
+    }
+
+    internal func append_replacement(result : &mut std::string,
+        replacement : std::string_view,
+        captures : &std::vector<i64>,
+        text : std::string_view) {
+
+        var i : size_t = 0
+        while(i < replacement.size()) {
+            var ch = replacement.get(i)
+            if((ch == '$' || ch == '\\') && (i + 1) < replacement.size()) {
+                var next = replacement.get(i + 1)
+                if(next >= '0' && next <= '9') {
+                    var cap_idx = (next - '0') as size_t
+                    var pos_idx = cap_idx * 2
+                    if((pos_idx + 1) < captures.size()) {
+                        var start = captures.get(pos_idx)
+                        var end = captures.get(pos_idx + 1)
+                        if(start >= 0 && end >= start) {
+                            var j = start as size_t
+                            while(j < (end as size_t)) {
+                                result.append(text.get(j))
+                                j = j + 1
+                            }
+                        }
+                    }
+                    i = i + 2
+                    continue
+                }
+            }
+            result.append(ch)
+            i = i + 1
+        }
     }
 
 }

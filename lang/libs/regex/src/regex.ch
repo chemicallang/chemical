@@ -683,7 +683,6 @@ public namespace regex {
         text_start : size_t, text_end : size_t) : bool {
 
         var current = std::vector<i64>()
-        var next = std::vector<i64>()
         add_state(current, start, states)
 
         var pos = text_start
@@ -694,7 +693,7 @@ public namespace regex {
 
             var ch = text.get(pos) as i64
 
-            next.clear()
+            var next = std::vector<i64>()
 
             var j : size_t = 0
             while(j < current.size()) {
@@ -710,7 +709,8 @@ public namespace regex {
                         add_state(next, s.out1, states)
                     }
                 } else if(s.kind == 5) {
-                    if(match_class_char(classes.get(s.class_idx as size_t), ch)) {
+                    var cd = classes.get_ref(s.class_idx as size_t)
+                    if(match_class_char(cd, ch)) {
                         add_state(next, s.out1, states)
                     }
                 } else if(s.kind == 7) {
@@ -720,7 +720,6 @@ public namespace regex {
             }
 
             current = next
-            next = std::vector<i64>()
 
             pos = pos + 1
         }

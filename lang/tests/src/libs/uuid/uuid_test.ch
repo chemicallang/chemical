@@ -1,6 +1,18 @@
 using namespace std;
 using namespace uuid;
 
+struct UUIDThreadArg {
+    var v : *mut std::vector<UUID>;
+}
+
+func uuid_thread_entry(arg : *void) : *void {
+    var ta = arg as *mut UUIDThreadArg;
+    for (var i = 0; i < 50; i++) {
+        ta.v.push(uuid::v7());
+    }
+    return null;
+}
+
 @test
 func test_uuid_constructors(env : &mut TestEnv) {
     var u1 = UUID();
@@ -71,6 +83,27 @@ func test_uuid_parsing_valid(env : &mut TestEnv) {
 }
 
 @test
+func test_uuid_parsing_mixed_case(env : &mut TestEnv) {
+    // Upper case parsing
+    var input_upper = "01234567-89AB-CDEF-0123-456789ABCDEF";
+    var result_upper = uuid::parse(std::string_view(input_upper));
+    expect_true(env, result_upper is std::Result.Ok, "Parsing should succeed for upper case input");
+
+    switch (result_upper) {
+        Ok(u) => {
+            var s = u.to_string();
+            expect_true(env, s.to_view().equals(std::string_view("01234567-89ab-cdef-0123-456789abcdef")), "Formatting of parsed upper case should be canonical lowercase");
+        }
+        Err(err) => {}
+    }
+
+    // Mixed case parsing
+    var input_mixed = "01234567-89aB-CdEf-0123-456789aBcDeF";
+    var result_mixed = uuid::parse(std::string_view(input_mixed));
+    expect_true(env, result_mixed is std::Result.Ok, "Parsing should succeed for mixed case input");
+}
+
+@test
 func test_uuid_parsing_invalid(env : &mut TestEnv) {
     // Test invalid length
     var res1 = uuid::parse(std::string_view("01234567-89ab-cdef-0123-456789abcde"));
@@ -91,6 +124,25 @@ func test_uuid_parsing_invalid(env : &mut TestEnv) {
             expect_true(env, err.contains(std::string_view("35")), "Error message should point to index 35");
         }
     }
+}
+
+@test
+func test_uuid_sorting(env : &mut TestEnv) {
+    var bytes1 : [16]u8 = [0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,1u8];
+    var bytes2 : [16]u8 = [0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,2u8];
+    var bytes3 : [16]u8 = [0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,1u8,0u8];
+
+    var u1 = UUID.from_bytes(bytes1);
+    var u2 = UUID.from_bytes(bytes2);
+    var u3 = UUID.from_bytes(bytes3);
+
+    expect_true(env, u1.compare(u2) < 0, "u1 should be less than u2");
+    expect_true(env, u2.compare(u3) < 0, "u2 should be less than u3");
+    expect_true(env, u1.compare(u3) < 0, "u1 should be less than u3");
+
+    expect_true(env, u2.compare(u1) > 0, "u2 should be greater than u1");
+    expect_true(env, u3.compare(u2) > 0, "u3 should be greater than u2");
+    expect_true(env, u3.compare(u1) > 0, "u3 should be greater than u1");
 }
 
 @test
@@ -134,4 +186,43 @@ func test_uuid_v7(env : &mut TestEnv) {
     var u2 = uuid::v7();
     expect_false(env, u1.equals(u2), "Consecutive v7 calls must generate unique UUIDs");
     expect_true(env, u1.compare(u2) < 0, "UUIDv7 generated later must compare greater lexicographically");
+}
+
+@test
+func test_uuid_v7_concurrency(env : &mut TestEnv) {
+    var v1 = std::vector<UUID>();
+    var v2 = std::vector<UUID>();
+    var v3 = std::vector<UUID>();
+    var v4 = std::vector<UUID>();
+
+    var arg1 = UUIDThreadArg { v : &mut v1 };
+    var arg2 = UUIDThreadArg { v : &mut v2 };
+    var arg3 = UUIDThreadArg { v : &mut v3 };
+    var arg4 = UUIDThreadArg { v : &mut v4 };
+
+    var t1 = std::concurrent::spawn(uuid_thread_entry, &mut arg1 as *mut void);
+    var t2 = std::concurrent::spawn(uuid_thread_entry, &mut arg2 as *mut void);
+    var t3 = std::concurrent::spawn(uuid_thread_entry, &mut arg3 as *mut void);
+    var t4 = std::concurrent::spawn(uuid_thread_entry, &mut arg4 as *mut void);
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+
+    var all_uuids = std::vector<UUID>();
+    for (var i = 0u; i < v1.size(); i++) { all_uuids.push(v1.get(i)); }
+    for (var i = 0u; i < v2.size(); i++) { all_uuids.push(v2.get(i)); }
+    for (var i = 0u; i < v3.size(); i++) { all_uuids.push(v3.get(i)); }
+    for (var i = 0u; i < v4.size(); i++) { all_uuids.push(v4.get(i)); }
+
+    expect_size_eq(env, all_uuids.size(), 200u, "Total generated UUID count should be 200");
+
+    // Check that all generated UUIDs are unique
+    for (var i = 0u; i < all_uuids.size(); i++) {
+        for (var j = i + 1u; j < all_uuids.size(); j++) {
+            var eq = all_uuids.get_ref(i).equals(all_uuids.get_ref(j));
+            expect_false(env, eq, "Generated UUIDs must be globally unique");
+        }
+    }
 }

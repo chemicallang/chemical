@@ -750,7 +750,7 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     } else {
         auto prev = comptime_scope.current_func_type;
         comptime_scope.current_func_type = current_func_type;
-        auto ret = decl->call(&comptime_scope, allocator, call, get_parent_from(call->parent_val), false);
+        auto ret = decl->call(&comptime_scope, allocator, call, build_parent_chain(call->parent_val, allocator), false);
         comptime_scope.current_func_type = prev;
 
         // put all diagnostics for this function inside the diagnoser

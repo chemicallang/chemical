@@ -1,6 +1,10 @@
 
 using namespace std;
 
+struct StringContainerAppendExpr {
+    var str : std::string
+}
+
 func test_strings() {
     test("two std::strings are equal", () => {
         var first = string("hello world");
@@ -113,5 +117,12 @@ func test_strings() {
         first.append_expr(`value : ${val} end`)
         var second = string("value : 99 end")
         return first.equals(second);
+    })
+    test("appending expressing string using a container of std::string works", () => {
+        var c = StringContainerAppendExpr()
+        var val = 99i64
+        c.str.append_expr(`value : ${val} end`)
+        var second = string("value : 99 end")
+        return c.str.equals(second);
     })
 }

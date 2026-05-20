@@ -14,9 +14,11 @@ public namespace uuid {
 
         @constructor
         public func from_bytes(b : [16]u8) {
-            return UUID {
-                bytes : b
+            var u = UUID();
+            for(var i = 0u; i < 16u; i++) {
+                u.bytes[i] = b[i];
             }
+            return u;
         }
 
         public func to_bytes(&self) : std::vector<u8> {

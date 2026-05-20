@@ -235,3 +235,84 @@ public func regex_unmatched_close_paren_is_error(env : &mut TestEnv) {
     var re = regex::compile("abc)")
     if(!re.compile_error.empty()) { env.success("unmatched close paren error") } else { env.error("should report error for unmatched close paren") }
 }
+
+@test
+public func regex_escape_control_chars(env : &mut TestEnv) {
+    var re_newline = regex::compile("\\n")
+    if(re_newline.is_match("\n")) { env.success("\\n matches newline") } else { env.error("\\n should match newline") }
+    if(!re_newline.is_match("n")) { env.success("\\n not literal n") } else { env.error("\\n should not match literal n") }
+
+    var re_tab = regex::compile("a\\tb")
+    if(re_tab.is_match("a\tb")) { env.success("\\t matches tab") } else { env.error("\\t should match tab") }
+}
+
+@test
+public func regex_class_escape_shorthands(env : &mut TestEnv) {
+    var digits = regex::compile("[\\d]+")
+    if(digits.is_match("12345")) { env.success("[\\d]+ matches digits") } else { env.error("[\\d]+ should match digits") }
+    if(!digits.is_match("abc")) { env.success("[\\d]+ not letters") } else { env.error("[\\d]+ should not match letters") }
+
+    var words = regex::compile("[\\w]+")
+    if(words.is_match("abc_123")) { env.success("[\\w]+ matches word chars") } else { env.error("[\\w]+ should match word chars") }
+
+    var spaces = regex::compile("[\\s]+")
+    if(spaces.is_match(" \t")) { env.success("[\\s]+ matches whitespace") } else { env.error("[\\s]+ should match whitespace") }
+}
+
+@test
+public func regex_replace_supports_backreferences(env : &mut TestEnv) {
+    var re = regex::compile("(\\w+)-(\\w+)")
+    var replaced = re.replace("left-right", "$2:$1")
+    if(replaced.equals(std::string("right:left"))) { env.success("replacement backrefs") } else { env.error("replacement should expand backreferences") }
+}
+
+@test
+public func regex_replace_empty_pattern(env : &mut TestEnv) {
+    var re = regex::compile("")
+    var replaced = re.replace("ab", "X")
+    if(replaced.equals(std::string("XaXbX"))) { env.success("empty pattern replacement") } else { env.error("empty pattern replacement should surround each boundary") }
+}
+
+@test
+public func regex_split_keeps_edge_empty_segments(env : &mut TestEnv) {
+    var re = regex::compile(",")
+    var parts = std::vector<std::string_view>()
+    re.split(",a,", &mut parts)
+    if(parts.size() == 3) { env.success("split edge part count") } else { env.error("split should keep leading and trailing empty parts") }
+    if(parts.get(0).equals("")) { env.success("split leading empty") } else { env.error("split should keep leading empty part") }
+    if(parts.get(1).equals("a")) { env.success("split middle part") } else { env.error("split middle part should be a") }
+    if(parts.get(2).equals("")) { env.success("split trailing empty") } else { env.error("split should keep trailing empty part") }
+}
+
+@test
+public func regex_nested_captures_are_positioned(env : &mut TestEnv) {
+    var re = regex::compile("((ab)c)")
+    var caps = re.captures("xxabcyy")
+    if(caps.matched) { env.success("nested captures matched") } else { env.error("nested captures should match") }
+    if(caps.size() == 6) { env.success("nested capture slot count") } else { env.error("nested captures should include full match and both groups") }
+    if(caps.positions.get(0) == 2 && caps.positions.get(1) == 5) { env.success("nested full match positions") } else { env.error("nested full match positions should be 2..5") }
+    if(caps.positions.get(2) == 2 && caps.positions.get(3) == 5) { env.success("outer group positions") } else { env.error("outer group positions should be 2..5") }
+    if(caps.positions.get(4) == 2 && caps.positions.get(5) == 4) { env.success("inner group positions") } else { env.error("inner group positions should be 2..4") }
+}
+
+@test
+public func regex_escaped_metacharacters(env : &mut TestEnv) {
+    var re = regex::compile("\\[abc\\]\\?")
+    if(re.is_match("[abc]?")) { env.success("escaped metacharacters match literally") } else { env.error("escaped metacharacters should match literally") }
+    if(!re.is_match("abc")) { env.success("escaped metacharacters do not overmatch") } else { env.error("escaped metacharacters should not overmatch") }
+}
+
+@test
+public func regex_invalid_quantifiers_are_errors(env : &mut TestEnv) {
+    var leading = regex::compile("*abc")
+    if(!leading.compile_error.empty()) { env.success("leading quantifier error") } else { env.error("leading quantifier should be an error") }
+
+    var doubled = regex::compile("a**")
+    if(!doubled.compile_error.empty()) { env.success("double quantifier error") } else { env.error("double quantifier should be an error") }
+}
+
+@test
+public func regex_trailing_backslash_is_error(env : &mut TestEnv) {
+    var re = regex::compile("abc\\")
+    if(!re.compile_error.empty()) { env.success("trailing backslash error") } else { env.error("trailing backslash should be an error") }
+}

@@ -186,6 +186,7 @@ public namespace std {
         // wall clock). Useful for measuring elapsed time.
         // ABI: two i64 fields = 16 bytes, POD.
         // -----------------------------------------------------------------------
+        @direct_init
         public struct Instant {
 
             var secs : i64

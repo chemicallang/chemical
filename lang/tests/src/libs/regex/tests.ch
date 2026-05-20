@@ -190,3 +190,48 @@ public func regex_star_plus_combined(env : &mut TestEnv) {
     if(re.is_match("aaab")) { env.success("a*b+ matches aaab") } else { env.error("should match aaab") }
     if(!re.is_match("")) { env.success("a*b+ not empty") } else { env.error("should not match empty") }
 }
+
+@test
+public func regex_captures_group_positions(env : &mut TestEnv) {
+    var re = regex::compile("(ab)(cd)")
+    var caps = re.captures("xxabcdyy")
+    if(caps.matched) { env.success("captures matched") } else { env.error("captures should match") }
+    if(caps.size() == 6) { env.success("capture slot count") } else { env.error("captures should include full match plus groups") }
+    if(caps.positions.get(0) == 2 && caps.positions.get(1) == 6) { env.success("full match positions") } else { env.error("full match positions should be 2..6") }
+    if(caps.positions.get(2) == 2 && caps.positions.get(3) == 4) { env.success("first group positions") } else { env.error("first group positions should be 2..4") }
+    if(caps.positions.get(4) == 4 && caps.positions.get(5) == 6) { env.success("second group positions") } else { env.error("second group positions should be 4..6") }
+}
+
+@test
+public func regex_replace_replaces_all_matches(env : &mut TestEnv) {
+    var re = regex::compile("\\d+")
+    var replaced = re.replace("abc123def45", "#")
+    if(replaced.equals(std::string("abc#def#"))) { env.success("replace all matches") } else { env.error("replace should replace all matches") }
+}
+
+@test
+public func regex_split_splits_on_matches(env : &mut TestEnv) {
+    var re = regex::compile(",+")
+    var parts = std::vector<std::string_view>()
+    re.split("a,,b,c", &mut parts)
+    if(parts.size() == 3) { env.success("split part count") } else { env.error("split should produce three parts") }
+    if(parts.get(0).equals("a")) { env.success("split first part") } else { env.error("split first part should be a") }
+    if(parts.get(1).equals("b")) { env.success("split second part") } else { env.error("split second part should be b") }
+    if(parts.get(2).equals("c")) { env.success("split third part") } else { env.error("split third part should be c") }
+}
+
+@test
+public func regex_find_empty_pattern_on_empty_text(env : &mut TestEnv) {
+    var re = regex::compile("")
+    var start : i64 = -1
+    var end : i64 = -1
+    var found = re.find("", &mut start, &mut end)
+    if(found) { env.success("empty find matched") } else { env.error("empty pattern should find in empty text") }
+    if(start == 0 && end == 0) { env.success("empty find positions") } else { env.error("empty find positions should be 0..0") }
+}
+
+@test
+public func regex_unmatched_close_paren_is_error(env : &mut TestEnv) {
+    var re = regex::compile("abc)")
+    if(!re.compile_error.empty()) { env.success("unmatched close paren error") } else { env.error("should report error for unmatched close paren") }
+}

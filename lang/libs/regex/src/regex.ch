@@ -24,6 +24,11 @@ public namespace regex {
         var slot : i64
     }
 
+    public struct VisitedFrame {
+        var state_idx : i64
+        var pos : size_t
+    }
+
     public struct Frag {
         var start : i64
         var outs : std::vector<PatchPtr>
@@ -75,20 +80,7 @@ public namespace regex {
             *start_pos = -1
             *end_pos = -1
             if(self.start_state < 0) return false
-
-            var text_len = text.size()
-            var i : size_t = 0
-            while(i < text_len) {
-                var match_end : i64 = 0
-                var found = find_match(self.states, self.classes, self.start_state, text, i, &mut match_end)
-                if(found) {
-                    *start_pos = i as i64
-                    *end_pos = match_end
-                    return true
-                }
-                i = i + 1
-            }
-            return false
+            return find_from(self.states, self.classes, self.start_state, text, 0, start_pos, end_pos)
         }
 
         public func captures(&self, text : std::string_view) : Captures {
@@ -97,13 +89,10 @@ public namespace regex {
             }
             var text_len = text.size()
             var i : size_t = 0
-            while(i < text_len) {
-                var match_end : i64 = 0
-                var found = find_match(self.states, self.classes, self.start_state, text, i, &mut match_end)
+            while(i <= text_len) {
+                var positions = std::vector<i64>()
+                var found = find_captures(self.states, self.classes, self.start_state, text, i, self.num_captures, &mut positions)
                 if(found) {
-                    var positions = std::vector<i64>()
-                    positions.push(i as i64)
-                    positions.push(match_end)
                     return Captures { matched : true, positions : positions }
                 }
                 i = i + 1
@@ -115,10 +104,10 @@ public namespace regex {
             var result = std::string()
             var pos : size_t = 0
             var text_len = text.size()
-            while(pos < text_len) {
+            while(pos <= text_len) {
                 var start_out : i64 = 0
                 var end_out : i64 = 0
-                var found = self.find(text, &mut start_out, &mut end_out)
+                var found = find_from(self.states, self.classes, self.start_state, text, pos, &mut start_out, &mut end_out)
                 if(!found) {
                     while(pos < text_len) {
                         result.append(text.get(pos))
@@ -126,16 +115,28 @@ public namespace regex {
                     }
                     break
                 }
+
                 while(pos < (start_out as size_t)) {
                     result.append(text.get(pos))
                     pos = pos + 1
                 }
+                
                 var replen : size_t = 0
                 while(replen < replacement.size()) {
                     result.append(replacement.get(replen))
                     replen = replen + 1
                 }
-                pos = end_out as size_t
+                
+                if(pos == (end_out as size_t)) {
+                    if(pos < text_len) {
+                        result.append(text.get(pos))
+                        pos = pos + 1
+                    } else {
+                        break
+                    }
+                } else {
+                    pos = end_out as size_t
+                }
             }
             return result
         }
@@ -143,21 +144,28 @@ public namespace regex {
         public func split(&self, text : std::string_view, out : *mut std::vector<std::string_view>) {
             var pos : size_t = 0
             var text_len = text.size()
-            while(pos < text_len) {
+            while(pos <= text_len) {
                 var start_out : i64 = 0
                 var end_out : i64 = 0
-                var found = self.find(text, &mut start_out, &mut end_out)
+                var found = find_from(self.states, self.classes, self.start_state, text, pos, &mut start_out, &mut end_out)
                 if(!found) {
-                    var remaining = text.subview(pos, text_len - pos)
+                    var remaining = text.subview(pos, text_len)
                     out.push(remaining)
                     break
                 }
-                var seg = text.subview(pos, (start_out as size_t) - pos)
+
+                var seg = text.subview(pos, start_out as size_t)
                 out.push(seg)
-                pos = end_out as size_t
+                
                 if(start_out == end_out) {
-                    out.push(text.subview(pos, 1))
-                    pos = pos + 1
+                    if((end_out as size_t) < text_len) {
+                        out.push(text.subview(end_out as size_t, (end_out as size_t) + 1))
+                        pos = (end_out as size_t) + 1
+                    } else {
+                        break
+                    }
+                } else {
+                    pos = end_out as size_t
                 }
             }
         }
@@ -167,25 +175,14 @@ public namespace regex {
     // Top-level compile function
     // =========================================================================
     public func compile(pattern : std::string_view) : Regex {
-        var states = std::vector<NFAState>()
-        var classes = std::vector<CharClass>()
-        var start : i64 = -1
-        var captures : i64 = 0
-        var err = std::string()
-
-        var ok = compile_internal(pattern, states, classes, &mut start, &mut captures, err)
-
         var re = Regex::init()
         re.pattern.append_view(pattern)
-        re.states = states
-        re.classes = classes
-        re.start_state = start
-        re.num_captures = captures
+        
+        var ok = compile_internal(pattern, re.states, re.classes, &mut re.start_state, &mut re.num_captures, re.compile_error)
+
         if(!ok) {
-            if(err.empty()) {
+            if(re.compile_error.empty()) {
                 re.compile_error.append_view("unknown regex error")
-            } else {
-                re.compile_error.append_view(err.to_view())
             }
         }
         return re
@@ -225,9 +222,9 @@ public namespace regex {
         while(i < outs.size()) {
             var p = outs.get(i)
             if(p.slot == 0) {
-                states.get_ref(p.state_idx as size_t).out1 = target
+                states.get_ptr(p.state_idx as size_t).out1 = target
             } else {
-                states.get_ref(p.state_idx as size_t).out2 = target
+                states.get_ptr(p.state_idx as size_t).out2 = target
             }
             i = i + 1
         }
@@ -319,7 +316,9 @@ public namespace regex {
             advance_char(p)
         }
 
-        var ranges = std::vector<CharRange>()
+        var idx = classes.size() as i64
+        classes.push(CharClass { ranges : std::vector<CharRange>(), negated : negated })
+        var cd = classes.get_ptr(idx as size_t)
         var first = true
 
         loop {
@@ -353,48 +352,46 @@ public namespace regex {
                         lo = hi
                         hi = tmp
                     }
-                    ranges.push(CharRange { lo : lo, hi : hi })
+                    cd.ranges.push(CharRange { lo : lo, hi : hi })
                     continue
                 }
             }
 
-            ranges.push(CharRange { lo : lo, hi : lo })
+            cd.ranges.push(CharRange { lo : lo, hi : lo })
         }
 
-        var idx = classes.size() as i64
-        classes.push(CharClass { ranges : ranges, negated : negated })
         return idx
     }
 
     internal func make_escape_class(esc : i64, classes : &mut std::vector<CharClass>) : i64 {
-        var ranges = std::vector<CharRange>()
-        var negated = false
-        if(esc == -2) {
-            ranges.push(CharRange { lo : 48, hi : 57 })
-        } else if(esc == -3) {
-            negated = true
-            ranges.push(CharRange { lo : 48, hi : 57 })
-        } else if(esc == -4) {
-            ranges.push(CharRange { lo : 48, hi : 57 })
-            ranges.push(CharRange { lo : 65, hi : 90 })
-            ranges.push(CharRange { lo : 97, hi : 122 })
-            ranges.push(CharRange { lo : 95, hi : 95 })
-        } else if(esc == -5) {
-            negated = true
-            ranges.push(CharRange { lo : 48, hi : 57 })
-            ranges.push(CharRange { lo : 65, hi : 90 })
-            ranges.push(CharRange { lo : 97, hi : 122 })
-            ranges.push(CharRange { lo : 95, hi : 95 })
-        } else if(esc == -6) {
-            ranges.push(CharRange { lo : 9, hi : 13 })
-            ranges.push(CharRange { lo : 32, hi : 32 })
-        } else if(esc == -7) {
-            negated = true
-            ranges.push(CharRange { lo : 9, hi : 13 })
-            ranges.push(CharRange { lo : 32, hi : 32 })
-        }
         var idx = classes.size() as i64
-        classes.push(CharClass { ranges : ranges, negated : negated })
+        classes.push(CharClass { ranges : std::vector<CharRange>(), negated : false })
+        var cd = classes.get_ptr(idx as size_t)
+        
+        if(esc == -2) {
+            cd.ranges.push(CharRange { lo : 48, hi : 57 })
+        } else if(esc == -3) {
+            cd.negated = true
+            cd.ranges.push(CharRange { lo : 48, hi : 57 })
+        } else if(esc == -4) {
+            cd.ranges.push(CharRange { lo : 48, hi : 57 })
+            cd.ranges.push(CharRange { lo : 65, hi : 90 })
+            cd.ranges.push(CharRange { lo : 97, hi : 122 })
+            cd.ranges.push(CharRange { lo : 95, hi : 95 })
+        } else if(esc == -5) {
+            cd.negated = true
+            cd.ranges.push(CharRange { lo : 48, hi : 57 })
+            cd.ranges.push(CharRange { lo : 65, hi : 90 })
+            cd.ranges.push(CharRange { lo : 97, hi : 122 })
+            cd.ranges.push(CharRange { lo : 95, hi : 95 })
+        } else if(esc == -6) {
+            cd.ranges.push(CharRange { lo : 9, hi : 13 })
+            cd.ranges.push(CharRange { lo : 32, hi : 32 })
+        } else if(esc == -7) {
+            cd.negated = true
+            cd.ranges.push(CharRange { lo : 9, hi : 13 })
+            cd.ranges.push(CharRange { lo : 32, hi : 32 })
+        }
         return idx
     }
 
@@ -421,6 +418,11 @@ public namespace regex {
         }
 
         var frag = parse_regex(p, states, classes, &mut p.group_count)
+
+        if(p.error.empty() && p.pos != pattern.size()) {
+            p.error.append_view("unexpected character at pos ")
+            p.error.append_integer(p.pos as bigint)
+        }
 
         if(!p.error.empty()) {
             error.append_view(p.error.to_view())
@@ -509,7 +511,8 @@ public namespace regex {
             patch_list(frag.outs, jmp, states)
 
             frag.start = split
-            frag.outs = split_outs
+            frag.outs.clear()
+            append_patch_list(frag.outs, split_outs)
         } else if(c == '+' as i64) {
             advance_char(p)
             var split = new_state(states, 1, 0, 0, frag.start, -1, 0)
@@ -518,18 +521,17 @@ public namespace regex {
 
             patch_list(frag.outs, split, states)
 
-            frag.outs = split_outs
+            frag.outs.clear()
+            append_patch_list(frag.outs, split_outs)
         } else if(c == '?' as i64) {
             advance_char(p)
             var split = new_state(states, 1, 0, 0, frag.start, -1, 0)
             var split_outs = std::vector<PatchPtr>()
             split_outs.push(make_patch(split, 1))
 
-            var new_outs = copy_patch_list(frag.outs)
-            append_patch_list(new_outs, split_outs)
+            append_patch_list(frag.outs, split_outs)
 
             frag.start = split
-            frag.outs = new_outs
         }
 
         return frag
@@ -551,7 +553,8 @@ public namespace regex {
             var group_idx = *group_count
             *group_count = *group_count + 1
 
-            var save_start = new_state(states, 8, 0, 0, -1, -1, group_idx * 2)
+            var save_slot = (group_idx + 1) * 2
+            var save_start = new_state(states, 8, 0, 0, -1, -1, save_slot)
 
             var inner = parse_alternation(p, states, classes, group_count)
 
@@ -559,9 +562,9 @@ public namespace regex {
                 return make_empty_frag()
             }
 
-            var save_end = new_state(states, 8, 0, 0, -1, -1, group_idx * 2 + 1)
+            var save_end = new_state(states, 8, 0, 0, -1, -1, save_slot + 1)
 
-            states.get_ref(save_start as size_t).out1 = inner.start
+            states.get_ptr(save_start as size_t).out1 = inner.start
             patch_list(inner.outs, save_end, states)
 
             var outs = std::vector<PatchPtr>()
@@ -612,7 +615,7 @@ public namespace regex {
         if(c == '\\' as i64) {
             advance_char(p)
             var esc = parse_escape_char(p)
-            if(esc < 0) return make_empty_frag()
+            if(esc == -1) return make_empty_frag()
 
             if(is_escape_class(esc)) {
                 var class_idx = make_escape_class(esc, classes)
@@ -642,17 +645,19 @@ public namespace regex {
     // =========================================================================
     // NFA Execution
     // =========================================================================
-    internal func add_state(set : &mut std::vector<i64>, sid : i64,
+    internal func add_state(set : *mut std::vector<i64>, sid : i64,
         states : &std::vector<NFAState>) {
         if(sid < 0) return
 
         var i : size_t = 0
-        while(i < set.size()) {
-            if(set.get(i) == sid) return
-            i = i + 1
-        }
+        unsafe {
+            while(i < set.size()) {
+                if(set.get(i) == sid) return
+                i = i + 1
+            }
 
-        set.push(sid)
+            set.push(sid)
+        }
 
         var s = states.get(sid as size_t)
         if(s.kind == 1) {
@@ -665,7 +670,7 @@ public namespace regex {
         }
     }
 
-    internal func match_class_char(cd : &CharClass, ch : i64) : bool {
+    internal func match_class_char(cd : *CharClass, ch : i64) : bool {
         var i : size_t = 0
         while(i < cd.ranges.size()) {
             var r = cd.ranges.get(i)
@@ -682,7 +687,11 @@ public namespace regex {
         start : i64, text : std::string_view,
         text_start : size_t, text_end : size_t) : bool {
 
-        var current = std::vector<i64>()
+        var v1 = std::vector<i64>()
+        var v2 = std::vector<i64>()
+        var current = &mut v1
+        var next = &mut v2
+
         add_state(current, start, states)
 
         var pos = text_start
@@ -693,11 +702,14 @@ public namespace regex {
 
             var ch = text.get(pos) as i64
 
-            var next = std::vector<i64>()
+            unsafe { next.clear() }
 
             var j : size_t = 0
-            while(j < current.size()) {
-                var sid = current.get(j)
+            var cur_size : size_t = 0
+            unsafe { cur_size = current.size() }
+            while(j < cur_size) {
+                var sid : i64 = 0
+                unsafe { sid = current.get(j) }
                 var s = states.get(sid as size_t)
 
                 if(s.kind == 0) {
@@ -709,17 +721,18 @@ public namespace regex {
                         add_state(next, s.out1, states)
                     }
                 } else if(s.kind == 5) {
-                    var cd = classes.get_ref(s.class_idx as size_t)
+                    var cd = classes.get_ptr(s.class_idx as size_t)
                     if(match_class_char(cd, ch)) {
                         add_state(next, s.out1, states)
                     }
-                } else if(s.kind == 7) {
-                    // $ handled after loop by expand_non_consuming
                 }
                 j = j + 1
+                unsafe { cur_size = current.size() }
             }
 
+            var tmp = current
             current = next
+            next = tmp
 
             pos = pos + 1
         }
@@ -729,22 +742,31 @@ public namespace regex {
         return false
     }
 
-    internal func has_match_state(set : &std::vector<i64>,
+
+    internal func has_match_state(set : *std::vector<i64>,
         states : &std::vector<NFAState>) : bool {
         var k : size_t = 0
-        while(k < set.size()) {
-            if(states.get(set.get(k) as size_t).kind == 3) return true
+        var set_size : size_t = 0
+        unsafe { set_size = set.size() }
+        while(k < set_size) {
+            var sid : i64 = 0
+            unsafe { sid = set.get(k) }
+            if(states.get(sid as size_t).kind == 3) return true
             k = k + 1
         }
         return false
     }
 
-    internal func expand_non_consuming(set : &mut std::vector<i64>,
+    internal func expand_non_consuming(set : *mut std::vector<i64>,
         states : &std::vector<NFAState>,
         pos : size_t, text_len : size_t) {
         var i : size_t = 0
-        while(i < set.size()) {
-            var s = states.get(set.get(i) as size_t)
+        var set_size : size_t = 0
+        unsafe { set_size = set.size() }
+        while(i < set_size) {
+            var sid : i64 = 0
+            unsafe { sid = set.get(i) }
+            var s = states.get(sid as size_t)
             if(s.kind == 6) {
                 if(pos == 0) {
                     add_state(set, s.out1, states)
@@ -757,6 +779,7 @@ public namespace regex {
                 add_state(set, s.out1, states)
             }
             i = i + 1
+            unsafe { set_size = set.size() }
         }
     }
 
@@ -770,6 +793,190 @@ public namespace regex {
         return dst
     }
 
+    internal func copy_visited_vec(src : &std::vector<VisitedFrame>) : std::vector<VisitedFrame> {
+        var dst = std::vector<VisitedFrame>()
+        var i : size_t = 0
+        while(i < src.size()) {
+            dst.push(src.get(i))
+            i = i + 1
+        }
+        return dst
+    }
+
+    internal func make_capture_positions(num_captures : i64) : std::vector<i64> {
+        var positions = std::vector<i64>()
+        var total = num_captures * 2
+        var i : i64 = 0
+        while(i < total) {
+            positions.push(-1)
+            i = i + 1
+        }
+        return positions
+    }
+
+    internal func visited_contains(path : &std::vector<VisitedFrame>, sid : i64, pos : size_t) : bool {
+        var i : size_t = 0
+        while(i < path.size()) {
+            var item = path.get(i)
+            if(item.state_idx == sid && item.pos == pos) return true
+            i = i + 1
+        }
+        return false
+    }
+
+    internal func run_prog_with_captures_impl(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        sid : i64, text : std::string_view,
+        pos : size_t, text_end : size_t,
+        positions : &mut std::vector<i64>,
+        path : &mut std::vector<VisitedFrame>) : bool {
+
+        if(sid < 0) return false
+        if(visited_contains(path, sid, pos)) return false
+
+        path.push(VisitedFrame { state_idx : sid, pos : pos })
+
+        var result = false
+        var state = states.get(sid as size_t)
+
+        if(state.kind == 3) {
+            result = pos == text_end
+        } else if(state.kind == 0) {
+            if(pos < text_end) {
+                var ch = text.get(pos) as i64
+                if(state.ch == ch) {
+                    result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
+                }
+            }
+        } else if(state.kind == 1) {
+            var left_positions = copy_i64_vec(positions)
+            var left_path = copy_visited_vec(path)
+            if(run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, left_positions, left_path)) {
+                positions.clear()
+                append_i64_vec(positions, left_positions)
+                result = true
+            } else {
+                var right_positions = copy_i64_vec(positions)
+                var right_path = copy_visited_vec(path)
+                if(run_prog_with_captures_impl(states, classes, state.out2, text, pos, text_end, right_positions, right_path)) {
+                    positions.clear()
+                    append_i64_vec(positions, right_positions)
+                    result = true
+                }
+            }
+        } else if(state.kind == 2) {
+            result = run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, positions, path)
+        } else if(state.kind == 4) {
+            if(pos < text_end) {
+                var ch = text.get(pos) as i64
+                if(ch != 10) {
+                    result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
+                }
+            }
+        } else if(state.kind == 5) {
+            if(pos < text_end) {
+                var ch = text.get(pos) as i64
+                var cd = classes.get_ptr(state.class_idx as size_t)
+                if(match_class_char(cd, ch)) {
+                    result = run_prog_with_captures_impl(states, classes, state.out1, text, pos + 1, text_end, positions, path)
+                }
+            }
+        } else if(state.kind == 6) {
+            if(pos == 0) {
+                result = run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, positions, path)
+            }
+        } else if(state.kind == 7) {
+            if(pos == text.size()) {
+                result = run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, positions, path)
+            }
+        } else if(state.kind == 8) {
+            if(state.save_idx >= 0 && (state.save_idx as size_t) < positions.size()) {
+                *positions.get_ptr(state.save_idx as size_t) = pos as i64
+            }
+            result = run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, positions, path)
+        }
+
+        path.remove_last()
+        return result
+    }
+
+    internal func append_i64_vec(dst : &mut std::vector<i64>, src : &std::vector<i64>) {
+        var i : size_t = 0
+        while(i < src.size()) {
+            dst.push(src.get(i))
+            i = i + 1
+        }
+    }
+
+    internal func replace_i64_vec(dst : *mut std::vector<i64>, src : &std::vector<i64>) {
+        unsafe {
+            dst.clear()
+            var i : size_t = 0
+            while(i < src.size()) {
+                dst.push(src.get(i))
+                i = i + 1
+            }
+        }
+    }
+
+    internal func run_prog_with_captures(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        start : i64, text : std::string_view,
+        text_start : size_t, text_end : size_t,
+        num_captures : i64,
+        positions_out : *mut std::vector<i64>) : bool {
+
+        var positions = make_capture_positions(num_captures)
+        if(positions.size() >= 2) {
+            *positions.get_ptr(0) = text_start as i64
+            *positions.get_ptr(1) = text_end as i64
+        }
+        var path = std::vector<VisitedFrame>()
+        var matched = run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, positions, path)
+        if(matched) {
+            replace_i64_vec(positions_out, positions)
+            return true
+        }
+        return false
+    }
+
+    internal func run_prog_exact(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        start : i64, text : std::string_view,
+        text_start : size_t, text_end : size_t) : bool {
+
+        var positions = std::vector<i64>()
+        var path = std::vector<VisitedFrame>()
+        return run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, positions, path)
+    }
+
+    internal func find_captures(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        start : i64, text : std::string_view,
+        text_start : size_t, num_captures : i64,
+        positions_out : *mut std::vector<i64>) : bool {
+
+        var found = false
+        var best_positions = std::vector<i64>()
+
+        var end_pos = text_start
+        while(end_pos <= text.size()) {
+            var positions = std::vector<i64>()
+            if(run_prog_with_captures(states, classes, start, text, text_start, end_pos, num_captures, &mut positions)) {
+                found = true
+                best_positions.clear()
+                append_i64_vec(best_positions, positions)
+            }
+            end_pos = end_pos + 1
+        }
+
+        if(found) {
+            replace_i64_vec(positions_out, best_positions)
+            return true
+        }
+        return false
+    }
+
     internal func find_match(states : &std::vector<NFAState>,
         classes : &std::vector<CharClass>,
         start : i64, text : std::string_view,
@@ -780,7 +987,7 @@ public namespace regex {
 
         var end_pos = text_start
         while(end_pos <= text.size()) {
-            if(run_prog(states, classes, start, text, text_start, end_pos)) {
+            if(run_prog_exact(states, classes, start, text, text_start, end_pos)) {
                 found = true
                 best = end_pos as i64
             }
@@ -790,6 +997,26 @@ public namespace regex {
         if(found) {
             *match_end = best
             return true
+        }
+        return false
+    }
+
+    internal func find_from(states : &std::vector<NFAState>,
+        classes : &std::vector<CharClass>,
+        start_state : i64, text : std::string_view,
+        search_start : size_t,
+        start_out : *mut i64, end_out : *mut i64) : bool {
+
+        var text_len = text.size()
+        var i = search_start
+        while(i <= text_len) {
+            var match_end : i64 = 0
+            if(find_match(states, classes, start_state, text, i, &mut match_end)) {
+                *start_out = i as i64
+                *end_out = match_end
+                return true
+            }
+            i = i + 1
         }
         return false
     }

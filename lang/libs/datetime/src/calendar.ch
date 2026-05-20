@@ -21,13 +21,11 @@ public namespace datetime {
     // Returns 0=Sun, 1=Mon, ..., 6=Sat
     public func day_of_week(year : i64, month : i64, day : i64) : i64 {
         var y = year
-        var m = month
-        if(m < 3) {
+        if(month < 3) {
             y = y - 1
-            m = m + 12
         }
         var t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
-        return (y + y/4 - y/100 + y/400 + t[m - 1] + day) % 7
+        return (y + y/4 - y/100 + y/400 + t[month - 1] + day) % 7
     }
 
     public func day_of_year(year : i64, month : i64, day : i64) : i64 {

@@ -4539,18 +4539,35 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     nested_value = false;
     write(')');
     scope(*this, decl->ifBody);
+    unsigned int extra_braces = 0;
     unsigned i = 0;
     while(i < decl->elseIfs.size()) {
         auto& elif = decl->elseIfs[i];
-        write("else if(");
-        visit(elif.first);
-        write(')');
+        nested_value = true;
+        if (elif.first->kind() == ValueKind::PatternMatchExpr) {
+            write("else {");
+            extra_braces++;
+            new_line_and_indent();
+            do_patt_mat_expr(*this, elif.first->as_pattern_match_expr_unsafe());
+            write("if(");
+            do_patt_mat_expr_cond(*this, elif.first->as_pattern_match_expr_unsafe());
+            write(')');
+        } else {
+            write("else if(");
+            visit(elif.first);
+            write(')');
+        }
+        nested_value = false;
         scope(*this, elif.second);
         i++;
     }
     if(decl->elseBody.has_value()) {
         write(" else ");
         scope(*this, decl->elseBody.value());
+    }
+    while (extra_braces != 0) {
+        write('}');
+        extra_braces--;
     }
 }
 

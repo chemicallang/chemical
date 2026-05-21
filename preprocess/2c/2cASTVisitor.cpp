@@ -4697,7 +4697,9 @@ void ToCAstVisitor::VisitScope(Scope *scope) {
 void ToCAstVisitor::VisitBlockScope(BlockScope* node) {
     Scope scope(node->parent(), node->encoded_location());
     scope.nodes = std::move(node->nodes);
+    write('{');
     VisitScope(&scope);
+    write('}');
     node->nodes = std::move(scope.nodes);
 }
 

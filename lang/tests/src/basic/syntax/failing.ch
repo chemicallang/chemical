@@ -79,4 +79,14 @@ func test_failing_code() {
         return (100 as i64 * 2i64) == 200;
     })
 
+    test("two variables with same name can exist in anonymous blocks", () => {
+        {
+            var x = 0
+        }
+        {
+            var x = 33
+        }
+        return true;
+    })
+
 }

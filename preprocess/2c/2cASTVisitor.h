@@ -198,11 +198,6 @@ public:
     std::string return_redirect_block;
 
     /**
-     * sometimes temporary var names are allocated
-     */
-    std::vector<std::string> allocated_temp_var_names;
-
-    /**
      * values or nodes can be used as keys, where as strings can be used to store
      * aliased names, which later can be accessed
      */
@@ -260,14 +255,6 @@ public:
      * get a local variable name, that is unique
      */
     std::string get_local_temp_var_name();
-
-    /**
-     * get a local variable name that is a view
-     */
-    chem::string_view get_local_temp_var_name_view() {
-        allocated_temp_var_names.emplace_back(get_local_temp_var_name());
-        return chem::string_view(allocated_temp_var_names.back());
-    }
 
     /**
      * emits a new line and writes line directives if needed

@@ -19,7 +19,7 @@ enum class DestructionJobType {
 
 struct DestructionJob {
     DestructionJobType type;
-    chem::string_view self_name;
+    std::string self_name;
     std::string drop_flag_name;
     ASTNode* initializer;
     union {
@@ -52,7 +52,7 @@ public:
     std::vector<DestructionJob> stmt_destruct_jobs;
 
     void queue_stmt_destruct(
-            const chem::string_view& self_name,
+            std::string self_name,
             ASTNode* initializer,
             MembersContainer* linked,
             bool is_pointer = false
@@ -76,7 +76,7 @@ public:
     );
 
     void queue_destruct(
-            const chem::string_view& self_name,
+            std::string self_name,
             ASTNode* initializer,
             MembersContainer* linked,
             bool is_pointer = false,
@@ -92,7 +92,7 @@ public:
         return nullptr;
     }
 
-    void queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call);
+    void queue_destruct(std::string self_name, ASTNode* initializer, FunctionCall* call);
 
     void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, MembersContainer* linked, FunctionDeclaration* destructor);
 
@@ -100,9 +100,9 @@ public:
 
     void destruct(const DestructionJob& job, Value* current_return);
 
-    bool queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
+    bool queue_destruct_arr(std::string self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
-    void queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, const chem::string_view& self_name);
+    void queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, std::string self_name);
 
     void VisitVarInitStmt(VarInitStatement *init);
 
@@ -110,7 +110,7 @@ public:
 
     void dispatch_jobs_from(int begin);
 
-    void queue_destruct_type(const chem::string_view& self_name, ASTNode* initializer, BaseType* type);
+    void queue_destruct_type(std::string self_name, ASTNode* initializer, BaseType* type);
 
     void queue_destruct_decl_params(FunctionType* decl);
 

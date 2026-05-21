@@ -1609,16 +1609,16 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                 const auto capType = returnType->as_capturing_func_type_unsafe();
                 const auto instanceType = capType->instance_type;
                 const auto return_linked = instanceType->get_direct_linked_node();
-                const auto temp_name_view = visitor.get_local_temp_var_name_view();
-                allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
+                auto temp_name = visitor.get_local_temp_var_name();
+                allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
                 write(';');
                 visitor.new_line_and_indent();
-                visitor.local_allocated[call] = std::string(temp_name_view.data(), temp_name_view.size());
+                visitor.local_allocated[call] = temp_name;
                 // chain elements get their destruct queued
                 if(is_chain_call && return_linked) {
                     auto container = return_linked->as_extendable_member_container();
                     if(container && container->destructor_func()) {
-                        visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, false);
+                        visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
                     }
                 }
             } else {
@@ -1626,16 +1626,16 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                 if (return_linked) {
                     const auto returnKind = return_linked->kind();
                     if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                        const auto temp_name_view = visitor.get_local_temp_var_name_view();
-                        allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
+                        auto temp_name = visitor.get_local_temp_var_name();
+                        allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
                         write(';');
                         visitor.new_line_and_indent();
-                        visitor.local_allocated[call] = std::string(temp_name_view.data(), temp_name_view.size());
+                        visitor.local_allocated[call] = temp_name;
                         // chain elements get their destruct queued
                         if(is_chain_call) {
                             auto container = return_linked->as_members_container_unsafe();
                             if(container && container->destructor_func()) {
-                                visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, false);
+                                visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
                             }
                         }
                     }
@@ -1666,14 +1666,13 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                     visitor.visit(param_type->as_reference_type_unsafe()->type);
                     visitor.write('*');
                     visitor.space();
-                    const auto temp_name_view = visitor.get_local_temp_var_name_view();
-                    const std::string temp_name(temp_name_view.data(), temp_name_view.size());
+                    const auto temp_name = visitor.get_local_temp_var_name();
                     visitor.write_str(temp_name);
                     visitor.write(';');
                     visitor.new_line_and_indent();
                     visitor.destructible_refs[arg] = temp_name;
                     // queue destruct for this ref temp (it's a pointer, so is_pointer=true)
-                    visitor.destructor.queue_stmt_destruct(temp_name_view, nullptr, container, true);
+                    visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, true);
                 }
             }
             i++;
@@ -2073,7 +2072,7 @@ void init_drop_flag(ToCAstVisitor& visitor, const chem::string_view& drop_flag) 
     visitor.write("true;");
 }
 
-void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, MembersContainer* linked, bool is_pointer, bool has_drop_flag) {
+void CDestructionVisitor::queue_destruct(std::string self_name, ASTNode* initializer, MembersContainer* linked, bool is_pointer, bool has_drop_flag) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
@@ -2084,7 +2083,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
         }
         destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Default,
-                .self_name = self_name,
+                .self_name = std::move(self_name),
                 .drop_flag_name = std::move(drop_flag),
                 .initializer = initializer,
                 .default_job = {
@@ -2096,7 +2095,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
     }
 }
 
-void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call) {
+void CDestructionVisitor::queue_destruct(std::string self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->getType();
     const auto linked = return_type->get_direct_linked_canonical_node();
     if(linked) {
@@ -2104,15 +2103,15 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
         if(linked_kind == ASTNodeKind::VariantMember) {
             const auto member = linked->as_variant_member_unsafe();
             const auto variant = member->parent();
-            queue_destruct(self_name, initializer, variant);
+            queue_destruct(std::move(self_name), initializer, variant);
             return;
         }
-        queue_destruct(self_name, initializer, linked->as_extendable_member_container());
+        queue_destruct(std::move(self_name), initializer, linked->as_extendable_member_container());
     }
 }
 
 void CDestructionVisitor::queue_stmt_destruct(
-        const chem::string_view& self_name,
+        std::string self_name,
         ASTNode* initializer,
         MembersContainer* linked,
         bool is_pointer
@@ -2122,7 +2121,7 @@ void CDestructionVisitor::queue_stmt_destruct(
     if(destructorFunc) {
         stmt_destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Default,
-                .self_name = self_name,
+                .self_name = std::move(self_name),
                 .drop_flag_name = std::string(),
                 .initializer = initializer,
                 .default_job = {
@@ -2188,13 +2187,13 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
     switch(job.type) {
         case DestructionJobType::Default:
             if(job.drop_flag_name.empty()) {
-                destruct(job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
+                destruct(chem::string_view(job.self_name), job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
             } else {
-                conditional_destruct(chem::string_view(job.drop_flag_name), job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
+                conditional_destruct(chem::string_view(job.drop_flag_name), chem::string_view(job.self_name), job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
             }
             break;
         case DestructionJobType::Array:
-            destruct_arr(job.self_name, job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
+            destruct_arr(chem::string_view(job.self_name), job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
             break;
     }
 }
@@ -2213,27 +2212,27 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
     destruct_jobs.erase(itr, destruct_jobs.end());
 }
 
-void CDestructionVisitor::queue_destruct_type(const chem::string_view& self_name, ASTNode* initializer, BaseType* type) {
+void CDestructionVisitor::queue_destruct_type(std::string self_name, ASTNode* initializer, BaseType* type) {
     if(type->kind() == BaseTypeKind::CapturingFunction) {
-        queue_destruct_type(self_name, initializer, type->as_capturing_func_type_unsafe()->instance_type);
+        queue_destruct_type(std::move(self_name), initializer, type->as_capturing_func_type_unsafe()->instance_type);
         return;
     }
     const auto container = type->get_members_container();
     if(container) {
         const auto destructor_func = container->destructor_func();
         if (destructor_func) {
-            queue_destruct(self_name, initializer, container->as_extendable_member_container(), true);
+            queue_destruct(std::move(self_name), initializer, container->as_extendable_member_container(), true);
         }
     }
 }
 
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
-        queue_destruct_type(d_param->name, d_param, d_param->type->canonical());
+        queue_destruct_type(d_param->name.str(), d_param, d_param->type->canonical());
     }
 }
 
-bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType *elem_type_non_canon, int array_size) {
+bool CDestructionVisitor::queue_destruct_arr(std::string self_name, ASTNode* initializer, BaseType *elem_type_non_canon, int array_size) {
     const auto elem_type = elem_type_non_canon->canonical();
     if(elem_type->kind() == BaseTypeKind::CapturingFunction) {
         const auto capType = elem_type->as_capturing_func_type_unsafe();
@@ -2247,7 +2246,7 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
             }
             destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Array,
-                .self_name = self_name,
+                .self_name = std::move(self_name),
                 .initializer = initializer,
                 .array_job = {
                     array_size,
@@ -2266,12 +2265,12 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     const auto knownType = init->known_type();
     if(init_val_kind == ValueKind::LambdaFunc && knownType && knownType->canonical()->kind() == BaseTypeKind::CapturingFunction) {
         const auto capType = knownType->canonical()->as_capturing_func_type_unsafe();
-        queue_destruct_varInit_type(capType->instance_type, init, init->name_view());
+        queue_destruct_varInit_type(capType->instance_type, init, init->name_str());
     } else if(init_val_kind == ValueKind::AccessChain) {
         auto chain = init_value->as_access_chain_unsafe();
         const auto last_func_call = chain->values.back()->as_func_call();
         if(last_func_call) {
-            queue_destruct(init->name_view(), init, last_func_call);
+            queue_destruct(init->name_str(), init, last_func_call);
             return;
         } else {
             if(chain->is_moved()) {
@@ -2281,12 +2280,12 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
                 if(!linked) {
                     return;
                 }
-                queue_destruct(init->name_view(), init, linked->as_extendable_member_container());
+                queue_destruct(init->name_str(), init, linked->as_extendable_member_container());
             }
             return;
         }
     } else if(init_val_kind == ValueKind::FunctionCall) {
-        queue_destruct(init->name_view(), init, init_value->as_func_call_unsafe());
+        queue_destruct(init->name_str(), init, init_value->as_func_call_unsafe());
         return;
     }
     if(init_val_kind == ValueKind::Identifier && init_value->as_identifier_unsafe()->is_moved) {
@@ -2296,13 +2295,13 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             visitor.error("couldn't destruct var init", init);
             return;
         }
-        queue_destruct(init->name_view(), init, linked->as_extendable_member_container());
+        queue_destruct(init->name_str(), init, linked->as_extendable_member_container());
         return;
     }
     if(init_val_kind == ValueKind::ArrayValue) {
         auto array_val = init_value->as_array_value_unsafe();
         auto elem_type = array_val->element_type(visitor.allocator);
-        queue_destruct_arr(init->name_view(), init, elem_type, array_val->array_size());
+        queue_destruct_arr(init->name_str(), init, elem_type, array_val->array_size());
         return;
     }
 //    auto variant_call = init_value->as_variant_call_unsafe();
@@ -2313,24 +2312,24 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 //    }
     if(init_val_kind == ValueKind::StructValue) {
         auto struct_val = init_value->as_struct_value_unsafe();
-        queue_destruct(init->name_view(), init, struct_val->linked_struct());
+        queue_destruct(init->name_str(), init, struct_val->linked_struct());
     }
 }
 
-void CDestructionVisitor::queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, const chem::string_view& self_name) {
+void CDestructionVisitor::queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, std::string self_name) {
     const auto tKind = type->kind();
     if(tKind == BaseTypeKind::CapturingFunction) {
         const auto capType = type->as_capturing_func_type_unsafe();
-        queue_destruct_varInit_type(capType->instance_type, initializer, self_name);
+        queue_destruct_varInit_type(capType->instance_type, initializer, std::move(self_name));
     } else if(type->isStructLikeType()) {
         auto container = type->get_members_container();
         if (container) {
-            queue_destruct(self_name, initializer, container);
+            queue_destruct(std::move(self_name), initializer, container);
         }
     } else if(type->kind() == BaseTypeKind::Array) {
         auto arrType = type->as_array_type_unsafe();
         if(arrType->has_array_size()) {
-            queue_destruct_arr(self_name, initializer, arrType->elem_type, arrType->get_array_size());
+            queue_destruct_arr(std::move(self_name), initializer, arrType->elem_type, arrType->get_array_size());
         } else {
             // cannot destruct array type without size
         }
@@ -2363,7 +2362,7 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
         process_init_value(init, init_value);
         return;
     } else {
-        queue_destruct_varInit_type(pure_t, init, init->name_view());
+        queue_destruct_varInit_type(pure_t, init, init->name_str());
     }
 }
 
@@ -6968,14 +6967,14 @@ void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {
     if(val_type->isStructLikeType()) {
         const auto destr = val_type->get_destructor();
         if (destr != nullptr) {
-            const auto temp_name = visitor.get_local_temp_var_name_view();
+            const auto temp_name = visitor.get_local_temp_var_name();
             visitor.visit(val_type);
             visitor.write(' ');
-            visitor.write(temp_name);
+            visitor.write_str(temp_name);
             visitor.write(" = ");
             visitor.visit(value);
             visitor.write(';');
-            visitor.destructor.queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
+            visitor.destructor.queue_destruct(std::move(temp_name), node, destr->parent()->as_extendable_member_container(), false, false);
             return;
         }
     }

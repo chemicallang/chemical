@@ -34,7 +34,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  }
              }
              converter.str.append_view(") ");
+             converter.function_depth++;
              converter.convertJsNode(func.body);
+             converter.function_depth--;
              if(is_anon) converter.str.append(')');
         }
         JsNodeKind.Identifier => {
@@ -248,14 +250,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              for(var i : uint = 0; i < arrow.params.size(); i++) {
                  if(i > 0) converter.str.append_view(", ");
                  var param = arrow.params.get_ptr(i);
-                converter.str.append_view(param.name);
-                if(param.default_value != null) {
-                    converter.str.append_view(" = ");
-                    converter.convertJsNode(param.default_value);
-                }
+                 converter.str.append_view(param.name);
+                 if(param.default_value != null) {
+                     converter.str.append_view(" = ");
+                     converter.convertJsNode(param.default_value);
+                 }
              }
              converter.str.append_view(") => ");
+             converter.function_depth++;
              converter.convertJsNode(arrow.body);
+             converter.function_depth--;
         }
         JsNodeKind.Block => {
              var block = node as *mut JsBlock
@@ -303,8 +307,8 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                          }
                      }
                  }
-                 var should_wrap_in_ucs = decl.value != null && !decl.name.empty() && decl.pattern == null &&
-                     !is_existing_ucs && converter.expr_references_reactive_var(decl.value);
+                  var should_wrap_in_ucs = converter.function_depth == 0 && decl.value != null && !decl.name.empty() && decl.pattern == null &&
+                      !is_existing_ucs && converter.expr_references_reactive_var(decl.value);
                  if(should_wrap_in_ucs) {
                      converter.computed_vars.push(decl.name);
                      converter.str.append_view("const ");
@@ -325,9 +329,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                          converter.convertJsNode(decl.value);
                      }
                      converter.str.append_view(";");
-                     if(is_existing_ucs) {
-                         converter.computed_vars.push(decl.name);
-                     }
+                      if(is_existing_ucs && converter.function_depth == 0) {
+                          converter.computed_vars.push(decl.name);
+                      }
                  }
              }
         }

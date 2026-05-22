@@ -488,6 +488,17 @@ public func test_if_return_no_semicolon_asi(env : &mut TestEnv) {
 }
 
 @test
+public func test_if_return_then_assignment(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(x) return
+        x = true
+        fetch()
+    }
+    string_equals(env, page.toStringJsOnly(), "if(x)return;x = true;fetch();");
+}
+
+@test
 public func test_if_throw_new_error(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {

@@ -25,4 +25,5 @@ struct JsConverter {
     var component_props_name : std::string_view
     var in_jsx_attribute : bool = false
     var skip_reactive_deref : bool = false
+    var function_depth : int = 0
 }

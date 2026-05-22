@@ -344,8 +344,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.Return => {
              var ret = node as *mut JsReturn
-             converter.str.append_view("return ");
-             if(ret.value != null) converter.convertJsNode(ret.value);
+             converter.str.append_view("return");
+             if(ret.value != null) {
+                 converter.str.append(' ');
+                 converter.convertJsNode(ret.value);
+             }
              converter.str.append_view(";");
         }
         JsNodeKind.For => {

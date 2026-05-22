@@ -60,7 +60,7 @@ void writeSymbolInfo(std::ostream& output, ImportStatement* stmt, const chem::st
         return;
     }
 
-    output << "info: &DependencySymbolInfo {\n";
+    output << "info: &mut DependencySymbolInfo {\n";
     output << indent << "\talias: \"" << alias << "\",\n"; // alias
 
     if(items.empty()) {

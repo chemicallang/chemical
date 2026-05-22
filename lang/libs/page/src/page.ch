@@ -504,6 +504,7 @@ window.$_ur = {
 window.$_us = ((v) => {
     let val = v;
     const subs = [];
+    const _inst = window.$__uni_current_instance;
     return {
         get value() {
             if(window.$__uni_current_tracker) window.$__uni_current_tracker(this);
@@ -513,6 +514,13 @@ window.$_us = ((v) => {
             val = n;
             const snapshot = subs.slice();
             for(let i = 0; i < snapshot.length; i++) snapshot[i](val);
+            if(_inst && !_inst._pendingEffects) {
+                _inst._pendingEffects = true;
+                Promise.resolve().then(() => {
+                    _inst._pendingEffects = false;
+                    if(_inst.effects && _inst.effects.length) window.$__uni_run_effects(_inst, _inst.effects);
+                });
+            }
         },
         subscribe(fn) {
             subs.push(fn);

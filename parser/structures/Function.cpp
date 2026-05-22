@@ -24,9 +24,18 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
     if(tok.type == TokenType::ReturnKw) {
         token++;
         auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, parent_node, loc_single(tok));
-        auto expr = parseExpressionOrArrayOrStruct(allocator);
-        if(expr) {
-            stmt->value = expr;
+        switch (token->type) {
+            case TokenType::SemiColonSym:
+            case TokenType::NewLine:
+            case TokenType::RBrace:
+            case TokenType::EndOfFile:
+                break;
+            default: {
+                auto expr = parseExpressionOrArrayOrStruct(allocator);
+                if(expr) {
+                    stmt->value = expr;
+                }
+            }
         }
         return stmt;
     } else {

@@ -321,3 +321,17 @@ public func solid_arrow_fn_in_body(env : &mut TestEnv) {
     #html { <ArrowFnInBody /> }
     view_equals(env, page.getHeadJs(), "function solid_lib_test_ArrowFnInBody(props) { var double = (n) => n * 2; return $_sh(\"div\", {}, () => double(5)); }\n");
 }
+
+#solid ReturnGuardAssignment(props) {
+    var x = 0
+    if(props.cond) return
+    x = 1
+    return <span>{x}</span>
+}
+
+@test
+public func solid_return_guard_assignment(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ReturnGuardAssignment /> }
+    view_equals(env, page.getHeadJs(), "function solid_lib_test_ReturnGuardAssignment(props) { var x = 0; if(props.cond) return; x = 1; return $_sh(\"span\", {}, x); }\n");
+}

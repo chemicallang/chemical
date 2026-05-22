@@ -12,7 +12,9 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/wiqis/accountlib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/market" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/market/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
@@ -22,6 +24,7 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mongodb@v1.4" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/totp" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/wakaztahir.github.io" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example@v1.0" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/lsp-framework" vcs="Git" />

@@ -36,6 +36,7 @@
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/PlacementNewNode.h"
+#include "ast/structures/BlockScope.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/MaybeRuntimeType.h"
 #include "ast/types/RuntimeType.h"

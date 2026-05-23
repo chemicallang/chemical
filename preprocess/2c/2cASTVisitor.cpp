@@ -1071,12 +1071,12 @@ void func_call_single_arg(
     bool is_destructible_ref = false;
     const auto param_type = non_canon_param_type->canonical();
 
-    // passing a function call or struct value to a reference, whereas the struct is destructible
-    if(param_type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
+    // passing a struct value to a reference, whereas the struct is destructible
+    if(param_type->kind() == BaseTypeKind::Reference && val->kind() == ValueKind::StructValue) {
         const auto container = val->getType()->get_members_container();
         if(container && container->destructor_func() != nullptr) {
-            auto found_ref = visitor.destructible_refs.find(val);
-            if(found_ref != visitor.destructible_refs.end()) {
+            auto found_ref = visitor.local_allocated.find(val);
+            if(found_ref != visitor.local_allocated.end()) {
                 is_destructible_ref = true;
                 visitor.write("({ ");
                 visitor.write_str(found_ref->second);
@@ -1601,83 +1601,83 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     const auto func_type = call->function_type();
 
     // functions that return struct are handled in this block of code
-    if(!func_decl || !func_decl->is_comptime()) {
-        const auto returnType = func_type->returnType->canonical();
-        const auto returnTypeKind = returnType->kind();
-        if (returnTypeKind != BaseTypeKind::Dynamic) {
-            if(returnTypeKind == BaseTypeKind::CapturingFunction) {
-                const auto capType = returnType->as_capturing_func_type_unsafe();
-                const auto instanceType = capType->instance_type;
-                const auto return_linked = instanceType->get_direct_linked_node();
-                auto temp_name = visitor.get_local_temp_var_name();
-                allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
-                write(';');
-                visitor.new_line_and_indent();
-                visitor.local_allocated[call] = temp_name;
-                // chain elements get their destruct queued
-                if(is_chain_call && return_linked) {
-                    auto container = return_linked->as_extendable_member_container();
-                    if(container && container->destructor_func()) {
-                        visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
-                    }
-                }
-            } else {
-                const auto return_linked = returnType->get_direct_linked_node();
-                if (return_linked) {
-                    const auto returnKind = return_linked->kind();
-                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                        auto temp_name = visitor.get_local_temp_var_name();
-                        allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
-                        write(';');
-                        visitor.new_line_and_indent();
-                        visitor.local_allocated[call] = temp_name;
-                        // chain elements get their destruct queued
-                        if(is_chain_call) {
-                            auto container = return_linked->as_members_container_unsafe();
-                            if(container && container->destructor_func()) {
-                                visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // if(!func_decl || !func_decl->is_comptime()) {
+    //     const auto returnType = func_type->returnType->canonical();
+    //     const auto returnTypeKind = returnType->kind();
+    //     if (returnTypeKind != BaseTypeKind::Dynamic) {
+    //         if(returnTypeKind == BaseTypeKind::CapturingFunction) {
+    //             const auto capType = returnType->as_capturing_func_type_unsafe();
+    //             const auto instanceType = capType->instance_type;
+    //             const auto return_linked = instanceType->get_direct_linked_node();
+    //             auto temp_name = visitor.get_local_temp_var_name();
+    //             allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
+    //             write(';');
+    //             visitor.new_line_and_indent();
+    //             visitor.local_allocated[call] = temp_name;
+    //             // chain elements get their destruct queued
+    //             if(is_chain_call && return_linked) {
+    //                 auto container = return_linked->as_extendable_member_container();
+    //                 if(container && container->destructor_func()) {
+    //                     visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
+    //                 }
+    //             }
+    //         } else {
+    //             const auto return_linked = returnType->get_direct_linked_node();
+    //             if (return_linked) {
+    //                 const auto returnKind = return_linked->kind();
+    //                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
+    //                     auto temp_name = visitor.get_local_temp_var_name();
+    //                     allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
+    //                     write(';');
+    //                     visitor.new_line_and_indent();
+    //                     visitor.local_allocated[call] = temp_name;
+    //                     // chain elements get their destruct queued
+    //                     if(is_chain_call) {
+    //                         auto container = return_linked->as_members_container_unsafe();
+    //                         if(container && container->destructor_func()) {
+    //                             visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     // when transferring structs / function calls that return structs directly to reference params
     // we must take the responsibility of destructing them, however we need to maintain a reference to be able to do this
-    auto i = 0;
-    if(func_type) {
-        const auto total_args = call->values.size();
-        while (i < total_args) {
-            auto arg = call->values[i];
-            const auto argType = arg->getType()->canonical();
-            if(argType->kind() == BaseTypeKind::Reference) {
-                i++;
-                continue;
-            }
-            auto param = func_type->func_param_for_arg_at(i);
-            const auto param_type = param->type->canonical();
-            // passing a function call or struct value to a reference, whereas the struct is destructible
-            if (param_type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-                const auto container = arg->getType()->get_members_container();
-                if (container && container->destructor_func() != nullptr) {
-                    // struct has a destructor, we must allocate a reference, so it can set it to us
-                    visitor.visit(param_type->as_reference_type_unsafe()->type);
-                    visitor.write('*');
-                    visitor.space();
-                    const auto temp_name = visitor.get_local_temp_var_name();
-                    visitor.write_str(temp_name);
-                    visitor.write(';');
-                    visitor.new_line_and_indent();
-                    visitor.destructible_refs[arg] = temp_name;
-                    // queue destruct for this ref temp (it's a pointer, so is_pointer=true)
-                    visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, true);
-                }
-            }
-            i++;
-        }
-    }
+    // auto i = 0;
+    // if(func_type) {
+    //     const auto total_args = call->values.size();
+    //     while (i < total_args) {
+    //         auto arg = call->values[i];
+    //         const auto argType = arg->getType()->canonical();
+    //         if(argType->kind() == BaseTypeKind::Reference) {
+    //             i++;
+    //             continue;
+    //         }
+    //         auto param = func_type->func_param_for_arg_at(i);
+    //         const auto param_type = param->type->canonical();
+    //         // passing a function call or struct value to a reference, whereas the struct is destructible
+    //         if (param_type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+    //             const auto container = arg->getType()->get_members_container();
+    //             if (container && container->destructor_func() != nullptr) {
+    //                 // struct has a destructor, we must allocate a reference, so it can set it to us
+    //                 visitor.visit(param_type->as_reference_type_unsafe()->type);
+    //                 visitor.write('*');
+    //                 visitor.space();
+    //                 const auto temp_name = visitor.get_local_temp_var_name();
+    //                 visitor.write_str(temp_name);
+    //                 visitor.write(';');
+    //                 visitor.new_line_and_indent();
+    //                 visitor.destructible_refs[arg] = temp_name;
+    //                 // queue destruct for this ref temp (it's a pointer, so is_pointer=true)
+    //                 visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, true);
+    //             }
+    //         }
+    //         i++;
+    //     }
+    // }
 
 }
 
@@ -1767,16 +1767,6 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
         }
     }
 };
-
-void CBeforeStmtVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
-
-}
-
-void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
-
-    RecursiveVisitor::VisitAccessChain(chain);
-
-}
 
 void default_initialize_inherited(ToCAstVisitor& visitor, VariablesContainer* def, bool& has_value_before, SourceLocation loc);
 
@@ -2108,38 +2098,6 @@ void CDestructionVisitor::queue_destruct(std::string self_name, ASTNode* initial
         }
         queue_destruct(std::move(self_name), initializer, linked->as_extendable_member_container());
     }
-}
-
-void CDestructionVisitor::queue_stmt_destruct(
-        std::string self_name,
-        ASTNode* initializer,
-        MembersContainer* linked,
-        bool is_pointer
-) {
-    if(!linked) return;
-    auto destructorFunc = linked->destructor_func();
-    if(destructorFunc) {
-        stmt_destruct_jobs.emplace_back(DestructionJob{
-                .type = DestructionJobType::Default,
-                .self_name = std::move(self_name),
-                .drop_flag_name = std::string(),
-                .initializer = initializer,
-                .default_job = {
-                        linked,
-                        destructorFunc,
-                        is_pointer
-                }
-        });
-    }
-}
-
-void CDestructionVisitor::dispatch_stmt_jobs() {
-    int i = ((int) stmt_destruct_jobs.size()) - 1;
-    while(i >= 0) {
-        destruct(stmt_destruct_jobs[i], nullptr);
-        i--;
-    }
-    stmt_destruct_jobs.clear();
 }
 
 void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, MembersContainer* parent_node, FunctionDeclaration* destructorFunc) {
@@ -4635,9 +4593,7 @@ void ToCAstVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 
 inline void visit_scope_node(ToCAstVisitor& visitor, ASTNode* node) {
     visitor.new_line_and_indent(node->encoded_location());
-    visitor.before_stmt.visit(node);
     visitor.visit(node);
-    visitor.destructor.dispatch_stmt_jobs();
 }
 
 // this is only done in scopes where it is inside if value and switch value
@@ -4655,22 +4611,16 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
         const auto node = *end;
         switch(node->kind()) {
             case ASTNodeKind::IfStmt:
-                before_stmt.visit(node);
                 writeIfStmtValue(*node->as_if_stmt_unsafe());
-                destructor.dispatch_stmt_jobs();
                 break;
             case ASTNodeKind::SwitchStmt: {
                 const auto stmt = node->as_switch_stmt_unsafe();
-                before_stmt.visit(stmt);
                 writeSwitchStmtValue(*stmt, stmt->known_type());
-                destructor.dispatch_stmt_jobs();
                 break;
             }
             case ASTNodeKind::LoopBlock: {
                 const auto stmt = node->as_loop_block_unsafe();
-                before_stmt.visit(stmt);
                 writeLoopStmtValue(*stmt, stmt->known_type());
-                destructor.dispatch_stmt_jobs();
                 break;
             }
             default:
@@ -4692,9 +4642,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     current_scope = scope;
     for(const auto node : scope->nodes) {
         new_line_and_indent(node->encoded_location());
-        before_stmt.visit(node);
         visit(node);
-        destructor.dispatch_stmt_jobs();
     }
     if(destructor.destroy_current_scope) {
         destructor.dispatch_jobs_from_no_clean((int) destruct_begin);
@@ -5525,8 +5473,178 @@ void ToCAstVisitor::VisitAccessChain(AccessChain *chain) {
     access_chain(*this, chain->values, 0, size);
 }
 
+// a variable of destructible struct type, that is passed as argument to function call,
+// that must be destructed after the function call taking the argument ends
+struct ArgDestructionDep {
+    // the declaration for which a variable is allocated
+    ASTNode* decl;
+    // the destructor that would be called on the initialized
+    FunctionDeclaration* destr;
+    // the call/struct value which is the arg, we'll use this to save into local_allocated
+    Value* arg_val;
+};
+
+struct ArgsDestructionInfo {
+    std::vector<ArgDestructionDep> deps;
+    // when return is non-void, primitive (integer or pointer), we save it into a var
+    std::string return_save_var;
+};
+
+FunctionCall* get_last_call(Value* value) {
+    switch (value->kind()) {
+        case ValueKind::FunctionCall:
+            return value->as_func_call_unsafe();
+        case ValueKind::AccessChain:
+            return get_last_call(value->as_access_chain_unsafe()->values.back());
+        default:
+            return nullptr;
+    }
+}
+
+void dep_for_destr_obj_to_ref(ArgsDestructionInfo& info, Value* val, BaseType* type) {
+    if (type->kind() != BaseTypeKind::Reference) {
+        // param type is not a reference
+        return;
+    }
+    const auto last_call = get_last_call(val);
+    if (last_call) {
+
+        const auto callType = last_call->getType()->canonical();
+        if (callType->kind() == BaseTypeKind::Reference) {
+            // call returns a reference, must not be destructed
+            return;
+        }
+
+        // if the param type is a reference to a destructible struct
+        const auto def = type->as_reference_type_unsafe()->type->get_direct_linked_container();
+        if (def) {
+            const auto destrFunc = def->destructor_func();
+            if (destrFunc) {
+                info.deps.emplace_back(ArgDestructionDep {
+                    .decl = def,
+                    .destr = destrFunc,
+                    .arg_val = last_call
+                });
+            }
+        }
+
+    } else if (val->kind() == ValueKind::StructValue) {
+
+        // if the param type is a reference to a destructible struct
+        const auto def = type->as_reference_type_unsafe()->type->get_direct_linked_container();
+        if (def) {
+            const auto destrFunc = def->destructor_func();
+            if (destrFunc) {
+                info.deps.emplace_back(ArgDestructionDep {
+                    .decl = def,
+                    .destr = destrFunc,
+                    .arg_val = val
+                });
+            }
+        }
+
+    }
+}
+
+void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
+    // go over each arg
+    unsigned i = 0;
+    const auto total_args = call->values.size();
+    while(i < total_args) {
+
+        auto param = func_type->func_param_for_arg_at(i);
+        auto val = call->values[i];
+
+        // TODO: handle implicit constructors
+
+        // check if we are passing a destructible struct to reference
+        dep_for_destr_obj_to_ref(info, val, param->type->canonical());
+
+        i++;
+    }
+    const auto func_param_size = func_type->expectedArgsSize();
+    while(i < func_param_size) {
+        auto param = func_type->func_param_for_arg_at(i);
+        if (param) {
+            // TODO: handle implicit constructors
+            if(param->defValue) {
+                // check if we are passing a destructible struct to reference
+                dep_for_destr_obj_to_ref(info, param->defValue, param->type->canonical());
+            }
+        } else {
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("couldn't get param");
+#endif
+        }
+        i++;
+    }
+}
+
+void write_alloc_vars_for_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info) {
+    for (auto& dep : info.deps) {
+        auto temp_var_name = visitor.get_local_temp_var_name();
+        visitor.visit(dep.decl->known_type());
+        if (dep.arg_val->kind() == ValueKind::StructValue) {
+            visitor.write('*');
+        }
+        visitor.space();
+        visitor.write_str(temp_var_name);
+        visitor.write("; ");
+        visitor.local_allocated[dep.arg_val] = temp_var_name;
+    }
+}
+
+void handle_pre_call_destruction_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
+    calculate_arg_destruction_deps(info, func_type, call);
+    if (!info.deps.empty()) {
+        visitor.write("({ ");
+        write_alloc_vars_for_deps(visitor, info);
+        if (func_type->returnType->canonical()->kind() != BaseTypeKind::Void) {
+            // lets save it into a temporary var
+            visitor.visit(func_type->returnType);
+            visitor.space();
+            info.return_save_var = visitor.get_local_temp_var_name();
+            visitor.write_str(info.return_save_var);
+            visitor.write(" = ");
+        }
+    }
+}
+
+void write_destruct_vars_for_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info) {
+    for (auto& dep : info.deps) {
+        auto found = visitor.local_allocated.find(dep.arg_val);
+        if (found == visitor.local_allocated.end()) continue;
+        visitor.mangle(dep.destr);
+        visitor.write("(");
+        if (dep.arg_val->kind() != ValueKind::StructValue) {
+            visitor.write('&');
+        }
+        visitor.write_str(found->second);
+        visitor.write("); ");
+    }
+}
+
+void handle_post_call_destruction_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
+    // destruction of arg destruct deps
+    if (!info.deps.empty()) {
+        visitor.write("; ");
+        write_destruct_vars_for_deps(visitor, info);
+        if (!info.return_save_var.empty()) {
+            visitor.write_str(info.return_save_var);
+            visitor.write("; ");
+        }
+        visitor.write("})");
+    }
+}
+
 void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call, ASTNode* return_linked, FunctionType* func_type) {
     visitor.write("(*({ ");
+
+    // args destruction info
+    ArgsDestructionInfo info;
+    calculate_arg_destruction_deps(info, func_type, call);
+    write_alloc_vars_for_deps(visitor, info);
+
     auto found = visitor.local_allocated.find(call);
     if(found != visitor.local_allocated.end()) {
         auto temp_name = chem::string_view(found->second);
@@ -5535,11 +5653,13 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.write("(&");
         visitor.write(temp_name);
         complete_func_call_args(visitor, call, func_type, true);
-        visitor.write("); &");
+        visitor.write("); ");
+        // destruct args
+        write_destruct_vars_for_deps(visitor, info);
+        visitor.write('&');
         visitor.write(temp_name);
         visitor.write("; }))");
     } else {
-        // TODO we'll remove this block, and generate an error
         const auto temp_name_str = visitor.get_local_temp_var_name();
         const auto temp_name = chem::string_view(temp_name_str);
         allocate_struct_by_name_no_init(visitor, return_linked, temp_name);
@@ -5549,7 +5669,10 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.write("(&");
         visitor.write(temp_name);
         complete_func_call_args(visitor, call, func_type, true);
-        visitor.write("); &");
+        visitor.write("); ");
+        // destruct args
+        write_destruct_vars_for_deps(visitor, info);
+        visitor.write('&');
         visitor.write(temp_name);
         visitor.write("; }))");
     }
@@ -5844,11 +5967,16 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         }
     }
 
+    ArgsDestructionInfo info;
+    handle_pre_call_destruction_deps(*this, info, func_type, call);
+
     // normal functions
     visit(call->parent_val);
     write('(');
     complete_func_call_args(*this, call, func_type, false);
     write(')');
+
+    handle_post_call_destruction_deps(*this, info, func_type, call);
 
 }
 

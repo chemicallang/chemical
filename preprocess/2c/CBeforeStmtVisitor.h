@@ -15,9 +15,9 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
-    void VisitAccessChain(AccessChain *chain);
+    void VisitVariableIdentifier(VariableIdentifier *identifier) {
 
-    void VisitVariableIdentifier(VariableIdentifier *identifier) ;
+    }
 
     void VisitScope(Scope *scope) {
         // do nothing

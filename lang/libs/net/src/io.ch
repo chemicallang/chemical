@@ -19,7 +19,7 @@ public namespace io {
             if(v.capacity() < need) { v.reserve(need * 2) }
         }
 
-        func append_bytes(&mut self, src:*u8, n: usize) {
+        public func append_bytes(&mut self, src:*u8, n: usize) {
             // TODO: use append_multiple, once requirement constraint for trivially copyable types is in place
             // reserve larger size
             v.reserve(v.size() + n)

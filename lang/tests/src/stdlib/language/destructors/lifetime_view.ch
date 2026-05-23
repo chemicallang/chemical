@@ -21,7 +21,7 @@ using std::string_view;
 
 struct TempString {
     var data : string
-    var dtor_flag : *mut int
+    var dtor_flag : *mut int = null
 
     func assign(&mut self, s : string_view, flag : *mut int) {
         self.data.append_view(s)
@@ -39,7 +39,7 @@ struct TempString {
 }
 
 func make_temp(s : string_view, flag : *mut int) : TempString {
-    var t : TempString
+    var t = TempString()
     t.data.append_view(s)
     t.dtor_flag = flag
     return t

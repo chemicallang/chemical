@@ -39,7 +39,6 @@ func run_executable_tests() {
     test_destructors();
     test_continue_destruction()
     test_break_destruction()
-    test_temp_view_lifetime()
     test_references();
     test_basic_generics();
     test_generic_type_deduction();
@@ -100,6 +99,7 @@ func run_executable_tests() {
     test_conversions();
     test_thread_pool()
     test_time_types();
+    test_temp_view_lifetime()
 
 }
 

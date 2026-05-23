@@ -111,7 +111,19 @@
 #include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
-#include "CBeforeStmtVisitor.h"
+
+#include "ast/statements/AccessChainNode.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/PlacementNewNode.h"
+#include "ast/structures/BlockScope.h"
+#include "ast/structures/ForInLoop.h"
+#include "ast/values/DynamicValue.h"
+#include "ast/values/ExpressiveString.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/LoopValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/ZeroedValue.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
@@ -125,10 +137,9 @@ ToCAstVisitor::ToCAstVisitor(
     ImplementationsIndex& implsIndex,
     bool debug_info,
     bool minify
-) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator),
-    before_stmt(*this), tld(*this), destructor(*this),
-    loc_man(manager), line_directives(debug_info), minify(minify), ASTDiagnoser(manager),
-    coreNodes(coreNodes), implsIndex(implsIndex)
+) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator), tld(*this),
+    destructor(*this), loc_man(manager), line_directives(debug_info), minify(minify),
+    ASTDiagnoser(manager), coreNodes(coreNodes), implsIndex(implsIndex)
 {
 
 }
@@ -1560,125 +1571,9 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool& has_value_before);
 
-void complete_func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool has_value_before = false) {;
+void complete_func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool has_value_before = false) {
     write_implicit_args(visitor, func_type, call, has_value_before);
     func_call_args(visitor, call, func_type, has_value_before, 0);
-}
-
-void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
-
-    const auto linked = call->parent_val->linked_node();
-    // enum member can't be called, we're using it as a no value
-    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
-
-    // handle variant calls
-    if(linked_kind == ASTNodeKind::VariantMember) {
-        return;
-    }
-
-    // handling comptime functions
-    if(func_decl && func_decl->is_comptime()) {
-        return;
-    }
-
-    // Visit children with proper destruct_call toggling.
-    // parent_val chain elements may need destruction after the expression.
-    // values (arguments) are consumed by this call and don't need destruction.
-    bool is_chain_call = destruct_call;
-    destruct_call = true;
-    visit(call->parent_val);
-    destruct_call = false;
-    for(auto& arg : call->generic_list) {
-        visit(arg);
-    }
-    for(auto& val : call->values) {
-        visit(val);
-    }
-    destruct_call = is_chain_call;
-
-    // get function type
-    const auto func_type = call->function_type();
-
-    // functions that return struct are handled in this block of code
-    // if(!func_decl || !func_decl->is_comptime()) {
-    //     const auto returnType = func_type->returnType->canonical();
-    //     const auto returnTypeKind = returnType->kind();
-    //     if (returnTypeKind != BaseTypeKind::Dynamic) {
-    //         if(returnTypeKind == BaseTypeKind::CapturingFunction) {
-    //             const auto capType = returnType->as_capturing_func_type_unsafe();
-    //             const auto instanceType = capType->instance_type;
-    //             const auto return_linked = instanceType->get_direct_linked_node();
-    //             auto temp_name = visitor.get_local_temp_var_name();
-    //             allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
-    //             write(';');
-    //             visitor.new_line_and_indent();
-    //             visitor.local_allocated[call] = temp_name;
-    //             // chain elements get their destruct queued
-    //             if(is_chain_call && return_linked) {
-    //                 auto container = return_linked->as_extendable_member_container();
-    //                 if(container && container->destructor_func()) {
-    //                     visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
-    //                 }
-    //             }
-    //         } else {
-    //             const auto return_linked = returnType->get_direct_linked_node();
-    //             if (return_linked) {
-    //                 const auto returnKind = return_linked->kind();
-    //                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-    //                     auto temp_name = visitor.get_local_temp_var_name();
-    //                     allocate_struct_by_name_no_init(visitor, return_linked, chem::string_view(temp_name));
-    //                     write(';');
-    //                     visitor.new_line_and_indent();
-    //                     visitor.local_allocated[call] = temp_name;
-    //                     // chain elements get their destruct queued
-    //                     if(is_chain_call) {
-    //                         auto container = return_linked->as_members_container_unsafe();
-    //                         if(container && container->destructor_func()) {
-    //                             visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, false);
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    // when transferring structs / function calls that return structs directly to reference params
-    // we must take the responsibility of destructing them, however we need to maintain a reference to be able to do this
-    // auto i = 0;
-    // if(func_type) {
-    //     const auto total_args = call->values.size();
-    //     while (i < total_args) {
-    //         auto arg = call->values[i];
-    //         const auto argType = arg->getType()->canonical();
-    //         if(argType->kind() == BaseTypeKind::Reference) {
-    //             i++;
-    //             continue;
-    //         }
-    //         auto param = func_type->func_param_for_arg_at(i);
-    //         const auto param_type = param->type->canonical();
-    //         // passing a function call or struct value to a reference, whereas the struct is destructible
-    //         if (param_type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-    //             const auto container = arg->getType()->get_members_container();
-    //             if (container && container->destructor_func() != nullptr) {
-    //                 // struct has a destructor, we must allocate a reference, so it can set it to us
-    //                 visitor.visit(param_type->as_reference_type_unsafe()->type);
-    //                 visitor.write('*');
-    //                 visitor.space();
-    //                 const auto temp_name = visitor.get_local_temp_var_name();
-    //                 visitor.write_str(temp_name);
-    //                 visitor.write(';');
-    //                 visitor.new_line_and_indent();
-    //                 visitor.destructible_refs[arg] = temp_name;
-    //                 // queue destruct for this ref temp (it's a pointer, so is_pointer=true)
-    //                 visitor.destructor.queue_stmt_destruct(std::move(temp_name), nullptr, container, true);
-    //             }
-    //         }
-    //         i++;
-    //     }
-    // }
-
 }
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
@@ -5389,20 +5284,6 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<Value*>& values, const
     }
 }
 
-// the end index is exclusive
-void call_any_function_above(ToCAstVisitor& visitor, std::vector<Value*>& values, const int start, int end) {
-    end--;
-    while(end >= start) {
-        const auto value = values[end];
-        if(value->val_kind() == ValueKind::FunctionCall) {
-            visitor.visit(value);
-            visitor.write(", ");
-            return;
-        }
-        end--;
-    }
-}
-
 void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end) {
     if(end == start) {
         return;
@@ -5421,10 +5302,6 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
         if (linked) {
             const auto lastKind = linked->kind();
             if (lastKind == ASTNodeKind::FunctionDecl) {
-                if (!linked->as_function_unsafe()->has_self_param()) {
-                    // TODO calling functions above without destructing the structs
-                    call_any_function_above(visitor, values, (int) start, (int) end - 1);
-                }
                 visitor.mangle(linked);
                 return;
             } else if (lastKind == ASTNodeKind::EnumMember) {
@@ -5543,6 +5420,63 @@ void dep_for_destr_obj_to_ref(ArgsDestructionInfo& info, Value* val, BaseType* t
             }
         }
 
+    }
+}
+
+FunctionCall* get_only_call(Value* value) {
+    switch (value->kind()) {
+        case ValueKind::FunctionCall:
+            return value->as_func_call_unsafe();
+        case ValueKind::AccessChain:
+            return value->as_access_chain_unsafe()->values.size() == 1 ? get_only_call(value->as_access_chain_unsafe()->values[0]) : nullptr;
+        default:
+            return nullptr;
+    }
+}
+
+void calculate_parent_val_destruct_dep(ArgsDestructionInfo& info, Value* parent_val) {
+    // parent val likely has a single id that is connected to actual function declaration or function pointer value
+    // so we'll skip that val, we need to see if grandpa is a function call
+    if (parent_val->kind() == ValueKind::AccessChain) {
+        const auto chain = parent_val->as_access_chain_unsafe();
+        if (chain->values.size() > 1) {
+            const auto last = chain->values.back();
+            // last should be a function decl
+            // why this check ?
+            // in the method access_chain, we already cover cases where a.b().c.d
+            // in a.b().c.d, the a.b().c is a access chain, c is not a function, it has to be handled there
+            // when user writes a.b().c(), in this case c is a function, that can't be handled there
+            // so this is the only case that must be handled here
+            // its very important these two cases are handled separately in their correct positions
+            if (!(last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl)) {
+                return;
+            }
+            // function call would always be first (because it puts everything in its parent value)
+            const auto first = chain->values.front();
+            if (first) {
+                const auto call = get_only_call(first);
+                if (call) {
+                    // this is the second last call, we are only concerned with this call
+                    // not concerned with any call in its arg or in its parent value
+                    // those nested calls will be handled automatically upon visit
+
+                    // this call if returns a destructible struct
+                    // should allocate and destruct
+                    const auto type = call->getType();
+                    const auto container = type->get_direct_linked_container();
+                    if (container) {
+                        const auto destr = container->destructor_func();
+                        if (destr) {
+                            info.deps.emplace_back(ArgDestructionDep {
+                                .decl = container,
+                                .destr = destr,
+                                .arg_val = call
+                            });
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -7083,7 +7017,7 @@ void ToCAstVisitor::VisitDynamicValue(DynamicValue* dyn_value) {
 }
 
 void ToCAstVisitor::VisitExpressiveString(ExpressiveString* value) {
-    error("expressive string being used at runtime", value);
+    error("expressive string being used at runtime", value->encoded_location());
 }
 
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {

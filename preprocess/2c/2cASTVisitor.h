@@ -8,7 +8,6 @@
 #include <vector>
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
-#include "CBeforeStmtVisitor.h"
 #include "CDestructionVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
@@ -164,13 +163,6 @@ public:
      * for example functions and structs, declared so can be used if declared below their usage
      */
     CTopLevelDeclarationVisitor tld;
-
-    /**
-     * before writing a statement, it's values can be visited with this visitor
-     * this allows to take out some values, or do preparation, for example to allocate struct values
-     * before passing them to functions for initialization
-     */
-    CBeforeStmtVisitor before_stmt;
 
     /**
      * this destruction visitor, calls destructors on things when it's required

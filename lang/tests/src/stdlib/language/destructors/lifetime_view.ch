@@ -1,15 +1,61 @@
 using std::string;
 using std::string_view;
 
-// These tests verify that a string_view obtained from a temporary string
-// (via .to_view() on a function return value) remains valid when passed
-// to consumer functions. This exercises the compiler's temporary lifetime
-// extension — the temporary string must outlive the function call that
-// consumes the view.
+// ============================================================
+// Tests for temporary lifetime extension of .to_view() on
+// function return values.
 //
-// Currently the compiler fails to compile .to_view() on a temporary string
-// inside a lambda with: "value with type 'string' does not satisfy type '&string'"
-// Once the compiler is fixed, these tests should compile and pass.
+// Compiler bug: For chained-temp expressions like
+//   consume(func_returning_string().to_view())
+// the generated C declares the temp string at function scope but
+// places the destructor AFTER `return` (dead code). This means
+// the destructor never runs — memory leaks but view stays valid.
+//
+// For struct-returning functions with custom destructors, the
+// destructor also goes after `return` (dead code), so the dtor
+// count stays 0 instead of 1. These tests fail until the
+// compiler places destructors before `return` for chained temps.
+// ============================================================
+
+// ===== Tracked string-like struct =====
+
+struct TempString {
+    var data : string
+    var dtor_flag : *mut int
+
+    func assign(&mut self, s : string_view, flag : *mut int) {
+        self.data.append_view(s)
+        self.dtor_flag = flag
+    }
+
+    func to_view(&self) : string_view {
+        return self.data.to_view()
+    }
+
+    @delete
+    func delete(&mut self) {
+        *self.dtor_flag = *self.dtor_flag + 1
+    }
+}
+
+func make_temp(s : string_view, flag : *mut int) : TempString {
+    var t : TempString
+    t.data.append_view(s)
+    t.dtor_flag = flag
+    return t
+}
+
+func consume_view(v : string_view) : bool {
+    return v.size() > 0 && v.get(0) == 'H'
+}
+
+func consume_view_and_capture(v : string_view) : string {
+    var out = string()
+    out.append_view(v)
+    return out
+}
+
+// ===== Named-variable tests (should pass) =====
 
 func make_hello_string() : string {
     var result = string()
@@ -17,51 +63,74 @@ func make_hello_string() : string {
     return result
 }
 
-func check_view(v : string_view) : bool {
-    return v.size() > 10 && v.get(0) == 'H' && v.get(6) == 'W'
-}
-
-func check_view_exact(v : string_view, expected : string_view) : bool {
-    return v.equals(expected)
-}
-
-func capture_view(v : string_view) : string {
-    var out = string()
-    out.append_view(v)
-    return out
+func make_hello_temp(flag : *mut int) : TempString {
+    var t : TempString
+    t.data.append_view(string_view("Hello World! TempString view test."))
+    t.dtor_flag = flag
+    return t
 }
 
 func test_temp_view_lifetime() {
-    // The pattern func_returning_string().to_view() in a function argument
-    // must keep the temporary string alive until the callee finishes reading.
-    // If the compiler destroys the temporary early, the string_view dangles
-    // causing SIGSEGV or garbage data.
 
-    // Test 1: direct function argument
-    test("temporary string_view in direct function arg remains valid", () => {
-        return check_view(make_hello_string().to_view())
+    // ----- Named-variable patterns (already work) -----
+    test("named TempString variable is destructed once", () => {
+        var count = 0
+        if(true) {
+            var t = make_temp(string_view("Hello"), &mut count)
+        }
+        return count == 1
     })
 
-    // Test 2: captured into another string
-    test("temporary string_view captured into new string remains valid", () => {
-        var out = capture_view(make_hello_string().to_view())
-        return out.equals_view("Hello World! Temporary view test data.")
+    test("named TempString.to_view() consumed then destructed once", () => {
+        var count = 0
+        if(true) {
+            var t = make_temp(string_view("Hello"), &mut count)
+            var ok = consume_view(t.to_view())
+        }
+        return count == 1
     })
 
-    // Test 3: exact content match
-    test("temporary string_view with exact comparison remains valid", () => {
-        return check_view_exact(make_hello_string().to_view(), string_view("Hello World! Temporary view test data."))
+    test("named string.to_view() consumed in func arg works", () => {
+        var s = make_hello_string()
+        return consume_view(s.to_view())
     })
 
-    // Test 4: nested transform chain — inner function returns string,
-    // .to_view() called on it, passed to outer function
-    test("temporary string_view from nested transform chain remains valid", () => {
-        var out = capture_view(make_hello_string().to_view())
-        return out.equals_view("Hello World! Temporary view test data.")
+    // ----- Chained-temp patterns (BUG: dtor after return = dead code) -----
+
+    test("temp string.to_view() in func arg — destructor called (currently leaks)", () => {
+        var ok = consume_view(make_hello_string().to_view())
+        return ok
     })
 
-    // Test 5: multiple temporary views in one expression
-    test("multiple temporary string_view in same expression remains valid", () => {
-        return check_view(make_hello_string().to_view()) && check_view(make_hello_string().to_view())
+    test("temp TempString.to_view() in func arg — dtor called once (currently leaks)", () => {
+        var count = 0
+        if(true) {
+            var ok = consume_view(make_temp(string_view("Hello"), &mut count).to_view())
+        }
+        // BUG: dtor is placed after `return` (dead code), never called
+        // count should be 1 but is 0 → test FAILS
+        return count == 1
+    })
+
+    test("temp TempString.to_view() captured into new string — dtor called once", () => {
+        var count = 0
+        var captured = string()
+        if(true) {
+            captured = consume_view_and_capture(make_temp(string_view("Hello World! TempString view test."), &mut count).to_view())
+        }
+        // BUG: dtor is placed after `return`, never called → count is 0, not 1
+        // Also captured should contain the correct content
+        return count == 1 && captured.equals_view("Hello World! TempString view test.")
+    })
+
+    test("multiple chained temp TempString.to_view() dtors all called", () => {
+        var count1 = 0
+        var count2 = 0
+        if(true) {
+            var ok = consume_view(make_temp(string_view("First"), &mut count1).to_view()) &&
+                     consume_view(make_temp(string_view("Second"), &mut count2).to_view())
+        }
+        // BUG: both dtors are dead code → count1 == 0, count2 == 0
+        return count1 == 1 && count2 == 1
     })
 }

@@ -378,6 +378,13 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         }
 
+        // parsing lifetime parameters
+        while(token->type == TokenType::Lifetime) {
+            const auto lifetime_tok = token;
+            token++;
+            decl->lifetime_params.emplace_back(allocate_view(allocator, lifetime_tok->value));
+        }
+
         // parsing the inheritance list
         if(consumeToken(TokenType::ColonSym)) {
             do {

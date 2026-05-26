@@ -941,6 +941,20 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::EqualSym, view_str(EqualOpCStr), pos);
             }
         case '\'': {
+            std::size_t len;
+            const auto next_cp = provider.utf8_decode_peek(len);
+            if (next_cp != 0 && isIdentifierStart(next_cp) && next_cp != '\'' && next_cp != '\\') {
+                const auto start = provider.current_data();
+                provider.incrementCodepoint(next_cp, len);
+                if (provider.peek() == '\'') {
+                    const auto end = provider.current_data();
+                    provider.increment('\'');
+                    return Token(TokenType::Char, chem::string_view(start, end - start), pos);
+                } else {
+                    read_id(provider);
+                    return Token(TokenType::Lifetime, chem::string_view(start, provider.current_data() - start), pos);
+                }
+            }
             const auto start = provider.current_data();
             if (read_char_in_quotes(provider)) {
                 const auto end = provider.current_data();

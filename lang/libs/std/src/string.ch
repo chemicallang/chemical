@@ -794,7 +794,7 @@ public struct string {
         }
     }
 
-    func to_view(&self) : std::string_view {
+    func to_view(&self) : 'self std::string_view {
         return std::string_view(data(), size())
     }
 

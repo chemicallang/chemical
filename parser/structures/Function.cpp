@@ -48,6 +48,18 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     if(tok.type == TokenType::UnsafeKw) {
         token++;
         auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parent_node, loc_single(tok));
+        // optional flag string for features like lifetime_check
+        if(token->type == TokenType::String) {
+            unsafe->flag_name = allocate_view(allocator, token->value);
+            token++;
+            if(token->type == TokenType::PlusSym) {
+                unsafe->flag_value = true;
+                token++;
+            } else if(token->type == TokenType::MinusSym) {
+                unsafe->flag_value = false;
+                token++;
+            }
+        }
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
         if(block.has_value()) {
             unsafe->scope = std::move(block.value());
@@ -369,6 +381,12 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
     auto& tok = *token;
     if(tok.type == TokenType::ColonSym) {
         token++;
+        // check for lifetime annotation before return type, e.g. ': 'self string_view'
+        consumeNewLines();
+        if(token->type == TokenType::Lifetime) {
+            decl->return_lifetime = allocate_view(allocator, token->value);
+            token++;
+        }
         auto type = parseTypeLoc(allocator);
         if(type) {
             decl->returnType = type;

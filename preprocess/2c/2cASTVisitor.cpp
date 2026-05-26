@@ -5529,6 +5529,7 @@ void write_alloc_vars_for_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info
 }
 
 void handle_pre_call_destruction_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
+    calculate_parent_val_destruct_dep(info, call->parent_val);
     calculate_arg_destruction_deps(info, func_type, call);
     if (!info.deps.empty()) {
         visitor.write("({ ");
@@ -5576,6 +5577,7 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
 
     // args destruction info
     ArgsDestructionInfo info;
+    calculate_parent_val_destruct_dep(info, call->parent_val);
     calculate_arg_destruction_deps(info, func_type, call);
     write_alloc_vars_for_deps(visitor, info);
 

@@ -632,6 +632,8 @@ set(COMMON_SOURCES
         compiler/symres/CoreNodes.h
         compiler/symres/ImplementationsIndex.h
         compiler/symres/ImplementationsIndex.cpp
+        core/tests/NegativeLifetimeTests.h
+        core/tests/NegativeLifetimeTests.cpp
 )
 
 # Chemical LSP Executable Target

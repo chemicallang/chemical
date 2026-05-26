@@ -3,6 +3,8 @@
 #pragma once
 
 #include "preprocess/visitors/RecursiveVisitor.h"
+#include <unordered_map>
+#include <string>
 
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
@@ -36,6 +38,11 @@ public:
      * using this we check, if a public comptime function is calling a non-retained function
      */
     bool is_public_comptime_context = false;
+
+    /**
+     * flags that can be toggled by unsafe blocks, e.g. unsafe "lifetime_check"- { }
+     */
+    std::unordered_map<std::string, bool> flags;
 
     /**
      * constructor
@@ -72,6 +79,8 @@ public:
     void VisitArrayValue(ArrayValue *val);
 
     void VisitFunctionCall(FunctionCall *call);
+
+    void VisitUnsafeBlock(UnsafeBlock* block);
 
     void VisitLambdaFunction(LambdaFunction *func);
 

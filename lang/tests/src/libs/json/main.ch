@@ -127,7 +127,7 @@ func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
         env.error("Expected error for form-urlencoded data being parsed as JSON");
     } else {
         if (!std::string_view(r.msg).equals("invalid literal")) {
-             env.error(std::string(r.msg).data());
+             env.error(r.msg);
         }
     }
 }

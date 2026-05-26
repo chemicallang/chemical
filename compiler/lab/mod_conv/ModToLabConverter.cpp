@@ -238,7 +238,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 writeIfConditional(src.if_cond, output);
                 output << ") {\n\t";
             }
-            output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
+            output << "\t{\n";
+            output << "var rel_path = lab::rel_path_to(\"" << src.path << "\");";
+            output << "\t\tctx.add_path(mod, rel_path.to_view());\n";
+            output << "\t}\n";
             if(has_if) {
                 output << "\t}\n";
             }

@@ -92,6 +92,41 @@ constexpr auto NonRetainedDeclError = "non-retained decl is being called in a pu
 constexpr auto NonRetainedDeclCallComptimeError = "calling a non-retained function in a public comptime declaration is not allowed, please use @retained annotation";
 constexpr auto NonRetainedDeclComptimeError = "non-retained decl is being called in a public comptime context, please use @retained annotation";
 
+static FunctionCall* get_only_call(Value* value) {
+    switch (value->kind()) {
+        case ValueKind::FunctionCall:
+            return value->as_func_call_unsafe();
+        case ValueKind::AccessChain: {
+            const auto c = value->as_access_chain_unsafe();
+            return c->values.size() == 1 && c->values.back()->kind() == ValueKind::FunctionCall ? c->values.back()->as_func_call_unsafe() : nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+// a non borrowing type is for example an integer, which can never point to freed memory
+// a struct can contain a reference, which can point to freed memory
+// so a reference/pointer or anything that can contain it is borrowing type
+// when the function returns true, the type is non borrowing
+// when returns false, the type may be borrowing (not 100%)
+bool isNonBorrowingType(BaseType* type) {
+    switch (type->kind()) {
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Void:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Literal:
+        case BaseTypeKind::LongDouble:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     if (is_generic_public_context) {
@@ -200,7 +235,34 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
             }
         }
     }
+
     auto func_type = call->function_type();
+
+    // check its not a function on a temporary destructible struct
+    if (call->parent_val->kind() == ValueKind::AccessChain) {
+        const auto chain = call->parent_val->as_access_chain_unsafe();
+        const auto total = chain->values.size();
+        if (total > 1) {
+            const auto grandparent = chain->values[total - 2];
+            const auto gp_call = get_only_call(grandparent);
+            if (gp_call) {
+                // if the current function call's type is int
+                // that can't possibly contain references or pointers into temporary
+                if (!(func_type && isNonBorrowingType(func_type->returnType->canonical()))) {
+                    const auto ty = gp_call->getType();
+                    const auto container = ty->get_members_container();
+                    if (container) {
+                        const auto destr = container->destructor_func();
+                        if (destr) {
+                            diagnoser.error(call) << "function call is on a temporary that is destroyed at expression end, please store the temporary in a variable";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // type checking arguments
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < call->values.size()) {

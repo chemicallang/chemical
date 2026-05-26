@@ -17,7 +17,8 @@ public func file_to_html(path : *char, highlighter : (lang : std::string_view, c
     var r = fs::read_entire_file(path)
     if(r is Result.Err) {
         var Err(value) = r else unreachable;
-        printf("couldn't read the file %s\n", value.message().data());
+        var msg = value.message()
+        printf("couldn't read the file %s\n", msg.data());
         return Result.Err<std::string, MdError>(MdError.FileReadFailed)
     }
     var Ok(bytes) = r else unreachable

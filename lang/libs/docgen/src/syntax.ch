@@ -124,7 +124,8 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
                  while(lexer.cursor < lexer.source.size() && lexer.peek() != '\n') {
                      lexer.advance();
                  }
-                 html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                 var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                 html.append_view(span.to_view());
              } else if(lexer.peek_next() == '*') {
                  // Block comment
                  var startc = lexer.cursor;
@@ -136,7 +137,8 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
                      }
                      lexer.advance();
                  }
-                 html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                 var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                 html.append_view(span.to_view());
              } else {
                  html.append(lexer.advance());
              }
@@ -160,14 +162,16 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
                     lexer.advance();
                 }
             }
-            html.append_view(make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+            var span = make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+            html.append_view(span.to_view());
         } else if(is_digit(c)) {
             // Number
             var startc = start;
             while(lexer.cursor < lexer.source.size() && (is_alphanum(lexer.peek()) || lexer.peek() == '.')) {
                  lexer.advance();
             }
-            html.append_view(make_span("tok-num", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+            var span = make_span("tok-num", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+            html.append_view(span.to_view());
         } else if(is_alpha(c)) {
             // Identifier
             var startc = start;
@@ -180,30 +184,34 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
             var is_kwd = false;
             var i = 0u;
             while(i < config.keywords.size()) {
-                if(config.keywords.get(i).equals_view(text)) { is_kwd = true; break; }
+                if(config.keywords.get_ptr(i).equals_view(text)) { is_kwd = true; break; }
                 i++;
             }
             
             if(is_kwd) {
-                html.append_view(make_span("tok-kwd", text).to_view());
+                var span = make_span("tok-kwd", text)
+                html.append_view(span.to_view());
             } else {
                 var is_type = false;
                  i = 0u;
                 while(i < config.types.size()) {
-                    if(config.types.get(i).equals_view(text)) { is_type = true; break; }
+                    if(config.types.get_ptr(i).equals_view(text)) { is_type = true; break; }
                      i++;
                 }
                 
                 if(is_type) {
-                     html.append_view(make_span("tok-type", text).to_view());
+                     var span = make_span("tok-type", text)
+                     html.append_view(span.to_view());
                 } else if(lexer.peek() == '(') {
-                    html.append_view(make_span("tok-fn", text).to_view());
+                    var span = make_span("tok-fn", text)
+                    html.append_view(span.to_view());
                 } else {
                     html.append_view(text);
                 }
             }
         } else {
-             html.append_view(escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1)).to_view());
+             var escaped = escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1))
+             html.append_view(escaped.to_view());
              lexer.advance();
         }
     }
@@ -257,7 +265,8 @@ func highlight_chemical(code : std::string_view) : std::string {
              while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) {
                  lexer.advance();
              }
-             html.append_view(make_span("tok-macro", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+             var span = make_span("tok-macro", std::string_view(lexer.source.data() + startc, lexer.cursor - startc));
+             html.append_view(span.to_view());
         } else {
             // Consume one token via standard logic (hacky partial consume)
             // Ideally we'd factor out "next token" but for now let's just use Clike
@@ -275,7 +284,8 @@ func highlight_chemical(code : std::string_view) : std::string {
                  if(lexer.peek_next() == '/') {
                      var startc = lexer.cursor;
                      while(lexer.cursor < lexer.source.size() && lexer.peek() != '\n') { lexer.advance() };
-                     html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                     var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                     html.append_view(span.to_view());
                  } else if(lexer.peek_next() == '*') {
                      var startc = lexer.cursor;
                      lexer.advance(); lexer.advance();
@@ -283,7 +293,8 @@ func highlight_chemical(code : std::string_view) : std::string {
                          if(lexer.peek() == '*' && lexer.peek_next() == '/') { lexer.advance(); lexer.advance(); break; }
                          lexer.advance();
                      }
-                     html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                     var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                     html.append_view(span.to_view());
                  } else { html.append(lexer.advance()); }
              } else if(c == '"' || c == '\'') {
                  // Strings (same as Clike)
@@ -297,29 +308,40 @@ func highlight_chemical(code : std::string_view) : std::string {
                      } else if(ch == quote) { lexer.advance(); break;
                      } else { lexer.advance(); }
                  }
-                 html.append_view(make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                 var span = make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                 html.append_view(span.to_view());
              } else if(is_digit(c)) {
                  var startc = start2;
                  while(lexer.cursor < lexer.source.size() && (is_alphanum(lexer.peek()) || lexer.peek() == '.')) { lexer.advance() };
-                 html.append_view(make_span("tok-num", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                 var span = make_span("tok-num", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                 html.append_view(span.to_view());
              } else if(is_alpha(c)) {
                  var startc = start2;
                  while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance() };
                  var text = std::string_view(lexer.source.data() + startc, lexer.cursor - startc);
                  
                  var is_kwd = false;
-                 i = 0u; while(i < kwds.size()) { if(kwds.get(i).equals_view(text)) { is_kwd = true; break; } i++; }
-                 
-                 if(is_kwd) html.append_view(make_span("tok-kwd", text).to_view());
-                 else {
+                 i = 0u; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(text)) { is_kwd = true; break; } i++; }
+
+
+                 if(is_kwd) {
+                    var span = make_span("tok-kwd", text)
+                    html.append_view(span.to_view());
+                 } else {
                      var is_type = false;
-                     i = 0; while(i < types.size()) { if(types.get(i).equals_view(text)) { is_type = true; break; } i++; }
-                     if(is_type) html.append_view(make_span("tok-type", text).to_view());
-                     else if(lexer.peek() == '(') html.append_view(make_span("tok-fn", text).to_view());
+                     i = 0; while(i < types.size()) { if(types.get_ptr(i).equals_view(text)) { is_type = true; break; } i++; }
+                     if(is_type) {
+                        var span = make_span("tok-type", text)
+                        html.append_view(span.to_view());
+                     } else if(lexer.peek() == '(') {
+                        var span = make_span("tok-fn", text)
+                        html.append_view(span.to_view());
+                     }
                      else html.append_view(text);
                  }
              } else {
-                 html.append_view(escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1)).to_view());
+                 var escaped = escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1))
+                 html.append_view(escaped.to_view());
                  lexer.advance();
              }
         }
@@ -391,7 +413,8 @@ func highlight_bash(code : std::string_view) : std::string {
         } else if(c == '#') {
              // Comment
              while(lexer.cursor < lexer.source.size() && lexer.peek() != '\n') { lexer.advance(); }
-             html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+             var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+             html.append_view(span.to_view());
         } else if(c == '"' || c == '\'') {
              // String
              const quote = lexer.advance();
@@ -403,20 +426,25 @@ func highlight_bash(code : std::string_view) : std::string {
                  } else if(ch == quote) { lexer.advance(); break;
                  } else { lexer.advance(); }
              }
-             html.append_view(make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+             var span = make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+             html.append_view(span.to_view());
         } else if(is_alpha(c)) {
              while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance(); }
              var text = std::string_view(lexer.source.data() + startc, lexer.cursor - startc);
              var is_kwd = false;
-             i = 0; while(i < kwds.size()) { if(kwds.get(i).equals_view(text)) { is_kwd = true; break; } i++; }
-             if(is_kwd) html.append_view(make_span("tok-kwd", text).to_view());
-             else html.append_view(text);
+             i = 0; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(text)) { is_kwd = true; break; } i++; }
+             if(is_kwd) {
+                var span = make_span("tok-kwd", text)
+                html.append_view(span.to_view());
+             } else html.append_view(text);
         } else if(c == '$') {
              lexer.advance();
              while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance(); }
-             html.append_view(make_span("tok-var", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+             var span = make_span("tok-var", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+             html.append_view(span.to_view());
         } else {
-             html.append_view(escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1)).to_view());
+             var escaped = escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1))
+             html.append_view(escaped.to_view());
              lexer.advance();
         }
     }
@@ -437,9 +465,10 @@ func highlight_html(code : std::string_view) : std::string {
                 lexer.advance(); lexer.advance(); lexer.advance(); lexer.advance();
                 while(lexer.cursor < lexer.source.size()) {
                     if(lexer.match("-->")) { lexer.advance(); lexer.advance(); lexer.advance(); break; }
-                     lexer.advance();
+                    lexer.advance();
                 }
-                html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+                var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+                html.append_view(span.to_view());
             } else {
                 // Tag
                 html.append_view("&lt;");
@@ -448,7 +477,8 @@ func highlight_html(code : std::string_view) : std::string {
                 
                 var tstart = lexer.cursor;
                 while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance(); }
-                html.append_view(make_span("tok-tag", std::string_view(lexer.source.data() + tstart, lexer.cursor - tstart)).to_view());
+                var span = make_span("tok-tag", std::string_view(lexer.source.data() + tstart, lexer.cursor - tstart))
+                html.append_view(span.to_view());
                 
                 // Attributes
                 while(lexer.cursor < lexer.source.size() && lexer.peek() != '>') {
@@ -457,13 +487,15 @@ func highlight_html(code : std::string_view) : std::string {
                     else if(is_alpha(ac)) {
                         var astart = lexer.cursor;
                         while(lexer.cursor < lexer.source.size() && (is_alphanum(lexer.peek()) || lexer.peek() == '-')) { lexer.advance(); }
-                        html.append_view(make_span("tok-attr", std::string_view(lexer.source.data() + astart, lexer.cursor - astart)).to_view());
+                        var span2 = make_span("tok-attr", std::string_view(lexer.source.data() + astart, lexer.cursor - astart))
+                        html.append_view(span2.to_view());
                     } else if(ac == '"') {
                          const quote = lexer.advance();
                          var sstart = lexer.cursor - 1;
                          while(lexer.cursor < lexer.source.size() && lexer.peek() != '"') { lexer.advance(); }
                          if(lexer.peek() == '"') lexer.advance();
-                         html.append_view(make_span("tok-str", std::string_view((lexer.source.data() + sstart) as *char, (lexer.cursor - sstart) as size_t)).to_view());
+                         var span2 = make_span("tok-str", std::string_view((lexer.source.data() + sstart) as *char, (lexer.cursor - sstart) as size_t))
+                         html.append_view(span2.to_view());
                     } else {
                         var ch = lexer.advance();
                          if(ch == '<') html.append_view("&lt;");
@@ -505,7 +537,8 @@ func highlight_css(code : std::string_view) : std::string {
                  if(lexer.peek() == '*' && lexer.peek_next() == '/') { lexer.advance(); lexer.advance(); break; }
                  lexer.advance();
              }
-             html.append_view(make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
+             var span = make_span("tok-com", std::string_view(lexer.source.data() + startc, lexer.cursor - startc))
+             html.append_view(span.to_view());
         } else if(c == '{') {
             html.append(lexer.advance());
             state = 1;
@@ -527,11 +560,14 @@ func highlight_css(code : std::string_view) : std::string {
              var text = std::string_view(lexer.source.data() + tstart, lexer.cursor - tstart);
              
              if(state == 0) {
-                 html.append_view(make_span("tok-fn", text).to_view()); // Selector -> Function color
+                 var span = make_span("tok-fn", text)
+                 html.append_view(span.to_view()); // Selector -> Function color
              } else if(state == 1) {
-                 html.append_view(make_span("tok-attr", text).to_view()); // Property -> Attribute color
+                 var span = make_span("tok-attr", text)
+                 html.append_view(span.to_view()); // Property -> Attribute color
              } else {
-                 html.append_view(make_span("tok-num", text).to_view()); // Value -> Number/String color (simplified)
+                 var span = make_span("tok-num", text)
+                 html.append_view(span.to_view()); // Value -> Number/String color (simplified)
              }
         }
     }

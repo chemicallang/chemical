@@ -35,17 +35,20 @@ func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string
 }
 
 func gen_ir(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
-    module.setLlvmIrPath(ctx.build_llvm_ir_path(exe_name, module.getScopeName(), module.getName()).to_view())
+    var llvm_ir_path = ctx.build_llvm_ir_path(exe_name, module.getScopeName(), module.getName());
+    module.setLlvmIrPath(llvm_ir_path.to_view())
     printf("module : %s, llvm ir : %s\n", module.getName().data(), module.getLlvmIrPath().data());
 }
 
 func gen_asm(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
-    module.setAsmPath(ctx.build_asm_path(exe_name, module.getScopeName(), module.getName()).to_view())
+    var asm_path = ctx.build_asm_path(exe_name, module.getScopeName(), module.getName());
+    module.setAsmPath(asm_path.to_view())
     printf("module : %s, asm : %s\n", module.getName().data(), module.getAsmPath().data());
 }
 
 func gen_bc(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
-    module.setBitcodePath(ctx.build_bitcode_path(exe_name, module.getScopeName(), module.getName()).to_view())
+    var bitcode_path = ctx.build_bitcode_path(exe_name, module.getScopeName(), module.getName());
+    module.setBitcodePath(bitcode_path.to_view())
     printf("module : %s, bitcode : %s\n", module.getName().data(), module.getBitcodePath().data());
 }
 

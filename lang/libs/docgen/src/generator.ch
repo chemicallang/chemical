@@ -91,7 +91,8 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
         var link = replace_extension(link_copy, ".md", ".html");
         html.append_view("<a href=\"");
         // Prefix with relative path to root based on current page depth
-        html.append_view(get_relative_path_to_root(depth).to_view());
+        var rel_path = get_relative_path_to_root(depth)
+        html.append_view(rel_path.to_view());
         html.append_view(link.to_view());
         
         html.append_view("\"");
@@ -111,7 +112,8 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
         html.append_view("<ul>");
         var i = 0u;
         while(i < item.children.size()) {
-            html.append_view(render_sidebar_item(item.children.get(i), current_path, depth).to_view());
+            var sb_item = render_sidebar_item(item.children.get(i), current_path, depth)
+            html.append_view(sb_item.to_view());
             i++;
         }
         html.append_view("</ul>");
@@ -124,7 +126,7 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
 func str_vec_contains(vec : &std::vector<std::string>, val : std::string_view) : bool {
     var i = 0u;
     while(i < vec.size()) {
-        if(vec.get(i).equals_view(val)) return true;
+        if(vec.get_ptr(i).equals_view(val)) return true;
         i++;
     }
     return false;
@@ -186,7 +188,8 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<link rel=\"icon\" type=\"image/png\" href=\"");
-            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            var rel_path = get_relative_path_to_root(relative_depth)
+            html.append_view(rel_path.to_view());
             html.append_view(std::string_view(&favicon_name_buf[0], len));
             html.append_view("\">");
         }
@@ -227,7 +230,8 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<meta property=\"og:image\" content=\"");
-            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            var rel_path = get_relative_path_to_root(relative_depth)
+            html.append_view(rel_path.to_view());
             html.append_view(std::string_view(&logo_name_buf[0], len));
             html.append_view("\">");
         }
@@ -250,7 +254,8 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<meta name=\"twitter:image\" content=\"");
-            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            var rel_path = get_relative_path_to_root(relative_depth)
+            html.append_view(rel_path.to_view());
             html.append_view(std::string_view(&logo_name_buf[0], len));
             html.append_view("\">");
         }
@@ -271,16 +276,18 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     
     // Set root path for search
     html.append_view("<script>window.rootPath = \"");
-    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    var rel_path = get_relative_path_to_root(relative_depth)
+    html.append_view(rel_path.to_view());
     html.append_view("\";</script>");
     
     // Add Search Index
     html.append_view("<script src=\"");
-    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    html.append_view(rel_path.to_view());
     html.append_view("search_index.js\"></script>");
     
     // Syntax Highlighting
-    html.append_view(get_prism_includes(gen.config).to_view());
+    var prism_includes = get_prism_includes(gen.config)
+    html.append_view(prism_includes.to_view());
     
     html.append_view("""
 </head>
@@ -293,7 +300,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         </button>
         <a href=""");
     html.append('"');
-    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    html.append_view(rel_path.to_view());
     html.append_view("index.html");
     html.append('"');
     html.append_view(""" class="header-brand">""");
@@ -305,7 +312,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("<img src=\"");
-            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            html.append_view(rel_path.to_view());
             html.append_view(std::string_view(&logo_name_buf[0], len));
             html.append_view("\" alt=\"Logo\" style=\"height:48px;width:auto;margin-right:8px\">");
         }
@@ -342,7 +349,8 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Render Sidebar
     var i = 0u;
     while(i < gen.summary.items.size()) {
-        html.append_view(render_sidebar_item(gen.summary.items.get(i), current_md_path, relative_depth).to_view());
+        var sb_item = render_sidebar_item(gen.summary.items.get(i), current_md_path, relative_depth)
+        html.append_view(sb_item.to_view());
         i++;
     }
     
@@ -422,7 +430,8 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
                 gen.search_index.append_view(",");
             }
             gen.search_index.append_view("{\"title\":\"");
-            gen.search_index.append_view(escape_json_string(item.title.to_view()).to_view());
+            var escaped = escape_json_string(item.title.to_view())
+            gen.search_index.append_view(escaped.to_view());
             gen.search_index.append_view("\",\"link\":\"");
             gen.search_index.append_view(out_rel.to_view());
             gen.search_index.append_view("\",\"snippet\":\"");
@@ -431,11 +440,12 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
             var d = 0;
             // Limit snippet
             // (simplified for now, full text search is heavy without better indexing hacks, but this is a start)
-            gen.search_index.append_view(escape_json_string(text.to_view()).to_view()); 
+            var escaped2 = escape_json_string(text.to_view())
+            gen.search_index.append_view(escaped2.to_view());
             // In a real impl we might want `content` field too, but user asked for "snippet" in UI..
             // Actually the UI filters on `content` so we should send content.
             gen.search_index.append_view("\",\"content\":\"");
-             gen.search_index.append_view(escape_json_string(text.to_view()).to_view()); 
+            gen.search_index.append_view(escaped2.to_view());
             gen.search_index.append_view("\"}");
 
         } else {

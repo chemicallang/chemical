@@ -120,7 +120,8 @@ public namespace datetime {
                             divisor = divisor / 10
                         }
                     } else if(spec == 'z') {
-                        result.append_view(self.tz.format_utc_offset().to_view())
+                        var utc_offset = self.tz.format_utc_offset()
+                        result.append_view(utc_offset.to_view())
                     } else if(spec == 'Z') {
                         result.append_view(self.tz.tz_name.to_view())
                     } else if(spec == '%') {

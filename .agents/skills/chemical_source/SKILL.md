@@ -1052,6 +1052,24 @@ variant MyVariant {
 
 ## Common Patterns
 
+### to_view pattern
+
+This is invalid code
+
+```chemical
+take_view(create_string().to_view())
+```
+with code like this you get error
+
+`error: function call is on a temporary that is destroyed at expression end, please store the temporary in a variable`
+
+To fix you must use 
+
+```chemical
+var str = create_string()
+take_view(str.to_view())
+```
+
 ### Option Type Pattern
 
 `std::Option` type is available in standard library

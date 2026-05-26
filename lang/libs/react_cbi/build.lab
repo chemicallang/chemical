@@ -76,7 +76,8 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     }
 
     const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module, react_parser, reactIde ]
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("react_cbi"), lab::rel_path_to("src").to_view(), dependencies);
+    var src_path = lab::rel_path_to("src");
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("react_cbi"), src_path.to_view(), dependencies);
 
     ctx.add_module(cbi, module)
 

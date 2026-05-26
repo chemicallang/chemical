@@ -313,7 +313,8 @@ func test_http_patch_head(env : &mut TestEnv) {
     var res_patch = client.patch("http://127.0.0.1:8088/patch", "data", "application/json");
     if(res_patch is Result.Ok) {
         var Ok(r) = res_patch else unreachable;
-        var b = r.body.read_to_string().take();
+        var str = r.body.read_to_string()
+        var b = str.take();
         if(!b.equals_view("patched")) env.error("PATCH mismatch");
     } else {
         env.error("PATCH failed");
@@ -584,21 +585,24 @@ func test_router_static_routes(env : &mut TestEnv) {
     var r1 = client.get(std::string_view("http://127.0.0.1:8094/users"));
     if(r1 is Result.Ok) {
         var Ok(resp) = r1 else unreachable;
-        var body = resp.body.read_to_string().take();
+        var str = resp.body.read_to_string()
+        var body = str.take();
         if(!body.equals_view("users")) { env.error("Users route mismatch"); }
     } else { env.error("Users route failed"); }
     
     var r2 = client.get(std::string_view("http://127.0.0.1:8094/posts"));
     if(r2 is Result.Ok) {
         var Ok(resp) = r2 else unreachable;
-        var body = resp.body.read_to_string().take();
+        var str = resp.body.read_to_string()
+        var body = str.take();
         if(!body.equals_view("posts")) { env.error("Posts route mismatch"); }
     } else { env.error("Posts route failed"); }
     
     var r3 = client.post(std::string_view("http://127.0.0.1:8094/users"), std::string_view("data"), "text/plain");
     if(r3 is Result.Ok) {
         var Ok(resp) = r3 else unreachable;
-        var body = resp.body.read_to_string().take();
+        var str = resp.body.read_to_string()
+        var body = str.take();
         if(!body.equals_view("created")) { env.error("POST users mismatch"); }
     } else { env.error("POST users failed"); }
     

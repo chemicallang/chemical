@@ -98,39 +98,47 @@ func test_temp_view_lifetime() {
     // ----- Chained-temp patterns (BUG: dtor after return = dead code) -----
 
     test("temp string.to_view() in func arg — destructor called (currently leaks)", () => {
-        var ok = consume_view(make_hello_string().to_view())
-        return ok
+        unsafe "lifetime_check"- {
+            var ok = consume_view(make_hello_string().to_view())
+            return ok
+        }
     })
 
     test("temp TempString.to_view() in func arg — dtor called once (currently leaks)", () => {
-        var count = 0
-        if(true) {
-            var ok = consume_view(make_temp(string_view("Hello"), &mut count).to_view())
+        unsafe "lifetime_check"- {
+            var count = 0
+            if(true) {
+                var ok = consume_view(make_temp(string_view("Hello"), &mut count).to_view())
+            }
+            // BUG: dtor is placed after `return` (dead code), never called
+            // count should be 1 but is 0 → test FAILS
+            return count == 1
         }
-        // BUG: dtor is placed after `return` (dead code), never called
-        // count should be 1 but is 0 → test FAILS
-        return count == 1
     })
 
     test("temp TempString.to_view() captured into new string — dtor called once", () => {
-        var count = 0
-        var captured = string()
-        if(true) {
-            captured = consume_view_and_capture(make_temp(string_view("Hello World! TempString view test."), &mut count).to_view())
+        unsafe "lifetime_check"- {
+            var count = 0
+            var captured = string()
+            if(true) {
+                captured = consume_view_and_capture(make_temp(string_view("Hello World! TempString view test."), &mut count).to_view())
+            }
+            // BUG: dtor is placed after `return`, never called → count is 0, not 1
+            // Also captured should contain the correct content
+            return count == 1 && captured.equals_view("Hello World! TempString view test.")
         }
-        // BUG: dtor is placed after `return`, never called → count is 0, not 1
-        // Also captured should contain the correct content
-        return count == 1 && captured.equals_view("Hello World! TempString view test.")
     })
 
     test("multiple chained temp TempString.to_view() dtors all called", () => {
-        var count1 = 0
-        var count2 = 0
-        if(true) {
-            var ok = consume_view(make_temp(string_view("First"), &mut count1).to_view()) &&
-                     consume_view(make_temp(string_view("Second"), &mut count2).to_view())
+        unsafe "lifetime_check"- {
+            var count1 = 0
+            var count2 = 0
+            if(true) {
+                var ok = consume_view(make_temp(string_view("First"), &mut count1).to_view()) &&
+                         consume_view(make_temp(string_view("Second"), &mut count2).to_view())
+            }
+            // BUG: both dtors are dead code → count1 == 0, count2 == 0
+            return count1 == 1 && count2 == 1
         }
-        // BUG: both dtors are dead code → count1 == 0, count2 == 0
-        return count1 == 1 && count2 == 1
     })
 }

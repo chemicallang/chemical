@@ -84,6 +84,11 @@ public:
     LinkedType linked_type;
 
     /**
+     * lifetime parameters declared on this struct, e.g. struct string_view 'a { }
+     */
+    std::vector<chem::string_view> lifetime_params;
+
+    /**
      * @brief Construct a new StructDeclaration object.
      *
      * @param name The name of the struct.

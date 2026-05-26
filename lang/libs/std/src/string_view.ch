@@ -2,7 +2,7 @@ public namespace std {
 
     // TODO: remove retained, once we have runtime magic value support
     @retained
-    public struct string_view {
+    public struct string_view 'a {
 
         var _data : *char
         var _size : size_t
@@ -61,11 +61,11 @@ public namespace std {
             return *(_data + index)
         }
 
-        func subview(&self, start : size_t, end : size_t) : std::string_view {
+        func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
             return std::string_view(_data + start, end - start)
         }
 
-        func skip(&self, count : size_t) : std::string_view {
+        func skip(&self, count : size_t) : 'self std::string_view {
             return std::string_view(_data + count, _size - count)
         }
 
@@ -92,7 +92,7 @@ public namespace std {
             return memcmp(data(), other.data(), other.size()) == 0;
         }
 
-        func trim(&self) : std::string_view {
+        func trim(&self) : 'self std::string_view {
             var s = 0u;
             while (s < _size && (get(s) == ' ' || get(s) == '\t' || get(s) == '\n' || get(s) == '\r')) s++;
             if (s == _size) return std::string_view("", 0);

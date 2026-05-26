@@ -189,6 +189,11 @@ public:
      * optional body
      */
     std::optional<Scope> body;
+
+    /**
+     * lifetime annotation for the return type, e.g. 'self in ': 'self string_view'
+     */
+    chem::string_view return_lifetime;
     /**
      * if this function an instantiation of a generic function, this field is set to the
      * generic decl, of which function this is instantiation of, which field helps us

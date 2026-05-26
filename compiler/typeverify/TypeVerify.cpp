@@ -246,15 +246,29 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
             const auto grandparent = chain->values[total - 2];
             const auto gp_call = get_only_call(grandparent);
             if (gp_call) {
-                // if the current function call's type is int
-                // that can't possibly contain references or pointers into temporary
-                if (!(func_type && isNonBorrowingType(func_type->returnType->canonical()))) {
-                    const auto ty = gp_call->getType();
-                    const auto container = ty->get_members_container();
-                    if (container) {
-                        const auto destr = container->destructor_func();
-                        if (destr) {
-                            diagnoser.error(call) << "function call is on a temporary that is destroyed at expression end, please store the temporary in a variable";
+                const auto ty = gp_call->getType();
+                const auto container = ty->get_members_container();
+                if (container) {
+                    const auto destr = container->destructor_func();
+                    if (destr) {
+                        // check the lifetime_check flag
+                        const auto it = flags.find("lifetime_check");
+                        if (it != flags.end() && !it->second) {
+                            // lifetime check is disabled for this block
+                        } else if (func_type) {
+                            // check if the return type's struct has lifetime params
+                            // and the function has a return_lifetime annotation
+                            const auto return_canon = func_type->returnType->canonical();
+                            const auto return_container = return_canon->get_members_container();
+                            bool has_lifetime = false;
+                            if (return_container && return_container->kind() == ASTNodeKind::StructDecl) {
+                                has_lifetime = !static_cast<StructDefinition*>(return_container)->lifetime_params.empty();
+                            }
+                            const auto linked_func = call->safe_linked_func();
+                            const bool has_return_lifetime = linked_func && !linked_func->return_lifetime.empty();
+                            if (has_lifetime && has_return_lifetime) {
+                                diagnoser.error(call) << "function call on a temporary that is destroyed at expression end returns a struct with a lifetime dependency, please store the temporary in a variable";
+                            }
                         }
                     }
                 }
@@ -630,4 +644,17 @@ void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
     visit(node->master_impl);
     is_generic_public_context = prev_gen_public;
+}
+
+void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
+    // handle flag toggling
+    if(!block->flag_name.empty()) {
+        const std::string key(block->flag_name.data(), block->flag_name.size());
+        const auto prev = flags[key];
+        flags[key] = block->flag_value;
+        RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+        flags[key] = prev;
+    } else {
+        RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+    }
 }

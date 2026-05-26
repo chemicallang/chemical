@@ -40,9 +40,9 @@ public:
     bool is_public_comptime_context = false;
 
     /**
-     * flags that can be toggled by unsafe blocks, e.g. unsafe "lifetime_check"- { }
+     * is lifetime check enabled
      */
-    std::unordered_map<std::string, bool> flags;
+    bool is_lifetime_check_enabled = true;
 
     /**
      * constructor

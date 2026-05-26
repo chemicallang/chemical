@@ -239,7 +239,8 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     auto func_type = call->function_type();
 
     // check its not a function on a temporary destructible struct
-    if (call->parent_val->kind() == ValueKind::AccessChain) {
+    // lifetime check
+    if (is_lifetime_check_enabled && call->parent_val->kind() == ValueKind::AccessChain) {
         const auto chain = call->parent_val->as_access_chain_unsafe();
         const auto total = chain->values.size();
         if (total > 1) {
@@ -250,25 +251,19 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
                 const auto container = ty->get_members_container();
                 if (container) {
                     const auto destr = container->destructor_func();
-                    if (destr) {
-                        // check the lifetime_check flag
-                        const auto it = flags.find("lifetime_check");
-                        if (it != flags.end() && !it->second) {
-                            // lifetime check is disabled for this block
-                        } else if (func_type) {
-                            // check if the return type's struct has lifetime params
-                            // and the function has a return_lifetime annotation
-                            const auto return_canon = func_type->returnType->canonical();
-                            const auto return_container = return_canon->get_members_container();
-                            bool has_lifetime = false;
-                            if (return_container && return_container->kind() == ASTNodeKind::StructDecl) {
-                                has_lifetime = !static_cast<StructDefinition*>(return_container)->lifetime_params.empty();
-                            }
-                            const auto linked_func = call->safe_linked_func();
-                            const bool has_return_lifetime = linked_func && !linked_func->return_lifetime.empty();
-                            if (has_lifetime && has_return_lifetime) {
-                                diagnoser.error(call) << "function call on a temporary that is destroyed at expression end returns a struct with a lifetime dependency, please store the temporary in a variable";
-                            }
+                    if (destr && func_type) {
+                        // check if the return type's struct has lifetime params
+                        // and the function has a return_lifetime annotation
+                        const auto return_canon = func_type->returnType->canonical();
+                        const auto return_container = return_canon->get_members_container();
+                        bool has_lifetime = false;
+                        if (return_container && return_container->kind() == ASTNodeKind::StructDecl) {
+                            has_lifetime = !static_cast<StructDefinition*>(return_container)->lifetime_params.empty();
+                        }
+                        const auto linked_func = call->safe_linked_func();
+                        const bool has_return_lifetime = linked_func && !linked_func->return_lifetime.empty();
+                        if (has_lifetime && has_return_lifetime) {
+                            diagnoser.error(call) << "function call on a temporary that is destroyed at expression end returns a struct with a lifetime dependency, please store the temporary in a variable";
                         }
                     }
                 }
@@ -646,14 +641,29 @@ void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
     is_generic_public_context = prev_gen_public;
 }
 
+bool* get_flag(TypeVerifier& verifier, const chem::string_view& name) {
+    constexpr auto hasher = std::hash<chem::string_view>();
+    switch (hasher(name)) {
+        case hasher("lifetime_check"):
+            return &verifier.is_lifetime_check_enabled;
+        default:
+            return nullptr;
+    }
+}
+
 void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
     // handle flag toggling
     if(!block->flag_name.empty()) {
-        const std::string key(block->flag_name.data(), block->flag_name.size());
-        const auto prev = flags[key];
-        flags[key] = block->flag_value;
+        const auto flag = get_flag(*this, block->flag_name);
+        if (flag == nullptr) {
+            diagnoser.warn(block) << "couldn't find flag";
+            RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+            return;
+        }
+        const auto prev = *flag;
+        *flag = block->flag_value;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
-        flags[key] = prev;
+        *flag = prev;
     } else {
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
     }

@@ -56,6 +56,18 @@ public:
 
     }
 
+    // ------------- Decls ------------
+
+    void VisitStructDecl(StructDefinition* def);
+
+    void VisitUnionDecl(UnionDef* def);
+
+    void VisitVariantDecl(VariantDefinition* def);
+
+    void VisitInterfaceDecl(InterfaceDefinition* interface);
+
+    // ------------ Statements -------------
+
     void VisitVarInitStmt(VarInitStatement *init);
 
     void VisitAssignmentStmt(AssignStatement *assign);
@@ -85,6 +97,8 @@ public:
     void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitPlacementNewValue(PlacementNewValue *value);
+
+    void VisitIncDecValue(IncDecValue* value);
 
     // -------- Generic Declarations ------------
     // -------- Only Template is visited --------

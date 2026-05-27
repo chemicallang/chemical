@@ -9,8 +9,119 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/GenericTypeParameter.h"
+#include "ast/base/InterfaceBits.h"
+#include "ast/utils/ASTUtils.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "compiler/symres/SymbolResolver.h"
 #include "core/source/LocationManager.h"
+
+static GenericTypeParameter* get_generic_param(BaseType* type) {
+    if(type->kind() == BaseTypeKind::Linked) {
+        auto linked = type->as_linked_type_unsafe()->linked;
+        if(linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
+            return linked->as_generic_type_param_unsafe();
+        }
+    }
+    return nullptr;
+}
+
+void verify_container_inherited(TypeVerifier& verifier, MembersContainer* container) {
+    auto& inherited = container->inherited;
+    if (!inherited.empty()) {
+        auto& diagnoser = verifier.diagnoser;
+        // first type can be a struct or interface (shouldn't be variant)
+        auto& first_node_type = inherited.front().type;
+        const auto first_node = first_node_type->get_direct_linked_canonical_node();
+        if (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl) {
+            diagnoser.error(first_node_type.encoded_location()) << "the type in inheritance list must be a struct";
+        }
+        if (inherited.size() > 1) {
+            // all other types must be interfaces or empty struct types
+            auto start = inherited.data() + 1;
+            const auto end = inherited.data() + inherited.size();
+            while (start != end) {
+                const auto node = start->type->get_direct_linked_canonical_node();
+                if (node->kind() == ASTNodeKind::StructDecl) {
+                    // check if struct is empty, if empty, we allow it, otherwise error out
+                    const auto structDecl = node->as_struct_def_unsafe();
+                    if (!structDecl->is_sizeof_zero) {
+                        diagnoser.error(start->type.encoded_location()) << "struct type is not empty (contains variables) being inherited (not in the first position) in inheritance list";
+                    }
+                } else if (node->kind() == ASTNodeKind::GenericStructDecl) {
+                    // check if struct is empty, if empty, we allow it, otherwise error out
+                    const auto structDecl = node->as_gen_struct_def_unsafe();
+                    if (!structDecl->master_impl->is_sizeof_zero) {
+                        diagnoser.error(start->type.encoded_location()) << "struct type is not empty (contains variables) being inherited (not in the first position) in inheritance list";
+                    }
+                } else {
+                    diagnoser.error(start->type.encoded_location()) << "the type in inheritance list must be a struct";
+                }
+                start++;
+            }
+        }
+    }
+}
+
+inline static bool is_mutable_ref_type(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->is_mutable;
+        default:
+            return false;
+    }
+}
+
+void verify_mutation(TypeVerifier& verifier, Value* lhs) {
+    // get the first value in chain, check if its a struct member
+    // if it is, assignment to struct member requires mutable self reference
+    const auto lhs_chain = lhs->as_chain_value();
+    if(lhs_chain) {
+        const auto first_chain_val = get_first_chain_id(lhs_chain);
+        if (first_chain_val) {
+            const auto linked = first_chain_val->linked;
+            if(linked->kind() == ASTNodeKind::StructMember) {
+                // check current function has a mutable self reference
+                const auto curr_func = verifier.current_func_type;
+                const auto decl = curr_func->as_function();
+                if(decl && !decl->is_constructor_fn()) {
+                    const auto self_param = decl->get_self_param();
+                    if(self_param == nullptr || !is_mutable_ref_type(self_param->type)) {
+                        verifier.diagnoser.error("mutating a struct member requires a mutable self reference", lhs);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void TypeVerifier::VisitStructDecl(StructDefinition* def) {
+    RecursiveVisitor::VisitStructDecl(def);
+    verify_container_inherited(*this, def);
+}
+
+void TypeVerifier::VisitUnionDecl(UnionDef* def) {
+    RecursiveVisitor::VisitUnionDecl(def);
+    verify_container_inherited(*this, def);
+}
+
+void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
+    RecursiveVisitor::VisitVariantDecl(def);
+    verify_container_inherited(*this, def);
+}
+
+void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
+    RecursiveVisitor::VisitInterfaceDecl(interface);
+    // ensure that every inherited type after the first inherited type is an interface
+    // this makes the inheritance list predictable
+    // if this is an interface decl, every inherited type must be an interface
+    for(auto& inherits : interface->inherited) {
+        const auto node = inherits.type->get_direct_linked_canonical_node();
+        if (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl) {
+            diagnoser.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
+        }
+    }
+}
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type) {
     const auto val_type = value->getType();
@@ -83,6 +194,12 @@ void TypeVerifier::VisitPlacementNewValue(PlacementNewValue *value) {
     verify_placement_new(diagnoser, { value->pointer->getType(), value->pointer->encoded_location() }, value->value);
 }
 
+void TypeVerifier::VisitIncDecValue(IncDecValue* value) {
+    RecursiveVisitor::VisitIncDecValue(value);
+    // check if we can modify the value
+    verify_mutation(*this, value);
+}
+
 constexpr auto NonPublicDeclCallError = "calling a non-public function in a public generic declaration is not allowed, please use public/protected";
 constexpr auto NonPublicDeclError = "non-public decl is being called in a public generic context, please use public/protected";
 
@@ -127,8 +244,148 @@ bool isNonBorrowingType(BaseType* type) {
     }
 }
 
+bool check_chain_mutability(TypeVerifier& verifier, const std::vector<Value*>& values, int end_index) {
+    for (int i = end_index; i >= 0; --i) {
+        auto val = values[i];
+
+        BaseType* type = val->getType();
+        if (type && type->kind() == BaseTypeKind::Reference) {
+            // It's a reference, so it dictates mutability of the chain up to this point
+            return type->as_reference_type_unsafe()->is_mutable;
+        }
+
+        if (type && type->kind() == BaseTypeKind::Pointer) {
+            return true;
+        }
+
+        // It is a value (struct, field, etc.)
+        if (!val->check_is_mutable(false)) {
+            return false;
+        }
+
+        // If this is the root of the chain (and not a reference/pointer),
+        // effectively meaning we are accessing a member of 'self' explicitly or implicitly
+        // or a local variable.
+        // check_is_mutable handles local variables (if 'let' vs 'var').
+        // But for StructMember, check_is_mutable just sees the member definition.
+        // We need to check if we are accessing a member of 'self', and if 'self' is mutable.
+        if (i == 0) {
+            const auto linked = val->get_chain_last_linked();
+            if (linked && linked->kind() == ASTNodeKind::StructMember) {
+                // Must be implicit self access
+                const auto curr_func_type = verifier.current_func_type;
+                if (curr_func_type) {
+                    const auto func_decl = curr_func_type->as_function();
+                    if (func_decl && !func_decl->is_constructor_fn()) {
+                        const auto self_param = func_decl->get_self_param();
+                        // If self is present and NOT mutable, then implicit member access is immutable
+                        if (self_param && !is_mutable_ref_type(self_param->type)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Even if this value is mutable (e.g. a field that is not const),
+        // its mutability depends on its parent (container).
+        // So we continue to the next iteration (parent).
+    }
+    return true; // Reached root and it passed requirements (or was handled).
+}
+
+void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
+    auto& diagnoser = verifier.diagnoser;
+    const auto parent_val = call->parent_val;
+    const auto linked = parent_val->get_chain_last_linked();
+    // enum member being used as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+    const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
+    if(func_decl) {
+//        if(func_decl->is_unsafe() && resolver.safe_context) {
+//            resolver.error("unsafe function with name should be called in an unsafe block", this);
+//        }
+        const auto self_param = func_decl->get_self_param();
+        if(self_param) {
+            const auto grandpa = get_parent_from(parent_val);
+            if(grandpa) {
+                if(!self_param->type->is_mutable()) {
+                    // if self param is immutable, we don't need to check anything
+                } else {
+                    bool is_mutable = true;
+                    if(parent_val->kind() == ValueKind::AccessChain) {
+                        auto chain = parent_val->as_access_chain_unsafe();
+                        if(chain->values.size() >= 2) {
+                            if(!check_chain_mutability(verifier, chain->values, (int)chain->values.size() - 2)) {
+                                is_mutable = false;
+                            }
+                        } else {
+                            // Should not happen if grandpa exists (implies at least 2 elements: obj.func)
+                        }
+                    } else {
+                        const auto first_value = get_first_chain_value(parent_val);
+                        // Here we should also use check_chain_mutability if possible, but get_first_chain_value returns one node.
+                        // However, parent_val here IS get_grandpa_from(parent_val) effectively?
+                        // Actually, if parent_val is NOT AccessChain, it must be Identifier (p).
+                        // p is linked to member.
+                        // We check if p is mutable (var p). It is.
+                        // But we also need to check if SELF is mutable.
+                        // Wait, if parent_val is Identifier p. It is linked to StructMember.
+                        // check_is_mutable on StructMember 'p' returns true.
+                        // So checking first_value->check_is_mutable is insufficient for implicit self.
+                        // We must mimic check_chain_mutability logic here for single value.
+
+                        if(first_value) {
+                             if (!first_value->check_is_mutable(false)) {
+                                 is_mutable = false;
+                             } else {
+                                const auto linked = first_value->get_chain_last_linked();
+                                if (linked && linked->kind() == ASTNodeKind::StructMember) {
+                                     // Implicit self check
+                                    const auto curr_func_type = verifier.current_func_type;
+                                    if (curr_func_type) {
+                                        const auto func_decl = curr_func_type->as_function();
+                                        if (func_decl && !func_decl->is_constructor_fn()) {
+                                            const auto sp = func_decl->get_self_param();
+                                            if (sp && !is_mutable_ref_type(sp->type)) {
+                                                is_mutable = false;
+                                            }
+                                        }
+                                    }
+                                }
+                             }
+                        }
+                    }
+
+                    if(!is_mutable) {
+                        diagnoser.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
+                    }
+                }
+            } else {
+                const auto curr_func_type = verifier.current_func_type;
+                if (curr_func_type == nullptr) return;
+                const auto arg_self = curr_func_type->get_self_param();
+                if (!arg_self) {
+                    diagnoser.error("cannot call function without an implicit self arg which is not present", call);
+                } else if (self_param->type->is_mutable() && !arg_self->type->is_mutable()) {
+                    diagnoser.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
+                }
+            }
+        }
+    }
+}
+
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
+    // verifying the call mutability (self param is mutable and all that...)
+    verify_call_mutability(*this, call);
+    // this verifies comptimeness of arguments
+    // TODO: this verifyArguments need to be moved to this .cpp file (make static)
+    const auto curr_func_type = current_func_type;
+    if(curr_func_type) {
+        call->verifyArguments(diagnoser, curr_func_type);
+    }
+    // verify retention
     if (is_generic_public_context) {
         const auto last_linked = call->parent_val->get_chain_last_linked();
         if (last_linked) {
@@ -182,6 +439,8 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
                     }
                     break;
                 }
+                default:
+                    break;
             }
         }
     }
@@ -232,6 +491,8 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
                     }
                     break;
                 }
+                default:
+                    break;
             }
         }
     }
@@ -458,7 +719,6 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     const auto lhsType = lhs->getType();
 
     // check if operator is overloaded
-    // direct assignment cannot be overloaded
     if(assign->assOp != Operation::Assignment) {
         const auto can_node = lhsType->get_linked_canonical_node(true, false);
         if(can_node) {
@@ -470,11 +730,28 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
         }
     }
 
+    // first we check if the value is mutable
+    // immutable values cannot be used (even in operator overloading)
+    if(!lhs->check_is_mutable(true)) {
+        diagnoser.error("cannot assign to a non mutable value", lhs);
+    }
+
+    // get the first value in chain, check if its a struct member
+    // if it is, assignment to struct member requires mutable self reference
+    verify_mutation(*this, lhs);
+
     // check assignment satisfies the lhs type
     switch(assign->assOp){
         case Operation::Assignment:
             if (!lhsType->satisfies(value, true)) {
                 unsatisfied_type_err(diagnoser, value, lhsType);
+            }
+            // check generic type params have Copy bit set
+            {
+                auto param = get_generic_param(lhsType);
+                if(param && !param->current_bits.has(InterfaceBits::COPY_BIT)) {
+                    diagnoser.error(assign) << "generic type '" << param->identifier << "' that is not 'Copy' cannot be implicitly copied";
+                }
             }
             break;
         case Operation::Addition:

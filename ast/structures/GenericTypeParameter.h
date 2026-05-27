@@ -4,6 +4,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/TypeLoc.h"
+#include "ast/base/InterfaceBits.h"
 
 class GenericTypeParameter : public ASTNode {
 private:
@@ -21,6 +22,12 @@ public:
     // TODO use int32 here
      // <-- index of active type in usage vector
     unsigned param_index = 0; // <-- index in the generic type parameters
+
+    /**
+     * current trait bits for this generic parameter.
+     * Updated temporarily by `where` clauses during type checking.
+     */
+    InterfaceBits current_bits;
 
     /**
      * constructor

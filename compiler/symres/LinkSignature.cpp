@@ -1513,6 +1513,35 @@ void buildContainerIndexes(MembersContainer* container) {
     }
 }
 
+void buildInterfaceIndexes(InterfaceDefinition* container) {
+    for(auto& inh : container->inherited) {
+        const auto inherited_node = inh.type->get_direct_linked_node();
+        // after link signature, the node can only be interface (because monomorphized if it was generic)
+        if (inherited_node == nullptr || inherited_node->kind() != ASTNodeKind::InterfaceDecl) continue;
+        const auto sub_container = inherited_node->as_interface_def_unsafe();
+        if (!sub_container->built_indexes) {
+            // first build indexes on inherited containers
+            // since we want to do multi-level inheritance
+            buildInterfaceIndexes(sub_container);
+        }
+        // basically or the bits of the inherited interface with the bits of the inheriter
+        // for_example: if an interface inherits Copy, copy bit is turned on
+        container->interface_bits |= sub_container->interface_bits;
+        // putting all indexes of this container
+        // except we will never override, respecting already present indexes
+        // because we want to support function hiding, function in container will hide function in inherited container (with same name)
+        auto& container_indexes = container->indexes;
+        auto& sub_container_indexes = sub_container->indexes;
+        container_indexes.reserve(container_indexes.size() + sub_container_indexes.size());
+        for(auto& index : sub_container_indexes) {
+            container_indexes.try_emplace(index.first, index.second);
+        }
+    }
+    // set indexes to built
+    // so we can skip building it again when other containers inherit this container
+    container->built_indexes = true;
+}
+
 void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
     const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
     if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
@@ -1551,8 +1580,10 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::StructDecl:
             case ASTNodeKind::UnionDecl:
             case ASTNodeKind::VariantDecl:
-            case ASTNodeKind::InterfaceDecl:
                 buildContainerIndexes(node->as_members_container_unsafe());
+                continue;
+            case ASTNodeKind::InterfaceDecl:
+                buildInterfaceIndexes(node->as_interface_def_unsafe());
                 continue;
             case ASTNodeKind::ImplDecl:
                 handle_impl_block(linker, node->as_impl_def_unsafe());
@@ -1569,7 +1600,7 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
                 buildContainerIndexes(node->as_gen_variant_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::GenericInterfaceDecl:
-                buildContainerIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
+                buildInterfaceIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::GenericImplDecl:
                 handle_impl_block(linker, node->as_gen_impl_decl_unsafe()->master_impl);
@@ -1653,24 +1684,59 @@ void LinkExportStatement(SymbolResolver& linker, ExportStmt* node) {
     node->linked_node = resolvedNode;
 }
 
-void LinkExportStatement(SymbolResolver& resolver, std::vector<ASTNode*>& nodes) {
+void calculate_gen_param_bits(const std::vector<GenericTypeParameter*>& params) {
+    for (const auto param : params) {
+        for (auto& trait : param->traits) {
+            const auto node = trait->get_direct_linked_node();
+            if (node && node->kind() == ASTNodeKind::InterfaceDecl) {
+                param->current_bits |= node->as_interface_def_unsafe()->interface_bits;
+            }
+        }
+    }
+}
+
+// does two things (currently)
+// 1 - links export statements
+// 2 - calculates interface bits of generic type parameters
+void AfterBuildIndexesPass(SymbolResolver& resolver, std::vector<ASTNode*>& nodes) {
     for (const auto node : nodes) {
         switch(node->kind()) {
-        case ASTNodeKind::ExportStmt:
-            LinkExportStatement(resolver, node->as_export_stmt_unsafe());
-            continue;
-        case ASTNodeKind::IfStmt:{
-            const auto stmt = node->as_if_stmt_unsafe();
-            if(stmt->computed_scope.has_value()) {
-                const auto scope = stmt->computed_scope.value();
-                if(scope) {
-                    LinkExportStatement(resolver, scope->nodes);
+            case ASTNodeKind::ExportStmt:
+                LinkExportStatement(resolver, node->as_export_stmt_unsafe());
+                continue;
+            case ASTNodeKind::GenericFuncDecl:
+                calculate_gen_param_bits(node->as_gen_func_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericStructDecl:
+                calculate_gen_param_bits(node->as_gen_struct_def_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericUnionDecl:
+                calculate_gen_param_bits(node->as_gen_union_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericVariantDecl:
+                calculate_gen_param_bits(node->as_gen_variant_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericInterfaceDecl:
+                calculate_gen_param_bits(node->as_gen_interface_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericImplDecl:
+                calculate_gen_param_bits(node->as_gen_impl_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::GenericTypeDecl:
+                calculate_gen_param_bits(node->as_gen_type_decl_unsafe()->generic_params);
+                continue;
+            case ASTNodeKind::IfStmt:{
+                const auto stmt = node->as_if_stmt_unsafe();
+                if(stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if(scope) {
+                        AfterBuildIndexesPass(resolver, scope->nodes);
+                    }
                 }
+                continue;
             }
-            continue;
-        }
-        default:
-            continue;
+            default:
+                continue;
         }
     }
 }
@@ -1718,7 +1784,8 @@ void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     // builds indexes of containers to children inside them can be looked up
     BuildIndexes(resolver, nodes);
     // links export statements, these can't be linked during link signature
-    LinkExportStatement(resolver, nodes);
+    // calculate interface bits of generic type parameters
+    AfterBuildIndexesPass(resolver, nodes);
     // links global variable values, which can have dependencies on each other
     TopLevelLinkSignature visitor(resolver);
     LinkGlobalVariableValues(visitor, nodes);

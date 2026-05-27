@@ -115,6 +115,11 @@ public:
     CoreNodesStream stream;
 
     /**
+     * the Copy interface from core.ops — a marker for trivially copyable types.
+     */
+    InterfaceDefinition* copy_interface = nullptr;
+
+    /**
      * get information about operator being overloaded, like function name to use
      */
     FunctionDeclaration* expr_operator_impl_base(Operation op) {

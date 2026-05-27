@@ -16,6 +16,7 @@
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/structures/InterfaceDefinition.h"
 
 SymbolResolver::SymbolResolver(
     CompilerBinder& binder,
@@ -52,6 +53,15 @@ static FunctionDeclaration* func_of_interface(ASTNode* container, const chem::st
 }
 
 void SymbolResolver::link_core_nodes() {
+
+    // lookup the Copy marker interface
+    {
+        const auto copyNode = find("Copy");
+        if(copyNode && copyNode->kind() == ASTNodeKind::InterfaceDecl) {
+            coreNodes.copy_interface = copyNode->as_interface_def_unsafe();
+            coreNodes.copy_interface->interface_bits.set(InterfaceBits::COPY_BIT);
+        }
+    }
 
     const auto coreNode = find("core");
     if (coreNode == nullptr || coreNode->kind() != ASTNodeKind::NamespaceDecl) return;

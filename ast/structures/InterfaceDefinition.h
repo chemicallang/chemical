@@ -14,6 +14,7 @@
 #include "MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/LinkedType.h"
+#include "ast/base/InterfaceBits.h"
 
 struct InterfaceDefinitionAttrs {
 
@@ -99,6 +100,12 @@ public:
      * some data is stored in this struct to make it occupy less size
      */
     InterfaceDefinitionAttrs attrs;
+
+    /**
+     * trait bits for this interface (Copy, etc.)
+     * computed during symbol resolution by OR-ing inherited interfaces' bits.
+     */
+    InterfaceBits interface_bits;
 
     /**
      * constructor

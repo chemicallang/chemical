@@ -501,7 +501,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
 
     // check its not a function on a temporary destructible struct
     // lifetime check
-    if (is_lifetime_check_enabled && call->parent_val->kind() == ValueKind::AccessChain) {
+    if (!is_no_lifetime_check && call->parent_val->kind() == ValueKind::AccessChain) {
         const auto chain = call->parent_val->as_access_chain_unsafe();
         const auto total = chain->values.size();
         if (total > 1) {
@@ -746,13 +746,6 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
             if (!lhsType->satisfies(value, true)) {
                 unsatisfied_type_err(diagnoser, value, lhsType);
             }
-            // check generic type params have Copy bit set
-            {
-                auto param = get_generic_param(lhsType);
-                if(param && !param->current_bits.has(InterfaceBits::COPY_BIT)) {
-                    diagnoser.error(assign) << "generic type '" << param->identifier << "' that is not 'Copy' cannot be implicitly copied";
-                }
-            }
             break;
         case Operation::Addition:
         case Operation::Subtraction:
@@ -921,8 +914,8 @@ void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
 bool* get_flag(TypeVerifier& verifier, const chem::string_view& name) {
     constexpr auto hasher = std::hash<chem::string_view>();
     switch (hasher(name)) {
-        case hasher("lifetime_check"):
-            return &verifier.is_lifetime_check_enabled;
+        case hasher("no_lifetime_check"):
+            return &verifier.is_no_lifetime_check;
         default:
             return nullptr;
     }
@@ -938,10 +931,13 @@ void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
             return;
         }
         const auto prev = *flag;
-        *flag = block->flag_value;
+        *flag = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
         *flag = prev;
     } else {
+        const auto prev = is_unsafe;
+        is_unsafe = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+        is_unsafe = prev;
     }
 }

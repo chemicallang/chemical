@@ -98,14 +98,14 @@ func test_temp_view_lifetime() {
     // ----- Chained-temp patterns (BUG: dtor after return = dead code) -----
 
     test("temp string.to_view() in func arg — destructor called (currently leaks)", () => {
-        unsafe "lifetime_check"- {
+        unsafe "no_lifetime_check" {
             var ok = consume_view(make_hello_string().to_view())
             return ok
         }
     })
 
     test("temp TempString.to_view() in func arg — dtor called once (currently leaks)", () => {
-        unsafe "lifetime_check"- {
+        unsafe "no_lifetime_check" {
             var count = 0
             if(true) {
                 var ok = consume_view(make_temp(string_view("Hello"), &mut count).to_view())
@@ -117,7 +117,7 @@ func test_temp_view_lifetime() {
     })
 
     test("temp TempString.to_view() captured into new string — dtor called once", () => {
-        unsafe "lifetime_check"- {
+        unsafe "no_lifetime_check" {
             var count = 0
             var captured = string()
             if(true) {
@@ -130,7 +130,7 @@ func test_temp_view_lifetime() {
     })
 
     test("multiple chained temp TempString.to_view() dtors all called", () => {
-        unsafe "lifetime_check"- {
+        unsafe "no_lifetime_check" {
             var count1 = 0
             var count2 = 0
             if(true) {

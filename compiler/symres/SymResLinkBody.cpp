@@ -2563,13 +2563,12 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     const auto linked = value->getType()->get_direct_linked_node();
     if (linked) {
         // check if expected type is a reference
-        if(exp_type) {
-            const auto can = exp_type->canonical();
-            if(can->kind() == BaseTypeKind::Reference) {
-                return;
-            }
+        if(exp_type == nullptr) return;
+        const auto can = exp_type->canonical();
+        if(can->kind() == BaseTypeKind::Reference) {
+            return;
         }
-        if (linked->kind() == ASTNodeKind::GenericTypeParam) {
+        if (linker.safe_context && linked->kind() == ASTNodeKind::GenericTypeParam) {
             const auto param = linked->as_generic_type_param_unsafe();
             if (param->current_bits.has(InterfaceBits::COPY_BIT)) {
                 return;
@@ -3571,6 +3570,26 @@ bool SymResLinkBody::mark_moved_value(
     const auto linked_node_kind = linked_node->kind();
     // TODO this doesn't account for typealiases
     if(linked_node_kind == ASTNodeKind::GenericTypeParam) {
+        // TODO: enable this
+        // switch(value.kind()) {
+        //     case ValueKind::Identifier:
+        //         if(!is_movable(value.as_identifier_unsafe())) {
+        //             diagnoser.error("cannot move this value without re-initializing memory", &value);
+        //             return false;
+        //         }
+        //         break;
+        //     case ValueKind::AccessChain: {
+        //         auto chain = value.as_access_chain_unsafe();
+        //         const auto last_value = chain->values.back();
+        //         if (last_value->kind() == ValueKind::Identifier && !is_movable(last_value->as_identifier_unsafe())) {
+        //             diagnoser.error("cannot move this value without re-initializing memory", &value);
+        //             return false;
+        //         }
+        //         break;
+        //     }
+        //     default:
+        //         break;
+        // }
         return mark_moved_value(&value, diagnoser);
     }
     if(!ASTNode::isMembersContainer(linked_node_kind)) {

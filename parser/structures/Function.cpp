@@ -52,13 +52,6 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
         if(token->type == TokenType::String) {
             unsafe->flag_name = allocate_view(allocator, token->value);
             token++;
-            if(token->type == TokenType::PlusSym) {
-                unsafe->flag_value = true;
-                token++;
-            } else if(token->type == TokenType::MinusSym) {
-                unsafe->flag_value = false;
-                token++;
-            }
         }
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
         if(block.has_value()) {

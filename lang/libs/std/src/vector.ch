@@ -156,7 +156,9 @@ public struct vector<T> {
     func take_last(&mut self) : T {
         const last = data_size - 1
         data_size = last;
-        return *get_ptr(last);
+        unsafe {
+            return *get_ptr(last);
+        }
     }
 
     func empty(&self) : bool {

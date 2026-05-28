@@ -15,11 +15,6 @@ public:
     chem::string_view flag_name;
 
     /**
-     * true = + (enable), false = - (disable). Only meaningful when flag_name is set.
-     */
-    bool flag_value = true;
-
-    /**
      * constructor
      */
     constexpr UnsafeBlock(
@@ -34,7 +29,6 @@ public:
             parent(), encoded_location()
         );
         blk->flag_name = flag_name;
-        blk->flag_value = flag_value;
         scope.copy_into(blk->scope, allocator, this);
         return blk;
     }

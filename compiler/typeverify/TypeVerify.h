@@ -42,7 +42,12 @@ public:
     /**
      * is lifetime check enabled
      */
-    bool is_lifetime_check_enabled = true;
+    bool is_no_lifetime_check = false;
+
+    /**
+     * is inside an unsafe block
+     */
+    bool is_unsafe = false;
 
     /**
      * constructor

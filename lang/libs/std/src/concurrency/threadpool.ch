@@ -121,6 +121,7 @@ public namespace std {
                 return Future<T> { p : pp }
             }
             func get(&mut self):T {
+                var thing : T
                 p.m.lock();
                 while(!p.ready){ p.cv.wait(p.m) }
                 // mark that consumer will free (so worker won't free)
@@ -128,7 +129,7 @@ public namespace std {
                 p.m.unlock();
                 // TODO: create a copy here
                 var pp = p
-                var r = pp.val;
+                var r = std::replace(pp.val, thing);
                 delete p;
                 p=null;
                 return r

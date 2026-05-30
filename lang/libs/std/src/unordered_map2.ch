@@ -130,7 +130,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
     func find(&self, key : &Key, value : &mut Value) : bool {
         const ptr = get_ptr(key)
         if(ptr != null) {
-            *value = *ptr;
+            unsafe { *value = *ptr; }
             return true;
         } else {
             return false;

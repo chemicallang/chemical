@@ -28,6 +28,41 @@ bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
     }
 }
 
+bool DereferenceValue::determine_type(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* expected_type) {
+    const auto type = value->getType();
+    switch(type->kind()) {
+        case BaseTypeKind::Pointer: {
+            if (expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
+                const auto refType = new (allocator.allocate<ReferenceType>()) ReferenceType(type->as_pointer_type_unsafe()->type, type->as_pointer_type_unsafe()->is_mutable);
+                setType(refType);
+                return true;
+            }
+            setType(type->as_pointer_type_unsafe()->type);
+            return true;
+        }
+        case BaseTypeKind::Reference: {
+            if (expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
+                setType(type->as_reference_type_unsafe());
+                return true;
+            }
+            setType(type->as_reference_type_unsafe()->type);
+            return true;
+        }
+        case BaseTypeKind::String: {
+            if (expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
+                const auto refType = new (allocator.allocate<ReferenceType>()) ReferenceType(typeBuilder.getCharType(), false);
+                setType(refType);
+                return true;
+            }
+            setType(typeBuilder.getCharType());
+            return true;
+        }
+        default:
+            setType((BaseType*) typeBuilder.getVoidType());
+            return false;
+    }
+}
+
 Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
     const auto k = eval->val_kind();

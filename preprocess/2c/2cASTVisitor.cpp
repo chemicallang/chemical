@@ -676,15 +676,15 @@ bool is_value_param_pointer_or_ref_like_in_call(Value* value) {
 }
 
 bool is_value_param_pointer_or_ref_like(Value* value) {
-    const auto val_type = value->getType()->canonical();
-    if(val_type->kind() == BaseTypeKind::Reference) {
-        return true;
-    }
     switch (value->kind()) {
         case ValueKind::DereferenceValue:
             return false;
         default:
             break;
+    }
+    const auto val_type = value->getType()->canonical();
+    if(val_type->kind() == BaseTypeKind::Reference) {
+        return true;
     }
     const auto linked = value->linked_node();
     if(linked) {
@@ -1877,10 +1877,6 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
                 destruct_assign_lhs(visitor, assign->lhs, destr);
             }
         }
-    }
-    // assignment to a reference, automatic dereferencing
-    if(type->kind() == BaseTypeKind::Reference) {
-        visitor.write('*');
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
@@ -6547,10 +6543,6 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     // expression begins
     write('(');
 
-    // automatic dereferencing the first value
-    if(first_type->getLoadableReferredType() != nullptr) {
-        write('*');
-    }
     visit(expr->firstValue);
 
     space();
@@ -6562,10 +6554,6 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     }
     space();
 
-    // automatic dereferencing the second value
-    if(second_type->getLoadableReferredType() != nullptr) {
-        write('*');
-    }
     visit(expr->secondValue);
 
     nested_value = prev_nested;
@@ -6767,10 +6755,9 @@ void ToCAstVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {
     write(struct_passed_param_name);
 }
 
-void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
-//    const auto known = casted->value->known_type();
+void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *value) {
     write('*');
-    visit(casted->getValue());
+    visit(value->getValue());
 }
 
 void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {

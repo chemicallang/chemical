@@ -72,12 +72,13 @@ public:
         VisitNodeNoNullCheck((ASTNode*) node);
     }
     inline void visit(Value* value) {
-        expected_type = nullptr;
         VisitValueNoNullCheck(value);
     }
     inline void visit(Value* value, BaseType* exp_type) {
+        const auto prev = expected_type;
         expected_type = exp_type;
         VisitValueNoNullCheck(value);
+        expected_type = prev;
     }
     inline void visit(BaseType*& type_ref) {
         VisitTypeNoNullCheck(type_ref);

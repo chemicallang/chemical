@@ -52,6 +52,8 @@ public:
 
     bool determine_type(TypeBuilder& typeBuilder);
 
+    bool determine_type(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* expected_type);
+
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
     Value* evaluated_value(InterpretScope &scope) override;

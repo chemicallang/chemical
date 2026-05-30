@@ -53,6 +53,8 @@ private:
     PointerType* ptrToVoid;
     PointerType* ptrToAny;
     PointerType* constPtrToAny;
+    ReferenceType* refToVoid;
+    ReferenceType* refToAny;
     ExpressiveStringType* expr_str_type;
 
     // runtime types
@@ -266,6 +268,20 @@ public:
      */
     inline PointerType* getConstPtrToAny() {
         return constPtrToAny;
+    }
+
+    /**
+     * get reference to any
+     */
+    inline ReferenceType* getRefToVoid() {
+        return refToVoid;
+    }
+
+    /**
+     * get reference to any
+     */
+    inline ReferenceType* getRefToAny() {
+        return refToAny;
     }
 
     /**

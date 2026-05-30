@@ -16,6 +16,7 @@
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ExpressiveStringType.h"
+#include "ast/types/ReferenceType.h"
 
 static const VoidType voidTypeInstance;
 
@@ -37,6 +38,8 @@ void TypeBuilder::initialize() {
     ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
     ptrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, true);
     constPtrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, false);
+    refToVoid = new (allocator.allocate<ReferenceType>()) ReferenceType(voidType, true);
+    refToAny = new (allocator.allocate<ReferenceType>()) ReferenceType(anyType, true);
     expr_str_type = new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
 
     // runtime types

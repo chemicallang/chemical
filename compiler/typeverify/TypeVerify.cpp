@@ -200,6 +200,35 @@ void TypeVerifier::VisitIncDecValue(IncDecValue* value) {
     verify_mutation(*this, value);
 }
 
+void TypeVerifier::VisitDereferenceValue(DereferenceValue* value) {
+    RecursiveVisitor::VisitDereferenceValue(value);
+    if (is_assignment_lhs) {
+        // dereference solely for assignment is allowed
+        // even to destructible structs (it would cause destruction of the previous value first)
+        return;
+    }
+    // check we are not de-referencing into a destructible struct
+    const auto valType = value->getType();
+    if (valType->kind() == BaseTypeKind::Reference) {
+        return;
+    }
+    const auto linked = valType->get_direct_linked_node();
+    if (linked) {
+        if (!is_unsafe && linked->kind() == ASTNodeKind::GenericTypeParam) {
+            const auto param = linked->as_generic_type_param_unsafe();
+            if (param->current_bits.has(InterfaceBits::COPY_BIT)) {
+                return;
+            }
+            diagnoser.error(value) << "de-referencing a reference/pointer to generic type parameter that is not `Copy` is not allowed";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if(container && container->has_destructor()) {
+            diagnoser.error(value) << "de-referencing a reference/pointer to destructible struct is not allowed";
+        }
+    }
+}
+
 constexpr auto NonPublicDeclCallError = "calling a non-public function in a public generic declaration is not allowed, please use public/protected";
 constexpr auto NonPublicDeclError = "non-public decl is being called in a public generic context, please use public/protected";
 
@@ -533,7 +562,35 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     }
 
     // type checking arguments
-    if(!func_type || !func_type->data.signature_resolved) return;
+    const auto parent = call->parent_val->get_chain_last_linked();
+    if(parent) {
+        const auto variant_mem = parent->as_variant_member();
+        if (variant_mem) {
+
+            unsigned i = 0;
+            const auto values_size = call->values.size();
+            const auto total_params = variant_mem->values.size();
+            while (i < values_size) {
+                const auto value_ptr = call->values[i];
+                if(i < total_params) {
+                    const auto param = (variant_mem->values.begin() + i)->second;
+                    auto implicit_constructor = param->type->implicit_constructor_for(value_ptr);
+                    if (implicit_constructor) {
+                        // handle implicit constructor
+                    } else if(!param->type->satisfies(value_ptr, false)) {
+                        unsatisfied_type_err(diagnoser, value_ptr, param->type);
+                    }
+                }
+                i++;
+            }
+
+            return;
+        }
+    }
+
+    if(!func_type || !func_type->data.signature_resolved) {
+        return;
+    }
     unsigned i = 0;
     while(i < call->values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
@@ -541,7 +598,7 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
             const auto value = call->values[i];
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
-                // TODO handle implicit constructor
+                // handle implicit constructor
             } else if(!param->type->satisfies(value, false)) {
                 unsatisfied_type_err(diagnoser, allocator, value, param->type);
             }
@@ -712,7 +769,12 @@ void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
 
 void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 
-    RecursiveVisitor::VisitAssignmentStmt(assign);
+    // we explicitly visit the lhs and value, because we need to switch toggles
+    const auto prev_assignment_lhs = is_assignment_lhs;
+    is_assignment_lhs = true;
+    visit_it(assign->lhs);
+    is_assignment_lhs = prev_assignment_lhs;
+    visit_it(assign->value);
 
     const auto lhs = assign->lhs;
     const auto value = assign->value;
@@ -734,6 +796,11 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     // immutable values cannot be used (even in operator overloading)
     if(!lhs->check_is_mutable(true)) {
         diagnoser.error("cannot assign to a non mutable value", lhs);
+    }
+
+    // check if we are assigning to a reference
+    if(lhsType->isReferenceCanonical() && lhs->kind() != ValueKind::DereferenceValue) {
+        diagnoser.error("assignment to reference is forbidden, please use dereference operator explicitly", lhs);
     }
 
     // get the first value in chain, check if its a struct member

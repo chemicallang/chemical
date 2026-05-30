@@ -202,14 +202,20 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
 
 void link_assignable(SymResLinkBody& symRes, Value* lhs, BaseType* expected_type) {
     switch(lhs->kind()) {
-        case ValueKind::Identifier:
+        case ValueKind::Identifier: {
+            const auto prev = symRes.expected_type;
             symRes.expected_type = expected_type;
             symRes.VisitVariableIdentifier(lhs->as_identifier_unsafe(), false);
+            symRes.expected_type = prev;
             break;
-        case ValueKind::AccessChain:
+        }
+        case ValueKind::AccessChain: {
+            const auto prev = symRes.expected_type;
             symRes.expected_type = expected_type;
             symRes.VisitAccessChain(lhs->as_access_chain_unsafe(), true, true);
+            symRes.expected_type = prev;
             break;
+        }
         default:
             symRes.visit(lhs, expected_type);
     }
@@ -218,8 +224,10 @@ void link_assignable(SymResLinkBody& symRes, Value* lhs, BaseType* expected_type
 inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_type, bool assign) {
     if(assign && value->kind() == ValueKind::Identifier) {
         const auto id = value->as_identifier_unsafe();
+        const auto prev = symRes.expected_type;
         symRes.expected_type = expected_type;
         symRes.VisitVariableIdentifier(id, false);
+        symRes.expected_type = prev;
     } else {
         symRes.visit(value, expected_type);
     }
@@ -395,16 +403,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     const auto lhsType = lhs->getType();
 
-    {
-        // why use a reference ? because dereference value complains when assigning to destructible struct pointers or references
-        ReferenceType temp_ref_expected(lhsType, true);
-        visit(value, &temp_ref_expected);
-        expected_type = nullptr;
-    }
-
-    if(lhsType->isReferenceCanonical()) {
-        linker.error("assignment to reference is forbidden, please use dereference operator explicitly", lhs);
-    }
+    visit(value, lhsType);
 
     // check if operator is overloaded
     // direct assignment cannot be overloaded
@@ -676,7 +675,7 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
         // check it's a integer type
         // switching on float, double, reference and other structural types is not allowed
         if (!expression->getType()->isIntOrBoolLikeMarkedStorage()) {
-            linker.error(expression) << "switch expression should have integer like type (integer or enum)";
+            linker.error(expression) << "switch expression should have integer like type (integer or enum) but has " << expression->getType()->representation();
         }
     }
 
@@ -1726,8 +1725,6 @@ void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* 
                     auto implicit_constructor = param->type->implicit_constructor_for(value_ptr);
                     if (implicit_constructor) {
                         link_with_implicit_constructor(visitor, implicit_constructor, value_ptr);
-                    } else if(!param->type->satisfies(value_ptr, false)) {
-                        linker.unsatisfied_type_err(value_ptr, param->type);
                     }
                 } else {
                     linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(total_params) << " given " << std::to_string(values_size);
@@ -1749,8 +1746,6 @@ void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* 
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
                 link_with_implicit_constructor(visitor, implicit_constructor, value);
-            } else if(!param->type->satisfies(value, false)) {
-                linker.unsatisfied_type_err(value, param->type);
             }
         }
         i++;
@@ -2552,40 +2547,18 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
         linker.warn("de-referencing a pointer in safe context is prohibited", value);
     }
-    const auto exp_type = expected_type;
+    const auto exp = expected_type;
     visit(value->getValue());
     // determining the type for this dereference value
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    if(!value->determine_type(typeBuilder)) {
+    if(!value->determine_type(*linker.ast_allocator, typeBuilder, exp)) {
         linker.error("couldn't determine type for de-referencing", value);
-    }
-    // check we are not de-referencing into a destructible struct
-    const auto linked = value->getType()->get_direct_linked_node();
-    if (linked) {
-        // check if expected type is a reference
-        if(exp_type == nullptr) return;
-        const auto can = exp_type->canonical();
-        if(can->kind() == BaseTypeKind::Reference) {
-            return;
-        }
-        if (linker.safe_context && linked->kind() == ASTNodeKind::GenericTypeParam) {
-            const auto param = linked->as_generic_type_param_unsafe();
-            if (param->current_bits.has(InterfaceBits::COPY_BIT)) {
-                return;
-            }
-            linker.error(value) << "de-referencing a reference/pointer to generic type parameter that is not `Copy` is not allowed";
-            return;
-        }
-        const auto container = linked->get_members_container();
-        if(container && container->has_destructor()) {
-            linker.error(value) << "de-referencing a reference/pointer to destructible struct is not allowed";
-        }
     }
 }
 
 void SymResLinkBody::VisitExpression(Expression* value) {
-    visit(value->firstValue);
-    visit(value->secondValue);
+    visit(value->firstValue, nullptr);
+    visit(value->secondValue, nullptr);
     value->determine_type(
         linker.comptime_scope.typeBuilder,
         linker.coreNodes,

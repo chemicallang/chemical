@@ -53,6 +53,8 @@ public:
 
     }
 
+    BaseType* getErroredType();
+
     void LinkMembersContainerNoScope(MembersContainer* container);
 
     void LinkMembersContainer(MembersContainer* container) {

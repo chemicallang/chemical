@@ -1677,7 +1677,7 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     visitor.write("{ .");
     visitor.write(variant_type_variant_name);
     visitor.write(" = ");
-    visitor.write_str(std::to_string(index));
+    visitor.writer << index;
     visitor.write(", ");
 
     bool has_value_before = false;
@@ -2231,32 +2231,6 @@ inline void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
     scope_no_parens(visitor, scope, decl);
     visitor.write('}');
 }
-
-//std::string func_type_alias(ToCAstVisitor& visitor, FunctionType* type) {
-//    std::string alias = "__chx_functype_";
-//    alias += std::to_string(random(100,999)) + "_";
-//    alias += std::to_string(visitor.declarer->func_type_num++);
-//    func_type_with_id(visitor, type, chem::string_view(alias.data(), alias.size()));
-//    visitor.declarer->aliases[type] = alias;
-//    return alias;
-//}
-
-//std::string typedef_func_type(ToCAstVisitor& visitor, FunctionType* type) {
-//    visitor.new_line_and_indent();
-//    visitor.write("typedef ");
-//    auto alia = func_type_alias(visitor, type);
-//    visitor.write(';');
-//    return alia;
-//}
-
-//void func_call(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type) {
-//    visitor.write('(');
-//    func_call_args(visitor, call, func_type);
-//    visitor.write(')');
-////    if(!visitor->nested_value) {
-////        visitor->write(';');
-////    }
-//}
 
 void call_struct_member_delete_fn(
         ToCAstVisitor& visitor,

@@ -65,6 +65,10 @@ void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     linker.VisitScope(scope);
 }
 
+BaseType* SymResLinkBody::getErroredType() {
+    return linker.comptime_scope.typeBuilder.getVoidType();
+}
+
 /**
  * when nodes are to be declared and used sequentially, so node can be referenced
  * after it is declared, this method should be called
@@ -2530,7 +2534,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
         i++;
     }
     if(known_elem_type == nullptr) {
-        known_elem_type = TypeLoc(linker.comptime_scope.typeBuilder.getVoidType(), arrValue->encoded_location());
+        known_elem_type = TypeLoc(getErroredType(), arrValue->encoded_location());
         linker.error("couldn't determine element type for array", arrValue);
     }
 }
@@ -2997,6 +3001,7 @@ void SymResLinkBody::VisitSwitchValue(SwitchValue* value) {
     if(node) {
         value->setType(node->getType());
     } else {
+        value->setType(getErroredType());
         linker.error("expected a single value node for the switch value", value);
         return;
     }
@@ -3016,7 +3021,7 @@ void SymResLinkBody::VisitLoopValue(LoopValue* value) {
     if(first) {
         value->setType(first->getType());
     } else {
-        value->setType(linker.comptime_scope.typeBuilder.getVoidType());
+        value->setType(getErroredType());
     }
 }
 

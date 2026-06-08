@@ -6675,7 +6675,9 @@ void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
 }
 
 void ToCAstVisitor::VisitReferenceOfValue(ReferenceOfValue* value) {
-    if(!is_value_param_hidden_pointer_non_ref(value)) {
+    if(value->value->kind() == ValueKind::DereferenceValue) {
+        write('&');
+    } else if(!is_value_param_hidden_pointer(value->value)) {
         write('&');
     }
     visit(value->value);

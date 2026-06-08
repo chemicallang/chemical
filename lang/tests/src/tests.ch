@@ -40,6 +40,8 @@ func run_executable_tests() {
     test_continue_destruction()
     test_break_destruction()
     test_references();
+    test_hidden_ptr_self_in_methods();
+    test_ref_of_deref_hidden_ptr();
     test_basic_generics();
     test_generic_type_deduction();
     test_dynamic_dispatch();

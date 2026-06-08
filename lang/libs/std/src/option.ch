@@ -10,9 +10,9 @@ public variant Option<T> {
         }
         var Some(value) = self else unreachable
         var temp : T
-        memcpy(&mut temp, &value, sizeof(T))
+        memcpy(&raw mut temp, &raw value, sizeof(T))
         // initialize without destruction
-        new(&self) Option.None<T>()
+        new(&raw self) Option.None<T>()
         return temp;
     }
 

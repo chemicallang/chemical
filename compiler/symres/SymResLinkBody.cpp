@@ -346,64 +346,11 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     }
 }
 
-bool is_assignable(Value* lhs) {
-    switch(lhs->kind()) {
-        case ValueKind::AddrOfValue:
-        case ValueKind::IsValue:
-        case ValueKind::StructValue:
-        case ValueKind::ArrayValue:
-        case ValueKind::LambdaFunc:
-        case ValueKind::SizeOfValue:
-        case ValueKind::AlignOfValue:
-        case ValueKind::String:
-        case ValueKind::IntN:
-        case ValueKind::IfValue:
-        case ValueKind::SwitchValue:
-        case ValueKind::LoopValue:
-        case ValueKind::VariantCase:
-        case ValueKind::Bool:
-        case ValueKind::Float:
-        case ValueKind::Double:
-        case ValueKind::NullValue:
-        case ValueKind::NotValue:
-        case ValueKind::BitwiseNot:
-        case ValueKind::NegativeValue:
-        case ValueKind::NewValue:
-        case ValueKind::NewTypedValue:
-        case ValueKind::PlacementNewValue:
-        case ValueKind::ComptimeValue:
-        case ValueKind::CastedValue:
-        case ValueKind::UnsafeValue:
-        case ValueKind::Expression:
-        case ValueKind::IncDecValue:
-            return false;
-        case ValueKind::AccessChain:
-            return is_assignable(lhs->as_access_chain_unsafe()->values.back());
-        case ValueKind::FunctionCall:
-            return lhs->getType()->isReferenceCanonical();
-        default:
-            return true;
-    }
-}
-
-inline static bool is_mutable_ref_type(BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Reference:
-            return type->as_reference_type_unsafe()->is_mutable;
-        default:
-            return false;
-    }
-}
-
 void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     const auto lhs = assign->lhs;
     const auto value = assign->value;
 
     link_assignable(*this, lhs, nullptr);
-
-    if(!is_assignable(lhs)) {
-        linker.error("Expression is not assignable", lhs);
-    }
 
     const auto lhsType = lhs->getType();
 
@@ -510,17 +457,11 @@ void SymResLinkBody::VisitBreakStmt(BreakStatement* node) {
 }
 
 void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
-    auto& array_value = node->array_value;
-    auto& identifier = node->identifier;
+    const auto array_value = node->array_value;
     if(array_value) {
         visit(array_value);
     }
-    visit(identifier);
-    auto type = identifier->getType()->canonical();
-    if(!type->is_pointer()) {
-        linker.error("destruct cannot be called on a value that isn't a pointer", node);
-        return;
-    }
+    visit(node->identifier);
 }
 
 void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
@@ -2452,36 +2393,16 @@ void SymResLinkBody::VisitIfType(IfType* type) {
 void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     const auto value = addrOfValue->value;
     visit(value);
-
-    // reporting parameters that their address has been taken
-    // which allows them to generate a variable and store themselves onto it
-    // if they are of integer types
-    // before the taking of address, the variables act immutable
-    const auto linked = value->get_chain_last_linked();
-    if(linked) {
-        switch (linked->kind()) {
-            case ASTNodeKind::FunctionParam:
-                linked->as_func_param_unsafe()->set_has_address_taken(true);
-                break;
-            case ASTNodeKind::VarInitStmt: {
-                const auto init = linked->as_var_init_unsafe();
-                if (init->is_comptime()) {
-                    linker.error("taking address of a comptime variable is not allowed", addrOfValue);
-                }
-                if (init->is_const() && !init->is_top_level()) {
-                    linker.error("taking address of a constant is not allowed", addrOfValue);
-                }
-                init->set_has_addr_taken();
-                break;
-            }
-            default:
-                break;
-        }
-    }
-
     // lets determine the type of this value
     addrOfValue->determine_type();
 
+}
+
+void SymResLinkBody::VisitReferenceOfValue(ReferenceOfValue* refValue) {
+    const auto value = refValue->value;
+    visit(value);
+    // lets determine the type of this value
+    refValue->determine_type();
 }
 
 void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
@@ -2551,11 +2472,10 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
         linker.warn("de-referencing a pointer in safe context is prohibited", value);
     }
-    const auto exp = expected_type;
     visit(value->getValue());
     // determining the type for this dereference value
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    if(!value->determine_type(*linker.ast_allocator, typeBuilder, exp)) {
+    if(!value->determine_type(typeBuilder)) {
         linker.error("couldn't determine type for de-referencing", value);
     }
 }

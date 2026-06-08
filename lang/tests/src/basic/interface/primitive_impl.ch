@@ -142,21 +142,21 @@ func test_primitive_implementations() {
     })
     test("direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
-        var j = &i
+        var j = &raw i
         return j.give_ref() == 70
     })
     test("direct call on pointer primitive impl method works - 2", () => {
         var i : long = 20
-        var j = &i
+        var j = &raw i
         return j.give_ref() == 80
     })
     test("call through parameter on pointer primitive impl method works - 1", () => {
         var i : int = 20
-        return param_call_ptr_int_prim_impl(&i) == 70
+        return param_call_ptr_int_prim_impl(&raw i) == 70
     })
     test("call through parameter on pointer primitive impl method works - 2", () => {
         var i : long = 20
-        return param_call_ptr_long_prim_impl(&i) == 80
+        return param_call_ptr_long_prim_impl(&raw i) == 80
     })
     test("direct call on primitive impl method works - 3", () => {
         var i : double = 3.0
@@ -206,21 +206,21 @@ func test_primitive_implementations() {
     })
     test("external direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
-        var j = &i
+        var j = &raw i
         return j.ext_give_ref() == 70
     })
     test("external direct call on pointer primitive impl method works - 2", () => {
         var i : long = 20
-        var j = &i
+        var j = &raw i
         return j.ext_give_ref() == 80
     })
     test("external call through parameter on pointer primitive impl method works - 1", () => {
         var i : int = 20
-        return ext_param_call_ptr_int_prim_impl(&i) == 70
+        return ext_param_call_ptr_int_prim_impl(&raw i) == 70
     })
     test("external call through parameter on pointer primitive impl method works - 2", () => {
         var i : long = 20
-        return ext_param_call_ptr_long_prim_impl(&i) == 80
+        return ext_param_call_ptr_long_prim_impl(&raw i) == 80
     })
     test("external direct call on primitive impl method works - 3", () => {
         var i : double = 3.0

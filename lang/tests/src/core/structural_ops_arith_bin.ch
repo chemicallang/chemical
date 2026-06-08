@@ -202,37 +202,37 @@ func test_arithmetic_bin_op_with_structure() {
         var a = StructuralArithBinOpStruct { a : 20, b : 40 }
         var b = StructuralArithBinOpStruct { a : 20, b : 40 }
         var c = StructuralArithBinOpStruct { a : 33, b : 45 }
-        return (a == b) && (a == c) == false && (b == c) == false
+        return (a == &b) && (a == &c) == false && (b == &c) == false
     })
     test("ne operator with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 20, b : 40 }
         var b = StructuralArithBinOpStruct { a : 20, b : 40 }
         var c = StructuralArithBinOpStruct { a : 34, b : 30 }
-        return (a != b) == false && (a != c) == true && (b != c) == true
+        return (a != &b) == false && (a != &c) == true && (b != &c) == true
     })
     test("lt operator with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 10, b : 20 }
         var b = StructuralArithBinOpStruct { a : 15, b : 25 }
         var c = StructuralArithBinOpStruct { a : 5,  b : 10 }
-        return (a < b) && (c < a) && !(b < a)
+        return (a < &b) && (c < &a) && !(b < &a)
     })
     test("le operator with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 10, b : 20 }
         var b = StructuralArithBinOpStruct { a : 10, b : 20 }
         var c = StructuralArithBinOpStruct { a : 15, b : 25 }
-        return (a <= b) && (a <= c) && !(c <= a)
+        return (a <= &b) && (a <= &c) && !(c <= &a)
     })
     test("gt operator with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 30, b : 40 }
         var b = StructuralArithBinOpStruct { a : 20, b : 25 }
         var c = StructuralArithBinOpStruct { a : 10, b : 15 }
-        return (a > b) && (b > c) && !(c > a)
+        return (a > &b) && (b > &c) && !(c > &a)
     })
     test("ge operator with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 50, b : 60 }
         var b = StructuralArithBinOpStruct { a : 50, b : 60 }
         var c = StructuralArithBinOpStruct { a : 40, b : 50 }
-        return (a >= b) && (a >= c) && !(c >= a)
+        return (a >= &b) && (a >= &c) && !(c >= &a)
     })
     test("index operator overloaded with structure type works", () => {
         var a = StructuralArithBinOpStruct { a : 21, b : 87 }

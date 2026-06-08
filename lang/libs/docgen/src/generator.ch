@@ -20,10 +20,10 @@ func highlight_wrapper(lang : std::string_view, code : std::string_view) : std::
 }
 
 func replace_extension(path : &std::string, old_ext : std::string_view, new_ext : std::string_view) : std::string {
-    if(path.ends_with(old_ext)) {
+    if(path.ends_with(&old_ext)) {
         var str = std::string();
         str.append_view(std::string_view(path.data(), path.size() - old_ext.size()))
-        str.append_view(new_ext);
+        str.append_view(&new_ext);
         return str;
     }
     return path.copy();
@@ -88,7 +88,7 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
     if(item.link.size() > 0) {
         // Fix link extension .md -> .html (use copy to preserve original)
         var link_copy = item.link.copy();
-        var link = replace_extension(link_copy, ".md", ".html");
+        var link = replace_extension(&link_copy, ".md", ".html");
         html.append_view("<a href=\"");
         // Prefix with relative path to root based on current page depth
         var rel_path = get_relative_path_to_root(depth)
@@ -96,7 +96,7 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
         html.append_view(link.to_view());
         
         html.append_view("\"");
-        if(item.link.equals_view(current_path)) {
+        if(item.link.equals_view(&current_path)) {
             html.append_view(" class=\"active\"");
         }
         html.append_view(">");
@@ -126,7 +126,7 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
 func str_vec_contains(vec : &std::vector<std::string>, val : std::string_view) : bool {
     var i = 0u;
     while(i < vec.size()) {
-        if(vec.get_ptr(i).equals_view(val)) return true;
+        if(vec.get_ptr(i).equals_view(&val)) return true;
         i++;
     }
     return false;
@@ -175,7 +175,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>""");
-    html.append_view(title);
+    html.append_view(&title);
     html.append_view(" - ");
     html.append_view(gen.config.site_name.to_view());
     html.append_view("""</title>
@@ -184,13 +184,13 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Favicon
     if(gen.config.favicon_path.size() > 0) {
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.favicon_path.data(), &mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(gen.config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<link rel=\"icon\" type=\"image/png\" href=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
-            html.append_view(std::string_view(&favicon_name_buf[0], len));
+            html.append_view(std::string_view(&raw favicon_name_buf[0], len));
             html.append_view("\">");
         }
     }
@@ -214,7 +214,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     
     // Open Graph Meta Tags
     html.append_view("\n\t<meta property=\"og:title\" content=\"");
-    html.append_view(title);
+    html.append_view(&title);
     html.append_view(" - ");
     html.append_view(gen.config.site_name.to_view());
     html.append_view("\">");
@@ -226,20 +226,20 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view("\n\t<meta property=\"og:type\" content=\"website\">");
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<meta property=\"og:image\" content=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
-            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view(std::string_view(&raw logo_name_buf[0], len));
             html.append_view("\">");
         }
     }
     
     // Twitter Card Meta Tags
     html.append_view("\n\t<meta name=\"twitter:card\" content=\"summary\">\n\t<meta name=\"twitter:title\" content=\"");
-    html.append_view(title);
+    html.append_view(&title);
     html.append_view(" - ");
     html.append_view(gen.config.site_name.to_view());
     html.append_view("\">");
@@ -250,13 +250,13 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     }
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("\n\t<meta name=\"twitter:image\" content=\"");
             var rel_path = get_relative_path_to_root(relative_depth)
             html.append_view(rel_path.to_view());
-            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view(std::string_view(&raw logo_name_buf[0], len));
             html.append_view("\">");
         }
     }
@@ -308,12 +308,12 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     // Logo - use image if configured, otherwise SVG
     if(gen.config.logo_path.size() > 0) {
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(gen.config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             html.append_view("<img src=\"");
             html.append_view(rel_path.to_view());
-            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view(std::string_view(&raw logo_name_buf[0], len));
             html.append_view("\" alt=\"Logo\" style=\"height:48px;width:auto;margin-right:8px\">");
         }
     } else {
@@ -360,7 +360,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         
         <main class="content">
 """);
-    html.append_view(content); // Already HTML from md::to_html
+    html.append_view(&content); // Already HTML from md::to_html
     html.append_view("""
         </main>
     </div>
@@ -399,7 +399,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
         // Compute output path - use copy to avoid moving the original link
         var out_path = gen.config.build_dir.copy();
         out_path.append('/');
-        var out_rel = replace_extension(item.link, ".md", ".html");
+        var out_rel = replace_extension(&item.link, ".md", ".html");
         out_path.append_view(out_rel.to_view());
         
         var highlighter : (lang : std::string_view, code : std::string_view) => std::string = (lang, code) => {
@@ -408,7 +408,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
 
         var link_rewriter : (url : std::string_view) => std::string = (url) => {
             var url_str = std::string(url);
-            return replace_extension(url_str, ".md", ".html");
+            return replace_extension(&url_str, ".md", ".html");
         };
         // If config is empty, maybe we should default to all? 
         // No, user requirement implies explicit list.
@@ -495,7 +495,7 @@ public func generate(config : DocConfig, summary : *Summary) {
     fs::mkdir(config.build_dir.data());
     
     var gen = HtmlGenerator { 
-        config : &config, 
+        config : &raw config,
         summary : summary, 
         search_index : std::string("["),
         generated_urls : std::vector<std::string>()
@@ -537,12 +537,12 @@ public func generate(config : DocConfig, summary : *Summary) {
         var favicon_src = config.favicon_path.copy();
         
         var favicon_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(config.favicon_path.data(), &mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(config.favicon_path.data(), &raw mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             var favicon_dest = config.build_dir.copy();
             favicon_dest.append('/');
-            favicon_dest.append_view(std::string_view(&favicon_name_buf[0], len));
+            favicon_dest.append_view(std::string_view(&raw favicon_name_buf[0], len));
             
             var result = fs::copy_file(favicon_src.data(), favicon_dest.data());
             if (result is std::Result.Ok) {
@@ -558,12 +558,12 @@ public func generate(config : DocConfig, summary : *Summary) {
         var logo_src = config.logo_path.copy()
         
         var logo_name_buf : [fs::PATH_MAX_BUF]char;
-        var r = fs::basename(config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        var r = fs::basename(config.logo_path.data(), &raw mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
         if(r is std::Result.Ok) {
             var Ok(len) = r else unreachable;
             var logo_dest = config.build_dir.copy();
             logo_dest.append('/');
-            logo_dest.append_view(std::string_view(&logo_name_buf[0], len));
+            logo_dest.append_view(std::string_view(&raw logo_name_buf[0], len));
             
             var result = fs::copy_file(logo_src.data(), logo_dest.data());
             if (result is std::Result.Ok) {
@@ -576,7 +576,7 @@ public func generate(config : DocConfig, summary : *Summary) {
 
     // Generate Sitemap if base_url is provided
     if (config.base_url.size() > 0) {
-        generate_sitemap(config, gen.generated_urls);
+        generate_sitemap(&config, &gen.generated_urls);
     }
 }
 

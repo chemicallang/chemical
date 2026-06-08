@@ -32,7 +32,7 @@ public namespace web {
                 var r = routes.get_ptr(i);
                 if(r.method.equals_with_len(method.data(), method.size())) {
                     // match pattern vs path
-                    if(match_pattern(r.pattern, path, params_out)) {
+                    if(match_pattern(&r.pattern, path, params_out)) {
                         return r
                     } else {
                         // printf("route path doesn't match, want %s, has pattern %s\n", path.data(), r.pattern.data());

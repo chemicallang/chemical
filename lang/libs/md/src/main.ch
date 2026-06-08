@@ -9,7 +9,7 @@ public enum MdError {
 public func to_html(text : std::string_view, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : std::string {
     var arena = Arena()
     var toks = lex(text)
-    var root = parse(&toks, &mut arena)
+    var root = parse(&raw toks, &raw mut arena)
     return render_to_html(root, highlighter, link_rewriter)
 }
 

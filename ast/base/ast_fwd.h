@@ -182,6 +182,8 @@ class ExpressiveString;
 
 class AddrOfValue;
 
+class ReferenceOfValue;
+
 class RetStructParamValue;
 
 class DereferenceValue;

@@ -229,10 +229,10 @@ llvm::Value* FunctionCall::arg_value(
             (isReferenceValue(value_kind) && pure_type->is_linked_struct())
     ))) {
         // passing r values as pointers by allocating them
-        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue()) {
+        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValueInBackend()) {
             argValue = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
         } else {
-            if(!is_param_ref) {
+            // if(!is_param_ref) {
                 // pass-by-value for struct types: create a copy to preserve value semantics
                 const auto val_type = value->getType();
                 if(val_type) {
@@ -248,9 +248,9 @@ llvm::Value* FunctionCall::arg_value(
                 } else {
                     argValue = value->llvm_pointer(gen);
                 }
-            } else {
-                argValue = value->llvm_pointer(gen);
-            }
+            // } else {
+            //     argValue = value->llvm_pointer(gen);
+            // }
         }
     } else {
         if(i != -1) {

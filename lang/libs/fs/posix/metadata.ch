@@ -4,7 +4,7 @@ using std::Result;
 
 public func metadata(path : *char) : Result<Metadata, FsError> {
     var st : Stat;
-    var r = lstat(path, &mut st);
+    var r = lstat(path, &raw mut st);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     var m : Metadata;
     var mode : int = st.st_mode as int;

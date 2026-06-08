@@ -123,12 +123,14 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
     // build flag id argument
     const auto buildFlagId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(buildFlagName, nullptr, ZERO_LOC, false);
     const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, nullptr, ZERO_LOC);
-    const auto buildFlagPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(buildFlagIdWrap, true, ZERO_LOC);
+    const auto ptrType = new (allocator.allocate<PointerType>()) PointerType(nullptr, true);
+    const auto buildFlagPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(buildFlagIdWrap, true, ptrType, ZERO_LOC);
 
     // cached ptr id argument
     const auto cachedPtrId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(cachedPtrName, nullptr, ZERO_LOC, false);
     const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, nullptr, ZERO_LOC);
-    const auto cachedPtrPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(cachedPtrIdWrap, true, ZERO_LOC);
+    const auto ptrType2 = new (allocator.allocate<PointerType>()) PointerType(nullptr, true);
+    const auto cachedPtrPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(cachedPtrIdWrap, true, ptrType2, ZERO_LOC);
 
     // lets do default get function call arguments
     const auto buildFuncId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), nullptr, ZERO_LOC, false);

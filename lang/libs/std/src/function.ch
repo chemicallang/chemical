@@ -22,6 +22,10 @@ public struct default_function_instance {
     // is the captured struct allocated on heap
     var is_heap : bool
 
+    // TODO: raw capturing function type should be developed
+    //  which can only take literal capturing functions
+    //  and here we'd use a type that takes literal capturing + non capturing lambdas
+    //  this should reject any runtime lambdas
     @make
     comptime func make(lambda : () => void) {
         const ptr = intrinsics::get_lambda_fn_ptr(lambda)
@@ -70,8 +74,8 @@ public struct default_function_instance {
                 dtor : destr,
                 buffer : []
             }
-            memcpy(&mut i.buffer[0], captured, size_data)
-            i.fn_data_ptr = &mut i.buffer[0]
+            memcpy(&raw mut i.buffer[0], captured, size_data)
+            i.fn_data_ptr = &raw mut i.buffer[0]
             return i;
         }
     }

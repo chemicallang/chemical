@@ -193,11 +193,11 @@ public namespace std {
             if (_size < 128) {
                 var buf : [128]char
                 unsafe {
-                    memcpy(&mut buf[0], _data, _size)
+                    memcpy(&raw mut buf[0], _data, _size)
                     buf[_size] = '\0'
                     var end : *mut char = null
-                    var res = strtod(&mut buf[0] as *mut char, &mut end) as float
-                    if (end == &buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
+                    var res = strtod(&mut buf[0] as *mut char, &raw mut end) as float
+                    if (end == &raw buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
                     while (end != null && *end != '\0' && isspace(*end as int)) end++
                     if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
                     return std::Result.Ok(res)
@@ -212,11 +212,11 @@ public namespace std {
             if (_size < 128) {
                 var buf : [128]char
                 unsafe {
-                    memcpy(&mut buf[0], _data, _size)
+                    memcpy(&raw mut buf[0], _data, _size)
                     buf[_size] = '\0'
                     var end : *mut char = null
-                    var res = strtod(&mut buf[0] as *mut char, &mut end)
-                    if (end == &buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
+                    var res = strtod(&raw mut buf[0] as *mut char, &raw mut end)
+                    if (end == &raw buf[0] as *mut char) return std::Result.Err(std::string_view("invalid format"))
                     while (end != null && *end != '\0' && isspace(*end as int)) end++
                     if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
                     return std::Result.Ok(res)

@@ -138,7 +138,7 @@ func test_non_movable_obj(n : NonMovableObj) : bool {
 }
 
 func <T> test_sent_gen(n : T, test_lamb : (value : &T) => bool) : bool {
-    return test_lamb(n)
+    return test_lamb(&n)
 }
 
 func <T> ret_sent_gen(a : T) : T {
@@ -147,13 +147,13 @@ func <T> ret_sent_gen(a : T) : T {
 
 func <T> test_non_movable_init(n : T, test_lamb : (value : &T) => bool) : bool {
     var x = n;
-    return test_lamb(x)
+    return test_lamb(&x)
 }
 
 func <T> test_non_movable_reassignment(value : T, value2 : T, test_lamb : (a : &T) => bool) : bool {
     var a = value
     a = value2
-    return test_lamb(a)
+    return test_lamb(&a)
 }
 
 struct CopyableObj {

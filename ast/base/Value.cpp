@@ -574,7 +574,7 @@ bool Value::isValueLiteral() {
     }
 }
 
-bool Value::isValueRValue() {
+bool Value::isValueRValueInBackend() {
     switch(kind()) {
         case ValueKind::Bool:
         case ValueKind::IntN:
@@ -587,8 +587,78 @@ bool Value::isValueRValue() {
             return true;
         case ValueKind::FunctionCall:
             return isTypeRValue(getType());
-        case ValueKind::AccessChain:
-            return as_access_chain_unsafe()->values.back()->isValueRValue();
+        case ValueKind::AccessChain: {
+            const auto last = as_access_chain_unsafe()->values.back();
+            if (last->kind() == ValueKind::FunctionCall) {
+                return isTypeRValue(last->getType());
+            } else {
+                return false;
+            }
+        }
+        case ValueKind::Identifier:{
+            const auto linked = linked_node();
+            switch(linked->kind()) {
+                case ASTNodeKind::FunctionParam:
+                    return isTypeRValue(linked->as_func_param_unsafe()->type);
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool isTypeRValueFrontend(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Float128:
+            return true;
+        case BaseTypeKind::Linked: {
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::TypealiasStmt:
+                    return isTypeRValue(linked->as_typealias_unsafe()->actual_type);
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::VariantDecl:
+                case ASTNodeKind::VariantMember:
+                case ASTNodeKind::UnionDecl:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool Value::isValueRValueInFrontend() {
+    switch(kind()) {
+        case ValueKind::Bool:
+        case ValueKind::IntN:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::NegativeValue:
+        case ValueKind::BitwiseNot:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+        case ValueKind::StructValue:
+            return true;
+        case ValueKind::FunctionCall:
+            return isTypeRValue(getType());
+        case ValueKind::AccessChain: {
+            const auto last = as_access_chain_unsafe()->values.back();
+            if (last->kind() == ValueKind::FunctionCall) {
+                return isTypeRValueFrontend(last->getType());
+            } else {
+                return false;
+            }
+        }
         case ValueKind::Identifier:{
             const auto linked = linked_node();
             switch(linked->kind()) {

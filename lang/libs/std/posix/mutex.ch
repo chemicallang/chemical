@@ -26,7 +26,7 @@ public namespace std {
             // pthread_mutex_init expects pointer to pthread_mutex_t; we pass raw bytes pointer
             // NULL attr -> default attributes
             var m = mutex { storage : [] }
-            var res = pthread_mutex_init(&mut m.storage[0], null)
+            var res = pthread_mutex_init(&raw mut m.storage[0], null)
             // If initialization fails, we abort (you can change behavior to return an error)
             if(res != 0) {
                 panic("pthread_mutex_init failed")
@@ -36,7 +36,7 @@ public namespace std {
 
         // lock: blocking
         func lock(&mut self) {
-            var res = pthread_mutex_lock(&mut storage[0])
+            var res = pthread_mutex_lock(&raw mut storage[0])
             if(res != 0) {
                 panic("pthread_mutex_lock failed")
             }
@@ -44,7 +44,7 @@ public namespace std {
 
         // try_lock: non-blocking; returns true on success, false otherwise
         func try_lock(&mut self) : bool {
-            var res = pthread_mutex_trylock(&mut storage[0])
+            var res = pthread_mutex_trylock(&raw mut storage[0])
             if(res == 0) {
                 return true
             } else {
@@ -56,7 +56,7 @@ public namespace std {
 
         // unlock: release
         func unlock(&mut self) {
-            var res = pthread_mutex_unlock(&mut storage[0])
+            var res = pthread_mutex_unlock(&raw mut storage[0])
             if(res != 0) {
                 panic("pthread_mutex_unlock failed")
             }
@@ -65,7 +65,7 @@ public namespace std {
         // destructor: destroy native mutex
         @delete
         func delete(&mut self) {
-            var res = pthread_mutex_destroy(&mut storage[0])
+            var res = pthread_mutex_destroy(&raw mut storage[0])
             if(res != 0) {
                 // best-effort; don't panic in destructor since it may be called during unwinding
             }

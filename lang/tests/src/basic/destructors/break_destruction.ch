@@ -4,7 +4,7 @@ func test_break_destruction() {
         for(var i = 0; i < 2; i++) {
             if(i == 0) {
                 var d = Destructible {
-                    data : 739, count : &mut count, lamb : destruct_inc_count
+                    data : 739, count : &raw mut count, lamb : destruct_inc_count
                 }
                 break;
             }
@@ -15,7 +15,7 @@ func test_break_destruction() {
         var count = 0
         for(var i = 0; i < 10; i++) {
             var d = Destructible {
-                data : 739, count : &mut count, lamb : destruct_inc_count
+                data : 739, count : &raw mut count, lamb : destruct_inc_count
             }
             if(i == 0) {
                 break;
@@ -28,7 +28,7 @@ func test_break_destruction() {
     test("break in a loop does NOT destruct objects above loop", () => {
         var count = 0
         var d = Destructible {
-            data : 739, count : &mut count, lamb : destruct_inc_count
+            data : 739, count : &raw mut count, lamb : destruct_inc_count
         }
         for(var i = 0; i < 2; i++) {
             if(i == 0) {
@@ -43,7 +43,7 @@ func test_break_destruction() {
         loop {
             if(i == 2) {
                 var d = Destructible {
-                    data : 739, count : &mut count, lamb : destruct_inc_count
+                    data : 739, count : &raw mut count, lamb : destruct_inc_count
                 }
                 break;
             }

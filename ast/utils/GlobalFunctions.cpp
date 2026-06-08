@@ -512,6 +512,11 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
             copied->secondValue = evaluated_comptime(copied->secondValue, scope);
             return copied;
         }
+        case ValueKind::ReferenceOfValue: {
+            const auto refValue = value->as_reference_of_value_unsafe();
+            const auto evaluated_value = evaluated_comptime(refValue->value, scope);
+            return new (scope.allocate<ReferenceOfValue>()) ReferenceOfValue(evaluated_value, refValue->is_mutable, refValue->getType(), refValue->encoded_location());
+        }
         default:
             const auto eval = value->evaluated_value(scope);
             return eval ? eval : value;

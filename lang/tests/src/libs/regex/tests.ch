@@ -119,7 +119,7 @@ public func regex_find(env : &mut TestEnv) {
     var re = regex::compile("world")
     var start : i64 = 0
     var end : i64 = 0
-    var found = re.find("hello world", &mut start, &mut end)
+    var found = re.find("hello world", &raw mut start, &raw mut end)
     if(found) { env.success("find world") } else { env.error("should find world") }
     if(start == 6) { env.success("start at 6") } else { env.error("start should be 6") }
 }
@@ -129,7 +129,7 @@ public func regex_find_no_match(env : &mut TestEnv) {
     var re = regex::compile("xyz")
     var start : i64 = 0
     var end : i64 = 0
-    var found = re.find("hello world", &mut start, &mut end)
+    var found = re.find("hello world", &raw mut start, &raw mut end)
     if(!found) { env.success("find no match") } else { env.error("should not find xyz") }
 }
 
@@ -213,7 +213,7 @@ public func regex_replace_replaces_all_matches(env : &mut TestEnv) {
 public func regex_split_splits_on_matches(env : &mut TestEnv) {
     var re = regex::compile(",+")
     var parts = std::vector<std::string_view>()
-    re.split("a,,b,c", &mut parts)
+    re.split("a,,b,c", &raw mut parts)
     if(parts.size() == 3) { env.success("split part count") } else { env.error("split should produce three parts") }
     if(parts.get(0).equals("a")) { env.success("split first part") } else { env.error("split first part should be a") }
     if(parts.get(1).equals("b")) { env.success("split second part") } else { env.error("split second part should be b") }
@@ -225,7 +225,7 @@ public func regex_find_empty_pattern_on_empty_text(env : &mut TestEnv) {
     var re = regex::compile("")
     var start : i64 = -1
     var end : i64 = -1
-    var found = re.find("", &mut start, &mut end)
+    var found = re.find("", &raw mut start, &raw mut end)
     if(found) { env.success("empty find matched") } else { env.error("empty pattern should find in empty text") }
     if(start == 0 && end == 0) { env.success("empty find positions") } else { env.error("empty find positions should be 0..0") }
 }
@@ -277,7 +277,7 @@ public func regex_replace_empty_pattern(env : &mut TestEnv) {
 public func regex_split_keeps_edge_empty_segments(env : &mut TestEnv) {
     var re = regex::compile(",")
     var parts = std::vector<std::string_view>()
-    re.split(",a,", &mut parts)
+    re.split(",a,", &raw mut parts)
     if(parts.size() == 3) { env.success("split edge part count") } else { env.error("split should keep leading and trailing empty parts") }
     if(parts.get(0).equals("")) { env.success("split leading empty") } else { env.error("split should keep leading empty part") }
     if(parts.get(1).equals("a")) { env.success("split middle part") } else { env.error("split middle part should be a") }

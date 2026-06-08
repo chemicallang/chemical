@@ -6,6 +6,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/ast_fwd.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "std/except.h"
 
 template<typename Derived>
@@ -359,6 +360,10 @@ public:
     }
 
     inline void VisitAddrOfValue(AddrOfValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitReferenceOfValue(ReferenceOfValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
@@ -827,6 +832,9 @@ public:
             case ValueKind::AddrOfValue:
                 static_cast<Derived*>(this)->VisitAddrOfValue((AddrOfValue*) value);
                 return;
+            case ValueKind::ReferenceOfValue:
+                static_cast<Derived*>(this)->VisitReferenceOfValue((ReferenceOfValue*) value);
+                return;
             case ValueKind::PointerValue:
                 static_cast<Derived*>(this)->VisitPointerValue((PointerValue*) value);
                 return;
@@ -1206,6 +1214,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(AddrOfValue* value) {
         static_cast<Derived*>(this)->VisitAddrOfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ReferenceOfValue* value) {
+        static_cast<Derived*>(this)->VisitReferenceOfValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(PointerValue* value) {
         static_cast<Derived*>(this)->VisitPointerValue(value);

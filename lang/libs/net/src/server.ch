@@ -46,7 +46,7 @@ public namespace server {
             }
 
             var buf = io.Buffer();
-            var req_opt = http.read_request_incremental(s, buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
+            var req_opt = http.read_request_incremental(s, &mut buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
                 
                 net::close_socket(s); return;
@@ -66,9 +66,9 @@ public namespace server {
             req.body = http.Body.make_body(s, &mut buf as *mut io::Buffer, body_len, chunked, self.cfg.header_timeout_secs * 4, self.cfg.max_body_bytes);
 
             var params = std::vector<std::pair<std::string,std::string>>();
-            var route = self.router.match_route(req.method, req.path, &mut params);
+            var route = self.router.match_route(&req.method, &req.path, &raw mut params);
 
-            var resw = http.ResponseWriter(s, req.method);
+            var resw = http.ResponseWriter(s, &req.method);
 
             if (route != null) {
                 

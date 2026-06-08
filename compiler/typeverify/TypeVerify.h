@@ -50,11 +50,6 @@ public:
     bool is_unsafe = false;
 
     /**
-     * toggle is turned on when linking lhs of the assignment, so we can prevent certain checks
-     */
-    bool is_assignment_lhs = false;
-
-    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -90,6 +85,8 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *decl);
 
+    void VisitDeleteStmt(DestructStmt* stmt);
+
     // Types
 
     void VisitLinkedType(LinkedType* type);
@@ -111,6 +108,12 @@ public:
     void VisitIncDecValue(IncDecValue* value);
 
     void VisitDereferenceValue(DereferenceValue* value);
+
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
+    void VisitPatternMatchExpr(PatternMatchExpr* value);
 
     // -------- Generic Declarations ------------
     // -------- Only Template is visited --------

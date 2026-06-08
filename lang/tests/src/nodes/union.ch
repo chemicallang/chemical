@@ -89,7 +89,7 @@ func test_unions() {
     test("a complex union of two structs - 1", () => {
         var tu : TwoStructs
         var y = 55;
-        tu.First.data = &y;
+        tu.First.data = &raw y;
         tu.First.length = 345678;
         return *tu.First.data == 55 && tu.First.length == 345678;
     })

@@ -419,7 +419,7 @@ func test_bcrypt_known_answer_cross_compat(env : &mut TestEnv) {
         env.error("cross-compat: bf_crypt returned empty")
         return
     }
-    if(!computed.to_view().equals(known_hash)) {
+    if(!computed.to_view().equals(&known_hash)) {
         env.error("cross-compat: bf_crypt output differs from known Python hash")
     }
 

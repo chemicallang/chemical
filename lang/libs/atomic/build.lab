@@ -3,8 +3,8 @@ import std
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
-    const curr_file_path = lab::get_my_path();
-    const cached = ctx.get_cached(user_job, curr_file_path);
+    var curr_file_path = lab::get_my_path();
+    const cached = ctx.get_cached(user_job, &curr_file_path);
     if(cached != null) {
         return cached;
     }
@@ -19,9 +19,9 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     }
 
     var srcPath = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("atomic"), srcPath.to_view(), std::span<*mut Module>(dependencies));
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("atomic"), srcPath.to_view(), std::span<*mut Module>(&dependencies));
 
-    ctx.set_cached(user_job, curr_file_path, module)
+    ctx.set_cached(user_job, &curr_file_path, module)
 
     return module;
 

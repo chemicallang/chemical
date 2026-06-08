@@ -547,6 +547,10 @@ public:
         visit_it(value->value);
     }
 
+    inline void VisitReferenceOfValue(ReferenceOfValue* value) {
+        visit_it(value->value);
+    }
+
     inline void VisitDereferenceValue(DereferenceValue* value) {
         visit_it(value->getValue());
     }

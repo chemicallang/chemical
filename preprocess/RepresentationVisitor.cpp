@@ -775,6 +775,15 @@ void RepresentationVisitor::VisitCastedValue(CastedValue *casted) {
 
 void RepresentationVisitor::VisitAddrOfValue(AddrOfValue *value) {
     if(value->is_mutable) {
+        write("&raw mut ");
+    } else {
+        write('&');
+    }
+    visit(value->value);
+}
+
+void RepresentationVisitor::VisitReferenceOfValue(ReferenceOfValue* value) {
+    if(value->is_mutable) {
         write("&mut ");
     } else {
         write('&');

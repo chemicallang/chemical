@@ -14,7 +14,6 @@ class AddrOfValue : public Value {
 public:
 
     Value* value;
-    PointerType _ptr_type;
     bool is_mutable = false;
 
     /**
@@ -23,22 +22,25 @@ public:
     constexpr AddrOfValue(
         Value* value,
         bool is_mutable,
+        PointerType* ptrType,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, location), value(value), is_mutable(is_mutable), _ptr_type(value->getType(), is_mutable) {
+    ) : Value(ValueKind::AddrOfValue, ptrType, location), value(value), is_mutable(is_mutable) {
 
     }
 
+    inline PointerType* getType() {
+        return (PointerType*) Value::getType();
+    }
 
     uint64_t byte_size(TargetData& target) final;
 
     AddrOfValue *copy(ASTAllocator& allocator) final {
-        const auto val = new (allocator.allocate<AddrOfValue>()) AddrOfValue(
+        return  new (allocator.allocate<AddrOfValue>()) AddrOfValue(
                 value->copy(allocator),
                 is_mutable,
+                getType()->copy(allocator),
                 encoded_location()
         );
-        val->setType(&val->_ptr_type);
-        return val;
     }
 
     void determine_type();

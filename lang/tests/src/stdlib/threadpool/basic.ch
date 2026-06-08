@@ -10,7 +10,7 @@ func waiter_entry(arg:*void) : *void {
     var a = arg as *mut WaitArg;
     // non-capturing function, so use pointer data
     a.m.lock();
-    while (!a.flag) { a.cv.wait(*a.m); }
+    while (!a.flag) { a.cv.wait(&mut *a.m); }
     *a.done = true;
     a.m.unlock();
     return null;
@@ -116,10 +116,10 @@ func test_condvar_notify_one() : bool {
     var flag = false;
     var waiter_done = false;
     var arg = malloc(sizeof(WaitArg)) as *mut WaitArg;
-    arg.m = &mut m;
-    arg.cv = &mut cv;
-    arg.flag = &mut flag;
-    arg.done = &mut waiter_done;
+    arg.m = &raw mut m;
+    arg.cv = &raw mut cv;
+    arg.flag = &raw mut flag;
+    arg.done = &raw mut waiter_done;
 
     var h = std::concurrent::spawn(waiter_entry, arg as *void);
     std::concurrent::sleep_ms(50u);
@@ -147,9 +147,9 @@ func test_condvar_notify_all() : bool {
     var i = 0u;
     while (i < waiters) {
         var a = malloc(sizeof(WaitArg)) as *mut WaitArg;
-        a.m = &mut m;
-        a.cv = &mut cv;
-        a.flag = &mut flag;
+        a.m = &raw mut m;
+        a.cv = &raw mut cv;
+        a.flag = &raw mut flag;
         // each waiter has its own done flag on heap so we can count them
         var done_ptr = malloc(sizeof(bool)) as *mut bool;
         *done_ptr = false;
@@ -215,7 +215,7 @@ func test_mutex_contention() : bool {
         intrinsics::forget(inc_entry)
         // copy the function to heap
         var heap_func = malloc(sizeof(inc_entry)) as *mut std::function<(a : *void) => *void>
-        memcpy(heap_func, &inc_entry, sizeof(inc_entry))
+        memcpy(heap_func, &raw inc_entry, sizeof(inc_entry))
         heap_pointers.push_back(heap_func)
         *func_ptr = heap_func
         var h = std::concurrent::spawn(spawn_func as spawn_func_type, heap_func);

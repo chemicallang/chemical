@@ -347,7 +347,7 @@ struct builder_pattern {
     }
     func dec(&mut self) : *mut builder_pattern {
         i--;
-        return &mut self;
+        return &raw mut self;
     }
 }
 
@@ -402,7 +402,7 @@ func test_structs() {
             value : 55
         }
         var str = PointerStr {
-            value : &nested
+            value : &raw nested
         }
         return str.value.value == 55;
     })

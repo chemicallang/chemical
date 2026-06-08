@@ -52,7 +52,7 @@ func test_single_inheritance() {
             a : 12,
             b : 13,
         }
-        return animal_sum(&a) == 25;
+        return animal_sum(&raw a) == 25;
     })
     test("passing a derived struct as a base class pointer", () => {
         var b = Dog {
@@ -66,7 +66,7 @@ func test_single_inheritance() {
             c : 40,
             d : 40
         }
-        return animal_sum(&b) == 70 && get_dog_sum(&b) == 80;
+        return animal_sum(&raw b) == 70 && get_dog_sum(&raw b) == 80;
     })
     test("can access base struct members from derived directly", () => {
         var b = Dog {

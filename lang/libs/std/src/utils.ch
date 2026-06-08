@@ -4,17 +4,17 @@ public namespace std {
  */
 public func <T> replace(value : &mut T, repl : T) : T {
     var temp : T
-    memcpy(&mut temp, &value, sizeof(T))
-    memcpy(&mut value, &repl, sizeof(T))
+    memcpy(&raw mut temp, &raw value, sizeof(T))
+    memcpy(&raw mut value, &raw repl, sizeof(T))
     intrinsics::forget(repl)
     return temp;
 }
 
 public func <T> swap(a : &mut T, b : &mut T) {
     var temp : T
-    memcpy(&mut temp, &a, sizeof(T))
-    memcpy(&mut a, &b, sizeof(T))
-    memcpy(&mut b, &temp, sizeof(T))
+    memcpy(&raw mut temp, &raw a, sizeof(T))
+    memcpy(&raw mut a, &raw b, sizeof(T))
+    memcpy(&raw mut b, &raw temp, sizeof(T))
     intrinsics::forget(temp)
 }
 

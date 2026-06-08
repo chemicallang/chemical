@@ -200,32 +200,102 @@ void TypeVerifier::VisitIncDecValue(IncDecValue* value) {
     verify_mutation(*this, value);
 }
 
-void TypeVerifier::VisitDereferenceValue(DereferenceValue* value) {
-    RecursiveVisitor::VisitDereferenceValue(value);
-    if (is_assignment_lhs) {
-        // dereference solely for assignment is allowed
-        // even to destructible structs (it would cause destruction of the previous value first)
-        return;
-    }
-    // check we are not de-referencing into a destructible struct
+void check_destructible_deref(TypeVerifier& verifier, DereferenceValue* value) {
     const auto valType = value->getType();
-    if (valType->kind() == BaseTypeKind::Reference) {
-        return;
-    }
     const auto linked = valType->get_direct_linked_node();
     if (linked) {
-        if (!is_unsafe && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        if (!verifier.is_unsafe && linked->kind() == ASTNodeKind::GenericTypeParam) {
             const auto param = linked->as_generic_type_param_unsafe();
             if (param->current_bits.has(InterfaceBits::COPY_BIT)) {
                 return;
             }
-            diagnoser.error(value) << "de-referencing a reference/pointer to generic type parameter that is not `Copy` is not allowed";
+            verifier.diagnoser.error(value) << "de-referencing a reference/pointer to generic type parameter that is not `Copy` is not allowed";
             return;
         }
         const auto container = linked->get_members_container();
         if(container && container->has_destructor()) {
-            diagnoser.error(value) << "de-referencing a reference/pointer to destructible struct is not allowed";
+            verifier.diagnoser.error(value) << "de-referencing a reference/pointer to destructible struct is not allowed";
         }
+    }
+}
+
+inline constexpr void visit_dereference_value(TypeVerifier& verifier, DereferenceValue* value, bool disable_checking_destructible_deref) {
+    verifier.RecursiveVisitor::VisitDereferenceValue(value);
+    if (disable_checking_destructible_deref) return;
+    check_destructible_deref(verifier, value);
+}
+
+void TypeVerifier::VisitDereferenceValue(DereferenceValue* value) {
+    visit_dereference_value(*this, value, false);
+}
+
+void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
+    RecursiveVisitor::VisitAddrOfValue(addrOfValue);
+    const auto value = addrOfValue->value;
+    const auto linked = value->get_chain_last_linked();
+    if(linked) {
+        switch (linked->kind()) {
+            case ASTNodeKind::VarInitStmt: {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->is_comptime()) {
+                    diagnoser.error("taking address of a comptime variable is not allowed", addrOfValue);
+                }
+                if (init->is_const() && !init->is_top_level()) {
+                    diagnoser.error("taking address of a constant is not allowed", addrOfValue);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
+    if (refValue->value->kind() == ValueKind::DereferenceValue) {
+        visit_dereference_value(*this, refValue->value->as_dereference_value_unsafe(), true);
+    } else {
+        visit_it(refValue->value);
+    }
+    const auto value = refValue->value;
+    const auto linked = value->get_chain_last_linked();
+    if(linked) {
+        switch (linked->kind()) {
+            case ASTNodeKind::VarInitStmt: {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->is_comptime()) {
+                    diagnoser.error("taking reference of a comptime variable is not allowed", refValue);
+                }
+                if (init->is_const()) {
+                    if (refValue->is_mutable) {
+                        diagnoser.error("taking mutable reference of a constant is not allowed", refValue);
+                    }
+                    const auto ty = init->known_type();
+                    if (!ty->isStructLikeType()) {
+                        diagnoser.error("taking reference of a primitive constant is not allowed", refValue);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+inline void visit_maybe_deref_val(TypeVerifier& verifier, Value* value, bool disable_checking_destructible_deref) {
+    if (value->kind() == ValueKind::DereferenceValue) {
+        visit_dereference_value(verifier, value->as_dereference_value_unsafe(), disable_checking_destructible_deref);
+    } else {
+        verifier.visit(value);
+    }
+}
+
+void TypeVerifier::VisitPatternMatchExpr(PatternMatchExpr* expr) {
+    visit_maybe_deref_val(*this, expr->expression, true);
+    const auto elseVal = expr->elseExpression.value;
+    if(elseVal) {
+        visit_maybe_deref_val(*this, elseVal, true);
     }
 }
 
@@ -767,18 +837,65 @@ void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
     RecursiveVisitor::VisitIfStmt(stmt);
 }
 
+bool is_assignable(Value* lhs) {
+    switch(lhs->kind()) {
+        case ValueKind::AddrOfValue:
+        case ValueKind::ReferenceOfValue:
+        case ValueKind::IsValue:
+        case ValueKind::StructValue:
+        case ValueKind::ArrayValue:
+        case ValueKind::LambdaFunc:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+        case ValueKind::String:
+        case ValueKind::IntN:
+        case ValueKind::IfValue:
+        case ValueKind::SwitchValue:
+        case ValueKind::LoopValue:
+        case ValueKind::VariantCase:
+        case ValueKind::Bool:
+        case ValueKind::Float:
+        case ValueKind::Double:
+        case ValueKind::NullValue:
+        case ValueKind::NotValue:
+        case ValueKind::BitwiseNot:
+        case ValueKind::NegativeValue:
+        case ValueKind::NewValue:
+        case ValueKind::NewTypedValue:
+        case ValueKind::PlacementNewValue:
+        case ValueKind::ComptimeValue:
+        case ValueKind::CastedValue:
+        case ValueKind::UnsafeValue:
+        case ValueKind::Expression:
+        case ValueKind::IncDecValue:
+            return false;
+        case ValueKind::AccessChain:
+            return is_assignable(lhs->as_access_chain_unsafe()->values.back());
+        case ValueKind::FunctionCall:
+            return lhs->getType()->isReferenceCanonical();
+        default:
+            return true;
+    }
+}
+
 void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 
     // we explicitly visit the lhs and value, because we need to switch toggles
-    const auto prev_assignment_lhs = is_assignment_lhs;
-    is_assignment_lhs = true;
-    visit_it(assign->lhs);
-    is_assignment_lhs = prev_assignment_lhs;
+    if (assign->lhs->kind() == ValueKind::DereferenceValue) {
+        visit_dereference_value(*this, assign->lhs->as_dereference_value_unsafe(), true);
+    } else {
+        visit_it(assign->lhs);
+    }
     visit_it(assign->value);
 
     const auto lhs = assign->lhs;
     const auto value = assign->value;
     const auto lhsType = lhs->getType();
+
+    // check if expression is even assignable
+    if(!is_assignable(lhs)) {
+        diagnoser.error("Expression is not assignable", lhs);
+    }
 
     // check if operator is overloaded
     if(assign->assOp != Operation::Assignment) {
@@ -864,6 +981,13 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
         }
     }
 
+}
+
+void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
+    auto type = node->identifier->getType()->canonical();
+    if(!type->is_pointer_or_ref()) {
+        diagnoser.error("destruct cannot be called on a value that isn't a pointer or reference", node->identifier);
+    }
 }
 
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {

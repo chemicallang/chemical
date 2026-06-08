@@ -16,7 +16,9 @@
 #include "ast/values/StructValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/values/AccessChain.h"
+
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/SizeOfValue.h"
 
@@ -92,17 +94,23 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
 }
 
-AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
+Value* Parser::parseReferenceOfValue(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {
+        const auto is_raw = consumeToken(TokenType::RawKw);
         const auto is_mutable = consumeToken(TokenType::MutKw);
         // TODO: this further allows parsing addr of, we shouldn't do that
         //  syntax like && would become possible
-        auto chain = parseAccessChainOrAddrOf(allocator, true);
+        auto chain = parseAccessChainOrValueNoAfter(allocator, true);
         if (chain) {
-            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, is_mutable, loc_single(token1));
+            if (is_raw) {
+                const auto ptrType = new (allocator.allocate<PointerType>()) PointerType(nullptr, is_mutable);
+                return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, is_mutable, ptrType, loc_single(token1));
+            }
+            const auto refType = new (allocator.allocate<ReferenceType>()) ReferenceType(nullptr, is_mutable);
+            return new(allocator.allocate<ReferenceOfValue>()) ReferenceOfValue(chain, is_mutable, refType, loc_single(token1));
         } else {
-            unexpected_error("expected a value after '&' for address of");
+            unexpected_error("expected a value after '&' for reference of");
             return nullptr;
         }
     } else {
@@ -132,8 +140,6 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
 
 Value* Parser::parseLhsValue(ASTAllocator& allocator) {
     switch (token->type) {
-        case TokenType::AmpersandSym:
-            return (Value*) parseAddrOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
         case TokenType::NullKw: {
@@ -167,7 +173,7 @@ Value* Parser::parseLhsValue(ASTAllocator& allocator) {
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
     switch (token->type) {
         case TokenType::AmpersandSym:
-            return (Value*) parseAddrOfValue(allocator);
+            return parseReferenceOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
         case TokenType::DoublePlusSym:

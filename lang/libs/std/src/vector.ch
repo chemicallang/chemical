@@ -84,7 +84,7 @@ public struct vector<T> {
         if (s >= data_cap) {
             ensure_capacity_for_one_more()
         }
-        memcpy(&mut data_ptr[s], &value, sizeof(T))
+        memcpy(&raw mut data_ptr[s], &raw value, sizeof(T))
         intrinsics::forget(value)
         data_size = s + 1
     }
@@ -98,11 +98,11 @@ public struct vector<T> {
     }
 
     func get_ptr(&self, index : size_t) : *mut T {
-        return &mut data_ptr[index];
+        return &raw mut data_ptr[index];
     }
 
     func get_ref(&self, index : size_t) : &mut T {
-        return data_ptr[index]
+        return &mut data_ptr[index]
     }
 
     func set(&mut self, index : size_t, value : T) {
@@ -132,7 +132,7 @@ public struct vector<T> {
         if(index == last) {
             data_size = last;
         } else {
-            memmove(&mut data_ptr[index], &data_ptr[index + 1], sizeof(T) * (last - index));
+            memmove(&raw mut data_ptr[index], &raw data_ptr[index + 1], sizeof(T) * (last - index));
             data_size = last;
         }
     }

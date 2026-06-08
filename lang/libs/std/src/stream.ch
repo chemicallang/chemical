@@ -1,23 +1,23 @@
 impl core::stream::Stream for CommandLineStream {
 
     func writeChar(&self, value : char) {
-        fwrite(&value, 1, 1, get_stdout());
+        fwrite(&raw value, 1, 1, get_stdout());
     }
 
     func writeUChar(&self, value : uchar) {
-        fwrite(&value, 1, 1, get_stdout());
+        fwrite(&raw value, 1, 1, get_stdout());
     }
 
     func writeSigned(&self, value : bigint) {
         var buf : [64]char;
-        var len = self.i64_to_chars(&mut buf[0], value);
-        fwrite(&buf[0], 1, len, get_stdout());
+        var len = self.i64_to_chars(&raw mut buf[0], value);
+        fwrite(&raw buf[0], 1, len, get_stdout());
     }
 
     func writeUnsigned(&self, value : ubigint) {
         var buf : [64]char;
-        var len = self.u64_to_chars(&mut buf[0], value);
-        fwrite(&buf[0], 1, len, get_stdout());
+        var len = self.u64_to_chars(&raw mut buf[0], value);
+        fwrite(&raw buf[0], 1, len, get_stdout());
     }
 
     func writeStr(&self, value : *char, length : ubigint) {
@@ -30,14 +30,14 @@ impl core::stream::Stream for CommandLineStream {
 
     func writeFloat(&self, value : float) {
         var buf : [128]char;
-        var len = self.float_to_chars(&mut buf[0], value, 6);
-        fwrite(&buf[0], 1, len, get_stdout());
+        var len = self.float_to_chars(&raw mut buf[0], value, 6);
+        fwrite(&raw buf[0], 1, len, get_stdout());
     }
 
     func writeDouble(&self, value : double) {
         var buf : [256]char;
-        var len = self.double_to_chars(&mut buf[0], value, 6);
-        fwrite(&buf[0], 1, len, get_stdout());
+        var len = self.double_to_chars(&raw mut buf[0], value, 6);
+        fwrite(&raw buf[0], 1, len, get_stdout());
     }
 }
 
@@ -139,7 +139,7 @@ public struct CommandLineStream {
 
         // write integer part into tmp then copy to out_buf
         var tmp_int : [32]char;
-        var int_len = self.i64_to_chars(&mut tmp_int[0], int_part);
+        var int_len = self.i64_to_chars(&raw mut tmp_int[0], int_part);
         // copy integer chars
         var ci : size_t = 0;
         while(ci < int_len) {
@@ -176,7 +176,7 @@ public struct CommandLineStream {
             var new_int = int_part + 1;
 
             // convert new_int into tmp_int
-            var new_int_len = self.i64_to_chars(&mut tmp_int[0], new_int);
+            var new_int_len = self.i64_to_chars(&raw mut tmp_int[0], new_int);
 
             // overwrite the integer part at the start of out_buf (handle sign)
             var offset_sign = 0;

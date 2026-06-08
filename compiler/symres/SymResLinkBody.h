@@ -244,6 +244,8 @@ public:
 
     void VisitAddrOfValue(AddrOfValue* value);
 
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
     void VisitArrayValue(ArrayValue* value);
 
     void VisitCastedValue(CastedValue* value);

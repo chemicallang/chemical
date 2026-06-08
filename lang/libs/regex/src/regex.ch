@@ -68,19 +68,19 @@ public namespace regex {
             var text_len = text.size()
             var i : size_t = 0
             while(i < text_len) {
-                if(run_prog(self.states, self.classes, self.start_state, text, i, text_len)) {
+                if(run_prog(&self.states, &self.classes, self.start_state, text, i, text_len)) {
                     return true
                 }
                 i = i + 1
             }
-            return run_prog(self.states, self.classes, self.start_state, text, text_len, text_len)
+            return run_prog(&self.states, &self.classes, self.start_state, text, text_len, text_len)
         }
 
         public func find(&self, text : std::string_view, start_pos : *mut i64, end_pos : *mut i64) : bool {
             *start_pos = -1
             *end_pos = -1
             if(self.start_state < 0) return false
-            return find_from(self.states, self.classes, self.start_state, text, 0, start_pos, end_pos)
+            return find_from(&self.states, &self.classes, self.start_state, text, 0, start_pos, end_pos)
         }
 
         public func captures(&self, text : std::string_view) : Captures {
@@ -88,7 +88,7 @@ public namespace regex {
                 return Captures { matched : false, positions : std::vector<i64>() }
             }
             var positions = std::vector<i64>()
-            var found = find_captures_from(self.states, self.classes, self.start_state, text, 0, self.num_captures, &mut positions)
+            var found = find_captures_from(&self.states, &self.classes, self.start_state, text, 0, self.num_captures, &raw mut positions)
             if(found) {
                 return Captures { matched : true, positions : positions }
             }
@@ -101,7 +101,7 @@ public namespace regex {
             var text_len = text.size()
             while(pos <= text_len) {
                 var captures = std::vector<i64>()
-                var found = find_captures_from(self.states, self.classes, self.start_state, text, pos, self.num_captures, &mut captures)
+                var found = find_captures_from(&self.states, &self.classes, self.start_state, text, pos, self.num_captures, &raw mut captures)
                 if(!found) {
                     while(pos < text_len) {
                         result.append(text.get(pos))
@@ -118,7 +118,7 @@ public namespace regex {
                     pos = pos + 1
                 }
 
-                append_replacement(result, replacement, captures, text)
+                append_replacement(&mut result, replacement, &captures, text)
                 
                 if(pos == (end_out as size_t)) {
                     if(pos < text_len) {
@@ -140,7 +140,7 @@ public namespace regex {
             while(pos <= text_len) {
                 var start_out : i64 = 0
                 var end_out : i64 = 0
-                var found = find_from(self.states, self.classes, self.start_state, text, pos, &mut start_out, &mut end_out)
+                var found = find_from(&self.states, &self.classes, self.start_state, text, pos, &raw mut start_out, &raw mut end_out)
                 if(!found) {
                     var remaining = text.subview(pos, text_len)
                     out.push(remaining)
@@ -169,9 +169,9 @@ public namespace regex {
     // =========================================================================
     public func compile(pattern : std::string_view) : Regex {
         var re = Regex::init()
-        re.pattern.append_view(pattern)
+        re.pattern.append_view(&pattern)
         
-        var ok = compile_internal(pattern, re.states, re.classes, &mut re.start_state, &mut re.num_captures, re.compile_error)
+        var ok = compile_internal(pattern, &mut re.states, &mut re.classes, &raw mut re.start_state, &raw mut re.num_captures, &mut re.compile_error)
 
         if(!ok) {
             if(re.compile_error.empty()) {
@@ -422,7 +422,7 @@ public namespace regex {
             group_count : 0, error : std::string()
         }
 
-        var frag = parse_regex(p, states, classes, &mut p.group_count)
+        var frag = parse_regex(&mut p, states, classes, &raw mut p.group_count)
 
         if(p.error.empty() && p.pos != pattern.size()) {
             p.error.append_view("unexpected character at pos ")
@@ -436,7 +436,7 @@ public namespace regex {
 
         var match_state = new_state(states, 3, 0, 0, -1, -1, 0)
 
-        patch_list(frag.outs, match_state, states)
+        patch_list(&mut frag.outs, match_state, states)
 
         *start_state = frag.start
         *num_captures = p.group_count + 1
@@ -470,12 +470,12 @@ public namespace regex {
 
             var split = new_state(states, 1, 0, 0, frag.start, rhs.start, 0)
 
-            var new_outs = copy_patch_list(frag.outs)
-            append_patch_list(new_outs, rhs.outs)
+            var new_outs = copy_patch_list(&frag.outs)
+            append_patch_list(&mut new_outs, &rhs.outs)
 
             frag.start = split
             frag.outs.clear()
-            append_patch_list(frag.outs, new_outs)
+            append_patch_list(&mut frag.outs, &new_outs)
         }
 
         return frag
@@ -501,10 +501,10 @@ public namespace regex {
                 return frag
             }
 
-            patch_list(frag.outs, rhs.start, states)
+            patch_list(&mut frag.outs, rhs.start, states)
 
             frag.outs.clear()
-            append_patch_list(frag.outs, rhs.outs)
+            append_patch_list(&mut frag.outs, &rhs.outs)
         }
 
         return frag
@@ -528,28 +528,28 @@ public namespace regex {
             split_outs.push(make_patch(split, 1))
 
             var jmp = new_state(states, 2, 0, 0, split, -1, 0)
-            patch_list(frag.outs, jmp, states)
+            patch_list(&mut frag.outs, jmp, states)
 
             frag.start = split
             frag.outs.clear()
-            append_patch_list(frag.outs, split_outs)
+            append_patch_list(&mut frag.outs, &split_outs)
         } else if(c == '+' as i64) {
             advance_char(p)
             var split = new_state(states, 1, 0, 0, frag.start, -1, 0)
             var split_outs = std::vector<PatchPtr>()
             split_outs.push(make_patch(split, 1))
 
-            patch_list(frag.outs, split, states)
+            patch_list(&mut frag.outs, split, states)
 
             frag.outs.clear()
-            append_patch_list(frag.outs, split_outs)
+            append_patch_list(&mut frag.outs, &split_outs)
         } else if(c == '?' as i64) {
             advance_char(p)
             var split = new_state(states, 1, 0, 0, frag.start, -1, 0)
             var split_outs = std::vector<PatchPtr>()
             split_outs.push(make_patch(split, 1))
 
-            append_patch_list(frag.outs, split_outs)
+            append_patch_list(&mut frag.outs, &split_outs)
 
             frag.start = split
         }
@@ -597,7 +597,7 @@ public namespace regex {
             var save_end = new_state(states, 8, 0, 0, -1, -1, save_slot + 1)
 
             states.get_ptr(save_start as size_t).out1 = inner.start
-            patch_list(inner.outs, save_end, states)
+            patch_list(&mut inner.outs, save_end, states)
 
             var outs = std::vector<PatchPtr>()
             outs.push(make_patch(save_end, 0))
@@ -721,8 +721,8 @@ public namespace regex {
 
         var v1 = std::vector<i64>()
         var v2 = std::vector<i64>()
-        var current = &mut v1
-        var next = &mut v2
+        var current = &raw mut v1
+        var next = &raw mut v2
 
         add_state(current, start, states)
 
@@ -883,16 +883,16 @@ public namespace regex {
         } else if(state.kind == 1) {
             var left_positions = copy_i64_vec(positions)
             var left_path = copy_visited_vec(path)
-            if(run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, left_positions, left_path)) {
+            if(run_prog_with_captures_impl(states, classes, state.out1, text, pos, text_end, &mut left_positions, &mut left_path)) {
                 positions.clear()
-                append_i64_vec(positions, left_positions)
+                append_i64_vec(positions, &left_positions)
                 result = true
             } else {
                 var right_positions = copy_i64_vec(positions)
                 var right_path = copy_visited_vec(path)
-                if(run_prog_with_captures_impl(states, classes, state.out2, text, pos, text_end, right_positions, right_path)) {
+                if(run_prog_with_captures_impl(states, classes, state.out2, text, pos, text_end, &mut right_positions, &mut right_path)) {
                     positions.clear()
-                    append_i64_vec(positions, right_positions)
+                    append_i64_vec(positions, &right_positions)
                     result = true
                 }
             }
@@ -964,9 +964,9 @@ public namespace regex {
             *positions.get_ptr(1) = text_end as i64
         }
         var path = std::vector<VisitedFrame>()
-        var matched = run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, positions, path)
+        var matched = run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, &mut positions, &mut path)
         if(matched) {
-            replace_i64_vec(positions_out, positions)
+            replace_i64_vec(positions_out, &positions)
             return true
         }
         return false
@@ -979,7 +979,7 @@ public namespace regex {
 
         var positions = std::vector<i64>()
         var path = std::vector<VisitedFrame>()
-        return run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, positions, path)
+        return run_prog_with_captures_impl(states, classes, start, text, text_start, text_end, &mut positions, &mut path)
     }
 
     internal func find_captures(states : &std::vector<NFAState>,
@@ -994,16 +994,16 @@ public namespace regex {
         var end_pos = text_start
         while(end_pos <= text.size()) {
             var positions = std::vector<i64>()
-            if(run_prog_with_captures(states, classes, start, text, text_start, end_pos, num_captures, &mut positions)) {
+            if(run_prog_with_captures(states, classes, start, text, text_start, end_pos, num_captures, &raw mut positions)) {
                 found = true
                 best_positions.clear()
-                append_i64_vec(best_positions, positions)
+                append_i64_vec(&mut best_positions, &positions)
             }
             end_pos = end_pos + 1
         }
 
         if(found) {
-            replace_i64_vec(positions_out, best_positions)
+            replace_i64_vec(positions_out, &best_positions)
             return true
         }
         return false
@@ -1060,7 +1060,7 @@ public namespace regex {
         var i = search_start
         while(i <= text_len) {
             var match_end : i64 = 0
-            if(find_match(states, classes, start_state, text, i, &mut match_end)) {
+            if(find_match(states, classes, start_state, text, i, &raw mut match_end)) {
                 *start_out = i as i64
                 *end_out = match_end
                 return true

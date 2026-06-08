@@ -32,7 +32,7 @@ public namespace std {
 
     func compute_abstime_ms(out : *mut timespec, timeout_ms : ulong) {
         var now : timespec
-        var rc = clock_gettime(CLOCK_REALTIME, &mut now)
+        var rc = clock_gettime(CLOCK_REALTIME, &raw mut now)
         if(rc != 0) {
             panic("clock_gettime failed")
         }
@@ -54,7 +54,7 @@ public namespace std {
         @constructor
         func constructor() {
             var c = CondVar { storage : [] }
-            var res = pthread_cond_init(&mut c.storage[0], null)
+            var res = pthread_cond_init(&raw mut c.storage[0], null)
             if(res != 0) {
                 panic("pthread_cond_init failed")
             }
@@ -64,7 +64,7 @@ public namespace std {
         // wait (blocking). Caller must hold mutex before calling.
         // mutex is your std::mutex (the one storing CRITICAL_SECTION or pthread_mutex_t bytes).
         func wait(&mut self, mutex : &mut std::mutex) {
-            var r = pthread_cond_wait(&mut storage[0], &mut mutex.storage[0])
+            var r = pthread_cond_wait(&raw mut storage[0], &raw mut mutex.storage[0])
             if(r != 0) {
                 panic("pthread_cond_wait failed")
             }
@@ -74,21 +74,21 @@ public namespace std {
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
             var ts : timespec
-            compute_abstime_ms(&mut ts, timeout_ms)
-            var r = pthread_cond_timedwait(&mut storage[0], &mut mutex.storage[0], &ts)
+            compute_abstime_ms(&raw mut ts, timeout_ms)
+            var r = pthread_cond_timedwait(&raw mut storage[0], &raw mut mutex.storage[0], &raw ts)
             // pthread_cond_timedwait returns 0 on success, ETIMEDOUT on timeout
             return r == 0
         }
 
         func notify_one(&mut self) {
-            var r = pthread_cond_signal(&mut storage[0])
+            var r = pthread_cond_signal(&raw mut storage[0])
             if(r != 0) {
                 panic("pthread_cond_signal failed")
             }
         }
 
         func notify_all(&mut self) {
-            var r = pthread_cond_broadcast(&mut storage[0])
+            var r = pthread_cond_broadcast(&raw mut storage[0])
             if(r != 0) {
                 panic("pthread_cond_broadcast failed")
             }
@@ -97,7 +97,7 @@ public namespace std {
         // destructor: POSIX needs destroy, Windows does not.
         @delete
         func delete(&mut self) {
-            var r = pthread_cond_destroy(&mut storage[0])
+            var r = pthread_cond_destroy(&raw mut storage[0])
             // best-effort, do not panic in destructor
         }
     }

@@ -95,6 +95,7 @@
 #include "ast/values/NewValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/types/NullPtrType.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "compiler/mangler/NameMangler.h"
@@ -1179,6 +1180,26 @@ bool AddrOfValue::add_member_index(Codegen &gen, Value *parent, std::vector<llvm
 }
 
 bool AddrOfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
+    return value->add_child_index(gen, indexes, name);
+}
+
+llvm::Type *ReferenceOfValue::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
+llvm::Value *ReferenceOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto struct_value = value->as_struct_value();
+    if(struct_value) {
+        return struct_value->llvm_allocate(gen, "", nullptr);
+    }
+    return value->llvm_pointer(gen);
+}
+
+bool ReferenceOfValue::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
+    return value->add_member_index(gen, parent, indexes);
+}
+
+bool ReferenceOfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return value->add_child_index(gen, indexes, name);
 }
 

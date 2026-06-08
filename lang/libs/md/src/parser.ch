@@ -258,7 +258,7 @@ public func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoo
     
     var mdParser = MdParser { tokens : tokens, pos : 0, arena : arena, root : root, in_link : false }
     
-    while(!isBlockEnd(get_token(mdParser).type as int)) {
+    while(!isBlockEnd(get_token(&mut mdParser).type as int)) {
         var node = mdParser.parseBlockNode();
         if(node != null) {
             root.children.push_back(node);
@@ -426,7 +426,7 @@ func (md : &mut MdParser) parseFencedCodeBlock() : *mut MdNode {
     var code = std::string();
     while(!isFencedCodeEndToken(get_token(md).type as int) && !isBlockEnd(get_token(md).type as int)) {
         if(isCodeContentToken(get_token(md).type as int)) {
-            code.append_view(get_token(md).value);
+            code.append_view(&get_token(md).value);
             code.append('\n');
         }
         increment(md);
@@ -1092,7 +1092,7 @@ func (md : &mut MdParser) parseFootnote() : *mut MdNode {
     increment(md); // ^
     var id = std::string();
     while(!isRBracketToken(get_token(md).type as int) && !isLineEnd(get_token(md).type as int)) {
-        id.append_view(get_token(md).value);
+        id.append_view(&get_token(md).value);
         increment(md);
     }
     if(isRBracketToken(get_token(md).type as int)) increment(md);
@@ -1118,7 +1118,7 @@ func (md : &mut MdParser) parseFootnoteDef() : *mut MdNode {
     increment(md); // ^
     var id = std::string();
     while(!isRBracketToken(get_token(md).type as int) && !isLineEnd(get_token(md).type as int)) {
-        id.append_view(get_token(md).value);
+        id.append_view(&get_token(md).value);
         increment(md);
     }
     if(isRBracketToken(get_token(md).type as int)) increment(md);
@@ -1152,7 +1152,7 @@ func (md : &mut MdParser) parseAbbreviation() : *mut MdNode {
     increment(md); // [
     var id = std::string();
     while(!isRBracketToken(get_token(md).type as int) && !isLineEnd(get_token(md).type as int)) {
-        id.append_view(get_token(md).value);
+        id.append_view(&get_token(md).value);
         increment(md);
     }
     if(isRBracketToken(get_token(md).type as int)) increment(md);
@@ -1162,7 +1162,7 @@ func (md : &mut MdParser) parseAbbreviation() : *mut MdNode {
     
     var title = std::string();
     while(!isLineEnd(get_token(md).type as int)) {
-        title.append_view(get_token(md).value);
+        title.append_view(&get_token(md).value);
         increment(md);
     }
     
@@ -1279,14 +1279,14 @@ func (md : &mut MdParser) parseUrl() : std::string_view {
     while(true) {
         const t = get_token(md).type;
         if(isTextToken(t as int) || isColonToken(t as int) || isDotToken(t as int) || isDashToken(t as int) || isPlusToken(t as int) || isUnderscoreToken(t as int) || isNumberToken(t as int) || isHashToken(t as int) || isPipeToken(t as int)) {
-            url_res.append_view(get_token(md).value);
+            url_res.append_view(&get_token(md).value);
             increment(md);
             continue;
         }
         if(t == MdTokenType.RParen || t == MdTokenType.RBracket || isLineEnd(t as int) || (isTextToken(t as int) && get_token(md).value.data()[0] == ' ')) break;
         if(isEndMdToken(t as int) || t == MdTokenType.RBrace) break;
         
-        url_res.append_view(get_token(md).value);
+        url_res.append_view(&get_token(md).value);
         increment(md);
     }
     
@@ -1400,7 +1400,7 @@ func (md : &mut MdParser) parseInlineCode() : *mut MdNode {
             new (code) MdInlineCode { base : MdNode { kind : MdNodeKind.InlineCode }, value : std::string_view(ptr, len) };
             return code as *mut MdNode;
         }
-        content.append_view(t.value);
+        content.append_view(&t.value);
         increment(md);
     }
     // Failed to find close, treat as text
@@ -1414,7 +1414,7 @@ func (md : &mut MdParser) parseReferenceDefinition() : *mut MdNode {
     increment(md); // [
     var id = std::string();
     while(!isRBracketToken(get_token(md).type as int) && !isLineEnd(get_token(md).type as int)) {
-        id.append_view(get_token(md).value);
+        id.append_view(&get_token(md).value);
         increment(md);
     }
     if(isRBracketToken(get_token(md).type as int)) increment(md);

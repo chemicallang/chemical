@@ -67,7 +67,7 @@ func (lexer : &mut SyntaxLexer) match(s : std::string_view) : bool {
 
 func make_span(cls : std::string_view, content : std::string_view) : std::string {
     var s = std::string("<span class=\"");
-    s.append_view(cls);
+    s.append_view(&cls);
     s.append_view("\">");
     
     var i = 0u;
@@ -184,7 +184,7 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
             var is_kwd = false;
             var i = 0u;
             while(i < config.keywords.size()) {
-                if(config.keywords.get_ptr(i).equals_view(text)) { is_kwd = true; break; }
+                if(config.keywords.get_ptr(i).equals_view(&text)) { is_kwd = true; break; }
                 i++;
             }
             
@@ -195,7 +195,7 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
                 var is_type = false;
                  i = 0u;
                 while(i < config.types.size()) {
-                    if(config.types.get_ptr(i).equals_view(text)) { is_type = true; break; }
+                    if(config.types.get_ptr(i).equals_view(&text)) { is_type = true; break; }
                      i++;
                 }
                 
@@ -206,7 +206,7 @@ func highlight_clike(code : std::string_view, config : *ClikeConfig) : std::stri
                     var span = make_span("tok-fn", text)
                     html.append_view(span.to_view());
                 } else {
-                    html.append_view(text);
+                    html.append_view(&text);
                 }
             }
         } else {
@@ -251,7 +251,7 @@ func highlight_chemical(code : std::string_view) : std::string {
     }
     types.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));
 
-    var config = ClikeConfig { keywords : kwds, types : types };
+    var config = ClikeConfig { keywords : &kwds, types : &types };
     
     // Custom wrapper to handle attributes @foo
     var lexer = SyntaxLexer { source : code, cursor : 0 }
@@ -321,7 +321,7 @@ func highlight_chemical(code : std::string_view) : std::string {
                  var text = std::string_view(lexer.source.data() + startc, lexer.cursor - startc);
                  
                  var is_kwd = false;
-                 i = 0u; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(text)) { is_kwd = true; break; } i++; }
+                 i = 0u; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(&text)) { is_kwd = true; break; } i++; }
 
 
                  if(is_kwd) {
@@ -329,7 +329,7 @@ func highlight_chemical(code : std::string_view) : std::string {
                     html.append_view(span.to_view());
                  } else {
                      var is_type = false;
-                     i = 0; while(i < types.size()) { if(types.get_ptr(i).equals_view(text)) { is_type = true; break; } i++; }
+                     i = 0; while(i < types.size()) { if(types.get_ptr(i).equals_view(&text)) { is_type = true; break; } i++; }
                      if(is_type) {
                         var span = make_span("tok-type", text)
                         html.append_view(span.to_view());
@@ -337,7 +337,7 @@ func highlight_chemical(code : std::string_view) : std::string {
                         var span = make_span("tok-fn", text)
                         html.append_view(span.to_view());
                      }
-                     else html.append_view(text);
+                     else html.append_view(&text);
                  }
              } else {
                  var escaped = escape_html(std::string_view(lexer.source.data() + lexer.cursor, 1))
@@ -355,9 +355,10 @@ func highlight_chmod(code : std::string_view) : std::string {
     var i = 0u; var start = 0u; var sv = std::string_view(list);
     while(i < sv.size()){ if(sv.data()[i] == '|') { kwds.push_back(std::string(std::string_view(sv.data() + start, i - start))); start = i + 1u; } i++; }
     kwds.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));
-    
-    var config = ClikeConfig { keywords : kwds, types : std::vector<std::string>() };
-    return highlight_clike(code, &config);
+
+    var types = std::vector<std::string>()
+    var config = ClikeConfig { keywords : &kwds, types : &types };
+    return highlight_clike(code, &raw config);
 }
 
 func highlight_c(code : std::string_view) : std::string {
@@ -366,9 +367,10 @@ func highlight_c(code : std::string_view) : std::string {
     var i = 0u; var start = 0u; var sv = std::string_view(list);
     while(i < sv.size()){ if(sv.data()[i] == '|') { kwds.push_back(std::string(std::string_view(sv.data() + start, i - start))); start = i + 1u; } i++; }
     kwds.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));
-    
-    var config = ClikeConfig { keywords : kwds, types : std::vector<std::string>() };
-    return highlight_clike(code, &config);
+
+    var types = std::vector<std::string>()
+    var config = ClikeConfig { keywords : &kwds, types : &types };
+    return highlight_clike(code, &raw config);
 }
 
 func highlight_cpp(code : std::string_view) : std::string {
@@ -377,9 +379,10 @@ func highlight_cpp(code : std::string_view) : std::string {
     var i = 0u; var start = 0u; var sv = std::string_view(list);
     while(i < sv.size()){ if(sv.data()[i] == '|') { kwds.push_back(std::string(std::string_view(sv.data() + start, i - start))); start = i + 1u; } i++; }
     kwds.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));
-    
-    var config = ClikeConfig { keywords : kwds, types : std::vector<std::string>() };
-    return highlight_clike(code, &config);
+
+    var types = std::vector<std::string>()
+    var config = ClikeConfig { keywords : &kwds, types : &types };
+    return highlight_clike(code, &raw config);
 }
 
 func highlight_js(code : std::string_view) : std::string {
@@ -388,9 +391,10 @@ func highlight_js(code : std::string_view) : std::string {
     var i = 0u; var start = 0u; var sv = std::string_view(list);
     while(i < sv.size()){ if(sv.data()[i] == '|') { kwds.push_back(std::string(std::string_view(sv.data() + start, i - start))); start = i + 1u; } i++; }
     kwds.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));
-    
-    var config = ClikeConfig { keywords : kwds, types : std::vector<std::string>() };
-    return highlight_clike(code, &config);
+
+    var types = std::vector<std::string>()
+    var config = ClikeConfig { keywords : &kwds, types : &types };
+    return highlight_clike(code, &raw config);
 }
 
 func highlight_bash(code : std::string_view) : std::string {
@@ -432,11 +436,11 @@ func highlight_bash(code : std::string_view) : std::string {
              while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance(); }
              var text = std::string_view(lexer.source.data() + startc, lexer.cursor - startc);
              var is_kwd = false;
-             i = 0; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(text)) { is_kwd = true; break; } i++; }
+             i = 0; while(i < kwds.size()) { if(kwds.get_ptr(i).equals_view(&text)) { is_kwd = true; break; } i++; }
              if(is_kwd) {
                 var span = make_span("tok-kwd", text)
                 html.append_view(span.to_view());
-             } else html.append_view(text);
+             } else html.append_view(&text);
         } else if(c == '$') {
              lexer.advance();
              while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance(); }

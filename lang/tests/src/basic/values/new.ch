@@ -58,7 +58,7 @@ func test_new() {
     test("new works with pointer types", () => {
         var x = new *int;
         var y = 13;
-        *x = &y
+        *x = &raw y
         const ptr = *x;
         var result = *ptr == 13;
         dealloc x;

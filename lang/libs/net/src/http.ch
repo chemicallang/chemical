@@ -201,11 +201,11 @@ public namespace http {
             if(b.cur_chunk_left > 0u) {
                 var want = if(cap < b.cur_chunk_left) cap else b.cur_chunk_left;
                 // first copy from internal already-read buffer
-                var copied = copy_from_buffer(&mut b, dst, want);
+                var copied = copy_from_buffer(&raw mut b, dst, want);
                 var total_read = copied;
                 // if need more and socket provides, recv more
                 while(total_read < want) {
-                    var n = body_recv(&mut b, &mut dst[total_read], want - total_read);
+                    var n = body_recv(&raw mut b, &raw mut dst[total_read], want - total_read);
                     if(n <= 0) { 
 
                         return -1 
@@ -220,10 +220,10 @@ public namespace http {
                     // consume trailing \r\n after chunk data
                     var tmp : [2]u8;
                     // try to copy from buffer first
-                    var c = copy_from_buffer(&mut b, &mut tmp[0], 2);
+                    var c = copy_from_buffer(&raw mut b, &raw mut tmp[0], 2);
                     if(c < 2) {
                         var rem = 2 - c;
-                        var n = body_recv(&mut b, &mut tmp[c], rem);
+                        var n = body_recv(&raw mut b, &raw mut tmp[c], rem);
                         if(n <= 0) { 
 
                             return -1 
@@ -259,7 +259,7 @@ public namespace http {
             var found_crlf = false;
             while(!found_crlf) {
                 var tmp : [64]u8;
-                var n = body_recv(&mut b, &mut tmp[0], 64);
+                var n = body_recv(&raw mut b, &raw mut tmp[0], 64);
                 if(n <= 0) { 
                     
                     return -1 
@@ -279,7 +279,7 @@ public namespace http {
                         // Actually, we must put leftovers back into b.buf!
                         if((i as usize) + 1u < (n as usize)) {
                             var rem_n = (n as usize) - ((i as usize) + 1u);
-                            if(b.buf != null) { b.buf.append_bytes(&mut tmp[i + 1], rem_n) }
+                            if(b.buf != null) { b.buf.append_bytes(&raw mut tmp[i + 1], rem_n) }
                         }
                         break;
                     }
@@ -321,13 +321,13 @@ public namespace http {
                     }
                     if(!found) {
                         var tmp : [DEFAULT_READ_BUF]u8;
-                        var n = body_recv(&mut b, &mut tmp[0], DEFAULT_READ_BUF);
+                        var n = body_recv(&raw mut b, &raw mut tmp[0], DEFAULT_READ_BUF);
                         if(n <= 0) { 
                             
                             return -1 
                         }
                         // append to buffer for next iteration
-                        if(b.buf != null) { b.buf.append_bytes(&mut tmp[0], n as usize) }
+                        if(b.buf != null) { b.buf.append_bytes(&raw mut tmp[0], n as usize) }
                     }
                 }
                 // EOF for chunked body
@@ -345,10 +345,10 @@ public namespace http {
             // known length: read up to min(cap, remaining)
             var want = if((b.remaining as usize) < cap) (b.remaining as usize) else cap;
             // copy from buffer first
-            var copied = copy_from_buffer(&mut b, dst, want);
+            var copied = copy_from_buffer(&raw mut b, dst, want);
             var total = copied;
             while(total < want) {
-                var n = body_recv(&mut b, &mut dst[total], want - total);
+                var n = body_recv(&raw mut b, &raw mut dst[total], want - total);
                 if(n <= 0) { 
                     
                     return -1 
@@ -363,7 +363,7 @@ public namespace http {
         } else {
             // unknown length: read until peer closes (connection: close) — treat as stream
             // copy from buffer first
-            var copied = copy_from_buffer(&mut b, dst, cap);
+            var copied = copy_from_buffer(&raw mut b, dst, cap);
             var total = copied;
             if(total > 0u) {
                 b.seen_total = b.seen_total + total;
@@ -371,7 +371,7 @@ public namespace http {
                 return (total as int);
             }
             // otherwise, read from socket
-            var n = body_recv(&mut b, dst, cap);
+            var n = body_recv(&raw mut b, dst, cap);
             if(n <= 0) { 
                 
                 return (0) 
@@ -388,7 +388,7 @@ public namespace http {
         var out = std::string::empty_str();
         var tmp : [DEFAULT_READ_BUF]u8;
         while(true) {
-            var n = b.read(&mut tmp[0], DEFAULT_READ_BUF);
+            var n = b.read(&raw mut tmp[0], DEFAULT_READ_BUF);
             if(n < 0) { return std::Option.None<std::string>() } // error
             if(n == 0) { break } // EOF
             out.append_view(std::string_view(&tmp[0] as *char, n as size_t))
@@ -404,10 +404,10 @@ public namespace http {
         var tmp : [DEFAULT_READ_BUF]u8;
         while(rem > 0u) {
             var want = if(rem < DEFAULT_READ_BUF) rem else DEFAULT_READ_BUF;
-            var r = b.read(&mut tmp[0], want);
+            var r = b.read(&raw mut tmp[0], want);
             if(r <= 0) { return std::Option.None<std::string>() }
             var part = std::string::constructor(&tmp[0] as *char, r as size_t);
-            out.append_string(part);
+            out.append_string(&part);
             rem = rem - (r as usize);
         }
         return std::Option.Some<std::string>(out);
@@ -417,7 +417,7 @@ public namespace http {
     public func (b: &mut Body) drain() : bool {
         var tmp : [DEFAULT_READ_BUF]u8;
         while(true) {
-            var n = b.read(&mut tmp[0], DEFAULT_READ_BUF);
+            var n = b.read(&raw mut tmp[0], DEFAULT_READ_BUF);
             if(n < 0) { return false }
             if(n == 0) { break }
         }
@@ -504,7 +504,7 @@ public namespace http {
                     }
                     res.body = http.Body.make_body(s, buf as *mut io::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
                     
-                    return std::Option.Some<Response>(std::replace(res, Response()));
+                    return std::Option.Some<Response>(std::replace(&mut res, Response()));
                 } else { 
                     
                     return std::Option.None<Response>() 
@@ -512,12 +512,12 @@ public namespace http {
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
             var tmp : [DEFAULT_READ_BUF]u8;
-            var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
+            var n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { 
                 
                 return std::Option.None<Response>() 
             }
-            buf.append_bytes(&mut tmp[0], n as usize);
+            buf.append_bytes(&raw mut tmp[0], n as usize);
         }
     }
 
@@ -640,9 +640,9 @@ public namespace http {
             var i = 0u;
             while(i < headers.headers.size()) {
                 var p = headers.headers.get_ptr(i);
-                out.append_string(p.first);
+                out.append_string(&p.first);
                 out.append_view(std::string_view(": "));
-                out.append_string(p.second);
+                out.append_string(&p.second);
                 out.append_view(std::string_view("\r\n"));
                 i = i + 1u;
             }
@@ -709,7 +709,7 @@ public namespace http {
                     // send up to remaining bytes
                     var to_send = if(remaining > (1 << 30)) (1 << 30) as size_t else remaining as size_t;
                     // on Linux sendfile returns number of bytes sent (ssize_t)
-                    var sent = net::sendfile(self.sock as int, fd, &mut offset, to_send);
+                    var sent = net::sendfile(self.sock as int, fd, &raw mut offset, to_send);
                     if (sent <= 0) {
                         // error or EOF
                         break;
@@ -767,10 +767,10 @@ public namespace http {
                 if(found) {
                     var k = qs.subview(start, eq);
                     var v = qs.subview(eq + 1u, i);
-                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(k), second : url_decode(v) });
+                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(&k), second : url_decode(&v) });
                 } else if(i > start) {
                     var k2 = qs.subview(start, i);
-                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(k2), second : std::string() });
+                    out.push_back(std::pair<std::string,std::string>{ first : url_decode(&k2), second : std::string() });
                 }
                 start = i + 1u;
             }
@@ -809,9 +809,9 @@ public namespace http {
             // no full header yet: read more
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
             var tmp : [DEFAULT_READ_BUF]u8;
-            var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
+            var n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Request>() }
-            buf.append_bytes(&mut tmp[0], n as usize);
+            buf.append_bytes(&raw mut tmp[0], n as usize);
 
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
             // loop to check again

@@ -11,7 +11,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                 current++;
                 if(current != end) {
                     const next = *current;
-                    const res = parse_int(next, &mut config.single_test_id)
+                    const res = parse_int(next, &raw mut config.single_test_id)
                     if(res != 0) {
                         printf("error: invalid function id %s", next);
                         return "invalid function id given for --test-id argument";
@@ -28,7 +28,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                 current++;
                 if(current != end) {
                     const next = *current;
-                    const res = parse_int(next, &mut config.comm_id)
+                    const res = parse_int(next, &raw mut config.comm_id)
                     if(res != 0) {
                         printf("error: invalid comm id %s", next);
                         return "invalid function id given for --comm-id argument";
@@ -51,7 +51,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                 current++
                 if(current != end) {
                     const next = *current;
-                    const res = parse_int(next, &mut config.process_limit)
+                    const res = parse_int(next, &raw mut config.process_limit)
                     if(res != 0) {
                         printf("error: invalid process limit given", next);
                         return "invalid process limit given";
@@ -79,16 +79,16 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
     // super fast case
     if(argc == 1) {
         var config = TestRunnerConfig()
-        run_tests(tests_view, *argv, config);
+        run_tests(&tests_view, *argv, &mut config);
         return 0;
     }
 
     // parse the command line
     var config = TestRunnerConfig()
-    parseCommand(config, argv + 1, argv + argc)
+    parseCommand(&mut config, argv + 1, argv + argc)
 
     // run the tests (it knows which ones to run from configuration)
-    run_tests(tests_view, *argv, config)
+    run_tests(&tests_view, *argv, &mut config)
 
     return 0;
 

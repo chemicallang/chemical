@@ -40,7 +40,7 @@ func write_exact(fd : int, buf : *void, count : size_t) : int {
  */
 func send_message_fd(fd : int, data : *void, len : uint32_t) : int {
     var be : uint32_t = htonl(len);
-    if (write_exact(fd, &be, sizeof(be)) < 0) return -1;
+    if (write_exact(fd, &raw be, sizeof(be)) < 0) return -1;
     if (len == 0) return 0;
     if (write_exact(fd, data, len) < 0) return -1;
     return 0;

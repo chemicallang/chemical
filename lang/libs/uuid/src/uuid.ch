@@ -61,7 +61,7 @@ public namespace uuid {
 
         public func to_string(&self) : std::string {
             var s = std::string();
-            format_to(s);
+            format_to(&mut s);
             return s;
         }
     }
@@ -142,7 +142,7 @@ public namespace uuid {
 
     public func v4() : UUID {
         var bytes : [16]u8;
-        if(!get_random_bytes(&mut bytes[0], 16u)) {
+        if(!get_random_bytes(&raw mut bytes[0], 16u)) {
             panic("Failed to generate secure random bytes for UUIDv4");
         }
 
@@ -160,7 +160,7 @@ public namespace uuid {
         var ts_ms = std::now_milli() as u64;
 
         var expected : u32 = 0;
-        while(!atomic_compare_exchange_strong_u32(&mut g_v7_lock, &mut expected, 1u, memory_order.acquire, memory_order.relaxed)) {
+        while(!atomic_compare_exchange_strong_u32(&raw mut g_v7_lock, &raw mut expected, 1u, memory_order.acquire, memory_order.relaxed)) {
             expected = 0;
         }
 
@@ -179,10 +179,10 @@ public namespace uuid {
         g_v7_last_ts_ms = ts_ms;
         var local_counter = g_v7_counter;
 
-        atomic_store_u32(&mut g_v7_lock, 0u, memory_order.release);
+        atomic_store_u32(&raw mut g_v7_lock, 0u, memory_order.release);
 
         var bytes : [16]u8;
-        if(!get_random_bytes(&mut bytes[0], 16u)) {
+        if(!get_random_bytes(&raw mut bytes[0], 16u)) {
             panic("Failed to generate secure random bytes for UUIDv7");
         }
 

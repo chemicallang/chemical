@@ -50,7 +50,7 @@ public namespace http {
             if (req_path_view.size() > 0 && req_path_view.get(0) == '/') {
                 req_path_view = req_path_view.subview(1, req_path_view.size());
             }
-            full_path.append_view(req_path_view);
+            full_path.append_view(&req_path_view);
 
             // Check if it's a directory
             var is_dir = false;
@@ -94,8 +94,8 @@ public namespace http {
                 if (full_path.get(i) == '/' || full_path.get(i) == '\\') break;
             }
 
-            var mime = self.get_mime_type(ext);
-            var ok = res.send_file(full_path.to_view(), mime);
+            var mime = self.get_mime_type(&ext);
+            var ok = res.send_file(full_path.to_view(), &mime);
             if (!ok) {
                 res.status = 404u;
                 res.set_header_view("Content-Type", "text/plain; charset=utf-8");

@@ -41,6 +41,7 @@
 #include "ast/types/LinkedValueType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/AddrOfValue.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "ast/values/ExpressiveString.h"
 
@@ -811,6 +812,8 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return parseLambdaValue(allocator);
         case TokenType::Number:
             return (Value*) parseNumberValue(allocator);
+        case TokenType::LParen:
+            return parseParenExpressionNoAfterValue(allocator);
         case TokenType::NotSym:
             return (Value*) parseNotValue(allocator);
         case TokenType::BitNotSym:
@@ -1011,6 +1014,24 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
         return value;
     } else {
         error("expected a type in alignof");
+        return nullptr;
+    }
+}
+
+Value* Parser::parseRawAddrOfValue(ASTAllocator& allocator, SourceLocation location) {
+    const auto is_mutable = consumeToken(TokenType::MutKw);
+    const auto has_lparen = consumeToken(TokenType::LParen);
+    // TODO: this further allows parsing addr of, we shouldn't do that
+    //  syntax like && would become possible
+    auto chain = parseAccessChainOrAddrOf(allocator, true);
+    if (chain) {
+        if (has_lparen && !consumeToken(TokenType::RParen)) {
+            unexpected_error("expected a closing right parenthesis ')'");
+        }
+        const auto ptrType = new (allocator.allocate<PointerType>()) PointerType(nullptr, is_mutable);
+        return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, is_mutable, ptrType, location);
+    } else {
+        unexpected_error("expected a value after '&' for address of");
         return nullptr;
     }
 }

@@ -72,7 +72,7 @@ public struct u16string {
         return u16string {
             storage : {
                 constant : {
-                    data : &EMPTY_U16,
+                    data : &raw EMPTY_U16,
                     length : 0
                 }
             },
@@ -163,7 +163,7 @@ public struct u16string {
             if(state == '0') {
                 move_data_to_heap(storage.constant.data, storage.constant.length, length);
             } else if(state == '1') {
-                move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, length);
+                move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, length);
             } else if(storage.heap.capacity <= length) {
                 resize_heap(length);
             }
@@ -190,7 +190,7 @@ public struct u16string {
             }
             '1' => {
                 if(new_capacity >= U16_STR_BUFF_SIZE) {
-                    move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, new_capacity);
+                    move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, new_capacity);
                 }
             }
             '2' => {
@@ -242,13 +242,13 @@ public struct u16string {
         ensure_mut(new_size + 1);
         if(state == '1') {
             // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            memcpy(&mut storage.sso.buffer[offset], value, len * 2)
+            memcpy(&raw mut storage.sso.buffer[offset], value, len * 2)
             storage.sso.buffer[new_size] = 0u16
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
             // len * 2 (because len is of 2 byte characters, memcpy works for single byte pointers)
-            memcpy(&mut storage.heap.data[offset], value, len * 2)
+            memcpy(&raw mut storage.heap.data[offset], value, len * 2)
             storage.heap.data[new_size] = 0u16
             storage.heap.length = new_size
         }
@@ -273,7 +273,7 @@ public struct u16string {
     // append a single char (treated as a single UTF-8 byte)
     func append_char(&mut self, c : char) {
         var tmp : char = c;
-        append_utf8_view(&tmp, 1);
+        append_utf8_view(&raw tmp, 1);
     }
 
     // append a Unicode code point (uint32), handling surrogate pairs
@@ -406,7 +406,7 @@ public struct u16string {
         const src = data();
         // create a temporary buffer to copy into result
         var buf = malloc((real_len * 2) + 2) as *mut u16;
-        memcpy(buf, &src[start], real_len * 2);
+        memcpy(buf, &raw src[start], real_len * 2);
         buf[real_len] = 0u16;
         // use constructor2 to keep constant/heap invariant: create as heap-backed
         result.constructor(buf, real_len);
@@ -557,13 +557,13 @@ public struct u16string {
                 return storage.constant.data
             }
             '1' => {
-                return &storage.sso.buffer[0];
+                return &raw storage.sso.buffer[0];
             }
             '2' => {
                 return storage.heap.data;
             }
             default => {
-                return &EMPTY_U16;
+                return &raw EMPTY_U16;
             }
         }
     }
@@ -572,10 +572,10 @@ public struct u16string {
         switch(state) {
             '0' => {
                 move_const_to_buffer();
-                return &mut storage.sso.buffer[0];
+                return &raw mut storage.sso.buffer[0];
             }
             '1' => {
-                return &mut storage.sso.buffer[0];
+                return &raw mut storage.sso.buffer[0];
             }
             '2' => {
                 return storage.heap.data;
@@ -590,7 +590,7 @@ public struct u16string {
         switch(state) {
             '0' => {
                 unsafe {
-                    storage.constant.data = &EMPTY_U16
+                    storage.constant.data = &raw EMPTY_U16
                 }
                 storage.constant.length = 0
             }

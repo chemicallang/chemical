@@ -91,7 +91,7 @@ public func <T : JsonStringEmitter> (emitter : &mut T) append_value(value : &Jso
             }
         }
         Number(value) => { emitter.append_view(value.to_view()) }
-        String(value) => { escape_string_into(emitter, value); }
+        String(value) => { escape_string_into(emitter, &value); }
         Object(values) => {
             emitter.append_view("{");
             var itr = values.iterator();
@@ -116,7 +116,7 @@ public func <T : JsonStringEmitter> (emitter : &mut T) append_value(value : &Jso
             while (current != end) {
                 if (!first) emitter.append_view(",");
                 first = false;
-                emitter.append_value(*current);
+                emitter.append_value(&*current);
                 current++;
             }
             emitter.append_view("]");
@@ -136,7 +136,7 @@ public func <T : JsonStringEmitter> (emitter : &mut T) append_value_pretty(value
             }
         }
         Number(value) => { emitter.append_view(value.to_view()) }
-        String(value) => { escape_string_into(emitter, value); }
+        String(value) => { escape_string_into(emitter, &value); }
         Object(values) => {
             emitter.append_view("{\n");
             var itr = values.iterator();
@@ -169,7 +169,7 @@ public func <T : JsonStringEmitter> (emitter : &mut T) append_value_pretty(value
                 first = false;
 
                 for (var i = 0; i < indent + 2; i++) { emitter.append_view(" "); }
-                emitter.append_value_pretty(*current, indent + 2);
+                emitter.append_value_pretty(&*current, indent + 2);
 
                 current++;
             }

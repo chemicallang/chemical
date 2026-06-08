@@ -40,7 +40,7 @@ public namespace http {
                 var full_path = u.subview(slash, u.size());
                 var qmark = full_path.find("?");
                 if(qmark == std::NPOS) {
-                    res.path = std::string::view_make(full_path);
+                    res.path = std::string::view_make(&full_path);
                 } else {
                     res.path = std::string::view_make(full_path.subview(0u, qmark));
                     res.query = std::string::view_make(full_path.subview(qmark + 1u, full_path.size()));
@@ -49,7 +49,7 @@ public namespace http {
 
             var colon = host_port.find(":");
             if(colon == std::NPOS) {
-                res.host = std::string::view_make(host_port);
+                res.host = std::string::view_make(&host_port);
             } else {
                 res.host = std::string::view_make(host_port.subview(0u, colon));
                 var pstr = host_port.subview(colon + 1u, host_port.size());
@@ -94,9 +94,9 @@ public namespace http {
 
         public func query(&mut self, k: std::string_view, v: std::string_view) : &mut RequestBuilder {
             if(!url.query.empty()) { url.query.append('&') }
-            url.query.append_view(k);
+            url.query.append_view(&k);
             url.query.append('=');
-            url.query.append_view(v);
+            url.query.append_view(&v);
             return self;
         }
 
@@ -123,15 +123,15 @@ public namespace http {
 
         public func build(&self) : std::string {
             var out = std::string();
-            out.append_string(method);
+            out.append_string(&method);
             out.append(' ');
-            out.append_string(url.path);
+            out.append_string(&url.path);
             if(!url.query.empty()) {
                 out.append('?');
-                out.append_string(url.query);
+                out.append_string(&url.query);
             }
             out.append_view(" HTTP/1.1\r\nHost: ");
-            out.append_string(url.host);
+            out.append_string(&url.host);
             if((url.scheme.equals_with_len("http", 4) && url.port != 80u) || (url.scheme.equals_with_len("https", 5) && url.port != 443u)) {
                 out.append(':');
                 out.append_uinteger(url.port);
@@ -151,15 +151,15 @@ public namespace http {
             var i = 0u;
             while(i < headers.headers.size()) {
                 var p = headers.headers.get_ptr(i);
-                out.append_string(p.first);
+                out.append_string(&p.first);
                 out.append_view(": ");
-                out.append_string(p.second);
+                out.append_string(&p.second);
                 out.append_view("\r\n");
                 i++;
             }
             out.append_view("Connection: close\r\n\r\n");
             if(body.size() > 0u) {
-                out.append_string(body);
+                out.append_string(&body);
             }
             return out;
         }
@@ -189,7 +189,7 @@ public namespace net {
         net::send_all(s, req_data.data(), req_data.size() as int);
 
         var buf_ptr = new io::Buffer(); // heap-allocate to survive request() return
-        var res_opt = http::read_response_incremental(s, *buf_ptr, req_builder.timeout_secs, self.max_response_header_bytes);
+        var res_opt = http::read_response_incremental(s, &mut *buf_ptr, req_builder.timeout_secs, self.max_response_header_bytes);
         if(res_opt is std::Option.None) {
             delete buf_ptr; // free heap buffer on failure
             net::close_socket(s);
@@ -205,57 +205,57 @@ public namespace net {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
 
         public func post(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("POST", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("POST", std::replace(&mut u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
         
         public func put(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("PUT", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("PUT", std::replace(&mut u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
 
         public func patch(&self, url_str: &std::string_view, body: &std::string_view, content_type: *char = "text/plain") : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("PATCH", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("PATCH", std::replace(&mut u, http::URL()));
             rb.set_body(body, content_type);
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
 
         public func delete(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("DELETE", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("DELETE", std::replace(&mut u, http::URL()));
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
 
         public func head(&self, url_str: &std::string_view) : std::Result<http::Response, std::string> {
             var u_opt = http::URL::parse(url_str);
             if(u_opt is std::Option.None) return std::Result.Err<http::Response, std::string>(std::string::make_no_len("invalid URL"));
             var Some(u) = u_opt else unreachable;
-            var rb = http::RequestBuilder("HEAD", std::replace(u, http::URL()));
+            var rb = http::RequestBuilder("HEAD", std::replace(&mut u, http::URL()));
             rb.timeout(self.default_timeout_secs);
-            return self.request(rb);
+            return self.request(&rb);
         }
     }
 

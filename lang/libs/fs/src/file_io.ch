@@ -61,7 +61,7 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
     // write to temp in same dir then rename
     // compose tmp path: path + ".tmpXXXX"
     var dir_buf : [PATH_MAX_BUF]char;
-    var r = dirname(path, &mut dir_buf[0], PATH_MAX_BUF as size_t);
+    var r = dirname(path, &raw mut dir_buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err(e); }
     var Ok(dir_len) = r else unreachable;
     var tmpbuf : [PATH_MAX_BUF]char;
@@ -76,17 +76,17 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
     p += pi;
     // naive PID -> decimal (user can replace with syscall)
     var PID : int = 12345; // user should replace with getpid()
-    var tlen : size_t = int_to_str(PID, &mut tmpname[0], 64);
+    var tlen : size_t = int_to_str(PID, &raw mut tmpname[0], 64);
     if(tlen == 0) { return Result.Err(FsError.Other("pid conversion failed\0")); }
     var q : size_t = 0;
     while(q <= tlen) { tmpbuf[p + q] = tmpname[q]; q++ }
     // ensure null
     tmpbuf[p + tlen] = 0;
     // write file
-    var wr = write_text_file(&mut tmpbuf[0], data, data_len);
+    var wr = write_text_file(&raw mut tmpbuf[0], data, data_len);
     if(wr is Result.Err) { var Err(e) = wr else unreachable; return Result.Err(e); }
     // rename temp to final
-    var rnm = move_path(&mut tmpbuf[0], path);
+    var rnm = move_path(&raw mut tmpbuf[0], path);
     if(rnm is Result.Err) { var Err(e) = rnm else unreachable; return Result.Err(e); }
     return Result.Ok(UnitTy{});
 }
@@ -123,7 +123,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
             var newcap = cap * 2;
             // guard against 0 or overflow
             if(newcap <= cap) { // overflow or stuck
-                file_close(&mut f);
+                file_close(&raw mut f);
                 return Result.Err(FsError.Other("file too large to read"));
             }
             cap = newcap;
@@ -135,10 +135,10 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 
         // read up to (cap - pos) bytes
         var want = cap - pos;
-        var r = file_read(&mut f, ptr as *mut u8, want);
+        var r = file_read(&raw mut f, ptr as *mut u8, want);
         if(r is Result.Err) {
             var Err(e) = r else unreachable;
-            file_close(&mut f);
+            file_close(&raw mut f);
             return Result.Err(e);
         }
         var Ok(n) = r else unreachable;
@@ -156,7 +156,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
     // set the string's size to the number of bytes read
     vec.set_len(pos);
 
-    file_close(&mut f);
+    file_close(&raw mut f);
     return Result.Ok(vec);
 }
 
@@ -172,14 +172,14 @@ public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Resu
     var Ok(f) = fo else unreachable
     var pos : size_t = 0;
     while(true) {
-        var r = file_read(&mut f, buf + pos, buf_len - pos);
-        if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&mut f); return Result.Err<size_t, FsError>(e); }
+        var r = file_read(&raw mut f, buf + pos, buf_len - pos);
+        if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
         var Ok(n) = r else unreachable;
         if(n == 0) { break; } // EOF
         pos += n;
-        if(pos >= buf_len) { file_close(&mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+        if(pos >= buf_len) { file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
     }
-    file_close(&mut f);
+    file_close(&raw mut f);
     return Result.Ok<size_t, FsError>(pos);
 }
 
@@ -191,9 +191,9 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
         var Err(e) = fo else unreachable; return Result.Err(e);
     }
     var Ok(f) = fo else unreachable;
-    var r = file_write_all(&mut f, data, data_len);
-    if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&mut f); return Result.Err(e); }
-    file_close(&mut f);
+    var r = file_write_all(&raw mut f, data, data_len);
+    if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&raw mut f); return Result.Err(e); }
+    file_close(&raw mut f);
     return Result.Ok(UnitTy{});
 }
 

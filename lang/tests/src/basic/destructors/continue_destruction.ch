@@ -4,7 +4,7 @@ func test_continue_destruction() {
         for(var i = 0; i < 2; i++) {
             if(i == 0) {
                 var d = Destructible {
-                    data : 739, count : &mut count, lamb : destruct_inc_count
+                    data : 739, count : &raw mut count, lamb : destruct_inc_count
                 }
                 continue;
             }
@@ -15,7 +15,7 @@ func test_continue_destruction() {
         var count = 0
         for(var i = 0; i < 2; i++) {
             var d = Destructible {
-                data : 739, count : &mut count, lamb : destruct_inc_count
+                data : 739, count : &raw mut count, lamb : destruct_inc_count
             }
             if(i == 0) {
                 continue;
@@ -29,7 +29,7 @@ func test_continue_destruction() {
     test("continue in a loop does NOT destruct objects above loop", () => {
         var count = 0
         var d = Destructible {
-            data : 739, count : &mut count, lamb : destruct_inc_count
+            data : 739, count : &raw mut count, lamb : destruct_inc_count
         }
         for(var i = 0; i < 2; i++) {
             if(i == 0) {

@@ -163,9 +163,15 @@ public:
     bool isValueLiteral();
 
     /**
-     * check if given kind is a r value
+     * check if value is a r value in backend
+     * this basically doesn't consider functions that return structs r values
      */
-    bool isValueRValue();
+    bool isValueRValueInBackend();
+
+    /**
+     * check if value is a r value in frontend
+     */
+    bool isValueRValueInFrontend();
 
     /**
      * will check contents, are they of the same kind
@@ -1090,6 +1096,11 @@ public:
     inline AddrOfValue* as_addr_of_value_unsafe() {
         CHECK_CAST(ValueKind::AddrOfValue);
         return ((AddrOfValue*) this);
+    }
+
+    inline ReferenceOfValue* as_reference_of_value_unsafe() {
+        CHECK_CAST(ValueKind::ReferenceOfValue);
+        return ((ReferenceOfValue*) this);
     }
 
     inline WrapValue* as_wrap_value_unsafe() {

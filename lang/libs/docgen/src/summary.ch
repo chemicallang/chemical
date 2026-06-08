@@ -19,7 +19,7 @@ func print_items(items : &std::vector<*mut SummaryItem>) {
         printf("- [%s](%s)\n", item.title.data(), item.link.data());
         if(!item.children.empty()) {
             printf("\t");
-            print_items(item.children);
+            print_items(&item.children);
         }
         start++
     }
@@ -27,7 +27,7 @@ func print_items(items : &std::vector<*mut SummaryItem>) {
 
 func print_summary(s : &Summary) {
     if(!s.items.empty()) {
-        print_items(s.items);
+        print_items(&s.items);
     }
 }
 
@@ -60,36 +60,36 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     if(node.kind == md::MdNodeKind.Link) {
                         var l = node as *mut md::MdLink;
                         link.clear();
-                        link.append_view(l.url);  // Ensure proper copy
+                        link.append_view(&l.url);  // Ensure proper copy
                         var k = 0u;
                         while(k < l.children.size()) {
                             var lc = l.children.get(k);
                             if(lc.kind == md::MdNodeKind.Text) {
-                                title.append_view((lc as *mut md::MdText).value);
+                                title.append_view(&(lc as *mut md::MdText).value);
                             }
                             k++;
                         }
                     } else if(node.kind == md::MdNodeKind.Text) {
-                        title.append_view((node as *mut md::MdText).value);
+                        title.append_view(&(node as *mut md::MdText).value);
                     }
                     j++;
                 }
             } else if(child.kind == md::MdNodeKind.Link) {
                  var l = child as *mut md::MdLink;
                  link.clear();
-                 link.append_view(l.url);  // Ensure proper copy
+                 link.append_view(&l.url);  // Ensure proper copy
                  // printf("    Found Link! URL='%s'\n", l.url.data());
                  var k = 0u;
                  while(k < l.children.size()) {
                     var lc = l.children.get(k);
                     if(lc.kind == md::MdNodeKind.Text) {
-                         title.append_view((lc as *mut md::MdText).value);
+                         title.append_view(&(lc as *mut md::MdText).value);
                     }
                     k++;
                  }
             } else if(child.kind == md::MdNodeKind.Text) {
                  // printf("    Found Text: '%s'\n", (child as *mut md::MdText).value.data());
-                 title.append_view((child as *mut md::MdText).value);
+                 title.append_view(&(child as *mut md::MdText).value);
             } else if(child.kind == md::MdNodeKind.List) {
                 var l = child as *mut md::MdList;
                 // printf("    Found nested List with %d items\n", l.children.size());
@@ -139,7 +139,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
     var tokens = md::lex(view);
     printf("Lexed %d tokens\n", tokens.size());
     
-    var root = md::parse(&tokens, &mut arena);
+    var root = md::parse(&raw tokens, &raw mut arena);
     if(root == null) {
         printf("Parse failed (root is null)\n");
         return null;
@@ -164,7 +164,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
                 while(k < h.children.size()) {
                     var c = h.children.get(k);
                     if(c.kind == md::MdNodeKind.Text) {
-                        summary.title.append_view((c as *mut md::MdText).value);
+                        summary.title.append_view(&(c as *mut md::MdText).value);
                     }
                     k++;
                 }
@@ -174,7 +174,7 @@ public func parse_summary(path : std::string_view) : *mut Summary {
             printf("Found List with %d items\n", list.children.size());
             var j = 0u;
             while(j < list.children.size()) {
-                var item = parse_list_item(list.children.get(j) as *mut md::MdListItem, &mut arena);
+                var item = parse_list_item(list.children.get(j) as *mut md::MdListItem, &raw mut arena);
                 if(item != null) {
                     summary.items.push_back(item);
                 } else {

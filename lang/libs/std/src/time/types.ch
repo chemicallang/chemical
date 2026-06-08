@@ -202,7 +202,7 @@ public namespace std {
                 var n : i64 = 0
                 // Call platform-specific monotonic clock
                 // now_monotonic is in std namespace, defined in platform time.ch
-                now_monotonic(&mut s, &mut n)
+                now_monotonic(&raw mut s, &raw mut n)
                 return Instant { secs : s, nanos : n }
             }
 
@@ -270,7 +270,7 @@ public namespace std {
                 var n : i64 = 0
                 // Call platform-specific realtime clock
                 // now_realtime is in std namespace, defined in platform time.ch
-                now_realtime(&mut s, &mut n)
+                now_realtime(&raw mut s, &raw mut n)
                 return SystemTime { secs : s, nanos : n }
             }
 

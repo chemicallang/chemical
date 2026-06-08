@@ -28,21 +28,21 @@ func test_time_types() {
     test("Duration add", () => {
         var a = std::chrono::Duration::from_secs(10)
         var b = std::chrono::Duration::from_secs(20)
-        var c = a.add(b)
+        var c = a.add(&b)
         return c.as_secs() == 30 && c.subsec_nanos() == 0
     })
 
     test("Duration add with nanos overflow", () => {
         var a = std::chrono::Duration::from_millis(500)
         var b = std::chrono::Duration::from_millis(800)
-        var c = a.add(b)
+        var c = a.add(&b)
         return c.as_secs() == 1 && c.subsec_nanos() == 300000000
     })
 
     test("Duration sub", () => {
         var a = std::chrono::Duration::from_secs(50)
         var b = std::chrono::Duration::from_secs(30)
-        var c = a.sub(b)
+        var c = a.sub(&b)
         return c.as_secs() == 20
     })
 
@@ -55,13 +55,13 @@ func test_time_types() {
     test("Duration equals", () => {
         var a = std::chrono::Duration::from_secs(10)
         var b = std::chrono::Duration::from_secs(10)
-        return a.equals(b)
+        return a.equals(&b)
     })
 
     test("Duration cmp", () => {
         var a = std::chrono::Duration::from_secs(5)
         var b = std::chrono::Duration::from_secs(10)
-        return a.cmp(b) == -1 && b.cmp(a) == 1
+        return a.cmp(&b) == -1 && b.cmp(&a) == 1
     })
 
     test("Duration mul_i64", () => {
@@ -125,28 +125,28 @@ func test_time_types() {
     test("SystemTime add_duration", () => {
         var t = std::chrono::SystemTime::from_unix_epoch(1000)
         var dur = std::chrono::Duration::from_secs(500)
-        var later = t.add_duration(dur)
+        var later = t.add_duration(&dur)
         return later.as_unix_epoch_secs() == 1500
     })
 
     test("SystemTime sub_duration", () => {
         var t = std::chrono::SystemTime::from_unix_epoch(1000)
         var dur = std::chrono::Duration::from_secs(500)
-        var earlier = t.sub_duration(dur)
+        var earlier = t.sub_duration(&dur)
         return earlier.as_unix_epoch_secs() == 500
     })
 
     test("SystemTime duration_since", () => {
         var a = std::chrono::SystemTime::from_unix_epoch(100)
         var b = std::chrono::SystemTime::from_unix_epoch(200)
-        var d = b.duration_since(a)
+        var d = b.duration_since(&a)
         return d.as_secs() == 100
     })
 
     test("SystemTime equals", () => {
         var a = std::chrono::SystemTime::from_unix_epoch(42)
         var b = std::chrono::SystemTime::from_unix_epoch(42)
-        return a.equals(b)
+        return a.equals(&b)
     })
 
 }

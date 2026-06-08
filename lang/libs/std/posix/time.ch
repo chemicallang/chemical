@@ -4,7 +4,7 @@ public namespace std {
 
     public func now_milli() : i64 {
         var ts = zeroed<timespec>();
-        clock_gettime(0, &mut ts);
+        clock_gettime(0, &raw mut ts);
         return (ts.tv_sec as i64 * 1000i64) + (ts.tv_nsec as i64 / 1000000i64);
     }
 
@@ -24,7 +24,7 @@ public namespace std {
 
     internal func now_clock(secs : *mut i64, nanos : *mut i64, clock_id : int) {
         var ts = zeroed<timespec>()
-        var rc = clock_gettime(clock_id, &mut ts)
+        var rc = clock_gettime(clock_id, &raw mut ts)
         if(rc != 0) {
             panic("clock_gettime failed")
         }

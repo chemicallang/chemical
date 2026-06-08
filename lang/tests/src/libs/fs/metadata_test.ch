@@ -7,8 +7,8 @@ func test_fs_metadata_exists_and_types(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var file_path = make_child_path(base, "file.txt");
-    var dir_path = make_child_path(base, "subdir");
+    var file_path = make_child_path(&base, "file.txt");
+    var dir_path = make_child_path(&base, "subdir");
     
     // Test directory
     fs::create_dir(dir_path.data());
@@ -37,7 +37,7 @@ func test_fs_metadata_exists_and_types(env : &mut TestEnv) {
     expect_true(env, !is_d2, "file should not be a dir");
 
     // Non-existent
-    var missing = make_child_path(base, "missing");
+    var missing = make_child_path(&base, "missing");
     expect_true(env, !fs::exists(missing.data()), "missing should not exist");
 
     fs::remove_dir_all_recursive(base.data());
@@ -49,7 +49,7 @@ func test_fs_metadata_properties(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var p = make_child_path(base, "props.txt");
+    var p = make_child_path(&base, "props.txt");
     var content : *char = "1234567890";
     var len = strlen(content) as size_t;
     fs::write_text_file(p.data(), content as *u8, len);
@@ -72,7 +72,7 @@ func test_fs_set_permissions_and_times(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var p = make_child_path(base, "perms_times.txt");
+    var p = make_child_path(&base, "perms_times.txt");
     fs::write_text_file(p.data(), "test" as *u8, 4);
 
     // Set permissions

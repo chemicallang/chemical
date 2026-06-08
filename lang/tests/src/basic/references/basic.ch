@@ -20,7 +20,14 @@ func take_ref(r : &ReferencableStruct) : int {
 }
 
 func pass_deref_ref_to_ref(r : &ReferencableStruct) : int {
-    return take_ref(*r)
+    return take_ref(&*r)
+}
+
+struct member_deref_ref {
+    var i : &int
+    func derer_ref(&self) : &int {
+        return &*i;
+    }
 }
 
 func take_direct_struct(r : ReferencableStruct) : int {
@@ -117,7 +124,7 @@ struct RefPassRet {
     }
 
     func give3(&self) : *int {
-        return &ref;
+        return &raw ref;
     }
 
 }
@@ -137,12 +144,12 @@ func copying_trivially_copyable_from_ref_works(c : &RefGiveStruct) : int {
 func test_references() {
     test("copying trivially copyable from by dereference of reference works", () => {
         var c = RefGiveStruct { i : 2394 }
-        var r = copying_trivially_copyable_from_ref_works(c)
+        var r = copying_trivially_copyable_from_ref_works(&c)
         return r == 2394;
     })
     test("assignment to passed mutable reference via constructor works", () => {
         var j = AssignableReferencableStruct(22)
-        assign_to_ref_struct(j)
+        assign_to_ref_struct(&mut j)
         return j.i == 9873
     })
     test("integer references are passed as function arguments automatically", () => {
@@ -168,15 +175,15 @@ func test_references() {
     })
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }
-        return take_ref(r) == 99;
+        return take_ref(&r) == 99;
     })
     test("struct can be passed in between functions as reference", () => {
         var r = ReferencableStruct { i : 98 }
-        return in_between_ref_pass(r) == 98;
+        return in_between_ref_pass(&r) == 98;
     })
     test("references can be stored in structs", () => {
         var r = ReferencableStruct { i : 97 }
-        var rr = ReferencableStructRef { r : r }
+        var rr = ReferencableStructRef { r : &r }
         return rr.r.i == 97
     })
     test("accessing members through deref works", () => {
@@ -194,7 +201,7 @@ func test_references() {
     })
     test("references can be stored in variants", () => {
         var z = ReferencableStruct { i : 97 }
-        var rr = ReferencableStructOpt.Some(z)
+        var rr = ReferencableStructOpt.Some(&z)
         switch(rr) {
             Some(r) => {
                 return r.i == 97;
@@ -211,7 +218,7 @@ func test_references() {
     })
     test("can assign to a struct type reference", () => {
         var p = ReferencableStruct { i : 32 }
-        *give_ref_struct_ref(p) = ReferencableStruct { i : 98 }
+        *give_ref_struct_ref(&mut p) = ReferencableStruct { i : 98 }
         return p.i == 98
     })
     test("assignment to passed reference works", () => {
@@ -229,7 +236,7 @@ func test_references() {
     })
     test("can call methods on casted references", () => {
         var r = ReferenceCastedMethod { a : 32, b : 5 }
-        return call_on_casted_ref<ReferenceCastedMethod>(r) == 37
+        return call_on_casted_ref<ReferenceCastedMethod>(&r) == 37
     })
     test("assignment to stored reference inside struct works", () => {
         var i = 0
@@ -267,7 +274,7 @@ func test_references() {
     })
     test("calling method on stored reference passes self pointer correctly", () => {
         var thing = ReferenceCastedMethod { a : 23, b : 6 }
-        var r = ref_mem_call { thing : thing }
+        var r = ref_mem_call { thing : &thing }
         return r.get_sum() == 29
     })
     test("taking reference of struct member through method works", () => {
@@ -287,17 +294,22 @@ func test_references() {
     })
     test("passing dereference of struct to a reference parameter type works", () => {
         var r = ReferencableStruct { i : 94853 }
-        var i = pass_deref_ref_to_ref(r)
+        var i = pass_deref_ref_to_ref(&r)
         return i == 94853
     })
     test("passing dereference of struct to a reference parameter type works", () => {
         var r = ReferencableStruct { i : 94853 }
-        var i = pass_deref_ref_to_ref(r)
+        var i = pass_deref_ref_to_ref(&r)
         return i == 94853
     })
     test("passing dereference of struct to a direct parameter type works", () => {
         var r = ReferencableStruct { i : 34603288 }
-        var i = pass_deref_ref_to_direct(r)
+        var i = pass_deref_ref_to_direct(&r)
         return i == 34603288;
+    })
+    test("struct member ref of dref works", () => {
+        var i = 34
+        var m = member_deref_ref { i : &i }
+        return *m.derer_ref() == 34
     })
 }

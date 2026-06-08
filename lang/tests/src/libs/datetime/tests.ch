@@ -106,9 +106,9 @@ public func timezone_format_utc_offset(env : &mut TestEnv) {
 public func timezone_equals(env : &mut TestEnv) {
     var a = datetime::TimeZone::utc()
     var b = datetime::TimeZone::utc()
-    if(a.equals(b)) { env.success("equal tz") } else { env.error("same tz should be equal") }
+    if(a.equals(&b)) { env.success("equal tz") } else { env.error("same tz should be equal") }
     var c = datetime::TimeZone::fixed(3600, std::string_view("CET"))
-    if(!a.equals(c)) { env.success("diff tz not equal") } else { env.error("different tz should not be equal") }
+    if(!a.equals(&c)) { env.success("diff tz not equal") } else { env.error("different tz should not be equal") }
 }
 
 // ---------------------------------------------------------------------------
@@ -144,8 +144,8 @@ public func datetime_roundtrip_systemtime_utc(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(2024, 6, 15, 12, 0, 0, 0, tz)
     var st = dt1.to_system_time()
-    var dt2 = datetime::DateTime::from_system_time(st)
-    if(dt1.equals(dt2)) { env.success("rt utc ok") } else { env.error("roundtrip UTC failed") }
+    var dt2 = datetime::DateTime::from_system_time(&st)
+    if(dt1.equals(&dt2)) { env.success("rt utc ok") } else { env.error("roundtrip UTC failed") }
 }
 
 @test
@@ -153,10 +153,10 @@ public func datetime_roundtrip_systemtime_positive_offset(env : &mut TestEnv) {
     var tz = datetime::TimeZone::fixed(19800, std::string_view("IST"))
     var dt1 = datetime::DateTime::from_components(2024, 6, 15, 17, 30, 0, 0, tz.copy())
     var st = dt1.to_system_time()
-    var dt2 = datetime::DateTime::from_system_time_tz(st, tz.copy())
-    if(dt1.equals(dt2)) { env.success("rt +0530 ok") } else { env.error("roundtrip +05:30 failed") }
+    var dt2 = datetime::DateTime::from_system_time_tz(&st, tz.copy())
+    if(dt1.equals(&dt2)) { env.success("rt +0530 ok") } else { env.error("roundtrip +05:30 failed") }
     // Also verify the UTC equivalent
-    var dt_utc = datetime::DateTime::from_system_time(st)
+    var dt_utc = datetime::DateTime::from_system_time(&st)
     if(dt_utc.hour_val() == 12) { env.success("utc hour is 12") } else { env.error("utc hour should be 12 for 17:30 IST") }
 }
 
@@ -165,10 +165,10 @@ public func datetime_roundtrip_systemtime_negative_offset(env : &mut TestEnv) {
     var tz = datetime::TimeZone::fixed(-18000, std::string_view("EST"))
     var dt1 = datetime::DateTime::from_components(2024, 6, 15, 7, 0, 0, 0, tz.copy())
     var st = dt1.to_system_time()
-    var dt2 = datetime::DateTime::from_system_time_tz(st, tz)
-    if(dt1.equals(dt2)) { env.success("rt -0500 ok") } else { env.error("roundtrip -05:00 failed") }
+    var dt2 = datetime::DateTime::from_system_time_tz(&st, tz)
+    if(dt1.equals(&dt2)) { env.success("rt -0500 ok") } else { env.error("roundtrip -05:00 failed") }
     // UTC should be 12:00
-    var dt_utc = datetime::DateTime::from_system_time(st)
+    var dt_utc = datetime::DateTime::from_system_time(&st)
     if(dt_utc.hour_val() == 12) { env.success("utc hour is 12") } else { env.error("utc hour should be 12 for 07:00 EST") }
 }
 
@@ -179,8 +179,8 @@ public func datetime_epoch_roundtrip(env : &mut TestEnv) {
     var st = dt1.to_system_time()
     var epoch_secs = st.as_unix_epoch_secs()
     if(epoch_secs == 0) { env.success("epoch secs 0") } else { env.error("epoch secs should be 0") }
-    var dt2 = datetime::DateTime::from_system_time(st)
-    if(dt1.equals(dt2)) { env.success("epoch rt ok") } else { env.error("epoch roundtrip failed") }
+    var dt2 = datetime::DateTime::from_system_time(&st)
+    if(dt1.equals(&dt2)) { env.success("epoch rt ok") } else { env.error("epoch roundtrip failed") }
 }
 
 @test
@@ -250,7 +250,7 @@ public func datetime_arithmetic_add_duration(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt = datetime::DateTime::from_components(2024, 1, 1, 0, 0, 0, 0, tz)
     var dur = std::chrono::Duration::from_secs(86400)
-    var dt2 = dt.add_duration(dur)
+    var dt2 = dt.add_duration(&dur)
     if(dt2.day_val() == 2) { env.success("add 1 day") } else { env.error("adding 86400s should advance 1 day") }
 }
 
@@ -259,7 +259,7 @@ public func datetime_arithmetic_sub_duration(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt = datetime::DateTime::from_components(2024, 1, 10, 0, 0, 0, 0, tz)
     var dur = std::chrono::Duration::from_secs(86400)
-    var dt2 = dt.sub_duration(dur)
+    var dt2 = dt.sub_duration(&dur)
     if(dt2.day_val() == 9) { env.success("sub 1 day") } else { env.error("subtracting 86400s should go back 1 day") }
 }
 
@@ -268,7 +268,7 @@ public func datetime_arithmetic_duration_since(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(2024, 1, 2, 0, 0, 0, 0, tz.copy())
     var dt2 = datetime::DateTime::from_components(2024, 1, 1, 0, 0, 0, 0, tz)
-    var dur = dt1.duration_since(dt2)
+    var dur = dt1.duration_since(&dt2)
     var secs = dur.as_secs()
     if(secs == 86400) { env.success("dur since 86400") } else { env.error("duration_since should be 86400s") }
 }
@@ -278,9 +278,9 @@ public func datetime_equals(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var a = datetime::DateTime::from_components(2024, 1, 1, 0, 0, 0, 0, tz.copy())
     var b = datetime::DateTime::from_components(2024, 1, 1, 0, 0, 0, 0, tz.copy())
-    if(a.equals(b)) { env.success("equal dt") } else { env.error("same DateTime should be equal") }
+    if(a.equals(&b)) { env.success("equal dt") } else { env.error("same DateTime should be equal") }
     var c = datetime::DateTime::from_components(2024, 1, 2, 0, 0, 0, 0, tz)
-    if(!a.equals(c)) { env.success("diff dt not equal") } else { env.error("different DateTime should not be equal") }
+    if(!a.equals(&c)) { env.success("diff dt not equal") } else { env.error("different DateTime should not be equal") }
 }
 
 @test
@@ -291,8 +291,8 @@ public func datetime_negative_epoch(env : &mut TestEnv) {
     var st = dt.to_system_time()
     var secs = st.as_unix_epoch_secs()
     if(secs == -3600) { env.success("neg epoch secs") } else { env.error("1969-12-31 23:00 should be -3600") }
-    var dt2 = datetime::DateTime::from_system_time(st)
-    if(dt.equals(dt2)) { env.success("neg rt ok") } else { env.error("negative epoch roundtrip failed") }
+    var dt2 = datetime::DateTime::from_system_time(&st)
+    if(dt.equals(&dt2)) { env.success("neg rt ok") } else { env.error("negative epoch roundtrip failed") }
 }
 
 @test
@@ -301,8 +301,8 @@ public func datetime_before_epoch_roundtrip(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(1947, 8, 15, 0, 0, 0, 0, tz)
     var st = dt1.to_system_time()
-    var dt2 = datetime::DateTime::from_system_time(st)
-    if(dt1.equals(dt2)) { env.success("1947 rt ok") } else { env.error("1947 roundtrip failed") }
+    var dt2 = datetime::DateTime::from_system_time(&st)
+    if(dt1.equals(&dt2)) { env.success("1947 rt ok") } else { env.error("1947 roundtrip failed") }
 }
 
 @test
@@ -311,8 +311,8 @@ public func datetime_far_future_roundtrip(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(2099, 12, 31, 23, 59, 59, 999999999, tz)
     var st = dt1.to_system_time()
-    var dt2 = datetime::DateTime::from_system_time(st)
-    if(dt1.equals(dt2)) { env.success("2099 rt ok") } else { env.error("2099 roundtrip failed") }
+    var dt2 = datetime::DateTime::from_system_time(&st)
+    if(dt1.equals(&dt2)) { env.success("2099 rt ok") } else { env.error("2099 roundtrip failed") }
 }
 
 @test
@@ -321,7 +321,7 @@ public func datetime_leap_year_boundary(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(2000, 2, 28, 0, 0, 0, 0, tz)
     var dur = std::chrono::Duration::from_secs(86400 * 2)
-    var dt2 = dt1.add_duration(dur)
+    var dt2 = dt1.add_duration(&dur)
     if(dt2.day_val() == 1 && dt2.month_val() == 3) { env.success("leap boundary ok") } else { env.error("Feb 28 + 2d should be Mar 1") }
 }
 
@@ -331,7 +331,7 @@ public func datetime_new_year_boundary(env : &mut TestEnv) {
     var tz = datetime::TimeZone::utc()
     var dt1 = datetime::DateTime::from_components(2024, 12, 31, 0, 0, 0, 0, tz)
     var dur = std::chrono::Duration::from_secs(86400)
-    var dt2 = dt1.add_duration(dur)
+    var dt2 = dt1.add_duration(&dur)
     if(dt2.year_val() == 2025 && dt2.month_val() == 1 && dt2.day_val() == 1) {
         env.success("new year boundary ok")
     } else {

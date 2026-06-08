@@ -789,6 +789,8 @@ public:
 
     void VisitAddrOfValue(AddrOfValue* value);
 
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
     void VisitMultipleValue(MultipleValue* value);

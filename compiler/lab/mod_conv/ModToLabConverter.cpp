@@ -127,8 +127,8 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     // build method
     output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {\n";
 
-    output << "\tconst __curr_lab_path = lab::get_my_path();\n";
-    output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, __curr_lab_path);\n";
+    output << "\tvar __curr_lab_path = lab::get_my_path();\n";
+    output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, &__curr_lab_path);\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
 
     output << "\tconst deps : []ModuleDependency = [ ";
@@ -166,7 +166,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << " ];\n";
     const auto pkg_kind_str = (data.package_kind == PackageKind::Application) ? "PackageKind.Application" : "PackageKind.Library";
     output << "\tconst mod = ctx.new_package(ModuleType.Directory, " << pkg_kind_str << ", \"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
-    output << "\tctx.set_cached(__chx_job, __curr_lab_path, mod)\n";
+    output << "\tctx.set_cached(__chx_job, &__curr_lab_path, mod)\n";
     
     // Now handle remote imports
     i = 0;
@@ -341,24 +341,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             output << "\tctx.add_compiler_interface(mod, \"" << interface << "\");\n";
         }
     }
-    // TODO: enable this when bug with automatic constructor call is fixed
-//    if(!data.compiler_interfaces.empty()) {
-//        output << "\tctx.add_compiler_interfaces(mod, [ ";
-//        // writing each compiler interface
-//        for(const auto interface : data.compiler_interfaces) {
-//            output << '"' << interface << "\", ";
-//        }
-//        output << "]);\n";
-//    }
     output << "\treturn mod;\n";
     output << "}\n\n";
-
-// get method is not available
-//    // get method
-//    output << "var __chx_should_build : bool = true;\n";
-//    output << "var __chx_cached_build : *mut Module = null;\n";
-//    output << "public func get(ctx : *mut BuildContext) : *mut Module {\n";
-//    output << "\treturn ctx.default_get(&mut __chx_should_build, &mut __chx_cached_build, build);\n";
-//    output << "}\n";
 
 }

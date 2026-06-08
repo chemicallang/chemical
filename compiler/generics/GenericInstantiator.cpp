@@ -508,6 +508,13 @@ void GenericInstantiator::VisitAddrOfValue(AddrOfValue* value) {
     value->determine_type();
 }
 
+void GenericInstantiator::VisitReferenceOfValue(ReferenceOfValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitReferenceOfValue(value);
+    // value->value->report_addr_taken_of_chain_id();
+    // type can change, must redetermine it
+    value->determine_type();
+}
+
 void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitDereferenceValue(value);
     if(!value->determine_type(typeBuilder)) {

@@ -60,28 +60,28 @@ func test_namespaces() {
             a : 1,
             b : 2
         }
-        return cool::pair2_sum(&p) == 3;
+        return cool::pair2_sum(&raw p) == 3;
     })
     test("namespace extended functions work - 1", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
-        return cool::pair2_mul(&p) == 2;
+        return cool::pair2_mul(&raw p) == 2;
     })
     test("namespace extended functions work - 2", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
-        return cool::pair2_indirect_mul(&p) == 2;
+        return cool::pair2_indirect_mul(&raw p) == 2;
     })
     test("namespace extended functions work - 3", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
-        return cool::pair2_ext_sum(&p) == 3;
+        return cool::pair2_ext_sum(&raw p) == 3;
     })
     test("typealias from namespace works", () => {
         var t : cool::kinda_int

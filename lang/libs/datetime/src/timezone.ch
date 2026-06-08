@@ -19,7 +19,7 @@ public namespace datetime {
 
         public func fixed(offset_secs : i64, name : std::string_view) : TimeZone {
             var s = std::string()
-            s.append_view(name)
+            s.append_view(&name)
             return TimeZone { offset_secs : offset_secs, tz_name : s }
         }
 
@@ -42,7 +42,7 @@ public namespace datetime {
         }
 
         public func equals(&self, other : &TimeZone) : bool {
-            return self.offset_secs == other.offset_secs && self.tz_name.equals(other.tz_name)
+            return self.offset_secs == other.offset_secs && self.tz_name.equals(&other.tz_name)
         }
 
         public func format_utc_offset(&self) : std::string {

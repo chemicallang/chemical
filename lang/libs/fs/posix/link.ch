@@ -24,7 +24,7 @@ func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Resu
 
 func is_symlink(path : *char) : Result<bool, FsError> {
     var st : Stat;
-    var r = lstat(path, &mut st);
+    var r = lstat(path, &raw mut st);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     var islnk = ((st.st_mode & 0xF000) == 0xA000);
     return Result.Ok(islnk);

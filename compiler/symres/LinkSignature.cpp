@@ -325,6 +325,11 @@ void TopLevelLinkSignature::VisitAddrOfValue(AddrOfValue* value) {
     }
 }
 
+void TopLevelLinkSignature::VisitReferenceOfValue(ReferenceOfValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitReferenceOfValue(value);
+    value->determine_type();
+}
+
 void TopLevelLinkSignature::VisitArrayValue(ArrayValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitArrayValue(value);
     value->determine_type(*linker.ast_allocator);

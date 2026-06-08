@@ -60,7 +60,7 @@ public func build_docs(root_path : *char, output_path : *char, index_path : *cha
     }
 
     printf("Summary:\n");
-    print_summary(*summary);
+    print_summary(&*summary);
     printf("Compiling documentation for: %s\n", summary.title.c_str());
 
     var config = DocConfig {

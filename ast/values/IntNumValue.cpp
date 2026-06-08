@@ -69,7 +69,3 @@ BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNo
 uint64_t NullValue::byte_size(TargetData& data) {
     return data.is64Bit ? 8 : 4;
 }
-
-uint64_t AddrOfValue::byte_size(TargetData& target) {
-    return target.is64Bit ? 8 : 4;
-}

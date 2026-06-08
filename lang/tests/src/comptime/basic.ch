@@ -292,7 +292,7 @@ func test_comptime() {
     })
     test("comptime delegated constructor get's called once", () => {
         var i = 0;
-        var c = CompTimeCounter(&mut i);
+        var c = CompTimeCounter(&raw mut i);
         return i == 1;
     })
     test("comptime constructor initialized struct can be returned - 1", () => {
@@ -350,12 +350,12 @@ func test_comptime() {
     test("module scope is as expected", () => {
         var scope_name = std::string_view(intrinsics::get_module_scope())
         var exp_scope_name = std::string_view("")
-        return scope_name.equals(exp_scope_name)
+        return scope_name.equals(&exp_scope_name)
     })
     test("module name is as expected", () => {
         var module_name = std::string_view(intrinsics::get_module_name())
         var exp_module_name = std::string_view("main")
-        return module_name.equals(exp_module_name)
+        return module_name.equals(&exp_module_name)
     })
     test("comptime member functions can return arguments", () => {
         var c = comptime_func_container {}

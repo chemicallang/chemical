@@ -31,13 +31,13 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
         if(r > 0 && dstchild[r-1] != '/') { dstchild[r++] = '/'; }
         q = 0; while(q <= name_len) { dstchild[r + q] = name[q]; q++ }
         if(is_dir) {
-            var c = copy_directory(&mut srcchild[0], &mut dstchild[0], preserve_metadata);
+            var c = copy_directory(&raw mut srcchild[0], &raw mut dstchild[0], preserve_metadata);
             if(c is Result.Err) { var Err(e) = c else unreachable; return false; }
         } else {
-            var c = copy_file(&mut srcchild[0], &mut dstchild[0]);
+            var c = copy_file(&raw mut srcchild[0], &raw mut dstchild[0]);
             if(c is Result.Err) { var Err(e) = c else unreachable; return false; }
             if(preserve_metadata) {
-                var meta = metadata(&mut srcchild[0]);
+                var meta = metadata(&raw mut srcchild[0]);
                 if(meta is Result.Err) {
                     var Err(e) = meta else unreachable
                     // TODO: cannot return the result
@@ -45,9 +45,9 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
                     return false;
                 }
                 var Ok(m) = meta else unreachable;
-                var setp = set_permissions(&mut dstchild[0], m.perms);
+                var setp = set_permissions(&raw mut dstchild[0], m.perms);
                 if(setp is Result.Err) { var Err(e) = setp else unreachable; /* non-fatal? */ }
-                var stimes = set_times(&mut dstchild[0], m.accessed, m.modified);
+                var stimes = set_times(&raw mut dstchild[0], m.accessed, m.modified);
                 if(stimes is Result.Err) { var Err(e) = stimes else unreachable; }
             }
         }

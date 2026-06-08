@@ -213,7 +213,7 @@ func test_capturing_lambda() {
     })
     test("wrapping a capturing lambda works - 1", () => {
         var result : int = 0
-        var x = wrap_cap_lamb(&mut result, ||() => {
+        var x = wrap_cap_lamb(&raw mut result, ||() => {
             return 92348324
         })
         x()
@@ -221,7 +221,7 @@ func test_capturing_lambda() {
     })
     test("wrapping a capturing lambda works - 2", () => {
         var result : int = 10
-        var x = wrap_cap_lamb_2(&mut result, |result|() => {
+        var x = wrap_cap_lamb_2(&raw mut result, |result|() => {
             return result + 10
         })
         x.fn()

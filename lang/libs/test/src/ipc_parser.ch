@@ -47,7 +47,7 @@ func read_msg_type(msg_ptr : *mut *char) : MessageCommandType {
         }
     }
 
-    return to_msg_cmd_type(&command_buffer[0]);
+    return to_msg_cmd_type(&raw command_buffer[0]);
 }
 
 /*
@@ -64,7 +64,7 @@ func parse_int_w_end(s : *char, out : *mut int, endPtrPtr : *mut *char) : int {
 
     // Call strtol with a local endptr, then publish it back to *endPtrPtr
     var local_end : *mut char = null;
-    var val : long = strtol(s, &mut local_end, 10);
+    var val : long = strtol(s, &raw mut local_end, 10);
 
     if (local_end == s) { // no conversion
         *endPtrPtr = s;   // keep caller’s pointer unchanged logically
@@ -103,7 +103,7 @@ func parse_int_from_str(pstr : *mut *char) : int {
     var endptr : *mut char = null;
 
     set_errno(0);
-    const val = strtol(s, &endptr, 10);
+    const val = strtol(s, &raw endptr, 10);
 
     if (endptr == s) {
         // No digits were found
@@ -165,7 +165,7 @@ func parseLog(msg_ptr : *mut *char, log : &mut TestLog) {
 
     if (!read_char(msg_ptr, ',')) { return; }
 
-    read_str(msg_ptr, log.message);
+    read_str(msg_ptr, &mut log.message);
 }
 
 /*
@@ -182,11 +182,11 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
     if (!msg)   return;
 
     // Must start with '$' to be one of ours
-    if (!read_char(&mut msg, '$')) {
+    if (!read_char(&raw mut msg, '$')) {
         return;
     }
 
-    var msgType = read_msg_type(&mut msg);
+    var msgType = read_msg_type(&raw mut msg);
 
     switch (msgType) {
         MessageCommandType.None, default => {
@@ -194,7 +194,7 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
         }
         MessageCommandType.Log => {
             var l = TestLog();
-            parseLog(&mut msg, l);
+            parseLog(&raw mut msg, &mut l);
             if(l.type !in LogType.Information, LogType.Warning, LogType.Success) {
                 state.has_failed = true;
                 state.has_error_log = true;
@@ -219,5 +219,5 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
  */
 func parse_int(s : *char, out : *mut int) : int {
     var end_ptr : *char
-    return parse_int_w_end(s, out, &mut end_ptr)
+    return parse_int_w_end(s, out, &raw mut end_ptr)
 }

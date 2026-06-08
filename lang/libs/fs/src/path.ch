@@ -55,7 +55,7 @@ public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<si
 // extension (returns extension starting at '.' or empty)
 public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var base_buf : [PATH_MAX_BUF]char;
-    var r = basename(path, &mut base_buf[0], PATH_MAX_BUF as size_t);
+    var r = basename(path, &raw mut base_buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err<size_t, FsError>(e); }
     var Ok(base_len) = r else unreachable;
     var i : size_t = base_len;

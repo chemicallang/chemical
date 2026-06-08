@@ -143,7 +143,7 @@ public namespace net {
     public func send_all(s: Socket, p:*char, len:int) {
         var off = 0;
         while(off < len) {
-            var n = sock_send(s, &p[off], len - off);
+            var n = sock_send(s, &raw p[off], len - off);
             if(n <= 0) { break }
             off = off + n;
         }
@@ -172,7 +172,7 @@ public namespace net {
         // This is fragile as struct definition is opaque. 
         // Let's pass null hints for now to get any address.
         
-        var ret = sock_getaddrinfo(addr_str, &port_str[0], null, &mut addrinfo);
+        var ret = sock_getaddrinfo(addr_str, &raw port_str[0], null, &raw mut addrinfo);
         if(ret != 0) {
             
             return 0 as Socket;

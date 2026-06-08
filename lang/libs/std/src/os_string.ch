@@ -48,7 +48,7 @@ struct OsString {
     func empty(&self) : bool { return data_.empty(); }
 
     // Get access to the native underlying string/characters
-    func native(&self) : &native_string_t { return data_; }
+    func native(&self) : &native_string_t { return &data_; }
 
     // Get a pointer to native data (null-terminated if you ensure it)
     func c_str_native(&self) : *native_char_t {

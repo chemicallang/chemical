@@ -314,7 +314,7 @@ func test_bodmas() {
     });
     test("pointer math in expressions work", () => {
         var i = 22;
-        const p = &i;
+        const p = &raw i;
         const j = p + 1;
         const k = j - 1;
         return *k == 22;
@@ -403,51 +403,51 @@ func test_bodmas() {
     })
     test("complex branching based on logical expression - 5", () => {
         const arr = ['.' as u16, 0u16]
-        return test_dot_filter2(&arr[0]) == false;
+        return test_dot_filter2(&raw arr[0]) == false;
     })
     test("complex branching based on logical expression - 6", () => {
         const arr = ['.' as u16, '.' as u16, 0u16]
-        return test_dot_filter2(&arr[0]) == false;
+        return test_dot_filter2(&raw arr[0]) == false;
     })
     test("complex branching based on logical expression - 7", () => {
         const arr = ['a' as u16, 0u16]
-        return test_dot_filter2(&arr[0]);
+        return test_dot_filter2(&raw arr[0]);
     })
     test("complex branching based on logical expression - 8", () => {
         const arr = ['.' as u16, 'a' as u16, 0u16]
-        return test_dot_filter2(&arr[0])
+        return test_dot_filter2(&raw arr[0])
     })
 
     // run every new test across those vectors
-    test("phi xor lowering \"temp_stack_copy_u16(.)\"", () => { return temp_stack_copy_u16(&dot_u16[0]) == false });
-    test("phi xor lowering \"temp_stack_copy_u16(..)\"", () => { return temp_stack_copy_u16(&dotdot_u16[0]) == false });
-    test("phi xor lowering \"temp_stack_copy_u16(a)\"", () => { return temp_stack_copy_u16(&a_u16[0]) == true });
-    test("phi xor lowering \"temp_stack_copy_u16(.a)\"", () => { return temp_stack_copy_u16(&dota_u16[0]) == true });
+    test("phi xor lowering \"temp_stack_copy_u16(.)\"", () => { return temp_stack_copy_u16(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"temp_stack_copy_u16(..)\"", () => { return temp_stack_copy_u16(&raw dotdot_u16[0]) == false });
+    test("phi xor lowering \"temp_stack_copy_u16(a)\"", () => { return temp_stack_copy_u16(&raw a_u16[0]) == true });
+    test("phi xor lowering \"temp_stack_copy_u16(.a)\"", () => { return temp_stack_copy_u16(&raw dota_u16[0]) == true });
 
-    test("phi xor lowering \"interleaved_calls_u16(.)\"", () => { return interleaved_calls_u16(&dot_u16[0]) == false });
-    test("phi xor lowering \"interleaved_calls_u16(..)\"", () => { return interleaved_calls_u16(&dotdot_u16[0]) == false });
-    test("phi xor lowering \"interleaved_calls_u16(a)\"", () => { return interleaved_calls_u16(&a_u16[0]) == true });
-    test("phi xor lowering \"interleaved_calls_u16(.a)\"", () => { return interleaved_calls_u16(&dota_u16[0]) == true });
+    test("phi xor lowering \"interleaved_calls_u16(.)\"", () => { return interleaved_calls_u16(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"interleaved_calls_u16(..)\"", () => { return interleaved_calls_u16(&raw dotdot_u16[0]) == false });
+    test("phi xor lowering \"interleaved_calls_u16(a)\"", () => { return interleaved_calls_u16(&raw a_u16[0]) == true });
+    test("phi xor lowering \"interleaved_calls_u16(.a)\"", () => { return interleaved_calls_u16(&raw dota_u16[0]) == true });
 
-    test("phi xor lowering \"gep_and_bitcast(.)\"", () => { return gep_and_bitcast(&dot_u16[0]) == false });
-    test("phi xor lowering \"gep_and_bitcast(..)\"", () => { return gep_and_bitcast(&dotdot_u16[0]) == false });
-    test("phi xor lowering \"gep_and_bitcast(a)\"", () => { return gep_and_bitcast(&a_u16[0]) == true });
-    test("phi xor lowering \"gep_and_bitcast(.a)\"", () => { return gep_and_bitcast(&dota_u16[0]) == true });
+    test("phi xor lowering \"gep_and_bitcast(.)\"", () => { return gep_and_bitcast(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"gep_and_bitcast(..)\"", () => { return gep_and_bitcast(&raw dotdot_u16[0]) == false });
+    test("phi xor lowering \"gep_and_bitcast(a)\"", () => { return gep_and_bitcast(&raw a_u16[0]) == true });
+    test("phi xor lowering \"gep_and_bitcast(.a)\"", () => { return gep_and_bitcast(&raw dota_u16[0]) == true });
 
-    test("phi xor lowering \"multi_way_merge(.)\"", () => { return multi_way_merge(&dot_u16[0]) == false });
-    test("phi xor lowering \"multi_way_merge(..)\"", () => { return multi_way_merge(&dotdot_u16[0]) == false });
-    test("phi xor lowering \"multi_way_merge(a)\"", () => { return multi_way_merge(&a_u16[0]) == true });
-    test("phi xor lowering \"multi_way_merge(.a)\"", () => { return multi_way_merge(&dota_u16[0]) == true });
+    test("phi xor lowering \"multi_way_merge(.)\"", () => { return multi_way_merge(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"multi_way_merge(..)\"", () => { return multi_way_merge(&raw dotdot_u16[0]) == false });
+    test("phi xor lowering \"multi_way_merge(a)\"", () => { return multi_way_merge(&raw a_u16[0]) == true });
+    test("phi xor lowering \"multi_way_merge(.a)\"", () => { return multi_way_merge(&raw dota_u16[0]) == true });
 
-    test("phi xor lowering \"store_last_then_compare(.)\"", () => { return store_last_then_compare(&dot_u16[0]) == false });
-    test("phi xor lowering \"store_last_then_compare(..)\"", () => { return store_last_then_compare(&dotdot_u16[0]) == false });
-    test("phi xor lowering \"store_last_then_compare(a)\"", () => { return store_last_then_compare(&a_u16[0]) == true });
-    test("phi xor lowering \"store_last_then_compare(.a)\"", () => { return store_last_then_compare(&dota_u16[0]) == true });
+    test("phi xor lowering \"store_last_then_compare(.)\"", () => { return store_last_then_compare(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"store_last_then_compare(..)\"", () => { return store_last_then_compare(&raw dotdot_u16[0]) == false });
+    test("phi xor lowering \"store_last_then_compare(a)\"", () => { return store_last_then_compare(&raw a_u16[0]) == true });
+    test("phi xor lowering \"store_last_then_compare(.a)\"", () => { return store_last_then_compare(&raw dota_u16[0]) == true });
 
-    test("phi xor lowering \"long_chain_merge(.)\"", () => { return long_chain_merge(&dot_u16[0]) == false });
-    test("phi xor lowering \"long_chain_merge(..)\"", () => { return long_chain_merge(&dotdot_u16[0]) == true });
-    test("phi xor lowering \"long_chain_merge(a)\"", () => { return long_chain_merge(&a_u16[0]) == true });
-    test("phi xor lowering \"long_chain_merge(.a)\"", () => { return long_chain_merge(&dota_u16[0]) == true });
+    test("phi xor lowering \"long_chain_merge(.)\"", () => { return long_chain_merge(&raw dot_u16[0]) == false });
+    test("phi xor lowering \"long_chain_merge(..)\"", () => { return long_chain_merge(&raw dotdot_u16[0]) == true });
+    test("phi xor lowering \"long_chain_merge(a)\"", () => { return long_chain_merge(&raw a_u16[0]) == true });
+    test("phi xor lowering \"long_chain_merge(.a)\"", () => { return long_chain_merge(&raw dota_u16[0]) == true });
     test("u8 | uint typed literal promotes to uint", () => {
         var b : u8 = 0xFF
         var result = b | 0x100u

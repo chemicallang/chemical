@@ -11,9 +11,9 @@ func test_fs_create_dir_all_and_remove_recursive(env : &mut TestEnv) {
     // best-effort cleanup (ignore errors)
     fs::remove_dir_all_recursive(base.data());
 
-    var nested1 = make_child_path(base, "a");
-    var nested2 = make_child_path(nested1, "b");
-    var nested3 = make_child_path(nested2, "c");
+    var nested1 = make_child_path(&base, "a");
+    var nested2 = make_child_path(&nested1, "b");
+    var nested3 = make_child_path(&nested2, "c");
 
     var r = fs::create_dir_all(nested3.data());
     if(r is Result.Err) {
@@ -49,7 +49,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
         return;
     }
 
-    var file_path = make_child_path(base, "hello.txt");
+    var file_path = make_child_path(&base, "hello.txt");
     var content : *char = "hello fs module";
     var len = strlen(content) as size_t;
 
@@ -64,7 +64,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     }
 
     var buf : [256]u8;
-    var rd = fs::read_to_buffer(file_path.data(), &mut buf[0], sizeof(buf));
+    var rd = fs::read_to_buffer(file_path.data(), &raw mut buf[0], sizeof(buf));
     if(rd is Result.Err) {
         var Err(e) = rd else unreachable;
         var m = e.message();
@@ -75,7 +75,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
     }
 
     var Ok(n) = rd else unreachable;
-    bytes_equal(&mut buf[0], n, content, "read_to_buffer bytes mismatch", env);
+    bytes_equal(&raw mut buf[0], n, content, "read_to_buffer bytes mismatch", env);
 
     fs::remove_dir_all_recursive(base.data());
 }
@@ -94,7 +94,7 @@ func test_fs_write_and_read_entire_file_roundtrip(env : &mut TestEnv) {
         return;
     }
 
-    var file_path = make_child_path(base, "bytes.bin");
+    var file_path = make_child_path(&base, "bytes.bin");
     var content : *char = "0123456789abcdef";
     var len = strlen(content) as size_t;
 
@@ -133,8 +133,8 @@ func test_fs_copy_file_copies_contents(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var src = make_child_path(base, "src.txt");
-    var dst = make_child_path(base, "dst.txt");
+    var src = make_child_path(&base, "src.txt");
+    var dst = make_child_path(&base, "dst.txt");
 
     var content : *char = "copy-me";
     var len = strlen(content) as size_t;
@@ -179,7 +179,7 @@ func test_fs_remove_file_makes_file_unreadable(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var p = make_child_path(base, "toremove.txt");
+    var p = make_child_path(&base, "toremove.txt");
     var content : *char = "bye";
     var wr = fs::write_text_file(p.data(), content as *u8, strlen(content) as size_t);
     if(wr is Result.Err) {
@@ -217,9 +217,9 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
     fs::remove_dir_all_recursive(base.data());
 
-    var d1 = make_child_path(base, "dir1");
-    var d2 = make_child_path(d1, "dir2");
-    var d3 = make_child_path(d2, "dir3");
+    var d1 = make_child_path(&base, "dir1");
+    var d2 = make_child_path(&d1, "dir2");
+    var d3 = make_child_path(&d2, "dir3");
     var mk = fs::create_dir_all(d3.data());
     if(mk is Result.Err) {
         var Err(e) = mk else unreachable;
@@ -230,9 +230,9 @@ func test_fs_remove_dir_recursive_removes_nested_files(env : &mut TestEnv) {
     }
 
     // Put files at multiple depths
-    var f1 = make_child_path(base, "root.txt");
-    var f2 = make_child_path(d2, "mid.txt");
-    var f3 = make_child_path(d3, "deep.txt");
+    var f1 = make_child_path(&base, "root.txt");
+    var f2 = make_child_path(&d2, "mid.txt");
+    var f3 = make_child_path(&d3, "deep.txt");
 
     var c1 : *char = "root";
     var c2 : *char = "mid";
@@ -270,7 +270,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var p = make_child_path(base, "perm.txt");
+    var p = make_child_path(&base, "perm.txt");
     var content : *char = "perm";
     var wr = fs::write_text_file(p.data(), content as *u8, strlen(content) as size_t);
     if(wr is Result.Err) {
@@ -300,7 +300,7 @@ func test_fs_set_permissions_on_existing_file(env : &mut TestEnv) {
 func test_fs_errors_for_missing_paths(env : &mut TestEnv) {
     // Use a path that should not exist.
     var base = make_test_base_dir(env);
-    var missing = make_child_path(base, "definitely_missing_file.txt");
+    var missing = make_child_path(&base, "definitely_missing_file.txt");
 
     var rd = fs::read_entire_file(missing.data());
     if(!(rd is Result.Err)) {

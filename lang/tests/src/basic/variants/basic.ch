@@ -457,13 +457,13 @@ func test_variants() {
     test("inherited struct in variant can be passed to functions as pointers - 1", () => {
         // lets test passing the struct only first
         var p = VariantInheritedPoint { a : 34, b : 21 }
-        return variant_inh_point_sum(&p) == 55
+        return variant_inh_point_sum(&raw p) == 55
     })
     test("inherited struct in variant can be passed to functions as pointers - 2", () => {
         var p = InheriterOfPoint.First(65, 54)
         p.a = 43
         p.b = 13
-        return variant_inh_point_sum(&p) == 56
+        return variant_inh_point_sum(&raw p) == 56
     })
     test("methods on inherited struct in variant can be called - 1", () => {
         // lets test passing the struct only first
@@ -570,19 +570,19 @@ func test_variants() {
     })
     test("variant overriding interface static dispatch method call works - 1", () => {
         var v = VariantInheritedGiverImpl.None()
-        return static_dispatch_variant_inherited_giver_give(v) == -1
+        return static_dispatch_variant_inherited_giver_give(&v) == -1
     })
     test("variant overriding interface static dispatch method call works - 2", () => {
         var v = VariantInheritedGiverImpl.Some(62)
-        return static_dispatch_variant_inherited_giver_give(v) == 62
+        return static_dispatch_variant_inherited_giver_give(&v) == 62
     })
     test("variant overriding interface static dispatch method call works - 3", () => {
         var v = StructInheritedGiverImpl { value : 32 }
-        return static_dispatch_variant_inherited_giver_give(v) == 32
+        return static_dispatch_variant_inherited_giver_give(&v) == 32
     })
     test("variant overriding interface static dispatch method call works - 4", () => {
         var v = StructInheritedGiverImpl { value : 96 }
-        return static_dispatch_variant_inherited_giver_give(v) == 96
+        return static_dispatch_variant_inherited_giver_give(&v) == 96
     })
     test("variant inherited delegate dynamic dispatch works - 1", () => {
         var v = VariantInheritedDelegateImpl.None()

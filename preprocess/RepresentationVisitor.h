@@ -323,6 +323,8 @@ public:
 
     void VisitAddrOfValue(AddrOfValue* value);
 
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
     void VisitIfValue(IfValue* value);
 
     void VisitSwitchValue(SwitchValue* value);

@@ -57,7 +57,7 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
     times[0].tv_nsec = 0;
     times[1].tv_sec = mtime;
     times[1].tv_nsec = 0;
-    var r = utimensat(0, path, &times[0], 0);
+    var r = utimensat(0, path, &raw times[0], 0);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }
@@ -77,7 +77,7 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
     dstopts.read = false; dstopts.write = true; dstopts.append = false; dstopts.create = true; dstopts.create_new = false; dstopts.truncate = true; dstopts.binary = true;
     var dres = file_open(dst, dstopts);
     if(dres is Result.Err) {
-        file_close(&mut sf)
+        file_close(&raw mut sf)
         var Err(e) = dres else unreachable
         return Result.Err(e)
     }
@@ -85,24 +85,24 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
     // TODO: use COPY_CHUNK as the array size here
     var buf : [64 * 1024]u8;
     while(true) {
-        var r = file_read(&mut sf, &mut buf[0], sizeof(buf));
+        var r = file_read(&raw mut sf, &raw mut buf[0], sizeof(buf));
         if(r is Result.Err) {
-            file_close(&mut sf);
-            file_close(&mut df)
+            file_close(&raw mut sf);
+            file_close(&raw mut df)
             var Err(e) = r else unreachable
             return Result.Err(e)
         }
         var Ok(n) = r else unreachable
         if(n == 0) { break; }
-        var w = file_write_all(&mut df, &mut buf[0], n);
+        var w = file_write_all(&raw mut df, &raw mut buf[0], n);
         if(w is Result.Err) {
-            file_close(&mut sf)
-            file_close(&mut df)
+            file_close(&raw mut sf)
+            file_close(&raw mut df)
             var Err(e) = w else unreachable
             return Result.Err(e)
         }
     }
-    file_close(&mut sf); file_close(&mut df);
+    file_close(&raw mut sf); file_close(&raw mut df);
     return Result.Ok(UnitTy{});
 }
 
@@ -117,7 +117,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     var r : size_t = 0; while(sfx[r] != 0) { tmpl[p + r] = sfx[r]; r++ }
     tmpl[p + r] = 0;
     // mkstemp modifies template
-    var fd = mkstemp(&mut tmpl[0]); // user-provided extern
+    var fd = mkstemp(&raw mut tmpl[0]); // user-provided extern
     if(fd < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     // return path
     var i : size_t = 0; while(tmpl[i] != 0) { out_path[i] = tmpl[i]; i++ } out_path[i] = 0;

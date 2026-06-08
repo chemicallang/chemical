@@ -41,12 +41,12 @@ func test_uuid_equality_comparison(env : &mut TestEnv) {
     var u1_dup = UUID.from_bytes(b1);
     var u2 = UUID.from_bytes(b2);
 
-    expect_true(env, u1.equals(u1_dup), "UUIDs with same bytes must be equal");
-    expect_false(env, u1.equals(u2), "UUIDs with different bytes must not be equal");
+    expect_true(env, u1.equals(&u1_dup), "UUIDs with same bytes must be equal");
+    expect_false(env, u1.equals(&u2), "UUIDs with different bytes must not be equal");
 
-    expect_uint_eq(env, u1.compare(u1_dup) as uint, 0u, "compare identical UUIDs should return 0");
-    expect_true(env, u1.compare(u2) < 0, "u1 < u2 comparison should be negative");
-    expect_true(env, u2.compare(u1) > 0, "u2 > u1 comparison should be positive");
+    expect_uint_eq(env, u1.compare(&u1_dup) as uint, 0u, "compare identical UUIDs should return 0");
+    expect_true(env, u1.compare(&u2) < 0, "u1 < u2 comparison should be negative");
+    expect_true(env, u2.compare(&u1) > 0, "u2 > u1 comparison should be positive");
 }
 
 @test
@@ -62,7 +62,7 @@ func test_uuid_formatting(env : &mut TestEnv) {
     expect_true(env, s.to_view().equals(std::string_view(expected)), "to_string() formatted representation does not match expected");
 
     var reused = std::string();
-    u.format_to(reused);
+    u.format_to(&mut reused);
     expect_true(env, reused.to_view().equals(std::string_view(expected)), "format_to() formatted representation does not match expected");
 }
 
@@ -136,13 +136,13 @@ func test_uuid_sorting(env : &mut TestEnv) {
     var u2 = UUID.from_bytes(bytes2);
     var u3 = UUID.from_bytes(bytes3);
 
-    expect_true(env, u1.compare(u2) < 0, "u1 should be less than u2");
-    expect_true(env, u2.compare(u3) < 0, "u2 should be less than u3");
-    expect_true(env, u1.compare(u3) < 0, "u1 should be less than u3");
+    expect_true(env, u1.compare(&u2) < 0, "u1 should be less than u2");
+    expect_true(env, u2.compare(&u3) < 0, "u2 should be less than u3");
+    expect_true(env, u1.compare(&u3) < 0, "u1 should be less than u3");
 
-    expect_true(env, u2.compare(u1) > 0, "u2 should be greater than u1");
-    expect_true(env, u3.compare(u2) > 0, "u3 should be greater than u2");
-    expect_true(env, u3.compare(u1) > 0, "u3 should be greater than u1");
+    expect_true(env, u2.compare(&u1) > 0, "u2 should be greater than u1");
+    expect_true(env, u3.compare(&u2) > 0, "u3 should be greater than u2");
+    expect_true(env, u3.compare(&u1) > 0, "u3 should be greater than u1");
 }
 
 @test
@@ -158,7 +158,7 @@ func test_uuid_v4(env : &mut TestEnv) {
 
     // Uniqueness test
     var u2 = uuid::v4();
-    expect_false(env, u1.equals(u2), "Consecutive v4 calls must generate unique UUIDs");
+    expect_false(env, u1.equals(&u2), "Consecutive v4 calls must generate unique UUIDs");
 }
 
 @test
@@ -184,8 +184,8 @@ func test_uuid_v7(env : &mut TestEnv) {
 
     // Monotonicity / Uniqueness test under rapid generation
     var u2 = uuid::v7();
-    expect_false(env, u1.equals(u2), "Consecutive v7 calls must generate unique UUIDs");
-    expect_true(env, u1.compare(u2) < 0, "UUIDv7 generated later must compare greater lexicographically");
+    expect_false(env, u1.equals(&u2), "Consecutive v7 calls must generate unique UUIDs");
+    expect_true(env, u1.compare(&u2) < 0, "UUIDv7 generated later must compare greater lexicographically");
 }
 
 @test
@@ -195,10 +195,10 @@ func test_uuid_v7_concurrency(env : &mut TestEnv) {
     var v3 = std::vector<UUID>();
     var v4 = std::vector<UUID>();
 
-    var arg1 = UUIDThreadArg { v : &mut v1 };
-    var arg2 = UUIDThreadArg { v : &mut v2 };
-    var arg3 = UUIDThreadArg { v : &mut v3 };
-    var arg4 = UUIDThreadArg { v : &mut v4 };
+    var arg1 = UUIDThreadArg { v : &raw mut v1 };
+    var arg2 = UUIDThreadArg { v : &raw mut v2 };
+    var arg3 = UUIDThreadArg { v : &raw mut v3 };
+    var arg4 = UUIDThreadArg { v : &raw mut v4 };
 
     var t1 = std::concurrent::spawn(uuid_thread_entry, &mut arg1 as *mut void);
     var t2 = std::concurrent::spawn(uuid_thread_entry, &mut arg2 as *mut void);

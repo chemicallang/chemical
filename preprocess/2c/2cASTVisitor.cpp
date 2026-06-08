@@ -601,10 +601,6 @@ bool is_value_param_hidden_pointer_non_ref(Value* value) {
                 return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
             }
             case ASTNodeKind::StructMember:{
-                const auto type = linked->as_struct_member_unsafe()->type;
-                if(type->is_reference()) {
-                    return true;
-                }
                 return false;
             }
             default:
@@ -902,6 +898,66 @@ std::string implement_lambda(ToCAstVisitor& visitor, LambdaFunction *func);
 
 void write_lambda_call_site(ToCAstVisitor& visitor, LambdaFunction *func, const std::string& lamb_name);
 
+void write_lambda_expansion_site(ToCAstVisitor& visitor, LambdaFunction* lambdaFn, BaseType* type, CapturingFunctionType* cap_type, bool is_reference) {
+    const auto instance = cap_type->instance_type->get_direct_linked_canonical_node();
+    if (instance->kind() == ASTNodeKind::StructDecl) {
+        const auto makeFn = instance->child("make");
+        if (makeFn && makeFn->kind() == ASTNodeKind::FunctionDecl) {
+            const auto makeFnDecl = makeFn->as_function_unsafe();
+            const auto imp_cons = makeFnDecl;
+            if (imp_cons->is_comptime()) {
+                const auto imp_cons_call = call_with_arg(imp_cons, lambdaFn, type, visitor.allocator, visitor);
+                const auto eval = evaluated_func_val_proper(visitor, imp_cons, imp_cons_call);
+
+                auto lambda_name = implement_lambda(visitor, lambdaFn);
+
+                if(is_reference == false) {
+                    visitor.write('*');
+                }
+
+                visitor.write("({ ");
+
+                for (const auto captured: lambdaFn->captureList) {
+                    // since we're moving the value here
+                    // what we must do is set the drop flag to false
+                    const auto identifier = new(
+                            visitor.allocator.allocate<VariableIdentifier>()) VariableIdentifier(
+                            captured->name, captured->encoded_location(), false
+                    );
+                    identifier->linked = captured->linked;
+                    set_moved_ref_drop_flag(visitor, identifier);
+                    visitor.space();
+                }
+
+                visitor.write(visitor.fat_pointer_type);
+                visitor.write("* ");
+                visitor.write_str(lambda_name);
+                visitor.write("_pair");
+                visitor.write(" = ");
+                if (lambdaFn->captureList.empty()) {
+                    visitor.write("&(__chemical_fat_pointer__){");
+                    write_lambda_call_site(visitor, lambdaFn, lambda_name);
+                    visitor.write(",NULL}");
+                } else {
+                    write_lambda_call_site(visitor, lambdaFn, lambda_name);
+                }
+                visitor.write("; ");
+
+                if(is_reference == false) {
+                    visitor.write('&');
+                }
+
+                visitor.accept_mutating_value_explicit(type, eval);
+                visitor.write(';');
+                visitor.write(" })");
+
+            } else {
+                call_implicit_constructor(visitor, imp_cons, lambdaFn, false);
+            }
+        }
+    }
+}
+
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value) {
     if(type) {
         // struct member takes a pointer
@@ -916,69 +972,23 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
             write(')');
         }
         // capturing function type
+        if (value->kind() == ValueKind::ReferenceOfValue) {
+            const auto maybe_lamb = value->as_reference_of_value_unsafe()->value;
+            if (maybe_lamb->kind() == ValueKind::LambdaFunc) {
+                const auto cap_type_canonical = type->canonical();
+                const auto cap_type = cap_type_canonical->get_cap_func_type();
+                if (cap_type != nullptr) {
+                    write_lambda_expansion_site(*this, maybe_lamb->as_lambda_func_unsafe(), type, cap_type, true);
+                    return;
+                }
+            }
+        }
+        // capturing function type
         if(value->kind() == ValueKind::LambdaFunc) {
             const auto cap_type_canonical = type->canonical();
             const auto cap_type = cap_type_canonical->get_cap_func_type();
             if (cap_type != nullptr) {
-                const auto instance = cap_type->instance_type->get_direct_linked_canonical_node();
-                if (instance->kind() == ASTNodeKind::StructDecl) {
-                    const auto makeFn = instance->child("make");
-                    if (makeFn && makeFn->kind() == ASTNodeKind::FunctionDecl) {
-                        const auto makeFnDecl = makeFn->as_function_unsafe();
-                        const auto imp_cons = makeFnDecl;
-                        if (imp_cons->is_comptime()) {
-                            const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
-                            const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
-
-                            const auto lambdaFn = value->as_lambda_func_unsafe();
-                            auto lambda_name = implement_lambda(*this, lambdaFn);
-
-                            const auto is_reference = cap_type_canonical->kind() == BaseTypeKind::Reference;
-                            if(is_reference == false) {
-                                write('*');
-                            }
-
-                            write("({ ");
-
-                            for (const auto captured: lambdaFn->captureList) {
-                                // since we're moving the value here
-                                // what we must do is set the drop flag to false
-                                const auto identifier = new(
-                                        allocator.allocate<VariableIdentifier>()) VariableIdentifier(
-                                        captured->name, captured->encoded_location(), false
-                                );
-                                identifier->linked = captured->linked;
-                                set_moved_ref_drop_flag(*this, identifier);
-                                space();
-                            }
-
-                            write(fat_pointer_type);
-                            write("* ");
-                            write_str(lambda_name);
-                            write("_pair");
-                            write(" = ");
-                            if (lambdaFn->captureList.empty()) {
-                                write("&(__chemical_fat_pointer__){");
-                                write_lambda_call_site(*this, lambdaFn, lambda_name);
-                                write(",NULL}");
-                            } else {
-                                write_lambda_call_site(*this, lambdaFn, lambda_name);
-                            }
-                            write("; ");
-
-                            if(is_reference == false) {
-                                write('&');
-                            }
-
-                            accept_mutating_value_explicit(type, eval);
-                            write(';');
-                            write(" })");
-
-                        } else {
-                            call_implicit_constructor(*this, imp_cons, value, false);
-                        }
-                    }
-                }
+                write_lambda_expansion_site(*this, value->as_lambda_func_unsafe(), type, cap_type, cap_type_canonical->kind() == BaseTypeKind::Reference);
                 return;
             }
         }
@@ -5272,7 +5282,32 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
         if (linked) {
             const auto lastKind = linked->kind();
             if (lastKind == ASTNodeKind::FunctionDecl) {
-                visitor.mangle(linked);
+                const auto func_decl = linked->as_function_unsafe();
+                if(!func_decl->has_self_param() && first->val_kind() == ValueKind::FunctionCall) {
+                    // calling a function on a returned struct, but the function
+                    // doesn't take &self, the struct expression still needs to
+                    // be evaluated for side effects
+                    // generate: ({ struct_type __temp; func_call(&__temp); mangled_name; })
+                    visitor.write("({ ");
+                    const auto call_type = first->getType();
+                    const auto container = call_type->get_direct_linked_container();
+                    if(container) {
+                        visitor.visit(container->known_type());
+                        visitor.write("* ");
+                        const auto temp_name = visitor.get_local_temp_var_name();
+                        visitor.write_str(temp_name);
+                        visitor.write(" = &");
+                        accept_opt_nestable(visitor, first, false);
+                        visitor.write("; ");
+                    } else {
+                        visitor.visit(first);
+                        visitor.write("; ");
+                    }
+                    visitor.mangle(linked);
+                    visitor.write("; })");
+                } else {
+                    visitor.mangle(linked);
+                }
                 return;
             } else if (lastKind == ASTNodeKind::EnumMember) {
                 write_enum(visitor, linked->as_enum_member_unsafe());
@@ -5329,6 +5364,9 @@ struct ArgDestructionDep {
     FunctionDeclaration* destr;
     // the call/struct value which is the arg, we'll use this to save into local_allocated
     Value* arg_val;
+    // set when the variable was already allocated by an outer scope,
+    // so the inner scope should skip destructing it
+    bool pre_allocated = false;
 };
 
 struct ArgsDestructionInfo {
@@ -5343,6 +5381,10 @@ FunctionCall* get_last_call(Value* value) {
             return value->as_func_call_unsafe();
         case ValueKind::AccessChain:
             return get_last_call(value->as_access_chain_unsafe()->values.back());
+        case ValueKind::AddrOfValue:
+            return get_last_call(value->as_addr_of_value_unsafe()->value);
+        case ValueKind::ReferenceOfValue:
+            return get_last_call(value->as_reference_of_value_unsafe()->value);
         default:
             return nullptr;
     }
@@ -5375,17 +5417,18 @@ void dep_for_destr_obj_to_ref(ArgsDestructionInfo& info, Value* val, BaseType* t
             }
         }
 
-    } else if (val->kind() == ValueKind::StructValue) {
+    } else if (val->kind() == ValueKind::StructValue || (val->kind() == ValueKind::AddrOfValue && val->as_addr_of_value_unsafe()->value->kind() == ValueKind::StructValue)) {
 
         // if the param type is a reference to a destructible struct
         const auto def = type->as_reference_type_unsafe()->type->get_direct_linked_container();
         if (def) {
             const auto destrFunc = def->destructor_func();
             if (destrFunc) {
+                auto actual_val = val->kind() == ValueKind::AddrOfValue ? val->as_addr_of_value_unsafe()->value : val;
                 info.deps.emplace_back(ArgDestructionDep {
                     .decl = def,
                     .destr = destrFunc,
-                    .arg_val = val
+                    .arg_val = actual_val
                 });
             }
         }
@@ -5450,6 +5493,40 @@ void calculate_parent_val_destruct_dep(ArgsDestructionInfo& info, Value* parent_
     }
 }
 
+void dep_for_temporary_struct_chain(ArgsDestructionInfo& info, Value* val) {
+    AccessChain* chain = nullptr;
+    if(val->kind() == ValueKind::AccessChain) {
+        chain = val->as_access_chain_unsafe();
+    } else if(val->kind() == ValueKind::FunctionCall) {
+        const auto call = val->as_func_call_unsafe();
+        const auto parent = call->parent_val;
+        if(parent && parent->kind() == ValueKind::AccessChain) {
+            chain = parent->as_access_chain_unsafe();
+        }
+    }
+    if(!chain) return;
+    if(chain->values.size() > 1) {
+        const auto last = chain->values.back();
+        // only handle chains ending in a method call, not member access
+        if(!(last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl)) {
+            return;
+        }
+        const auto first = chain->values.front();
+        const auto innerCall = get_only_call(first);
+        if(innerCall) {
+            const auto type = innerCall->getType();
+            const auto container = type->get_direct_linked_container();
+            if(container && container->destructor_func()) {
+                info.deps.emplace_back(ArgDestructionDep {
+                    .decl = container,
+                    .destr = container->destructor_func(),
+                    .arg_val = innerCall
+                });
+            }
+        }
+    }
+}
+
 void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
     // go over each arg
     unsigned i = 0;
@@ -5463,6 +5540,10 @@ void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* fun
 
         // check if we are passing a destructible struct to reference
         dep_for_destr_obj_to_ref(info, val, param->type->canonical());
+
+        // check for chained temp expressions like make_temp().to_view()
+        // that create a destructible temporary needing deferred destruction
+        dep_for_temporary_struct_chain(info, val);
 
         i++;
     }
@@ -5486,6 +5567,11 @@ void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* fun
 
 void write_alloc_vars_for_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info) {
     for (auto& dep : info.deps) {
+        auto found = visitor.local_allocated.find(dep.arg_val);
+        if(found != visitor.local_allocated.end()) {
+            dep.pre_allocated = true;
+            continue;
+        }
         auto temp_var_name = visitor.get_local_temp_var_name();
         visitor.visit(dep.decl->known_type());
         if (dep.arg_val->kind() == ValueKind::StructValue) {
@@ -5517,6 +5603,7 @@ void handle_pre_call_destruction_deps(ToCAstVisitor& visitor, ArgsDestructionInf
 
 void write_destruct_vars_for_deps(ToCAstVisitor& visitor, ArgsDestructionInfo& info) {
     for (auto& dep : info.deps) {
+        if(dep.pre_allocated) continue;
         auto found = visitor.local_allocated.find(dep.arg_val);
         if (found == visitor.local_allocated.end()) continue;
         visitor.mangle(dep.destr);
@@ -6582,6 +6669,13 @@ void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
 
 void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
     if(!is_value_param_hidden_pointer(value)) {
+        write('&');
+    }
+    visit(value->value);
+}
+
+void ToCAstVisitor::VisitReferenceOfValue(ReferenceOfValue* value) {
+    if(!is_value_param_hidden_pointer_non_ref(value)) {
         write('&');
     }
     visit(value->value);

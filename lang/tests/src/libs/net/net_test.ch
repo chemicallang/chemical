@@ -53,7 +53,7 @@ func test_http_post(env : &mut TestEnv) {
             return;
         }
         var Some(body) = body_opt else unreachable;
-        res.write_string(body);
+        res.write_string(&body);
     });
     
     var thread = srv.serve_async(8082u);
@@ -124,7 +124,7 @@ func test_http_headers(env : &mut TestEnv) {
             return;
         }
         var Some(v) = val else unreachable;
-        res.set_header(std::string::make_no_len("X-Response-Header"), std::replace(v, std::string()));
+        res.set_header(std::string::make_no_len("X-Response-Header"), std::replace(&mut v, std::string()));
         res.write_string(std::string::make_no_len("ok"));
     });
     
@@ -134,10 +134,10 @@ func test_http_headers(env : &mut TestEnv) {
     var client = net::Client();
     var u_opt = http::URL::parse("http://127.0.0.1:8084/headers");
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
+    var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
     rb.header("X-Test-Header", "chemical-rocks");
     
-    var res_result = client.request(rb);
+    var res_result = client.request(&rb);
     
     if(res_result is Result.Err) {
         var Err(e) = res_result else return;
@@ -218,7 +218,7 @@ func test_http_query_params_builder(env : &mut TestEnv) {
     
     srv.router.add("GET", "/query", ||(req, res) => {
         var q = req.query.get("q");
-        res.write_string(std::string::view_make(q));
+        res.write_string(std::string::view_make(&q));
     });
     
     var thread = srv.serve_async(8086u);
@@ -226,11 +226,11 @@ func test_http_query_params_builder(env : &mut TestEnv) {
     
     var u_opt = http::URL::parse("http://127.0.0.1:8086/query");
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
+    var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
     rb.query("q", "hello-world");
     
     var client = net::Client();
-    var res_result = client.request(rb);
+    var res_result = client.request(&rb);
     
     if(res_result is Result.Err) {
         env.error("Request failed");
@@ -262,7 +262,7 @@ func test_http_large_body(env : &mut TestEnv) {
             return;
         }
         var Some(body) = body_opt else unreachable;
-        res.write_string(body);
+        res.write_string(&body);
     });
     
     var thread = srv.serve_async(8087u);
@@ -465,11 +465,11 @@ func test_multiple_headers(env : &mut TestEnv) {
     var client = net::Client();
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8092/multi-headers"));
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
+    var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
     rb.header("X-Header-1", "value1");
     rb.header("X-Header-2", "value2");
     
-    var res_result = client.request(rb);
+    var res_result = client.request(&rb);
     
     if(res_result is Result.Err) { env.error("Request failed"); }
     else {
@@ -529,7 +529,7 @@ func test_query_param_encoding(env : &mut TestEnv) {
     
     srv.router.add("GET", "/encoded", ||(req, res) => {
         var q = req.query.get("q");
-        res.write_string(std::string::view_make(q));
+        res.write_string(std::string::view_make(&q));
     });
     
     var thread = srv.serve_async(8093u);
@@ -539,11 +539,11 @@ func test_query_param_encoding(env : &mut TestEnv) {
     // URL encode the query param value to send literal %20
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8093/encoded"));
     var Some(u) = u_opt else unreachable;
-    var rb = http::RequestBuilder("GET", std::replace(u, http::URL()));
+    var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
     // %25 encodes to %, so server will see hello%20world after decoding
     rb.query("q", "hello%2520world");
     
-    var res = client.request(rb);
+    var res = client.request(&rb);
     
     if(res is Result.Err) { env.error("Request failed"); }
     else {
@@ -691,7 +691,7 @@ func test_binary_body(env : &mut TestEnv) {
         var body_opt = req.body.read_to_string();
         if(body_opt is std.Option.None) { res.status = 400u; return; }
         var Some(body) = body_opt else unreachable;
-        res.write_string(body);
+        res.write_string(&body);
     });
     
     var thread = srv.serve_async(8097u);
@@ -728,7 +728,7 @@ func test_special_characters_in_body(env : &mut TestEnv) {
         var body_opt = req.body.read_to_string();
         if(body_opt is std.Option.None) { res.status = 400u; return; }
         var Some(body) = body_opt else unreachable;
-        res.write_string(body);
+        res.write_string(&body);
     });
     
     var thread = srv.serve_async(8098u);
@@ -850,7 +850,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &mut captured);
+    }, &raw mut captured);
     
     var t2 = std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
@@ -864,7 +864,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &mut captured);
+    }, &raw mut captured);
     
     var t3 = std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
@@ -878,7 +878,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
             }
         }
         return null;
-    }, &mut captured);
+    }, &raw mut captured);
     
     t1.join();
     t2.join();

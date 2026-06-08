@@ -10,6 +10,7 @@
 #include "ReferenceType.h"
 #include "compiler/lab/TargetData.h"
 #include "IntNType.h"
+#include "ast/values/LambdaFunction.h"
 
 ASTNode *PointerType::linked_node() {
     return type->linked_node();
@@ -72,23 +73,37 @@ bool PointerType::satisfies(BaseType *given) {
 bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignment) {
     const auto given = giveNonCan->canonical();
     const auto givenKind = given->kind();
+    if (value && value->kind() == ValueKind::LambdaFunc) {
+        const auto can = type->canonical();
+        if (can->kind() == BaseTypeKind::CapturingFunction) {
+            return can->satisfies(value, assignment);
+        }
+    }
     if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
     // when assigning to a ref, we don't require l value
-    if(!assignment && (givenKind == BaseTypeKind::IntN || givenKind == BaseTypeKind::Bool)) {
-        if(value) {
-            const auto typeSatisfies = type->satisfies(given);
-            return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
-        } else {
-            return is_mutable ? false : type->satisfies(given);
+    if(!assignment) {
+        if (givenKind == BaseTypeKind::IntN || givenKind == BaseTypeKind::Bool) {
+            if(value) {
+                const auto typeSatisfies = type->satisfies(given);
+                return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
+            } else {
+                return is_mutable ? false : type->satisfies(given);
+            }
+        }
+        // For non-primitive types (structs, variants, etc.), if the inner type
+        // matches, the reference type is always satisfied because such values
+        // always have identity and can bind to mutable or immutable references
+        if (type->satisfies(given)) {
+            return true;
+        }
+        if (!is_mutable && value && value->isValueRValueInFrontend()) {
+            return type->satisfies(given);
         }
     }
-    if(!assignment && is_mutable && !given->is_mutable()) {
-        return false;
-    }
-    return type->satisfies(given);
+    return false;
 }
 
 bool ReferenceType::satisfies(Value* value, bool assignment) {

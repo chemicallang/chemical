@@ -143,19 +143,19 @@ public namespace datetime {
         public func add_duration(&self, dur : &std::chrono::Duration) : DateTime {
             var st = self.to_system_time()
             var new_st = st.add_duration(dur)
-            return DateTime::from_system_time_tz(new_st, self.tz.copy())
+            return DateTime::from_system_time_tz(&new_st, self.tz.copy())
         }
 
         public func sub_duration(&self, dur : &std::chrono::Duration) : DateTime {
             var st = self.to_system_time()
             var new_st = st.sub_duration(dur)
-            return DateTime::from_system_time_tz(new_st, self.tz.copy())
+            return DateTime::from_system_time_tz(&new_st, self.tz.copy())
         }
 
         public func duration_since(&self, other : &DateTime) : std::chrono::Duration {
             var st_self = self.to_system_time()
             var st_other = other.to_system_time()
-            return st_self.duration_since(st_other)
+            return st_self.duration_since(&st_other)
         }
 
         // ---- Comparison -----------------------------------------------------
@@ -168,7 +168,7 @@ public namespace datetime {
                 self.minute == other.minute &&
                 self.second == other.second &&
                 self.nanos == other.nanos &&
-                self.tz.equals(other.tz)
+                self.tz.equals(&other.tz)
         }
 
         // ---- Internal: civil calendar conversions ---------------------------
@@ -222,7 +222,7 @@ public namespace datetime {
             var y : i64 = 0
             var m : i64 = 0
             var d : i64 = 0
-            civil_from_days(days, &mut y, &mut m, &mut d)
+            civil_from_days(days, &raw mut y, &raw mut m, &raw mut d)
             var hour = day_secs / 3600
             var minute = (day_secs % 3600) / 60
             var second = day_secs % 60

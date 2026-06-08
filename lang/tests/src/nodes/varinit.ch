@@ -106,7 +106,7 @@ struct GlobalVariablePassedAsDefaultValue {
     var b : int
 }
 
-func take_global_variable_as_default_value(p : &GlobalVariablePassedAsDefaultValue = global_var_def_value_struct) : int {
+func take_global_variable_as_default_value(p : &GlobalVariablePassedAsDefaultValue = &global_var_def_value_struct) : int {
     return p.a + p.b
 }
 

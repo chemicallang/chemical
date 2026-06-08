@@ -80,6 +80,7 @@ enum class TokenType {
     VoidKw,
     SizeOfKw,
     AlignOfKw,
+    RawKw,
     ImportKw,
     ExportKw,
     FuncKw,

@@ -567,7 +567,7 @@ public:
     /**
      * parses a single addr of value
      */
-    AddrOfValue* parseAddrOfValue(ASTAllocator& allocator);
+    Value* parseReferenceOfValue(ASTAllocator& allocator);
 
     /**
      * parses a single dereference value
@@ -1063,6 +1063,11 @@ public:
      * parses the align of value
      */
     Value* parseAlignOfValue(ASTAllocator& allocator);
+
+    /**
+     * parses address of value (represents raw x, raw mut x or with parenthesis)
+     */
+    Value* parseRawAddrOfValue(ASTAllocator& allocator, SourceLocation location);
 
     /**
      * parses a new value as a node

@@ -295,6 +295,7 @@ set(COMMON_SOURCES
         utils/ValueAndOperatorStack.h
         ast/base/AccessSpecifier.h
         ast/values/AddrOfValue.h
+        ast/values/ReferenceOfValue.h
         ast/values/AddrOfValue.cpp
         ast/values/DerferenceValue.cpp
         ast/structures/InterfaceDefinition.cpp
@@ -634,6 +635,7 @@ set(COMMON_SOURCES
         compiler/symres/ImplementationsIndex.cpp
         core/tests/NegativeLifetimeTests.h
         core/tests/NegativeLifetimeTests.cpp
+        ast/values/ReferenceOfValue.cpp
 )
 
 # Chemical LSP Executable Target

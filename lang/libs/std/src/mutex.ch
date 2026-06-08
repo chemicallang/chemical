@@ -6,7 +6,7 @@ public namespace std {
         func constructor(mtx : &mut mutex) {
             mtx.lock()
             return lock_guard {
-                m : &mut mtx
+                m : &raw mut mtx
             }
         }
         @delete

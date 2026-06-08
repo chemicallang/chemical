@@ -690,7 +690,7 @@ func test_basic_generics() {
         var giver = GenFuncProvider<GenAddTestStruct> {
             value : GenAddTestStruct { a : 9234, b : 347 }
         }
-        var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &mut giver }
+        var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &raw mut giver }
         var provided = provider.get_value()
         return provided.a == 9234 && provided.b == 347
     })

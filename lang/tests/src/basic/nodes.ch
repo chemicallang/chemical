@@ -267,7 +267,7 @@ func test_nodes() {
         return p.x == 5 && p.y == 6;
     });
     test("struct value pointer can be passed using direct struct", () => {
-        return give_point_ptr_sum(&Point { x : 10, y : 23 }) == 33;
+        return give_point_ptr_sum(&raw Point { x : 10, y : 23 }) == 33;
     })
     test("struct functions without self ref", () => {
          var p = Point {
@@ -380,7 +380,7 @@ func test_nodes() {
     });
     test("supports null value - 1", () => {
         var x = 1;
-        var y = &x;
+        var y = &raw x;
         unsafe {
             y = null;
             return y == null;
@@ -388,7 +388,7 @@ func test_nodes() {
     })
     test("supports null value - 2", () => {
         var x = 1;
-        var y = &x;
+        var y = &raw x;
         unsafe {
             return y != null;
         }
@@ -714,7 +714,7 @@ func test_nodes() {
     })
     test("access to members through typealias for struct works", () => {
         var p = Point { x : 23, y : 21 }
-        return sum_ppoint(&p) == 44
+        return sum_ppoint(&raw p) == 44
     })
     test("struct with default constructor is automatically called when in struct value of container", () => {
         var d = DefConsContainer {}

@@ -40,7 +40,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
             while (currentNode != null) {
                 var nextNode = currentNode.next; // Save next pointer before re-linking
 
-                var index = hash_now(currentNode.key) & (newCapacity - 1);
+                var index = hash_now(&currentNode.key) & (newCapacity - 1);
                 // Reinsert the node into the new table's bucket chain
                 currentNode.next = newTable[index];
                 newTable[index] = currentNode;
@@ -91,12 +91,12 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
             resize();
         }
 
-        var index = hash_with_capacity(key);
+        var index = hash_with_capacity(&key);
         var currentNode = table[index];
 
         // Check if the key already exists in the chain, and update if so
         while (currentNode != null) {
-            if (compare_now(currentNode.key, key)) {
+            if (compare_now(&currentNode.key, &key)) {
                 currentNode.value = value; // Update value
                 return;
             }
@@ -118,8 +118,8 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         while (currentNode != null) {
-            if (compare_now(currentNode.key, key)) {
-                return &mut currentNode.value;
+            if (compare_now(&currentNode.key, key)) {
+                return &raw mut currentNode.value;
             }
             currentNode = currentNode.next;
         }
@@ -148,7 +148,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         var previousNode : *mut unordered_map_node<Key, Value> = null;
 
         while (currentNode != null) {
-            if (compare_now(currentNode.key, key)) {
+            if (compare_now(&currentNode.key, key)) {
                 if (previousNode != null) {
                     previousNode.next = currentNode.next; // Unlink the node
                 } else {
@@ -201,7 +201,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
 
     func iterator(&self) : unordered_map_iterator<Key, Value> {
         var it = unordered_map_iterator<Key, Value> {
-            map : &self,
+            map : &raw self,
             bucket : 0,
             node : null
         }
@@ -228,7 +228,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         }
 
         func current(&self, c : unordered_map_iterator<Key, Value>) : &unordered_map_node<Key, Value> {
-            return *c.node
+            return &*c.node
         }
 
         func next(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
@@ -254,7 +254,7 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
         func previous(&self, c : unordered_map_iterator<Key, Value>) : unordered_map_iterator<Key, Value> {
             var it = iterator()
             var prev : unordered_map_iterator<Key, Value> = unordered_map_iterator<Key, Value> {
-                map : &self,
+                map : &raw self,
                 bucket : 0,
                 node : null
             }
@@ -306,10 +306,10 @@ public struct unordered_map_iterator<Key, Value> {
 
     // accessors
     public func key(&self) : &Key {
-        return node.key;
+        return &node.key;
     }
     public func value(&self) : &Value {
-        return node.value;
+        return &node.value;
     }
     public func valid(&self) : bool {
         return node != null;

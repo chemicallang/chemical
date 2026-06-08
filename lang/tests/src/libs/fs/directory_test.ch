@@ -17,7 +17,7 @@ func test_fs_directory_creation_and_removal(env : &mut TestEnv) {
     expect_true(env, !fs::exists(base.data()), "dir should not exist after remove_dir");
 
     // Create nested dirs
-    var nested = make_child_path(base, "a/b/c");
+    var nested = make_child_path(&base, "a/b/c");
     var r3 = fs::create_dir_all(nested.data());
     expect_true(env, !(r3 is Result.Err), "create_dir_all failed");
     expect_true(env, fs::exists(nested.data()), "nested dir should exist");
@@ -34,9 +34,9 @@ func test_fs_directory_iteration(env : &mut TestEnv) {
     fs::remove_dir_all_recursive(base.data());
     fs::create_dir_all(base.data());
 
-    var f1 = make_child_path(base, "file1.txt");
-    var f2 = make_child_path(base, "file2.txt");
-    var d1 = make_child_path(base, "subdir");
+    var f1 = make_child_path(&base, "file1.txt");
+    var f2 = make_child_path(&base, "file2.txt");
+    var d1 = make_child_path(&base, "subdir");
     
     fs::write_text_file(f1.data(), "1" as *u8, 1);
     fs::write_text_file(f2.data(), "2" as *u8, 1);
@@ -68,11 +68,11 @@ func test_fs_directory_iteration(env : &mut TestEnv) {
 @test
 func test_fs_temp_dir(env : &mut TestEnv) {
     var buf : [PATH_MAX_BUF]char;
-    var r = fs::temp_dir(&mut buf[0], PATH_MAX_BUF as size_t);
+    var r = fs::temp_dir(&raw mut buf[0], PATH_MAX_BUF as size_t);
     expect_true(env, !(r is Result.Err), "temp_dir failed");
     var Ok(len) = r else unreachable;
     expect_true(env, len > 0, "temp_dir path should not be empty");
-    expect_true(env, fs::exists(&mut buf[0]), "temp_dir should exist");
+    expect_true(env, fs::exists(&raw mut buf[0]), "temp_dir should exist");
 }
 
 @test
@@ -80,10 +80,10 @@ func test_fs_copy_directory_recursive(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
     fs::remove_dir_all_recursive(base.data());
     
-    var src = make_child_path(base, "src");
-    var dst = make_child_path(base, "dst");
-    var nested_src = make_child_path(src, "inner");
-    var file_src = make_child_path(nested_src, "test.txt");
+    var src = make_child_path(&base, "src");
+    var dst = make_child_path(&base, "dst");
+    var nested_src = make_child_path(&src, "inner");
+    var file_src = make_child_path(&nested_src, "test.txt");
 
     fs::create_dir_all(nested_src.data());
     fs::write_text_file(file_src.data(), "hello" as *u8, 5);
@@ -91,7 +91,7 @@ func test_fs_copy_directory_recursive(env : &mut TestEnv) {
     var r = fs::copy_directory(src.data(), dst.data(), true);
     expect_true(env, !(r is Result.Err), "copy_directory failed");
 
-    var file_dst = make_child_path(make_child_path(dst, "inner"), "test.txt");
+    var file_dst = make_child_path(make_child_path(&dst, "inner"), "test.txt");
     expect_true(env, fs::exists(file_dst.data()), "copied file should exist");
 
     var rd = fs::read_entire_file(file_dst.data());

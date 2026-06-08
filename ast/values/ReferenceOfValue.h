@@ -9,8 +9,9 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 
-class AddrOfValue : public Value {
+class ReferenceOfValue : public Value {
 public:
 
     Value* value;
@@ -19,28 +20,34 @@ public:
     /**
      * constructor
      */
-    constexpr AddrOfValue(
+    constexpr ReferenceOfValue(
         Value* value,
         bool is_mutable,
-        PointerType* ptrType,
+        ReferenceType* refType,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, ptrType, location), value(value), is_mutable(is_mutable) {
+    ) : Value(ValueKind::ReferenceOfValue, refType, location), value(value), is_mutable(is_mutable) {
 
     }
 
-    inline PointerType* getType() {
-        return (PointerType*) Value::getType();
+    inline ReferenceType* getType() {
+        return (ReferenceType*) Value::getType();
     }
 
     uint64_t byte_size(TargetData& target) final;
 
-    AddrOfValue *copy(ASTAllocator& allocator) final {
-        return  new (allocator.allocate<AddrOfValue>()) AddrOfValue(
-                value->copy(allocator),
+private:
+    inline ReferenceOfValue* copy_with(ASTAllocator& allocator, Value* val) {
+        return new (allocator.allocate<ReferenceOfValue>()) ReferenceOfValue(
+                val,
                 is_mutable,
-                getType()->copy(allocator),
+                getType(),
                 encoded_location()
         );
+    }
+public:
+
+    ReferenceOfValue *copy(ASTAllocator& allocator) final {
+        return copy_with(allocator, value->copy(allocator));
     }
 
     void determine_type();
@@ -49,11 +56,21 @@ public:
         return value->linked_node();
     }
 
+    Value* child(InterpretScope& scope, const chem::string_view& name) override {
+        return value->child(scope, name);
+    }
+
+    Value* evaluated_value(InterpretScope& scope) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
+
+    llvm::Value* llvm_pointer(Codegen& gen) override {
+        return llvm_value(gen, nullptr);
+    }
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 

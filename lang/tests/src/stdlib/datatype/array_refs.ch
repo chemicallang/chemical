@@ -27,23 +27,23 @@ func test_array_refs() {
         arr.push(10)
         arr.push(20)
         arr.push(30)
-        return array_ref_at(arr, 2) == 30 && array_ref_at(arr, 1) == 20;
+        return array_ref_at(&arr, 2) == 30 && array_ref_at(&arr, 1) == 20;
     })
     test("array reference works implicitly with referenced vectors", () => {
         var arr = std::vector<int>()
         arr.push(10)
-        return array_ref_size(arr) == 1;
+        return array_ref_size(&arr) == 1;
     })
     test("array reference works implicitly with referenced vectors", () => {
         var arr = std::vector<int>()
         arr.push(10)
-        return array_ref_at(arr, 0) == 10;
+        return array_ref_at(&arr, 0) == 10;
     })
     test("array pointer is passed properly with referenced vectors", () => {
         var arr = std::vector<int>()
         arr.push(10)
         arr.push(20)
         arr.push(30)
-        return array_ref_at(arr, 2) == 30 && array_ref_at(arr, 1) == 20;
+        return array_ref_at(&arr, 2) == 30 && array_ref_at(&arr, 1) == 20;
     })
 }

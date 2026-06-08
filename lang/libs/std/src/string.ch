@@ -103,6 +103,11 @@ public struct string {
         return s;
     }
 
+    @make
+    func view_make2(value : std::string_view) {
+        return view_make(&value)
+    }
+
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor
@@ -268,7 +273,7 @@ public struct string {
                 move_data_to_heap(storage.constant.data, storage.constant.length, length);
             } else if(state == '1') {
                 var new_cap = if (length < STR_BUFF_SIZE * 2u) STR_BUFF_SIZE * 2u else length * 2u;
-                move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, new_cap);
+                move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, new_cap);
             } else if(storage.heap.capacity <= length) {
                 var new_cap = if (length < storage.heap.capacity * 2) storage.heap.capacity * 2 else length;
                 // ensure at least some growth if capacity was small
@@ -298,7 +303,7 @@ public struct string {
             }
             '1' => {
                 if(new_capacity >= STR_BUFF_SIZE) {
-                    move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, new_capacity);
+                    move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, new_capacity);
                 }
             }
             '2' => {
@@ -349,12 +354,12 @@ public struct string {
         // +1 for null terminator
         ensure_mut(new_size + 1);
         if(state == '1') {
-            memcpy(&mut storage.sso.buffer[offset], value, len)
+            memcpy(&raw mut storage.sso.buffer[offset], value, len)
             storage.sso.buffer[new_size] = '\0'
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
-            memcpy(&mut storage.heap.data[offset], value, len)
+            memcpy(&raw mut storage.heap.data[offset], value, len)
             storage.heap.data[new_size] = '\0';
             storage.heap.length = new_size
         }
@@ -450,16 +455,16 @@ public struct string {
 
         // handle NaN
         if(dbl_is_nan(value)) {
-            append_view(std::string_view("nan"))
+            append_view("nan")
             return;
         }
 
         // handle infinities
         if(dbl_is_inf(value)) {
             if(dbl_is_neg(value)) {
-                append_view(std::string_view("-inf"))
+                append_view("-inf")
             } else {
-                append_view(std::string_view("inf"))
+                append_view("inf")
             }
             return;
         }
@@ -624,7 +629,7 @@ public struct string {
             if(state == '0') {
                 move_data_to_heap(storage.constant.data, length, length * 2);
             } else if(state == '1') {
-                move_data_to_heap(&storage.sso.buffer[0], length, length * 2);
+                move_data_to_heap(&raw storage.sso.buffer[0], length, length * 2);
             } else if(storage.heap.capacity <= length + 2) {
                 resize_heap(storage.heap.capacity * 2);
             }
@@ -635,11 +640,13 @@ public struct string {
     }
 
     func find(&self, needle : &std::string_view) : size_t {
-        return internal_view_find(std::string_view(data(), size()), needle);
+        var view = std::string_view(data(), size())
+        return internal_view_find(&view, needle);
     }
 
     func find_last(&self, needle : &std::string_view) : size_t {
-        return internal_view_find_last(std::string_view(data(), size()), needle);
+        var view = std::string_view(data(), size())
+        return internal_view_find_last(&view, needle);
     }
 
     func contains(&self, needle : &std::string_view) : bool {
@@ -690,8 +697,8 @@ public struct string {
             // SSO
             if(tail_len > 0) {
                 memmove(
-                    &mut storage.sso.buffer[start],
-                    &storage.sso.buffer[tail_start],
+                    &raw mut storage.sso.buffer[start],
+                    &raw storage.sso.buffer[tail_start],
                     tail_len
                 );
             }
@@ -701,8 +708,8 @@ public struct string {
             // heap
             if(tail_len > 0) {
                 memmove(
-                    &mut storage.heap.data[start],
-                    &storage.heap.data[tail_start],
+                    &raw mut storage.heap.data[start],
+                    &raw storage.heap.data[tail_start],
                     tail_len
                 );
             }
@@ -734,7 +741,7 @@ public struct string {
                 return storage.constant.data
             }
             '1' => {
-                return &storage.sso.buffer[0];
+                return &raw storage.sso.buffer[0];
             }
             '2' => {
                 return storage.heap.data;
@@ -754,14 +761,14 @@ public struct string {
             '0' => {
                 if (storage.constant.length < STR_BUFF_SIZE) {
                     move_const_to_buffer();
-                    return &mut storage.sso.buffer[0];
+                    return &raw mut storage.sso.buffer[0];
                 } else {
                     move_data_to_heap(storage.constant.data, storage.constant.length, (storage.constant.length * 2));
                     return storage.heap.data;
                 }
             }
             '1' => {
-                return &mut storage.sso.buffer[0];
+                return &raw mut storage.sso.buffer[0];
             }
             '2' => {
                 return storage.heap.data;
@@ -810,7 +817,7 @@ public struct string {
     func to_uint(&self) : std::Result<uint, std::string_view> { return to_view().to_uint() }
     func to_float(&self) : std::Result<float, std::string_view> {
         var end : *mut char = null
-        var res = strtod(data() as *mut char, &mut end) as float
+        var res = strtod(data() as *mut char, &raw mut end) as float
         if (end == data()) return std::Result.Err(std::string_view("invalid format"))
         while (end != null && *end != '\0' && isspace(*end as int)) end++
         if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))
@@ -818,7 +825,7 @@ public struct string {
     }
     func to_double(&self) : std::Result<double, std::string_view> {
         var end : *mut char = null
-        var res = strtod(data() as *mut char, &mut end)
+        var res = strtod(data() as *mut char, &raw mut end)
         if (end == data()) return std::Result.Err(std::string_view("invalid format"))
         while (end != null && *end != '\0' && isspace(*end as int)) end++
         if (end != null && *end != '\0') return std::Result.Err(std::string_view("trailing characters"))

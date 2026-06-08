@@ -211,6 +211,8 @@ public:
 
     void VisitAddrOfValue(AddrOfValue* value);
 
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
     void VisitDereferenceValue(DereferenceValue* value);
 
     void VisitExpression(Expression *expr);

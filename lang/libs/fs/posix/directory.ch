@@ -15,7 +15,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 // create_dir_all (recursive)
 public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
     var buf : [PATH_MAX_BUF]char;
-    var r = normalize_path(path, &mut buf[0], PATH_MAX_BUF as size_t);
+    var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
         var Err(e) = r else unreachable
         return Result.Err(e)
@@ -33,11 +33,11 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
             prefix[k] = 0;
             // skip empty
             if(k == 0) { i++; continue; }
-            var stat_res = metadata(&mut prefix[0]);
+            var stat_res = metadata(&raw mut prefix[0]);
             if(stat_res is Result.Err) {
                 var Err(e) = stat_res else unreachable;
                 if(e is FsError.NotFound) {
-                    var c = create_dir(&mut prefix[0]);
+                    var c = create_dir(&raw mut prefix[0]);
                     if(c is Result.Err) { var Err(e2) = c else unreachable; return Result.Err(e2); }
                 } else {
                     // if exists fine, otherwise return
@@ -106,7 +106,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         // fstatat relative to dirfd
         var st : Stat;
         set_errno(0);
-        if(fstatat(dirfd, &ent.d_name[0], &mut st, AT_SYMLINK_NOFOLLOW) != 0) {
+        if(fstatat(dirfd, &raw ent.d_name[0], &raw mut st, AT_SYMLINK_NOFOLLOW) != 0) {
             var e = get_errno();
             // printf("fstatat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e, strerror(e));
             if(e == 2) { // ENOENT
@@ -123,7 +123,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
             // printf("  '%s' is DIR — openat\n", &ent.d_name[0]);
 
             set_errno(0);
-            var childfd = openat(dirfd, &ent.d_name[0], O_RDONLY | O_DIRECTORY, 0);
+            var childfd = openat(dirfd, &raw ent.d_name[0], O_RDONLY | O_DIRECTORY, 0);
             if(childfd < 0) {
                 var e2 = get_errno();
                 // printf("  openat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e2, strerror(e2));
@@ -147,7 +147,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
 
             // Remove the directory entry itself using unlinkat(AT_REMOVEDIR)
             set_errno(0);
-            if(unlinkat(dirfd, &ent.d_name[0], AT_REMOVEDIR) != 0) {
+            if(unlinkat(dirfd, &raw ent.d_name[0], AT_REMOVEDIR) != 0) {
                 var e3 = get_errno();
                 // printf("  unlinkat(AT_REMOVEDIR) dirfd=%d name='%s' -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e3, strerror(e3));
                 if(e3 == 2) {
@@ -164,7 +164,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         } else {
             // Not a directory: remove with unlinkat
             set_errno(0);
-            if(unlinkat(dirfd, &ent.d_name[0], 0) != 0) {
+            if(unlinkat(dirfd, &raw ent.d_name[0], 0) != 0) {
                 var e4 = get_errno();
                 // printf("  unlinkat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e4, strerror(e4));
                 if(e4 == 2) {
@@ -234,7 +234,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     while(true) {
         var ent = readdir(d);
         if(ent == null) { break; }
-        var name_ptr = &ent.d_name[0];
+        var name_ptr = &raw ent.d_name[0];
         var nl : size_t = 0; while(name_ptr[nl] != 0) { nl++ }
         var isdir : bool = false;
         // TODO:
@@ -247,7 +247,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
         if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
         var q : size_t = 0; while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
         var st : Stat;
-        var r = lstat(&child[0], &mut st);
+        var r = lstat(&raw child[0], &raw mut st);
         if(r == 0) { isdir = ((st.st_mode & 0xF000) == 0x4000); }
         // }
         var cont = callback(name_ptr, nl, isdir);

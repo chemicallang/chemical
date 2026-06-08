@@ -88,7 +88,7 @@ public struct JsonParser {
     }
 
     func parse(&mut self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
-        s = buffer; len = length; pos = 0; handler = &mut h;
+        s = buffer; len = length; pos = 0; handler = &raw mut h;
         skip_ws();
         var r = parse_value(0);
         if (!r.ok) return r;
@@ -123,7 +123,7 @@ private:
         if (c == '[') return parse_array(depth + 1);
         if (c == '"') {
             /* use stack buffer for unescaped string; small default, no heap */
-            var out = &mut scratch[0]
+            var out = &raw mut scratch[0]
             var outcap : size_t = 4096;
             var outlen : size_t = 0;
             var r : ParseResult = parse_string_inplace(out, outcap, outlen);
@@ -196,7 +196,7 @@ private:
             if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
             if (cur() != '"') return ParseResult::Err(pos, "expected string key");
             /* parse key into stack buffer */
-            var out = &mut scratch[0]
+            var out = &raw mut scratch[0]
             var outcap : size_t = 4096;
             var outlen : size_t = 0;
             var r : ParseResult = parse_string_inplace(out, outcap, outlen);

@@ -77,7 +77,7 @@ func test_basic_interfaces() {
 
     test("usage can come before impl, impl can come before normal interface - 2", () => {
         var point = UBI_IBI_Point { a : 8, b : 7 }
-        return ubi_ibi_multiply_it(point) == 56
+        return ubi_ibi_multiply_it(&point) == 56
     })
 
     test("usage can come before impl, impl can come before normal interface - 3", () => {
@@ -97,7 +97,7 @@ func test_basic_interfaces() {
 
     test("use and impl of static interface before definition works", () => {
         var i = impl_of_static_inter_bef_def {};
-        return use_of_static_inter_bef_def(i) == 436
+        return use_of_static_inter_bef_def(&i) == 436
     })
 
 }

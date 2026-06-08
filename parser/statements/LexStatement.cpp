@@ -332,7 +332,7 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
         case TokenType::HashMacro:
             return (Value*) parseMacroValue(allocator);
         case TokenType::AmpersandSym:
-            return (Value*) parseAddrOfValue(allocator);
+            return parseReferenceOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
         case TokenType::NullKw: {

@@ -44,6 +44,7 @@ enum class ValueKind : uint8_t {
     AlignOfValue,
     VariantCase,
     AddrOfValue,
+    ReferenceOfValue,
     PointerValue,
     BlockValue,
     TypeInsideValue,

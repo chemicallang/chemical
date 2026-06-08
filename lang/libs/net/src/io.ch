@@ -49,7 +49,7 @@ public namespace io {
 
         func as_ptr(&self) : *u8 {
             if(v.size() == 0) { return null }
-            return &v.get_ptr(read_pos)[0]
+            return &raw v.get_ptr(read_pos)[0]
         }
 
         func get_byte(&self, idx: usize) : u8 { return v.get(read_pos + idx) }

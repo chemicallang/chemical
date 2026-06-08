@@ -59,7 +59,7 @@ public namespace std {
                 return CreateThread(null,0u,entry,arg,0u,&mut tid) as usize
             } else {
                 var th:usize=0u;
-                if(pthread_create(&mut th,null,entry,arg)!=0){
+                if(pthread_create(&raw mut th,null,entry,arg)!=0){
                     panic("pthread_create")
                 }
                 return th
@@ -123,13 +123,13 @@ public namespace std {
             func get(&mut self):T {
                 var thing : T
                 p.m.lock();
-                while(!p.ready){ p.cv.wait(p.m) }
+                while(!p.ready){ p.cv.wait(&mut p.m) }
                 // mark that consumer will free (so worker won't free)
                 p.future_dropped = true;
                 p.m.unlock();
                 // TODO: create a copy here
                 var pp = p
-                var r = std::replace(pp.val, thing);
+                var r = std::replace(&mut pp.val, thing);
                 delete p;
                 p=null;
                 return r
@@ -164,7 +164,7 @@ public namespace std {
                 var opt:std.Option<Task> = std.Option.None<Task>();
                 P.m.lock();
                 while(P.q.size()==0u && P.run) {
-                    P.cv.wait(P.m)
+                    P.cv.wait(&mut P.m)
                 }
                 if(!P.run && P.q.size()==0u) {
                     P.m.unlock();
@@ -173,7 +173,7 @@ public namespace std {
                 if(P.q.size()>0u){
                     var first_ele = P.q.get_ptr(0);
                     // move the task out by replacing it with a dummy, then remove
-                    var t = std::replace(*first_ele, Task { f : ||() => {} });
+                    var t = std::replace(&mut *first_ele, Task { f : ||() => {} });
                     P.q.remove(0);
                     opt = std.Option.Some<Task>(t)
                 }

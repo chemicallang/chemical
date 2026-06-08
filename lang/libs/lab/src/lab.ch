@@ -266,14 +266,14 @@ func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::spa
 
 public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, package_kind : PackageKind, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
-    make_deps(vec, dependencies)
+    make_deps(&mut vec, dependencies)
     return ctx.new_package(type, package_kind, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
 }
 
 // a single .c file
 public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
-    make_deps(vec, dependencies)
+    make_deps(&mut vec, dependencies)
     const mod = ctx.new_package(ModuleType.CFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
     ctx.add_path(mod, path)
     return mod;
@@ -282,7 +282,7 @@ public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, 
 // a single .cpp file
 public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
-    make_deps(vec, dependencies)
+    make_deps(&mut vec, dependencies)
     const mod = ctx.new_package(ModuleType.CPPFile, PackageKind.Library, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
     ctx.add_path(mod, path)
     return mod;
@@ -345,7 +345,7 @@ public func (ctx : &BuildContext) add_compiler_interfaces(mod : *mut Module, int
         const s = interfaces.size()
         while(i < s) {
             const ci = interfaces.get(i)
-            ctx.add_compiler_interface(mod, *ci)
+            ctx.add_compiler_interface(mod, &*ci)
             i++;
         }
     }
@@ -360,7 +360,7 @@ public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, 
 public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *mut *mut Module, build : (ctx : *BuildContext) => *mut Module) : *mut Module {
     const c = *cached;
     if(c == null && *buildFlag == true) {
-        const built = build(&ctx)
+        const built = build(&raw ctx)
         *cached = built
         *buildFlag = false;
         return built;
@@ -391,7 +391,7 @@ public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, na
 
 public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
     const deps : []*mut Module = []
-    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, deps);
+    const mod = ctx.file_module("", "CFile", c_path, deps);
     return ctx.translate_to_chemical(mod, output_path);
 }
 
@@ -401,7 +401,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
     const total = headers.size();
     while(i < total) {
         var ele = headers.get(i as size_t);
-        ctx.include_header(module, *ele);
+        ctx.include_header(module, &*ele);
         i++;
     }
 }
@@ -415,7 +415,8 @@ public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : 
 // -----------------------------------------------------
 
 public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_view) : std::string {
-    const new_path = std::string(ctx.build_path());
+    var view = ctx.build_path()
+    const new_path = std::string(&view);
     new_path.append('/');
     new_path.append_view(job_name);
     new_path.append_view(".dir");

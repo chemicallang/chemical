@@ -45,7 +45,7 @@ func test_optional_type() {
     test("taking the option destructs once only", () => {
         var counter = 0
         if(counter == 0) {
-            var o = Option.Some<Deletable>(Deletable { counter : &mut counter })
+            var o = Option.Some<Deletable>(Deletable { counter : &raw mut counter })
             var taken = o.take()
             if(o !is Option.None) {
                 return false;

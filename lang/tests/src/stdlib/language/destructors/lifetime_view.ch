@@ -24,7 +24,7 @@ struct TempString {
     var dtor_flag : *mut int = null
 
     func assign(&mut self, s : string_view, flag : *mut int) {
-        self.data.append_view(s)
+        self.data.append_view(&s)
         self.dtor_flag = flag
     }
 
@@ -40,7 +40,7 @@ struct TempString {
 
 func make_temp(s : string_view, flag : *mut int) : TempString {
     var t = TempString()
-    t.data.append_view(s)
+    t.data.append_view(&s)
     t.dtor_flag = flag
     return t
 }
@@ -51,7 +51,7 @@ func consume_view(v : string_view) : bool {
 
 func consume_view_and_capture(v : string_view) : string {
     var out = string()
-    out.append_view(v)
+    out.append_view(&v)
     return out
 }
 
@@ -76,7 +76,7 @@ func test_temp_view_lifetime() {
     test("named TempString variable is destructed once", () => {
         var count = 0
         if(true) {
-            var t = make_temp(string_view("Hello"), &mut count)
+            var t = make_temp(string_view("Hello"), &raw mut count)
         }
         return count == 1
     })
@@ -84,7 +84,7 @@ func test_temp_view_lifetime() {
     test("named TempString.to_view() consumed then destructed once", () => {
         var count = 0
         if(true) {
-            var t = make_temp(string_view("Hello"), &mut count)
+            var t = make_temp(string_view("Hello"), &raw mut count)
             var ok = consume_view(t.to_view())
         }
         return count == 1
@@ -108,7 +108,7 @@ func test_temp_view_lifetime() {
         unsafe "no_lifetime_check" {
             var count = 0
             if(true) {
-                var ok = consume_view(make_temp(string_view("Hello"), &mut count).to_view())
+                var ok = consume_view(make_temp(string_view("Hello"), &raw mut count).to_view())
             }
             // BUG: dtor is placed after `return` (dead code), never called
             // count should be 1 but is 0 → test FAILS
@@ -121,7 +121,7 @@ func test_temp_view_lifetime() {
             var count = 0
             var captured = string()
             if(true) {
-                captured = consume_view_and_capture(make_temp(string_view("Hello World! TempString view test."), &mut count).to_view())
+                captured = consume_view_and_capture(make_temp(string_view("Hello World! TempString view test."), &raw mut count).to_view())
             }
             // BUG: dtor is placed after `return`, never called → count is 0, not 1
             // Also captured should contain the correct content
@@ -134,8 +134,8 @@ func test_temp_view_lifetime() {
             var count1 = 0
             var count2 = 0
             if(true) {
-                var ok = consume_view(make_temp(string_view("First"), &mut count1).to_view()) &&
-                         consume_view(make_temp(string_view("Second"), &mut count2).to_view())
+                var ok = consume_view(make_temp(string_view("First"), &raw mut count1).to_view()) &&
+                         consume_view(make_temp(string_view("Second"), &raw mut count2).to_view())
             }
             // BUG: both dtors are dead code → count1 == 0, count2 == 0
             return count1 == 1 && count2 == 1

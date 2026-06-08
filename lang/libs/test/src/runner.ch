@@ -16,29 +16,29 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
     var env = create_test_env(tfn, config);
 
     if(config.before_each) {
-        config.before_each(env)
+        config.before_each(&mut env)
     }
 
     var return_success : bool
     if(config.benchmark) {
         // TODO: benchmarking code here
-        return_success = run_test_fn_ptr(env, tfn.ptr as *void, tfn.returns_bool)
+        return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
     } else {
-        return_success = run_test_fn_ptr(env, tfn.ptr as *void, tfn.returns_bool)
+        return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
     }
     if(return_success == false) {
         (env as TestEnv).error("boolean test returned false");
     }
 
     if(config.after_each) {
-        config.after_each(env)
+        config.after_each(&mut env)
     }
 
 }
 
 func append_integer(str : &mut std::string, dig : int) {
     var buffer : [160]char
-    const buffStart = &mut buffer[0]
+    const buffStart = &raw mut buffer[0]
     snprintf(buffStart, sizeof(buffer), "%d", dig)
     str.append_char_ptr(buffStart);
 }
@@ -123,7 +123,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
 
             // actual launch on the thread pool
             var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
-                launch_test_with_retries(exe_path, test_id, *fn_state, test_retry, timeout_ms as uint);
+                launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
                 return 0;
             })
             asyncJobs.push(job)
@@ -140,7 +140,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         }
 
         // print the test results
-        print_test_results(config.display, state.tests.data(), state.tests.size())
+        print_test_results(&mut config.display, state.tests.data(), state.tests.size())
 
     }
 

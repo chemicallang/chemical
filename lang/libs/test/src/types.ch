@@ -38,8 +38,8 @@ impl TestEnv for TestEnvImpl {
         var msg = std::string();
         msg.append_char_ptr("$log,")
         var buff : [2048]char
-        snprintf(&mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData);
-        msg.append_char_ptr(&buff[0])
+        snprintf(&raw mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData);
+        msg.append_char_ptr(&raw buff[0])
         self.send_message(msg.data(), msg.size())
     }
 

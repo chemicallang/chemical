@@ -1334,7 +1334,7 @@ int compile_c_or_cpp_module(
         std::cout << '\'' << mod->name.data() << "' ";
     }
     auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
-    std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    std::cout << "at path '" << mod->paths[0] << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
     if (!options.use_tcc) {
         const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), options.exe_path, options.resources_path, target_triple, mod->include_dirs, options.debug_info || is_debug_or_compl(options.out_mode));

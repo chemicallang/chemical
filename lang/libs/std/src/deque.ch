@@ -59,7 +59,7 @@ public struct deque<T> {
         }
         const block_index = block_count - 1
         const elem_index = blocks[block_index].data_size
-        memcpy(&mut blocks[block_index].data_ptr[elem_index], &value, sizeof(T))
+        memcpy(&raw mut blocks[block_index].data_ptr[elem_index], &raw value, sizeof(T))
         intrinsics::forget(value)
         blocks[block_index].data_size = elem_index + 1
         data_size += 1
@@ -78,7 +78,7 @@ public struct deque<T> {
         while(block_index < block_count) {
             const block_size = blocks[block_index].data_size
             if(remaining < block_size) {
-                return &mut blocks[block_index].data_ptr[remaining]
+                return &raw mut blocks[block_index].data_ptr[remaining]
             }
             remaining = remaining - block_size
             block_index += 1
@@ -87,7 +87,7 @@ public struct deque<T> {
     }
 
     func get_ref(&self, index : size_t) : &mut T {
-        return *get_ptr(index)
+        return &mut *get_ptr(index)
     }
 
     func clear(&mut self) {

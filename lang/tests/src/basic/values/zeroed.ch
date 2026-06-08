@@ -54,7 +54,7 @@ func test_zeroed_value() {
         return give_me_zi(zeroed<ZeroInitializable>()) == 0
     })
     test("zero initializable works when taking address", () => {
-        return give_me_zi_ptr(&zeroed<ZeroInitializable>()) == 0
+        return give_me_zi_ptr(&raw zeroed<ZeroInitializable>()) == 0
     })
     test("zero initializable works inside generic containers - 1", () => {
         var z = gen_zeroed<ZeroInitializable>()

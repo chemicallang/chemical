@@ -35,6 +35,7 @@ public enum ValueKind {
     AlignOfValue,
     VariantCase,
     AddrOfValue,
+    ReferenceOfValue,
     PointerValue,
     BlockValue,
     TypeInsideValue,

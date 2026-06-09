@@ -70,13 +70,13 @@ func bf_body(ctx : &mut BF_ctx) {
     var L = 0u
     var R = 0u
     for(var i = 0; i < 18; i += 2) {
-        bf_encrypt(ctx, L, R)
+        bf_encrypt(ctx, &mut L, &mut R)
         ctx.P[i] = L
         ctx.P[i+1] = R
     }
     for(var i = 0; i < 4; i++) {
         for(var j = 0; j < 256; j += 2) {
-            bf_encrypt(ctx, L, R)
+            bf_encrypt(ctx, &mut L, &mut R)
             ctx.S[i][j] = L
             ctx.S[i][j+1] = R
         }
@@ -221,7 +221,7 @@ public func bf_crypt(key : std::string_view, setting : std::string_view) : std::
     for(var i = 0; i < 18; i += 2) {
         L ^= salt_binary[i & 2]
         R ^= salt_binary[(i & 2) + 1]
-        bf_encrypt(&ctx, L, R)
+        bf_encrypt(&ctx, &mut L, &mut R)
         ctx.P[i] = L
         ctx.P[i+1] = R
     }
@@ -229,12 +229,12 @@ public func bf_crypt(key : std::string_view, setting : std::string_view) : std::
     var sptr = 0
     while(sptr < 1024) {
         L ^= salt_binary[2]; R ^= salt_binary[3]
-        bf_encrypt(&ctx, L, R)
+        bf_encrypt(&ctx, &mut L, &mut R)
         ctx.S[sptr/256][sptr%256] = L; sptr++
         ctx.S[sptr/256][sptr%256] = R; sptr++
         
         L ^= salt_binary[0]; R ^= salt_binary[1]
-        bf_encrypt(&ctx, L, R)
+        bf_encrypt(&ctx, &mut L, &mut R)
         ctx.S[sptr/256][sptr%256] = L; sptr++
         ctx.S[sptr/256][sptr%256] = R; sptr++
     }
@@ -261,7 +261,7 @@ public func bf_crypt(key : std::string_view, setting : std::string_view) : std::
     for(var i = 0; i < 6; i += 2) {
         L = BF_magic_w[i]; R = BF_magic_w[i+1]
         for(var j = 0; j < 64; j++) {
-            bf_encrypt(&ctx, L, R)
+            bf_encrypt(&ctx, &mut L, &mut R)
         }
         output_binary[i] = L; output_binary[i+1] = R
     }

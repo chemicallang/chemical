@@ -134,11 +134,11 @@ func test_primitive_implementations() {
     })
     test("call on referenced primitive impl method works - 1", () => {
         var i : int = 20
-        return param_call_ref_int_prim_impl(i) == 50
+        return param_call_ref_int_prim_impl(&i) == 50
     })
     test("call on referenced primitive impl method works - 2", () => {
         var i : long = 20
-        return param_call_ref_long_prim_impl(i) == 60
+        return param_call_ref_long_prim_impl(&i) == 60
     })
     test("direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
@@ -198,11 +198,11 @@ func test_primitive_implementations() {
     })
     test("external call on referenced primitive impl method works - 1", () => {
         var i : int = 20
-        return ext_param_call_ref_int_prim_impl(i) == 50
+        return ext_param_call_ref_int_prim_impl(&i) == 50
     })
     test("external call on referenced primitive impl method works - 2", () => {
         var i : long = 20
-        return ext_param_call_ref_long_prim_impl(i) == 60
+        return ext_param_call_ref_long_prim_impl(&i) == 60
     })
     test("external direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20

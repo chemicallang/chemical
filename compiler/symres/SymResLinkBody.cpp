@@ -2393,6 +2393,7 @@ void SymResLinkBody::VisitIfType(IfType* type) {
 void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     const auto value = addrOfValue->value;
     visit(value);
+    value->report_addr_taken_of_chain_id();
     // lets determine the type of this value
     addrOfValue->determine_type();
 
@@ -2401,6 +2402,7 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
 void SymResLinkBody::VisitReferenceOfValue(ReferenceOfValue* refValue) {
     const auto value = refValue->value;
     visit(value);
+    value->report_addr_taken_of_chain_id();
     // lets determine the type of this value
     refValue->determine_type();
 }

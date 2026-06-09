@@ -85,20 +85,17 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
     }
     // when assigning to a ref, we don't require l value
     if(!assignment) {
-        if (givenKind == BaseTypeKind::IntN || givenKind == BaseTypeKind::Bool) {
-            if(value) {
-                const auto typeSatisfies = type->satisfies(given);
-                return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
-            } else {
-                return is_mutable ? false : type->satisfies(given);
-            }
-        }
+        // if (givenKind == BaseTypeKind::IntN || givenKind == BaseTypeKind::Bool) {
+        //     if(value) {
+        //         const auto typeSatisfies = type->satisfies(given);
+        //         return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
+        //     } else {
+        //         return is_mutable ? false : type->satisfies(given);
+        //     }
+        // }
         // For non-primitive types (structs, variants, etc.), if the inner type
         // matches, the reference type is always satisfied because such values
         // always have identity and can bind to mutable or immutable references
-        if (type->satisfies(given)) {
-            return true;
-        }
         if (!is_mutable && value && value->isValueRValueInFrontend()) {
             return type->satisfies(given);
         }

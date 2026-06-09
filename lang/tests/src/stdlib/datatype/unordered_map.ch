@@ -12,10 +12,10 @@ func test_unordered_map() {
         var second : int = 0
         var third : int = 0
         var fourth : int = 0
-        map.find(20, first)
-        map.find(30, second)
-        map.find(40, third)
-        map.find(50, fourth)
+        map.find(20, &mut first)
+        map.find(30, &mut second)
+        map.find(40, &mut third)
+        map.find(50, &mut fourth)
         return !map.contains(10) && first == 200 && second == 300 && third == 400 && fourth == 500
     })
     test("unordered_map works with integer keys - 2", () => {
@@ -43,10 +43,10 @@ func test_unordered_map() {
         var second : int = 0
         var third : int = 0
         var fourth : int = 0
-        map.find(21, first)
-        map.find(27, second)
-        map.find(14, third)
-        map.find(11, fourth)
+        map.find(21, &mut first)
+        map.find(27, &mut second)
+        map.find(14, &mut third)
+        map.find(11, &mut fourth)
         return first == 530 && second == 590 && third == 600 && fourth == 300
     })
     test("unordered map works with string views as keys and values", () => {

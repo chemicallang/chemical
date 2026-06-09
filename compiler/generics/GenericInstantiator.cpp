@@ -510,7 +510,7 @@ void GenericInstantiator::VisitAddrOfValue(AddrOfValue* value) {
 
 void GenericInstantiator::VisitReferenceOfValue(ReferenceOfValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitReferenceOfValue(value);
-    // value->value->report_addr_taken_of_chain_id();
+    value->value->report_addr_taken_of_chain_id();
     // type can change, must redetermine it
     value->determine_type();
 }

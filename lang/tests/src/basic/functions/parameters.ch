@@ -65,7 +65,7 @@ func take_ref_to_r_val(value : &int) : bool {
 }
 
 func pass_r_val_to_ref(value : int) : bool {
-    return take_ref_to_r_val(value)
+    return take_ref_to_r_val(&value)
 }
 
 func assign_to_param(value : int) : int {

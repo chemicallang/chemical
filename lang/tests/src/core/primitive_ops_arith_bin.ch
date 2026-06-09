@@ -70,9 +70,9 @@ impl core::ops::PartialEq<int> for PrimArithBinOpStruct {
 impl core::ops::Index<int, int> for PrimArithBinOpStruct {
     func index(&self, idx : int) : &int {
         if(idx == 0) {
-            return take_ref(a)
+            return take_ref(&a)
         } else {
-            return take_ref(b)
+            return take_ref(&b)
         }
     }
 }
@@ -172,7 +172,7 @@ func test_arithmetic_bin_op_with_primitive() {
     })
     test("index operator overload automatically sends a reference to reference types", () => {
         var s = PrimArithBinOpStruct { a : 50, b : 9 }
-        assign_mut_ref_op_overloaded(s[0])
+        assign_mut_ref_op_overloaded(&mut s[0])
         return s.a == 834
     })
 }

@@ -31,31 +31,31 @@ variant OptIntStorage8373 {
 func test_auto_deref() {
     test("OLD auto dereferences when value is being passed to function calls", () => {
         var i = 38
-        return take_int(*give_ref(i)) == 38
+        return take_int(*give_ref(&mut i)) == 38
     })
     test("OLD auto dereference in assignment works", () => {
         var i = 33
         var j = 0
-        j = *give_ref(i)
+        j = *give_ref(&mut i)
         return j == 33
     })
     test("OLD auto derefeences when a value is being returned", () => {
         var i = 323
-        return ret_auto_deref(i) == 323
+        return ret_auto_deref(&i) == 323
     })
     test("OLD auto dereferences when storing into a struct", () => {
         var i = 234
-        var s = create_IntStorageT3232(i);
+        var s = create_IntStorageT3232(&i);
         return s.i == 234
     })
     test("OLD auto dereferences when storing into an array", () => {
         var i = 356
-        var s : []int = [ *give_ref(i) ]
+        var s : []int = [ *give_ref(&mut i) ]
         return s[0] == 356
     })
     test("OLD auto dereferences when calling variants", () => {
         var i = 34343;
-        var thing : OptIntStorage8373 = OptIntStorage8373.Some(*give_ref(i))
+        var thing : OptIntStorage8373 = OptIntStorage8373.Some(*give_ref(&mut i))
         switch(thing) {
             Some(value) => {
                 return value == 34343;
@@ -67,7 +67,7 @@ func test_auto_deref() {
     })
     test("OLD referenced intN types are automatically de-referenced in switch statements", () => {
         var i = 33;
-        switch(*give_ref(i)) {
+        switch(*give_ref(&mut i)) {
             33 => {
                 return true;
             }
@@ -78,7 +78,7 @@ func test_auto_deref() {
     })
     test("OLD referenced boolean types are automatically de-referenced in switch statements", () => {
         var i = true;
-        switch(*give_ref_bool(i)) {
+        switch(*give_ref_bool(&i)) {
             true => {
                 return true;
             }
@@ -92,73 +92,73 @@ func test_auto_deref() {
     })
     test("increment decrement can handle references - 1", () => {
         var i = 26
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         ref++
         return i == 27
     })
     test("increment decrement can handle references - 2", () => {
         var i = 23
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         ++ref
         return i == 24
     })
     test("increment decrement can handle references - 3", () => {
         var i = 26
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         ref--
         return i == 25
     })
     test("increment decrement can handle references - 4", () => {
         var i = 23
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         --ref
         return i == 22
     })
     test("increment decrement can handle references - 5", () => {
         var i = 26
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return ref++ == 26
     })
     test("increment decrement can handle references - 6", () => {
         var i = 23
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return ++ref == 24
     })
     test("increment decrement can handle references - 7", () => {
         var i = 26
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return i-- == 26
     })
     test("increment decrement can handle references - 8", () => {
         var i = 23
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return --i == 22
     })
     test("automatic dereferences in expressions work - 1", () => {
         var i = 545
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return *ref == i;
     })
     test("automatic dereferences in expressions work - 2", () => {
         var i = 547
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         return i == *ref;
     })
     test("automatic dereferences in expressions work - 3", () => {
         var i = 545
-        var ref = give_ref(i)
-        var ref2 = give_ref(i)
+        var ref = give_ref(&mut i)
+        var ref2 = give_ref(&mut i)
         return *ref == *ref2;
     })
     test("automatic dereferences in expressions work - 2", () => {
         var i = 547
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         var ref2 = ref
         return *ref == *ref2;
     })
     test("automatic dereferences when passing to var args parameter", () => {
         var i = 788
-        var ref = give_ref(i)
+        var ref = give_ref(&mut i)
         var str : [20]char = []
         snprintf(&raw mut str[0], 19, "%d", *ref);
         return strncmp(&raw str[0], "788", 3) == 0

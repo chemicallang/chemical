@@ -291,15 +291,15 @@ func test_satisfies() {
         type T = &BaseSatisfies11
         return intrinsics::satisfies<T, T>()
     })
-    test("direct struct satisfies a reference type but not the other way around", () => {
+    test("direct struct NOT satisfies a reference type and vice versa", () => {
         type T = EmptySatisfies
         type K = &EmptySatisfies
-        return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
+        return !intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
     })
-    test("direct struct satisfies a reference type but not the other way around", () => {
+    test("direct struct satisfies a reference type and vice versa", () => {
         type T = EmptySatisfies22
         type K = &EmptySatisfies22
-        return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
+        return !intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
     })
     test("derived struct reference types satisfy base struct reference types but not the other way around", () => {
         type T = &DerivedSatisfies11
@@ -395,85 +395,85 @@ func test_satisfies() {
         type U = ulong
         return !intrinsics::satisfies<T, U>()
     })
-    test("direct bool types satisfies reference bool type without backing storage", () => {
+    test("direct bool types NOT satisfies reference bool type without backing storage", () => {
         type T = &bool
         type U = bool
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfies reference int n types without backing storage - 1", () => {
+    test("direct int n types NOT satisfies reference int n types without backing storage - 1", () => {
         type T = &int
         type U = int
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfies reference int n types without backing storage - 2", () => {
+    test("direct int n types NOT satisfies reference int n types without backing storage - 2", () => {
         type T = &int
         type U = long
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfies reference int n types without backing storage - 3", () => {
+    test("direct int n types NOT satisfies reference int n types without backing storage - 3", () => {
         type T = &uint
         type U = uint
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfies reference int n types without backing storage - 4", () => {
+    test("direct int n types NOT satisfies reference int n types without backing storage - 4", () => {
         type T = &uint
         type U = ulong
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct bool type satisfy reference bool type with backing storage", () => {
+    test("direct bool type NOT satisfy reference bool type with backing storage", () => {
         type T = &bool
         var U : bool = false
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfy reference int n types with backing storage - 1", () => {
+    test("direct int n types NOT satisfy reference int n types with backing storage - 1", () => {
         type T = &int
         var U : int = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfy reference int n types with backing storage - 2", () => {
+    test("direct int n types NOT satisfy reference int n types with backing storage - 2", () => {
         type T = &int
         var U : long = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfy reference int n types with backing storage - 3", () => {
+    test("direct int n types NOT satisfy reference int n types with backing storage - 3", () => {
         type T = &uint
         var U : uint = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct int n types satisfy reference int n types with backing storage - 4", () => {
+    test("direct int n types NOT satisfy reference int n types with backing storage - 4", () => {
         type T = &uint
         var U : ulong = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct bool type satisfy mutable reference bool type with backing storage", () => {
+    test("direct bool type NOT satisfy mutable reference bool type with backing storage", () => {
         var x = false
-        var T : &mut bool = x
+        var T : &mut bool = &mut x
         var U : bool = false
-        return intrinsics::value_satisfies(T, U)
+        return !intrinsics::value_satisfies(T, U)
     })
-    test("direct int n types satisfy mutable reference int n types with backing storage - 1", () => {
+    test("direct int n types NOT satisfy mutable reference int n types with backing storage - 1", () => {
         var x = 0
-        var T : &mut int = x
+        var T : &mut int = &mut x
         var U : int = 0
-        return intrinsics::value_satisfies(T, U)
+        return !intrinsics::value_satisfies(T, U)
     })
-    test("direct int n types satisfy mutable reference int n types with backing storage - 2", () => {
+    test("direct int n types NOT satisfy mutable reference int n types with backing storage - 2", () => {
         var x = 0
-        var T : &mut int = x
+        var T : &mut int = &mut x
         var U : long = 0
-        return intrinsics::value_satisfies(T, U)
+        return !intrinsics::value_satisfies(T, U)
     })
-    test("direct int n types satisfy mutable reference int n types with backing storage - 3", () => {
+    test("direct int n types NOT satisfy mutable reference int n types with backing storage - 3", () => {
         var x : uint = 0
-        var T : &mut uint = x
+        var T : &mut uint = &mut x
         var U : uint = 0
-        return intrinsics::value_satisfies(T, U)
+        return !intrinsics::value_satisfies(T, U)
     })
-    test("direct int n types satisfy mutable reference int n types with backing storage - 4", () => {
+    test("direct int n types NOT satisfy mutable reference int n types with backing storage - 4", () => {
         var x : uint = 0
-        var T : &mut uint = x
+        var T : &mut uint = &mut x
         var U : ulong = 0
-        return intrinsics::value_satisfies(T, U)
+        return !intrinsics::value_satisfies(T, U)
     })
     test("constant bool declaration does not qualify as backing storage for mutable reference types", () => {
         type T = &mut bool
@@ -500,30 +500,30 @@ func test_satisfies() {
         const U : ulong = 0
         return !intrinsics::satisfies<T, U>()
     })
-    test("constant bool declaration satisfies const reference types", () => {
+    test("constant bool declaration NOT satisfies const reference types", () => {
         type T = &bool
         const U : bool = false
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("constant int n declarations satisfy const reference types - 1", () => {
+    test("constant int n declarations NOT satisfy const reference types - 1", () => {
         type T = &int
         const U : int = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("constant int n declarations satisfy const reference types - 2", () => {
+    test("constant int n declarations NOT satisfy const reference types - 2", () => {
         type T = &int
         const U : long = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("constant int n declarations satisfy const reference types - 3", () => {
+    test("constant int n declarations NOT satisfy const reference types - 3", () => {
         type T = &uint
         const U : uint = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("constant int n declarations satisfy const reference types - 4", () => {
+    test("constant int n declarations NOT satisfy const reference types - 4", () => {
         type T = &uint
         const U : ulong = 0
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
     test("bool reference type satisfies bool type for auto dereference", () => {
         type T = bool
@@ -536,49 +536,49 @@ func test_satisfies() {
     test("reference int n types NOT satisfies int n types - 1", () => {
         var x = 0
         var T : int = 0
-        var U : &int = x
+        var U : &int = &x
         return !intrinsics::value_satisfies(T, U)
     })
     test("reference int n types NOT satisfies int n types - 2", () => {
         var x = 0
         var T : int = 0
-        var U : &long = x
+        var U : &long = &x
         return !intrinsics::value_satisfies(T, U)
     })
     test("reference int n types NOT satisfies int n types - 3", () => {
         var x : uint = 0
         var T : uint = 0
-        var U : &uint = x
+        var U : &uint = &x
         return !intrinsics::value_satisfies(T, U)
     })
     test("reference int n types NOT satisfies int n types - 4", () => {
         var x : ulong = 0
         var T : uint = 0
-        var U : &ulong = x
+        var U : &ulong = &x
         return !intrinsics::value_satisfies(T, U)
     })
     test("reference int n types NOT satisfies int n types - 5", () => {
         var x = 0
         var V : int = 0
-        var X : &mut int = x
+        var X : &mut int = &mut x
         return !intrinsics::value_satisfies(V, X)
     })
     test("reference int n types NOT satisfies int n types - 6", () => {
         var x = 0
         var V : int = 0
-        var X : &mut long = x
+        var X : &mut long = &mut x
         return !intrinsics::value_satisfies(V, X)
     })
     test("reference int n types NOT satisfies int n types - 7", () => {
         var x : uint = 0
         var V : uint = 0
-        var X : &mut uint = x
+        var X : &mut uint = &mut x
         return !intrinsics::value_satisfies(V, X)
     })
     test("reference int n types NOT satisfies int n types - 8", () => {
         var x : ulong = 0
         var V : uint = 0
-        var X : &mut ulong = x
+        var X : &mut ulong = &mut x
         return !intrinsics::value_satisfies(V, X)
     })
     test("function type satisfies *void type", () => {
@@ -586,38 +586,34 @@ func test_satisfies() {
         type U = () => void
         return intrinsics::satisfies<T, U>()
     })
-    test("direct structs always satisfy reference immutable types", () => {
+    test("direct structs always NOT satisfy reference immutable types", () => {
         type T = &EmptySatisfies
         type U = EmptySatisfies
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct structs always satisfy reference mutable types", () => {
+    test("direct structs always NOT satisfy reference mutable types", () => {
         type T = &mut EmptySatisfies
         type U = EmptySatisfies
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct structs with const declaration always satisfy reference immutable types", () => {
+    test("direct structs with const declaration always NOT satisfy reference immutable types", () => {
         type T = &EmptySatisfies
         const U = EmptySatisfies {}
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    /**
-    TODO make sure this works, currently const declarations return linked types which are considered
-        always mutable
-    test("direct structs with const declaration don't satisfy reference mutable types", () => {
+    test("direct structs with const declaration NOT satisfy reference mutable types", () => {
         type T = &mut EmptySatisfies
         const U = EmptySatisfies {}
         return !intrinsics::satisfies<T, U>()
     })
-    **/
-    test("direct structs with var declaration always satisfy reference immutable types", () => {
+    test("direct structs with var declaration always NOT satisfy reference immutable types", () => {
         type T = &EmptySatisfies
         var U = EmptySatisfies {}
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
-    test("direct structs with var declaration always satisfy reference mutable types", () => {
+    test("direct structs with var declaration always NOT satisfy reference mutable types", () => {
         type T = &mut EmptySatisfies
         var U = EmptySatisfies {}
-        return intrinsics::satisfies<T, U>()
+        return !intrinsics::satisfies<T, U>()
     })
 }

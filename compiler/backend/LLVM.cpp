@@ -2319,11 +2319,15 @@ void DestructStmt::code_gen(Codegen &gen) {
 //        }
 //    }
     if(!is_array && !determined_array) {
-        if(pure_type->kind() != BaseTypeKind::Pointer) {
+        BaseType* struct_type;
+        if(pure_type->kind() == BaseTypeKind::Pointer) {
+            struct_type = ((PointerType*) pure_type)->type->pure_type(gen.allocator);
+        } else if(pure_type->kind() == BaseTypeKind::Reference) {
+            struct_type = ((ReferenceType*) pure_type)->type->pure_type(gen.allocator);
+        } else {
             gen.error(this) << "value given to destruct statement must be of pointer type, value '" << identifier->representation() << "'";
             return;
         }
-        const auto struct_type = ((PointerType*) pure_type)->type->pure_type(gen.allocator);
         auto def = struct_type->get_direct_linked_struct();
         if(!def) {
             return;

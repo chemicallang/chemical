@@ -132,7 +132,7 @@ struct RefPassRet {
 struct RefGiveStruct {
     var i : int
     func get_ref(&self) : &mut int {
-        return i;
+        return &mut i;
     }
 }
 
@@ -154,16 +154,16 @@ func test_references() {
     })
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
-        return take_int_ref(i) == 3;
+        return take_int_ref(&i) == 3;
     })
     test("integer references can be stored in structs automatically", () => {
         var i = 45;
-        var r = ReferencableInt { i : i }
+        var r = ReferencableInt { i : &mut i }
         return take_int_ref(r.i) == 45;
     })
     test("integer references can be stored in variants automatically", () => {
         var i = 32
-        var o = OptRefInt.Some(i)
+        var o = OptRefInt.Some(&mut i)
         switch(o) {
             Some(i) => {
                 return take_int_ref(i) == 32
@@ -213,7 +213,7 @@ func test_references() {
     })
     test("can assign to a int n reference", () => {
         var i = 0;
-        *give_int_ref_32(i) = 43
+        *give_int_ref_32(&mut i) = 43
         return i == 43;
     })
     test("can assign to a struct type reference", () => {
@@ -223,12 +223,12 @@ func test_references() {
     })
     test("assignment to passed reference works", () => {
         var i = 0;
-        assign_to_passed_ref(i)
+        assign_to_passed_ref(&mut i)
         return i == 434;
     })
     test("index operator automatically sends a reference", () => {
         var arr : [3]int = [14, 74, 92]
-        assign_to_passed_ref(arr[1])
+        assign_to_passed_ref(&mut arr[1])
         return arr[1] == 434
     })
     test("integer r value can be passed to constant reference function", () => {
@@ -240,36 +240,36 @@ func test_references() {
     })
     test("assignment to stored reference inside struct works", () => {
         var i = 0
-        var r = ReferencableInt { i : i }
+        var r = ReferencableInt { i : &mut i }
         *r.i = 458
         return i == 458;
     })
     test("assignment to stored reference inside variant works", () => {
         var j = 0
-        var opt = OptRefInt.Some(j)
+        var opt = OptRefInt.Some(&mut j)
         var Some(i) = opt else unreachable
         *i = 873
         return j == 873
     })
     test("assignment to stored reference inside array works", () => {
         var i = 0
-        var arr = [ give_int_ref_32(i) ]
+        var arr = [ give_int_ref_32(&mut i) ]
         *arr[0] = 827
         return i == 827
     })
     test("stored reference inside struct is returned properly according to type - 1", () => {
         var i = 32;
-        var p = RefPassRet { ref : i }
+        var p = RefPassRet { ref : &i }
         return p.give1() == 32
     })
     test("stored reference inside struct is returned properly according to type - 2", () => {
         var i = 34;
-        var p = RefPassRet { ref : i }
+        var p = RefPassRet { ref : &i }
         return *p.give2() == 34
     })
     test("stored reference inside struct is returned properly according to type - 3", () => {
         var i = 98;
-        var p = RefPassRet { ref : i }
+        var p = RefPassRet { ref : &i }
         return *p.give3() == 98
     })
     test("calling method on stored reference passes self pointer correctly", () => {
@@ -284,12 +284,12 @@ func test_references() {
     })
     test("references can be compared in expressions", () => {
         var x = 33
-        return compare_refs(x, 18)
+        return compare_refs(&x, 18)
     })
     test("de-referencing a pointer to reference type means no de-reference", () => {
         var u = 234
         var j = &mut u
-        assign_to_passed_ref(*j)
+        assign_to_passed_ref(&mut *j)
         return u == 434
     })
     test("passing dereference of struct to a reference parameter type works", () => {

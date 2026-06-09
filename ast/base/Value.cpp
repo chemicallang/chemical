@@ -659,15 +659,6 @@ bool Value::isValueRValueInFrontend() {
                 return false;
             }
         }
-        case ValueKind::Identifier:{
-            const auto linked = linked_node();
-            switch(linked->kind()) {
-                case ASTNodeKind::FunctionParam:
-                    return isTypeRValue(linked->as_func_param_unsafe()->type);
-                default:
-                    return false;
-            }
-        }
         default:
             return false;
     }

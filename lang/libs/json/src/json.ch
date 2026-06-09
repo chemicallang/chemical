@@ -126,7 +126,7 @@ private:
             var out = &raw mut scratch[0]
             var outcap : size_t = 4096;
             var outlen : size_t = 0;
-            var r : ParseResult = parse_string_inplace(out, outcap, outlen);
+            var r : ParseResult = parse_string_inplace(out, outcap, &mut outlen);
             if (!r.ok) return r;
             handler.on_string(out, outlen);
             return ParseResult::Ok();
@@ -199,7 +199,7 @@ private:
             var out = &raw mut scratch[0]
             var outcap : size_t = 4096;
             var outlen : size_t = 0;
-            var r : ParseResult = parse_string_inplace(out, outcap, outlen);
+            var r : ParseResult = parse_string_inplace(out, outcap, &mut outlen);
             if (!r.ok) return r;
             handler.on_key(out, outlen);
             skip_ws();

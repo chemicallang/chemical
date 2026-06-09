@@ -184,25 +184,21 @@ Every pointer is by default non-mutable, you use `*mut int` for mutability
 
 #### How to take a pointer of an object
 
-Use `&obj` or `&mut obj` to take a pointer or mutable pointer respectively
-in chemical, Its unlike Rust and more like C++
+Use `&raw obj` or `&raw mut obj` to take a pointer or mutable pointer respectively
 
 ```ch
 func i_take_ptr(ptr : *mut Point) {}
 func i_send_ptr(p : Point) {
-    i_take_ptr(&mut p)
+    i_take_ptr(&raw mut p)
 }
 ```
 
 #### How to take a reference
 
-In Chemical, References are implicit, just like in C++, you just pass the object and reference
-is automatically taken
-
 ```ch
 func i_take_ref(ptr : &mut Point) {}
 func i_send_ref(p : Point) {
-    i_take_ref(p)
+    i_take_ref(&mut p)
 }
 ```
 
@@ -580,7 +576,7 @@ s.append_view(other_string.to_view())
 
 #### Note about destructible containers
 
-Chemical does implicit movies, which means a variable becomes inaccessible if moved.
+Chemical does implicit moves, which means a variable becomes inaccessible if moved.
 
 ```
 var s = std::string("hello world")
@@ -953,7 +949,7 @@ struct CStruct {
 ```chemical
 var int_val = 42
 var float_val = int_val as float
-var ptr_val2 = &mut int_val as *mut float
+var ptr_val2 = &raw mut int_val as *mut float
 ```
 
 ### Move Semantics

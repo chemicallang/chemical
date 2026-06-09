@@ -238,10 +238,14 @@ llvm::Value* FunctionCall::arg_value(
                 if(val_type) {
                     const auto cnode = val_type->get_linked_canonical_node(true, false);
                     if(cnode && ASTNode::isStoredStructDecl(cnode->kind())) {
-                        auto copy = gen.builder->CreateAlloca(value->llvm_type(gen));
-                        gen.di.instr(copy, value->encoded_location());
-                        gen.memcpy_struct(value->llvm_type(gen), copy, value->llvm_pointer(gen), value->encoded_location());
-                        argValue = copy;
+                        if(val_type->is_reference() || val_type->is_pointer()) {
+                            argValue = value->llvm_pointer(gen);
+                        } else {
+                            auto copy = gen.builder->CreateAlloca(value->llvm_type(gen));
+                            gen.di.instr(copy, value->encoded_location());
+                            gen.memcpy_struct(value->llvm_type(gen), copy, value->llvm_pointer(gen), value->encoded_location());
+                            argValue = copy;
+                        }
                     } else {
                         argValue = value->llvm_pointer(gen);
                     }

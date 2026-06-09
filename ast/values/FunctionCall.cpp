@@ -7,6 +7,8 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/AddrOfValue.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
@@ -191,6 +193,10 @@ inline bool should_destruct(Value* value) {
             return value->as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall;
         case ValueKind::StructValue:
             return true;
+        case ValueKind::AddrOfValue:
+            return should_destruct(value->as_addr_of_value_unsafe()->value);
+        case ValueKind::ReferenceOfValue:
+            return should_destruct(value->as_reference_of_value_unsafe()->value);
         default:
             return false;
     }
@@ -231,31 +237,28 @@ llvm::Value* FunctionCall::arg_value(
         // passing r values as pointers by allocating them
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValueInBackend()) {
             argValue = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
-        } else {
-            // if(!is_param_ref) {
-                // pass-by-value for struct types: create a copy to preserve value semantics
-                const auto val_type = value->getType();
-                if(val_type) {
-                    const auto cnode = val_type->get_linked_canonical_node(true, false);
-                    if(cnode && ASTNode::isStoredStructDecl(cnode->kind())) {
-                        if(val_type->is_reference() || val_type->is_pointer()) {
-                            argValue = value->llvm_pointer(gen);
+                } else {
+                    // pass-by-value for struct types: create a copy to preserve value semantics
+                    // but only when param is NOT a reference (reference params should use llvm_pointer directly)
+                    const auto val_type = value->getType();
+                    if(val_type) {
+                        const auto cnode = val_type->get_linked_canonical_node(true, false);
+                        if(cnode && ASTNode::isStoredStructDecl(cnode->kind())) {
+                            if(is_param_ref || val_type->is_reference() || val_type->is_pointer()) {
+                                argValue = value->llvm_pointer(gen);
+                            } else {
+                                auto copy = gen.builder->CreateAlloca(value->llvm_type(gen));
+                                gen.di.instr(copy, value->encoded_location());
+                                gen.memcpy_struct(value->llvm_type(gen), copy, value->llvm_pointer(gen), value->encoded_location());
+                                argValue = copy;
+                            }
                         } else {
-                            auto copy = gen.builder->CreateAlloca(value->llvm_type(gen));
-                            gen.di.instr(copy, value->encoded_location());
-                            gen.memcpy_struct(value->llvm_type(gen), copy, value->llvm_pointer(gen), value->encoded_location());
-                            argValue = copy;
+                            argValue = value->llvm_pointer(gen);
                         }
                     } else {
                         argValue = value->llvm_pointer(gen);
                     }
-                } else {
-                    argValue = value->llvm_pointer(gen);
                 }
-            // } else {
-            //     argValue = value->llvm_pointer(gen);
-            // }
-        }
     } else {
         if(i != -1) {
             argValue = value->llvm_arg_value(gen, param_type);

@@ -287,10 +287,19 @@ llvm::Value* FunctionCall::arg_value(
 
         // struct like type being created and sent to references
         if(pure_type->kind() == BaseTypeKind::Reference && should_destruct(value)) {
-            const auto container = val_type->get_direct_linked_container();
+            // For AddrOfValue/ReferenceOfValue, the type is a pointer/reference type,
+            // but we need the inner value's type to find the destructor
+            auto destruct_container = value;
+            if(value->kind() == ValueKind::AddrOfValue) {
+                destruct_container = value->as_addr_of_value_unsafe()->value;
+            } else if(value->kind() == ValueKind::ReferenceOfValue) {
+                destruct_container = value->as_reference_of_value_unsafe()->value;
+            }
+            const auto inner_type = destruct_container->getType();
+            const auto container = inner_type->get_direct_linked_container();
             if(container && container->destructor_func() != nullptr) {
                 // we'll destruct the struct, if it's destructible, after this access chain ends
-                destructibles.emplace_back(value, argValue);
+                destructibles.emplace_back(destruct_container, argValue);
             }
         }
 

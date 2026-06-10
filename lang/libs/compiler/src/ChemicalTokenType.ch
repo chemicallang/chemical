@@ -131,6 +131,8 @@ public enum ChemicalTokenType {
     MultilineString,
     // string starting with a backtick
     BacktickString,
+    // lifetime parameter like 'a or 'self
+    Lifetime,
     // #macro_name
     HashMacro,
     // @annotation

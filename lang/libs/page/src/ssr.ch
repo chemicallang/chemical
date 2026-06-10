@@ -47,7 +47,7 @@ public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrA
     var d = list.data
     const end = d + list.size
     while(d != end) {
-        if(d.name.equals_text(name)) {
+        if(d.name.equals_text(&name)) {
             // gets copied
             return d.value;
         } else if(d.value is SsrAttributeValue.Spread) {
@@ -97,7 +97,7 @@ func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, at
             var curr = value.data
             const end = curr + value.size
             while(curr != end) {
-                writePrimitiveAttrValue(page, output, *curr)
+                writePrimitiveAttrValue(page, output, &*curr)
                 curr++
             }
         }
@@ -128,15 +128,15 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
         switch(d.value) {
             Spread(value) => {
                 // Recursively pass the accumulator down the spread tree
-                page.renderHtmlAttrsInternal(value, special)
+                page.renderHtmlAttrsInternal(&value, special)
             }
             default => {
                 // Accumulate special attributes; defer the rest for dedup
                 if (d.name.equals("class")) {
-                    special.classes[special.class_count] = &d.value
+                    special.classes[special.class_count] = &raw d.value
                     special.class_count++
                 } else if (d.name.equals("style")) {
-                    special.styles[special.style_count] = &d.value
+                    special.styles[special.style_count] = &raw d.value
                     special.style_count++
                 } else {
                     if(d.value is SsrAttributeValue.None) {
@@ -153,15 +153,15 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                     // Last-wins dedup: replace existing or append
                     var found = false
                     for(var j = 0; j < special.others_count; j++) {
-                        if(special.others_names[j].equals_text(d.name)) {
-                            special.others_values[j] = &d.value
+                        if(special.others_names[j].equals_text(&d.name)) {
+                            special.others_values[j] = &raw d.value
                             found = true
                             break
                         }
                     }
                     if(!found) {
                         special.others_names[special.others_count] = d.name
-                        special.others_values[special.others_count] = &d.value
+                        special.others_values[special.others_count] = &raw d.value
                         special.others_count++
                     }
                 }
@@ -173,7 +173,7 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
 
 public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
     var special = zeroed<SpecialAttrs>()
-    page.renderHtmlAttrsInternal(list, special)
+    page.renderHtmlAttrsInternal(list, &mut special)
 
     var output = &mut page.pageHtml
 
@@ -182,7 +182,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" class=\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(page, *output, *special.classes[i])
+            writePrimitiveAttrValue(page, output, &*special.classes[i])
         }
         output.append_view("\"")
     }
@@ -192,7 +192,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view(" style=\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, *output, *special.styles[i])
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles[i])
         }
         output.append_view("\"")
     }
@@ -202,7 +202,7 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append(' ')
         output.append_with_len(special.others_names[i].data, special.others_names[i].size)
         output.append_view("=\"")
-        writePrimitiveAttrValue(page, *output, *special.others_values[i])
+        writePrimitiveAttrValue(page, &mut *output, &mut *special.others_values[i])
         output.append_view("\"")
     }
 }
@@ -237,7 +237,7 @@ func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, 
             var curr = value.data
             const end = curr + value.size
             while(curr != end) {
-                writeJsPrimitiveAttrValue(page, output, *curr)
+                writeJsPrimitiveAttrValue(page, output, &*curr)
                 curr++
             }
         }
@@ -255,14 +255,14 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
     while(d != end) {
         switch(d.value) {
             Spread(value) => {
-                page.renderJsAttrsInternal(value, special, is_first)
+                page.renderJsAttrsInternal(&value, special, is_first)
             }
             default => {
                 if (d.name.equals("class")) {
-                    special.classes[special.class_count] = &d.value
+                    special.classes[special.class_count] = &raw d.value
                     special.class_count++
                 } else if (d.name.equals("style")) {
-                    special.styles[special.style_count] = &d.value
+                    special.styles[special.style_count] = &raw d.value
                     special.style_count++
                 } else {
                     if(d.value is SsrAttributeValue.None) {
@@ -279,15 +279,15 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                     // Last-wins dedup: replace existing or append
                     var found = false
                     for(var j = 0; j < special.others_count; j++) {
-                        if(special.others_names[j].equals_text(d.name)) {
-                            special.others_values[j] = &d.value
+                        if(special.others_names[j].equals_text(&d.name)) {
+                            special.others_values[j] = &raw d.value
                             found = true
                             break
                         }
                     }
                     if(!found) {
                         special.others_names[special.others_count] = d.name
-                        special.others_values[special.others_count] = &d.value
+                        special.others_values[special.others_count] = &raw d.value
                         special.others_count++
                     }
                 }
@@ -300,7 +300,7 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
 public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
     var special = zeroed<SpecialAttrs>()
     var is_first = true
-    page.renderJsAttrsInternal(list, special, is_first)
+    page.renderJsAttrsInternal(list, &mut special, &mut is_first)
 
     var output = &mut page.pageJs
 
@@ -310,7 +310,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("class:\"")
         for (var i = 0; i < special.class_count; i++) {
             if (i > 0) output.append(' ')
-            writeJsPrimitiveAttrValue(page, *output, *special.classes[i])
+            writeJsPrimitiveAttrValue(page, &mut *output, &mut *special.classes[i])
         }
         output.append('"')
         is_first = false
@@ -322,7 +322,7 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         output.append_view("style:\"")
         for (var i = 0; i < special.style_count; i++) {
             if (i > 0) output.append(';')
-            writeJsPrimitiveAttrValue(page, *output, *special.styles[i])
+            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles[i])
         }
         output.append('"')
         is_first = false
@@ -334,28 +334,28 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
         is_first = false
         output.append_with_len(special.others_names[i].data, special.others_names[i].size)
         output.append(':')
-        writeJsPrimitiveAttrValue(page, *output, *special.others_values[i])
+        writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values[i])
     }
 }
 
 public func renderHtmlAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
-    writePrimitiveAttrValue(page, page.pageHtml, attrVal)
+    writePrimitiveAttrValue(page, &mut page.pageHtml, attrVal)
 }
 
 public func renderHtmlChildValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {}
         Boolean(_) => {}
-        default => writePrimitiveAttrValue(page, page.pageHtml, attrVal)
+        default => writePrimitiveAttrValue(page, &mut page.pageHtml, attrVal)
     }
 }
 
 public func renderJsAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
-    writeJsPrimitiveAttrValue(page, page.pageJs, attrVal)
+    writeJsPrimitiveAttrValue(page, &mut page.pageJs, attrVal)
 }
 
 public func renderCssAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValue) {
-    writeJsPrimitiveAttrValue(page, page.pageCss, attrVal)
+    writeJsPrimitiveAttrValue(page, &mut page.pageCss, attrVal)
 }
 
 // this function allows libraries like preact, solid and react to move rendered html to js buffer

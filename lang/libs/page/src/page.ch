@@ -120,7 +120,7 @@ public struct HtmlPage {
     }
 
     func require_css_hash(&self, hash : size_t) : bool {
-        return !doneClasses.contains(hash)
+        return !doneClasses.contains(&hash)
     }
 
     func set_css_hash(&mut self, hash : size_t) {
@@ -128,7 +128,7 @@ public struct HtmlPage {
     }
 
     func require_component(&self, hash : size_t) : bool {
-        return !doneComponents.contains(hash)
+        return !doneComponents.contains(&hash)
     }
 
     func set_component_hash(&mut self, hash : size_t) {
@@ -136,7 +136,7 @@ public struct HtmlPage {
     }
 
     func require_random_css_hash(&self, hash : size_t) : bool {
-        return !doneRandomClasses.contains(hash)
+        return !doneRandomClasses.contains(&hash)
     }
 
     func set_random_css_hash(&mut self, hash : size_t) {
@@ -293,17 +293,17 @@ public struct HtmlPage {
             str.append_view("<html>")
         } else if(htmlClass.empty()) {
             str.append_view("<html lang=\"")
-            str.append_view(lang)
+            str.append_view(&lang)
             str.append_view("\">")
         } else if(lang.empty()) {
             str.append_view("<html class=\"")
-            str.append_view(htmlClass)
+            str.append_view(&htmlClass)
             str.append_view("\">")
         } else {
             str.append_view("<html lang=\"")
-            str.append_view(lang)
+            str.append_view(&lang)
             str.append_view("\" class=\"")
-            str.append_view(htmlClass)
+            str.append_view(&htmlClass)
             str.append_view("\">")
         }
     }
@@ -313,7 +313,7 @@ public struct HtmlPage {
             str.append_view("<body>")
         } else {
             str.append_view("<body class=\"")
-            str.append_view(bodyClass)
+            str.append_view(&bodyClass)
             str.append_view("\">")
         }
     }
@@ -322,26 +322,26 @@ public struct HtmlPage {
         var str = std::string()
         str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + pageJs.size() + 100)
         str.append_view(std::string_view("<!DOCTYPE html>"))
-        appendHtmlTagStart(str, lang, htmlClass)
+        appendHtmlTagStart(&mut str, lang, htmlClass)
         str.append_view("<head>")
-        str.append_string(pageHead)
+        str.append_string(&pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<style>"))
-            str.append_string(pageCss)
+            str.append_string(&pageCss)
             str.append_view(std::string_view("</style>"))
         }
         if(!pageHeadJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(pageHeadJs)
+            str.append_string(&pageHeadJs)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</head>"))
-        appendBodyTagStart(str, bodyClass)
-        str.append_string(pageHtml)
+        appendBodyTagStart(&mut str, bodyClass)
+        str.append_string(&pageHtml)
         var finalizedJs = getFinalizedPageJs()
         if(!finalizedJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(finalizedJs)
+            str.append_string(&finalizedJs)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</body></html>"))
@@ -359,14 +359,14 @@ public struct HtmlPage {
     func toStringHtmlOnly(&self) : std::string {
         var str = std::string()
         str.reserve(pageHtml.size())
-        str.append_string(pageHtml)
+        str.append_string(&pageHtml)
         return str;
     }
 
     func toStringCssOnly(&self) : std::string {
         var str = std::string()
         str.reserve(pageCss.size())
-        str.append_string(pageCss)
+        str.append_string(&pageCss)
         return str;
     }
 
@@ -1037,9 +1037,9 @@ const $s_uni_ch = (html, fnName, props) => $_sh(UniSolidBridge, { html, fnName, 
         var str = std::string()
         str.reserve(pageHead.size() + pageHtml.size() + 128)
         str.append_view(std::string_view("<!DOCTYPE html>"))
-        appendHtmlTagStart(str, lang, htmlClass)
+        appendHtmlTagStart(&mut str, lang, htmlClass)
         str.append_view("<head>")
-        str.append_string(pageHead)
+        str.append_string(&pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<link rel=\"stylesheet\" href=\""));
             str.append_view(name)
@@ -1051,8 +1051,8 @@ const $s_uni_ch = (html, fnName, props) => $_sh(UniSolidBridge, { html, fnName, 
             str.append_view(std::string_view("_head.js\"></script>"));
         }
         str.append_view(std::string_view("</head>"))
-        appendBodyTagStart(str, bodyClass)
-        str.append_string(pageHtml)
+        appendBodyTagStart(&mut str, bodyClass)
+        str.append_string(&pageHtml)
         if(!pageJs.empty()) {
             str.append_view(std::string_view("<script src=\""));
             str.append_view(name)

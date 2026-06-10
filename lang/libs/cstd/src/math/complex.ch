@@ -5,6 +5,12 @@
 // %struct._C_ldouble_complex = type { [2 x double] }
 // TODO these functions should be tested
 
+@extern
+public var __mzerodf = -0.0 as double;
+
+@extern
+public var __mzerosf = -0.0f;
+
 // float complex is being passed as i64 in @crealf(i64)
 public type float_complex = bigint;
 

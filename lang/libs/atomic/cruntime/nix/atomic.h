@@ -54,8 +54,8 @@
 // typedef volatile uintptr_t atomic_uintptr_t;
 
 extern void atomic_thread_fence (int memory_order);
-extern void __atomic_thread_fence (int memory_order);
-#define atomic_thread_fence(order) __atomic_thread_fence (order)
+//extern void __atomic_thread_fence (int memory_order);
+//#define atomic_thread_fence(order) __atomic_thread_fence (order)
 
 // use functions for 64, 32 and 8 bit from libatomic directly
 // since tcc is not capible to use "generic" C functions

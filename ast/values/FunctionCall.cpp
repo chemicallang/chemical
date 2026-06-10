@@ -808,6 +808,24 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
+    // evaluate parent access chain for side effects when method doesn't need self
+    if(parent_val->val_kind() == ValueKind::AccessChain && func_type && !func_type->get_self_param() && !func_type->isExtensionFn()) {
+        auto& chain_vals = parent_val->as_access_chain_unsafe()->values;
+        const auto chain_size = chain_vals.size();
+        for(unsigned i = 0; i + 1 < chain_size; i++) {
+            auto val = chain_vals[i];
+            if(val->val_kind() == ValueKind::FunctionCall) {
+                auto fc_type = val->getType();
+                if(fc_type && fc_type->isStructLikeType()) {
+                    auto ptr = val->llvm_pointer(gen);
+                    destructibles.emplace_back(val, ptr);
+                } else {
+                    val->llvm_value(gen, nullptr);
+                }
+            }
+        }
+    }
+
     // auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 

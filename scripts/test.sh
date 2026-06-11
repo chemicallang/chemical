@@ -14,6 +14,7 @@ MODE="debug_quick"
 NO_CACHE="--no-cache"
 EMIT_C=false
 USE_C=false
+DEBUG_FLAG=false
 RECOMPILE_PLUGINS="-frecompile-plugins"
 
 usage() {
@@ -31,6 +32,7 @@ usage() {
   echo "  --emit-c                Emit C translation output"
   echo "  --use-c                 Translate to C and compile with embedded Clang (Compiler only)"
   echo "  --cached-plugins        Skip recompiling CBI plugins (default: -frecompile-plugins)"
+  echo "  -g                      Pass -g to the compiler (debug symbols)"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
   echo "  --help, -h              Show this help"
   exit 1
@@ -55,6 +57,7 @@ while [ $# -gt 0 ]; do
     --emit-c) EMIT_C=true ;;
     --use-c) USE_C=true ;;
     --cached-plugins) RECOMPILE_PLUGINS="" ;;
+    -g) DEBUG_FLAG=true ;;
     -j) JOBS="$2"; shift ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -100,6 +103,7 @@ CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
 [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
 [ "$EMIT_C" = true ] && CMD+=("--emit-c")
 [ "$USE_C" = true ] && CMD+=("--use-c")
+[ "$DEBUG_FLAG" = true ] && CMD+=("-g")
 if [ "$TEST_LIBS" = true ]; then
   CMD+=("--arg-test-libs")
   [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")

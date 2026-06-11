@@ -27,14 +27,14 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
         }
         parser.increment();
 
-        var isSelfClosing = isTagNameSelfClosing(id.value);
+        var isSelfClosing = isTagNameSelfClosing(&id.value);
 
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();
         new (element) HtmlElement {
             HtmlChild : HtmlChild {
                 kind : HtmlChildKind.Element
             },
-            name : builder.allocate_view(id.value),
+            name : builder.allocate_view(&id.value),
             isSelfClosing : isSelfClosing,
             attributes : std::vector<*mut HtmlAttribute>(),
             children : std::vector<*mut HtmlChild>(),

@@ -20,7 +20,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
                      if(converter.is_reactive_var(id.value)) {
-                         converter.str.append_view(id.value);
+                         converter.str.append_view(&id.value);
                          return;
                      }
                  } else if(container.expression.kind == JsNodeKind.MemberAccess) {
@@ -28,7 +28,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                      if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                          const id = mem.object as *mut JsIdentifier
                          if(converter.is_reactive_var(id.value)) {
-                             converter.str.append_view(id.value);
+                             converter.str.append_view(&id.value);
                              return;
                          }
                      }
@@ -62,7 +62,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
              const location = intrinsics::get_raw_location();
 
              // signature.name(page)
-             var base = builder.make_identifier(signature.name, signature.functionNode, false, location);
+             var base = builder.make_identifier(&signature.name, signature.functionNode, false, location);
              var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
              var call = builder.make_function_call_node(base, converter.parent, location);
              call.get_args().push(pageId);
@@ -77,9 +77,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                  default => view("$_dm")
              }
 
-             converter.str.append_view(mountFn);
+             converter.str.append_view(&mountFn);
              converter.str.append_view("(document.currentScript, ");
-             get_module_scoped_name(signature.functionNode, signature.name, converter.str);
+             get_module_scoped_name(signature.functionNode, signature.name, &mut converter.str);
              converter.str.append_view(", {");
 
              var attrCount = 0u;
@@ -91,7 +91,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                      if(attr.name.equals("children")) continue;
 
                      if(attrCount > 0) converter.str.append_view(", ");
-                     converter.str.append_view(attr.name);
+                     converter.str.append_view(&attr.name);
                      converter.str.append_view(": ");
 
                      if(attr.value == null) {
@@ -139,7 +139,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         var body = converter.vec
 
-        var base = converter.builder.make_identifier(signature.name, signature.functionNode, false, intrinsics::get_raw_location())
+        var base = converter.builder.make_identifier(&signature.name, signature.functionNode, false, intrinsics::get_raw_location())
         var pageId = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, intrinsics::get_raw_location())
         var call = converter.builder.make_function_call_node(base, converter.parent, intrinsics::get_raw_location())
         call.get_args().push(pageId)
@@ -166,7 +166,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // then take the page's html string and pass it to child component
 
         var getSizeCall = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
             location
         );
         var startIdxNameStr = std::string();
@@ -174,19 +174,19 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         startIdxNameStr.append_uinteger(element.loc);
         var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
 
-        var startIdxVar = builder.make_varinit_stmt(false, false, startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        var startIdxVar = builder.make_varinit_stmt(false, false, &startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
         body.push(startIdxVar);
 
         // 3. Extract range and truncate
         var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-        var pageHtmlAccess = builder.make_access_chain(std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
+        var pageHtmlAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
 
         var childrenHtmlNameStr = std::string();
         childrenHtmlNameStr.append_view("childrenHtml_");
         childrenHtmlNameStr.append_uinteger(element.loc);
         var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
 
-        var childrenHtmlVar = builder.make_varinit_stmt(false, false, childrenHtmlName, null, 
+        var childrenHtmlVar = builder.make_varinit_stmt(false, false, &childrenHtmlName, null,
             builder.make_function_call_value(builder.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
             AccessSpecifier.Internal, converter.parent, location);
         body.push(childrenHtmlVar);
@@ -196,19 +196,19 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
              converter.convertJsNode(element.children.get(i));
         }
 
-        var childrenHtmlId = builder.make_identifier(childrenHtmlName, childrenHtmlVar , false, location);
+        var childrenHtmlId = builder.make_identifier(&childrenHtmlName, childrenHtmlVar , false, location);
         var appendCall = builder.make_function_call_node(
-            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
             converter.parent,
             location
         );
-        var startIdxId = builder.make_identifier(startIdxName, startIdxVar , false, location);
+        var startIdxId = builder.make_identifier(&startIdxName, startIdxVar , false, location);
         var dataCall = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
             location
         );
         var sizeCall = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
             location
         );
         
@@ -218,22 +218,22 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         var pageId3 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
         var truncateCall = builder.make_function_call_node(
-            builder.make_access_chain(std::span<*mut Value>([ pageId3, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId3, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
             converter.parent,
             location
         );
-        truncateCall.get_args().push(builder.make_identifier(startIdxName, startIdxVar , false, location));
+        truncateCall.get_args().push(builder.make_identifier(&startIdxName, startIdxVar , false, location));
         body.push(truncateCall );
 
         // 4. Construct SsrText and pass as 3rd arg
         const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
         
         var dataCall2 = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
             location
         );
         var sizeCall2 = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
             location
         );
         
@@ -261,16 +261,16 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
 
         var getSizeCall = builder.make_function_call_value(
-            builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location) ]), location),
             location
         );
         var sIdxNameStr = std::string("sIdx_");
         sIdxNameStr.append_uinteger(element.loc);
         var sIdxName = builder.allocate_view(sIdxNameStr.to_view());
-        var sIdxVar = builder.make_varinit_stmt(false, false, sIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        var sIdxVar = builder.make_varinit_stmt(false, false, &sIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
         converter.vec.push(sIdxVar);
 
-        var base = builder.make_identifier(signature.name, signature.functionNode, false, location);
+        var base = builder.make_identifier(&signature.name, signature.functionNode, false, location);
         var call = builder.make_function_call_node(base, converter.parent, location);
         call.get_args().push(pageId);
         const attrs = converter.build_ssr_attributes(element);
@@ -286,15 +286,15 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.put_chain_in();
 
         const capCall = builder.make_function_call_node(
-            builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location) ]), location),
             converter.parent,
             location
         );
-        capCall.get_args().push(builder.make_identifier(sIdxName, sIdxVar, false, location));
+        capCall.get_args().push(builder.make_identifier(&sIdxName, sIdxVar, false, location));
         converter.vec.push(capCall);
 
         converter.str.append_view("`; return $_uc_h(html, \"");
-        get_module_scoped_name(signature.functionNode, signature.name, converter.str);
+        get_module_scoped_name(signature.functionNode, signature.name, &mut converter.str);
         converter.str.append_view("\", {");
         var attrCount = 0u;
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
@@ -303,7 +303,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                 if(attrCount > 0) converter.str.append_view(", ");
                 const attr = attrNode as *mut JsJSXAttribute;
                 converter.str.append_view("\"");
-                converter.str.append_view(attr.name);
+                converter.str.append_view(&attr.name);
                 converter.str.append_view("\": ");
                 converter.convertAttributeValue(attr);
                 attrCount++;
@@ -334,8 +334,8 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
     converter.str.append_view("$_ur.createElement(");
     if(tagNameNode.kind == JsNodeKind.Identifier) {
-        if(element.componentSignature != null) get_module_scoped_name(element.componentSignature.functionNode, tagName, converter.str);
-        else converter.str.append_view(tagName);
+        if(element.componentSignature != null) get_module_scoped_name(element.componentSignature.functionNode, tagName, &mut converter.str);
+        else converter.str.append_view(&tagName);
     } else converter.convertJsNode(tagNameNode);
 
     converter.str.append_view(", {");
@@ -346,7 +346,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             if(attrCount > 0) converter.str.append_view(", ");
             const attr = attrNode as *mut JsJSXAttribute
             converter.str.append_view("\"");
-            converter.str.append_view(attr.name);
+            converter.str.append_view(&attr.name);
             converter.str.append_view("\": ");
             converter.convertAttributeValue(attr);
             attrCount++;
@@ -371,7 +371,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
     if(converter.target == BufferType.HTML) {
 
         converter.str.append('<');
-        converter.str.append_view(tagName);
+        converter.str.append_view(&tagName);
         converter.put_chain_in();
 
         const builder = converter.builder;
@@ -397,14 +397,14 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
         }
 
         converter.str.append_view("</");
-        converter.str.append_view(tagName);
+        converter.str.append_view(&tagName);
         converter.str.append('>');
         converter.put_chain_in();
         return;
     }
 
     converter.str.append_view("$_ur.createElement(\"");
-    converter.str.append_view(tagName);
+    converter.str.append_view(&tagName);
     converter.str.append_view("\", ");
 
      var hasSpread = false;
@@ -439,7 +439,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
                  if(i > 0) converter.str.append_view(", ");
                  const attr = attrMap.get(i);
                  converter.str.append_view("\"");
-                 converter.str.append_view(attr.name);
+                 converter.str.append_view(&attr.name);
                  converter.str.append_view("\": ");
                  converter.convertAttributeValue(attr);
              }
@@ -453,7 +453,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
              const attr = attrMap.get(i);
              if(!first) converter.str.append_view(", ");
              converter.str.append_view("\"");
-             converter.str.append_view(attr.name);
+             converter.str.append_view(&attr.name);
              converter.str.append_view("\": ");
              converter.convertAttributeValue(attr);
              first = false;

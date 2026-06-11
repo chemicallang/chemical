@@ -20,7 +20,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     // creating the component function
     // func name(page : &mut HtmlPage, attrs : SsrAttributeList) : void
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType, false, node.getParent(), loc);
+    const funcDecl = builder.make_function(&root.signature.name, voidType, false, node.getParent(), loc);
     if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
         funcDecl.setAccessSpecifier(root.signature.access)
     }
@@ -34,8 +34,8 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     // resolution of required types and functions for code generation
     root.support.pageNode = param ;
-    resolve_page_children(resolver, root.support, root.support.pageNode, loc);
-    sym_res_support(resolver, root.support, loc);
+    resolve_page_children(resolver, &mut root.support, root.support.pageNode, loc);
+    sym_res_support(resolver, &mut root.support, loc);
 
     // the second param for the function, attrs : SsrAttributeList
     const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
@@ -63,7 +63,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     visitor.visitEmbeddedNode(node)
 
     // resolve components
-    sym_res_components(root.components, resolver)
+    sym_res_components(&mut root.components, resolver)
 
     // end the scope
     resolver.scope_end();
@@ -73,5 +73,5 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 @no_mangle
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare_default(comp.signature.name, node);
+    resolver.declare_default(&comp.signature.name, node);
 }

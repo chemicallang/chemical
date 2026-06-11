@@ -6,14 +6,14 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
             return true;
         }
         JsNodeKind.Identifier => {
-            out.append_view((node as *mut JsIdentifier).value);
+            out.append_view(&(node as *mut JsIdentifier).value);
             return true;
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
             if(!append_js_node_text(mem.object, out)) return false;
             out.append('.');
-            out.append_view(mem.property);
+            out.append_view(&mem.property);
             return true;
         }
         JsNodeKind.IndexAccess => {
@@ -27,14 +27,14 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
         JsNodeKind.UnaryOp => {
             const unary = node as *mut JsUnaryOp;
             if(unary.prefix) {
-                out.append_view(unary.operator);
+                out.append_view(&unary.operator);
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                     out.append(' ');
                 }
                 return append_js_node_text(unary.operand, out);
             }
             if(!append_js_node_text(unary.operand, out)) return false;
-            out.append_view(unary.operator);
+            out.append_view(&unary.operator);
             return true;
         }
         JsNodeKind.BinaryOp => {
@@ -47,7 +47,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 if(!append_js_node_text(bin.left, out)) return false;
             }
             out.append(' ');
-            out.append_view(bin.op);
+            out.append_view(&bin.op);
             out.append(' ');
             if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                 out.append('(');
@@ -104,7 +104,7 @@ func append_style_js_node_text(node : *mut JsNode, out : &mut std::string) : boo
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                     if(!append_js_node_text(prop.value, out)) return false;
                 } else {
-                    out.append_view(prop.key);
+                    out.append_view(&prop.key);
                     out.append_view(": ");
                     if(!append_js_node_text(prop.value, out)) return false;
                 }
@@ -141,14 +141,14 @@ func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut Js
         const stripped = strip_js_string_quotes(prop.key);
         if(stripped.size() < prop.key.size()) {
             // quotes were stripped from property key
-            out.append_view(stripped);
+            out.append_view(&stripped);
         } else {
             // quotes weren't stripped from property key
             // must make sure borderRadius translates to border-radius
-            append_kebab_case(prop.key, out);
+            append_kebab_case(prop.key, &mut out);
         }
         out.append(':');
-        if(!append_style_js_node_text(prop.value, out)) break;
+        if(!append_style_js_node_text(prop.value, &mut out)) break;
     }
     return builder.allocate_view(out.to_view());
 }

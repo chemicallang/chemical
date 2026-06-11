@@ -14,13 +14,13 @@ func (cssParser : &mut CSSParser) parseLinearEasingPoints(parser : *mut Parser, 
 
     while(true) {
 
-        if(!cssParser.parseNumberOrLengthInto(parser, builder, point.point)) {
+        if(!cssParser.parseNumberOrLengthInto(parser, builder, &mut point.point)) {
             parser.error("expected a number for linear");
         }
 
-        cssParser.parseLengthInto(parser, builder, point.start)
+        cssParser.parseLengthInto(parser, builder, &mut point.start)
 
-        cssParser.parseLengthInto(parser, builder, point.stop)
+        cssParser.parseLengthInto(parser, builder, &mut point.stop)
 
         const token = parser.getToken()
         if(token.type == TokenType.Comma) {
@@ -64,25 +64,25 @@ func (cssParser : &mut CSSParser) parseCubicBezierCall(parser : *mut Parser, bui
     var bezier = builder.allocate<CSSCubicBezierEasingData>()
     new (bezier) CSSCubicBezierEasingData()
 
-    if(!cssParser.parseNumberInto(parser, builder, bezier.x1)) {
+    if(!cssParser.parseNumberInto(parser, builder, &mut bezier.x1)) {
         parser.error("expected a number for x1 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!cssParser.parseNumberInto(parser, builder, bezier.y1)) {
+    if(!cssParser.parseNumberInto(parser, builder, &mut bezier.y1)) {
         parser.error("expected a number for y1 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!cssParser.parseNumberInto(parser, builder, bezier.x2)) {
+    if(!cssParser.parseNumberInto(parser, builder, &mut bezier.x2)) {
         parser.error("expected a number for x2 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!cssParser.parseNumberInto(parser, builder, bezier.y2)) {
+    if(!cssParser.parseNumberInto(parser, builder, &mut bezier.y2)) {
         parser.error("expected a number for y2 in bezier-curve");
     }
 
@@ -121,7 +121,7 @@ func (cssParser : &mut CSSParser) parseStepsFnCall(parser : *mut Parser, builder
     var steps = builder.allocate<CSSStepsEasingData>()
     new (steps) CSSStepsEasingData()
 
-    if(!cssParser.parseNumberInto(parser, builder, steps.step)) {
+    if(!cssParser.parseNumberInto(parser, builder, &mut steps.step)) {
         parser.error("expected a number in steps");
     }
 
@@ -134,7 +134,7 @@ func (cssParser : &mut CSSParser) parseStepsFnCall(parser : *mut Parser, builder
         const stepPos = getStepPositionKeywordKind(hash)
         if(stepPos != CSSKeywordKind.Unknown) {
             parser.increment()
-            steps.position = CSSKeywordValueData { kind : stepPos, value : builder.allocate_view(stepPosition.value) }
+            steps.position = CSSKeywordValueData { kind : stepPos, value : builder.allocate_view(&stepPosition.value) }
         }
 
     }
@@ -183,7 +183,7 @@ func (cssParser : &mut CSSParser) parseTransition(
                         transition.easing.data.linear = null
                     }
                 } else {
-                    transition.easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(token.value) }
+                    transition.easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(&token.value) }
                 }
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
@@ -195,12 +195,12 @@ func (cssParser : &mut CSSParser) parseTransition(
                 transition.easing.kind = CSSKeywordKind.Steps
             } else if(transition.property.empty()) {
                 parser.increment()
-                transition.property = builder.allocate_view(token.value)
+                transition.property = builder.allocate_view(&token.value)
             } else {
                 const behaviorKind = getTransitionBehaviorKeywordKind(hash)
                 if(behaviorKind != CSSKeywordKind.Unknown) {
                     parser.increment()
-                    transition.behavior = CSSKeywordValueData { kind : behaviorKind, value : builder.allocate_view(token.value) }
+                    transition.behavior = CSSKeywordValueData { kind : behaviorKind, value : builder.allocate_view(&token.value) }
                 } else {
                     parser.error("unknown identifier given");
                     break;
@@ -209,13 +209,13 @@ func (cssParser : &mut CSSParser) parseTransition(
        } else if(token.type == TokenType.Number) {
             if(has_duration) {
                 if(transition.delay.kind == CSSLengthKind.Unknown) {
-                    cssParser.parseLengthInto(parser, builder, transition.delay)
+                    cssParser.parseLengthInto(parser, builder, &mut transition.delay)
                 } else {
                     parser.error("too many lengths given");
                     break;
                 }
             } else {
-                cssParser.parseLengthInto(parser, builder, transition.duration)
+                cssParser.parseLengthInto(parser, builder, &mut transition.duration)
                 has_duration = true;
             }
         } else if(token.type == TokenType.Comma) {
@@ -267,7 +267,7 @@ func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
                     easing.data.linear = null
                 }
             } else {
-                easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(token.value) }
+                easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(&token.value) }
             }
         } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
             parser.increment()

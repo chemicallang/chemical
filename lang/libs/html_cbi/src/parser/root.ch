@@ -10,9 +10,9 @@ func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot 
         components : std::vector<*mut HtmlElement>()
     }
     var htmlParser = HtmlParser {
-        dyn_values : &mut root.dyn_values,
-        dyn_nodes : &mut root.dyn_nodes,
-        components : &mut root.components
+        dyn_values : &raw mut root.dyn_values,
+        dyn_nodes : &raw mut root.dyn_nodes,
+        components : &raw mut root.components
     }
     while(true) {
         var child = htmlParser.parseElementChild(parser, builder);

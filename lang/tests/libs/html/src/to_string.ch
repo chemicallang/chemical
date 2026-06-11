@@ -252,7 +252,7 @@ public func call_void_returning_components_in_html(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div id="p">
-            {my_component(page)}
+            {my_component(&mut page)}
             <div id="c">C</div>
         </div>
     }

@@ -73,12 +73,12 @@ func (converter : &mut JsConverter) next_t() : std::string {
 
 func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : bool {
     for(var i : uint = 0; i < converter.state_vars.size(); i++) {
-        if(converter.state_vars.get(i).equals(name)) {
+        if(converter.state_vars.get(i).equals(&name)) {
             return true;
         }
     }
     for(var i : uint = 0; i < converter.computed_vars.size(); i++) {
-        if(converter.computed_vars.get(i).equals(name)) {
+        if(converter.computed_vars.get(i).equals(&name)) {
             return true;
         }
     }
@@ -145,7 +145,7 @@ func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsN
 }
 
 func (converter : &mut JsConverter) is_component_props_name(name : std::string_view) : bool {
-    return !converter.component_props_name.empty() && converter.component_props_name.equals(name);
+    return !converter.component_props_name.empty() && converter.component_props_name.equals(&name);
 }
 
 func (converter : &mut JsConverter) is_component_props_root(node : *mut JsNode) : bool {
@@ -175,7 +175,7 @@ func (converter : &mut JsConverter) is_component_props_read(node : *mut JsNode) 
 
 func (converter : &mut JsConverter) append_component_prop_value(node : *mut JsNode) {
     converter.str.append_view("window.$__uni_value(");
-    if(!append_js_node_text(node, converter.str)) {
+    if(!append_js_node_text(node, &mut converter.str)) {
         converter.convertJsNode(node);
     }
     converter.str.append(')');
@@ -188,7 +188,7 @@ func (converter : &mut JsConverter) make_require_component_call(hash : size_t) :
     const support = converter.support;
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -226,8 +226,8 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
         fnPtr = htmlFnPtr
     }
 
-    var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -273,8 +273,8 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
         fnPtr = converter.support.appendHtmlFn
     }
 
-    var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -298,7 +298,7 @@ func (converter : &mut JsConverter) make_ssr_prop_v_call(propName : std::string_
     const propsId = builder.make_identifier("attrs", propsParam, false, location);
     const propsType = propsParam.getType();
     const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
-    const nameVal = converter.make_ssr_text(propName, location);
+    const nameVal = converter.make_ssr_text(&propName, location);
     const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
     call.get_args().push(derefProps);
     call.get_args().push(nameVal);
@@ -314,7 +314,7 @@ func (converter : &mut JsConverter) render_ssr_value_call(value : *mut Value) : 
     var fnPtr = if(converter.target == BufferType.HTML) support.renderHtmlAttrValueFn else support.renderJsAttrValueFn;
     var fnName = if(converter.target == BufferType.HTML) view("renderHtmlAttrValue") else view("renderJsAttrValue");
 
-    var id = builder.make_identifier(fnName, fnPtr, false, location);
+    var id = builder.make_identifier(&fnName, fnPtr, false, location);
     var call = builder.make_function_call_node(id, converter.parent, location)
     call.get_args().push(pageId);
     call.get_args().push(value);
@@ -326,7 +326,7 @@ func (converter : &mut JsConverter) put_chain_in() {
 
     const location = intrinsics::get_raw_location();
     const str_view = converter.builder.allocate_view(converter.str.to_view());
-    const val = converter.builder.make_string_value(str_view, location);
+    const val = converter.builder.make_string_value(&str_view, location);
     const call = converter.make_value_call(val, converter.str.size());
     converter.vec.push(call);
     converter.str.clear();
@@ -346,8 +346,8 @@ func (converter : &mut JsConverter) put_char_chain(value : char) {
         fnPtr = converter.support.appendHtmlCharFn
     }
 
-    var id = converter.builder.make_identifier(name, fnPtr, false, location);
-    const chain = converter.builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = converter.builder.make_identifier(&name, fnPtr, false, location);
+    const chain = converter.builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = converter.builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     const char_val = converter.builder.make_char_value(value, location);
@@ -459,18 +459,18 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
     if(node == null) return false;
     switch(node.kind) {
         JsNodeKind.Literal => {
-            out.append_view((node as *mut JsLiteral).value);
+            out.append_view(&(node as *mut JsLiteral).value);
             return true;
         }
         JsNodeKind.Identifier => {
-            out.append_view((node as *mut JsIdentifier).value);
+            out.append_view(&(node as *mut JsIdentifier).value);
             return true;
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
             if(!append_js_node_text(mem.object, out)) return false;
             out.append('.');
-            out.append_view(mem.property);
+            out.append_view(&mem.property);
             return true;
         }
         JsNodeKind.IndexAccess => {
@@ -484,14 +484,14 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
         JsNodeKind.UnaryOp => {
             const unary = node as *mut JsUnaryOp;
             if(unary.prefix) {
-                out.append_view(unary.operator);
+                out.append_view(&unary.operator);
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                     out.append(' ');
                 }
                 return append_js_node_text(unary.operand, out);
             }
             if(!append_js_node_text(unary.operand, out)) return false;
-            out.append_view(unary.operator);
+            out.append_view(&unary.operator);
             return true;
         }
         JsNodeKind.BinaryOp => {
@@ -504,7 +504,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 if(!append_js_node_text(bin.left, out)) return false;
             }
             out.append(' ');
-            out.append_view(bin.op);
+            out.append_view(&bin.op);
             out.append(' ');
             if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                 out.append('(');
@@ -563,7 +563,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                     if(!append_js_node_text(prop.value, out)) return false;
                 } else {
-                    out.append_view(prop.key);
+                    out.append_view(&prop.key);
                     out.append_view(": ");
                     if(!append_js_node_text(prop.value, out)) return false;
                 }
@@ -582,7 +582,7 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
 
 func build_js_node_text_view(builder : *mut ASTBuilder, node : *mut JsNode) : std::string_view {
     var text = std::string();
-    if(!append_js_node_text(node, text)) return std::string_view();
+    if(!append_js_node_text(node, &mut text)) return std::string_view();
     return builder.allocate_view(text.to_view());
 }
 
@@ -657,7 +657,7 @@ func parse_ssr_bigint(text : std::string_view, outValue : &mut bigint) : bool {
 func (converter : &mut JsConverter) find_state_init_text(name : std::string_view) : std::string_view {
     for(var i : uint = 0; i < converter.state_inits.size(); i++) {
         const init = converter.state_inits.get(i);
-        if(init.name.equals(name)) return init.init;
+        if(init.name.equals(&name)) return init.init;
     }
     return view("");
 }
@@ -668,13 +668,13 @@ func ssr_js_eval_equals(left : SsrJsExprEval, right : SsrJsExprEval) : bool {
         switch(left.kind) {
             1 => return left.boolValue == right.boolValue
             2 => return left.numberValue == right.numberValue
-            3 => return left.textValue.equals(right.textValue)
+            3 => return left.textValue.equals(&right.textValue)
             default => return false
         }
     }
     if(left.kind == 2 && right.kind == 1) return left.numberValue == (if(right.boolValue) 1 else 0);
     if(left.kind == 1 && right.kind == 2) return (if(left.boolValue) 1 else 0) == right.numberValue;
-    return left.textValue.equals(right.textValue);
+    return left.textValue.equals(&right.textValue);
 }
 
 func ssr_js_eval_from_text(text : std::string_view) : SsrJsExprEval {
@@ -684,7 +684,7 @@ func ssr_js_eval_from_text(text : std::string_view) : SsrJsExprEval {
     const stripped = strip_js_string_quotes(text);
     if(stripped.size() < text.size()) return ssr_js_eval_text(stripped);
     var num : bigint = 0;
-    if(parse_ssr_bigint(text, num)) return ssr_js_eval_number(num, text);
+    if(parse_ssr_bigint(text, &mut num)) return ssr_js_eval_number(num, text);
     return ssr_js_eval_invalid();
 }
 
@@ -825,14 +825,14 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
             converter.convertJsNode(node);
             return;
         }
-        append_js_node_text(node, converter.str);
+        append_js_node_text(node, &mut converter.str);
         return;
     }
 
     if(node.kind == JsNodeKind.Identifier) {
         const id = node as *mut JsIdentifier;
         if(converter.is_reactive_var(id.value)) {
-            converter.str.append_view(id.value);
+            converter.str.append_view(&id.value);
             return;
         }
     } else if(node.kind == JsNodeKind.MemberAccess) {
@@ -840,7 +840,7 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
         if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
             const id = mem.object as *mut JsIdentifier;
             if(converter.is_reactive_var(id.value)) {
-                converter.str.append_view(id.value);
+                converter.str.append_view(&id.value);
                 return;
             }
         }
@@ -949,14 +949,14 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                     var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
 
                     var appendCall = builder.make_function_call_node(
-                        builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
+                        builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
                         converter.parent,
                         location
                     );
                     const dataIdNode = converter.support.childrenParamNode.child("data");
                     const sizeIdNode = converter.support.childrenParamNode.child("size");
-                    const childrenDataAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
-                    const childrenSizeAccess = builder.make_access_chain(std::span<*mut Value>([ childrenId, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
+                    const childrenDataAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
+                    const childrenSizeAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
                     const appendCallParams = appendCall.get_args();
                     appendCallParams.push(childrenDataAccess);
                     appendCallParams.push(childrenSizeAccess);
@@ -1065,7 +1065,7 @@ func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut J
     if(val.equals("false")) return attrValConv.wrapArgAttrValueVariantCall(builder, "Boolean", builder.make_bool_value(false, location));
     
     const text = strip_js_string_quotes(val);
-    return attrValConv.wrapArgAttrValueVariantCall(builder, "Text", converter.make_ssr_text(text, location));
+    return attrValConv.wrapArgAttrValueVariantCall(builder, "Text", converter.make_ssr_text(&text, location));
 }
 
 func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXElement) : *mut Value {
@@ -1115,13 +1115,13 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
                 const isClass = attr.name.equals("className") || attr.name.equals("class")
                 const attrName = if(isClass) std::string_view("class") else attr.name;
-                attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(attrName, location));
+                attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&attrName, location));
 
                 if(attr.value == null) {
                     const boolVal = builder.make_bool_value(true, location);
                     attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
                 } else if(attr.value.kind == JsNodeKind.Literal) {
-                    attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(attr.value as *mut JsLiteral, attrValConv, location));
+                    attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(attr.value as *mut JsLiteral, &mut attrValConv, location));
                 } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                     const container = attr.value as *mut JsJSXExpressionContainer;
                     var handled = false;
@@ -1131,7 +1131,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value));
                             handled = true;
                         } else if(container.expression.kind == JsNodeKind.Literal) {
-                            attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, attrValConv, location));
+                            attrStructVal.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(container.expression as *mut JsLiteral, &mut attrValConv, location));
                             handled = true;
                         } else if(container.expression.kind == JsNodeKind.ObjectLiteral) {
                             var objText = std::string_view();
@@ -1140,7 +1140,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             } else {
                                 objText = build_js_node_text_view(builder, container.expression)
                             }
-                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(objText, location)));
+                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&objText, location)));
                             handled = true;
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
@@ -1151,7 +1151,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                     const propsId = builder.make_identifier("attrs", propsParam, false, location);
                                     const propsType = propsParam.getType();
                                     const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
-                                    const nameVal = converter.make_ssr_text(mem.property, location);
+                                    const nameVal = converter.make_ssr_text(&mem.property, location);
                                     const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
                                     call.get_args().push(derefProps);
                                     call.get_args().push(nameVal);
@@ -1167,7 +1167,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                         const boolVal = builder.make_bool_value(true, location);
                                         attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
                                     } else {
-                                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(evaluated.textValue, location)));
+                                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&evaluated.textValue, location)));
                                     }
                                     handled = true;
                                 }
@@ -1180,7 +1180,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                     const boolVal = builder.make_bool_value(true, location);
                                     attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), boolVal));
                                 } else {
-                                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(evaluated.textValue, location)));
+                                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&evaluated.textValue, location)));
                                 }
                                 handled = true;
                             }

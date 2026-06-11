@@ -8,7 +8,7 @@ func (cssParser : &mut CSSParser) parseUrlValue(parser : *mut Parser, builder : 
     const str = parser.getToken()
     if(str.type == TokenType.DoubleQuotedValue || str.type == TokenType.SingleQuotedValue) {
         parser.increment()
-        data.value = builder.allocate_view(str.value)
+        data.value = builder.allocate_view(&str.value)
     } else {
         parser.error("expected a url string inside 'url'");
     }
@@ -49,11 +49,11 @@ func getRadialSizeKeywordKind(hash : size_t) : CSSKeywordKind {
 }
 
 func (cssParser : &mut CSSParser) parseLinearColorStop(parser : *mut Parser, builder : *mut ASTBuilder, stop : &mut LinearColorStop) : bool {
-    if(!cssParser.parseCSSColor(parser, builder, stop.color)) {
+    if(!cssParser.parseCSSColor(parser, builder, &mut stop.color)) {
         return false;
     }
-    if(cssParser.parseLength(parser, builder, stop.length)) {
-        cssParser.parseLength(parser, builder, stop.optSecLength)
+    if(cssParser.parseLength(parser, builder, &mut stop.length)) {
+        cssParser.parseLength(parser, builder, &mut stop.optSecLength)
     }
     return true;
 }
@@ -66,10 +66,10 @@ func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, build
         // optional hint
         const hintToken = parser.getToken()
         if(hintToken.type == TokenType.Number) {
-            cssParser.parseLength(parser, builder, stop.hint)
+            cssParser.parseLength(parser, builder, &mut stop.hint)
         }
 
-        if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
+        if(!cssParser.parseLinearColorStop(parser, builder, &mut stop.stop)) {
             break;
         }
 
@@ -100,7 +100,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
 
-        if(!cssParser.parseLengthInto(parser, builder, lin_data.angle)) {
+        if(!cssParser.parseLengthInto(parser, builder, &mut lin_data.angle)) {
             parser.error("expected length for angle");
         }
 
@@ -109,7 +109,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
             parser.increment()
         }
 
-        cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
+        cssParser.parseColorStopList(parser, builder, &mut lin_data.color_stop_list)
 
     } else if(token.type == TokenType.Identifier) {
         if(token.value.equals("to")) {
@@ -120,7 +120,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
             if(kind != CSSKeywordKind.Unknown) {
                 parser.increment()
                 lin_data.to1.kind = kind
-                lin_data.to1.value = builder.allocate_view(sidCorner.value)
+                lin_data.to1.value = builder.allocate_view(&sidCorner.value)
             } else {
                 parser.error("expected a side or corner from 'left', 'right', 'top', 'bottom'");
             }
@@ -131,7 +131,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
                 if(kind2 != CSSKeywordKind.Unknown) {
                     parser.increment()
                     lin_data.to2.kind = kind2
-                    lin_data.to2.value = builder.allocate_view(nSid.value)
+                    lin_data.to2.value = builder.allocate_view(&nSid.value)
                 }
             }
 
@@ -140,20 +140,20 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
                 parser.increment()
             }
 
-            cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
+            cssParser.parseColorStopList(parser, builder, &mut lin_data.color_stop_list)
 
         } else {
 
             lin_data.color_stop_list.push(LinearColorStopWHint())
             const last = lin_data.color_stop_list.last_ptr()
-            cssParser.parseLinearColorStop(parser, builder, last.stop)
+            cssParser.parseLinearColorStop(parser, builder, &mut last.stop)
 
             const t2 = parser.getToken()
             if(t2.type == TokenType.Comma) {
                 parser.increment()
             }
 
-            cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
+            cssParser.parseColorStopList(parser, builder, &mut lin_data.color_stop_list)
 
         }
     }
@@ -196,7 +196,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
         var shapeKind = getRadialShapeKeywordKind(hash)
         if(shapeKind != CSSKeywordKind.Unknown || hash == comptime_fnv1_hash("ellipse")) {
             parser.increment()
-            alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+            alloc_keyword_data(builder, &mut rad_data.shape, shapeKind, &token.value)
             has_shape_or_size = true
             
             // Check for size after shape
@@ -206,16 +206,16 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
                 const sizeKind = getRadialSizeKeywordKind(hash)
                 if(sizeKind != CSSKeywordKind.Unknown) {
                     parser.increment()
-                    alloc_keyword_data(builder, rad_data.size.extent, sizeKind, token.value)
+                    alloc_keyword_data(builder, &mut rad_data.size.extent, sizeKind, &token.value)
                 }
             } else if(token.type == TokenType.Number) {
                  // Length size
-                 cssParser.parseLength(parser, builder, rad_data.size.length)
+                 cssParser.parseLength(parser, builder, &mut rad_data.size.length)
                  // If ellipse, can have second length
                  if(rad_data.shape.kind == CSSKeywordKind.Unknown && rad_data.shape.value.equals("ellipse")) { // Ellipse is Unknown kind with value "ellipse"
                      // Try second length
                      var second = CSSValue()
-                     if(cssParser.parseLength(parser, builder, second)) {
+                     if(cssParser.parseLength(parser, builder, &mut second)) {
                          const pair = builder.allocate<CSSValuePair>()
                          pair.first = rad_data.size.length
                          pair.second = second
@@ -229,7 +229,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
             const sizeKind = getRadialSizeKeywordKind(hash)
             if(sizeKind != CSSKeywordKind.Unknown) {
                 parser.increment()
-                alloc_keyword_data(builder, rad_data.size.extent, sizeKind, token.value)
+                alloc_keyword_data(builder, &mut rad_data.size.extent, sizeKind, &token.value)
                 has_shape_or_size = true
                 
                 // Check for shape after size
@@ -239,7 +239,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
                     shapeKind = getRadialShapeKeywordKind(hash)
                     if(shapeKind != CSSKeywordKind.Unknown) {
                         parser.increment()
-                        alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+                        alloc_keyword_data(builder, &mut rad_data.shape, shapeKind, &token.value)
                     }
                 }
             }
@@ -248,11 +248,11 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
     
     // If we didn't find keywords, maybe we have lengths (size)
     if(!has_shape_or_size) {
-        if(cssParser.parseLength(parser, builder, rad_data.size.length)) {
+        if(cssParser.parseLength(parser, builder, &mut rad_data.size.length)) {
             has_shape_or_size = true
             // Try second length
              var second = CSSValue()
-             if(cssParser.parseLength(parser, builder, second)) {
+             if(cssParser.parseLength(parser, builder, &mut second)) {
                  const pair = builder.allocate<CSSValuePair>()
                  pair.first = rad_data.size.length
                  pair.second = second
@@ -267,7 +267,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
                 const shapeKind = getRadialShapeKeywordKind(hash)
                 if(shapeKind != CSSKeywordKind.Unknown) {
                     parser.increment()
-                    alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+                    alloc_keyword_data(builder, &mut rad_data.shape, shapeKind, &token.value)
                 }
              }
         }
@@ -280,7 +280,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
         
         var posX = CSSValue()
         var posY = CSSValue()
-        if(cssParser.parsePositionValue(parser, builder, posX, posY)) {
+        if(cssParser.parsePositionValue(parser, builder, &mut posX, &mut posY)) {
             if(!posY.isUnknown()) {
                 const pair = builder.allocate<CSSValuePair>()
                 pair.first = posX
@@ -303,7 +303,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
         }
     }
 
-    cssParser.parseColorStopList(parser, builder, rad_data.color_stop_list)
+    cssParser.parseColorStopList(parser, builder, &mut rad_data.color_stop_list)
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {
@@ -335,7 +335,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
     if(token.type == TokenType.Identifier) {
         if(token.value.equals("from")) {
             parser.increment()
-            if(!cssParser.parseLength(parser, builder, con_data.from)) { // reusing parseLengthInto for angle
+            if(!cssParser.parseLength(parser, builder, &mut con_data.from)) { // reusing parseLengthInto for angle
                  // parseLengthInto expects CSSLengthValueData, but from is CSSValue.
                  // We need to parse angle into CSSValue.
                  // Let's use parseLength which parses into CSSValue.
@@ -343,7 +343,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
                  // Usually yes, or we have parseAngle.
                  // parseLength calls parseLengthInto.
                  // Let's use parseLength.
-                 if(!cssParser.parseLength(parser, builder, con_data.from)) {
+                 if(!cssParser.parseLength(parser, builder, &mut con_data.from)) {
                      parser.error("expected angle after 'from'")
                  }
             }
@@ -356,7 +356,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
         parser.increment()
         var posX = CSSValue()
         var posY = CSSValue()
-        if(cssParser.parsePositionValue(parser, builder, posX, posY)) {
+        if(cssParser.parsePositionValue(parser, builder, &mut posX, &mut posY)) {
             if(!posY.isUnknown()) {
                 const pair = builder.allocate<CSSValuePair>()
                 pair.first = posX
@@ -380,7 +380,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
     }
     
     // Parse color stops
-    cssParser.parseColorStopList(parser, builder, con_data.color_stop_list)
+    cssParser.parseColorStopList(parser, builder, &mut con_data.color_stop_list)
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {
@@ -403,43 +403,43 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
         switch(hash) {
             comptime_fnv1_hash("url") => {
                 parser.increment()
-                cssParser.parseUrlValue(parser, builder, image.url)
+                cssParser.parseUrlValue(parser, builder, &mut image.url)
                 return true
             }
             comptime_fnv1_hash("linear-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseLinearGradient(parser, builder, image.gradient, false)
+                cssParser.parseLinearGradient(parser, builder, &mut image.gradient, false)
                 return true
             }
             comptime_fnv1_hash("repeating-linear-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseLinearGradient(parser, builder, image.gradient, true)
+                cssParser.parseLinearGradient(parser, builder, &mut image.gradient, true)
                 return true
             }
             comptime_fnv1_hash("radial-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseRadialGradient(parser, builder, image.gradient, false)
+                cssParser.parseRadialGradient(parser, builder, &mut image.gradient, false)
                 return true
             }
             comptime_fnv1_hash("repeating-radial-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseRadialGradient(parser, builder, image.gradient, true)
+                cssParser.parseRadialGradient(parser, builder, &mut image.gradient, true)
                 return true
             }
             comptime_fnv1_hash("conic-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseConicGradient(parser, builder, image.gradient, false)
+                cssParser.parseConicGradient(parser, builder, &mut image.gradient, false)
                 return true
             }
             comptime_fnv1_hash("repeating-conic-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseConicGradient(parser, builder, image.gradient, true)
+                cssParser.parseConicGradient(parser, builder, &mut image.gradient, true)
                 return true
             }
         }
@@ -465,7 +465,7 @@ func (cssParser : &mut CSSParser) parseBackgroundImage(
         data.images.push(BackgroundImageData())
         const ptr = data.images.last_ptr()
         const parsed = cssParser.parseBackgroundImageInto(
-            parser, builder, *ptr
+            parser, builder, &mut *ptr
         )
         if(parsed) {
             const t = parser.getToken()
@@ -500,7 +500,7 @@ func (cssParser : &mut CSSParser) parsePositionValue(
         const kind = getSideOrCornerKeywordKind(hash);
         if(kind != CSSKeywordKind.Unknown || hash == comptime_fnv1_hash("center")) {
             parser.increment();
-            alloc_value_keyword(builder, posX, if(kind != CSSKeywordKind.Unknown) kind else CSSKeywordKind.Center, token.value);
+            alloc_value_keyword(builder, posX, if(kind != CSSKeywordKind.Unknown) kind else CSSKeywordKind.Center, &token.value);
             
             // Try second value
             const token2 = parser.getToken();
@@ -509,7 +509,7 @@ func (cssParser : &mut CSSParser) parsePositionValue(
                 const kind2 = getSideOrCornerKeywordKind(hash2);
                 if(kind2 != CSSKeywordKind.Unknown || hash2 == comptime_fnv1_hash("center")) {
                     parser.increment();
-                    alloc_value_keyword(builder, posY, if(kind2 != CSSKeywordKind.Unknown) kind2 else CSSKeywordKind.Center, token2.value);
+                    alloc_value_keyword(builder, posY, if(kind2 != CSSKeywordKind.Unknown) kind2 else CSSKeywordKind.Center, &token2.value);
                 }
             } else {
                 cssParser.parseLength(parser, builder, posY);
@@ -537,7 +537,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
     
     var first = CSSValue();
     
-    if(cssParser.parseLength(parser, builder, first)) {
+    if(cssParser.parseLength(parser, builder, &mut first)) {
         // parsed first length
     } else {
         const token = parser.getToken();
@@ -545,7 +545,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
             const hash = token.fnv1();
             if(hash == comptime_fnv1_hash("auto") || hash == comptime_fnv1_hash("cover") || hash == comptime_fnv1_hash("contain")) {
                 parser.increment();
-                alloc_value_keyword(builder, first, CSSKeywordKind.Unknown, token.value); // We should map these keywords properly if we had them in enum
+                alloc_value_keyword(builder, &mut first, CSSKeywordKind.Unknown, &token.value); // We should map these keywords properly if we had them in enum
             }
         }
     }
@@ -554,13 +554,13 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
         // check for second value
         var second = CSSValue();
         
-        if(cssParser.parseLength(parser, builder, second)) {
+        if(cssParser.parseLength(parser, builder, &mut second)) {
             // parsed second length
         } else {
              const token = parser.getToken();
              if(token.type == TokenType.Identifier && token.value.equals("auto")) {
                  parser.increment();
-                 alloc_value_keyword(builder, second, CSSKeywordKind.Auto, token.value);
+                 alloc_value_keyword(builder, &mut second, CSSKeywordKind.Auto, &token.value);
              }
         }
         
@@ -597,7 +597,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
                 const repeatKind = getBackgroundRepeatKeywordKind(hash);
                 if(repeatKind != CSSKeywordKind.Unknown) {
                     parser.increment();
-                    alloc_value_keyword(builder, layer.repeat, repeatKind, token.value);
+                    alloc_value_keyword(builder, &mut layer.repeat, repeatKind, &token.value);
                     any = true;
                     continue;
                 }
@@ -608,7 +608,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
                 const attachmentKind = getBackgroundAttachmentKeywordKind(hash);
                 if(attachmentKind != CSSKeywordKind.Unknown) {
                     parser.increment();
-                    alloc_value_keyword(builder, layer.attachment, attachmentKind, token.value);
+                    alloc_value_keyword(builder, &mut layer.attachment, attachmentKind, &token.value);
                     any = true;
                     continue;
                 }
@@ -621,11 +621,11 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
             if(boxKind != CSSKeywordKind.Unknown) {
                 parser.increment();
                 if(layer.origin.isUnknown()) {
-                    alloc_value_keyword(builder, layer.origin, boxKind, token.value);
+                    alloc_value_keyword(builder, &mut layer.origin, boxKind, &token.value);
                     any = true;
                     continue;
                 } else if(layer.clip.isUnknown()) {
-                    alloc_value_keyword(builder, layer.clip, boxKind, token.value);
+                    alloc_value_keyword(builder, &mut layer.clip, boxKind, &token.value);
                     any = true;
                     continue;
                 }
@@ -642,7 +642,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
                     // Let's parse it as a keyword 'none' into the image value slot if we change the structure,
                     // but here image is CSSValue. Wait, in the struct definition I made image : CSSValue.
                     // So yes, we can put a keyword there.
-                    alloc_value_keyword(builder, layer.image, CSSKeywordKind.None, token.value);
+                    alloc_value_keyword(builder, &mut layer.image, CSSKeywordKind.None, &token.value);
                     any = true;
                     continue;
                 }
@@ -657,7 +657,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
              // Let's check if it looks like an image.
              const image_data = builder.allocate<BackgroundImageData>();
              new (image_data) BackgroundImageData();
-             if(cssParser.parseBackgroundImageInto(parser, builder, *image_data)) {
+             if(cssParser.parseBackgroundImageInto(parser, builder, &mut *image_data)) {
                  layer.image.kind = CSSValueKind.BackgroundImage;
                  layer.image.data = image_data;
                  any = true;
@@ -675,7 +675,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
 
              // We need a proper parsePosition function that can handle the ambiguity or just try to parse lengths/keywords.
              // Let's try to parse one value.
-             if(cssParser.parsePositionValue(parser, builder, layer.positionX, layer.positionY)) {
+             if(cssParser.parsePositionValue(parser, builder, &mut layer.positionX, &mut layer.positionY)) {
                  any = true;
 
                  // check for / size
@@ -683,7 +683,7 @@ func (cssParser : &mut CSSParser) parseBackgroundLayer(
                  if(slash.type == TokenType.Divide) {
                      parser.increment();
                      // parse size
-                     cssParser.parseBackgroundSizeValue(parser, builder, layer.size);
+                     cssParser.parseBackgroundSizeValue(parser, builder, &mut layer.size);
                  }
                  continue;
              }
@@ -714,14 +714,14 @@ func (cssParser : &mut CSSParser) parseBackground(
         data.layers.push(CSSBackgroundLayerData());
         const layer = data.layers.last_ptr();
 
-        var parsed = cssParser.parseBackgroundLayer(parser, builder, *layer);
+        var parsed = cssParser.parseBackgroundLayer(parser, builder, &mut *layer);
 
         // check for color on the last layer (or the only layer)
         // Color is only allowed on the last layer.
         // But we don't know if this is the last layer until we see a comma or end of declaration.
         // Actually, if we find a color, it MUST be the last layer.
         if(data.color.isUnknown()) {
-            if(cssParser.parseCSSColor(parser, builder, data.color)) {
+            if(cssParser.parseCSSColor(parser, builder, &mut data.color)) {
                 parsed = true;
             }
         }

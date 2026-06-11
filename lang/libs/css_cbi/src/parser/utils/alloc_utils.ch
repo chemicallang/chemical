@@ -34,7 +34,7 @@ func allocate_multiple_values(
     }
     value.kind = CSSValueKind.Multiple
     value.data = multiple
-    return &mut multiple.values
+    return &raw mut multiple.values
 }
 
 func alloc_two_value_keywords(
@@ -53,8 +53,8 @@ func alloc_two_value_keywords(
         kind : CSSValueKind.Keyword,
         data : null
     }
-    alloc_value_keyword(builder, first, first_kind, first_view)
-    alloc_value_keyword(builder, second, second_kind, second_view)
+    alloc_value_keyword(builder, &mut first, first_kind, first_view)
+    alloc_value_keyword(builder, &mut second, second_kind, second_view)
     const values = allocate_multiple_values(builder, value)
     values.push(first)
     values.push(second)

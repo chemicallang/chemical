@@ -26,7 +26,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
         }
         
         var trackValue = CSSValue()
-        if(cssParser.parseLength(parser, builder, trackValue)) {
+        if(cssParser.parseLength(parser, builder, &mut trackValue)) {
             vals.values.push(trackValue)
             continue
         } else if(token.type == TokenType.Identifier) {
@@ -41,7 +41,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                  var kwVal = builder.allocate<CSSKeywordValueData>()
                  new (kwVal) CSSKeywordValueData {
                      kind : kwKind,
-                     value : builder.allocate_view(view2)
+                     value : builder.allocate_view(&view2)
                  }
                  trackValue.kind = CSSValueKind.Keyword
                  trackValue.data = kwVal
@@ -57,7 +57,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                      }
                      
                      // Parse count (number or keyword like auto-fill)
-                     if(!cssParser.parseRandomValue(parser, builder, repeatData.count)) {
+                     if(!cssParser.parseRandomValue(parser, builder, &mut repeatData.count)) {
                          parser.error("expected repeat count")
                      }
                      
@@ -71,7 +71,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                          if(t2.type == TokenType.RParen || t2.type == TokenType.Semicolon) break
                          
                          var v2 = CSSValue()
-                         if(cssParser.parseLength(parser, builder, v2)) {
+                         if(cssParser.parseLength(parser, builder, &mut v2)) {
                              repeatData.tracks.push(v2)
                          } else if(t2.type == TokenType.Identifier) {
                              // Handle keyword tracks before falling back to generic values like minmax()
@@ -88,17 +88,17 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                                  var kwVal = builder.allocate<CSSKeywordValueData>()
                                  new (kwVal) CSSKeywordValueData {
                                      kind = kwKind,
-                                     value = builder.allocate_view(t2.value)
+                                     value = builder.allocate_view(&t2.value)
                                  }
                                  v2.kind = CSSValueKind.Keyword
                                  v2.data = kwVal
                                  repeatData.tracks.push(v2)
-                             } else if(cssParser.parseRandomValue(parser, builder, v2)) {
+                             } else if(cssParser.parseRandomValue(parser, builder, &mut v2)) {
                                  repeatData.tracks.push(v2)
                              } else {
                                  break
                              }
-                         } else if(cssParser.parseRandomValue(parser, builder, v2)) {
+                         } else if(cssParser.parseRandomValue(parser, builder, &mut v2)) {
                              repeatData.tracks.push(v2)
                          } else {
                              break
@@ -117,7 +117,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
              }
         }
 
-        if(cssParser.parseRandomValue(parser, builder, trackValue)) {
+        if(cssParser.parseRandomValue(parser, builder, &mut trackValue)) {
             vals.values.push(trackValue)
             continue
         }
@@ -139,7 +139,7 @@ func (cssParser : &mut CSSParser) parseGridLine(
     }
     
     var lineVal = CSSValue()
-    if(cssParser.parseRandomValue(parser, builder, lineVal)) {
+    if(cssParser.parseRandomValue(parser, builder, &mut lineVal)) {
         var data = builder.allocate<GridLineData>()
         new (data) GridLineData {
             is_span = is_span,
@@ -162,7 +162,7 @@ func (cssParser : &mut CSSParser) parseGridLineOrPair(
     if(parser.increment_if(TokenType.Divide as int)) {
         var first = value
         var second = CSSValue()
-        if(cssParser.parseGridLine(parser, builder, second)) {
+        if(cssParser.parseGridLine(parser, builder, &mut second)) {
             var pair = builder.allocate<CSSValuePair>()
             new (pair) CSSValuePair()
             pair.first = *value
@@ -199,7 +199,7 @@ func (cssParser : &mut CSSParser) parseGridArea(
     var current = value
     while(parser.increment_if(TokenType.Divide as int)) {
         var next = CSSValue()
-        if(cssParser.parseGridLine(parser, builder, next)) {
+        if(cssParser.parseGridLine(parser, builder, &mut next)) {
             var pair = builder.allocate<CSSValuePair>()
             new (pair) CSSValuePair {
                 first = *current,

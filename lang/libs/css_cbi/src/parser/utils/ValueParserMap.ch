@@ -8,13 +8,13 @@ struct ValueParserMap {
     @make
     func make() {
         var m = ValueParserMap{}
-        putAllCSSValueParsers(m.map)
+        putAllCSSValueParsers(&mut m.map)
         return m;
     }
 
     func getParserFor(&self, name : &std::string_view) : *void {
         var value : *mut void
-        if(map.find(name, value)) {
+        if(map.find(name, &mut value)) {
             return value;
         } else {
             return null

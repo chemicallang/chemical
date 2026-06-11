@@ -91,8 +91,8 @@ func (converter : &mut JsConverter) make_char_chain(value : char) : *mut Functio
     var name = std::string_view("append_js_char")
     var fnPtr = converter.support.appendJsCharFn
 
-    var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     const char_val = builder.make_char_value(value, location);
@@ -104,8 +104,8 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -142,8 +142,8 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var name = std::string_view("append_js")
     
-    var id = builder.make_identifier(name, converter.support.appendJsFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, converter.support.appendJsFn, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -240,13 +240,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(varDecl.keyword.empty()) {
                 converter.str.append_view("var ")
             } else {
-                converter.str.append_view(varDecl.keyword)
+                converter.str.append_view(&varDecl.keyword)
                 converter.str.append_view(" ")
             }
             if(varDecl.pattern != null) {
                 converter.convertJsNode(varDecl.pattern)
             } else {
-                converter.str.append_view(varDecl.name)
+                converter.str.append_view(&varDecl.name)
             }
             if(varDecl.value != null) {
                 converter.str.append_view(" = ")
@@ -262,12 +262,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.escapeJs(std::string_view(val.data() + 1, val.size() - 2));
                 converter.str.append(val.get(0));
             } else {
-                converter.str.append_view(val)
+                converter.str.append_view(&val)
             }
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
-            converter.str.append_view(id.value)
+            converter.str.append_view(&id.value)
         }
         JsNodeKind.ChemicalValue => {
             var chem = node as *mut JsChemicalValue
@@ -328,7 +328,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.convertJsNode(binOp.left)
             }
             converter.str.append_view(" ")
-            converter.str.append_view(binOp.op)
+            converter.str.append_view(&binOp.op)
             converter.str.append_view(" ")
             if(binOp.right != null && binOp.right.kind == JsNodeKind.Ternary) {
                 converter.str.append_view("(")
@@ -347,14 +347,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(func_decl.is_generator) converter.str.append_view("*")
             if(!is_anon) {
                 converter.str.append(' ')
-                converter.str.append_view(func_decl.name)
+                converter.str.append_view(&func_decl.name)
             }
             converter.str.append_view("(")
             var i = 0u
             while(i < func_decl.params.size()) {
                 if(i > 0) converter.str.append_view(", ")
                 var param = func_decl.params.get_ptr(i)
-                converter.str.append_view(param.name)
+                converter.str.append_view(&param.name)
                 if(param.default_value != null) {
                     converter.str.append_view(" = ")
                     converter.convertJsNode(param.default_value)
@@ -369,7 +369,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var access = node as *mut JsMemberAccess
             converter.convertJsNode(access.object)
             converter.str.append_view(".")
-            converter.str.append_view(access.property)
+            converter.str.append_view(&access.property)
         }
         JsNodeKind.ExpressionStatement => {
             var stmt = node as *mut JsExpressionStatement
@@ -384,7 +384,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             while(i < arrow.params.size()) {
                 if(i > 0) converter.str.append_view(", ")
                 var param = arrow.params.get_ptr(i)
-                converter.str.append_view(param.name)
+                converter.str.append_view(&param.name)
                 if(param.default_value != null) {
                     converter.str.append_view(" = ")
                     converter.convertJsNode(param.default_value)
@@ -448,7 +448,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                     converter.convertJsNode(prop.value)
                 } else {
-                    converter.str.append_view(prop.key)
+                    converter.str.append_view(&prop.key)
                     converter.str.append_view(": ")
                     converter.convertJsNode(prop.value)
                 }
@@ -465,12 +465,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 var initNode = forStmt.init as *mut JsNode
                 if(initNode.kind == JsNodeKind.VarDecl) {
                     var decl = forStmt.init as *mut JsVarDecl
-                    converter.str.append_view(decl.keyword)
+                    converter.str.append_view(&decl.keyword)
                     converter.str.append_view(" ")
                     if(decl.pattern != null) {
                         converter.convertJsNode(decl.pattern)
                     } else {
-                        if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(decl.name) }
+                        if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(&decl.name) }
                     }
                     if(decl.value != null) {
                         converter.str.append_view(" = ")
@@ -501,9 +501,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var initNode = forIn.left
             if(initNode.kind == JsNodeKind.VarDecl) {
                  var decl = initNode as *mut JsVarDecl
-                 converter.str.append_view(decl.keyword)
+                 converter.str.append_view(&decl.keyword)
                  converter.str.append_view(" ")
-                 if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(decl.name) }
+                 if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(&decl.name) }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
                  converter.convertJsNode(stmt.expression)
@@ -521,9 +521,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var initNode = forOf.left
             if(initNode.kind == JsNodeKind.VarDecl) {
                  var decl = initNode as *mut JsVarDecl
-                 converter.str.append_view(decl.keyword)
+                 converter.str.append_view(&decl.keyword)
                  converter.str.append_view(" ")
-                 if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(decl.name) }
+                 if(decl.pattern != null) { converter.convertJsNode(decl.pattern) } else { converter.str.append_view(&decl.name) }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
                  converter.convertJsNode(stmt.expression)
@@ -594,7 +594,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view(" catch")
                 if(!tryCatch.catchParam.empty()) {
                     converter.str.append_view("(")
-                    converter.str.append_view(tryCatch.catchParam)
+                    converter.str.append_view(&tryCatch.catchParam)
                     converter.str.append_view(")")
                 }
                 converter.str.append_view(" ")
@@ -618,7 +618,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.UnaryOp => {
             var unary = node as *mut JsUnaryOp
             if(unary.prefix) {
-                converter.str.append_view(unary.operator)
+                converter.str.append_view(&unary.operator)
                 // Check if operator needs a space (if it's a word)
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                      converter.str.append_view(" ")
@@ -626,7 +626,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.convertJsNode(unary.operand)
             } else {
                 converter.convertJsNode(unary.operand)
-                converter.str.append_view(unary.operator)
+                converter.str.append_view(&unary.operator)
             }
         }
         JsNodeKind.Spread => {
@@ -638,12 +638,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var cls = node as *mut JsClassDecl
             converter.str.append_view("class ")
             if(!cls.name.empty()) {
-                converter.str.append_view(cls.name)
+                converter.str.append_view(&cls.name)
                 converter.str.append_view(" ")
             }
             if(!cls.superClass.empty()) {
                 converter.str.append_view("extends ")
-                converter.str.append_view(cls.superClass)
+                converter.str.append_view(&cls.superClass)
                 converter.str.append_view(" ")
             }
             converter.str.append_view("{")
@@ -651,13 +651,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             while(i < cls.methods.size()) {
                 var method = cls.methods.get_ptr(i)
                 if(method.is_static) converter.str.append_view("static ")
-                converter.str.append_view(method.name)
+                converter.str.append_view(&method.name)
                 converter.str.append_view("(")
                 var j = 0u
                 while(j < method.params.size()) {
                     if(j > 0) converter.str.append_view(", ")
                     var param = method.params.get_ptr(j)
-                    converter.str.append_view(param.name)
+                    converter.str.append_view(&param.name)
                     if(param.default_value != null) {
                         converter.str.append_view(" = ")
                         converter.convertJsNode(param.default_value)
@@ -678,7 +678,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.str.append_view("import ")
              if(!imp.specifiers.empty()) {
                  if(imp.specifiers.get(0).imported.equals(view("default"))) {
-                     converter.str.append_view(imp.specifiers.get(0).local)
+                     converter.str.append_view(&imp.specifiers.get(0).local)
                      if(imp.specifiers.size() > 1) {
                          converter.str.append_view(", {")
                          var i = 1u
@@ -687,10 +687,10 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                              if(found) converter.str.append_view(", ")
                              var s = imp.specifiers.get_ptr(i)
                              if(!s.imported.equals(view("*"))) {
-                                  converter.str.append_view(s.imported)
-                                  if(!s.imported.equals(s.local)) {
+                                  converter.str.append_view(&s.imported)
+                                  if(!s.imported.equals(&s.local)) {
                                        converter.str.append_view(" as ")
-                                       converter.str.append_view(s.local)
+                                       converter.str.append_view(&s.local)
                                   }
                                   found = true
                              }
@@ -700,17 +700,17 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      }
                  } else if(imp.specifiers.get(0).imported.equals(view("*"))) {
                      converter.str.append_view("* as ")
-                     converter.str.append_view(imp.specifiers.get(0).local)
+                     converter.str.append_view(&imp.specifiers.get(0).local)
                  } else {
                      converter.str.append_view("{")
                      var i = 0u
                      while(i < imp.specifiers.size()) {
                          if(i > 0) converter.str.append_view(", ")
                          var s = imp.specifiers.get_ptr(i)
-                         converter.str.append_view(s.imported)
-                         if(!s.imported.equals(s.local)) {
+                         converter.str.append_view(&s.imported)
+                         if(!s.imported.equals(&s.local)) {
                               converter.str.append_view(" as ")
-                              converter.str.append_view(s.local)
+                              converter.str.append_view(&s.local)
                          }
                          i++
                      }
@@ -718,7 +718,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  }
                  converter.str.append_view(" from ")
              }
-             converter.str.append_view(imp.source)
+             converter.str.append_view(&imp.source)
              converter.str.append_view(";")
         }
         JsNodeKind.Export => {

@@ -15,7 +15,7 @@ public func html_replacementNode(builder : *mut ASTBuilder, value : *mut Embedde
     var scope_nodes = scope.getNodes();
     var converter = ASTConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -50,14 +50,14 @@ public func html_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVa
     var scope_nodes = block_val.get_body()
     var converter = ASTConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
     }
     converter.convertHtmlRoot(root);
     const view2 = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(view2, loc)
+    const strValue = builder.make_string_value(&view2, loc)
     block_val.setCalculatedValue(strValue)
     return block_val;
 }

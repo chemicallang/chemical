@@ -17,7 +17,7 @@ func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder :
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("SsrAttributeValue"), converter.ssrAttributeValueNode, false, location);
     var id = builder.make_identifier(name, child, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -28,7 +28,7 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
             var fnName = std::string_view("getSsrAttributeValue")
-            const writeFn = node.child(fnName)
+            const writeFn = node.child(&fnName)
             if(writeFn == null) {
                 return converter.convert_to_attr_value(builder, type, value)
             }
@@ -37,8 +37,8 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
             }
             const location = intrinsics::get_raw_location();
             var base = builder.make_identifier(std::string_view("page"), converter.pageNode, false, location);
-            var id = builder.make_identifier(fnName, writeFn, false, location);
-            const chain = builder.make_access_chain(std::span<*mut Value>([ value as *mut Value, id ]), location)
+            var id = builder.make_identifier(&fnName, writeFn, false, location);
+            const chain = builder.make_access_chain(&std::span<*mut Value>([ value as *mut Value, id ]), location)
             var call = builder.make_function_call_value(chain, location)
             var args = call.get_args();
             args.push(base)

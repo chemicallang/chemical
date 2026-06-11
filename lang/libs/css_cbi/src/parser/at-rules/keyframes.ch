@@ -9,7 +9,7 @@ func (cssParser : &mut CSSParser) parseKeyframesRule(om : &mut CSSOM, parser : *
 
     token = parser.getToken();
     if(token.type == TokenType.PropertyName || token.type == TokenType.Identifier) {
-        if(fnv1_hash_view(token.value) == comptime_fnv1_hash("keyframes")) {
+        if(fnv1_hash_view(&token.value) == comptime_fnv1_hash("keyframes")) {
              parser.increment();
         } else {
             parser.error("expected 'keyframes'");
@@ -33,7 +33,7 @@ func (cssParser : &mut CSSParser) parseKeyframesRule(om : &mut CSSOM, parser : *
 
     var rule = builder.allocate<CSSKeyframesRule>();
     new (rule) CSSKeyframesRule {
-        name : builder.allocate_view(name),
+        name : builder.allocate_view(&name),
         keyframes : std::vector<*mut CSSKeyframe>(),
         parent : om.parent
     }
@@ -76,7 +76,7 @@ func (cssParser : &mut CSSParser) parseKeyframesRule(om : &mut CSSOM, parser : *
 
             var keyframe = builder.allocate<CSSKeyframe>();
             new (keyframe) CSSKeyframe {
-                selector : builder.allocate_view(selector),
+                selector : builder.allocate_view(&selector),
                 declarations : std::vector<*mut CSSDeclaration>()
             }
             rule.keyframes.push(keyframe);

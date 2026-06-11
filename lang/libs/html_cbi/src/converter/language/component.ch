@@ -37,7 +37,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
     // 2. Generate the if(page.require_component(hash)) block to emit component JS.
     if(signature.mountStrategy != MountStrategy.Universal) {
-        var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+        var base = builder.make_identifier(&signature.name, signature.functionNode as *mut ASTNode, false, location)
         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var call = builder.make_function_call_node(base as *mut Value, converter.parent, location)
         call.get_args().push(pageId as *mut Value)
@@ -68,7 +68,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         const structValue = builder.make_struct_value(ssrAttributeListNode, location)
 
         // Call ComponentFunction(page) to write the component's HTML
-        var compBase = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+        var compBase = builder.make_identifier(&signature.name, signature.functionNode as *mut ASTNode, false, location)
         var compPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var compCall = builder.make_function_call_node(compBase as *mut Value, converter.parent, location)
         const args = compCall.get_args();
@@ -102,7 +102,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 var is_duplicate : bool = false;
                 for(var j = i + 1u; j < element.attributes.size(); j++) {
                     const nextAttr = element.attributes.get(j)
-                    if(nextAttr.name.equals(attr.name)) {
+                    if(nextAttr.name.equals(&attr.name)) {
                         is_duplicate = true;
                         break;
                     }
@@ -114,7 +114,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
                 // constructing a ssr text val for the name value
                 const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
-                nameStructVal.add_value(std::string_view("data"), builder.make_string_value(attr.name, location))
+                nameStructVal.add_value(std::string_view("data"), builder.make_string_value(&attr.name, location))
                 nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
                 attrStructVal.add_value(std::string_view("name"), nameStructVal)
 
@@ -143,7 +143,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                     
                     var stripped = strip_js_string_quotes(chemAttrValue.text);
                     var escaped = std::string();
-                    escape_html_append(escaped, stripped);
+                    escape_html_append(&mut escaped, stripped);
                     
                     textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(escaped.view()), location))
                     textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(escaped.size(), location))
@@ -203,7 +203,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             var pageId2 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
             var getSizeCall = builder2.make_function_call_value(
-                builder2.make_access_chain(std::span<*mut Value>([ pageId2 as *mut Value, builder2.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ pageId2 as *mut Value, builder2.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
                 location
             );
 
@@ -212,7 +212,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             startIdxNameStr.append_uinteger(element.loc);
             var startIdxName = builder2.allocate_view(startIdxNameStr.to_view());
 
-            var startIdxVar = builder2.make_varinit_stmt(false, false, startIdxName, builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+            var startIdxVar = builder2.make_varinit_stmt(false, false, &startIdxName, builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
             converter.vec.push(startIdxVar as *mut ASTNode);
 
             // 2. Render children
@@ -225,31 +225,31 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             // 3. Extract range and truncate
             var pageId3 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-            var pageHtmlAccess = builder2.make_access_chain(std::span<*mut Value>([ pageId3 as *mut Value, builder2.make_identifier(view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
+            var pageHtmlAccess = builder2.make_access_chain(&std::span<*mut Value>([ pageId3 as *mut Value, builder2.make_identifier(view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
 
             var childrenHtmlNameStr = std::string();
             childrenHtmlNameStr.append_view("childrenHtml_");
             childrenHtmlNameStr.append_uinteger(element.loc);
             var childrenHtmlName = builder2.allocate_view(childrenHtmlNameStr.to_view());
 
-            var childrenHtmlVar = builder2.make_varinit_stmt(false, false, childrenHtmlName, null,
+            var childrenHtmlVar = builder2.make_varinit_stmt(false, false, &childrenHtmlName, null,
                 builder2.make_function_call_value(builder2.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
                 AccessSpecifier.Internal, converter.parent, location);
             converter.vec.push(childrenHtmlVar as *mut ASTNode);
 
-            var childrenHtmlId = builder2.make_identifier(childrenHtmlName, childrenHtmlVar as *mut ASTNode, false, location);
+            var childrenHtmlId = builder2.make_identifier(&childrenHtmlName, childrenHtmlVar as *mut ASTNode, false, location);
             var appendCall = builder2.make_function_call_node(
-                builder2.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
                 converter.parent,
                 location
             );
-            var startIdxId = builder2.make_identifier(startIdxName, startIdxVar as *mut ASTNode, false, location);
+            var startIdxId = builder2.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location);
             var dataCall = builder2.make_function_call_value(
-                builder2.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder2.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder2.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
                 location
             );
             var sizeCall = builder2.make_function_call_value(
-                builder2.make_access_chain(std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder2.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder2.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
                 location
             );
 
@@ -259,11 +259,11 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
             var pageId4 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
             var truncateCall = builder2.make_function_call_node(
-                builder2.make_access_chain(std::span<*mut Value>([ pageId4 as *mut Value, builder2.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ pageId4 as *mut Value, builder2.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
                 converter.parent,
                 location
             );
-            truncateCall.get_args().push(builder2.make_identifier(startIdxName, startIdxVar as *mut ASTNode, false, location));
+            truncateCall.get_args().push(builder2.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location));
             converter.vec.push(truncateCall as *mut ASTNode);
 
             // 4. Construct SsrText and pass as 3rd arg
@@ -271,11 +271,11 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
             // var childrenHtmlId = builder2.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
 
             var dataCall2 = builder2.make_function_call_value(
-                builder2.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
                 location
             );
             var sizeCall2 = builder2.make_function_call_value(
-                builder2.make_access_chain(std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId as *mut Value, builder2.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
                 location
             );
 
@@ -297,7 +297,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])
         var hostId = std::string("u");
         hostId.append_uinteger(idLoc);
-        converter.emit_universal_queue(element, signature, hostId);
+        converter.emit_universal_queue(element, signature, &hostId);
 
         return;
     }
@@ -307,27 +307,27 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     if(signature.mountStrategy == MountStrategy.Preact) {
         // Preact Mount Strategy
         s.append_view("$_pm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.React) {
         // React Mount Strategy
         s.append_view("$_rm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.Solid) {
         // Solid Mount Strategy
         s.append_view("$_sm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     } else if(signature.mountStrategy == MountStrategy.Universal) {
         // Universal Mount Strategy (HTML-first, no framework dependency)
         s.append_view("$_um(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     } else {
         // Default Mount Strategy
         s.append_view("$_dm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, *s)
+        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     }
 
@@ -335,14 +335,14 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     for (var i : uint = 0; i < attrs; i++) {
         if (i > 0) s.append_view(", ")
         const attr = element.attributes.get(i)
-        s.append_view(attr.name)
+        s.append_view(&attr.name)
         s.append_view(": ")
 
         if (attr.value != null) {
             switch(attr.value.kind) {
                 AttributeValueKind.Text, AttributeValueKind.Number => {
                     const val = attr.value as *mut TextAttributeValue
-                    s.append_view(val.text)
+                    s.append_view(&val.text)
                 }
                 AttributeValueKind.Chemical => {
                     const val = attr.value as *mut ChemicalAttributeValue
@@ -353,7 +353,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                          s.append('"')
                     }
 
-                    converter.emit_append_html_from_str(*s)
+                    converter.emit_append_html_from_str(&mut *s)
 
                     converter.put_chemical_value_in(val.value)
 
@@ -362,7 +362,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                     }
                 }
                 AttributeValueKind.ChemicalValues => {
-                    converter.emit_append_html_from_str(*s)
+                    converter.emit_append_html_from_str(&mut *s)
                     const valuesNode = attr.value as *mut ChemicalAttributeValues
                     converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
                     for (var j : uint = 0; j < valuesNode.values.size(); j++) {
@@ -380,5 +380,5 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     s.append_view("});")
 
     s.append_view("</script>")
-    converter.emit_append_html_from_str(*s)
+    converter.emit_append_html_from_str(&mut *s)
 }

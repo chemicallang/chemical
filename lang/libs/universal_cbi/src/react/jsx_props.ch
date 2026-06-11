@@ -13,9 +13,9 @@ func try_build_style_object_text(
         const lit = prop.value as *mut JsLiteral;
         const valText = strip_js_string_quotes(lit.value);
         if(s.size() > 0) s.append_view("; ");
-        if(!append_css_key(s, prop.key)) return false;
+        if(!append_css_key(&mut s, prop.key)) return false;
         s.append_view(": ");
-        s.append_view(valText);
+        s.append_view(&valText);
     }
     *outText = builder.allocate_view(s.to_view());
     return true;
@@ -24,7 +24,7 @@ func try_build_style_object_text(
 func find_state_init_text(states : &std::vector<UniversalStateDecl>, name : std::string_view) : std::string_view {
     for(var i : uint = 0; i < states.size(); i++) {
         const st = states.get(i);
-        if(st.name.equals(name)) {
+        if(st.name.equals(&name)) {
             return st.initText;
         }
     }
@@ -33,7 +33,7 @@ func find_state_init_text(states : &std::vector<UniversalStateDecl>, name : std:
 
 func has_state(states : &std::vector<UniversalStateDecl>, name : std::string_view) : bool {
     for(var i : uint = 0; i < states.size(); i++) {
-        if(states.get(i).name.equals(name)) return true;
+        if(states.get(i).name.equals(&name)) return true;
     }
     return false;
 }
@@ -42,17 +42,17 @@ func get_prop_access_path(builder : *mut ASTBuilder, node : *mut JsNode, propsNa
     if(node == null) return view("");
     if(node.kind == JsNodeKind.Identifier) {
         const id = node as *mut JsIdentifier;
-        if(id.value.equals(propsName)) return view("");
+        if(id.value.equals(&propsName)) return view("");
     } else if(node.kind == JsNodeKind.MemberAccess) {
         const ma = node as *mut JsMemberAccess;
         const sub = get_prop_access_path(builder, ma.object, propsName);
-        if(!sub.empty() || (ma.object.kind == JsNodeKind.Identifier && (ma.object as *mut JsIdentifier).value.equals(propsName))) {
+        if(!sub.empty() || (ma.object.kind == JsNodeKind.Identifier && (ma.object as *mut JsIdentifier).value.equals(&propsName))) {
             var path = std::string();
             if(!sub.empty()) {
-                path.append_view(sub);
+                path.append_view(&sub);
                 path.append('.');
             }
-            path.append_view(ma.property);
+            path.append_view(&ma.property);
             return builder.allocate_view(path.to_view());
         }
     }
@@ -65,7 +65,7 @@ func find_jsx_attribute(element : *mut JsJSXElement, name : std::string_view) : 
         const attrNode = element.opening.attributes.get(i);
         if(attrNode == null || attrNode.kind != JsNodeKind.JSXAttribute) continue;
         const attr = attrNode as *mut JsJSXAttribute;
-        if(attr.name.equals(name)) return attr;
+        if(attr.name.equals(&name)) return attr;
     }
     return null;
 }
@@ -143,13 +143,13 @@ func build_nested_props_expr(
             const attr = attrNode as *mut JsJSXAttribute;
             if(!first) s.append_view(",");
             first = false;
-            s.append_view(attr.name);
+            s.append_view(&attr.name);
             s.append_view(":");
             if(attr.value == null) {
                 s.append_view("true");
             } else if(attr.value.kind == JsNodeKind.Literal) {
                 const lit = attr.value as *mut JsLiteral;
-                s.append_view(lit.value);
+                s.append_view(&lit.value);
             } else if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                 const container = attr.value as *mut JsJSXExpressionContainer;
                 const expr = container.expression;

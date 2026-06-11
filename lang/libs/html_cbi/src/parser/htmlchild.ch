@@ -89,7 +89,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             HtmlChild : HtmlChild {
                 kind : HtmlChildKind.Text
             },
-            value : builder.allocate_view(current.value)
+            value : builder.allocate_view(&current.value)
         }
         return text;
     } else if(current.type == TokenType.CommentStart) {

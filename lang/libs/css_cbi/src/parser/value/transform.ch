@@ -23,7 +23,7 @@ func (cssParser : &mut CSSParser) parseTransform(
             }
             const kind = getTransformFunctionKeywordKind(hash)
 
-            transform.transformFunction = CSSKeywordValueData { value : builder.allocate_view(token.value), kind : kind }
+            transform.transformFunction = CSSKeywordValueData { value : builder.allocate_view(&token.value), kind : kind }
 
             if(kind != CSSKeywordKind.Unknown) {
                 parser.increment();
@@ -49,7 +49,7 @@ func (cssParser : &mut CSSParser) parseTransform(
                         }
                     }
                     // Use parseLength which handles numbers, lengths, calc(), and var()
-                    if(cssParser.parseLength(parser, builder, node.value, false)) {
+                    if(cssParser.parseLength(parser, builder, &mut node.value, false)) {
 
                         parser.incrementToken(TokenType.Comma)
 

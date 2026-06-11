@@ -4,7 +4,7 @@ func (page : &HtmlPage) getComponentId(index : size_t) : std::string_view {
     var i : size_t = 0;
     var count : size_t = 0;
     while(i < view.size()) {
-        if(view.subview(i, view.size()).starts_with(search)) {
+        if(view.subview(i, view.size()).starts_with(&search)) {
             if(count == index) {
                 var start = i + 5;
                 var end = start;
@@ -397,7 +397,7 @@ func my_button_primary_html(page : &mut HtmlPage) {
 @test
 public func test_simple_button_works(env : &mut TestEnv) {
     var page = HtmlPage()
-    my_button_primary_html(page)
+    my_button_primary_html(&mut page)
     var html = std::string()
     html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="my_class dc_2 dc_1">Hello</button></div>`)
     view_equals(env, page.getHtml(), html.to_view())

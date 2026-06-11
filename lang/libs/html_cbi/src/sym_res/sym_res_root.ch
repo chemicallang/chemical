@@ -278,7 +278,7 @@ func sym_res_root(
     for (var i : uint = 0; i < root.components.size(); i += 1) {
         var element = root.components.get(i);
         
-        const compNode = resolver.find(element.name);
+        const compNode = resolver.find(&element.name);
         if (compNode == null) {
             resolver.error("component not found", element.loc);
             return false;
@@ -306,7 +306,7 @@ func sym_res_root(
                 var found = false;
                 for (var k : uint = 0; k < element.attributes.size(); k += 1) {
                     const attr = element.attributes.get(k);
-                    if (attr.name.equals(param.name)) {
+                    if (attr.name.equals(&param.name)) {
                         found = true;
                         break;
                     }

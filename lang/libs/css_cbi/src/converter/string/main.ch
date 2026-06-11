@@ -23,8 +23,8 @@ func (converter : &mut ASTConverter) make_char_call(value : char) : *mut Functio
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var name : std::string_view = std::string_view("append_css_char")
-    var id = builder.make_identifier(name, support.appendCssCharFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, support.appendCssCharFn, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     const char_val = builder.make_char_value(value, location);
@@ -38,7 +38,7 @@ func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Va
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("append_css"), support.appendCssFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -53,8 +53,8 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var name : std::string_view = std::string_view("append_css_nh")
     var node : *mut ASTNode = support.appendCssFn
-    var id = builder.make_identifier(name, node, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, node, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -66,8 +66,8 @@ func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -135,7 +135,7 @@ func (converter : &mut ASTConverter) put_append_css_value_chain(view : &std::str
 
 func (converter : &mut ASTConverter) put_chain_in() {
     const builder = converter.builder
-    const chain = converter.make_chain_of(builder, converter.str);
+    const chain = converter.make_chain_of(builder, &mut converter.str);
     converter.vec.push(chain);
 }
 
@@ -264,12 +264,12 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
 func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     if(ptr.kind == CSSLengthKind.Variable) {
         str.append_view(std::string_view("var("))
-        str.append_view(ptr.value);
+        str.append_view(&ptr.value);
         str.append(')');
         return;
     }
     // writing the length
-    str.append_view(ptr.value)
+    str.append_view(&ptr.value)
     // writing the unit
     if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
         printf("unknown unit")
@@ -280,27 +280,27 @@ func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
 func (converter : &mut ASTConverter) writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
 
     if(ptr.first.kind != CSSValueKind.Unknown) {
-        converter.writeValue(ptr.first)
+        converter.writeValue(&mut ptr.first)
     }
 
     if(ptr.second.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(ptr.second)
+        converter.writeValue(&mut ptr.second)
     }
 
     if(ptr.third.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(ptr.third)
+        converter.writeValue(&mut ptr.third)
     }
 
     if(ptr.fourth.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(ptr.fourth)
+        converter.writeValue(&mut ptr.fourth)
     }
 
     if(ptr.next != null) {
         str.append_view(std::string_view(" / "))
-        converter.writeBorderRadiusValueData(*ptr.next, str)
+        converter.writeBorderRadiusValueData(&mut *ptr.next, str)
     }
 
 }
@@ -309,10 +309,10 @@ func writeFontStyle(ptr : &CSSFontStyle, str : &mut std::string) {
     switch(ptr) {
         None => {}
         Keyword(keyword) => {
-            str.append_view(keyword.value)
+            str.append_view(&keyword.value)
         }
         Oblique(view) => {
-            str.append_view(view)
+            str.append_view(&view)
         }
     }
 }
@@ -322,11 +322,11 @@ func writeFontWeight(ptr : &CSSFontWeight, str : &mut std::string) {
         None => {}
         Keyword(keyword) => {
             str.append(' ')
-            str.append_view(keyword.value)
+            str.append_view(&keyword.value)
         }
         Absolute(view) => {
             str.append(' ')
-            str.append_view(view)
+            str.append_view(&view)
         }
     }
 }
@@ -339,68 +339,68 @@ func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
         if(start != first) {
             str.append(',');
         }
-        str.append_view(*start)
+        str.append_view(&*start)
         start++
     }
 }
 
 func (converter : &mut ASTConverter) writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
-    writeFontStyle(ptr.style, str)
+    writeFontStyle(&ptr.style, str)
 
     if(ptr.fontVariant.kind != CSSKeywordKind.Unknown) {
         str.append(' ');
-        str.append_view(ptr.fontVariant.value)
+        str.append_view(&ptr.fontVariant.value)
     }
 
-    writeFontWeight(ptr.weight, str)
+    writeFontWeight(&ptr.weight, str)
 
     if(ptr.stretch.kind != CSSKeywordKind.Unknown) {
         str.append(' ')
-        str.append_view(ptr.stretch.value)
+        str.append_view(&ptr.stretch.value)
     }
 
     if(ptr.size.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(ptr.size)
+        converter.writeValue(&mut ptr.size)
     }
 
     if(ptr.lineHeight.kind != CSSValueKind.Unknown) {
         str.append('/')
-        converter.writeValue(ptr.lineHeight)
+        converter.writeValue(&mut ptr.lineHeight)
     }
 
     if(!ptr.family.families.empty()) {
         str.append(' ');
     }
-    writeFontFamilyData(ptr.family, str)
+    writeFontFamilyData(&mut ptr.family, str)
 
 }
 
 func (converter : &mut ASTConverter) writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) {
 
     if(value.offsetX.kind != CSSValueKind.Unknown) {
-        converter.writeValue(value.offsetX)
+        converter.writeValue(&mut value.offsetX)
     }
 
     if(value.offsetY.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.offsetY)
+        converter.writeValue(&mut value.offsetY)
     }
 
     if(value.blurRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.blurRadius)
+        converter.writeValue(&mut value.blurRadius)
     }
 
     if(value.color.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.color)
+        converter.writeValue(&mut value.color)
     }
 
     if(value.next != null) {
         str.append(',')
-        converter.writeTextShadowValueData(*value.next, str)
+        converter.writeTextShadowValueData(&mut *value.next, str)
     }
 
 }
@@ -415,32 +415,32 @@ func (converter : &mut ASTConverter) writeBoxShadowValueData(value : &mut CSSBox
         if(value.inset) {
             str.append(' ')
         }
-        converter.writeValue(value.offsetX)
+        converter.writeValue(&mut value.offsetX)
     }
 
     if(value.offsetY.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.offsetY)
+        converter.writeValue(&mut value.offsetY)
     }
 
     if(value.blurRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.blurRadius)
+        converter.writeValue(&mut value.blurRadius)
     }
 
     if(value.spreadRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.spreadRadius)
+        converter.writeValue(&mut value.spreadRadius)
     }
 
     if(value.color.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        converter.writeValue(value.color)
+        converter.writeValue(&mut value.color)
     }
 
     if(value.next != null) {
         str.append(',')
-        converter.writeBoxShadowValueData(*value.next, str)
+        converter.writeBoxShadowValueData(&mut *value.next, str)
     }
 
 }
@@ -480,99 +480,99 @@ func writeAlphaLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::strin
 }
 
 func writeRGBData(ptr : &mut CSSRGBColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.red, str);
-    writeLengthOrNoneNotFirst(ptr.green, str);
-    writeLengthOrNoneNotFirst(ptr.blue, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.red, str);
+    writeLengthOrNoneNotFirst(&mut ptr.green, str);
+    writeLengthOrNoneNotFirst(&mut ptr.blue, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeHSLData(ptr : &mut CSSHSLColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.hue, str);
-    writeLengthOrNoneNotFirst(ptr.saturation, str);
-    writeLengthOrNoneNotFirst(ptr.lightness, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.hue, str);
+    writeLengthOrNoneNotFirst(&mut ptr.saturation, str);
+    writeLengthOrNoneNotFirst(&mut ptr.lightness, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeHWBData(ptr : &mut CSSHWBColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.hue, str);
-    writeLengthOrNoneNotFirst(ptr.whiteness, str);
-    writeLengthOrNoneNotFirst(ptr.blackness, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.hue, str);
+    writeLengthOrNoneNotFirst(&mut ptr.whiteness, str);
+    writeLengthOrNoneNotFirst(&mut ptr.blackness, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeLABData(ptr : &mut CSSLABColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.lightness, str);
-    writeLengthOrNoneNotFirst(ptr.rgAxis, str);
-    writeLengthOrNoneNotFirst(ptr.byAxis, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.lightness, str);
+    writeLengthOrNoneNotFirst(&mut ptr.rgAxis, str);
+    writeLengthOrNoneNotFirst(&mut ptr.byAxis, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeLCHData(ptr : &mut CSSLCHColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.lightness, str);
-    writeLengthOrNoneNotFirst(ptr.chroma, str);
-    writeLengthOrNoneNotFirst(ptr.hue, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.lightness, str);
+    writeLengthOrNoneNotFirst(&mut ptr.chroma, str);
+    writeLengthOrNoneNotFirst(&mut ptr.hue, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeOKLABData(ptr : &mut CSSOKLABColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.lightness, str);
-    writeLengthOrNoneNotFirst(ptr.aAxis, str);
-    writeLengthOrNoneNotFirst(ptr.bAxis, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.lightness, str);
+    writeLengthOrNoneNotFirst(&mut ptr.aAxis, str);
+    writeLengthOrNoneNotFirst(&mut ptr.bAxis, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeOKLCHData(ptr : &mut CSSOKLCHColorData, str : &mut std::string) {
-    writeLengthOrNone(ptr.lightness, str);
-    writeLengthOrNoneNotFirst(ptr.pChroma, str);
-    writeLengthOrNoneNotFirst(ptr.hue, str);
-    writeAlphaLengthOrNone(ptr.alpha, str);
+    writeLengthOrNone(&mut ptr.lightness, str);
+    writeLengthOrNoneNotFirst(&mut ptr.pChroma, str);
+    writeLengthOrNoneNotFirst(&mut ptr.hue, str);
+    writeAlphaLengthOrNone(&mut ptr.alpha, str);
 }
 
 func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
     switch(ptr.kind) {
         CSSColorKind.RGB => {
             str.append_view(std::string_view("rgb("))
-            writeRGBData(*ptr.value.rgbData, str)
+            writeRGBData(&mut *ptr.value.rgbData, str)
             str.append(')')
         }
         CSSColorKind.RGBA => {
            str.append_view(std::string_view("rgba("))
-           writeRGBData(*ptr.value.rgbData, str)
+           writeRGBData(&mut *ptr.value.rgbData, str)
            str.append(')')
         }
         CSSColorKind.HSL => {
             str.append_view(std::string_view("hsl("))
-            writeHSLData(*ptr.value.hslData, str)
+            writeHSLData(&mut *ptr.value.hslData, str)
             str.append(')')
         }
         CSSColorKind.HSLA => {
             str.append_view(std::string_view("hsla("))
-            writeHSLData(*ptr.value.hslData, str)
+            writeHSLData(&mut *ptr.value.hslData, str)
             str.append(')')
         }
         CSSColorKind.HWB => {
             str.append_view(std::string_view("hwb("))
-            writeHWBData(*ptr.value.hwbData, str)
+            writeHWBData(&mut *ptr.value.hwbData, str)
             str.append(')')
         }
         CSSColorKind.LAB => {
             str.append_view(std::string_view("lab("))
-            writeLABData(*ptr.value.labData, str)
+            writeLABData(&mut *ptr.value.labData, str)
             str.append(')')
         }
         CSSColorKind.LCH => {
             str.append_view(std::string_view("lch("))
-            writeLCHData(*ptr.value.lchData, str)
+            writeLCHData(&mut *ptr.value.lchData, str)
             str.append(')')
         }
         CSSColorKind.OKLAB => {
             str.append_view(std::string_view("oklab("))
-            writeOKLABData(*ptr.value.oklabData, str)
+            writeOKLABData(&mut *ptr.value.oklabData, str)
             str.append(')')
         }
         CSSColorKind.OKLCH => {
             str.append_view(std::string_view("oklch("))
-            writeOKLCHData(*ptr.value.oklchData, str)
+            writeOKLCHData(&mut *ptr.value.oklchData, str)
             str.append(')')
         }
         CSSColorKind.COLOR => {
@@ -580,7 +580,7 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
         }
         CSSColorKind.VAR => {
             str.append_view(std::string_view("var("))
-            str.append_view(ptr.value.view)
+            str.append_view(&ptr.value.view)
             str.append(')')
         }
 
@@ -589,7 +589,7 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
         }
 
         default => {
-            str.append_view(ptr.value.view)
+            str.append_view(&ptr.value.view)
         }
 
     }
@@ -598,7 +598,7 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
 func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) {
     var has_value_before = false;
     if(ptr.point.kind != CSSLengthKind.Unknown) {
-        writeLength(ptr.point, str)
+        writeLength(&mut ptr.point, str)
         has_value_before = true;
     }
     if(ptr.start.kind != CSSLengthKind.Unknown) {
@@ -607,7 +607,7 @@ func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        writeLength(ptr.start, str)
+        writeLength(&mut ptr.start, str)
     }
     if(ptr.stop.kind != CSSLengthKind.Unknown) {
         if(has_value_before) {
@@ -615,53 +615,53 @@ func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        writeLength(ptr.stop, str)
+        writeLength(&mut ptr.stop, str)
     }
     if(ptr.next != null) {
         str.append(',')
         str.append(' ')
-        writeLinearEasing(*ptr.next, str)
+        writeLinearEasing(&mut *ptr.next, str)
     }
 }
 
 func writeCubicBezierEasing(ptr : &mut CSSCubicBezierEasingData, str : &mut std::string) {
-    writeLength(ptr.x1, str)
+    writeLength(&mut ptr.x1, str)
     str.append(',')
-    writeLength(ptr.y1, str)
+    writeLength(&mut ptr.y1, str)
     str.append(',')
-    writeLength(ptr.x2, str)
+    writeLength(&mut ptr.x2, str)
     str.append(',')
-    writeLength(ptr.y2, str)
+    writeLength(&mut ptr.y2, str)
 }
 
 func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
-    writeLength(ptr.step, str)
+    writeLength(&mut ptr.step, str)
     str.append(',')
-    str.append_view(ptr.position.value)
+    str.append_view(&ptr.position.value)
 }
 
 func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
     switch(ptr.kind) {
         CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
         CSSKeywordKind.EaseInOut, CSSKeywordKind.StepStart, CSSKeywordKind.StepEnd => {
-            str.append_view(ptr.data.keyword.value)
+            str.append_view(&ptr.data.keyword.value)
         }
         CSSKeywordKind.Linear => {
             str.append_view(std::string_view("linear"))
             if(ptr.data.linear != null) {
                 str.append('(')
-                writeLinearEasing(*ptr.data.linear, str)
+                writeLinearEasing(&mut *ptr.data.linear, str)
                 str.append(')')
             }
         }
         CSSKeywordKind.CubicBezier => {
             str.append_view(std::string_view("cubic-bezier("))
-            writeCubicBezierEasing(*ptr.data.bezier, str)
+            writeCubicBezierEasing(&mut *ptr.data.bezier, str)
             str.append(')')
         }
         CSSKeywordKind.Steps => {
             str.append_view(std::string_view("steps("))
-            writeStepsEasing(*ptr.data.steps, str)
+            writeStepsEasing(&mut *ptr.data.steps, str)
             str.append(')')
         }
     }
@@ -672,7 +672,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
     var has_value_before = false;
 
     if(!ptr.property.empty()) {
-        str.append_view(ptr.property)
+        str.append_view(&ptr.property)
         has_value_before = true;
     }
 
@@ -682,7 +682,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        writeLength(ptr.duration, str)
+        writeLength(&mut ptr.duration, str)
     }
 
     if(ptr.easing.kind != CSSKeywordKind.Unknown) {
@@ -691,7 +691,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        writeEasing(ptr.easing, str)
+        writeEasing(&mut ptr.easing, str)
     }
 
     if(ptr.delay.kind != CSSLengthKind.Unknown) {
@@ -700,7 +700,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        writeLength(ptr.delay, str)
+        writeLength(&mut ptr.delay, str)
     }
 
     if(ptr.behavior.kind != CSSLengthKind.Unknown) {
@@ -709,12 +709,12 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        str.append_view(ptr.behavior.value)
+        str.append_view(&ptr.behavior.value)
     }
 
     if(ptr.next != null) {
         str.append(',')
-        writeTransition(*ptr.next, str)
+        writeTransition(&mut *ptr.next, str)
     }
 
 }
@@ -722,60 +722,60 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
 func (converter : &mut ASTConverter) writeAnimationValueData(value : &mut CSSAnimationValueData, str : &mut std::string) {
     var has_val = false
     if(!value.name.empty()) {
-        str.append_view(value.name)
+        str.append_view(&value.name)
         has_val = true
     }
     if(value.duration.kind != CSSLengthKind.Unknown) {
         if(has_val) str.append(' ')
-        writeLength(value.duration, str)
+        writeLength(&mut value.duration, str)
         has_val = true
     }
     if(value.easing.kind != CSSKeywordKind.Unknown) {
         if(has_val) str.append(' ')
-        writeEasing(value.easing, str)
+        writeEasing(&mut value.easing, str)
         has_val = true
     }
     if(value.delay.kind != CSSLengthKind.Unknown) {
         if(has_val) str.append(' ')
-        writeLength(value.delay, str)
+        writeLength(&mut value.delay, str)
         has_val = true
     }
     if(value.iterationCount.kind != CSSValueKind.Unknown) {
         if(has_val) str.append(' ')
-        converter.writeValue(value.iterationCount)
+        converter.writeValue(&mut value.iterationCount)
         has_val = true
     }
     if(value.next != null) {
         str.append(',')
         str.append(' ')
-        converter.writeAnimationValueData(*value.next, str)
+        converter.writeAnimationValueData(&mut *value.next, str)
     }
 }
 
 func (converter : &mut ASTConverter) writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
 
-    converter.writeValue(ptr.value)
+    converter.writeValue(&mut ptr.value)
 
     if(ptr.next != null && ptr.next.value.kind != CSSValueKind.Unknown) {
         str.append(',')
-        converter.writeTransformNode(*ptr.next, str)
+        converter.writeTransformNode(&mut *ptr.next, str)
     }
 
 }
 
 func (converter : &mut ASTConverter) writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
 
-    str.append_view(ptr.transformFunction.value)
+    str.append_view(&ptr.transformFunction.value)
     str.append('(')
     if(ptr.node != null) {
-        converter.writeTransformNode(*ptr.node, str)
+        converter.writeTransformNode(&mut *ptr.node, str)
     } else {
         str.append_view(std::string_view("none"))
     }
     str.append(')')
     if(ptr.next != null) {
         str.append(' ')
-        converter.writeTransformValueData(*ptr.next, str)
+        converter.writeTransformValueData(&mut *ptr.next, str)
     }
 
 }
@@ -788,25 +788,25 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
         str.append_view(std::string_view("url"))
     }
     str.append('(');
-    str.append_view(url.value)
+    str.append_view(&url.value)
     str.append(')');
 
 }
 
 func (converter : &mut ASTConverter) writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
 
-    writeLength(data.angle, str)
+    writeLength(&mut data.angle, str)
     if(data.angle.kind != CSSLengthKind.Unknown) {
         str.append(',');
     }
 
     if(data.to1.kind != CSSKeywordKind.Unknown) {
         str.append_view(std::string_view("to "))
-        str.append_view(data.to1.value)
+        str.append_view(&data.to1.value)
 
         if(data.to2.kind != CSSKeywordKind.Unknown) {
             str.append(' ');
-            str.append_view(data.to2.value)
+            str.append_view(&data.to2.value)
         }
 
         str.append(',');
@@ -817,18 +817,18 @@ func (converter : &mut ASTConverter) writeLinearGradientData(data : &mut LinearG
     const end = start + data.color_stop_list.size()
     while(start != end) {
 
-        converter.writeValue(start.hint)
+        converter.writeValue(&mut start.hint)
 
-        converter.writeValue(start.stop.color)
+        converter.writeValue(&mut start.stop.color)
 
         if(start.stop.length.kind != CSSValueKind.Unknown) {
 
             str.append(' ');
-            converter.writeValue(start.stop.length)
+            converter.writeValue(&mut start.stop.length)
 
             if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(start.stop.optSecLength)
+                converter.writeValue(&mut start.stop.optSecLength)
             }
 
         }
@@ -848,24 +848,24 @@ func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialG
     var has_shape_or_size = false
     
     if(data.shape.kind != CSSKeywordKind.Unknown) {
-        str.append_view(data.shape.value)
+        str.append_view(&data.shape.value)
         has_shape_or_size = true
     }
     
     if(data.size.extent.kind != CSSKeywordKind.Unknown) {
         if(has_shape_or_size) str.append(' ')
-        str.append_view(data.size.extent.value)
+        str.append_view(&data.size.extent.value)
         has_shape_or_size = true
     } else if(data.size.length.kind != CSSValueKind.Unknown) {
         if(has_shape_or_size) str.append(' ')
-        converter.writeValue(data.size.length)
+        converter.writeValue(&mut data.size.length)
         has_shape_or_size = true
     }
     
     if(data.position.kind != CSSValueKind.Unknown) {
         if(has_shape_or_size) str.append(' ')
         str.append_view(std::string_view("at "))
-        converter.writeValue(data.position)
+        converter.writeValue(&mut data.position)
         has_shape_or_size = true // effectively
     }
     
@@ -877,18 +877,18 @@ func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialG
     const end = start + data.color_stop_list.size()
     while(start != end) {
 
-        converter.writeValue(start.hint)
+        converter.writeValue(&mut start.hint)
 
-        converter.writeValue(start.stop.color)
+        converter.writeValue(&mut start.stop.color)
 
         if(start.stop.length.kind != CSSValueKind.Unknown) {
 
             str.append(' ');
-            converter.writeValue(start.stop.length)
+            converter.writeValue(&mut start.stop.length)
 
             if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(start.stop.optSecLength)
+                converter.writeValue(&mut start.stop.optSecLength)
             }
 
         }
@@ -907,14 +907,14 @@ func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGra
     
     if(data.from.kind != CSSValueKind.Unknown) {
         str.append_view(std::string_view("from "))
-        converter.writeValue(data.from)
+        converter.writeValue(&mut data.from)
         has_from_or_at = true
     }
     
     if(data.at.kind != CSSValueKind.Unknown) {
         if(has_from_or_at) str.append(' ')
         str.append_view(std::string_view("at "))
-        converter.writeValue(data.at)
+        converter.writeValue(&mut data.at)
         has_from_or_at = true
     }
     
@@ -926,18 +926,18 @@ func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGra
     const end = start + data.color_stop_list.size()
     while(start != end) {
 
-        converter.writeValue(start.hint)
+        converter.writeValue(&mut start.hint)
 
-        converter.writeValue(start.stop.color)
+        converter.writeValue(&mut start.stop.color)
 
         if(start.stop.length.kind != CSSValueKind.Unknown) {
 
             str.append(' ');
-            converter.writeValue(start.stop.length)
+            converter.writeValue(&mut start.stop.length)
 
             if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(start.stop.optSecLength)
+                converter.writeValue(&mut start.stop.optSecLength)
             }
 
         }
@@ -952,37 +952,37 @@ func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGra
 func (converter : &mut ASTConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
 
     if(ptr.is_url) {
-        writeBackgroundImageUrl(ptr.url, str)
+        writeBackgroundImageUrl(&mut ptr.url, str)
     } else {
         switch(ptr.gradient.kind) {
             CSSGradientKind.RepeatingLinear => {
                 str.append_view(std::string_view("repeating-linear-gradient("))
-                converter.writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
+                converter.writeLinearGradientData(&mut *(ptr.gradient.data as *mut LinearGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.RepeatingRadial => {
                 str.append_view(std::string_view("repeating-radial-gradient("))
-                converter.writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
+                converter.writeRadialGradientData(&mut *(ptr.gradient.data as *mut RadialGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.RepeatingConic => {
                 str.append_view(std::string_view("repeating-conic-gradient("))
-                converter.writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
+                converter.writeConicGradientData(&mut *(ptr.gradient.data as *mut ConicGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Linear => {
                 str.append_view(std::string_view("linear-gradient("))
-                converter.writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
+                converter.writeLinearGradientData(&mut *(ptr.gradient.data as *mut LinearGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Radial => {
                 str.append_view(std::string_view("radial-gradient("))
-                converter.writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
+                converter.writeRadialGradientData(&mut *(ptr.gradient.data as *mut RadialGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Conic => {
                 str.append_view(std::string_view("conic-gradient("))
-                converter.writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
+                converter.writeConicGradientData(&mut *(ptr.gradient.data as *mut ConicGradientData), str)
                 str.append(')')
             }
             default => {
@@ -1054,7 +1054,7 @@ func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *
 }
 
 func (converter : &mut ASTConverter) str_ref() : &mut std::string {
-    return converter.str;
+    return &mut converter.str;
 }
 
 func (converter : &mut ASTConverter) writeBackgroundValueData(ptr : &mut CSSBackgroundValueData, str : &mut std::string) {
@@ -1071,47 +1071,47 @@ func (converter : &mut ASTConverter) writeBackgroundValueData(ptr : &mut CSSBack
         var has_val = false;
 
         if(start.image.kind != CSSValueKind.Unknown) {
-            converter.writeValue(start.image);
+            converter.writeValue(&mut start.image);
             has_val = true;
         }
 
         if(start.positionX.kind != CSSValueKind.Unknown) {
 
             if(has_val) str.append(' ');
-            converter.writeValue(start.positionX);
+            converter.writeValue(&mut start.positionX);
             if(start.positionY.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                converter.writeValue(start.positionY);
+                converter.writeValue(&mut start.positionY);
             }
 
             if(start.size.kind != CSSValueKind.Unknown) {
                 str.append('/');
-                converter.writeValue(start.size);
+                converter.writeValue(&mut start.size);
             }
             has_val = true;
         }
 
         if(start.repeat.kind != CSSValueKind.Unknown) {
             if(has_val) str.append(' ');
-            converter.writeValue(start.repeat);
+            converter.writeValue(&mut start.repeat);
             has_val = true;
         }
 
         if(start.attachment.kind != CSSValueKind.Unknown) {
             if(has_val) str.append(' ');
-            converter.writeValue(start.attachment);
+            converter.writeValue(&mut start.attachment);
             has_val = true;
         }
 
         if(start.origin.kind != CSSValueKind.Unknown) {
             if(has_val) str.append(' ');
-            converter.writeValue(start.origin);
+            converter.writeValue(&mut start.origin);
             has_val = true;
         }
 
         if(start.clip.kind != CSSValueKind.Unknown) {
             if(has_val) str.append(' ');
-            converter.writeValue(start.clip);
+            converter.writeValue(&mut start.clip);
             has_val = true;
         }
 
@@ -1123,7 +1123,7 @@ func (converter : &mut ASTConverter) writeBackgroundValueData(ptr : &mut CSSBack
         if(!ptr.layers.empty()) {
             str.append(' ');
         }
-        converter.writeValue(ptr.color);
+        converter.writeValue(&mut ptr.color);
     }
 
 }
@@ -1132,20 +1132,20 @@ func (converter : &mut ASTConverter) writeCalcExpression(expr : &CSSCalcExpressi
     switch(expr.kind) {
         CSSCalcExpressionKind.Literal => {
             const val = expr.data as *mut CSSValue
-            converter.writeValue(*val)
+            converter.writeValue(&mut *val)
         }
         CSSCalcExpressionKind.Operation => {
             const data = expr.data as *mut CSSCalcOperationData
-            converter.writeCalcExpression(data.left, str)
+            converter.writeCalcExpression(&data.left, str)
             str.append(' ')
             str.append(data.op)
             str.append(' ')
-            converter.writeCalcExpression(data.right, str)
+            converter.writeCalcExpression(&data.right, str)
         }
         CSSCalcExpressionKind.Group => {
             const inner = expr.data as *mut CSSCalcExpression
             str.append('(')
-            converter.writeCalcExpression(*inner, str)
+            converter.writeCalcExpression(&*inner, str)
             str.append(')')
         }
     }
@@ -1157,7 +1157,7 @@ func (converter : &mut ASTConverter) writeOutlineValueData(ptr : &mut CSSOutline
 
     // width
     if(ptr.width.kind != CSSValueKind.Unknown) {
-        converter.writeValue(ptr.width)
+        converter.writeValue(&mut ptr.width)
         if(has_style || has_color) {
             str.append(' ')
         }
@@ -1165,7 +1165,7 @@ func (converter : &mut ASTConverter) writeOutlineValueData(ptr : &mut CSSOutline
 
     // style
     if(has_style) {
-        converter.writeValue(ptr.style)
+        converter.writeValue(&mut ptr.style)
         if(has_color) {
             str.append(' ')
         }
@@ -1173,18 +1173,18 @@ func (converter : &mut ASTConverter) writeOutlineValueData(ptr : &mut CSSOutline
 
     // color
     if(has_color) {
-        converter.writeValue(ptr.color)
+        converter.writeValue(&mut ptr.color)
     }
 }
 
 func (converter : &mut ASTConverter) writeBackdropFilterValueData(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string) {
-    str.append_view(ptr.function.value)
+    str.append_view(&ptr.function.value)
     if(!ptr.arguments.empty()) {
         str.append('(')
         var i : uint = 0
         while(i < ptr.arguments.size()) {
             if(i > 0) str.append(' ')
-            converter.writeValue(*ptr.arguments.get_ptr(i))
+            converter.writeValue(&mut *ptr.arguments.get_ptr(i))
             i++
         }
         str.append(')')
@@ -1192,7 +1192,7 @@ func (converter : &mut ASTConverter) writeBackdropFilterValueData(ptr : &mut CSS
 
     if(ptr.next != null) {
         str.append(' ')
-        converter.writeBackdropFilterValueData(*ptr.next, str)
+        converter.writeBackdropFilterValueData(&mut *ptr.next, str)
     }
 }
 
@@ -1276,7 +1276,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             const last = size - 1;
             while(i < size) {
                 const value_ptr = ptr.values.get_ptr(i);
-                converter.writeValue(*value_ptr)
+                converter.writeValue(&mut *value_ptr)
                 if(i < last) {
                     str.append(' ');
                 }
@@ -1287,50 +1287,50 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
         CSSValueKind.Pair => {
 
             const pair = value.data as *mut CSSValuePair
-            converter.writeValue(pair.first)
+            converter.writeValue(&mut pair.first)
             str.append(' ');
-            converter.writeValue(pair.second)
+            converter.writeValue(&mut pair.second)
 
         }
 
         CSSValueKind.Keyword => {
             var ptr = value.data as *mut CSSKeywordValueData
-            str.append_view(ptr.value)
+            str.append_view(&ptr.value)
             return;
         }
 
         CSSValueKind.Length => {
             const ptr = value.data as *mut CSSLengthValueData
-            writeLength(*ptr, str)
+            writeLength(&mut *ptr, str)
         }
 
         CSSValueKind.Color => {
 
             var ptr = value.data as *mut CSSColorValueData
 
-            writeColor(*ptr, str)
+            writeColor(&mut *ptr, str)
 
         }
 
         CSSValueKind.SingleLengthFunctionCall => {
             const ptr = value.data as *SingleLengthFuncCall
-            str.append_view(ptr.name.value)
+            str.append_view(&ptr.name.value)
             str.append('(')
-            writeLength(ptr.length, str)
+            writeLength(&mut ptr.length, str)
             str.append(')')
         }
 
         CSSValueKind.Font => {
 
             var ptr = value.data as *mut CSSFontValueData
-            converter.writeFontValueData(*ptr, str)
+            converter.writeFontValueData(&*ptr, str)
 
         }
 
         CSSValueKind.FontFamily => {
 
             var ptr = value.data as *mut CSSFontFamily
-            writeFontFamilyData(*ptr, str)
+            writeFontFamilyData(&mut *ptr, str)
 
         }
 
@@ -1343,7 +1343,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             // width
             if(ptr.width.kind != CSSValueKind.Unknown) {
-                converter.writeValue(ptr.width)
+                converter.writeValue(&mut ptr.width)
                 if(has_style) {
                     str.append(' ')
                 }
@@ -1351,7 +1351,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             // style
             if(has_style) {
-                converter.writeValue(ptr.style)
+                converter.writeValue(&mut ptr.style)
                 if(has_color) {
                     str.append(' ')
                 }
@@ -1359,7 +1359,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             // color
             if(has_color) {
-                converter.writeValue(ptr.color)
+                converter.writeValue(&mut ptr.color)
             }
 
         }
@@ -1374,7 +1374,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             } else {
 
-                converter.writeBoxShadowValueData(*ptr, str)
+                converter.writeBoxShadowValueData(&mut *ptr, str)
 
             }
 
@@ -1390,7 +1390,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             } else {
 
-                converter.writeTextShadowValueData(*ptr, str)
+                converter.writeTextShadowValueData(&mut *ptr, str)
 
             }
 
@@ -1402,7 +1402,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             if(ptr.node == null && ptr.transformFunction.kind != CSSKeywordKind.Perspective) {
                 str.append_view(std::string_view("none"))
             } else {
-                converter.writeTransformValueData(*ptr, str)
+                converter.writeTransformValueData(&mut *ptr, str)
             }
 
         }
@@ -1410,20 +1410,20 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
         CSSValueKind.BorderRadius => {
 
             const ptr = value.data as *mut CSSBorderRadiusValueData
-            converter.writeBorderRadiusValueData(*ptr, str)
+            converter.writeBorderRadiusValueData(&mut *ptr, str)
 
         }
 
         CSSValueKind.Transition => {
 
             const ptr = value.data as *mut CSSTransitionValueData
-            writeTransition(*ptr, str)
+            writeTransition(&mut *ptr, str)
         }
 
         CSSValueKind.TransitionTimingFunction => {
 
             const ptr = value.data as *mut CSSEasingFunction
-            writeEasing(*ptr, str)
+            writeEasing(&mut *ptr, str)
 
         }
 
@@ -1433,7 +1433,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             var start = ptr.images.data()
             const end = start + ptr.images.size()
             while(start != end) {
-                converter.writeBackgroundImageData(*start, str)
+                converter.writeBackgroundImageData(&mut *start, str)
                 start++;
             }
 
@@ -1442,52 +1442,52 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
         CSSValueKind.BackgroundImage => {
 
             const ptr = value.data as *mut BackgroundImageData
-            converter.writeBackgroundImageData(*ptr, str)
+            converter.writeBackgroundImageData(&mut *ptr, str)
 
         }
 
         CSSValueKind.Background => {
             const ptr = value.data as *mut CSSBackgroundValueData
-            converter.writeBackgroundValueData(*ptr, str);
+            converter.writeBackgroundValueData(&mut *ptr, str);
         }
 
         CSSValueKind.TextDecoration => {
             const ptr = value.data as *mut CSSTextDecorationValueData
             var first = true;
             if(ptr.line.kind != CSSValueKind.Unknown) {
-                converter.writeValue(ptr.line)
+                converter.writeValue(&mut ptr.line)
                 first = false;
             }
             if(ptr.style.kind != CSSValueKind.Unknown) {
                 if(!first) str.append(' ')
-                converter.writeValue(ptr.style)
+                converter.writeValue(&mut ptr.style)
                 first = false;
             }
             if(ptr.color.kind != CSSValueKind.Unknown) {
                 if(!first) str.append(' ')
-                converter.writeValue(ptr.color)
+                converter.writeValue(&mut ptr.color)
                 first = false;
             }
             if(ptr.thickness.kind != CSSValueKind.Unknown) {
                 if(!first) str.append(' ')
-                converter.writeValue(ptr.thickness)
+                converter.writeValue(&mut ptr.thickness)
             }
         }
         
         CSSValueKind.Outline => {
              var ptr = value.data as *mut CSSOutlineValueData
-             converter.writeOutlineValueData(*ptr, str)
+             converter.writeOutlineValueData(&mut *ptr, str)
         }
 
         CSSValueKind.BackdropFilter => {
              var ptr = value.data as *mut CSSBackdropFilterValueData
-             converter.writeBackdropFilterValueData(*ptr, str)
+             converter.writeBackdropFilterValueData(&mut *ptr, str)
         }
 
         CSSValueKind.GridRepeat => {
             const ptr = value.data as *mut GridRepeatData
             str.append_view(std::string_view("repeat("))
-            converter.writeValue(ptr.count)
+            converter.writeValue(&mut ptr.count)
             str.append(',')
             str.append(' ')
             var i : uint = 0;
@@ -1495,7 +1495,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             const last = size - 1;
             while(i < size) {
                 const value_ptr = ptr.tracks.get_ptr(i);
-                converter.writeValue(*value_ptr)
+                converter.writeValue(&mut *value_ptr)
                 if(i < last) {
                     str.append(' ');
                 }
@@ -1509,13 +1509,13 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             if(ptr.is_span) {
                 str.append_view(std::string_view("span "))
             }
-            converter.writeValue(ptr.value)
+            converter.writeValue(&mut ptr.value)
         }
 
         CSSValueKind.Calc => {
             const ptr = value.data as *mut CSSCalcValueData
             str.append_view(std::string_view("calc("))
-            converter.writeCalcExpression(ptr.expression, str)
+            converter.writeCalcExpression(&ptr.expression, str)
             str.append(')')
         }
 
@@ -1536,29 +1536,29 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
         CSSValueKind.Raw => {
             const ptr = value.data as *mut CSSRawValueData
-            str.append_view(ptr.value)
+            str.append_view(&ptr.value)
         }
 
         CSSValueKind.Animation => {
             const ptr = value.data as *mut CSSAnimationValueData
-            converter.writeAnimationValueData(*ptr, str)
+            converter.writeAnimationValueData(&mut *ptr, str)
         }
 
         CSSValueKind.ListStyle => {
             const ptr = value.data as *mut CSSListStyleValueData
             var first = true
             if(ptr.type.kind != CSSKeywordKind.Unknown) {
-                str.append_view(ptr.type.value)
+                str.append_view(&ptr.type.value)
                 first = false
             }
             if(ptr.position.kind != CSSKeywordKind.Unknown) {
                 if(!first) str.append(' ')
-                str.append_view(ptr.position.value)
+                str.append_view(&ptr.position.value)
                 first = false
             }
             if(ptr.image.kind != CSSValueKind.Unknown) {
                 if(!first) str.append(' ')
-                converter.writeValue(ptr.image)
+                converter.writeValue(&mut ptr.image)
             }
         }
 
@@ -1578,7 +1578,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
     const builder = converter.builder
     const str = &mut converter.str;
 
-    str.append_view(decl.property.name)
+    str.append_view(&decl.property.name)
     str.append(':')
 
     // if(!str.empty()) {
@@ -1589,7 +1589,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    converter.writeValue(decl.value);
+    converter.writeValue(&mut decl.value);
     
     if(decl.important) {
         str.append_view(std::string_view(" !important"));
@@ -1633,10 +1633,10 @@ func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefi
     var className : char[10] = [];
     className[0] = '.'
     className[1] = prefix
-    base64_encode_32bit(hash, &mut className[2])
+    base64_encode_32bit(hash, &raw mut className[2])
     className[8] = '{'
     className[9] = '\0'
-    converter.put_view_chain(std::string_view(&className[0], 9u))
+    converter.put_view_chain(std::string_view(&raw className[0], 9u))
 }
 
 func generate_random_32bit() : uint32_t {
@@ -1647,8 +1647,8 @@ func (converter : &mut ASTConverter) make_func_call_with_arg(value : *mut Value,
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -1672,10 +1672,10 @@ func (converter : &mut ASTConverter) make_set_css_hash_call(hash : size_t) : *mu
 func append_media_root_selector(out : &mut std::string, className : std::string_view) {
     if(className.empty()) return;
     if(className.data()[0] == '.') {
-        out.append_view(className);
+        out.append_view(&className);
     } else {
         out.append('.');
-        out.append_view(className);
+        out.append_view(&className);
     }
 }
 
@@ -1690,13 +1690,13 @@ func (converter : &mut ASTConverter) writeMediaNestedRule(rule : *mut CSSNestedR
                 var p : uint = 0;
                 while(p < parent_selectors.size()) {
                     var resolved = std::string();
-                    serialize_complex(sel, resolved, parent_selectors.get_ptr(p).view());
+                    serialize_complex(sel, &mut resolved, parent_selectors.get_ptr(p).view());
                     current_selectors.push(resolved);
                     p++;
                 }
             } else {
                 var resolved = std::string();
-                serialize_complex(sel, resolved, std::string_view("&"));
+                serialize_complex(sel, &mut resolved, std::string_view("&"));
                 current_selectors.push(resolved);
             }
             i++;
@@ -1721,20 +1721,20 @@ func (converter : &mut ASTConverter) writeMediaNestedRule(rule : *mut CSSNestedR
 
     var nested_i : uint = 0;
     while(nested_i < rule.nested_rules.size()) {
-        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, current_selectors);
+        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut current_selectors);
         nested_i++;
     }
 }
 
 func (converter : &mut ASTConverter) writeKeyframesRule(rule : *mut CSSKeyframesRule, str : &mut std::string) {
     str.append_view(std::string_view("@keyframes "))
-    str.append_view(rule.name)
+    str.append_view(&rule.name)
     str.append_view(std::string_view(" { "))
 
     var i : uint = 0
     while(i < rule.keyframes.size()) {
         var keyframe = rule.keyframes.get(i)
-        str.append_view(keyframe.selector)
+        str.append_view(&keyframe.selector)
         str.append_view(std::string_view(" { "))
         
         var j : uint = 0
@@ -1761,7 +1761,7 @@ func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, st
     var parent_selectors = std::vector<std::string>();
     if(!className.empty()) {
         var root_selector = std::string();
-        append_media_root_selector(root_selector, className);
+        append_media_root_selector(&mut root_selector, className);
         parent_selectors.push(root_selector);
 
         if(!rule.declarations.empty()) {
@@ -1778,7 +1778,7 @@ func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, st
 
     var nested_i : uint = 0;
     while(nested_i < rule.nested_rules.size()) {
-        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, parent_selectors);
+        converter.writeMediaNestedRule(rule.nested_rules.get(nested_i), str, &mut parent_selectors);
         nested_i++;
     }
 
@@ -1820,7 +1820,7 @@ func has_ampersand_complex(c : *mut ComplexSelector) : bool {
 // AST Serializers
 func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replacement : std::string_view) {
     if(s.kind == SimpleSelectorKind.Ampersand) {
-        out.append_view(replacement);
+        out.append_view(&replacement);
         return;
     }
     if(s.kind == SimpleSelectorKind.Class) out.append('.');
@@ -1831,7 +1831,7 @@ func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replaceme
     if(s.kind == SimpleSelectorKind.PseudoElement) {
         out.append_view("::");
     }
-    out.append_view(s.value);
+    out.append_view(&s.value);
     // TODO: Attribute selectors
 }
 func serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
@@ -1877,14 +1877,14 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
                  while(p < parent_selectors.size()) {
                      var pdf = parent_selectors.get_ptr(p);
                      var res = std::string();
-                     serialize_complex(sel, res, pdf.view());
+                     serialize_complex(sel, &mut res, pdf.view());
                      current_selectors.push(res);
                      p++;
                  }
              } else {
                  // No &: this is a global selector, use as-is
                  var res = std::string();
-                 serialize_complex(sel, res, std::string_view("&")); // replacement ignored
+                 serialize_complex(sel, &mut res, std::string_view("&")); // replacement ignored
                  current_selectors.push(res);
              }
              i++;
@@ -1923,7 +1923,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
     var n : uint = 0;
     while(n < om.nested_rules.size()) {
         var rule = om.nested_rules.get(n);
-        converter.generate_css_recurse(rule, current_selectors);
+        converter.generate_css_recurse(rule, &mut current_selectors);
         n++;
     }
     
@@ -1945,7 +1945,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      var parents = std::vector<std::string>();
 
      var root_sel_str = std::string()
-     root_sel_str.append_view(root_selector)
+     root_sel_str.append_view(&root_selector)
      parents.push(root_sel_str);
      
      // Root Declarations
@@ -1953,7 +1953,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      const str = &mut converter.str
      
      if(om.declarations.size() > 0) {
-         str.append_view(root_selector);
+         str.append_view(&root_selector);
          str.append_view(" { ");
          var i : uint = 0;
          while(i < om.declarations.size()) {
@@ -1967,7 +1967,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      // Nested Rules from Root
      var j : uint = 0;
      while(j < om.nested_rules.size()) {
-         converter.generate_css_recurse(om.nested_rules.get(j), parents);
+         converter.generate_css_recurse(om.nested_rules.get(j), &mut parents);
          j++;
      }
      
@@ -1975,7 +1975,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      var m : uint = 0;
      while(m < om.media_queries.size()) {
             var rule = om.media_queries.get(m);
-            converter.writeMediaRule(rule, *str, root_selector);
+            converter.writeMediaRule(rule, &mut *str, root_selector);
             if(!str.empty()) {
                 converter.put_chain_in();
             }
@@ -1986,7 +1986,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      var k : uint = 0;
      while(k < om.keyframes.size()) {
             var rule = om.keyframes.get(k);
-            converter.writeKeyframesRule(rule, *str);
+            converter.writeKeyframesRule(rule, &mut *str);
             if(!str.empty()) {
                 converter.put_chain_in();
             }
@@ -2027,13 +2027,13 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         var className : char[10] = [];
         className[0] = '.'
         className[1] = 'r'
-        base64_encode_32bit(hash, &mut className[2])
+        base64_encode_32bit(hash, &raw mut className[2])
         className[8] = '{'
         className[9] = '\0'
-        const total = builder.allocate_view(std::string_view(&className[0], 9u));
+        const total = builder.allocate_view(std::string_view(&raw className[0], 9u));
         const classView = std::string_view(total.data() + 1, 7u);
 
-        converter.put_view_chain(total)
+        converter.put_view_chain(&total)
         om.className = classView
         
         var i : uint = 0
@@ -2056,7 +2056,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         var j : uint = 0
         while(j < media_size) {
             var rule = om.media_queries.get(j)
-            converter.writeMediaRule(rule, *str, classView)
+            converter.writeMediaRule(rule, &mut *str, classView)
             if(!str.empty()) {
                 converter.put_chain_in();
             }
@@ -2068,7 +2068,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         var k_idx : uint = 0
         while(k_idx < key_size) {
             var rule = om.keyframes.get(k_idx)
-            converter.writeKeyframesRule(rule, *str)
+            converter.writeKeyframesRule(rule, &mut *str)
             if(!str.empty()) {
                 converter.put_chain_in();
             }
@@ -2079,14 +2079,14 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         var parents = std::vector<std::string>();
         var root_sel = std::string();
         root_sel.append('.');
-        root_sel.append_view(classView);
+        root_sel.append_view(&classView);
         parents.push(root_sel);
 
         var n_idx : uint = 0;
         const n_size = om.nested_rules.size();
         while(n_idx < n_size) {
             var rule = om.nested_rules.get(n_idx);
-            converter.generate_css_recurse(rule, parents);
+            converter.generate_css_recurse(rule, &mut parents);
             n_idx++;
         }
         
@@ -2118,10 +2118,10 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         var oldVec = converter.vec;
         converter.vec = body;
 
-        const totalView = allocate_view_with_classname(builder, *str, hash)
+        const totalView = allocate_view_with_classname(builder, &mut *str, hash)
         om.className = std::string_view(totalView.data() + 1, 7u)
         const classView = om.className
-        converter.put_append_css_value_chain(totalView)
+        converter.put_append_css_value_chain(&totalView)
         
         converter.vec = oldVec;
         converter.vec.push(ifStmt);

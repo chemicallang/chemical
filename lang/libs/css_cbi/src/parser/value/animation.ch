@@ -17,10 +17,10 @@ func (cssParser : &mut CSSParser) parseAnimation(
 
         if(token.type == TokenType.Number) {
             if(!has_duration) {
-                cssParser.parseLengthInto(parser, builder, anim.duration)
+                cssParser.parseLengthInto(parser, builder, &mut anim.duration)
                 has_duration = true
             } else if(!has_delay) {
-                cssParser.parseLengthInto(parser, builder, anim.delay)
+                cssParser.parseLengthInto(parser, builder, &mut anim.delay)
                 has_delay = true
             } else {
                 parser.error("too many time values in animation")
@@ -41,7 +41,7 @@ func (cssParser : &mut CSSParser) parseAnimation(
                         anim.easing.data.linear = null
                     }
                 } else {
-                    anim.easing.data.keyword = CSSKeywordValueData { kind = easingKind, value = builder.allocate_view(token.value) }
+                    anim.easing.data.keyword = CSSKeywordValueData { kind = easingKind, value = builder.allocate_view(&token.value) }
                 }
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
@@ -56,13 +56,13 @@ func (cssParser : &mut CSSParser) parseAnimation(
                 var kwVal = builder.allocate<CSSKeywordValueData>()
                 new (kwVal) CSSKeywordValueData {
                     kind = CSSKeywordKind.Infinite,
-                    value = builder.allocate_view(token.value)
+                    value = builder.allocate_view(&token.value)
                 }
                 anim.iterationCount.kind = CSSValueKind.Keyword
                 anim.iterationCount.data = kwVal
             } else if(anim.name.empty()) {
                 parser.increment()
-                anim.name = builder.allocate_view(token.value)
+                anim.name = builder.allocate_view(&token.value)
             } else {
                 // Direction / Fill mode / Play state / etc.
                 parser.increment()

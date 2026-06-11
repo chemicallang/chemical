@@ -3305,7 +3305,7 @@ int LabBuildCompiler::build_lab_file_no_alloc(
         }
 
         // check if job is optional and we need to quit on failure
-        if(job_result != 0 && !exe->optional_job) {
+        if(result != 0 && !exe->optional_job) {
             std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code " << job_result << rang::fg::reset << std::endl;
             break;
         }

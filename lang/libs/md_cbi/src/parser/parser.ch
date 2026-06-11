@@ -253,7 +253,7 @@ public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut 
         support : SymResSupport {}
     }
     
-    var mdParser = MdParser { dyn_values : &mut root.dyn_values, builder : builder, root : root, in_link : false }
+    var mdParser = MdParser { dyn_values : &raw mut root.dyn_values, builder : builder, root : root, in_link : false }
     
     while(!isBlockEnd(parser.getToken().type)) {
         var node = mdParser.parseBlockNode(parser);
@@ -474,7 +474,7 @@ func (md : &mut MdParser) parseFencedCodeBlock(parser : *mut Parser) : *mut MdNo
     
     while(!isFencedCodeEndToken(parser.getToken().type) && !isBlockEnd(parser.getToken().type)) {
         if(isCodeContentToken(parser.getToken().type)) {
-            code.append_view(parser.getToken().value);
+            code.append_view(&parser.getToken().value);
             code.append('\n');
         }
         parser.increment();
@@ -488,7 +488,7 @@ func (md : &mut MdParser) parseFencedCodeBlock(parser : *mut Parser) : *mut MdNo
     var cb = builder.allocate<MdCodeBlock>()
     new (cb) MdCodeBlock {
         base : MdNode { kind : MdNodeKind.CodeBlock },
-        language : md.builder.allocate_view(lang),
+        language : md.builder.allocate_view(&lang),
         code : md.builder.allocate_view(code.to_view())
     }
     return cb as *mut MdNode;
@@ -966,7 +966,7 @@ func (md : &mut MdParser) parseInlineNode(parser : *mut Parser) : *mut MdNode {
         var text = builder.allocate<MdText>()
         new (text) MdText {
             base : MdNode { kind : MdNodeKind.Text },
-            value : md.builder.allocate_view(token.value)
+            value : md.builder.allocate_view(&token.value)
         }
         parser.increment();
         return text as *mut MdNode;
@@ -1042,7 +1042,7 @@ func (md : &mut MdParser) parseInlineNode(parser : *mut Parser) : *mut MdNode {
     var text = builder.allocate<MdText>()
     new (text) MdText {
         base : MdNode { kind : MdNodeKind.Text },
-        value : builder.allocate_view(token.value)
+        value : builder.allocate_view(&token.value)
     }
     parser.increment();
     return text as *mut MdNode;
@@ -1095,7 +1095,7 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
              var text = builder.allocate<MdText>()
              new (text) MdText {
                  base : MdNode { kind : MdNodeKind.Text },
-                 value : builder.allocate_view(textVal)
+                 value : builder.allocate_view(&textVal)
              }
              return text as *mut MdNode;
         }
@@ -1109,7 +1109,7 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
              var text = builder.allocate<MdText>()
              new (text) MdText {
                  base : MdNode { kind : MdNodeKind.Text },
-                 value : builder.allocate_view(textVal2)
+                 value : builder.allocate_view(&textVal2)
              }
              return text as *mut MdNode;
         }
@@ -1304,7 +1304,7 @@ func (md : &mut MdParser) parseFootnote(parser : *mut Parser) : *mut MdNode {
     parser.increment(); // ^
     var id = std::string();
     while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-        id.append_view(parser.getToken().value)
+        id.append_view(&parser.getToken().value)
         parser.increment();
     }
     if(isRBracketToken(parser.getToken().type)) parser.increment();
@@ -1323,7 +1323,7 @@ func (md : &mut MdParser) parseFootnoteDef(parser : *mut Parser) : *mut MdNode {
     parser.increment(); // ^
     var id = std::string();
     while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-        id.append_view(parser.getToken().value);
+        id.append_view(&parser.getToken().value);
         parser.increment();
     }
     if(isRBracketToken(parser.getToken().type)) parser.increment();
@@ -1351,7 +1351,7 @@ func (md : &mut MdParser) parseAbbreviation(parser : *mut Parser) : *mut MdNode 
     parser.increment(); // [
     var id = std::string();
     while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-        id.append_view(parser.getToken().value);
+        id.append_view(&parser.getToken().value);
         parser.increment();
     }
     if(isRBracketToken(parser.getToken().type)) parser.increment();
@@ -1364,7 +1364,7 @@ func (md : &mut MdParser) parseAbbreviation(parser : *mut Parser) : *mut MdNode 
     
     var title = std::string();
     while(!isLineEnd(parser.getToken().type)) {
-        title.append_view(parser.getToken().value);
+        title.append_view(&parser.getToken().value);
         parser.increment();
     }
     
@@ -1401,7 +1401,7 @@ func (md : &mut MdParser) parseCustomContainer(parser : *mut Parser) : *mut MdNo
     var container = builder.allocate<MdCustomContainer>()
     new (container) MdCustomContainer {
         base : MdNode { kind : MdNodeKind.CustomContainer },
-        type : builder.allocate_view(type_view),
+        type : builder.allocate_view(&type_view),
         children : std::vector<*mut MdNode>()
     }
     
@@ -1439,7 +1439,7 @@ func (md : &mut MdParser) parseDefinitionList(parser : *mut Parser) : *mut MdNod
             var term = builder.allocate<MdDefinitionTerm>()
             new (term) MdDefinitionTerm {
                 base : MdNode { kind : MdNodeKind.DefinitionTerm },
-                children : std::replace(para.children, std::vector<*mut MdNode>())
+                children : std::replace(&mut para.children, std::vector<*mut MdNode>())
             }
             dl.children.push(term as *mut MdNode);
             md.root.children.remove_last();
@@ -1492,7 +1492,7 @@ func (md : &mut MdParser) parseUrl(parser : *mut Parser) : std::string_view {
     while(true) {
         const t = parser.getToken().type;
         if(isTextToken(t) || isColonToken(t) || isDotToken(t) || isDashToken(t) || isPlusToken(t) || isUnderscoreToken(t) || isNumberToken(t) || isHashToken(t) || isPipeToken(t)) {
-             url_res.append_view(parser.getToken().value);
+             url_res.append_view(&parser.getToken().value);
              parser.increment();
              continue;
         }
@@ -1504,7 +1504,7 @@ func (md : &mut MdParser) parseUrl(parser : *mut Parser) : std::string_view {
         if(isEndMdToken(t) || t == MdTokenType.RBrace as int) break;
         
         // Default consume
-         url_res.append_view(parser.getToken().value);
+         url_res.append_view(&parser.getToken().value);
          parser.increment();
     }
     
@@ -1555,7 +1555,7 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                              if(ttxt.data()[ttxt.size()-1] == '"') {
                                  title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
                              } else {
-                                 title = builder.allocate_view(ttxt);
+                                 title = builder.allocate_view(&ttxt);
                              }
                              parser.increment();
                          }
@@ -1579,13 +1579,13 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
             parser.increment();
             var ref_id = std::string();
             while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-                ref_id.append_view(parser.getToken().value);
+                ref_id.append_view(&parser.getToken().value);
                 parser.increment();
             }
             if(isRBracketToken(parser.getToken().type)) parser.increment();
             
             var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
-            if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+            if (md.root.reference_defs.find(std::string(ref_id.to_view()), &mut ref)) {
                 var link = builder.allocate<MdLink>()
                 new (link) MdLink {
                     base : MdNode { kind : MdNodeKind.Link },
@@ -1603,13 +1603,13 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
             while(i < text_children.size()) {
                 if(text_children.get(i).kind == MdNodeKind.Text) {
                     const mdT = text_children.get(i) as *mut MdText
-                    ref_id.append_view(mdT.value);
+                    ref_id.append_view(&mdT.value);
                 }
                 i++;
             }
             
             var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
-            if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+            if (md.root.reference_defs.find(std::string(ref_id.to_view()), &mut ref)) {
                 var link = builder.allocate<MdLink>()
                 new (link) MdLink {
                     base : MdNode { kind : MdNodeKind.Link },
@@ -1640,7 +1640,7 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
         
         var alt = std::string_view("");
         if(isTextToken(parser.getToken().type)) {
-            alt = md.builder.allocate_view(parser.getToken().value);
+            alt = md.builder.allocate_view(&parser.getToken().value);
             parser.increment();
         }
         
@@ -1659,7 +1659,7 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                                  if(ttxt.data()[ttxt.size()-1] == '"') {
                                      title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
                                  } else {
-                                     title = builder.allocate_view(ttxt);
+                                     title = builder.allocate_view(&ttxt);
                                  }
                                  parser.increment();
                              }
@@ -1681,13 +1681,13 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                  // Reference image ![alt][id]
                 var ref_id = std::string();
                 while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-                    ref_id.append_view(parser.getToken().value);
+                    ref_id.append_view(&parser.getToken().value);
                     parser.increment();
                 }
                 if(isRBracketToken(parser.getToken().type)) parser.increment();
                 
                 var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
-                if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+                if (md.root.reference_defs.find(std::string(ref_id.to_view()), &mut ref)) {
                     var img = builder.allocate<MdImage>()
                     new (img) MdImage {
                         base : MdNode { kind : MdNodeKind.Image },
@@ -1747,7 +1747,7 @@ func (md : &mut MdParser) parseInlineCode(parser : *mut Parser) : *mut MdNode {
         }
 
         // Accumulate token value verbatim
-        content.append_view(t.value);
+        content.append_view(&t.value);
         parser.increment();
     }
 
@@ -1764,7 +1764,7 @@ func (md : &mut MdParser) parseReferenceDefinition(parser : *mut Parser) : *mut 
     parser.increment(); // [
     var id = std::string();
     while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
-        id.append_view(parser.getToken().value);
+        id.append_view(&parser.getToken().value);
         parser.increment();
     }
     if(isRBracketToken(parser.getToken().type)) parser.increment();

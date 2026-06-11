@@ -24,17 +24,17 @@ func (cssParser : &mut CSSParser) parseOutline(
         const token = parser.getToken();
         switch(token.type) {
             TokenType.Number => {
-                if(!cssParser.parseLength(parser, builder, outline.width)) {
+                if(!cssParser.parseLength(parser, builder, &mut outline.width)) {
                     parser.error("expected a length in outline");
                 }
                 has_length = true;
             }
             TokenType.LBrace, TokenType.DollarLBrace => {
                 if(!has_length) {
-                    cssParser.parseLength(parser, builder, outline.width);
+                    cssParser.parseLength(parser, builder, &mut outline.width);
                     has_length = true;
                 } else {
-                    cssParser.parseCSSColor(parser, builder, outline.color);
+                    cssParser.parseCSSColor(parser, builder, &mut outline.color);
                 }
             }
             TokenType.Identifier => {
@@ -44,33 +44,33 @@ func (cssParser : &mut CSSParser) parseOutline(
                     var valueRef : *mut CSSValue
                     if(has_length) {
                         if(has_style) {
-                            valueRef = &mut outline.color
+                            valueRef = &raw mut outline.color
                         } else {
-                            valueRef = &mut outline.style
+                            valueRef = &raw mut outline.style
                         }
                     } else {
-                        valueRef = &mut outline.width
+                        valueRef = &raw mut outline.width
                     }
-                    alloc_value_length_var(parser, builder, *valueRef, colorValue)
+                    alloc_value_length_var(parser, builder, &mut *valueRef, &colorValue)
                 } else {
                     const style = getOutlineStyleKeywordKind(token.fnv1())
                     if(style != CSSKeywordKind.Unknown) {
                         parser.increment()
-                        alloc_value_keyword(builder, outline.style, style, token.value)
+                        alloc_value_keyword(builder, &mut outline.style, style, &token.value)
                         if(has_style) {
                             parser.error("there should be a single style in outline")
                         }
                         has_style = true;
                         continue;
                     } else {
-                        const width = getLineWidthKeyword(token.value);
+                        const width = getLineWidthKeyword(&token.value);
                         if(width != CSSKeywordKind.Unknown) {
                             parser.increment()
-                            alloc_value_keyword(builder, outline.width, width, token.value)
+                            alloc_value_keyword(builder, &mut outline.width, width, &token.value)
                             continue;
                         }
                     }
-                    if(cssParser.parseCSSColor(parser, builder, outline.color)) {
+                    if(cssParser.parseCSSColor(parser, builder, &mut outline.color)) {
                         return;
                     } else {
                         parser.error("expected a css color");
@@ -81,7 +81,7 @@ func (cssParser : &mut CSSParser) parseOutline(
                 return;
             }
             default => {
-                if(!cssParser.parseCSSColor(parser, builder, outline.color)) {
+                if(!cssParser.parseCSSColor(parser, builder, &mut outline.color)) {
                     parser.error("unknown value token in outline");
                 }
             }

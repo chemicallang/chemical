@@ -5,7 +5,7 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
     var vec = converter.vec
 
     str.append(' ')
-    str.append_view(attr.name)
+    str.append_view(&attr.name)
     if(attr.value != null) {
         str.append('=')
         switch(attr.value.kind) {

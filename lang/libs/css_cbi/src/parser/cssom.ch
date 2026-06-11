@@ -26,7 +26,7 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
                 if(decl) {
                     root.declarations.push(decl);
                 } else {
-                    if(!cssParser.parseNestedRule(*root, parser, builder)) {
+                    if(!cssParser.parseNestedRule(&mut *root, parser, builder)) {
                         parser.error("failed to parse declaration or nested rule");
                         keep_parsing = false;
                     }
@@ -35,13 +35,13 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
             TokenType.At => {
                 const next_token = token + 1;
                 if(next_token.type == TokenType.PropertyName || next_token.type == TokenType.Identifier) {
-                    const hash = fnv1_hash_view(next_token.value);
+                    const hash = fnv1_hash_view(&next_token.value);
                     if(hash == comptime_fnv1_hash("media")) {
-                        if(!cssParser.parseMediaRule(*root, parser, builder)) {
+                        if(!cssParser.parseMediaRule(&mut *root, parser, builder)) {
                             keep_parsing = false;
                         }
                     } else if(hash == comptime_fnv1_hash("keyframes")) {
-                        if(!cssParser.parseKeyframesRule(*root, parser, builder)) {
+                        if(!cssParser.parseKeyframesRule(&mut *root, parser, builder)) {
                             keep_parsing = false;
                         }
                     } else {
@@ -54,7 +54,7 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
                 }
             }
             TokenType.Ampersand, TokenType.ClassName, TokenType.Id, TokenType.Colon, TokenType.LBrace, TokenType.Multiply => {
-                if(!cssParser.parseNestedRule(*root, parser, builder)) {
+                if(!cssParser.parseNestedRule(&mut *root, parser, builder)) {
                     parser.error("failed to parse nested rule");
                     keep_parsing = false;
                 }
@@ -65,7 +65,7 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
         }
     }
 
-    root.dyn_values = std::replace(cssParser.dyn_values, std::vector<*mut Value>());
+    root.dyn_values = std::replace(&mut cssParser.dyn_values, std::vector<*mut Value>());
 
     return root;
 }

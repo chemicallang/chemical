@@ -23,7 +23,7 @@ func (cssParser : &mut CSSParser) parsePadding(
         var i = 0;
         while(i < 4) {
             var next : CSSValue
-            if(cssParser.parseLength(parser, builder, next)) {
+            if(cssParser.parseLength(parser, builder, &mut next)) {
 
                 multiple.values.push(next)
                 i++;

@@ -35,7 +35,7 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
              
              var filter = builder.allocate<CSSBackdropFilterValueData>()
              new (filter) CSSBackdropFilterValueData {
-                 function : CSSKeywordValueData { kind : CSSKeywordKind.Unknown, value : builder.allocate_view(token.value) },
+                 function : CSSKeywordValueData { kind : CSSKeywordKind.Unknown, value : builder.allocate_view(&token.value) },
                  arguments : std::vector<CSSValue>(),
                  next : null
              }
@@ -60,7 +60,7 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                      }
                      
                      var argVal = CSSValue()
-                     if(cssParser.parseLength(parser, builder, argVal)) {
+                     if(cssParser.parseLength(parser, builder, &mut argVal)) {
                          filter.arguments.push(argVal)
                      } else if(argTok.type == TokenType.Percentage) {
                          parser.increment()
@@ -72,14 +72,14 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                      } else if(argTok.type == TokenType.Identifier) {
                          parser.increment()
                          var kVal = builder.allocate<CSSKeywordValueData>()
-                         new (kVal) CSSKeywordValueData { kind : CSSKeywordKind.Unknown, value : builder.allocate_view(argTok.value) }
+                         new (kVal) CSSKeywordValueData { kind : CSSKeywordKind.Unknown, value : builder.allocate_view(&argTok.value) }
                          argVal.kind = CSSValueKind.Keyword
                          argVal.data = kVal
                          filter.arguments.push(argVal)
                      } else if(argTok.type == TokenType.Number) {
                           parser.increment();
                           var nVal = builder.allocate<CSSLengthValueData>()
-                          new (nVal) CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(argTok.value) }
+                          new (nVal) CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(&argTok.value) }
                           argVal.kind = CSSValueKind.Length
                           argVal.data = nVal
                           filter.arguments.push(argVal)

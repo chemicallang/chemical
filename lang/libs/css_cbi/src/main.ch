@@ -15,7 +15,7 @@ public func css_replacementNode(builder : *mut ASTBuilder, value : *mut Embedded
     var scope_nodes = scope.getNodes();
     var converter = ASTConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -50,14 +50,14 @@ public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVal
     var scope_nodes = block_val.get_body()
     var converter = ASTConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
     }
     converter.convertCSSOM(root);
     // const view2 = builder.allocate_view(converter.str.to_view())
-    const classNameVal = builder.make_string_value(root.className, loc)
+    const classNameVal = builder.make_string_value(&root.className, loc)
     block_val.setCalculatedValue(classNameVal)
     return block_val;
 }

@@ -4,8 +4,8 @@ func (converter : &mut ASTConverter) make_write_to_page_call(value : *mut Value,
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var pageArg = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ value as *mut Value, id ]), location)
+    var id = builder.make_identifier(&fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ value as *mut Value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(pageArg)
@@ -14,7 +14,7 @@ func (converter : &mut ASTConverter) make_write_to_page_call(value : *mut Value,
         return call;
     }
     var bundleId = builder.make_identifier(bundleName, pageHead, false, location);
-    const bundleAccess = builder.make_access_chain(std::span<*mut Value>([ pageArg, bundleId ]), location)
+    const bundleAccess = builder.make_access_chain(&std::span<*mut Value>([ pageArg, bundleId ]), location)
     args.push(bundleAccess)
     return call;
 }
@@ -28,7 +28,7 @@ func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *m
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
             var fnName = std::string_view("writeToPageHtml")
-            const writeFn = node.child(fnName)
+            const writeFn = node.child(&fnName)
             if(writeFn == null) {
                 converter.put_html_error("'writeToPageHtml' not found on the object");
                 return;
@@ -39,7 +39,7 @@ func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *m
             }
             var bundleName = if(converter.in_head) std::string_view("pageHead") else std::string_view("pageHtml")
             const fn = writeFn as *mut FunctionDeclaration;
-            const chain = converter.make_write_to_page_call(value, fnName, writeFn, bundleName);
+            const chain = converter.make_write_to_page_call(value, fnName, writeFn, &bundleName);
             converter.vec.push(chain)
         }
         ASTNodeKind.TypealiasStmt => {

@@ -367,7 +367,7 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(isalpha(c as int) || c == '_' || c == '$') {
                 provider.read_identifier();
                 const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
-                const hash = fnv1_hash_view(val);
+                const hash = fnv1_hash_view(&val);
                 
                 switch(hash) {
                     comptime_fnv1_hash("var") => { return Token { type : JsTokenType.Var as int, value : val, position : position } }

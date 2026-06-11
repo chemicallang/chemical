@@ -30,6 +30,14 @@ public namespace std {
         }
 
         @constructor
+        func ref_make(value : &char, length : size_t) {
+            return string_view {
+                _data : &raw value,
+                _size : length
+            }
+        }
+
+        @constructor
         func make_view(str : &std::string) {
             return string_view {
                 _data : str.data(),

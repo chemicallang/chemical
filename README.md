@@ -97,15 +97,19 @@ These features should give you an idea about features I have worked on
 ### Quick Start
 
 ```bash
-# 1. Configure
-./scripts/configure.sh
+# 0. One-time setup (after cloning) — downloads dependencies & submodules
+./scripts/setup.sh
+# Or with LLVM support:
+./scripts/setup.sh --with-llvm
+
+# 1. Configure CMake
+./scripts/configure.sh            # (use --no-llvm if you didn't pass --with-llvm to setup)
 
 # 2. Build
-./scripts/build.sh --tcc   # TCCCompiler (fast, no LLVM)
-./scripts/build.sh --llvm  # Compiler (LLVM backend)
+./scripts/build.sh --tcc          # TCCCompiler (fast, no LLVM)
 
 # 3. Test
-./scripts/test.sh --tcc    # Build & run tests
+./scripts/test.sh --tcc           # Build & run tests
 ```
 
 For detailed instructions covering all platforms, IDEs, and scenarios, see the [Building Chemical](lang/docs/build/BUILDING.md) guide.
@@ -121,6 +125,7 @@ For detailed instructions covering all platforms, IDEs, and scenarios, see the [
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/setup.sh` | **One-time setup after cloning:** downloads libtcc, updates submodules, (optionally LLVM with `--with-llvm`) |
 | `scripts/configure.sh` | Configure CMake project (use `--no-llvm` to skip LLVM) |
 | `scripts/build.sh` | Build targets: `--tcc`, `--llvm`, `--lsp`, `--all` |
 | `scripts/test.sh` | Build & run tests: `--tcc`, `--llvm`, `--libs`, `--no-run`, `--no-build` |

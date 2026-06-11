@@ -29,6 +29,11 @@ while [ $# -gt 0 ]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+echo "==> Initializing git submodules..."
+cd "$REPO_ROOT"
+git submodule update --init --recursive
 
 echo "==> Setting up libtcc..."
 bash "${SCRIPT_DIR}/libtcc.sh" "${FORWARD_ARGS[@]}"
@@ -38,4 +43,4 @@ if [ "$WITH_LLVM" = true ]; then
     bash "${SCRIPT_DIR}/llvm.sh" "${FORWARD_ARGS[@]}"
 fi
 
-echo "Configuration complete."
+echo "Setup complete."

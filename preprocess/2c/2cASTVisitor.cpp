@@ -640,6 +640,40 @@ bool is_value_param_hidden_pointer(Value* value) {
     }
 }
 
+bool should_take_addr_of(Value* value) {
+    const auto linked = value->get_chain_last_linked();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type;
+                if(type->isReferenceCanonical()) {
+                    return false;
+                }
+                return !(type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType());
+            }
+            case ASTNodeKind::StructMember:{
+                const auto type = linked->as_struct_member_unsafe()->type;
+                if(type->isReferenceCanonical()) {
+                    return false;
+                }
+                return true;
+            }
+            case ASTNodeKind::VarInitStmt: {
+                const auto type = linked->as_var_init_unsafe()->known_type();
+                if (type->isReferenceCanonical()) {
+                    return false;
+                }
+                return true;
+            }
+            default:
+                return true;
+        }
+    } else {
+        return true;
+    }
+}
+
+
 bool is_value_param_pointer_or_ref_like_in_call(Value* value) {
     const auto val_type = value->getType()->canonical();
     if(val_type->kind() == BaseTypeKind::Reference) {
@@ -6668,7 +6702,7 @@ void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
 }
 
 void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
-    if(!is_value_param_hidden_pointer(value)) {
+    if (should_take_addr_of(value->value)) {
         write('&');
     }
     visit(value->value);

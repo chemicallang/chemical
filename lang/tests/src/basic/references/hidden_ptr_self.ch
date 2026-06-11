@@ -11,12 +11,12 @@ struct HiddenPtrSelf {
         return data
     }
     func mutate_via_ptr(&mut self) {
-        var ptr = &mut self as *void
+        var ptr = &raw mut self
         var s = ptr as &mut HiddenPtrSelf
         s.data = 99
     }
     func read_via_ptr(&self) : int {
-        var ptr = &self as *void
+        var ptr = &raw self
         var s = ptr as &HiddenPtrSelf
         return s.data
     }

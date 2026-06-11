@@ -150,12 +150,12 @@ public namespace server {
 
         func serve_non_iocp(&mut self, port : uint = 8080u) {
             start(port);
-            accept_main(&mut self as *void);
+            accept_main(&raw mut self);
         }
 
         func serve_async(&mut self, port : uint = 8080u) : std.concurrent.Thread {
             start(port);
-            return std.concurrent.spawn(accept_main, &mut self as *void);
+            return std.concurrent.spawn(accept_main, &raw mut self);
         }
 
         func serve(&mut self, port : uint = 8080u) {

@@ -593,44 +593,12 @@ inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, 
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
 bool is_value_param_hidden_pointer_non_ref(Value* value) {
-    const auto linked = value->linked_node();
+    const auto linked = value->get_chain_last_linked();
     if(linked) {
         switch(linked->kind()) {
             case ASTNodeKind::FunctionParam:{
                 const auto type = linked->as_func_param_unsafe()->type;
                 return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
-            }
-            case ASTNodeKind::StructMember:{
-                return false;
-            }
-            default:
-                return false;
-        }
-    } else {
-        return false;
-    }
-}
-
-// structs, or variants or references to them are passed in functions as pointers
-// if you took address of using '&' of the parameter that is already reference or pointer
-// we must not write '&' in the output C
-bool is_value_param_hidden_pointer(Value* value) {
-    const auto linked = value->linked_node();
-    if(linked) {
-        switch(linked->kind()) {
-            case ASTNodeKind::FunctionParam:{
-                const auto type = linked->as_func_param_unsafe()->type;
-                if(type->is_reference()) {
-                    return true;
-                }
-                return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
-            }
-            case ASTNodeKind::StructMember:{
-                const auto type = linked->as_struct_member_unsafe()->type;
-                if(type->is_reference()) {
-                    return true;
-                }
-                return false;
             }
             default:
                 return false;
@@ -673,6 +641,9 @@ bool should_take_addr_of(Value* value) {
     }
 }
 
+inline static bool is_value_param_hidden_pointer(Value* value) {
+    return !should_take_addr_of(value);
+}
 
 bool is_value_param_pointer_or_ref_like_in_call(Value* value) {
     const auto val_type = value->getType()->canonical();
@@ -6711,7 +6682,7 @@ void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
 void ToCAstVisitor::VisitReferenceOfValue(ReferenceOfValue* value) {
     if(value->value->kind() == ValueKind::DereferenceValue) {
         write('&');
-    } else if(!is_value_param_hidden_pointer(value->value)) {
+    } else if(!is_value_param_hidden_pointer_non_ref(value->value)) {
         write('&');
     }
     visit(value->value);

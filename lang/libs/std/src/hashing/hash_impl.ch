@@ -44,7 +44,7 @@ protected impl Hashable for long {
 
 protected impl Hashable for ulong {
     func hash(&self) : size_t {
-        return murmurhash(&self as *char, sizeof(ulong), 0u)
+        return murmurhash(&raw self as *char, sizeof(ulong), 0u)
     }
 }
 

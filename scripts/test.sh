@@ -10,6 +10,10 @@ TEST_OUT_NAME=""
 RUN_TESTS=true
 BUILD_TARGET=true
 TEST_LIBS=false
+MODE="debug_quick"
+NO_CACHE="--no-cache"
+EMIT_C=false
+RECOMPILE_PLUGINS="-frecompile-plugins"
 
 usage() {
   echo "Usage: $0 [options]"
@@ -21,6 +25,10 @@ usage() {
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
   echo "  --no-build              Skip building compiler target, use existing binary"
+  echo "  --mode <mode>           Compilation mode (default: debug_quick)"
+  echo "  --cache                 Use cached objects (default: --no-cache)"
+  echo "  --emit-c                Emit C translation output"
+  echo "  --cached-plugins        Skip recompiling CBI plugins (default: -frecompile-plugins)"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
   echo "  --help, -h              Show this help"
   exit 1
@@ -40,6 +48,10 @@ while [ $# -gt 0 ]; do
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
     --no-build) BUILD_TARGET=false ;;
+    --mode) MODE="$2"; shift ;;
+    --cache) NO_CACHE="" ;;
+    --emit-c) EMIT_C=true ;;
+    --cached-plugins) RECOMPILE_PLUGINS="" ;;
     -j) JOBS="$2"; shift ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -81,9 +93,12 @@ else
 fi
 
 # Build the test command
-CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode debug_quick --no-cache)
+CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
+[ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
+[ "$EMIT_C" = true ] && CMD+=("--emit-c")
 if [ "$TEST_LIBS" = true ]; then
-  CMD+=("--arg-test-libs" "-frecompile-plugins")
+  CMD+=("--arg-test-libs")
+  [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
 fi
 
 echo "==> Compiling tests..."

@@ -614,6 +614,7 @@ inline bool isNodePointerCanonical(ASTNode* node) {
 bool BaseType::isPointerCanonical() {
     switch(kind()) {
         case BaseTypeKind::Pointer:
+        case BaseTypeKind::String:
             return true;
         case BaseTypeKind::Linked:
             return isNodePointerCanonical(as_linked_type_unsafe()->linked);

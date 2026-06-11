@@ -5,11 +5,19 @@
 // %struct._C_ldouble_complex = type { [2 x double] }
 // TODO these functions should be tested
 
+if(def.x86_64) {
+
+// these are required by tiny cc, due to some bug in the latest tiny cc, these symbols are missing
+// we are going to provide these symbols as long as tiny cc doesn't fix the bug
+// email has been sent to tiny cc mailing list
+
 @extern
-public var __mzerodf = -0.0 as double;
+public var __mzerodf = -0.0;
 
 @extern
 public var __mzerosf = -0.0f;
+
+}
 
 // float complex is being passed as i64 in @crealf(i64)
 public type float_complex = bigint;

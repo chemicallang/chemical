@@ -13,11 +13,11 @@ func (cssParser : &mut CSSParser) parseBorderRadius(
         fourth : CSSValue()
         next : null
     }
-    if(cssParser.parseLength(parser, builder, ptr.first)) {
+    if(cssParser.parseLength(parser, builder, &mut ptr.first)) {
 
-        cssParser.parseLength(parser, builder, ptr.second)
-        cssParser.parseLength(parser, builder, ptr.third)
-        cssParser.parseLength(parser, builder, ptr.fourth)
+        cssParser.parseLength(parser, builder, &mut ptr.second)
+        cssParser.parseLength(parser, builder, &mut ptr.third)
+        cssParser.parseLength(parser, builder, &mut ptr.fourth)
 
         const tok = parser.getToken()
         if(tok.type == TokenType.Divide) {
@@ -32,11 +32,11 @@ func (cssParser : &mut CSSParser) parseBorderRadius(
                 next : null
             }
 
-            if(cssParser.parseLength(parser, builder, next.first)) {
+            if(cssParser.parseLength(parser, builder, &mut next.first)) {
 
-                cssParser.parseLength(parser, builder, next.second)
-                cssParser.parseLength(parser, builder, next.third)
-                cssParser.parseLength(parser, builder, next.fourth)
+                cssParser.parseLength(parser, builder, &mut next.second)
+                cssParser.parseLength(parser, builder, &mut next.third)
+                cssParser.parseLength(parser, builder, &mut next.fourth)
 
                 ptr.next = next;
 

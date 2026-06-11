@@ -12,7 +12,7 @@ func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : 
     value.kind = CSSValueKind.Color
     value.data = col_value
     var out : uint32_t = 0
-    if(!parse_css_hex_color(colorView.data() + 1, colorView.size() - 1, &mut out)) {
+    if(!parse_css_hex_color(colorView.data() + 1, colorView.size() - 1, &raw mut out)) {
         parser.error("hash color is not valid");
     }
 }
@@ -51,7 +51,7 @@ func hashSmallColorValue(view : &std::string_view) : size_t {
 
     // copy the token value
     var arr : char[50] = []
-    strncpy(&mut arr[0], view.data(), size);
+    strncpy(&raw mut arr[0], view.data(), size);
     arr[size] = '\0'
 
     // lowercase it
@@ -61,7 +61,7 @@ func hashSmallColorValue(view : &std::string_view) : size_t {
         i++;
     }
 
-    return fnv1_hash(&arr[0]);
+    return fnv1_hash(&raw arr[0]);
 
 }
 
@@ -137,11 +137,11 @@ func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) 
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            const lenKind = parseLengthKindSafe(&mut parser, builder)
+            const lenKind = parseLengthKindSafe(&raw mut parser, builder)
             if(lenKind == CSSLengthKind.Unknown) {
-                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(&token.value) }
             } else {
-                return CSSLengthValueData { kind : lenKind, value : builder.allocate_view(token.value) }
+                return CSSLengthValueData { kind : lenKind, value : builder.allocate_view(&token.value) }
             }
         }
         TokenType.Identifier => {
@@ -164,9 +164,9 @@ func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuil
             parser.increment();
             if(parser.getToken().type == TokenType.Percentage) {
                 parser.increment();
-                return CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(token.value) }
+                return CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(&token.value) }
             } else {
-                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(&token.value) }
             }
         }
         TokenType.Identifier => {
@@ -410,7 +410,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
     value : &mut CSSValue,
     token : *mut Token
 ) : bool {
-    const kind = cssParser.getIdentifierColorKind(token.value)
+    const kind = cssParser.getIdentifierColorKind(&token.value)
     if(kind == CSSColorKind.Unknown) {
         return false;
     } else if(kind >= CSSColorKind.FunctionsStart && kind <= CSSColorKind.FunctionsEnd) {
@@ -419,7 +419,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
             CSSColorKind.VAR => {
                 parser.increment();
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                alloc_color_val_data(builder, value, colorValue, kind)
+                alloc_color_val_data(builder, value, &colorValue, kind)
                 return true;
             }
             CSSColorKind.RGB, CSSColorKind.RGBA => {
@@ -429,7 +429,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSRGBColorData>()
                 new (rgbData) CSSRGBColorData();
 
-                cssParser.parseRGBColor(parser, builder, *rgbData)
+                cssParser.parseRGBColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -447,7 +447,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSHSLColorData>()
                 new (rgbData) CSSHSLColorData();
 
-                cssParser.parseHSLColor(parser, builder, *rgbData)
+                cssParser.parseHSLColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -464,7 +464,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSHWBColorData>()
                 new (rgbData) CSSHWBColorData();
 
-                cssParser.parseHWBColor(parser, builder, *rgbData)
+                cssParser.parseHWBColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -481,7 +481,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSLABColorData>()
                 new (rgbData) CSSLABColorData();
 
-                cssParser.parseLABColor(parser, builder, *rgbData)
+                cssParser.parseLABColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -498,7 +498,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSLCHColorData>()
                 new (rgbData) CSSLCHColorData();
 
-                cssParser.parseLCHColor(parser, builder, *rgbData)
+                cssParser.parseLCHColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -515,7 +515,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSOKLABColorData>()
                 new (rgbData) CSSOKLABColorData();
 
-                cssParser.parseOKLABColor(parser, builder, *rgbData)
+                cssParser.parseOKLABColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -532,7 +532,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 const rgbData = builder.allocate<CSSOKLCHColorData>()
                 new (rgbData) CSSOKLCHColorData();
 
-                cssParser.parseOKLCHColor(parser, builder, *rgbData)
+                cssParser.parseOKLCHColor(parser, builder, &mut *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
@@ -550,7 +550,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
         }
     } else {
         parser.increment()
-        alloc_color_val_data(builder, value, token.value, kind)
+        alloc_color_val_data(builder, value, &token.value, kind)
         return true;
     }
 }
@@ -559,7 +559,7 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
     const token = parser.getToken();
     switch(token.type) {
         TokenType.HexColor => {
-            cssParser.parseHexColor(parser, builder, token.value, value);
+            cssParser.parseHexColor(parser, builder, &token.value, value);
             parser.increment();
             return true;
         }

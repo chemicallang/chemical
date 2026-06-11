@@ -85,7 +85,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 const start = provider.current_data(); 
                 provider.read_tag_name();
                 const value = std::string_view(start, provider.current_data() - start);
-                const hash = fnv1_hash_view(value);
+                const hash = fnv1_hash_view(&value);
 
                 switch(hash) {
                     comptime_fnv1_hash("if") => {

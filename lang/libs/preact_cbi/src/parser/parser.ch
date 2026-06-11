@@ -14,7 +14,7 @@ func (jsParser : &mut JsParser) parsePostfixContinuation(parser : *mut Parser, b
                 parser.error("expected identifier after dot");
                 break;
             }
-            var prop = builder.allocate_view(idToken.value);
+            var prop = builder.allocate_view(&idToken.value);
             parser.increment();
 
             var access = builder.allocate<JsMemberAccess>()
@@ -65,7 +65,7 @@ func (jsParser : &mut JsParser) parsePostfixContinuation(parser : *mut Parser, b
             }
             node = indexAcc as *mut JsNode;
         } else if(t.type == JsTokenType.PlusPlus as int || t.type == JsTokenType.MinusMinus as int) {
-            var op = builder.allocate_view(t.value);
+            var op = builder.allocate_view(&t.value);
             parser.increment();
             var unary = builder.allocate<JsUnaryOp>()
             new (unary) JsUnaryOp {
@@ -98,7 +98,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
        token.type == JsTokenType.Delete as int ||
        token.type == JsTokenType.New as int ||
        token.type == JsTokenType.Await as int) {
-        var op = builder.allocate_view(token.value);
+        var op = builder.allocate_view(&token.value);
         parser.increment();
         var operand = jsParser.parsePrimary(parser, builder);
         var unary = builder.allocate<JsUnaryOp>()
@@ -127,7 +127,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         var literal = builder.allocate<JsLiteral>()
         new (literal) JsLiteral {
             base : JsNode { kind : JsNodeKind.Literal },
-            value : builder.allocate_view(token.value)
+            value : builder.allocate_view(&token.value)
         }
         node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.String as int) {
@@ -135,7 +135,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         var literal = builder.allocate<JsLiteral>()
         new (literal) JsLiteral {
             base : JsNode { kind : JsNodeKind.Literal },
-            value : builder.allocate_view(token.value)
+            value : builder.allocate_view(&token.value)
         }
         node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.Async as int) {
@@ -147,7 +147,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
              
              var name = std::string_view();
              if(parser.getToken().type == JsTokenType.Identifier as int) {
-                 name = builder.allocate_view(parser.getToken().value);
+                 name = builder.allocate_view(&parser.getToken().value);
                  parser.increment();
              }
              
@@ -163,7 +163,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                          parser.error("expected identifier");
                          break;
                      }
-                     var param = JsParam { name: builder.allocate_view(paramToken.value), default_value: null };
+                     var param = JsParam { name: builder.allocate_view(&paramToken.value), default_value: null };
                      parser.increment();
                      if(parser.getToken().type == JsTokenType.Equal as int) {
                          parser.increment(); // consume =
@@ -198,7 +198,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
             // Async Arrow: async x => ... or async (x, y) => ...
             const t = parser.getToken();
             if(t.type == JsTokenType.Identifier as int) {
-                 var idVal = builder.allocate_view(t.value);
+                 var idVal = builder.allocate_view(&t.value);
                  parser.increment();
                  if(parser.increment_if(JsTokenType.Arrow as int)) {
                      var body : *mut JsNode = null;
@@ -239,7 +239,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         
         var name = std::string_view();
         if(parser.getToken().type == JsTokenType.Identifier as int) {
-             name = builder.allocate_view(parser.getToken().value);
+             name = builder.allocate_view(&parser.getToken().value);
              parser.increment();
         }
         
@@ -255,7 +255,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                     parser.error("expected identifier");
                     break;
                 }
-                var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null };
+                var param = JsParam { name : builder.allocate_view(&paramToken.value), default_value : null };
                 parser.increment();
                 if(parser.getToken().type == JsTokenType.Equal as int) {
                     parser.increment(); // consume =
@@ -322,7 +322,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         var literal = builder.allocate<JsLiteral>()
         new (literal) JsLiteral {
             base : JsNode { kind : JsNodeKind.Literal },
-            value : builder.allocate_view(token.value)
+            value : builder.allocate_view(&token.value)
         }
         node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.LBrace as int) {
@@ -337,7 +337,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                  } else {
                      var key = std::string_view();
                      if(t.type == JsTokenType.Identifier as int || t.type == JsTokenType.String as int) {
-                         key = builder.allocate_view(t.value);
+                         key = builder.allocate_view(&t.value);
                          parser.increment();
                      } else {
                          parser.error("expected identifier or string key");
@@ -405,7 +405,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         var id = builder.allocate<JsIdentifier>()
         new (id) JsIdentifier {
             base : JsNode { kind : JsNodeKind.Identifier },
-            value : builder.allocate_view(token.value)
+            value : builder.allocate_view(&token.value)
         }
         
         if(parser.getToken().type == JsTokenType.Arrow as int) {
@@ -481,7 +481,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
             // Check if it's identifier list for arrow
             const nextToken = parser.getToken();
             if(nextToken.type == JsTokenType.Identifier as int) {
-                var firstId = builder.allocate_view(nextToken.value);
+                var firstId = builder.allocate_view(&nextToken.value);
                 parser.increment();
                 
                 if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -496,7 +496,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                             break;
                         }
                         parser.increment();
-                        var param = JsParam { name : builder.allocate_view(pToken.value), default_value : null }
+                        var param = JsParam { name : builder.allocate_view(&pToken.value), default_value : null }
                         if(parser.getToken().type == JsTokenType.Equal as int) {
                             parser.increment(); // consume =
                             param.default_value = jsParser.parseExpression(parser, builder);
@@ -623,7 +623,7 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
                                   token.type == JsTokenType.StarEqual as int ||
                                   token.type == JsTokenType.SlashEqual as int;
 
-            var op = builder.allocate_view(token.value);
+            var op = builder.allocate_view(&token.value);
             parser.increment();
             
             var right : *mut JsNode = null;
@@ -674,14 +674,14 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
     
     var name = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        name = builder.allocate_view(parser.getToken().value);
+        name = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     }
     
     var superClass = std::string_view();
     if(parser.increment_if(JsTokenType.Extends as int)) {
          if(parser.getToken().type == JsTokenType.Identifier as int) {
-             superClass = builder.allocate_view(parser.getToken().value);
+             superClass = builder.allocate_view(&parser.getToken().value);
              parser.increment();
          } else {
              parser.error("expected identifier after extends");
@@ -709,7 +709,7 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
         var methodName = std::string_view();
         const t = parser.getToken();
         if(t.type == JsTokenType.Identifier as int || t.type == JsTokenType.String as int) {
-             methodName = builder.allocate_view(t.value);
+             methodName = builder.allocate_view(&t.value);
              parser.increment();
         } else {
              parser.error("expected method name");
@@ -728,7 +728,7 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
                      parser.error("expected identifier");
                      break;
                  }
-                 var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null };
+                 var param = JsParam { name : builder.allocate_view(&paramToken.value), default_value : null };
                  parser.increment();
                  if(parser.getToken().type == JsTokenType.Equal as int) {
                      parser.increment(); // consume =
@@ -813,7 +813,7 @@ func (jsParser : &mut JsParser) parseArrayDestructuring(parser : *mut Parser, bu
              var id = builder.allocate<JsIdentifier>()
              new (id) JsIdentifier {
                  base : JsNode { kind : JsNodeKind.Identifier },
-                 value : builder.allocate_view(t.value)
+                 value : builder.allocate_view(&t.value)
              }
              elements.push(id as *mut JsNode);
              parser.increment();
@@ -844,7 +844,7 @@ func (jsParser : &mut JsParser) parseArrayDestructuring(parser : *mut Parser, bu
 func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int) {
-        var keyword = builder.allocate_view(token.value);
+        var keyword = builder.allocate_view(&token.value);
         parser.increment();
         
         var name = std::string_view();
@@ -853,7 +853,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         if(parser.getToken().type == JsTokenType.LBracket as int) {
             pattern = jsParser.parseArrayDestructuring(parser, builder);
         } else if(parser.getToken().type == JsTokenType.Identifier as int) {
-            name = builder.allocate_view(parser.getToken().value);
+            name = builder.allocate_view(&parser.getToken().value);
             parser.increment();
         } else {
             parser.error("expected identifier or [");
@@ -939,7 +939,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             parser.error("expected identifier");
             return null;
         }
-        var name = builder.allocate_view(idToken.value);
+        var name = builder.allocate_view(&idToken.value);
         parser.increment();
         
         if(!parser.increment_if(JsTokenType.LParen as int)) {
@@ -954,7 +954,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
                     parser.error("expected identifier");
                     break;
                 }
-                params.push(JsParam { name : builder.allocate_view(paramToken.value), default_value : null });
+                params.push(JsParam { name : builder.allocate_view(&paramToken.value), default_value : null });
                 parser.increment();
                 
                 if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -992,7 +992,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         const idToken = parser.getToken();
         var name = std::string_view();
         if(idToken.type == JsTokenType.Identifier as int) {
-            name = builder.allocate_view(idToken.value);
+            name = builder.allocate_view(&idToken.value);
             parser.increment();
         }
         
@@ -1008,7 +1008,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
                     parser.error("expected identifier");
                     break;
                 }
-                params.push(JsParam { name : builder.allocate_view(paramToken.value), default_value : null });
+                params.push(JsParam { name : builder.allocate_view(&paramToken.value), default_value : null });
                 parser.increment();
                 
                 if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -1262,7 +1262,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             if(parser.increment_if(JsTokenType.LParen as int)) {
                 const paramToken = parser.getToken();
                 if(paramToken.type == JsTokenType.Identifier as int) {
-                    catchParam = builder.allocate_view(paramToken.value);
+                    catchParam = builder.allocate_view(&paramToken.value);
                     parser.increment();
                 }
                 if(!parser.increment_if(JsTokenType.RParen as int)) {
@@ -1325,7 +1325,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
     
     // Check if string immediately (import "source")
     if(parser.getToken().type == JsTokenType.String as int) {
-        var source = builder.allocate_view(parser.getToken().value);
+        var source = builder.allocate_view(&parser.getToken().value);
         parser.increment();
         parser.increment_if(JsTokenType.SemiColon as int);
         
@@ -1341,7 +1341,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
     // Parse specifiers
     if(parser.getToken().type == JsTokenType.Identifier as int) {
         // Default import
-        var local = builder.allocate_view(parser.getToken().value);
+        var local = builder.allocate_view(&parser.getToken().value);
         specifiers.push(ImportSpecifier { imported : view("default"), local : local });
         parser.increment();
         if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -1355,7 +1355,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
         if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
             parser.increment(); // as
             if(parser.getToken().type == JsTokenType.Identifier as int) {
-                 var local = builder.allocate_view(parser.getToken().value);
+                 var local = builder.allocate_view(&parser.getToken().value);
                  specifiers.push(ImportSpecifier { imported : view("*"), local : local });
                  parser.increment();
             } else {
@@ -1368,14 +1368,14 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
         parser.increment(); // {
         while(parser.getToken().type != JsTokenType.RBrace as int) {
             if(parser.getToken().type == JsTokenType.Identifier as int) {
-                var imported = builder.allocate_view(parser.getToken().value);
+                var imported = builder.allocate_view(&parser.getToken().value);
                 var local = imported;
                 parser.increment();
                 
                 if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
                     parser.increment(); // as
                     if(parser.getToken().type == JsTokenType.Identifier as int) {
-                        local = builder.allocate_view(parser.getToken().value);
+                        local = builder.allocate_view(&parser.getToken().value);
                         parser.increment();
                     } else {
                         parser.error("expected identifier after as");
@@ -1407,7 +1407,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
     
     var source = std::string_view();
     if(parser.getToken().type == JsTokenType.String as int) {
-        source = builder.allocate_view(parser.getToken().value);
+        source = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected string source");

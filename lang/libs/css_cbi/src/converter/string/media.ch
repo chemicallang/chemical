@@ -16,7 +16,7 @@ func writeMediaType(type : MediaType, customType : std::string_view, str : &mut 
         }
         MediaType.Unknown => {
             if(!customType.empty()) {
-                str.append_view(customType)
+                str.append_view(&customType)
             }
         }
     }
@@ -54,28 +54,28 @@ func (converter : &mut ASTConverter) writeMediaFeature(feature : *mut MediaFeatu
     if(feature.leftOp != MediaFeatureComparison.None) {
         // Range syntax: leftValue op feature [op rightValue]
         if(feature.leftValue.kind != CSSValueKind.Unknown) {
-            converter.writeValue(feature.leftValue)
+            converter.writeValue(&mut feature.leftValue)
             str.append(' ')
             writeComparisonOperator(feature.leftOp, str)
             str.append(' ')
         }
         
-        str.append_view(feature.name)
+        str.append_view(&feature.name)
         
         if(feature.rightOp != MediaFeatureComparison.None && feature.rightValue.kind != CSSValueKind.Unknown) {
             str.append(' ')
             writeComparisonOperator(feature.rightOp, str)
             str.append(' ')
-            converter.writeValue(feature.rightValue)
+            converter.writeValue(&mut feature.rightValue)
         }
     } else {
         // Legacy syntax: feature-name or feature-name: value
-        str.append_view(feature.name)
+        str.append_view(&feature.name)
         
         if(feature.value.kind != CSSValueKind.Unknown) {
             str.append(':')
             str.append(' ')
-            converter.writeValue(feature.value)
+            converter.writeValue(&mut feature.value)
         }
     }
     

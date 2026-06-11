@@ -27,12 +27,12 @@ public func get_module_scoped_name(functionNode : *mut ASTNode, name : std::stri
         if(modScope != null) {
             const scopeName = modScope.getScopeName();
             if(!scopeName.empty()) {
-                str.append_view(scopeName);
+                str.append_view(&scopeName);
                 str.append('_');
             }
             str.append_view(modScope.getModuleName());
             str.append('_');
         }
     }
-    str.append_view(name);
+    str.append_view(&name);
 }

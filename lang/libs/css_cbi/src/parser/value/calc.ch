@@ -12,7 +12,7 @@ func (cssParser : &mut CSSParser) parseCalcFactor(parser : *mut Parser, builder 
     }
 
     var value = CSSValue();
-    if (cssParser.parseNumberOrLength(parser, builder, value)) {
+    if (cssParser.parseNumberOrLength(parser, builder, &mut value)) {
         var literal = builder.allocate<CSSValue>();
         literal.kind = value.kind;
         literal.data = value.data;

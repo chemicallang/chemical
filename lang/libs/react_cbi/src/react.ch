@@ -18,7 +18,7 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     const builder = resolver.getJobBuilder();
 
     const voidType = builder.make_void_type(loc);
-    const funcDecl = builder.make_function(root.signature.name, voidType as *mut BaseType, false, node.getParent(), loc);
+    const funcDecl = builder.make_function(&root.signature.name, voidType as *mut BaseType, false, node.getParent(), loc);
     if(root.signature.access == AccessSpecifier.Public || root.signature.access == AccessSpecifier.Protected) {
         funcDecl.setAccessSpecifier(root.signature.access)
     }
@@ -41,15 +41,15 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
     visitor.visitEmbeddedNode(node)
 
     // resolve components
-    sym_res_components(root.components, resolver)
+    sym_res_components(&mut root.components, resolver)
 
     // end the scope
     resolver.scope_end();
 
     // fixing support
     root.support.pageNode = param as *mut ASTNode
-    fix_support_page_node(root.support, root.support.pageNode, loc)
-    sym_res_ssr_support(resolver, root.support, loc);
+    fix_support_page_node(&mut root.support, root.support.pageNode, loc)
+    sym_res_ssr_support(resolver, &mut root.support, loc);
 
     root.signature.functionNode = funcDecl;
 
@@ -59,7 +59,7 @@ public func react_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedded
 public func react_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare_default(comp.signature.name, node);
+    resolver.declare_default(&comp.signature.name, node);
 }
 
 func fix_support_page_node(
@@ -147,7 +147,7 @@ public func react_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
     var support = root.support
     var converter = JsConverter {
         builder : builder,
-        support : &mut support,
+        support : &raw mut support,
         vec : body,
         parent : root.signature.functionNode,
         str : std::string(),
@@ -196,7 +196,7 @@ public func react_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
                 converter.put_chain_in()
                 var targetNode = signature.functionNode as *mut FunctionDeclaration;
                 var targetName = signature.name;
-                var base = builder.make_identifier(targetName, targetNode as *mut ASTNode, false, location)
+                var base = builder.make_identifier(&targetName, targetNode as *mut ASTNode, false, location)
                 var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
                 var call = builder.make_function_call_node(base, converter.parent, location)
                 call.get_args().push(pageId as *mut Value)
@@ -209,9 +209,9 @@ public func react_replacementNode(builder : *mut ASTBuilder, value : *mut Embedd
     // function Component(props) { return $_r.createElement(...) }
     
     converter.str.append_view("function ")
-    get_module_scoped_name(root.signature.functionNode, root.signature.name, converter.str)
+    get_module_scoped_name(root.signature.functionNode, root.signature.name, &mut converter.str)
     converter.str.append_view("(")
-    converter.str.append_view(root.signature.propsName)
+    converter.str.append_view(&root.signature.propsName)
     converter.str.append_view(") ")
     
     if(root.body != null) {
@@ -236,7 +236,7 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
     const comp = node.getDataPtr() as *mut JsComponentDecl;
     if (comp.signature.access == AccessSpecifier.Public) {
-        fn(obj, comp.signature.name, node)
+        fn(obj, &comp.signature.name, node)
     }
 }
 
@@ -248,7 +248,7 @@ public func react_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
     // Parse Identifier
     var name = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        name = builder.allocate_view(parser.getToken().value);
+        name = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected component name");
@@ -261,7 +261,7 @@ public func react_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
 
     var propsName = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        propsName = builder.allocate_view(parser.getToken().value);
+        propsName = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected identifier for props");
@@ -272,7 +272,7 @@ public func react_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
         while(true) {
             const t = parser.getToken();
             if(t.type == JsTokenType.Identifier as int) {
-                    var paramName = builder.allocate_view(t.value);
+                    var paramName = builder.allocate_view(&t.value);
                     parser.increment();
                     
                     var is_optional = false;
@@ -317,8 +317,8 @@ public func react_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder
     }
 
     var jsParser = JsParser {
-        dyn_values : &mut comp.dyn_values,
-        components : &mut comp.components
+        dyn_values : &raw mut comp.dyn_values,
+        components : &raw mut comp.components
     }
     
     if(parser.getToken().type == JsTokenType.LBrace as int) {

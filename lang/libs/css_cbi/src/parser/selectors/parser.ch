@@ -5,7 +5,7 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
     switch(start.type) {
         TokenType.Identifier, TokenType.PropertyName => {
             s.kind = SimpleSelectorKind.Tag
-            s.value = builder.allocate_view(start.value)
+            s.value = builder.allocate_view(&start.value)
         }
         TokenType.Multiply => {
             s.kind = SimpleSelectorKind.Universal
@@ -23,7 +23,7 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
                 return null;
             }
             s.kind = SimpleSelectorKind.Class
-            s.value = builder.allocate_view(next.value)
+            s.value = builder.allocate_view(&next.value)
         }
         TokenType.Hash => {
             parser.increment(); 
@@ -50,7 +50,7 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
             if(start.value.get(0) == '#') {
                  s.value = builder.allocate_view(start.value.skip(1))
             } else {
-                 s.value = builder.allocate_view(start.value)
+                 s.value = builder.allocate_view(&start.value)
             }
         }
         // Attribute selector [ ... ]
@@ -93,17 +93,17 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         if(token.type == TokenType.ClassName) {
              simple = builder.allocate<SimpleSelector>();
              simple.kind = SimpleSelectorKind.Class;
-             simple.value = builder.allocate_view(token.value);
+             simple.value = builder.allocate_view(&token.value);
              parser.increment();
         } else if(token.type == TokenType.Id) {
              simple = builder.allocate<SimpleSelector>();
              simple.kind = SimpleSelectorKind.Id;
-             simple.value = builder.allocate_view(token.value); // strip # 
+             simple.value = builder.allocate_view(&token.value); // strip #
              parser.increment();
         } else if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
              simple = builder.allocate<SimpleSelector>();
              simple.kind = SimpleSelectorKind.Tag;
-             simple.value = builder.allocate_view(token.value);
+             simple.value = builder.allocate_view(&token.value);
              parser.increment();
         } else if(token.type == TokenType.Ampersand) {
              simple = builder.allocate<SimpleSelector>();
@@ -125,7 +125,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                  if(nameToken.type == TokenType.Identifier || nameToken.type == TokenType.PropertyName) {
                      simple = builder.allocate<SimpleSelector>();
                      simple.kind = SimpleSelectorKind.PseudoElement;
-                     simple.value = builder.allocate_view(nameToken.value);
+                     simple.value = builder.allocate_view(&nameToken.value);
                      parser.increment();
                  } else {
                       // Unexpected token after ::
@@ -143,7 +143,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                      while(true) {
                          const t2 = parser.getToken()
                          if(t2.type == TokenType.RParen || t2.type == TokenType.EndOfFile) break
-                         val.append_view(t2.value)
+                         val.append_view(&t2.value)
                          parser.increment()
                      }
                      if(parser.increment_if(TokenType.RParen as int)) {

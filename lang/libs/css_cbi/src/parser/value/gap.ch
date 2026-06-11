@@ -9,10 +9,10 @@ func (cssParser : &mut CSSParser) parseValuePair(
     value.kind = CSSValueKind.Pair
     value.data = pair
 
-    if(cssParser.parseLength(parser, builder, pair.first)) {
+    if(cssParser.parseLength(parser, builder, &mut pair.first)) {
 
         // optional
-        cssParser.parseLength(parser, builder, pair.second)
+        cssParser.parseLength(parser, builder, &mut pair.second)
 
     }
 }

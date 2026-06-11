@@ -37,14 +37,14 @@ func (cssParser : &mut CSSParser) parseTextShadow(
             }
 
             // If the token is a length, parse it and add it.
-            if (cssParser.parseLength(parser, builder, lengths[lenInd])) {
+            if (cssParser.parseLength(parser, builder, &mut lengths[lenInd])) {
                 lenInd++
                 continue;
             }
 
             // Only parse one color per shadow.
             if (shadow.color.kind == CSSValueKind.Unknown) {
-                cssParser.parseCSSColor(parser, builder, shadow.color);
+                cssParser.parseCSSColor(parser, builder, &mut shadow.color);
                 continue;
             }
 

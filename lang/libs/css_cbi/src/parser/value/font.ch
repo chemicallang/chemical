@@ -54,9 +54,9 @@ func parseFontKeywordValues(
         if(i == 0) {
             hash = first_val_hash
         } else {
-            hash = fnv1_hash_view(token.value)
+            hash = fnv1_hash_view(&token.value)
         }
-        const kind = parseFontValueKeywordKind(builder, font, token.value, hash)
+        const kind = parseFontValueKeywordKind(builder, font, &token.value, hash)
         if(kind == CSSKeywordKind.Oblique) {
             // there's an angle after this
             parser.increment()
@@ -94,7 +94,7 @@ func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, fam
 
                 parser.increment()
 
-                family.families.push(builder.allocate_view(token.value))
+                family.families.push(builder.allocate_view(&token.value))
 
                 // optionally increment the comma
                 parser.incrementToken(TokenType.Comma)
@@ -130,28 +130,28 @@ func (cssParser : &mut CSSParser) parseFont(
     var first_val_hash : size_t = 0;
     const firstTok = parser.getToken()
     if(firstTok.type == TokenType.Identifier) {
-        first_val_hash = fnv1_hash_view(firstTok.value)
+        first_val_hash = fnv1_hash_view(&firstTok.value)
         const sysKw = getSystemFamilyNameKeywordKind(first_val_hash)
         if(sysKw != CSSKeywordKind.Unknown) {
             parser.increment()
-            alloc_value_keyword(builder, value, sysKw, firstTok.value)
+            alloc_value_keyword(builder, value, sysKw, &firstTok.value)
             return;
         }
     }
 
-    parseFontKeywordValues(parser, builder, *font, first_val_hash)
+    parseFontKeywordValues(parser, builder, &mut *font, first_val_hash)
 
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
         // Font Size
-        if(!cssParser.parseLength(parser, builder, font.size)) {
+        if(!cssParser.parseLength(parser, builder, &mut font.size)) {
             parser.error("couldn't parse length");
         }
         const next = parser.getToken();
         if(next.type == TokenType.Divide) {
             parser.increment()
             // Line Height
-            if(!cssParser.parseNumberOrLength(parser, builder, font.lineHeight)) {
+            if(!cssParser.parseNumberOrLength(parser, builder, &mut font.lineHeight)) {
                 parser.error("expected line height value after the length");
             }
         }
@@ -159,7 +159,7 @@ func (cssParser : &mut CSSParser) parseFont(
         const fontSizeKind = getFontSizeKeywordKind(token.fnv1())
         if(fontSizeKind != CSSKeywordKind.Unknown) {
             parser.increment()
-            alloc_value_keyword(builder, font.size, fontSizeKind, token.value)
+            alloc_value_keyword(builder, &mut font.size, fontSizeKind, &token.value)
         } else {
             parser.error("unknown keyword for font size");
         }
@@ -167,7 +167,7 @@ func (cssParser : &mut CSSParser) parseFont(
         parser.error("expected a font size after the font keyword values");
     }
 
-    parser.parseFontFamiliesList(builder, font.family)
+    parser.parseFontFamiliesList(builder, &mut font.family)
 
 }
 
@@ -185,7 +185,7 @@ func (cssParser : &mut CSSParser) parseFontFamily(
     if((token.type == TokenType.Identifier || token.type == TokenType.PropertyName) && token.value.equals("var")) {
         parser.increment()
         const fontVar = cssParser.parseCSSVariableFunc(parser, builder)
-        alloc_value_length_var(parser, builder, value, fontVar)
+        alloc_value_length_var(parser, builder, value, &fontVar)
         return;
     }
 
@@ -195,6 +195,6 @@ func (cssParser : &mut CSSParser) parseFontFamily(
     value.kind = CSSValueKind.FontFamily
     value.data = family
 
-    parser.parseFontFamiliesList(builder, *family)
+    parser.parseFontFamiliesList(builder, &mut *family)
 
 }

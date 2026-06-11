@@ -55,7 +55,7 @@ func append_css_key(out : &mut std::string, key : std::string_view) : bool {
     }
     if(k.empty()) return false;
     if(k.size() >= 2 && k.get(0) == '-' && k.get(1) == '-') {
-        out.append_view(k);
+        out.append_view(&k);
         return true;
     }
     for(var i : uint = 0; i < k.size(); i++) {
@@ -124,7 +124,7 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
                 if(prev != null && prev.kind == JsNodeKind.VarDecl) {
                     const decl = prev as *mut JsVarDecl;
                     const declValue = unwrap_returned_jsx_node(decl.value);
-                    if(decl.name.equals(id.value) && declValue != null && (declValue.kind == JsNodeKind.JSXElement || declValue.kind == JsNodeKind.JSXFragment)) {
+                    if(decl.name.equals(&id.value) && declValue != null && (declValue.kind == JsNodeKind.JSXElement || declValue.kind == JsNodeKind.JSXFragment)) {
                         return declValue;
                     }
                 }

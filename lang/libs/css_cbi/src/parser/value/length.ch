@@ -82,7 +82,7 @@ func parseLengthKindSafe(parser : *mut Parser, builder : *mut ASTBuilder) : CSSL
         parser.increment();
         return CSSLengthKind.LengthPERCENTAGE
     } else if(token.type == TokenType.Identifier) {
-        const k = getLengthKind(token.value)
+        const k = getLengthKind(&token.value)
         if(k != CSSLengthKind.Unknown) {
             parser.increment();
         }
@@ -99,7 +99,7 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
         return CSSLengthKind.LengthPERCENTAGE
     } else if(token.type == TokenType.Identifier) {
         parser.increment();
-        const kind = getLengthKind(token.value)
+        const kind = getLengthKind(&token.value)
         if(kind != CSSLengthKind.Unknown) {
             return kind;
         } else {
@@ -123,7 +123,7 @@ func (cssParser : &mut CSSParser) parseLengthInto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            length.value = builder.allocate_view(token.value)
+            length.value = builder.allocate_view(&token.value)
             const lenKind = parseLengthKindSafe(parser, builder)
             if(lenKind != CSSLengthKind.Unknown) {
                 length.kind = lenKind
@@ -144,7 +144,7 @@ func (cssParser : &mut CSSParser) parseLengthInto(
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
-                length.value = builder.allocate_view(view2)
+                length.value = builder.allocate_view(&view2)
                 length.kind = CSSLengthKind.Variable
                 return true;
             } else {
@@ -170,14 +170,14 @@ func (cssParser: &mut CSSParser) parseNumberInto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            length.value = builder.allocate_view(token.value)
+            length.value = builder.allocate_view(&token.value)
             return true;
         }
         TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
-                length.value = builder.allocate_view(view2)
+                length.value = builder.allocate_view(&view2)
                 length.kind = CSSLengthKind.Variable
                 return true;
             } else {
@@ -203,7 +203,7 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            length.value = builder.allocate_view(token.value)
+            length.value = builder.allocate_view(&token.value)
             const lengthKind = parseLengthKindSafe(parser, builder);
             if(lengthKind == CSSLengthKind.Unknown) {
                 length.kind = CSSLengthKind.None
@@ -216,7 +216,7 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
             if(token.value.equals("var")) {
                 parser.increment()
                 const view2 = cssParser.parseCSSVariableFunc(parser, builder)
-                length.value = builder.allocate_view(view2)
+                length.value = builder.allocate_view(&view2)
                 length.kind = CSSLengthKind.Variable
                 return true;
             } else {
@@ -244,7 +244,7 @@ func (cssParser : &mut CSSParser) parseLength(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value, required_unit)
+            alloc_value_length(parser, builder, value, &token.value, required_unit)
             return true;
         }
         TokenType.LBrace, TokenType.DollarLBrace => {
@@ -255,7 +255,7 @@ func (cssParser : &mut CSSParser) parseLength(
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                alloc_value_length_var(parser, builder, value, colorValue)
+                alloc_value_length_var(parser, builder, value, &colorValue)
                 return true;
             } else if(token.value.equals("calc")) {
                 parser.increment();
@@ -281,7 +281,7 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_num_length(parser, builder, value, token.value)
+            alloc_value_num_length(parser, builder, value, &token.value)
             return true;
         }
         TokenType.LBrace, TokenType.DollarLBrace => {
@@ -292,7 +292,7 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                alloc_value_length_var(parser, builder, value, colorValue)
+                alloc_value_length_var(parser, builder, value, &colorValue)
                 return true;
             } else if(token.value.equals("calc")) {
                 parser.increment();
@@ -317,14 +317,14 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_number(builder, value, token.value)
+            alloc_value_number(builder, value, &token.value)
             return true;
         }
         TokenType.Identifier => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                alloc_value_length_var(parser, builder, value, colorValue)
+                alloc_value_length_var(parser, builder, value, &colorValue)
                 return true;
             } else if(token.value.equals("calc")) {
                 parser.increment();
@@ -332,7 +332,7 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
                 return true;
             } else if(token.value.equals("auto")) {
                 parser.increment();
-                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
+                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, &token.value);
                 return true;
             } else {
                 return false;
@@ -357,14 +357,14 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value)
+            alloc_value_length(parser, builder, value, &token.value)
             return true;
         }
         TokenType.Identifier => {
             if(token.value.equals("var")) {
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                alloc_value_length_var(parser, builder, value, colorValue)
+                alloc_value_length_var(parser, builder, value, &colorValue)
                 return true;
             } else if(token.value.equals("calc")) {
                 parser.increment();
@@ -372,7 +372,7 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
                 return true;
             } else if(token.value.equals("auto")) {
                 parser.increment();
-                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
+                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, &token.value);
                 return true;
             } else {
                 return false;

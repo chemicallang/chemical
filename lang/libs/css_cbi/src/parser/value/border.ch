@@ -49,17 +49,17 @@ func (cssParser : &mut CSSParser) parseBorder(
         const token = parser.getToken();
         switch(token.type) {
             TokenType.Number => {
-                if(!cssParser.parseLength(parser, builder, border.width)) {
+                if(!cssParser.parseLength(parser, builder, &mut border.width)) {
                     parser.error("expected a length in border");
                 }
                 has_length = true;
             }
             TokenType.LBrace, TokenType.DollarLBrace => {
                 if(!has_length) {
-                    cssParser.parseLength(parser, builder, border.width);
+                    cssParser.parseLength(parser, builder, &mut border.width);
                     has_length = true;
                 } else {
-                    cssParser.parseCSSColor(parser, builder, border.color);
+                    cssParser.parseCSSColor(parser, builder, &mut border.color);
                 }
             }
             TokenType.Identifier => {
@@ -69,33 +69,33 @@ func (cssParser : &mut CSSParser) parseBorder(
                     var valueRef : *mut CSSValue
                     if(has_length) {
                         if(has_style) {
-                            valueRef = &mut border.color
+                            valueRef = &raw mut border.color
                         } else {
-                            valueRef = &mut border.style
+                            valueRef = &raw mut border.style
                         }
                     } else {
-                        valueRef = &mut border.width
+                        valueRef = &raw mut border.width
                     }
-                    alloc_value_length_var(parser, builder, *valueRef, colorValue)
+                    alloc_value_length_var(parser, builder, &mut *valueRef, &colorValue)
                 } else {
-                    const style = getLineStyleKeyword(token.value)
+                    const style = getLineStyleKeyword(&token.value)
                     if(style != CSSKeywordKind.Unknown) {
                         parser.increment()
-                        alloc_value_keyword(builder, border.style, style, token.value)
+                        alloc_value_keyword(builder, &mut border.style, style, &token.value)
                         if(has_style) {
                             parser.error("there should be a single style in border")
                         }
                         has_style = true;
                         continue;
                     } else {
-                        const width = getLineWidthKeyword(token.value);
+                        const width = getLineWidthKeyword(&token.value);
                         if(width != CSSKeywordKind.Unknown) {
                             parser.increment()
-                            alloc_value_keyword(builder, border.width, width, token.value)
+                            alloc_value_keyword(builder, &mut border.width, width, &token.value)
                             continue;
                         }
                     }
-                    if(cssParser.parseCSSColor(parser, builder, border.color)) {
+                    if(cssParser.parseCSSColor(parser, builder, &mut border.color)) {
                         return;
                     } else {
                         parser.error("expected a css color");
@@ -106,7 +106,7 @@ func (cssParser : &mut CSSParser) parseBorder(
                 return;
             }
             default => {
-                if(!cssParser.parseCSSColor(parser, builder, border.color)) {
+                if(!cssParser.parseCSSColor(parser, builder, &mut border.color)) {
                     parser.error("unknown value token in border");
                 }
             }

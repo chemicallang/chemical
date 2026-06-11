@@ -41,7 +41,7 @@ func (cssParser : &mut CSSParser) parseFitContentCall(
     value.data = funcData
 
     funcData.name = CSSKeywordValueData { value : std::string_view("fit-content"), kind : CSSKeywordKind.FitContent }
-    if(!cssParser.parseLengthInto(parser, builder, funcData.length)) {
+    if(!cssParser.parseLengthInto(parser, builder, &mut funcData.length)) {
         parser.error("expected a length for fit-content");
     }
 
@@ -64,7 +64,7 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value)
+            alloc_value_length(parser, builder, value, &token.value)
             return;
         }
         TokenType.Identifier => {
@@ -74,7 +74,7 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
                 CSSKeywordKind.Var => {
                     parser.increment()
                     const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                    alloc_value_length_var(parser, builder, value, colorValue)
+                    alloc_value_length_var(parser, builder, value, &colorValue)
                     return;
                 }
                 CSSKeywordKind.CalcSize => {
@@ -99,7 +99,7 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
                     if(next.type == TokenType.LParen) {
                         cssParser.parseFitContentCall(parser, builder, value)
                     } else {
-                        alloc_value_keyword(builder, value, kind, token.value);
+                        alloc_value_keyword(builder, value, kind, &token.value);
                         return;
                     }
                 }
@@ -108,7 +108,7 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
                 }
                 default => {
                     parser.increment();
-                    alloc_value_keyword(builder, value, kind, token.value);
+                    alloc_value_keyword(builder, value, kind, &token.value);
                     return;
                 }
             }

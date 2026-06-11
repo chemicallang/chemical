@@ -68,7 +68,7 @@ public func md_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValu
     
     var converter = MdConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent,
         str : std::string()
@@ -77,7 +77,7 @@ public func md_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValu
     converter.convertMdRoot(root);
     
     const view = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(view, loc)
+    const strValue = builder.make_string_value(&view, loc)
     block_val.setCalculatedValue(strValue)
     return block_val;
 }
@@ -105,7 +105,7 @@ public func md_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedN
     var scope_nodes = scope.getNodes();
     var converter = MdConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent,
         str : std::string()
@@ -144,7 +144,7 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
         return nested;
     }
 
-    const provider = &lexer.provider;
+    var provider = &lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data();
 
@@ -238,7 +238,7 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
         }
         '#' => {
             // Check for #endmd
-            if(isEndMd(provider)) {
+            if(isEndMd(&raw provider)) {
                 // Consume "endmd"
                 provider.readCharacter(); // e
                 provider.readCharacter(); // n

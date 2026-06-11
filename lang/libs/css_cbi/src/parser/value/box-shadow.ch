@@ -35,13 +35,13 @@ func (cssParser : &mut CSSParser) parseBoxShadow(
             }
 
             // Check if this token is a length.
-            if(cssParser.parseLength(parser, builder, lengths[lenInd])) {
+            if(cssParser.parseLength(parser, builder, &mut lengths[lenInd])) {
                 lenInd++;
                 continue; // Process next token.
             }
 
             // We allow only one color per shadow.
-            if(shadow.color.kind == CSSValueKind.Unknown && cssParser.parseCSSColor(parser, builder, shadow.color)) {
+            if(shadow.color.kind == CSSValueKind.Unknown && cssParser.parseCSSColor(parser, builder, &mut shadow.color)) {
                 continue;
             }
 

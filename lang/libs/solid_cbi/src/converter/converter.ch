@@ -90,7 +90,7 @@ func (converter : &mut JsConverter) make_require_component_call(hash : size_t) :
     const support = converter.support;
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
@@ -160,8 +160,8 @@ func (converter : &mut JsConverter) make_char_chain(value : char) : *mut Functio
     var name = std::string_view("append_head_js_char")
     var fnPtr = converter.support.appendHeadJsCharFn
 
-    var id = builder.make_identifier(name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     const char_val = builder.make_char_value(value, location);
@@ -173,8 +173,8 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var id = builder.make_identifier(fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -211,8 +211,8 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var name = std::string_view("append_head_js")
     
-    var id = builder.make_identifier(name, converter.support.appendHeadJsFn, false, location);
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base, id ]), location)
+    var id = builder.make_identifier(&name, converter.support.appendHeadJsFn, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
@@ -229,7 +229,7 @@ func (converter : &mut JsConverter) put_chain_in() {
     
     const location = intrinsics::get_raw_location();
     const str_view = converter.builder.allocate_view(converter.str.to_view());
-    const val = converter.builder.make_string_value(str_view, location);
+    const val = converter.builder.make_string_value(&str_view, location);
     const call = converter.make_value_call(val, converter.str.size());
     converter.vec.push(call as *mut ASTNode);
     converter.str.clear();
@@ -321,12 +321,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.escapeJs(val.subview(1, val.size() - 1));
                 converter.str.append(val.get(0));
             } else {
-                converter.str.append_view(lit.value);
+                converter.str.append_view(&lit.value);
             }
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
-            converter.str.append_view(id.value);
+            converter.str.append_view(&id.value);
         }
         JsNodeKind.ChemicalValue => {
             converter.convertChemicalValue(node as *mut JsChemicalValue);
@@ -334,14 +334,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.UnaryOp => {
             var unary = node as *mut JsUnaryOp
             if(unary.prefix) {
-                converter.str.append_view(unary.operator);
+                converter.str.append_view(&unary.operator);
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                     converter.str.append_view(" ")
                 }
                 converter.convertJsNode(unary.operand);
             } else {
                 converter.convertJsNode(unary.operand);
-                converter.str.append_view(unary.operator);
+                converter.str.append_view(&unary.operator);
             }
         }
         JsNodeKind.BinaryOp => {
@@ -354,7 +354,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.convertJsNode(bin.left);
             }
             converter.str.append_view(" ");
-            converter.str.append_view(bin.op);
+            converter.str.append_view(&bin.op);
             converter.str.append_view(" ");
             if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                 converter.str.append_view("(");
@@ -379,7 +379,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(call.callee.kind == JsNodeKind.Identifier) {
                 var id = call.callee as *mut JsIdentifier
                 var name = id.value
-                switch(fnv1_hash_view(name)) {
+                switch(fnv1_hash_view(&name)) {
                     comptime_fnv1_hash("createSignal"), 
                     comptime_fnv1_hash("createEffect"), 
                     comptime_fnv1_hash("createMemo"), 
@@ -405,7 +405,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var mem = node as *mut JsMemberAccess
             converter.convertJsNode(mem.object);
             converter.str.append_view(".");
-            converter.str.append_view(mem.property);
+            converter.str.append_view(&mem.property);
         }
         JsNodeKind.IndexAccess => {
             var idx = node as *mut JsIndexAccess
@@ -433,7 +433,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                     converter.convertJsNode(prop.value);
                 } else {
-                    converter.str.append_view(prop.key);
+                    converter.str.append_view(&prop.key);
                     converter.str.append_view(": ");
                     converter.convertJsNode(prop.value);
                 }
@@ -447,7 +447,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              for(var i : uint = 0; i < arrow.params.size(); i++) {
                  if(i > 0) converter.str.append_view(", ");
                  var param = arrow.params.get_ptr(i);
-                 converter.str.append_view(param.name);
+                 converter.str.append_view(&param.name);
                  if(param.default_value != null) {
                      converter.str.append_view(" = ");
                      converter.convertJsNode(param.default_value);
@@ -472,12 +472,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.VarDecl => {
              var decl = node as *mut JsVarDecl
-             converter.str.append_view(decl.keyword);
+             converter.str.append_view(&decl.keyword);
              converter.str.append_view(" ");
              if(decl.pattern != null) {
                  converter.convertJsNode(decl.pattern);
              } else {
-                 converter.str.append_view(decl.name);
+                 converter.str.append_view(&decl.name);
              }
              if(decl.value != null) {
                  converter.str.append_view(" = ");
@@ -594,18 +594,18 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // 1. Record Index
         const location = intrinsics::get_raw_location();
         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var base = builder.make_identifier(element.componentSignature.name, converter.support.getHtmlSizeFn, false, location)
-        var chain = builder.make_access_chain(std::span<*mut Value>([ pageId, base ]), location)
+        var base = builder.make_identifier(&element.componentSignature.name, converter.support.getHtmlSizeFn, false, location)
+        var chain = builder.make_access_chain(&std::span<*mut Value>([ pageId, base ]), location)
         var getSizeCall = builder.make_function_call_value(chain, location)
         var idxName = std::string("startIdx_")
         idxName.append_uinteger(element.loc);
         const idxNameView = builder.allocate_view(idxName.to_view())
-        const startIdxInit = builder.make_varinit_stmt(true, false, idxNameView, converter.builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
-        var startIdxId = builder.make_identifier(idxNameView, startIdxInit, false, location)
+        const startIdxInit = builder.make_varinit_stmt(true, false, &idxNameView, converter.builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+        var startIdxId = builder.make_identifier(&idxNameView, startIdxInit, false, location)
         converter.vec.push(startIdxInit)
 
         // 2. Call UniversalComponent(page, attrs) to ensure JS generation
-        var componentFuncId = converter.builder.make_identifier(element.componentSignature.name, componentFunc, false, location)
+        var componentFuncId = converter.builder.make_identifier(&element.componentSignature.name, componentFunc, false, location)
         var call = converter.builder.make_function_call_node(componentFuncId, converter.parent, location)
         call.get_args().push(pageId)
         const ssrAttrs = converter.build_ssr_attributes(element);
@@ -630,7 +630,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // the component name is passed to the hydration call
         if(tagNameNode.kind == JsNodeKind.Identifier) {
             converter.str.append('"');
-            get_module_scoped_name(componentFunc, tagName, converter.str);
+            get_module_scoped_name(componentFunc, tagName, &mut converter.str);
             converter.str.append('"');
         } else {
             converter.convertJsNode(tagNameNode);
@@ -642,7 +642,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             if(attrNode.kind == JsNodeKind.JSXAttribute) {
                 const attr = attrNode as *mut JsJSXAttribute
                 converter.str.append_view("\"");
-                converter.str.append_view(attr.name);
+                converter.str.append_view(&attr.name);
                 converter.str.append_view("\": ");
                 converter.convertAttributeValue(attr, true);
             } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
@@ -671,9 +671,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
         if(element.componentSignature != null) {
-            get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, converter.str);
+            get_module_scoped_name(element.componentSignature.functionNode as *mut ASTNode, tagName, &mut converter.str);
         } else {
-            converter.str.append_view(tagName);
+            converter.str.append_view(&tagName);
         }
     } else {
         converter.convertJsNode(tagNameNode);
@@ -709,13 +709,13 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
             if(!isEventHandler && !alreadyFunc && expr != null && converter.containsFunctionCall(expr)) {
                 converter.str.append_view("get [\"");
-                converter.str.append_view(attr.name);
+                converter.str.append_view(&attr.name);
                 converter.str.append_view("\"]() { return ");
                 converter.convertJsNode(expr);
                 converter.str.append_view("; }");
             } else {
                 converter.str.append_view("\"");
-                converter.str.append_view(attr.name);
+                converter.str.append_view(&attr.name);
                 converter.str.append_view("\": ");
                 if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
             }
@@ -760,7 +760,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
  func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
     converter.str.append_view("$_sh(\"");
-    converter.str.append_view(tagName);
+    converter.str.append_view(&tagName);
     converter.str.append_view("\", ");
     
     var hasSpread = false;
@@ -844,13 +844,13 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
                 if(!isEventHandler && !alreadyFunc && expr != null && converter.containsFunctionCall(expr)) {
                     converter.str.append_view("get [\"");
-                    converter.str.append_view(attr.name);
+                    converter.str.append_view(&attr.name);
                     converter.str.append_view("\"]() { return ");
                     converter.convertJsNode(expr);
                     converter.str.append_view("; }");
                 } else {
                     converter.str.append_view("\"");
-                    converter.str.append_view(attr.name);
+                    converter.str.append_view(&attr.name);
                     converter.str.append_view("\": ");
                     if(expr != null) converter.convertJsNode(expr); else converter.str.append_view("true");
                 }

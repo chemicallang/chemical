@@ -86,7 +86,7 @@ func (cssParser : &mut CSSParser) parseCustomPropertyValue(
             }
         }
 
-        raw.append_view(token.value)
+        raw.append_view(&token.value)
         prev_type = token.type as TokenType
         prev_val = token.value
         first = false
@@ -127,7 +127,7 @@ func (cssParser : &mut CSSParser) parseRawPropertyValue(
             }
         }
 
-        raw.append_view(token.value)
+        raw.append_view(&token.value)
         prev_type = token.type as TokenType
         prev_val = token.value
         first = false
@@ -168,7 +168,7 @@ func (cssParser : &mut CSSParser) parseRawFunctionValue(
             }
         }
 
-        raw.append_view(token.value)
+        raw.append_view(&token.value)
 
         if(token.type == TokenType.LParen) {
             depth++;
@@ -247,29 +247,29 @@ func (cssParser : &mut CSSParser) parseRandomIdentifierValue(
                 image.is_url = true;
                 if(hash == comptime_fnv1_hash("src")) {
                     image.url.is_source = true;
-                    cssParser.parseUrlValue(parser, builder, image.url)
+                    cssParser.parseUrlValue(parser, builder, &mut image.url)
                 } else if(hash == comptime_fnv1_hash("url")) {
-                    cssParser.parseUrlValue(parser, builder, image.url)
+                    cssParser.parseUrlValue(parser, builder, &mut image.url)
                 } else {
                     image.is_url = false;
                     switch(hash) {
                         comptime_fnv1_hash("linear-gradient") => {
-                            cssParser.parseLinearGradient(parser, builder, image.gradient, false)
+                            cssParser.parseLinearGradient(parser, builder, &mut image.gradient, false)
                         }
                         comptime_fnv1_hash("repeating-linear-gradient") => {
-                            cssParser.parseLinearGradient(parser, builder, image.gradient, true)
+                            cssParser.parseLinearGradient(parser, builder, &mut image.gradient, true)
                         }
                         comptime_fnv1_hash("radial-gradient") => {
-                            cssParser.parseRadialGradient(parser, builder, image.gradient, false)
+                            cssParser.parseRadialGradient(parser, builder, &mut image.gradient, false)
                         }
                         comptime_fnv1_hash("repeating-radial-gradient") => {
-                            cssParser.parseRadialGradient(parser, builder, image.gradient, true)
+                            cssParser.parseRadialGradient(parser, builder, &mut image.gradient, true)
                         }
                         comptime_fnv1_hash("conic-gradient") => {
-                            cssParser.parseConicGradient(parser, builder, image.gradient, false)
+                            cssParser.parseConicGradient(parser, builder, &mut image.gradient, false)
                         }
                         default => {
-                            cssParser.parseConicGradient(parser, builder, image.gradient, true)
+                            cssParser.parseConicGradient(parser, builder, &mut image.gradient, true)
                         }
                     }
                 }
@@ -289,7 +289,7 @@ func (cssParser : &mut CSSParser) parseRandomIdentifierValue(
     }
 
     parser.increment();
-    alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, token.value);
+    alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, &token.value);
     return true;
 }
 
@@ -298,14 +298,14 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value, false);
+            alloc_value_length(parser, builder, value, &token.value, false);
             return true;
         }
         TokenType.Identifier, TokenType.PropertyName => {
             return cssParser.parseRandomIdentifierValue(parser, builder, value, token);
         }
         TokenType.HexColor => {
-            cssParser.parseHexColor(parser, builder, token.value, value);
+            cssParser.parseHexColor(parser, builder, &token.value, value);
             parser.increment();
             return true;
         }
@@ -318,7 +318,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             const val = std::string_view(token.value.data() + 1, token.value.size() - 2);
             var str_data = builder.allocate<CSSStringValueData>();
             new (str_data) CSSStringValueData {
-                value : builder.allocate_view(val)
+                value : builder.allocate_view(&val)
             }
             value.kind = CSSValueKind.String;
             value.data = str_data;
@@ -366,13 +366,13 @@ func (cssParser : &mut CSSParser) parseValue(
         return;
     }
     if(valueTok.type == TokenType.Identifier) {
-        const globalKind = getCSSGlobalKeywordKind(valueTok.value);
+        const globalKind = getCSSGlobalKeywordKind(&valueTok.value);
         if(globalKind != CSSKeywordKind.Unknown) {
             parser.increment();
             var kw_value = builder.allocate<CSSKeywordValueData>();
             new (kw_value) CSSKeywordValueData {
                 kind : globalKind,
-                value : builder.allocate_view(valueTok.value)
+                value : builder.allocate_view(&valueTok.value)
             }
             value.kind = CSSValueKind.Keyword;
             value.data = kw_value;
@@ -432,7 +432,7 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
     new (decl) CSSDeclaration {
         property : CSSProperty {
             kind : CSSPropertyKind.Unknown,
-            name : builder.allocate_view(token.value)
+            name : builder.allocate_view(&token.value)
         },
         value : CSSValue {
             kind : CSSValueKind.Unknown,
@@ -441,10 +441,10 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         important : false
     }
 
-    if(is_custom_property_name(token.value)) {
-        cssParser.parseCustomPropertyValue(parser, builder, decl.value);
+    if(is_custom_property_name(&token.value)) {
+        cssParser.parseCustomPropertyValue(parser, builder, &mut decl.value);
     } else {
-        cssParser.parseValue(parser, builder, decl.value, token.value);
+        cssParser.parseValue(parser, builder, &mut decl.value, &token.value);
     }
     
     if(parser.increment_if(TokenType.Important as int)) {

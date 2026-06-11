@@ -1264,7 +1264,7 @@ func (parser : &mut Parser) wrong_val_kw_err(prop : &std::string_view) {
 }
 
 func (token : &mut Token) fnv1() : size_t {
-    return fnv1_hash_view(token.value)
+    return fnv1_hash_view(&token.value)
 }
 
 func (cssParser : &mut CSSParser) parseKeywordProperty(
@@ -1288,7 +1288,7 @@ func (cssParser : &mut CSSParser) parseKeywordProperty(
         parser.wrong_val_kw_err(propName);
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value);
+    alloc_value_keyword(builder, value, kind, &token.value);
 }
 
 func (cssParser : &mut CSSParser) parseFontWeight(
@@ -1303,10 +1303,10 @@ func (cssParser : &mut CSSParser) parseFontWeight(
             parser.wrong_val_kw_err("font-weight")
         }
         parser.increment();
-        alloc_value_keyword(builder, value, kind, token.value)
+        alloc_value_keyword(builder, value, kind, &token.value)
     } else if(token.type == TokenType.Number) {
         parser.increment();
-        alloc_value_number(builder, value, token.value);
+        alloc_value_number(builder, value, &token.value);
     } else {
         parser.wrong_val_kw_err("font-weight");
         return;
@@ -1325,10 +1325,10 @@ func (cssParser : &mut CSSParser) parseFontSize(
             parser.wrong_val_kw_err("font-size");
         }
         parser.increment();
-        alloc_value_keyword(builder, value, kind, token.value)
+        alloc_value_keyword(builder, value, kind, &token.value)
     } else if(token.type == TokenType.Number) {
         parser.increment();
-        alloc_value_length(parser, builder, value, token.value);
+        alloc_value_length(parser, builder, value, &token.value);
     } else {
         parser.wrong_val_kw_err("font-size");
         return;
@@ -1390,7 +1390,7 @@ func (cssParser : &mut CSSParser) parseClear(
         parser.wrong_val_kw_err("clear");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseVerticalAlign(
@@ -1408,7 +1408,7 @@ func (cssParser : &mut CSSParser) parseVerticalAlign(
         parser.wrong_val_kw_err("vertical-align");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseWhitespace(
@@ -1426,7 +1426,7 @@ func (cssParser : &mut CSSParser) parseWhitespace(
         parser.wrong_val_kw_err("white-space");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseTextTransform(
@@ -1444,7 +1444,7 @@ func (cssParser : &mut CSSParser) parseTextTransform(
         parser.wrong_val_kw_err("text-transform");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseVisibility(
@@ -1462,7 +1462,7 @@ func (cssParser : &mut CSSParser) parseVisibility(
         parser.wrong_val_kw_err("visibility");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseCursor(
@@ -1480,7 +1480,7 @@ func (cssParser : &mut CSSParser) parseCursor(
         parser.wrong_val_kw_err("cursor");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseDirection(
@@ -1498,7 +1498,7 @@ func (cssParser : &mut CSSParser) parseDirection(
         parser.wrong_val_kw_err("direction");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseResize(
@@ -1516,7 +1516,7 @@ func (cssParser : &mut CSSParser) parseResize(
         parser.wrong_val_kw_err("resize");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseTableLayout(
@@ -1534,7 +1534,7 @@ func (cssParser : &mut CSSParser) parseTableLayout(
         parser.wrong_val_kw_err("table-layout");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseBorderCollapse(
@@ -1552,7 +1552,7 @@ func (cssParser : &mut CSSParser) parseBorderCollapse(
         parser.wrong_val_kw_err("border-collapse");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseTextOverflow(
@@ -1570,7 +1570,7 @@ func (cssParser : &mut CSSParser) parseTextOverflow(
         parser.wrong_val_kw_err("text-overflow");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseOverflowWrap(
@@ -1588,7 +1588,7 @@ func (cssParser : &mut CSSParser) parseOverflowWrap(
         parser.wrong_val_kw_err("overflow-wrap");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseWordBreak(
@@ -1606,7 +1606,7 @@ func (cssParser : &mut CSSParser) parseWordBreak(
         parser.wrong_val_kw_err("word-break");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseObjectFit(
@@ -1624,7 +1624,7 @@ func (cssParser : &mut CSSParser) parseObjectFit(
         parser.wrong_val_kw_err("object-fit");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseImageRendering(
@@ -1642,7 +1642,7 @@ func (cssParser : &mut CSSParser) parseImageRendering(
         parser.wrong_val_kw_err("image-rendering");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseBackFaceVisibilityValue(
@@ -1660,7 +1660,7 @@ func (cssParser : &mut CSSParser) parseBackFaceVisibilityValue(
         parser.wrong_val_kw_err("backface-visibility");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseFontStyleValue(
@@ -1678,7 +1678,7 @@ func (cssParser : &mut CSSParser) parseFontStyleValue(
         parser.wrong_val_kw_err("font-style");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseFontVariantValue(
@@ -1696,7 +1696,7 @@ func (cssParser : &mut CSSParser) parseFontVariantValue(
         parser.wrong_val_kw_err("font-variant");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseListStyleType(
@@ -1714,7 +1714,7 @@ func (cssParser : &mut CSSParser) parseListStyleType(
         parser.wrong_val_kw_err("list-style-type");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseListStylePosition(
@@ -1732,7 +1732,7 @@ func (cssParser : &mut CSSParser) parseListStylePosition(
         parser.wrong_val_kw_err("list-style-position");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseAlignItems(
@@ -1750,7 +1750,7 @@ func (cssParser : &mut CSSParser) parseAlignItems(
         parser.wrong_val_kw_err("align-items");
     }
     parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseAlignContent(
@@ -1807,7 +1807,7 @@ func (cssParser : &mut CSSParser) parseCaptionSide(
         parser.wrong_val_kw_err("caption-side")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseEmptyCells(
     parser : *mut Parser,
@@ -1824,7 +1824,7 @@ func (cssParser : &mut CSSParser) parseEmptyCells(
         parser.wrong_val_kw_err("empty-cells")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parsePageBreakInside(
     parser : *mut Parser,
@@ -1841,7 +1841,7 @@ func (cssParser : &mut CSSParser) parsePageBreakInside(
         parser.wrong_val_kw_err("page-break-inside")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parsePageBreakBefore(
     parser : *mut Parser,
@@ -1858,7 +1858,7 @@ func (cssParser : &mut CSSParser) parsePageBreakBefore(
         parser.wrong_val_kw_err("page-break-before")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parsePageBreakAfter(
     parser : *mut Parser,
@@ -1875,7 +1875,7 @@ func (cssParser : &mut CSSParser) parsePageBreakAfter(
         parser.wrong_val_kw_err("page-break-after")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseIsolation(
     parser : *mut Parser,
@@ -1892,7 +1892,7 @@ func (cssParser : &mut CSSParser) parseIsolation(
         parser.wrong_val_kw_err("isolation")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseMixBlendMode(
     parser : *mut Parser,
@@ -1909,7 +1909,7 @@ func (cssParser : &mut CSSParser) parseMixBlendMode(
         parser.wrong_val_kw_err("mix-blend-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseUserSelect(
     parser : *mut Parser,
@@ -1926,7 +1926,7 @@ func (cssParser : &mut CSSParser) parseUserSelect(
         parser.wrong_val_kw_err("user-select")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseScrollBehavior(
     parser : *mut Parser,
@@ -1943,7 +1943,7 @@ func (cssParser : &mut CSSParser) parseScrollBehavior(
         parser.wrong_val_kw_err("scroll-behavior")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseScrollSnapAlign(
     parser : *mut Parser,
@@ -1960,7 +1960,7 @@ func (cssParser : &mut CSSParser) parseScrollSnapAlign(
         parser.wrong_val_kw_err("scroll-snap-align")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseJustifyItems(
     parser : *mut Parser,
@@ -1977,7 +1977,7 @@ func (cssParser : &mut CSSParser) parseJustifyItems(
         parser.wrong_val_kw_err("justify-items")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseWritingMode(
     parser : *mut Parser,
@@ -1994,7 +1994,7 @@ func (cssParser : &mut CSSParser) parseWritingMode(
         parser.wrong_val_kw_err("writing-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseAnimationDirection(
     parser : *mut Parser,
@@ -2011,7 +2011,7 @@ func (cssParser : &mut CSSParser) parseAnimationDirection(
         parser.wrong_val_kw_err("animation-direction")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseAnimationFillMode(
     parser : *mut Parser,
@@ -2028,7 +2028,7 @@ func (cssParser : &mut CSSParser) parseAnimationFillMode(
         parser.wrong_val_kw_err("animation-fill-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseAnimationPlayState(
     parser : *mut Parser,
@@ -2045,7 +2045,7 @@ func (cssParser : &mut CSSParser) parseAnimationPlayState(
         parser.wrong_val_kw_err("animation-play-state")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseAppearance(
     parser : *mut Parser,
@@ -2062,7 +2062,7 @@ func (cssParser : &mut CSSParser) parseAppearance(
         parser.wrong_val_kw_err("appearance")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseOverflowAnchor(
     parser : *mut Parser,
@@ -2079,7 +2079,7 @@ func (cssParser : &mut CSSParser) parseOverflowAnchor(
         parser.wrong_val_kw_err("overflow-anchor")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseScrollSnapStop(
     parser : *mut Parser,
@@ -2096,7 +2096,7 @@ func (cssParser : &mut CSSParser) parseScrollSnapStop(
         parser.wrong_val_kw_err("scroll-snap-stop")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseClipRule(
     parser : *mut Parser,
@@ -2113,7 +2113,7 @@ func (cssParser : &mut CSSParser) parseClipRule(
         parser.wrong_val_kw_err("clip-rule")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseShapeRendering(
     parser : *mut Parser,
@@ -2130,7 +2130,7 @@ func (cssParser : &mut CSSParser) parseShapeRendering(
         parser.wrong_val_kw_err("shape-rendering")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseTextRendering(
     parser : *mut Parser,
@@ -2147,7 +2147,7 @@ func (cssParser : &mut CSSParser) parseTextRendering(
         parser.wrong_val_kw_err("text-rendering")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseTransformStyle(
     parser : *mut Parser,
@@ -2164,7 +2164,7 @@ func (cssParser : &mut CSSParser) parseTransformStyle(
         parser.wrong_val_kw_err("transform-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 func (cssParser : &mut CSSParser) parseUnicodeBidi(
     parser : *mut Parser,
@@ -2181,7 +2181,7 @@ func (cssParser : &mut CSSParser) parseUnicodeBidi(
         parser.wrong_val_kw_err("unicode-bidi")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseBackgroundRepeat(
@@ -2199,7 +2199,7 @@ func (cssParser : &mut CSSParser) parseBackgroundRepeat(
         parser.wrong_val_kw_err("background-repeat")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2218,7 +2218,7 @@ func (cssParser : &mut CSSParser) parseBackgroundAttachment(
         parser.wrong_val_kw_err("background-attachment")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2237,7 +2237,7 @@ func (cssParser : &mut CSSParser) parseBackgroundClip(
         parser.wrong_val_kw_err("background-clip")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2256,7 +2256,7 @@ func (cssParser : &mut CSSParser) parseBackgroundOrigin(
         parser.wrong_val_kw_err("background-origin")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2275,7 +2275,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSize(
         parser.wrong_val_kw_err("background-size")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2294,7 +2294,7 @@ func (cssParser : &mut CSSParser) parseBackgroundBlendMode(
         parser.wrong_val_kw_err("background-blend-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2313,7 +2313,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationLine(
         parser.wrong_val_kw_err("text-decoration-line")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2332,7 +2332,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationStyle(
         parser.wrong_val_kw_err("text-decoration-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2351,7 +2351,7 @@ func (cssParser : &mut CSSParser) parseTextAlignLast(
         parser.wrong_val_kw_err("text-align-last")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2370,7 +2370,7 @@ func (cssParser : &mut CSSParser) parseTextJustify(
         parser.wrong_val_kw_err("text-justify")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2389,7 +2389,7 @@ func (cssParser : &mut CSSParser) parseBoxSizing(
         parser.wrong_val_kw_err("box-sizing")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2408,7 +2408,7 @@ func (cssParser : &mut CSSParser) parsePointerEvents(
         parser.wrong_val_kw_err("pointer-events")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseGridAutoFlow(
@@ -2440,17 +2440,17 @@ func (cssParser : &mut CSSParser) parseGridAutoFlow(
     if(kind != CSSKeywordKind.Dense && next.type == TokenType.Identifier && next.value.equals(std::string_view("dense"))) {
         if(kind == CSSKeywordKind.Row) {
             parser.increment();
-            alloc_two_value_keywords(builder, value, kind, CSSKeywordKind.Dense, token.value, next.value);
+            alloc_two_value_keywords(builder, value, kind, CSSKeywordKind.Dense, &token.value, &next.value);
             return;
         } else if(kind == CSSKeywordKind.Column) {
             parser.increment();
-            alloc_two_value_keywords(builder, value, kind, CSSKeywordKind.Dense, token.value, next.value);
+            alloc_two_value_keywords(builder, value, kind, CSSKeywordKind.Dense, &token.value, &next.value);
             return;
         } else {
             parser.wrong_val_kw_err("grid-auto-flow")
         }
     }
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseBorderImageRepeat(
@@ -2468,7 +2468,7 @@ func (cssParser : &mut CSSParser) parseBorderImageRepeat(
         parser.wrong_val_kw_err("border-image-repeat")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2487,7 +2487,7 @@ func (cssParser : &mut CSSParser) parseBreakAfter(
         parser.wrong_val_kw_err("break-after")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2506,7 +2506,7 @@ func (cssParser : &mut CSSParser) parseBreakBefore(
         parser.wrong_val_kw_err("break-before")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2525,7 +2525,7 @@ func (cssParser : &mut CSSParser) parseBreakInside(
         parser.wrong_val_kw_err("break-inside")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2544,7 +2544,7 @@ func (cssParser : &mut CSSParser) parseColumnRuleStyle(
         parser.wrong_val_kw_err("column-rule-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2563,7 +2563,7 @@ func (cssParser : &mut CSSParser) parseColumnSpan(
         parser.wrong_val_kw_err("column-span")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2582,7 +2582,7 @@ func (cssParser : &mut CSSParser) parseColumnFill(
         parser.wrong_val_kw_err("column-fill")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2601,7 +2601,7 @@ func (cssParser : &mut CSSParser) parseBoxDecorationBreak(
         parser.wrong_val_kw_err("box-decoration-break")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2620,7 +2620,7 @@ func (cssParser : &mut CSSParser) parseMaskMode(
         parser.wrong_val_kw_err("mask-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2639,7 +2639,7 @@ func (cssParser : &mut CSSParser) parseMaskRepeat(
         parser.wrong_val_kw_err("mask-repeat")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2658,7 +2658,7 @@ func (cssParser : &mut CSSParser) parseMaskClip(
         parser.wrong_val_kw_err("mask-clip")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2677,7 +2677,7 @@ func (cssParser : &mut CSSParser) parseMaskComposite(
         parser.wrong_val_kw_err("mask-composite")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2696,7 +2696,7 @@ func (cssParser : &mut CSSParser) parseMaskType(
         parser.wrong_val_kw_err("mask-type")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2715,7 +2715,7 @@ func (cssParser : &mut CSSParser) parseScrollbarWidth(
         parser.wrong_val_kw_err("scrollbar-width")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2734,7 +2734,7 @@ func (cssParser : &mut CSSParser) parseTouchAction(
         parser.wrong_val_kw_err("touch-action")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2753,7 +2753,7 @@ func (cssParser : &mut CSSParser) parseHyphens(
         parser.wrong_val_kw_err("hyphens")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2772,7 +2772,7 @@ func (cssParser : &mut CSSParser) parseLineBreak(
         parser.wrong_val_kw_err("line-break")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2791,7 +2791,7 @@ func (cssParser : &mut CSSParser) parseTextEmphasisStyle(
         parser.wrong_val_kw_err("text-emphasis-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2810,7 +2810,7 @@ func (cssParser : &mut CSSParser) parseTextEmphasisPosition(
         parser.wrong_val_kw_err("text-emphasis-position")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2829,7 +2829,7 @@ func (cssParser : &mut CSSParser) parseTextOrientation(
         parser.wrong_val_kw_err("text-orientation")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2848,7 +2848,7 @@ func (cssParser : &mut CSSParser) parseRubyAlign(
         parser.wrong_val_kw_err("ruby-align")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2867,7 +2867,7 @@ func (cssParser : &mut CSSParser) parseRubyMerge(
         parser.wrong_val_kw_err("ruby-merge")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2886,7 +2886,7 @@ func (cssParser : &mut CSSParser) parseRubyPosition(
         parser.wrong_val_kw_err("ruby-position")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2905,7 +2905,7 @@ func (cssParser : &mut CSSParser) parseJustifySelf(
         parser.wrong_val_kw_err("justify-self")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2924,7 +2924,7 @@ func (cssParser : &mut CSSParser) parseContain(
         parser.wrong_val_kw_err("contain")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseOverscrollBehavior(
@@ -2942,7 +2942,7 @@ func (cssParser : &mut CSSParser) parseOverscrollBehavior(
         parser.wrong_val_kw_err("overscroll-behavior")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2961,7 +2961,7 @@ func (cssParser : &mut CSSParser) parsePageOrientation(
         parser.wrong_val_kw_err("page-orientation")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2980,7 +2980,7 @@ func (cssParser : &mut CSSParser) parseTextCombineUpright(
         parser.wrong_val_kw_err("text-combine-upright")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -2999,7 +2999,7 @@ func (cssParser : &mut CSSParser) parseFontKerning(
         parser.wrong_val_kw_err("font-kerning")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3018,7 +3018,7 @@ func (cssParser : &mut CSSParser) parseOutlineStyle(
         parser.wrong_val_kw_err("outline-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3037,7 +3037,7 @@ func (cssParser : &mut CSSParser) parseTransformBox(
         parser.wrong_val_kw_err("transform-box")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3056,7 +3056,7 @@ func (cssParser : &mut CSSParser) parseFontVariantCaps(
         parser.wrong_val_kw_err("font-variant-caps")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3075,7 +3075,7 @@ func (cssParser : &mut CSSParser) parseFontVariantNumeric(
         parser.wrong_val_kw_err("font-variant-numeric")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3094,7 +3094,7 @@ func (cssParser : &mut CSSParser) parseFontVariantEastAsian(
         parser.wrong_val_kw_err("font-variant-east-asian")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3113,7 +3113,7 @@ func (cssParser : &mut CSSParser) parseImageOrientation(
         parser.wrong_val_kw_err("image-orientation")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3132,7 +3132,7 @@ func (cssParser : &mut CSSParser) parseVectorEffect(
         parser.wrong_val_kw_err("vector-effect")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3151,7 +3151,7 @@ func (cssParser : &mut CSSParser) parseForcedColorAdjust(
         parser.wrong_val_kw_err("forced-color-adjust")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3170,7 +3170,7 @@ func (cssParser : &mut CSSParser) parseColorScheme(
         parser.wrong_val_kw_err("color-scheme")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3189,7 +3189,7 @@ func (cssParser : &mut CSSParser) parsePrintColorAdjust(
         parser.wrong_val_kw_err("print-color-adjust")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseBorderStyle(
@@ -3207,7 +3207,7 @@ func (cssParser : &mut CSSParser) parseBorderStyle(
         parser.wrong_val_kw_err("border-style")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3226,7 +3226,7 @@ func (cssParser : &mut CSSParser) parseAnimationTimingFunction(
         parser.wrong_val_kw_err("animation-timing-function")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3245,7 +3245,7 @@ func (cssParser : &mut CSSParser) parseMaskBorderMode(
         parser.wrong_val_kw_err("mask-border-mode")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3264,7 +3264,7 @@ func (cssParser : &mut CSSParser) parseMaskBorderRepeat(
         parser.wrong_val_kw_err("mask-border-repeat")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3283,7 +3283,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationSkipInk(
         parser.wrong_val_kw_err("text-decoration-skip-ink")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3302,7 +3302,7 @@ func (cssParser : &mut CSSParser) parseTextUnderlinePosition(
         parser.wrong_val_kw_err("text-underline-position")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 
@@ -3321,7 +3321,7 @@ func (cssParser : &mut CSSParser) parseFontOpticalSizing(
         parser.wrong_val_kw_err("font-optical-sizing")
     }
     parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, &token.value)
 }
 
 func (cssParser : &mut CSSParser) parseScrollbarGutter(
@@ -3336,16 +3336,16 @@ func (cssParser : &mut CSSParser) parseScrollbarGutter(
     }
     if(token.value.equals(std::string_view("auto"))) {
         parser.increment();
-        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value)
+        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, &token.value)
     } else if(token.value.equals(std::string_view("stable"))) {
         parser.increment();
         const next = parser.getToken();
         if(next.value.equals(std::string_view("both-edges"))) {
             parser.increment();
-            alloc_two_value_keywords(builder, value, CSSKeywordKind.Stable, CSSKeywordKind.BothEdges, token.value, next.value);
+            alloc_two_value_keywords(builder, value, CSSKeywordKind.Stable, CSSKeywordKind.BothEdges, &token.value, &next.value);
             return;
         }
-        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value)
+        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, &token.value)
     } else {
         parser.wrong_val_kw_err("scrollbar-gutter")
     }

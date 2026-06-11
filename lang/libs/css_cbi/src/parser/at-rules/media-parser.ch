@@ -1,7 +1,7 @@
 
 // Helper function to parse media type from identifier
 func parseMediaType(token : &Token) : MediaType {
-    const hash = fnv1_hash_view(token.value)
+    const hash = fnv1_hash_view(&token.value)
     switch(hash) {
         comptime_fnv1_hash("all") => { return MediaType.All }
         comptime_fnv1_hash("screen") => { return MediaType.Screen }
@@ -21,11 +21,11 @@ func (cssParser : &mut CSSParser) parseMediaFeatureValue(
     switch(token.type) {
         TokenType.Number => {
             parser.increment()
-            alloc_value_length(parser, builder, value, token.value)
+            alloc_value_length(parser, builder, value, &token.value)
         }
         TokenType.Identifier => {
             parser.increment()
-            alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, token.value)
+            alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, &token.value)
         }
         default => {
             parser.error("expected a value for media feature")
@@ -87,7 +87,7 @@ func (cssParser : &mut CSSParser) parseMediaFeature(
     // Check for range syntax: value < feature
     if(token.type == TokenType.Number) {
         // Range syntax: left value first
-        cssParser.parseMediaFeatureValue(parser, builder, feature.leftValue)
+        cssParser.parseMediaFeatureValue(parser, builder, &mut feature.leftValue)
         
         // Parse left operator
         feature.leftOp = parseComparisonOperator(parser)
@@ -98,7 +98,7 @@ func (cssParser : &mut CSSParser) parseMediaFeature(
         // Parse feature name
         token = parser.getToken()
         if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
-            feature.name = builder.allocate_view(token.value)
+            feature.name = builder.allocate_view(&token.value)
             parser.increment()
         } else {
             parser.error("expected feature name in media query")
@@ -107,12 +107,12 @@ func (cssParser : &mut CSSParser) parseMediaFeature(
         // Check for second comparison (e.g., width < 700px)
         feature.rightOp = parseComparisonOperator(parser)
         if(feature.rightOp != MediaFeatureComparison.None) {
-            cssParser.parseMediaFeatureValue(parser, builder, feature.rightValue)
+            cssParser.parseMediaFeatureValue(parser, builder, &mut feature.rightValue)
         }
         
     } else if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
         // Standard syntax: feature-name or feature-name: value
-        feature.name = builder.allocate_view(token.value)
+        feature.name = builder.allocate_view(&token.value)
         parser.increment()
         
         token = parser.getToken()
@@ -120,17 +120,17 @@ func (cssParser : &mut CSSParser) parseMediaFeature(
         if(token.type == TokenType.Colon) {
             parser.increment()
             // Parse value
-            cssParser.parseMediaFeatureValue(parser, builder, feature.value)
+            cssParser.parseMediaFeatureValue(parser, builder, &mut feature.value)
         } else {
             // Check for range syntax: feature > value
             feature.leftOp = parseComparisonOperator(parser)
             if(feature.leftOp != MediaFeatureComparison.None) {
-                cssParser.parseMediaFeatureValue(parser, builder, feature.leftValue)
+                cssParser.parseMediaFeatureValue(parser, builder, &mut feature.leftValue)
                 
                 // Check for second comparison
                 feature.rightOp = parseComparisonOperator(parser)
                 if(feature.rightOp != MediaFeatureComparison.None) {
-                    cssParser.parseMediaFeatureValue(parser, builder, feature.rightValue)
+                    cssParser.parseMediaFeatureValue(parser, builder, &mut feature.rightValue)
                 }
             }
             // Else: boolean feature like (color) with no value
@@ -157,7 +157,7 @@ func (cssParser : &mut CSSParser) parseMediaCondition(
     // Check for 'not'
     var token = parser.getToken()
     if(token.type == TokenType.Identifier) {
-        if(fnv1_hash_view(token.value) == comptime_fnv1_hash("not")) {
+        if(fnv1_hash_view(&token.value) == comptime_fnv1_hash("not")) {
             condition.isNot = true
             parser.increment()
         }
@@ -169,7 +169,7 @@ func (cssParser : &mut CSSParser) parseMediaCondition(
     // Check for 'and'/'or'
     token = parser.getToken()
     if(token.type == TokenType.Identifier) {
-        const hash = fnv1_hash_view(token.value)
+        const hash = fnv1_hash_view(&token.value)
         if(hash == comptime_fnv1_hash("and")) {
             condition.op = MediaConditionOp.And
             parser.increment()
@@ -197,7 +197,7 @@ func (cssParser : &mut CSSParser) parseMediaQuery(
     
     // Check for 'only' or 'not' modifier
     if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
-        const hash = fnv1_hash_view(token.value)
+        const hash = fnv1_hash_view(&token.value)
         if(hash == comptime_fnv1_hash("only")) {
             query.modifier = MediaModifier.Only
             parser.increment()
@@ -211,7 +211,7 @@ func (cssParser : &mut CSSParser) parseMediaQuery(
     
     // Check for media type
     if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
-        const mediaType = parseMediaType(*token)
+        const mediaType = parseMediaType(&*token)
         if(mediaType != MediaType.Unknown) {
             query.mediaType = mediaType
             parser.increment()
@@ -219,7 +219,7 @@ func (cssParser : &mut CSSParser) parseMediaQuery(
             
             // Check for 'and' before condition
             if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
-                if(fnv1_hash_view(token.value) == comptime_fnv1_hash("and")) {
+                if(fnv1_hash_view(&token.value) == comptime_fnv1_hash("and")) {
                     parser.increment()
                     query.condition = cssParser.parseMediaCondition(parser, builder)
                 }
@@ -233,7 +233,7 @@ func (cssParser : &mut CSSParser) parseMediaQuery(
                 query.condition = cssParser.parseMediaCondition(parser, builder)
             } else {
                 // Custom media type
-                query.customType = builder.allocate_view(token.value)
+                query.customType = builder.allocate_view(&token.value)
                 parser.increment()
             }
         }

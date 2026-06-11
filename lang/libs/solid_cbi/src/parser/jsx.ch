@@ -32,7 +32,7 @@ func (jsParser : &mut JsParser) parseJSXAttribute(parser : *mut Parser, builder 
     const idToken = parser.getToken();
     const attrLoc : ubigint = parser.getEncodedLocation(idToken);
     if(idToken.type == JsTokenType.Identifier as int || idToken.type == JsTokenType.Class as int) {
-         name = builder.allocate_view(idToken.value);
+         name = builder.allocate_view(&idToken.value);
          parser.increment();
          // Handle namespaced attributes ns:attr ?
          if(parser.getToken().type == JsTokenType.Colon as int) {
@@ -66,7 +66,7 @@ func (jsParser : &mut JsParser) parseJSXAttribute(parser : *mut Parser, builder 
              var lit = builder.allocate<JsLiteral>()
              new (lit) JsLiteral {
                  base : JsNode { kind : JsNodeKind.Literal },
-                 value : builder.allocate_view(parser.getToken().value)
+                 value : builder.allocate_view(&parser.getToken().value)
              }
              value = lit as *mut JsNode;
              parser.increment();
@@ -114,7 +114,7 @@ func (jsParser : &mut JsParser) parseJSXElement(parser : *mut Parser, builder : 
                  var text = builder.allocate<JsJSXText>()
                  new (text) JsJSXText {
                      base : JsNode { kind : JsNodeKind.JSXText },
-                     value : builder.allocate_view(t.value)
+                     value : builder.allocate_view(&t.value)
                  }
                  children.push(text as *mut JsNode);
                  parser.increment();
@@ -185,7 +185,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
          var id = builder.allocate<JsIdentifier>()
          new (id) JsIdentifier {
              base : JsNode { kind : JsNodeKind.Identifier },
-             value : builder.allocate_view(idToken.value)
+             value : builder.allocate_view(&idToken.value)
          }
          tagName = id as *mut JsNode;
          parser.increment();
@@ -193,7 +193,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
          // Helper for MemberExpression component names <Foo.Bar>
          while(parser.increment_if(JsTokenType.Dot as int)) {
               if(parser.getToken().type == JsTokenType.Identifier as int) {
-                  var prop = builder.allocate_view(parser.getToken().value);
+                  var prop = builder.allocate_view(&parser.getToken().value);
                   parser.increment();
                   var mem = builder.allocate<JsMemberAccess>()
                   new (mem) JsMemberAccess {
@@ -257,7 +257,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
                  var text = builder.allocate<JsJSXText>()
                  new (text) JsJSXText {
                      base : JsNode { kind : JsNodeKind.JSXText },
-                     value : builder.allocate_view(t.value)
+                     value : builder.allocate_view(&t.value)
                  }
                  children.push(text as *mut JsNode);
                  parser.increment();

@@ -10,7 +10,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
 
     var attr = builder.allocate<HtmlAttribute>();
     new (attr) HtmlAttribute {
-        name : builder.allocate_view(id.value),
+        name : builder.allocate_view(&id.value),
         value : null,
         loc : parser.getEncodedLocation(id)
     }
@@ -32,7 +32,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                 AttributeValue : AttributeValue {
                     kind : AttributeValueKind.Text
                 },
-                text : builder.allocate_view(next.value)
+                text : builder.allocate_view(&next.value)
             }
             attr.value = value;
         }

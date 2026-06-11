@@ -9,7 +9,7 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
     const comp = node.getDataPtr() as *mut JsComponentDecl;
     if (comp.signature.access == AccessSpecifier.Public) {
-        fn(obj, comp.signature.name, node)
+        fn(obj, &comp.signature.name, node)
     }
 }
 
@@ -21,7 +21,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     // Parse Identifier
     var name = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        name = builder.allocate_view(parser.getToken().value);
+        name = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected component name");
@@ -34,7 +34,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 
     var propsName = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        propsName = builder.allocate_view(parser.getToken().value);
+        propsName = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected identifier for props");
@@ -45,7 +45,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         while(true) {
             const t = parser.getToken();
             if(t.type == JsTokenType.Identifier as int) {
-                    var paramName = builder.allocate_view(t.value);
+                    var paramName = builder.allocate_view(&t.value);
                     parser.increment();
 
                     var is_optional = false;
@@ -90,8 +90,8 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     }
 
     var jsParser = JsParser {
-        dyn_values : &mut comp.dyn_values,
-        components : &mut comp.components
+        dyn_values : &raw mut comp.dyn_values,
+        components : &raw mut comp.components
     }
 
     if(parser.getToken().type == JsTokenType.LBrace as int) {

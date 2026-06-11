@@ -13,7 +13,7 @@ func sym_res_components(
              continue;
         }
 
-        const compNode = resolver.find(name);
+        const compNode = resolver.find(&name);
         if (compNode == null) {
             resolver.error("component not found", element.loc);
             return false;
@@ -33,7 +33,7 @@ func sym_res_components(
 
         var embedded = compNode as *mut EmbeddedNode;
         var comp = embedded.getDataPtr() as *mut JsComponentDecl;
-        var signature = &mut comp.signature;
+        var signature = &raw mut comp.signature;
         element.componentSignature = signature;
 
         for (var j : uint = 0; j < signature.params.size(); j += 1) {
@@ -44,7 +44,7 @@ func sym_res_components(
                     const attrNode = element.opening.attributes.get(k);
                     if(attrNode.kind == JsNodeKind.JSXAttribute) {
                         const attr = attrNode as *mut JsJSXAttribute;
-                        if (attr.name.equals(param.name)) {
+                        if (attr.name.equals(&param.name)) {
                             found = true;
                             break;
                         }

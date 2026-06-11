@@ -21,7 +21,7 @@ func render_universal_jsx(
             if(converter.target == BufferType.HTML) {
                 converter.escapeHtml(text.value);
             } else {
-                converter.str.append_view(text.value);
+                converter.str.append_view(&text.value);
             }
             *offset += 1;
             return true;
@@ -36,7 +36,7 @@ func render_universal_jsx(
             if(is_native_tag(tagName)) {
                 if(converter.target == BufferType.HTML) {
                     converter.str.append('<');
-                    converter.str.append_view(tagName);
+                    converter.str.append_view(&tagName);
                     converter.str.append(' ');
                     converter.put_chain_in();
 
@@ -54,23 +54,23 @@ func render_universal_jsx(
 
                     var childOffset = 0u;
                     for(var i : uint = 0; i < element.children.size(); i++) {
-                        render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, childOffset);
+                        render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, &mut childOffset);
                     }
 
                     converter.str.append_view("</");
-                    converter.str.append_view(tagName);
+                    converter.str.append_view(&tagName);
                     converter.str.append('>');
                     converter.put_chain_in();
                 } else {
                     converter.str.append_view("$_ur.createElement('");
-                    converter.str.append_view(tagName);
+                    converter.str.append_view(&tagName);
                     converter.str.append_view("', {");
                     // ... props ...
                     converter.str.append_view("}");
                     var childOffset = 0u;
                     for(var i : uint = 0; i < element.children.size(); i++) {
                         converter.str.append_view(",");
-                        render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, childOffset);
+                        render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, &mut childOffset);
                     }
                     converter.str.append_view(")");
                 }
@@ -82,7 +82,7 @@ func render_universal_jsx(
                     if(converter.target == BufferType.HTML) {
                         const attrs = converter.build_ssr_attributes(element);
                         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-                        var call = builder.make_function_call_node(builder.make_identifier(signature.name, signature.functionNode , false, location), converter.parent, location);
+                        var call = builder.make_function_call_node(builder.make_identifier(&signature.name, signature.functionNode , false, location), converter.parent, location);
                         call.get_args().push(pageId);
                         call.get_args().push(builder.make_addr_of_value(attrs, true, location));
 
@@ -93,7 +93,7 @@ func render_universal_jsx(
                             call.get_args().push(ssrTextStructVal);
                         } else {
                             var getSizeCall = builder.make_function_call_value(
-                                builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
                                 location
                             );
                             var startIdxNameStr = std::string();
@@ -101,7 +101,7 @@ func render_universal_jsx(
                             startIdxNameStr.append_uinteger(element.loc);
                             var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
 
-                            var startIdxVar = builder.make_varinit_stmt(false, false, startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+                            var startIdxVar = builder.make_varinit_stmt(false, false, &startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
                             converter.vec.push(startIdxVar);
 
                             var childrenHtmlNameStr = std::string();
@@ -109,34 +109,34 @@ func render_universal_jsx(
                             childrenHtmlNameStr.append_uinteger(element.loc);
                             var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
 
-                            var childrenHtmlVar = builder.make_varinit_stmt(false, false, childrenHtmlName, null,
+                            var childrenHtmlVar = builder.make_varinit_stmt(false, false, &childrenHtmlName, null,
                                 builder.make_function_call_value(builder.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
                                 AccessSpecifier.Internal, converter.parent, location);
                             converter.vec.push(childrenHtmlVar);
 
                             var childOffset = 0u;
                             for(var i : uint = 0; i < element.children.size(); i++) {
-                                render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, childOffset);
+                                render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, &mut childOffset);
                             }
 
                             converter.put_chain_in();
 
-                            var childrenHtmlId = builder.make_identifier(childrenHtmlName, childrenHtmlVar, false, location);
+                            var childrenHtmlId = builder.make_identifier(&childrenHtmlName, childrenHtmlVar, false, location);
                             var pageHtmlId = builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location);
-                            var pageHtmlAccess = builder.make_access_chain(std::span<*mut Value>([ pageId, pageHtmlId]), location);
+                            var pageHtmlAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId]), location);
 
                             var appendCall = builder.make_function_call_node(
-                                builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
                                 converter.parent,
                                 location
                             );
-                            var startIdxId = builder.make_identifier(startIdxName, startIdxVar, false, location);
+                            var startIdxId = builder.make_identifier(&startIdxName, startIdxVar, false, location);
                             var dataCall = builder.make_function_call_value(
-                                builder.make_access_chain(std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
                                 location
                             );
                             var sizeCall = builder.make_function_call_value(
-                                builder.make_access_chain(std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
                                 location
                             );
 
@@ -145,7 +145,7 @@ func render_universal_jsx(
                             converter.vec.push(appendCall);
 
                             var truncateCall = builder.make_function_call_node(
-                                builder.make_access_chain(std::span<*mut Value>([ pageId, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
                                 converter.parent,
                                 location
                             );
@@ -154,11 +154,11 @@ func render_universal_jsx(
 
                             const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
                             var dataCall2 = builder.make_function_call_value(
-                                builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
                                 location
                             );
                             var sizeCall2 = builder.make_function_call_value(
-                                builder.make_access_chain(std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
                                 location
                             );
                             ssrTextStructVal.add_value("data", dataCall2);
@@ -168,13 +168,13 @@ func render_universal_jsx(
                         converter.vec.push(call );
                     } else {
                         converter.str.append_view("$_ur.createElement(");
-                        get_module_scoped_name(signature.functionNode , signature.name, converter.str);
+                        get_module_scoped_name(signature.functionNode , signature.name, &mut converter.str);
                         converter.str.append_view(", ");
                         build_nested_props_expr(converter, element, states);
                         var childOffset = 0u;
                         for(var i : uint = 0; i < element.children.size(); i++) {
                             converter.str.append_view(",");
-                            render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, childOffset);
+                            render_universal_jsx(builder, element.children.get(i), myPath, states, textBindings, eventBindings, propBindings, nestedBindings, propsName, converter, &mut childOffset);
                         }
                         converter.str.append_view(")");
                     }

@@ -17,7 +17,7 @@ func strip_js_string_quotes(value : std::string_view) : std::string_view {
 func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut HtmlAttribute {
     for(var i : uint = 0; i < element.attributes.size(); i++) {
         const attr = element.attributes.get(i);
-        if(attr.name.equals(name)) return attr;
+        if(attr.name.equals(&name)) return attr;
     }
     return null;
 }
@@ -79,8 +79,8 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
                 
                 var part = std::string_view(path.data() + remStart, nextDot - remStart);
                 
-                var id = builder.make_identifier(part, null, false, loc);
-                const chain = builder.make_access_chain(std::span<*mut Value>([ current as *mut Value, id as *mut Value ]), loc)
+                var id = builder.make_identifier(&part, null, false, loc);
+                const chain = builder.make_access_chain(&std::span<*mut Value>([ current as *mut Value, id as *mut Value ]), loc)
                 current = chain as *mut Value;
                 
                 if(nextDot == path.size()) break;
@@ -211,7 +211,7 @@ func escape_html_append(str : &mut std::string, text : std::string_view) {
 }
 
 func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
-    escape_html_append(converter.str, text);
+    escape_html_append(&mut converter.str, text);
 }
 
 
@@ -224,8 +224,8 @@ func (converter : &mut ASTConverter) emit_append_html_call(value : *mut Value, l
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
     var name = if (converter.in_head) std::string_view("append_head") else std::string_view("append_html")
     var fnPtr = if (converter.in_head) support.appendHeadFn else support.appendHtmlFn
-    var id = builder.make_identifier(name, fnPtr, false, location)
-    const chain = builder.make_access_chain(std::span<*mut Value>([ base as *mut Value, id ]), location)
+    var id = builder.make_identifier(&name, fnPtr, false, location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base as *mut Value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     
     var args = call.get_args()
@@ -248,11 +248,11 @@ func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::str
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
     var js = std::string();
     js.append_view("window.$__uni_dispatch('");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, js);
+    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut js);
     js.append_view("', document.getElementById('");
     js.append_view(idStr.view());
     js.append_view("'), {");
-    converter.emit_append_js_from_str(js);
+    converter.emit_append_js_from_str(&mut js);
 
     const attrs = element.attributes.size();
     for(var i : uint = 0; i < attrs; i++) {
@@ -260,43 +260,43 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         if(i > 0) s.append_view(",");
         const attr = element.attributes.get(i);
         s.append_view("\"");
-        s.append_view(attr.name);
+        s.append_view(&attr.name);
         s.append_view("\":");
         if(attr.value != null && (attr.value.kind == AttributeValueKind.Text || attr.value.kind == AttributeValueKind.Number)) {
             const val = attr.value as *mut TextAttributeValue
-            s.append_view(val.text)
+            s.append_view(&val.text)
         } else if(attr.value != null && attr.value.kind == AttributeValueKind.Chemical) {
             const val = attr.value as *mut ChemicalAttributeValue
             const type = val.value.getType()
             const is_str = converter.is_string_type(type)
             if(is_str) {
                 s.append('"')
-                converter.emit_append_js_from_str(*s)
+                converter.emit_append_js_from_str(&mut *s)
                 converter.put_js_value_in(val.value)
                 s.append('"')
             } else {
-                converter.emit_append_js_from_str(*s)
+                converter.emit_append_js_from_str(&mut *s)
                 converter.put_js_value_in(val.value)
             }
         } else if(attr.value != null && attr.value.kind == AttributeValueKind.ChemicalValues) {
-            converter.emit_append_js_from_str(*s)
+            converter.emit_append_js_from_str(&mut *s)
             const valuesNode = attr.value as *mut ChemicalAttributeValues
             var quote = std::string("\"");
-            converter.emit_append_js_from_str(quote)
+            converter.emit_append_js_from_str(&mut quote)
             for(var j : uint = 0; j < valuesNode.values.size(); j++) {
                 if(j > 0) {
                     var space = std::string(" ");
-                    converter.emit_append_js_from_str(space)
+                    converter.emit_append_js_from_str(&mut space)
                 }
                 converter.put_js_value_in(valuesNode.values.get(j))
             }
             var quote2 = std::string("\"");
-            converter.emit_append_js_from_str(quote2)
+            converter.emit_append_js_from_str(&mut quote2)
             continue;
         } else {
             s.append_view("true")
         }
-        converter.emit_append_js_from_str(*s)
+        converter.emit_append_js_from_str(&mut *s)
     }
 
     var tail = std::string();
@@ -309,20 +309,20 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
             const ch = element.children.get(ci);
             if(ch.kind == HtmlChildKind.Text) {
                 const txt = ch as *mut HtmlText;
-                childHtml.append_view(txt.value);
+                childHtml.append_view(&txt.value);
             } else if(ch.kind == HtmlChildKind.Element) {
                 const el = ch as *mut HtmlElement;
                 childHtml.append('<');
-                childHtml.append_view(el.name);
+                childHtml.append_view(&el.name);
                 // attributes
                 for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
                     const attr2 = el.attributes.get(ai);
                     childHtml.append(' ');
-                    childHtml.append_view(attr2.name);
+                    childHtml.append_view(&attr2.name);
                     if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
                         const tv = attr2.value as *mut TextAttributeValue;
                         childHtml.append_view("=");
-                        childHtml.append_view(tv.text);
+                        childHtml.append_view(&tv.text);
                     }
                 }
                 if(el.isSelfClosing) {
@@ -330,7 +330,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
                 } else {
                     childHtml.append('>');
                     childHtml.append_view("</");
-                    childHtml.append_view(el.name);
+                    childHtml.append_view(&el.name);
                     childHtml.append('>');
                 }
             }
@@ -347,7 +347,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         tail.append_view("\")");
     }
     tail.append_view("});\n");
-    converter.emit_append_js_from_str(tail);
+    converter.emit_append_js_from_str(&mut tail);
 }
 
 func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement) {
@@ -401,7 +401,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             }
 
             str.append('<')
-            str.append_view(element.name)
+            str.append_view(&element.name)
 
             // putting attributes
             var a : uint = 0;
@@ -424,7 +424,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             if(!element.isSelfClosing) {
                 str.append('<')
                 str.append('/')
-                str.append_view(element.name)
+                str.append_view(&element.name)
                 str.append('>')
             }
 

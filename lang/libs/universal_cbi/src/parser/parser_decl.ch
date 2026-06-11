@@ -12,7 +12,7 @@ func (jsParser : &mut JsParser) parseArrayDestructuring(parser : *mut Parser, bu
              var id = builder.allocate<JsIdentifier>()
              new (id) JsIdentifier {
                  base : JsNode { kind : JsNodeKind.Identifier },
-                 value : builder.allocate_view(t.value)
+                 value : builder.allocate_view(&t.value)
              }
              elements.push(id as *mut JsNode);
              parser.increment();
@@ -45,14 +45,14 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
 
     var name = std::string_view();
     if(parser.getToken().type == JsTokenType.Identifier as int) {
-        name = builder.allocate_view(parser.getToken().value);
+        name = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     }
 
     var superClass = std::string_view();
     if(parser.increment_if(JsTokenType.Extends as int)) {
          if(parser.getToken().type == JsTokenType.Identifier as int) {
-             superClass = builder.allocate_view(parser.getToken().value);
+             superClass = builder.allocate_view(&parser.getToken().value);
              parser.increment();
          } else {
              parser.error("expected identifier after extends");
@@ -80,7 +80,7 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
         var methodName = std::string_view();
         const t = parser.getToken();
         if(t.type == JsTokenType.Identifier as int || t.type == JsTokenType.String as int) {
-             methodName = builder.allocate_view(t.value);
+             methodName = builder.allocate_view(&t.value);
              parser.increment();
         } else {
              parser.error("expected method name");
@@ -100,7 +100,7 @@ func (jsParser : &mut JsParser) parseClassDecl(parser : *mut Parser, builder : *
                      break;
                  }
                  parser.increment();
-                 var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null }
+                 var param = JsParam { name : builder.allocate_view(&paramToken.value), default_value : null }
                  if(parser.getToken().type == JsTokenType.Equal as int) {
                      parser.increment(); // consume =
                      param.default_value = jsParser.parseExpression(parser, builder);
@@ -147,7 +147,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
 
     // Check if string immediately (import "source")
     if(parser.getToken().type == JsTokenType.String as int) {
-        var source = builder.allocate_view(parser.getToken().value);
+        var source = builder.allocate_view(&parser.getToken().value);
         parser.increment();
         parser.increment_if(JsTokenType.SemiColon as int);
 
@@ -163,7 +163,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
     // Parse specifiers
     if(parser.getToken().type == JsTokenType.Identifier as int) {
         // Default import
-        var local = builder.allocate_view(parser.getToken().value);
+        var local = builder.allocate_view(&parser.getToken().value);
         specifiers.push(ImportSpecifier { imported : view("default"), local : local });
         parser.increment();
         if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -177,7 +177,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
         if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
             parser.increment(); // as
             if(parser.getToken().type == JsTokenType.Identifier as int) {
-                 var local = builder.allocate_view(parser.getToken().value);
+                 var local = builder.allocate_view(&parser.getToken().value);
                  specifiers.push(ImportSpecifier { imported : view("*"), local : local });
                  parser.increment();
             } else {
@@ -190,14 +190,14 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
         parser.increment(); // {
         while(parser.getToken().type != JsTokenType.RBrace as int) {
             if(parser.getToken().type == JsTokenType.Identifier as int) {
-                var imported = builder.allocate_view(parser.getToken().value);
+                var imported = builder.allocate_view(&parser.getToken().value);
                 var local = imported;
                 parser.increment();
 
                 if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
                     parser.increment(); // as
                     if(parser.getToken().type == JsTokenType.Identifier as int) {
-                        local = builder.allocate_view(parser.getToken().value);
+                        local = builder.allocate_view(&parser.getToken().value);
                         parser.increment();
                     } else {
                         parser.error("expected identifier after as");
@@ -229,7 +229,7 @@ func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut
 
     var source = std::string_view();
     if(parser.getToken().type == JsTokenType.String as int) {
-        source = builder.allocate_view(parser.getToken().value);
+        source = builder.allocate_view(&parser.getToken().value);
         parser.increment();
     } else {
         parser.error("expected string source");

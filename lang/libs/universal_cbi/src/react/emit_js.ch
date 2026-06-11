@@ -7,13 +7,13 @@ func append_universal_component_js(
     var out = &mut converter.str;
 
     var scopedName = std::string();
-    get_module_scoped_name(signature.functionNode, signature.name, scopedName);
+    get_module_scoped_name(signature.functionNode, signature.name, &mut scopedName);
     const scopedNameView = converter.builder.allocate_view(scopedName.to_view());
 
     out.append_view("function ");
-    out.append_view(scopedNameView);
+    out.append_view(&scopedNameView);
     out.append_view("(");
-    out.append_view(signature.propsName);
+    out.append_view(&signature.propsName);
     out.append_view(") ");
     if(comp.body != null) {
         const prevTarget = converter.target;

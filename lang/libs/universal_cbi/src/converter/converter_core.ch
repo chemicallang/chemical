@@ -9,7 +9,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.escapeJs(val.subview(1, val.size() - 1));
                 converter.str.append(val.get(0));
             } else {
-                converter.str.append_view(lit.value);
+                converter.str.append_view(&lit.value);
             }
         }
         JsNodeKind.FunctionDecl => {
@@ -21,13 +21,13 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              if(func.is_generator) converter.str.append('*');
              if(!is_anon) {
                  converter.str.append(' ');
-                 converter.str.append_view(func.name);
+                 converter.str.append_view(&func.name);
              }
              converter.str.append_view("(");
              for(var i : uint = 0; i < func.params.size(); i++) {
                  if(i > 0) converter.str.append_view(", ");
                  var param = func.params.get_ptr(i);
-                 converter.str.append_view(param.name);
+                 converter.str.append_view(&param.name);
                  if(param.default_value != null) {
                      converter.str.append_view(" = ");
                      converter.convertJsNode(param.default_value);
@@ -42,12 +42,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier
             if(converter.is_reactive_var(id.value) && !converter.skip_reactive_deref) {
-                converter.str.append_view(id.value);
+                converter.str.append_view(&id.value);
                 converter.str.append_view(".value");
             } else if(converter.is_component_props_name(id.value)) {
                 converter.append_component_prop_value(node);
             } else {
-                converter.str.append_view(id.value);
+                converter.str.append_view(&id.value);
             }
         }
         JsNodeKind.ChemicalValue => {
@@ -60,26 +60,26 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 const is_update = unary.operator.equals(view("++")) || unary.operator.equals(view("--"))
                 if(is_update && converter.is_reactive_var(id.value)) {
                     if(unary.prefix) {
-                        converter.str.append_view(unary.operator);
-                        converter.str.append_view(id.value);
+                        converter.str.append_view(&unary.operator);
+                        converter.str.append_view(&id.value);
                         converter.str.append_view(".value");
                     } else {
-                        converter.str.append_view(id.value);
+                        converter.str.append_view(&id.value);
                         converter.str.append_view(".value");
-                        converter.str.append_view(unary.operator);
+                        converter.str.append_view(&unary.operator);
                     }
                     return;
                 }
             }
             if(unary.prefix) {
-                converter.str.append_view(unary.operator);
+                converter.str.append_view(&unary.operator);
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                     converter.str.append_view(" ")
                 }
                 converter.convertJsNode(unary.operand);
             } else {
                 converter.convertJsNode(unary.operand);
-                converter.str.append_view(unary.operator);
+                converter.str.append_view(&unary.operator);
             }
         }
         JsNodeKind.BinaryOp => {
@@ -88,10 +88,10 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 const id = bin.left as *mut JsIdentifier
                 if(converter.is_reactive_var(id.value) &&
                     (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
-                    converter.str.append_view(id.value);
+                    converter.str.append_view(&id.value);
                     converter.str.append_view(".value");
                     converter.str.append_view(" ");
-                    converter.str.append_view(bin.op);
+                    converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
                     if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                         converter.str.append_view("(");
@@ -109,7 +109,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                         converter.convertJsNode(bin.left);
                     }
                     converter.str.append_view(" ");
-                    converter.str.append_view(bin.op);
+                    converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
                     if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                         converter.str.append_view("(");
@@ -128,7 +128,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     converter.convertJsNode(bin.left);
                 }
                 converter.str.append_view(" ");
-                converter.str.append_view(bin.op);
+                converter.str.append_view(&bin.op);
                 converter.str.append_view(" ");
                 if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
                     converter.str.append_view("(");
@@ -155,7 +155,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(call.callee.kind == JsNodeKind.Identifier) {
                 var id = call.callee as *mut JsIdentifier
                 var name = id.value
-                switch(fnv1_hash_view(name)) {
+                switch(fnv1_hash_view(&name)) {
                     comptime_fnv1_hash("useState"),
                     comptime_fnv1_hash("useEffect"),
                     comptime_fnv1_hash("useMemo"),
@@ -188,21 +188,21 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
                 const id = mem.object as *mut JsIdentifier
                 if(converter.is_reactive_var(id.value) && mem.property.equals(view("value"))) {
-                    converter.str.append_view(id.value);
+                    converter.str.append_view(&id.value);
                     converter.str.append_view(".value");
                 } else if(converter.is_component_props_name(id.value)) {
                     converter.append_component_prop_value(node);
                 } else {
                     converter.convertJsNode(mem.object);
                     converter.str.append_view(".");
-                    converter.str.append_view(mem.property);
+                    converter.str.append_view(&mem.property);
                 }
             } else if(mem.property.equals(view("value")) && converter.is_component_props_read(mem.object)) {
                 converter.convertJsNode(mem.object);
             } else {
                 converter.convertJsNode(mem.object);
                 converter.str.append_view(".");
-                converter.str.append_view(mem.property);
+                converter.str.append_view(&mem.property);
             }
         }
         JsNodeKind.IndexAccess => {
@@ -231,7 +231,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
                     converter.convertJsNode(prop.value);
                 } else {
-                    converter.str.append_view(prop.key);
+                    converter.str.append_view(&prop.key);
                     converter.str.append_view(": ");
                     converter.convertJsNode(prop.value);
                 }
@@ -250,7 +250,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              for(var i : uint = 0; i < arrow.params.size(); i++) {
                  if(i > 0) converter.str.append_view(", ");
                  var param = arrow.params.get_ptr(i);
-                 converter.str.append_view(param.name);
+                 converter.str.append_view(&param.name);
                  if(param.default_value != null) {
                      converter.str.append_view(" = ");
                      converter.convertJsNode(param.default_value);
@@ -288,7 +288,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      init : initText
                  });
                  converter.str.append_view("const ");
-                 converter.str.append_view(decl.name);
+                 converter.str.append_view(&decl.name);
                  converter.str.append_view(" = $_us(");
                  if(decl.value != null) {
                      converter.convertJsNode(decl.value);
@@ -312,17 +312,17 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  if(should_wrap_in_ucs) {
                      converter.computed_vars.push(decl.name);
                      converter.str.append_view("const ");
-                     converter.str.append_view(decl.name);
+                     converter.str.append_view(&decl.name);
                      converter.str.append_view(" = $_ucs(() => ");
                      converter.convertJsNode(decl.value);
                      converter.str.append_view(");");
                  } else {
-                     converter.str.append_view(decl.keyword);
+                     converter.str.append_view(&decl.keyword);
                      converter.str.append_view(" ");
                      if(decl.pattern != null) {
                          converter.convertJsNode(decl.pattern);
                      } else {
-                         converter.str.append_view(decl.name);
+                         converter.str.append_view(&decl.name);
                      }
                      if(decl.value != null) {
                          converter.str.append_view(" = ");
@@ -382,7 +382,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.str.append_view(" catch");
                  if(!t.catchParam.empty()) {
                      converter.str.append_view("(");
-                     converter.str.append_view(t.catchParam);
+                     converter.str.append_view(&t.catchParam);
                      converter.str.append_view(")");
                  }
                  converter.str.append_view(" ");
@@ -411,7 +411,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  if(container.expression.kind == JsNodeKind.Identifier) {
                      const id = container.expression as *mut JsIdentifier
                      if(converter.is_reactive_var(id.value)) {
-                         converter.str.append_view(id.value);
+                         converter.str.append_view(&id.value);
                          return;
                      }
                  } else if(container.expression.kind == JsNodeKind.MemberAccess) {
@@ -419,7 +419,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
                          const id = mem.object as *mut JsIdentifier
                          if(converter.is_reactive_var(id.value)) {
-                             converter.str.append_view(id.value);
+                             converter.str.append_view(&id.value);
                              return;
                          }
                      }

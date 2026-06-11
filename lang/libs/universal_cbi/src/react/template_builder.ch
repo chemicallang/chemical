@@ -32,7 +32,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     const block = comp.body as *mut JsBlock;
 
     var states = std::vector<UniversalStateDecl>();
-    collect_states(builder, block, states, tmpSupport);
+    collect_states(builder, block, &mut states, tmpSupport);
 
     const returned = find_returned_jsx(block);
     if(returned == null) return;
@@ -58,7 +58,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     }
 
     var nodeCount = 0u;
-    if(!render_universal_jsx(builder, returned, view("[]"), states, textBindings, eventBindings, propBindings, nestedBindings, comp.signature.propsName, converter, nodeCount)) {
+    if(!render_universal_jsx(builder, returned, view("[]"), &states, &mut textBindings, &mut eventBindings, &mut propBindings, &mut nestedBindings, comp.signature.propsName, &mut converter, &mut nodeCount)) {
         return;
     }
     comp.signature.rootNodeCount = nodeCount;
@@ -70,36 +70,36 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     for(var i : uint = 0; i < states.size(); i++) {
         const st = states.get(i);
         init.append_view("const ");
-        init.append_view(st.name);
+        init.append_view(&st.name);
         init.append_view(" = $_us(");
-        init.append_view(st.initExpr);
+        init.append_view(&st.initExpr);
         init.append_view(");");
     }
     for(var i : uint = 0; i < textBindings.size(); i++) {
         const b = textBindings.get(i);
-        init.append_view(b.stateName);
+        init.append_view(&b.stateName);
         init.append_view(".subscribe(v=>$_ut(root,");
-        init.append_view(b.path);
+        init.append_view(&b.path);
         init.append_view(",offset).textContent=v);");
     }
     for(var i : uint = 0; i < propBindings.size(); i++) {
         const b = propBindings.get(i);
         init.append_view("{const v=props.");
-        init.append_view(b.propPath);
+        init.append_view(&b.propPath);
         init.append_view(";$_ut(root,");
-        init.append_view(b.path);
+        init.append_view(&b.path);
         init.append_view(",offset).textContent=(v==null?\"\":(\"\"+v));}");
     }
     for(var i : uint = 0; i < nestedBindings.size(); i++) {
         const nb = nestedBindings.get(i);
         init.append_view("{const c=(window.$_u&&window.$_u['");
-        init.append_view(nb.componentName);
+        init.append_view(&nb.componentName);
         init.append_view("'])||window['");
-        init.append_view(nb.componentName);
+        init.append_view(&nb.componentName);
         init.append_view("'];if(c&&c.__hydrate){c.__hydrate($_ut(root,");
-        init.append_view(nb.path);
+        init.append_view(&nb.path);
         init.append_view(",offset),");
-        init.append_view(nb.propsExpr);
+        init.append_view(&nb.propsExpr);
         init.append_view(",");
         if(nb.path.equals(view("[]"))) {
             init.append_view("offset+");
@@ -112,11 +112,11 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
     for(var i : uint = 0; i < eventBindings.size(); i++) {
         const e = eventBindings.get(i);
         init.append_view("$_ut(root,");
-        init.append_view(e.path);
+        init.append_view(&e.path);
         init.append_view(",offset).addEventListener('");
-        init.append_view(e.eventName);
+        init.append_view(&e.eventName);
         init.append_view("',");
-        init.append_view(e.handlerExpr);
+        init.append_view(&e.handlerExpr);
         init.append_view(");");
     }
     init.append_view("}");

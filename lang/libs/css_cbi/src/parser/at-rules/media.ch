@@ -10,7 +10,7 @@ func (cssParser : &mut CSSParser) parseMediaRule(om : &mut CSSOM, parser : *mut 
 
     token = parser.getToken();
     if(token.type == TokenType.PropertyName) {
-        if(fnv1_hash_view(token.value) == comptime_fnv1_hash("media")) {
+        if(fnv1_hash_view(&token.value) == comptime_fnv1_hash("media")) {
              parser.increment();
         } else {
             parser.error("expected 'media'");
@@ -56,7 +56,7 @@ func (cssParser : &mut CSSParser) parseMediaRule(om : &mut CSSOM, parser : *mut 
             if(decl) {
                 rule.declarations.push(decl)
             } else {
-                if(!cssParser.parseNestedRuleContentInto(rule.nested_rules, parser, builder)) {
+                if(!cssParser.parseNestedRuleContentInto(&mut rule.nested_rules, parser, builder)) {
                     parser.error("expected a declaration or nested rule inside media query block");
                     return false;
                 }

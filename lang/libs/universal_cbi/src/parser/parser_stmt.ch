@@ -31,7 +31,7 @@ func (jsParser : &mut JsParser) parseBlock(parser : *mut Parser, builder : *mut 
 func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int || token.type == JsTokenType.State as int) {
-        var keyword = builder.allocate_view(token.value);
+        var keyword = builder.allocate_view(&token.value);
         parser.increment();
 
         var name = std::string_view();
@@ -40,7 +40,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         if(parser.getToken().type == JsTokenType.LBracket as int) {
             pattern = jsParser.parseArrayDestructuring(parser, builder);
         } else if(parser.getToken().type == JsTokenType.Identifier as int) {
-            name = builder.allocate_view(parser.getToken().value);
+            name = builder.allocate_view(&parser.getToken().value);
             parser.increment();
         } else {
             parser.error("expected identifier or [");
@@ -126,7 +126,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             parser.error("expected identifier");
             return null;
         }
-        var name = builder.allocate_view(idToken.value);
+        var name = builder.allocate_view(&idToken.value);
         parser.increment();
 
         if(!parser.increment_if(JsTokenType.LParen as int)) {
@@ -142,7 +142,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
                     break;
                 }
                 parser.increment();
-                var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null }
+                var param = JsParam { name : builder.allocate_view(&paramToken.value), default_value : null }
                 if(parser.getToken().type == JsTokenType.Equal as int) {
                     parser.increment(); // consume =
                     param.default_value = jsParser.parseExpression(parser, builder);
@@ -184,7 +184,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         const idToken = parser.getToken();
         var name = std::string_view();
         if(idToken.type == JsTokenType.Identifier as int) {
-            name = builder.allocate_view(idToken.value);
+            name = builder.allocate_view(&idToken.value);
             parser.increment();
         }
 
@@ -201,7 +201,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
                     break;
                 }
                 parser.increment();
-                var param = JsParam { name : builder.allocate_view(paramToken.value), default_value : null }
+                var param = JsParam { name : builder.allocate_view(&paramToken.value), default_value : null }
                 if(parser.getToken().type == JsTokenType.Equal as int) {
                     parser.increment(); // consume =
                     param.default_value = jsParser.parseExpression(parser, builder);
@@ -459,7 +459,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             if(parser.increment_if(JsTokenType.LParen as int)) {
                 const paramToken = parser.getToken();
                 if(paramToken.type == JsTokenType.Identifier as int) {
-                    catchParam = builder.allocate_view(paramToken.value);
+                    catchParam = builder.allocate_view(&paramToken.value);
                     parser.increment();
                 }
                 if(!parser.increment_if(JsTokenType.RParen as int)) {

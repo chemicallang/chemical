@@ -17,7 +17,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationThickness(
     const token = parser.getToken()
     if(token.value.equals("auto") || token.value.equals("from-font")) {
         parser.increment()
-        alloc_value_keyword(builder, value, (if(token.value.equals("auto")) CSSKeywordKind.Auto else CSSKeywordKind.FromFont), token.value)
+        alloc_value_keyword(builder, value, (if(token.value.equals("auto")) CSSKeywordKind.Auto else CSSKeywordKind.FromFont), &token.value)
     } else {
         if(!cssParser.parseLength(parser, builder, value)) {
             parser.error("expected a length, auto or from-font for text-decoration-thickness")
@@ -53,7 +53,7 @@ func (cssParser : &mut CSSParser) parseTextDecoration(
         const line = getTextDecorationLineKeywordKind(token.fnv1())
         if(line != CSSKeywordKind.Unknown) {
             parser.increment()
-            alloc_value_keyword(builder, data.line, line, token.value)
+            alloc_value_keyword(builder, &mut data.line, line, &token.value)
             continue;
         }
 
@@ -61,7 +61,7 @@ func (cssParser : &mut CSSParser) parseTextDecoration(
         const style = getTextDecorationStyleKeywordKind(token.fnv1())
         if(style != CSSKeywordKind.Unknown) {
             parser.increment()
-            alloc_value_keyword(builder, data.style, style, token.value)
+            alloc_value_keyword(builder, &mut data.style, style, &token.value)
             continue;
         }
 
@@ -69,17 +69,17 @@ func (cssParser : &mut CSSParser) parseTextDecoration(
         if(token.value.equals("auto") || token.value.equals("from-font")) {
              parser.increment()
              const kwKind = if(token.value.equals("auto")) CSSKeywordKind.Auto else CSSKeywordKind.FromFont
-             alloc_value_keyword(builder, data.thickness, kwKind, token.value)
+             alloc_value_keyword(builder, &mut data.thickness, kwKind, &token.value)
              continue;
         }
         
         // Try length (thickness)
-        if(cssParser.parseLength(parser, builder, data.thickness)) {
+        if(cssParser.parseLength(parser, builder, &mut data.thickness)) {
             continue;
         }
 
         // Try color
-        if(cssParser.parseCSSColor(parser, builder, data.color)) {
+        if(cssParser.parseCSSColor(parser, builder, &mut data.color)) {
             continue;
         }
 

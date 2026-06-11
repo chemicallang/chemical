@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BUILD_DIR="cmake-build-debug"
+JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+TARGET=""
+TEST_BUILD_LAB="lang/tests/build.lab"
+TEST_OUT_DIR="lang/tests/build"
+TEST_OUT_NAME=""
+RUN_TESTS=true
+BUILD_TARGET=true
+TEST_LIBS=false
+
+usage() {
+  echo "Usage: $0 [options]"
+  echo ""
+  echo "Options:"
+  echo "  --tcc                   Use TCCCompiler (TinyCC backend)"
+  echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
+  echo "  --libs                  Include library tests (passes --arg-test-libs)"
+  echo "  -o <path>               Custom output executable path"
+  echo "  --no-run                Build test executable only, do not run"
+  echo "  --no-build              Skip building compiler target, use existing binary"
+  echo "  -j N                    Number of parallel jobs (default: $JOBS)"
+  echo "  --help, -h              Show this help"
+  exit 1
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --tcc)
+      TARGET="TCCCompiler"
+      COMPILER_BIN="$BUILD_DIR/TCCCompiler"
+      ;;
+    --llvm)
+      TARGET="Compiler"
+      COMPILER_BIN="$BUILD_DIR/Compiler"
+      ;;
+    --libs) TEST_LIBS=true ;;
+    -o) TEST_OUT_NAME="$2"; shift ;;
+    --no-run) RUN_TESTS=false ;;
+    --no-build) BUILD_TARGET=false ;;
+    -j) JOBS="$2"; shift ;;
+    --help|-h) usage ;;
+    *) echo "Unknown option: $1"; usage ;;
+  esac
+  shift
+done
+
+if [ -z "$TARGET" ]; then
+  echo "Error: Specify --tcc or --llvm"
+  usage
+fi
+
+# Append .exe on Windows
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) COMPILER_BIN="${COMPILER_BIN}.exe" ;;
+esac
+
+# Build the compiler target if requested
+if [ "$BUILD_TARGET" = true ]; then
+  echo "==> Building $TARGET..."
+  cmake --build "$BUILD_DIR" --config Debug --target "$TARGET" -j "$JOBS"
+fi
+
+if [ ! -f "$COMPILER_BIN" ]; then
+  echo "Error: Compiler binary not found at $COMPILER_BIN"
+  echo "Build it with: $0 --$([ "$TARGET" = "Compiler" ] && echo "llvm" || echo "tcc") (without --no-build)"
+  exit 1
+fi
+
+# Determine output path
+if [ -n "$TEST_OUT_NAME" ]; then
+  TEST_OUT="$TEST_OUT_NAME"
+else
+  if [ "$TARGET" = "Compiler" ]; then
+    TEST_OUT="$TEST_OUT_DIR/tests.exe"
+  else
+    TEST_OUT="$TEST_OUT_DIR/tests-tcc.exe"
+  fi
+fi
+
+# Build the test command
+CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode debug_quick --no-cache)
+if [ "$TEST_LIBS" = true ]; then
+  CMD+=("--arg-test-libs" "-frecompile-plugins")
+fi
+
+echo "==> Compiling tests..."
+echo "${CMD[@]}"
+"${CMD[@]}"
+
+if [ "$RUN_TESTS" = true ]; then
+  if [ ! -f "$TEST_OUT" ]; then
+    echo "Error: Test executable not found at $TEST_OUT"
+    exit 1
+  fi
+  echo "==> Running tests..."
+  "$TEST_OUT"
+fi

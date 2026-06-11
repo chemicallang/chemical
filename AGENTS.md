@@ -1,6 +1,25 @@
 # AGENTS.md — Chemical Programming Language
 
+## Configuration
+
+```bash
+./scripts/configure.sh            # Configure with LLVM support
+./scripts/configure.sh --no-llvm  # Configure without LLVM (TCCCompiler only)
+```
+
 ## Build (Compiler in C++20, Makefile in `cmake-build-debug`)
+
+### Using scripts (recommended)
+
+```bash
+./scripts/build.sh --tcc   # Build TCCCompiler only
+./scripts/build.sh --llvm  # Build Compiler (LLVM/Clang backend)
+./scripts/build.sh --lsp   # Build ChemicalLsp
+./scripts/build.sh --all   # Build all targets
+./scripts/build.sh --llvm -j 16  # Build with 16 parallel jobs
+```
+
+### Using make directly
 
 ```bash
 make -C cmake-build-debug Compiler -j$(nproc)
@@ -18,6 +37,17 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 - LSP depends on `lib/lsp-framework` submodule.
 
 ## Running Tests
+
+### Using test script (recommended)
+
+```bash
+./scripts/test.sh --tcc           # Build TCCCompiler, compile & run tests
+./scripts/test.sh --llvm          # Build Compiler, compile & run tests
+./scripts/test.sh --tcc --libs    # Include library tests
+./scripts/test.sh --tcc -o my_tests  # Custom output path
+./scripts/test.sh --tcc --no-run  # Build test executable only, don't run
+./scripts/test.sh --tcc --no-build  # Use existing compiler binary
+```
 
 ### Full test suite (LLVM backend, development):
 ```bash

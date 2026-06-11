@@ -144,7 +144,7 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
         return nested;
     }
 
-    var provider = &lexer.provider;
+    const provider = &raw lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data();
 
@@ -238,7 +238,7 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
         }
         '#' => {
             // Check for #endmd
-            if(isEndMd(&raw provider)) {
+            if(isEndMd(provider)) {
                 // Consume "endmd"
                 provider.readCharacter(); // e
                 provider.readCharacter(); // n

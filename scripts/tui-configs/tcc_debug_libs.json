@@ -1,0 +1,26 @@
+{
+  "Test": {
+    "backend": 0,
+    "libs": true,
+    "no_run": false,
+    "no_build": false,
+    "emit_c": false,
+    "use_c": false,
+    "g_flag": true,
+    "cache": false,
+    "cached_plugins": false,
+    "mode": 2,
+    "output": "",
+    "jobs_test": ""
+  },
+  "Build": {
+    "target": 0,
+    "jobs": ""
+  },
+  "Configure": {
+    "no_llvm": false
+  },
+  "Setup": {
+    "with_llvm": false
+  }
+}

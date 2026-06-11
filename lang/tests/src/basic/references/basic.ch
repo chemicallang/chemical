@@ -2,6 +2,10 @@ struct ReferencableStruct {
     var i : int
 }
 
+func get_i_by_deref_ptr_to_ref_struct(r : *ReferencableStruct) : int {
+    return r.i;
+}
+
 @direct_init
 struct AssignableReferencableStruct {
     var i : int
@@ -311,6 +315,11 @@ func test_references() {
         var i = 34
         var m = member_deref_ref { i : &i }
         return *m.derer_ref() == 34
+    })
+    test("passing a pointer via address of a reference variable works", () => {
+        var p = ReferencableStruct { i : 9238455 }
+        var ref = &p
+        return get_i_by_deref_ptr_to_ref_struct(&raw ref) == 9238455
     })
 }
 

@@ -5,7 +5,9 @@ This guide explains how to build the Chemical Compiler for various platforms and
 ## Quick Start
 
 ```bash
-# 1. Configure the project
+# 0. One-time setup after cloning — downloads dependencies & initializes submodules
+./scripts/setup.sh                # or ./scripts/setup.sh --with-llvm
+# 1. Configure CMake
 ./scripts/configure.sh
 
 # 2. Build a target
@@ -19,16 +21,30 @@ This guide explains how to build the Chemical Compiler for various platforms and
 ./scripts/test.sh --llvm          # Build & run tests with Compiler
 ```
 
-## Configuration
+## One-Time Setup
 
-Before building, you must run the configuration script to set up CMake and download dependencies.
+After cloning the repository, run `setup.sh` once to download dependencies and initialize submodules:
 
 ```bash
-# Downloads libtcc for your platform, configures CMake
-./scripts/configure.sh
+# Downloads libtcc for your platform, initializes git submodules
+./scripts/setup.sh
 
-# Download prebuilt LLVM too (required for --llvm builds)
-./scripts/configure.sh --with-llvm
+# Also download prebuilt LLVM (required for --llvm builds)
+./scripts/setup.sh --with-llvm
+```
+
+This fetches:
+- **libtcc** (TinyCC shared library) into `lib/tcc/`
+- **LLVM/Clang/LLD** (with `--with-llvm`) into `out/host/`
+- **Git submodules** (e.g. `lib/lsp-framework`)
+
+## Configuration
+
+After setup, configure CMake:
+
+```bash
+# Configure with LLVM support
+./scripts/configure.sh
 
 # Skip LLVM setup entirely (for TCC-only builds)
 ./scripts/configure.sh --no-llvm

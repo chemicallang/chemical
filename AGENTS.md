@@ -1,5 +1,12 @@
 # AGENTS.md — Chemical Programming Language
 
+## One-Time Setup (after cloning)
+
+```bash
+./scripts/setup.sh                # Downloads libtcc & LSP submodule
+./scripts/setup.sh --with-llvm    # Also download prebuilt LLVM
+```
+
 ## Configuration
 
 ```bash
@@ -32,7 +39,7 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 - Both `Compiler` (LLVM/Clang backend) and `TCCCompiler` (TinyCC) link dynamically with TinyCC (`libtcc.so`).
 - `Compiler` additionally links with LLVM + Clang + LLD to emit executables.
 - LLVM version 22; prebuilt LLVM assets from `chemicallang/llvm-prebuilt`.
-- `configure.sh` downloads `libtcc` (and optionally LLVM with `--with-llvm`).
+- `setup.sh` downloads `libtcc` (and optionally LLVM with `--with-llvm`); `configure.sh` only runs CMake.
 - macOS: no static linking of standard libraries.
 - LSP depends on `lib/lsp-framework` submodule.
 

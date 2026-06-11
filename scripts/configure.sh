@@ -1,41 +1,29 @@
 #!/usr/bin/env bash
-# Copyright (c) Chemical Language Foundation 2025.
 set -euo pipefail
 
-# ---------------------------------------
-# Parse args: support --with-llvm, pass rest to others
-# ---------------------------------------
-WITH_LLVM=false
-FORWARD_ARGS=()
+NO_LLVM=false
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --with-llvm) WITH_LLVM=true; shift ;;
+for arg in "$@"; do
+  case "$arg" in
+    --no-llvm) NO_LLVM=true ;;
     --help|-h)
-       printf '%s\n' "Usage: $0 [--with-llvm] [other options passed to libtcc.sh/llvm.sh]"
-       printf '%s\n' ""
-       printf '%s\n' "Options:"
-       printf '%s\n' "  --with-llvm       Download prebuilt LLVM in addition to libtcc"
-       printf '%s\n' ""
-       printf '%s\n' "Other options like --arch, --musl, --mingw, --ucrt will be passed to exactly"
-       printf '%s\n' "the downloaded scripts (libtcc.sh or llvm.sh)."
-       exit 0
-       ;;
+      echo "Usage: $0 [options]"
+      echo ""
+      echo "Options:"
+      echo "  --no-llvm       Disable LLVM, sets BUILD_COMPILER=OFF in CMake"
+      echo "  --help, -h      Show this help"
+      exit 0
+      ;;
     *)
-       FORWARD_ARGS+=("$1")
-       shift
-       ;;
+      echo "Unknown option: $arg"
+      exit 1
+      ;;
   esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-
-echo "==> Setting up libtcc..."
-bash "${SCRIPT_DIR}/libtcc.sh" "${FORWARD_ARGS[@]}"
-
-if [ "$WITH_LLVM" = true ]; then
-    echo "==> Setting up prebuilt LLVM..."
-    bash "${SCRIPT_DIR}/llvm.sh" "${FORWARD_ARGS[@]}"
+CMAKE_OPTIONS="-S . -B cmake-build-debug"
+if [ "$NO_LLVM" = true ]; then
+  CMAKE_OPTIONS="$CMAKE_OPTIONS -DBUILD_COMPILER=OFF"
 fi
 
-echo "Configuration complete."
+cmake $CMAKE_OPTIONS

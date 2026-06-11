@@ -94,20 +94,42 @@ These features should give you an idea about features I have worked on
 
 ## 🛠️ Build (From Source)
 
-For detailed instructions on building the Chemical Compiler for various platforms, IDEs, and scenarios, please see the [Building Chemical](lang/docs/build/BUILDING.md) guide.
+### Quick Start
+
+```bash
+# 1. Configure
+./scripts/configure.sh
+
+# 2. Build
+./scripts/build.sh --tcc   # TCCCompiler (fast, no LLVM)
+./scripts/build.sh --llvm  # Compiler (LLVM backend)
+
+# 3. Test
+./scripts/test.sh --tcc    # Build & run tests
+```
+
+For detailed instructions covering all platforms, IDEs, and scenarios, see the [Building Chemical](lang/docs/build/BUILDING.md) guide.
 
 ### Requirements
 
 - 8–16 GB RAM
-- C++ toolchain (for LSP)
-- LLVM (for compiler)
-- CLion or other IDE
+- C++20 toolchain
+- LLVM (optional, for Compiler target)
+- CMake 3.15+
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/configure.sh` | Configure CMake project (use `--no-llvm` to skip LLVM) |
+| `scripts/build.sh` | Build targets: `--tcc`, `--llvm`, `--lsp`, `--all` |
+| `scripts/test.sh` | Build & run tests: `--tcc`, `--llvm`, `--libs`, `--no-run`, `--no-build` |
 
 #### LSP
 
-1. For LSP: clone `chemical-vscode`.
-2. There's a run configuration for compiling and launching extension
-3. Build and Launch the LSP server before launching the extension, The extension detects running lsp executable at port automatically
+1. Clone `chemical-vscode` for the VS Code extension.
+2. Build the LSP server: `./scripts/build.sh --lsp`
+3. Launch the LSP server before launching the extension.
 
 *Open an issue for any build errors.*
 

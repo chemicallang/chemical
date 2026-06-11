@@ -6,6 +6,8 @@ func get_i_by_deref_ptr_to_ref_struct(r : *ReferencableStruct) : int {
     return r.i;
 }
 
+type ref_struct_type_def_hidden_ref_test = &ReferencableStruct
+
 @direct_init
 struct AssignableReferencableStruct {
     var i : int
@@ -319,6 +321,12 @@ func test_references() {
     test("passing a pointer via address of a reference variable works", () => {
         var p = ReferencableStruct { i : 9238455 }
         var ref = &p
+        return get_i_by_deref_ptr_to_ref_struct(&raw ref) == 9238455
+    })
+    test("passing a pointer via address of a reference variable works - 2", () => {
+        var p = ReferencableStruct { i : 9238455 }
+        // here its testing that compiler doesn't simply assume its not a reference by checking type without canonicalization
+        var ref : ref_struct_type_def_hidden_ref_test = &p
         return get_i_by_deref_ptr_to_ref_struct(&raw ref) == 9238455
     })
 }

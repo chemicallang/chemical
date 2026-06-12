@@ -112,6 +112,8 @@ These features should give you an idea about features I have worked on
 ./scripts/test.sh --tcc           # Build & run tests
 ```
 
+**Interactive TUI:** `./scripts/tui.sh` provides a curses menu to run all scripts, tweak options, and save/load configs.
+
 For detailed instructions covering all platforms, IDEs, and scenarios, see the [Building Chemical](lang/docs/build/BUILDING.md) guide.
 
 ### Requirements
@@ -125,6 +127,7 @@ For detailed instructions covering all platforms, IDEs, and scenarios, see the [
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/tui.sh` | **Interactive TUI** — curses-based menu to run all scripts, tweak options, save/load configs |
 | `scripts/setup.sh` | **One-time setup after cloning:** downloads libtcc, updates submodules, (optionally LLVM with `--with-llvm`) |
 | `scripts/configure.sh` | Configure CMake project (use `--no-llvm` to skip LLVM) |
 | `scripts/build.sh` | Build targets: `--tcc`, `--llvm`, `--lsp`, `--all` |

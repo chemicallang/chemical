@@ -69,7 +69,7 @@ public namespace net {
                 var key: usize = 0;
                 var ov_ptr: *mut OVERLAPPED = null;
 
-                var ok = GetQueuedCompletionStatus(handle, &mut bytes, &mut key, &mut ov_ptr, timeout_ms);
+                var ok = GetQueuedCompletionStatus(handle, &raw mut bytes, &raw mut key, &raw mut ov_ptr, timeout_ms);
                 if (ov_ptr != null) {
                     // Cast back to AsyncContext
                     // AsyncContext has overlapped as first member, so pointers are same
@@ -87,12 +87,12 @@ public namespace net {
         public func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
             var bytes: u32 = 0;
             var flags: u32 = 0;
-            return WSARecv(s as uintptr_t, &mut ctx.buffer, 1, &mut bytes, &mut flags, &mut ctx.overlapped, null);
+            return WSARecv(s as uintptr_t, &raw mut ctx.buffer, 1, &raw mut bytes, &raw mut flags, &raw mut ctx.overlapped, null);
         }
 
         public func async_send(s: Socket, ctx: *mut AsyncContext) : int {
             var bytes: u32 = 0;
-            return WSASend(s as uintptr_t, &mut ctx.buffer, 1, &mut bytes, 0, &mut ctx.overlapped, null);
+            return WSASend(s as uintptr_t, &raw mut ctx.buffer, 1, &raw mut bytes, 0, &raw mut ctx.overlapped, null);
         }
     }
 

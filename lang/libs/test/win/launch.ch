@@ -7,15 +7,15 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     var si : STARTUPINFOA
     var pi : PROCESS_INFORMATION;
-    ZeroMemory(&mut si, sizeof(si));
+    ZeroMemory(&raw mut si, sizeof(si));
     si.cb = sizeof(si);
-    ZeroMemory(&mut pi, sizeof(pi));
+    ZeroMemory(&raw mut pi, sizeof(pi));
 
     var cmd = std::string()
     cmd.append_char_ptr(exe_path)
     cmd.append(' ');
     cmd.append_char_ptr("--test-id ");
-    append_integer(cmd, id);
+    append_integer(&mut cmd, id);
 
     // get pipe name
     var pipeName = get_test_pipe_name(id);
@@ -46,8 +46,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         0,
         null,
         null, // inherits cwd
-        &mut si,
-        &mut pi
+        &raw mut si,
+        &raw mut pi
     )
 
     if(!ok) {
@@ -69,10 +69,10 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     var buffer : [2048]char;
     var bytesRead : DWORD;
     while(true) {
-        if (ReadFile(hPipe, &mut buffer[0], sizeof(buffer)-1, &mut bytesRead, null)) {
+        if (ReadFile(hPipe, &raw mut buffer[0], sizeof(buffer)-1, &raw mut bytesRead, null)) {
             if(bytesRead > 0) {
                 buffer[bytesRead] = '\0'; // null terminate
-                process_message(state, &mut buffer[0]);
+                process_message(state, &raw mut buffer[0]);
             } else {
                 // 0 bytes means pipe closed gracefully
                 break;
@@ -86,7 +86,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
                 fprintf(get_stderr(), "buffer too small for testing data received: %lu\n", err);
                 // Our buffer was too small for the message
                 buffer[sizeof(buffer) - 1] = '\0';
-                process_message(state, &mut buffer[0]);
+                process_message(state, &raw mut buffer[0]);
                 break;
             } else {
                 fprintf(get_stderr(), "ReadFile failed: %lu\n", err);
@@ -109,7 +109,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         state.exitCode = 1 // dummy exit code for timeout
     } else {
         var exitCode : DWORD;
-        if (GetExitCodeProcess(pi.hProcess, &mut exitCode)) {
+        if (GetExitCodeProcess(pi.hProcess, &raw mut exitCode)) {
             // set the exit code in state
             state.exitCode = exitCode;
             if(exitCode != 0 && !state.fn.pass_on_crash) {

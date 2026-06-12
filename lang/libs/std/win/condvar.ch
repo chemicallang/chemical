@@ -32,14 +32,14 @@ public namespace std {
         func constructor() {
             var c = CondVar { storage : [] }
             // InitializeConditionVariable does not fail and requires no destroy.
-            InitializeConditionVariable(&mut c.storage[0])
+            InitializeConditionVariable(&raw mut c.storage[0])
             return c;
         }
 
         // wait (blocking). Caller must hold mutex before calling.
         // mutex is your std::mutex (the one storing CRITICAL_SECTION or pthread_mutex_t bytes).
         func wait(&mut self, mutex : &mut std::mutex) {
-            var ok = SleepConditionVariableCS(&mut storage[0], &mut mutex.storage[0], 0xFFFFFFFFu) // INFINITE
+            var ok = SleepConditionVariableCS(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu) // INFINITE
             if(ok == 0) {
                 // 0 -> timeout or failure, but since we passed INFINITE it means failure
                 panic("SleepConditionVariableCS failed in wait")
@@ -50,12 +50,12 @@ public namespace std {
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
             // SleepConditionVariableCS returns nonzero on success (signalled), 0 on timeout/failure.
-            var ok = SleepConditionVariableCS(&mut storage[0], &mut mutex.storage[0], timeout_ms)
+            var ok = SleepConditionVariableCS(&raw mut storage[0], &raw mut mutex.storage[0], timeout_ms)
             return ok != 0
         }
 
         func notify_one(&mut self) {
-            WakeConditionVariable(&mut storage[0])
+            WakeConditionVariable(&raw mut storage[0])
         }
 
         func signal(&mut self) {
@@ -63,7 +63,7 @@ public namespace std {
         }
 
         func notify_all(&mut self) {
-            WakeAllConditionVariable(&mut storage[0])
+            WakeAllConditionVariable(&raw mut storage[0])
         }
 
         // destructor: POSIX needs destroy, Windows does not.

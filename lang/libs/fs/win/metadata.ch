@@ -4,7 +4,7 @@ using std::Result;
 
 func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     var fi : WIN32_FILE_ATTRIBUTE_DATA;
-    var ok = GetFileAttributesExW(path as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &mut fi);
+    var ok = GetFileAttributesExW(path as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &raw mut fi);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     var m : Metadata;
     var attrs = fi.dwFileAttributes;
@@ -22,12 +22,12 @@ func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
 
 public func metadata(path : *char) : Result<Metadata, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
     }
-    return metadata_native(&mut wbuf[0])
+    return metadata_native(&raw mut wbuf[0])
 }
 
 }

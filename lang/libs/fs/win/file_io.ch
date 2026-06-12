@@ -4,8 +4,8 @@ using std::Result;
 
 func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
     var access : u32 = 0;
-    if(opts.read) { access = access | 0x80000000; } // GENERIC_READ
-    if(opts.write) { access = access | 0x40000000; } // GENERIC_WRITE
+    if(opts.read) { access = access | 0x80000000u32; } // GENERIC_READ
+    if(opts.write) { access = access | 0x40000000u32; } // GENERIC_WRITE
     var create_disp : u32 = 0;
     if(opts.create_new) {
         // CREATE_NEW
@@ -74,7 +74,7 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
     var cft = unix_to_filetime(0); // unused creation
     var aft = unix_to_filetime(atime);
     var mft = unix_to_filetime(mtime);
-    var ok = SetFileTime(h, &cft, &aft, &mft);
+    var ok = SetFileTime(h, &raw cft, &raw aft, &raw mft);
     CloseHandle(h);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
@@ -90,7 +90,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     var res = GetTempFileNameW(dir as LPCWSTR, prefix as LPCWSTR, 0, out_path as LPWSTR);
     if(res == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     // open file
-    var opts : OpenOptions; 
+    var opts : OpenOptions;
     opts.read = true; opts.write = true; opts.append = false; opts.create = false; opts.create_new = false; opts.truncate = false; opts.binary = true;
     var fo = file_open_native(out_path, opts);
     if(fo is Result.Err) {
@@ -104,44 +104,44 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
 
 public func remove_file(path : *char) : Result<UnitTy, FsError> {
     var w : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16_inplace(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
-    return remove_file_native(&mut w[0])
+    return remove_file_native(&raw mut w[0])
 }
 
 public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
     var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
-    var r1 = utf8_to_utf16(src, &mut wsrc[0], WIN_MAX_PATH as size_t);
+    var r1 = utf8_to_utf16(src, &raw mut wsrc[0], WIN_MAX_PATH as size_t);
     if(r1 is Result.Err) {
         var Err(e) = r1 else unreachable
         return Result.Err(e)
     }
-    var r2 = utf8_to_utf16(dst, &mut wdst[0], WIN_MAX_PATH as size_t);
+    var r2 = utf8_to_utf16(dst, &raw mut wdst[0], WIN_MAX_PATH as size_t);
     if(r2 is Result.Err) {
         var Err(e) = r2 else unreachable
         return Result.Err(e)
     }
-    return copy_file_native(&mut wsrc[0], &mut wdst[0])
+    return copy_file_native(&raw mut wsrc[0], &raw mut wdst[0])
 }
 
 func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
     var wdir : [WIN_MAX_PATH]u16; var wprefix : [TEMP_NAME_MAX]u16; var wout : [WIN_MAX_PATH]u16;
-    var f1 = utf8_to_utf16(dir, &mut wdir[0], WIN_MAX_PATH as size_t)
+    var f1 = utf8_to_utf16(dir, &raw mut wdir[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable
         return Result.Err(e)
     }
-    var f2 = utf8_to_utf16(prefix, &mut wprefix[0], TEMP_NAME_MAX as size_t)
+    var f2 = utf8_to_utf16(prefix, &raw mut wprefix[0], TEMP_NAME_MAX as size_t)
     if(f2 is Result.Err) {
         var Err(e) = f2 else unreachable
         return Result.Err(e)
     }
-    var result = create_temp_file_in_native(&mut wdir[0], &mut wprefix[0], &mut wout[0], fh)
+    var result = create_temp_file_in_native(&raw mut wdir[0], &raw mut wprefix[0], &raw mut wout[0], fh)
     if(result is Result.Err) {
         var Err(e) = result else unreachable
         return Result.Err(e)
     }
-    var conv = utf16_to_utf8(&mut wout[0], out_path, out_len);
+    var conv = utf16_to_utf8(&raw mut wout[0], out_path, out_len);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e);
@@ -152,22 +152,22 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
 public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
     // Convert path to UTF-16 and call CreateFileW
     var wbuf : [WIN_MAX_PATH]u16;
-    var r = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+    var r = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(r is Result.Err) {
         var Err(e) = r else unreachable
         return Result.Err(e)
     }
-    return file_open_native(&mut wbuf[0], opts)
+    return file_open_native(&raw mut wbuf[0], opts)
 }
 
 public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
     }
-    return set_times_native(&mut wbuf[0], atime, mtime)
+    return set_times_native(&raw mut wbuf[0], atime, mtime)
 }
 
 

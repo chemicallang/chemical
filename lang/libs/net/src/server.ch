@@ -39,7 +39,7 @@ public namespace server {
 
         // production handler: parse request, route, and respond
         func handle_conn(&self, s: net::Socket) {
-            
+
             if (s == 0u || (s as longlong) < 0) {
                 printf("handle_conn: invalid socket {}\n");
                 net::close_socket(s); return;
@@ -48,11 +48,11 @@ public namespace server {
             var buf = io.Buffer();
             var req_opt = http.read_request_incremental(s, &mut buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
-                
+
                 net::close_socket(s); return;
             }
             var Some(req) = req_opt else unreachable;
-            
+
 
             var body_len: isize = -1;
             var chunked = false;
@@ -71,18 +71,18 @@ public namespace server {
             var resw = http.ResponseWriter(s, &req.method);
 
             if (route != null) {
-                
+
                 route.handler(req_opt.take(), resw);
-                
+
             } else {
-                
+
                 resw.status = 404u;
                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
             net::close_socket(s);
-            
+
         }
 
         // accept loop — submit work to threadpool
@@ -116,7 +116,7 @@ public namespace server {
             // parse addr into host and port
             var host : *char = null
             var port = default_port
-            
+
             var pos = self.cfg.addr.find(":")
             var host_str = std::string()
             if (pos != -1u) {
@@ -279,7 +279,7 @@ public namespace server {
 
                              // Route
                              var params = std::vector<std::pair<std::string,std::string>>();
-                             var route = self.router.match_route(req.method, req.path, &mut params);
+                             var route = self.router.match_route(&req.method, &req.path, &raw mut params);
                              // TODO: compiler thinks req.method is being moved, ResponseWriter has a reference type
                              //     this happens because in generic context the call doesn't link with constructor fast
                              var resw = http.ResponseWriter(s, req.method.copy());

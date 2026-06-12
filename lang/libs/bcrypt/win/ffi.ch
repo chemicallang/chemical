@@ -10,7 +10,7 @@ public namespace bcrypt {
 
     public func get_random_bytes(buf : *mut u8, len : uint) : bool {
         var hProv : usize = 0u
-        if(!CryptAcquireContextA(&mut hProv, null, null, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) return false
+        if(!CryptAcquireContextA(&raw mut hProv, null, null, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) return false
         var ok = CryptGenRandom(hProv, len, buf)
         CryptReleaseContext(hProv, 0u)
         return ok

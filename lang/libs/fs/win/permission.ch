@@ -14,12 +14,12 @@ public func set_permissions_native(path : path_ptr, perms : u32) : Result<UnitTy
 public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
     // map readonly bit
     var wbuf : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
     }
-    return set_permissions_native(&mut wbuf[0], perms)
+    return set_permissions_native(&raw mut wbuf[0], perms)
 }
 
 }

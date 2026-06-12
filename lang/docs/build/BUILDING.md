@@ -115,6 +115,32 @@ Library tests:
 cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-libs -frecompile-plugins
 ```
 
+## Build TUI
+
+For an interactive terminal UI that wraps all of the above scripts, use `scripts/tui.sh`:
+
+```bash
+./scripts/tui.sh
+```
+
+Controls:
+- **Down/Up** or **Tab/Shift+Tab** — navigate between items
+- **Space** — toggle boolean options, cycle choice widgets
+- **Left/Right** — cycle choice widgets
+- **Enter** — run the focused section's command
+- **r** — run all sections sequentially
+- **s** — save current configuration to a named file
+- **l** — load a saved configuration
+- **q** — quit (auto-saves last config to `scripts/tui-configs/last.json`)
+
+Headless mode — load a saved config and run all commands without showing the TUI:
+
+```bash
+./scripts/tui.sh --run myconfig
+```
+
+Configs are stored as JSON in `scripts/tui-configs/`.
+
 ## Prerequisites
 
 - 8–16 GB RAM

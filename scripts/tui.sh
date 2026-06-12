@@ -196,21 +196,39 @@ def from_dict(sections, d):
                 elif isinstance(w, TextWidget): w.value = dd[w.key]
 
 # ─── Custom Commands ────────────────────────────────────────────
-COMMANDS_FILE = os.path.join(CONFIG_DIR, "commands.json")
+COMMITTED_CMDS_FILE = os.path.join(CONFIG_DIR, "commands.txt")
+LOCAL_CMDS_FILE = os.path.join(CONFIG_DIR, "commands2.txt")
+
+def _parse_cmds_txt(path):
+    if not os.path.exists(path):
+        return []
+    cmds = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "|" in line:
+                name, _, cmd = line.partition("|")
+                cmds.append({"name": name.strip(), "command": cmd.strip()})
+    return cmds
 
 def load_commands():
-    if not os.path.exists(COMMANDS_FILE):
-        return []
-    try:
-        with open(COMMANDS_FILE) as f:
-            return json.load(f)
-    except:
-        return []
+    cmds = []
+    for cmd in _parse_cmds_txt(COMMITTED_CMDS_FILE):
+        cmd["source"] = "committed"
+        cmds.append(cmd)
+    for cmd in _parse_cmds_txt(LOCAL_CMDS_FILE):
+        cmd["source"] = "local"
+        cmds.append(cmd)
+    return cmds
 
 def save_commands(cmds):
     os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(COMMANDS_FILE, "w") as f:
-        json.dump(cmds, f, indent=2)
+    local = [c for c in cmds if c.get("source") == "local"]
+    with open(LOCAL_CMDS_FILE, "w") as f:
+        for c in local:
+            f.write(f"{c['name']} | {c['command']}\n")
 
 # ─── Named Configs (single file) ────────────────────────────────
 CONFIGS_FILE = os.path.join(CONFIG_DIR, "configs.json")
@@ -733,7 +751,7 @@ def run_tui(sections):
                 if name:
                     cmd_str = read_line("Command: ")
                     if cmd_str:
-                        custom_commands.append({"name": name, "command": cmd_str})
+                        custom_commands.append({"name": name, "command": cmd_str, "source": "local"})
                         save_commands(custom_commands)
                         rebuild_cmds_tab()
                         msg = f"added command '{name}'"
@@ -746,15 +764,19 @@ def run_tui(sections):
                 if entry[0] == "cmd":
                     _, ci = entry
                     cmd_name = custom_commands[ci]["name"]
-                    confirm = read_line(f"Delete '{cmd_name}'? (y/n): ")
-                    if confirm.lower() == "y":
-                        custom_commands.pop(ci)
-                        save_commands(custom_commands)
-                        rebuild_cmds_tab()
-                        msg = f"deleted command '{cmd_name}'"
-                        msg_err = False
-                        if focus_idx >= len(tab_items[current_tab]):
-                            focus_idx = max(0, len(tab_items[current_tab]) - 1)
+                    if custom_commands[ci].get("source") == "committed":
+                        msg = f"'{cmd_name}' is in commands.txt — edit that file manually"
+                        msg_err = True
+                    else:
+                        confirm = read_line(f"Delete '{cmd_name}'? (y/n): ")
+                        if confirm.lower() == "y":
+                            custom_commands.pop(ci)
+                            save_commands(custom_commands)
+                            rebuild_cmds_tab()
+                            msg = f"deleted command '{cmd_name}'"
+                            msg_err = False
+                            if focus_idx >= len(tab_items[current_tab]):
+                                focus_idx = max(0, len(tab_items[current_tab]) - 1)
     finally:
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()

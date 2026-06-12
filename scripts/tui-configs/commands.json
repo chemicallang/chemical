@@ -1,0 +1,6 @@
+[
+  {
+    "name": "temp-tcc",
+    "command": "./scripts/build.sh --tcc && cmake-build-debug/TCCCompiler lang/compiled/temp.ch -o lang/compiled/temp.c --mode debug_quick"
+  }
+]

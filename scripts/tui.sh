@@ -196,39 +196,32 @@ def from_dict(sections, d):
                 elif isinstance(w, TextWidget): w.value = dd[w.key]
 
 # ─── Custom Commands ────────────────────────────────────────────
-COMMITTED_CMDS_FILE = os.path.join(CONFIG_DIR, "commands.txt")
-LOCAL_CMDS_FILE = os.path.join(CONFIG_DIR, "commands2.txt")
+COMMITTED_CMDS_FILE = os.path.join(CONFIG_DIR, "commands.json")
+LOCAL_CMDS_FILE = os.path.join(CONFIG_DIR, "commands2.json")
 
-def _parse_cmds_txt(path):
+def _load_json_cmds(path, source):
     if not os.path.exists(path):
         return []
-    cmds = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "|" in line:
-                name, _, cmd = line.partition("|")
-                cmds.append({"name": name.strip(), "command": cmd.strip()})
-    return cmds
+    try:
+        with open(path) as f:
+            cmds = json.load(f)
+            for cmd in cmds:
+                cmd["source"] = source
+            return cmds
+    except:
+        return []
 
 def load_commands():
     cmds = []
-    for cmd in _parse_cmds_txt(COMMITTED_CMDS_FILE):
-        cmd["source"] = "committed"
-        cmds.append(cmd)
-    for cmd in _parse_cmds_txt(LOCAL_CMDS_FILE):
-        cmd["source"] = "local"
-        cmds.append(cmd)
+    cmds.extend(_load_json_cmds(COMMITTED_CMDS_FILE, "committed"))
+    cmds.extend(_load_json_cmds(LOCAL_CMDS_FILE, "local"))
     return cmds
 
 def save_commands(cmds):
     os.makedirs(CONFIG_DIR, exist_ok=True)
-    local = [c for c in cmds if c.get("source") == "local"]
+    local = [{"name": c["name"], "command": c["command"]} for c in cmds if c.get("source") == "local"]
     with open(LOCAL_CMDS_FILE, "w") as f:
-        for c in local:
-            f.write(f"{c['name']} | {c['command']}\n")
+        json.dump(local, f, indent=2)
 
 # ─── Named Configs (single file) ────────────────────────────────
 CONFIGS_FILE = os.path.join(CONFIG_DIR, "configs.json")

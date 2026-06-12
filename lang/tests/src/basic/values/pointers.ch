@@ -16,6 +16,14 @@ func take_addr_of_pointer(ptr : *mut int) : *mut int {
     return *x
 }
 
+func create_pmc22_struct(a : int, b : int) : PMC22 {
+    return PMC22 { a : a, b : b }
+}
+
+func ret_sum_of_struct_by_ptr(p : *PMC22) : int {
+    return p.a + p.b;
+}
+
 type my_char_ptr = *char
 
 func take_char_ptr(path : my_char_ptr) : *char {
@@ -156,5 +164,8 @@ func test_pointer_math() {
     })
     test("int to pointer cast works", () => {
         return check_int_to_ptr_cast(0 as *mut int)
+    })
+    test("passing pointer to struct created via function call directly works", () => {
+        return ret_sum_of_struct_by_ptr(&raw create_pmc22_struct(5, 6)) == 11
     })
 }

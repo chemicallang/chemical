@@ -6,6 +6,10 @@ func get_i_by_deref_ptr_to_ref_struct(r : *ReferencableStruct) : int {
     return r.i;
 }
 
+func create_ref_struct_with_i(i : int) : ReferencableStruct {
+    return ReferencableStruct { i : i }
+}
+
 type ref_struct_type_def_hidden_ref_test = &ReferencableStruct
 
 @direct_init
@@ -178,6 +182,9 @@ func test_references() {
                 return false;
             }
         }
+    })
+    test("sending reference of returned struct from function call works", () => {
+        return take_ref(&create_ref_struct_with_i(383645)) == 383645
     })
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }

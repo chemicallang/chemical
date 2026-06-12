@@ -2,28 +2,38 @@
 set -euo pipefail
 
 NO_LLVM=false
+GENERATOR=""
 
-for arg in "$@"; do
-  case "$arg" in
-    --no-llvm) NO_LLVM=true ;;
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --no-llvm) NO_LLVM=true; shift ;;
+    --generator|-G)
+      if [ -n "${2-}" ]; then
+        GENERATOR="$2"; shift 2
+      else
+        echo "Error: --generator/-G requires a value" >&2; exit 1
+      fi
+      ;;
     --help|-h)
       echo "Usage: $0 [options]"
       echo ""
       echo "Options:"
-      echo "  --no-llvm       Disable LLVM, sets BUILD_COMPILER=OFF in CMake"
-      echo "  --help, -h      Show this help"
+      echo "  --no-llvm                 Disable LLVM, sets BUILD_COMPILER=OFF"
+      echo "  --generator <name>, -G    CMake generator (Ninja, Unix Makefiles, etc.)"
+      echo "  --help, -h                Show this help"
       exit 0
       ;;
     *)
-      echo "Unknown option: $arg"
-      exit 1
-      ;;
+      echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
 
-CMAKE_OPTIONS="-S . -B cmake-build-debug"
+CMAKE_ARGS=(-S . -B cmake-build-debug)
+if [ -n "$GENERATOR" ]; then
+  CMAKE_ARGS+=(-G "$GENERATOR")
+fi
 if [ "$NO_LLVM" = true ]; then
-  CMAKE_OPTIONS="$CMAKE_OPTIONS -DBUILD_COMPILER=OFF"
+  CMAKE_ARGS+=(-DBUILD_COMPILER=OFF)
 fi
 
-cmake $CMAKE_OPTIONS
+cmake "${CMAKE_ARGS[@]}"

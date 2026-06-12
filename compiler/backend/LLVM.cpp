@@ -2386,7 +2386,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error(this) << "array size is required when destructing a pointer, for destructing array pointer value" << identifier->representation();
             return;
         }
-        auto ptr_type = (PointerType*) pure_type;
+        auto ptr_type = pure_type->as_pointer_type_unsafe();
         elem_type = ptr_type->type->pure_type(gen.allocator);
         auto def = ptr_type->type->pure_type(gen.allocator)->get_direct_linked_struct();
         if(!def) {
@@ -2394,6 +2394,22 @@ void DestructStmt::code_gen(Codegen &gen) {
         }
 
         arr_size_llvm = array_value->llvm_value(gen, nullptr);
+    } else if (pure_type->kind() == BaseTypeKind::Reference) {
+        if(!array_value) {
+            gen.error(this) << "array size is required when destructing a pointer, for destructing array pointer value" << identifier->representation();
+            return;
+        }
+        auto ptr_type = pure_type->as_reference_type_unsafe();
+        elem_type = ptr_type->type->pure_type(gen.allocator);
+        auto def = ptr_type->type->pure_type(gen.allocator)->get_direct_linked_struct();
+        if(!def) {
+            return;
+        }
+
+        arr_size_llvm = array_value->llvm_value(gen, nullptr);
+    } else {
+        gen.error(this) << "destruct stmt only supports pointer, reference or array type values";
+        return;
     }
 
     auto id_value = identifier->llvm_value(gen);

@@ -9,6 +9,11 @@
 #include <iostream>
 #include <array>
 #include <cstring>
+#ifdef _WIN32
+#include <io.h>
+#define popen _popen
+#define pclose _pclose
+#endif
 #include "utils/PathUtils.h"
 
 static std::string work_dir;

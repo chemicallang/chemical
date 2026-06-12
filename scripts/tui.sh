@@ -108,6 +108,7 @@ def build_sections():
         ]),
         Section("Configure", "scripts/configure.sh", [
             BoolWidget("no_llvm", "--no-llvm", "--no-llvm"),
+            BoolWidget("msvc_auto", "MSVC Auto Setup", "", default=True),
             ChoiceWidget("generator", "Generator", [
                 ("Default (system)", ""),
                 ("Ninja", "Ninja"),
@@ -216,9 +217,18 @@ if len(sys.argv) > 1 and sys.argv[1] == "--run":
         if builder:
             cmds.append(builder(sec.widgets, {}))
     if cmds and CMDS_FILE:
+        _msvc_on = True
+        for sec in sections:
+            if sec.name == "Configure":
+                for w in sec.widgets:
+                    if w.key == "msvc_auto" and not w.value:
+                        _msvc_on = False
+                break
         with open(CMDS_FILE, "w") as f:
             f.write("set -e\n")
             f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+            if not _msvc_on:
+                f.write("export CHEMICAL_MSVC_AUTO=0\n")
             for cmd in cmds:
                 f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
     sys.exit(0)
@@ -500,9 +510,18 @@ if __name__ == "__main__":
         pass
 
     if commands and CMDS_FILE:
+        _msvc_on = True
+        for sec in sections:
+            if sec.name == "Configure":
+                for w in sec.widgets:
+                    if w.key == "msvc_auto" and not w.value:
+                        _msvc_on = False
+                break
         with open(CMDS_FILE, "w") as f:
             f.write("set -e\n")
             f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+            if not _msvc_on:
+                f.write("export CHEMICAL_MSVC_AUTO=0\n")
             for cmd in commands:
                 f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
 ENDOFPYTHON

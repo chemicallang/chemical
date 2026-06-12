@@ -219,7 +219,7 @@ void check_destructible_deref(TypeVerifier& verifier, DereferenceValue* value) {
     }
 }
 
-inline constexpr void visit_dereference_value(TypeVerifier& verifier, DereferenceValue* value, bool disable_checking_destructible_deref) {
+inline void visit_dereference_value(TypeVerifier& verifier, DereferenceValue* value, bool disable_checking_destructible_deref) {
     verifier.RecursiveVisitor::VisitDereferenceValue(value);
     if (disable_checking_destructible_deref) return;
     check_destructible_deref(verifier, value);

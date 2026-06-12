@@ -1,0 +1,115 @@
+# ── MSVC environment setup (Windows/Git Bash) ─────────────────────────────────
+# Source this from any build script that needs to build with MSVC on Windows.
+#
+# Two MSYS2/Git Bash quirks are handled here:
+#
+#  1. MSYS2_ARG_CONV_EXCL
+#     Git Bash automatically converts Unix-style paths like "/nologo" or
+#     "/EHsc" into Windows paths like "C:/Program Files/Git/nologo", which
+#     breaks MSVC command-line flags.  Setting MSYS2_ARG_CONV_EXCL tells the
+#     runtime to leave arguments matching these prefixes untouched.
+#
+#  2. INCLUDE / LIB
+#     cl.exe relies on the INCLUDE and LIB environment variables to locate
+#     the C++ standard library headers (<utility>, <cassert>, <string>, …)
+#     and import libraries.  These are normally set by running vcvarsall.bat,
+#     but that is hard to invoke reliably from inside Git Bash.
+#     Instead we construct the paths ourselves from the Visual Studio
+#     installation directory, the MSVC tool version, and the Windows SDK.
+
+# ── Run automatically when sourced ───────────────────────────────────────────
+case "$(uname -s 2>/dev/null || true)" in
+  MINGW*|MSYS*) ;;
+  *) return ;;  # not on Windows (Linux, macOS, …) — nothing to do
+esac
+
+# Users can opt out of the automatic MSVC environment by setting
+# CHEMICAL_MSVC_AUTO=0 (or any falsy value) before sourcing these scripts.
+case "${CHEMICAL_MSVC_AUTO-}" in
+  0|false|no|off) return ;;
+esac
+
+# ── 1. Prevent MSYS2 from mangling MSVC-style flags ─────────────────────────
+export MSYS2_ARG_CONV_EXCL="/nologo;/EHsc;/Fe;/Fo;/I;/D;/c;/GR;/GR-;/Zi;/Ob;/Od;/RTC;/MD;/MT;/W4;/we;/wd;/FS"
+
+# ── 2. Set INCLUDE / LIB for MSVC standard library ──────────────────────────
+# Already set?  Skip (user has run vcvarsall manually or has custom setup).
+[ -n "${INCLUDE-}" ] && [ -n "${LIB-}" ] && return
+
+# Locate vswhere
+_vs_vswhere=""
+if command -v vswhere &>/dev/null; then
+  _vs_vswhere="vswhere"
+else
+  for _p in "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+            "/c/Program Files/Microsoft Visual Studio/Installer/vswhere.exe"; do
+    [ -f "$_p" ] && { _vs_vswhere="$_p"; break; }
+  done
+fi
+
+[ -z "$_vs_vswhere" ] || [ ! -f "$_vs_vswhere" ] && return
+
+# Get VS installation path (returns Windows-style path, e.g. D:\Software\...)
+_vs_path=$("$_vs_vswhere" -latest -property installationPath 2>/dev/null | tr -d '\r\n')
+[ -z "$_vs_path" ] && return
+
+# Convert to Unix-style for bash file-checks (e.g. /d/Software/...)
+_vs_ux=$(echo "$_vs_path" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+
+# Read MSVC tools version
+_vs_ver_file="${_vs_ux}/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt"
+[ ! -f "$_vs_ver_file" ] && return
+_vs_ver=$(cat "$_vs_ver_file" 2>/dev/null | tr -d '\r\n')
+[ -z "$_vs_ver" ] && return
+
+# Windows Kits root (probe common locations, keep as Unix path for bash checks)
+_kit_root_ux=""
+for _kr in "/c/Program Files (x86)/Windows Kits/10" \
+           "/d/Windows Kits/10" \
+           "/c/Program Files/Windows Kits/10"; do
+  [ -d "$_kr/Include" ] && { _kit_root_ux="$_kr"; break; }
+done
+[ -z "$_kit_root_ux" ] && return
+
+# Convert to Windows path: /d/Windows Kits/10 → D:\Windows Kits\10
+_kit_path=$(echo "$_kit_root_ux" | sed 's|^/\([a-zA-Z]\)/|\U\1:\\|; s|/|\\|g')
+
+# Latest SDK version from the Include directory
+_sdk_ver=$(ls "$_kit_root_ux/Include/" 2>/dev/null | sort -V | tail -1)
+[ -z "$_sdk_ver" ] && return
+
+# Architecture directory
+case "$(uname -m 2>/dev/null || true)" in
+  x86_64|amd64) _arch="x64" ;;
+  i686|x86)     _arch="x86" ;;
+  aarch64|arm64) _arch="arm64" ;;
+  arm)          _arch="arm" ;;
+  *)            _arch="x64" ;;  # sensible default
+esac
+
+# ── Build include paths ──────────────────────────────────────────────────────
+_INCLUDE=""
+_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\include;"
+_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\include;"
+_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Auxiliary\\VS\\include;"
+_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\ucrt;"
+_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\um;"
+_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\shared;"
+_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\winrt;"
+_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\cppwinrt"
+
+# ── Build library paths ───────────────────────────────────────────────────────
+_LIB=""
+_LIB="${_LIB}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\lib\\${_arch};"
+_LIB="${_LIB}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\lib\\${_arch};"
+_LIB="${_LIB}${_kit_path}\\Lib\\${_sdk_ver}\\ucrt\\${_arch};"
+_LIB="${_LIB}${_kit_path}\\Lib\\${_sdk_ver}\\um\\${_arch}"
+
+# ── Build PATH ──────────────────────────────────────────────────────────────────
+# Add MSVC compiler directory so cl.exe, link.exe etc. are available
+_VSBIN="${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\bin\\Host${_arch}\\${_arch}"
+export PATH="${_VSBIN};${PATH-}"
+
+# ── Export ────────────────────────────────────────────────────────────────────
+export INCLUDE="$_INCLUDE"
+export LIB="$_LIB"

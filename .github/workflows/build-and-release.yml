@@ -68,7 +68,7 @@ jobs:
       # Run the configure script to configure the project
       - name: Run configure script (Windows)
         working-directory: chemical
-        run: bash ./scripts/configure.sh --arch ${{ matrix.arch }}
+        run: bash ./scripts/setup.sh --arch ${{ matrix.arch }}
 
       # Building the llvm based, tiny cc based compilers and lsp
       - name: Build Compiler Targets
@@ -101,13 +101,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            
+
             const validReleases = releasesResponse.data.filter(release => !release.draft);
-            
+
             if (validReleases.length === 0) {
               throw new Error("No published or pre-releases found.");
             }
-            
+
             const latestRelease = validReleases[0];
             core.setOutput("tag", latestRelease.tag_name);
             core.setOutput("id", latestRelease.id);
@@ -228,7 +228,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cd chemical
-          ./scripts/configure.sh --arch ${{ matrix.arch }} --mingw --ucrt
+          ./scripts/setup.sh --arch ${{ matrix.arch }} --mingw --ucrt
 
       - name: Build Compiler Targets
         shell: msys2 {0}
@@ -350,17 +350,17 @@ jobs:
       - name: Download prebuilt LLVM (MinGW MSVCRT)
         shell: bash
         run: |
-          # The logic assumes there might be a specific asset for msvcrt, but based on the user request 
+          # The logic assumes there might be a specific asset for msvcrt, but based on the user request
           # "add a mingw msvc build too, these both are ucrt", I will assume we use the regular mingw asset or a specific one if available.
           # The previous llvm workflow had separate steps for msvcrt.
           # Assuming we use the same llvm asset logic but looking for msvcrt variant if it exists, or just reuse mingw asset.
-          # The user's provided LLVM workflow example doesn't explicitly show msvcrt assets being uploaded for LLVM itself in the 'Compress release assets' step 
-          # (it shows 'windows-mingw-msvcrt-${{ matrix.arch }}.zip'). 
+          # The user's provided LLVM workflow example doesn't explicitly show msvcrt assets being uploaded for LLVM itself in the 'Compress release assets' step
+          # (it shows 'windows-mingw-msvcrt-${{ matrix.arch }}.zip').
           # Wait, the LLVM workflow DOES show:
           # elif [ "${{ matrix.toolchain }}" == "mingw-msvcrt" ]; then
           #    cd chemical-bootstrap && 7z a -tzip ../windows-mingw-msvcrt-${{ matrix.arch }}.zip out\*
           # So we should look for windows-mingw-msvcrt-x64.zip
-          
+
           url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/windows-mingw-msvcrt-x64.zip"
           echo "Downloading LLVM from $url"
           curl -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
@@ -383,7 +383,7 @@ jobs:
         shell: bash
         run: |
           cd chemical
-          ./scripts/configure.sh --arch x64 --mingw --msvcrt
+          ./scripts/setup.sh --arch x64 --mingw --msvcrt
 
       - name: Build Compiler Targets
         shell: bash
@@ -528,8 +528,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical
         run: |
-          chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh --arch ${{ matrix.arch }}
+          chmod +x ./scripts/setup.sh
+          ./scripts/setup.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
         working-directory: chemical
@@ -562,13 +562,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            
+
             const validReleases = releasesResponse.data.filter(release => !release.draft);
-            
+
             if (validReleases.length === 0) {
               throw new Error("No published or pre-releases found.");
             }
-            
+
             const latestRelease = validReleases[0];
             core.setOutput("tag", latestRelease.tag_name);
             core.setOutput("id", latestRelease.id);
@@ -682,8 +682,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical
         run: |
-          chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh --arch ${{ matrix.arch }}
+          chmod +x ./scripts/setup.sh
+          ./scripts/setup.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
         working-directory: chemical
@@ -713,13 +713,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            
+
             const validReleases = releasesResponse.data.filter(release => !release.draft);
-            
+
             if (validReleases.length === 0) {
               throw new Error("No published or pre-releases found.");
             }
-            
+
             const latestRelease = validReleases[0];
             core.setOutput("tag", latestRelease.tag_name);
             core.setOutput("id", latestRelease.id);
@@ -817,8 +817,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical
         run: |
-          chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh --arch ${{ matrix.arch }}
+          chmod +x ./scripts/setup.sh
+          ./scripts/setup.sh --arch ${{ matrix.arch }}
 
       # Build Compiler Targets
       - name: Build Compiler Targets

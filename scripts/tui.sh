@@ -31,13 +31,18 @@ trap 'rm -f "$TMPFILE" "$CMDS_FILE"' EXIT
 export CHEMICAL_CMDS_FILE="$CMDS_FILE"
 
 cat > "$TMPFILE" << 'ENDOFPYTHON'
-import curses
 import datetime
 import json
 import os
 import shlex
 import subprocess
 import sys
+
+try:
+    import curses
+    HAS_CURSES = True
+except ImportError:
+    HAS_CURSES = False
 
 SCRIPT_DIR = os.environ["CHEMICAL_SCRIPT_DIR"]
 REPO_ROOT = os.environ["CHEMICAL_REPO_ROOT"]
@@ -548,6 +553,170 @@ def menu_selector(stdscr, title, items):
         elif key == curses.KEY_DOWN: selected = (selected + 1) % len(items)
         elif key == 9: selected = (selected + 1) % len(items)
 
+# ─── Simple fallback TUI (when curses is not available) ────────────
+def simple_tui(sections):
+    """input()-based TUI for terminals without curses (e.g. Windows)."""
+
+    def save_config(name):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(os.path.join(CONFIG_DIR, name), "w") as f:
+            json.dump(to_dict(sections), f, indent=2)
+        return f"saved '{name}'"
+
+    def load_config(name):
+        path = os.path.join(CONFIG_DIR, name)
+        if not os.path.exists(path): return f"config '{name}' not found"
+        with open(path) as f:
+            from_dict(sections, json.load(f))
+        return f"loaded '{name}'"
+
+    # flat: list of (section_index, widget_or_None)
+    flat = []
+    for si, sec in enumerate(sections):
+        flat.append((si, None))
+        for w in sec.widgets:
+            flat.append((si, w))
+
+    focus_idx = 0
+    msg = ""
+
+    while True:
+        os.system("cls" if os.name == "nt" else "clear")
+        print("=" * 60)
+        print("  Chemical Build TUI (simple mode)")
+        print("=" * 60)
+
+        wsi = 0
+        for si, sec in enumerate(sections):
+            print(f"\n  {sec.name}")
+            # Run button
+            focused_btn = (wsi == focus_idx)
+            prefix = " >" if focused_btn else "  "
+            print(f"{prefix} [ Run {sec.name} ]")
+            wsi += 1
+
+            for w in sec.widgets:
+                focused = (wsi == focus_idx)
+                prefix = " >" if focused else "  "
+                if isinstance(w, BoolWidget):
+                    chk = "X" if w.value else " "
+                    print(f"{prefix} [{chk}] {w.label}")
+                elif isinstance(w, ChoiceWidget):
+                    parts = []
+                    for ci, (ctext, _) in enumerate(w.choices):
+                        marker = "*" if ci == w.selected else " "
+                        parts.append(f"({marker}){ctext}")
+                    print(f"{prefix} {w.label}: {'  '.join(parts)}")
+                elif isinstance(w, TextWidget):
+                    val = w.value if w.value else w.placeholder
+                    print(f"{prefix} {w.label}: [{val}]")
+                wsi += 1
+
+        print()
+        print("-" * 60)
+        if msg:
+            print(f"  {msg}")
+            msg = ""
+        print()
+        print("  Down/Up: navigate with j/k    Space: toggle    Enter: run focused")
+        print("  r: run all    s: save config    l: load config    q: quit")
+        print("-" * 60)
+
+        try:
+            key = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if key == "q":
+            try:
+                os.makedirs(CONFIG_DIR, exist_ok=True)
+                with open(os.path.join(CONFIG_DIR, "last.json"), "w") as f:
+                    json.dump(to_dict(sections), f)
+            except:
+                pass
+            break
+
+        elif key == "j":
+            focus_idx = (focus_idx + 1) % len(flat)
+
+        elif key == "k":
+            focus_idx = (focus_idx - 1) % len(flat)
+
+        elif key == " " or key == "":
+            si, w = flat[focus_idx]
+            if isinstance(w, BoolWidget):
+                w.toggle()
+            elif isinstance(w, ChoiceWidget):
+                w.next()
+
+        elif key == "h":
+            si, w = flat[focus_idx]
+            if isinstance(w, ChoiceWidget):
+                w.prev()
+
+        elif key == "l":
+            si, w = flat[focus_idx]
+            if isinstance(w, ChoiceWidget):
+                w.next()
+
+        elif key == "r":
+            cmds = []
+            for sec in sections:
+                builder = COMMAND_BUILDERS.get(sec.name)
+                if builder:
+                    cmd = builder(sec.widgets, {})
+                    cmds.append(cmd)
+            if cmds and CMDS_FILE:
+                with open(CMDS_FILE, "w") as f:
+                    f.write("set -e\n")
+                    f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+                    for cmd in cmds:
+                        f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+            print("\nQueued commands, exiting...")
+            return
+
+        elif key == "" or key == "\n":
+            # Enter on empty input - run focused section
+            si, w = flat[focus_idx]
+            if w is None:
+                sec = sections[si]
+                builder = COMMAND_BUILDERS.get(sec.name)
+                if builder:
+                    cmd = builder(sec.widgets, {})
+                    if CMDS_FILE:
+                        with open(CMDS_FILE, "w") as f:
+                            f.write("set -e\n")
+                            f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+                            f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+                    print("\nQueued command, exiting...")
+                    return
+
+        elif key == "s":
+            name = f"config-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"
+            msg = save_config(name)
+
+        elif key.startswith("l") and len(key) > 1:
+            config_name = key[1:].strip()
+            if not config_name.endswith(".json"):
+                config_name += ".json"
+            msg = load_config(config_name)
+
+        elif key == "l" or key == "load":
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            configs = [f for f in os.listdir(CONFIG_DIR) if f.endswith(".json") and f != "last.json"]
+            if not configs:
+                msg = "no saved configs"
+            else:
+                print("Saved configs:")
+                for i, cfg in enumerate(configs):
+                    print(f"  [{i}] {cfg}")
+                try:
+                    idx = int(input("Enter number: ").strip())
+                    if 0 <= idx < len(configs):
+                        msg = load_config(configs[idx])
+                except (ValueError, IndexError):
+                    msg = "invalid selection"
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] == "--run" and len(args) >= 2:
@@ -575,13 +744,23 @@ if __name__ == "__main__":
                     f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
         sys.exit(0)
 
-    try:
-        curses.wrapper(main)
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    if HAS_CURSES:
+        try:
+            curses.wrapper(main)
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        sections = build_sections()
+        # Load last config if exists
+        last_cfg = os.path.join(CONFIG_DIR, "last.json")
+        if os.path.exists(last_cfg):
+            try:
+                with open(last_cfg) as f: from_dict(sections, json.load(f))
+            except: pass
+        simple_tui(sections)
 ENDOFPYTHON
 
 "$PYTHON" "$TMPFILE" "$@"

@@ -103,7 +103,7 @@ struct OsString {
     // Convert to UTF-8. On POSIX this returns the raw bytes, on Windows it converts.
     func to_utf8(&self) : std::string {
         comptime if(def.windows) {
-            return u16_to_utf8(data_);
+            return u16_to_utf8(&data_);
         } else {
             return data_;
         }

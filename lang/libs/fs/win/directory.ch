@@ -14,7 +14,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 // create_dir_all (recursive)
 public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
     var buf : [PATH_MAX_BUF]char;
-    var r = normalize_path(path, &mut buf[0], PATH_MAX_BUF as size_t);
+    var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
         var Err(e) = r else unreachable
         return Result.Err(e)
@@ -32,11 +32,11 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
             prefix[k] = 0;
             // skip empty
             if(k == 0) { i++; continue; }
-            var stat_res = metadata(&mut prefix[0]);
+            var stat_res = metadata(&raw mut prefix[0]);
             if(stat_res is Result.Err) {
                 var Err(e) = stat_res else unreachable;
                 if(e is FsError.NotFound) {
-                    var c = create_dir(&mut prefix[0]);
+                    var c = create_dir(&raw mut prefix[0]);
                     if(c is Result.Err) { var Err(e2) = c else unreachable; return Result.Err(e2); }
                 } else {
                     // if exists fine, otherwise return
@@ -115,7 +115,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
 
     loop {
         // skip "." and ".."
-        var name_w = &mut finddata_ptr.cFileName[0];
+        var name_w = &raw mut finddata_ptr.cFileName[0];
         if(!(name_w[0] == '.' as u16 && name_w[1] == 0) &&
            !(name_w[0] == '.' as u16 && name_w[1] == '.' as u16 && name_w[2] == 0)) {
 
@@ -167,7 +167,7 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
     var wbuf : [WIN_MAX_PATH]u16;
     var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
     if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
-    var conv = utf16_to_utf8(&mut wbuf[0], out, out_len);
+    var conv = utf16_to_utf8(&raw mut wbuf[0], out, out_len);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable;
         return Result.Err(e);
@@ -180,7 +180,7 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
 public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
     // Windows implementation using FindFirstFileW / FindNextFileW
     var wpath : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut wpath[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
@@ -193,7 +193,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     if(p > 0 && pattern[p-1] != '\\' && pattern[p-1] != '/') { pattern[p++] = '\\'; }
     pattern[p] = '*'; pattern[p+1] = 0;
     var findData : WIN32_FIND_DATAW;
-    var h = FindFirstFileW((&mut pattern[0]) as LPCWSTR, &mut findData);
+    var h = FindFirstFileW((&mut pattern[0]) as LPCWSTR, &raw mut findData);
     if(h == INVALID_HANDLE_VALUE) {
         var e = GetLastError();
         if(e == ERROR_FILE_NOT_FOUND) { return Result.Ok(UnitTy{}); } // empty directory
@@ -202,7 +202,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     while(true) {
         // convert name to utf8
         var name_utf8 : [DIR_ENT_NAME_MAX]char;
-        var conv2 = utf16_to_utf8(&mut findData.cFileName[0], &mut name_utf8[0], DIR_ENT_NAME_MAX as size_t);
+        var conv2 = utf16_to_utf8(&raw mut findData.cFileName[0], &raw mut name_utf8[0], DIR_ENT_NAME_MAX as size_t);
         if(conv2 is Result.Err) {
             FindClose(h);
             var Err(e) = conv2 else unreachable
@@ -210,9 +210,9 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
         }
         var Ok(nlen) = conv2 else unreachable
         var is_dir2 : bool = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
-        var cont = callback(&mut name_utf8[0], nlen, is_dir2);
+        var cont = callback(&raw mut name_utf8[0], nlen, is_dir2);
         if(!cont) { FindClose(h); return Result.Ok(UnitTy{}); }
-        var ok = FindNextFileW(h, &mut findData);
+        var ok = FindNextFileW(h, &raw mut findData);
         if(ok == 0) { var err = GetLastError(); if(err == ERROR_NO_MORE_FILES) { break; } FindClose(h); return Result.Err(winerr_to_fs(err as int)); }
     }
     FindClose(h);
@@ -221,29 +221,29 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
 
 public func create_dir(path : *char) : Result<UnitTy, FsError> {
     var w : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
     }
-    return create_dir_native(&mut w[0]);
+    return create_dir_native(&raw mut w[0]);
 }
 
 public func remove_dir(path : *char) : Result<UnitTy, FsError> {
     var w : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
         return Result.Err(e)
     }
-    return remove_dir_native(&mut w[0])
+    return remove_dir_native(&raw mut w[0])
 }
 
 public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
-    var conv = utf8_to_utf16_inplace(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+    var conv = utf8_to_utf16_inplace(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
-    return remove_dir_all_recursive_native(&mut wbuf[0]);
+    return remove_dir_all_recursive_native(&raw mut wbuf[0]);
 }
 
 public func mkdir(pathname : *char) : int {

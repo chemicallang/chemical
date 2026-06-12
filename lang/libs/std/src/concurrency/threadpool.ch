@@ -38,7 +38,7 @@ public namespace std {
         public func hardware_threads() : usize {
             comptime if (def.windows) {
                 var info : SYSTEM_INFO
-                GetSystemInfo(&info)
+                GetSystemInfo(&raw info)
                 return info.dwNumberOfProcessors as usize
             } else {
                 var n = sysconf(_SC_NPROCESSORS_ONLN)
@@ -56,7 +56,7 @@ public namespace std {
         func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
             comptime if(def.windows){
                 var tid:ulong=0u;
-                return CreateThread(null,0u,entry,arg,0u,&mut tid) as usize
+                return CreateThread(null,0u,entry,arg,0u,&raw mut tid) as usize
             } else {
                 var th:usize=0u;
                 if(pthread_create(&raw mut th,null,entry,arg)!=0){

@@ -37,31 +37,31 @@ public namespace std {
         func constructor() {
             var m = mutex { storage : [] }
             // use a reasonable spin count (e.g., 4000)
-            InitializeCriticalSectionAndSpinCount(&mut m.storage[0], 4000u)
+            InitializeCriticalSectionAndSpinCount(&raw mut m.storage[0], 4000u)
             return m;
         }
 
         // lock: blocking
         func lock(&mut self) {
-            EnterCriticalSection(&mut storage[0])
+            EnterCriticalSection(&raw mut storage[0])
         }
 
         // try_lock: non-blocking; returns true on success, false otherwise
         func try_lock(&mut self) : bool {
             // TryEnterCriticalSection returns non-zero on success
-            var r = TryEnterCriticalSection(&mut storage[0])
+            var r = TryEnterCriticalSection(&raw mut storage[0])
             return r != 0
         }
 
         // unlock: release
         func unlock(&mut self) {
-            LeaveCriticalSection(&mut storage[0])
+            LeaveCriticalSection(&raw mut storage[0])
         }
 
         // destructor: destroy native mutex
         @delete
         func delete(&mut self) {
-            DeleteCriticalSection(&mut storage[0])
+            DeleteCriticalSection(&raw mut storage[0])
         }
     }
 

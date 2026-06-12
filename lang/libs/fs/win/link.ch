@@ -24,7 +24,7 @@ func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Resu
     var n = GetFinalPathNameByHandleW(h, (&mut wout[0]) as LPWSTR, WIN_MAX_PATH as u32, 0);
     CloseHandle(h);
     if(n == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
-    var conv = utf16_to_utf8(&mut wout[0], out, out_len);
+    var conv = utf16_to_utf8(&raw mut wout[0], out, out_len);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable;
         return Result.Err(e);
@@ -45,44 +45,44 @@ func is_symlink(path : *char) : Result<bool, FsError> {
 
 func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitTy, FsError> {
     var wtarget : [WIN_MAX_PATH]u16; var wlink : [WIN_MAX_PATH]u16;
-    var f1 = utf8_to_utf16(target, &mut wtarget[0], WIN_MAX_PATH as size_t)
+    var f1 = utf8_to_utf16(target, &raw mut wtarget[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable
         return Result.Err(e)
     }
-    var f2 = utf8_to_utf16(linkpath, &mut wlink[0], WIN_MAX_PATH as size_t)
+    var f2 = utf8_to_utf16(linkpath, &raw mut wlink[0], WIN_MAX_PATH as size_t)
     if(f2 is Result.Err) {
         var Err(e) = f2 else unreachable
         return Result.Err(e)
     }
-    return create_symlink_native(&mut wtarget[0], &mut wlink[0], dir)
+    return create_symlink_native(&raw mut wtarget[0], &raw mut wlink[0], dir)
 }
 
 func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     // On Windows readlink is more involved; use DeviceIoControl or GetFinalPathNameByHandle
     // Simpler approach: open file and call GetFinalPathNameByHandleW
     var wpath : [WIN_MAX_PATH]u16;
-    var f1 = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t)
+    var f1 = utf8_to_utf16(path, &raw mut wpath[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable;
         return Result.Err(e);
     }
-    return read_link_native(&mut wpath[0], out, out_len)
+    return read_link_native(&raw mut wpath[0], out, out_len)
 }
 
 func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
     var wexist : [WIN_MAX_PATH]u16; var wnew : [WIN_MAX_PATH]u16;
-    var f1 = utf8_to_utf16(existing, &mut wexist[0], WIN_MAX_PATH as size_t)
+    var f1 = utf8_to_utf16(existing, &raw mut wexist[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable
         return Result.Err(e)
     }
-    var f2 = utf8_to_utf16(newpath, &mut wnew[0], WIN_MAX_PATH as size_t)
+    var f2 = utf8_to_utf16(newpath, &raw mut wnew[0], WIN_MAX_PATH as size_t)
     if(f2 is Result.Err) {
         var Err(e) = f2 else unreachable
         return Result.Err(e)
     }
-    return create_hard_link_native(&mut wexist[0], &mut wnew[0])
+    return create_hard_link_native(&raw mut wexist[0], &raw mut wnew[0])
 }
 
 }

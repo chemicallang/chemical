@@ -38,7 +38,7 @@ public namespace net {
     func startup() {
         // WSADATA is ~400 bytes, [32]char is too small and causes stack corruption
         var wsaData : [512]char;
-        WSAStartup(0x202 as ushort, &mut wsaData[0]);
+        WSAStartup(0x202 as ushort, &raw mut wsaData[0]);
     }
     func cleanup() { WSACleanup() }
 
@@ -57,7 +57,7 @@ public namespace net {
 
     public func set_nonblocking(s: Socket) {
         var argp: u32 = 1u;
-        ioctlsocket(s as uintptr_t, FIONBIO, &mut argp);
+        ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
     }
 
 }

@@ -13,6 +13,6 @@ func get_test_pipe_name(id : int) : std::string {
     var pipeName = std::string()
     pipeName.append_char_ptr("\\\\.\\pipe\\")
     pipeName.append_char_ptr("chem_test_pipe-");
-    append_integer(pipeName, id);
+    append_integer(&mut pipeName, id);
     return pipeName;
 }

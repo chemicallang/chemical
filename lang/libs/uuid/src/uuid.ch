@@ -127,7 +127,7 @@ public namespace uuid {
     func get_random_bytes(buf : *mut u8, len : uint) : bool {
         comptime if(def.windows) {
             var hProv : usize = 0u;
-            if(!CryptAcquireContextA(&mut hProv, null, null, 1u, 0xF0000000u)) return false;
+            if(!CryptAcquireContextA(&raw mut hProv, null, null, 1u, 0xF0000000u)) return false;
             var ok = CryptGenRandom(hProv, len, buf);
             CryptReleaseContext(hProv, 0u);
             return ok;

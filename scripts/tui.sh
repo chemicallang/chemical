@@ -89,7 +89,7 @@ def build_sections():
     return [
         Section("Test", "scripts/test.sh", [
             ChoiceWidget("backend", "Backend", [("--tcc", "--tcc"), ("--llvm", "--llvm")], default=0),
-            BoolWidget("libs", "--libs", "--arg-test-libs"),
+            BoolWidget("libs", "--libs", "--libs"),
             BoolWidget("no_run", "--no-run", "--no-run"),
             BoolWidget("no_build", "--no-build", "--no-build"),
             BoolWidget("emit_c", "--emit-c", "--emit-c"),
@@ -375,7 +375,7 @@ def read_line(prompt):
 
 def run_tui(sections):
     custom_commands = load_commands()
-    tab_names = ["Test", "Build", "Configure", "Setup", "Commands"]
+    tab_names = ["Test", "Build", "Configure", "Setup", "Configs", "Commands"]
     current_tab = 0
     focus_idx = 0
     commands_to_run = []
@@ -406,14 +406,21 @@ def run_tui(sections):
             for w in sec.widgets:
                 items.append(("section_widget", si, w))
             items_list.append(items)
+        configs = load_all_configs()
+        items_list.append([("config", k) for k in sorted(configs.keys())])
         items_list.append([("cmd", ci) for ci in range(len(custom_commands))])
         return items_list
 
     tab_items = build_tab_items()
 
+    def rebuild_configs_tab():
+        nonlocal tab_items
+        configs = load_all_configs()
+        tab_items[4] = [("config", k) for k in sorted(configs.keys())]
+
     def rebuild_cmds_tab():
         nonlocal tab_items
-        tab_items[4] = [("cmd", ci) for ci in range(len(custom_commands))]
+        tab_items[5] = [("cmd", ci) for ci in range(len(custom_commands))]
 
     def current_items():
         return tab_items[current_tab]
@@ -478,6 +485,20 @@ def run_tui(sections):
                                 out += c(line + "\n", "rev")
                             else:
                                 out += line + "\n"
+        elif current_tab == 4:
+            configs = load_all_configs()
+            if not items:
+                out += c("  No saved configs. Press s to save one.\n", "dim")
+            else:
+                for fi, entry in enumerate(items):
+                    focused = (fi == focus_idx) and not editing
+                    _, name = entry
+                    run_list = ", ".join(configs.get(name, {}).get("run", []))
+                    if focused:
+                        out += c(f"   {name}\n", "rev")
+                    else:
+                        out += c(f"   {name}\n", "bold", "green")
+                    out += c(f"       run: {run_list}\n", "dim")
         else:
             if not items:
                 out += c("  No custom commands. Press n to add one.\n", "dim")
@@ -549,10 +570,16 @@ def run_tui(sections):
                 items = tab_items[current_tab]
                 if not items: continue
                 entry = items[focus_idx]
-                if entry[0] == "section_widget":
-                    _, _, w = entry
-                    if isinstance(w, BoolWidget): w.toggle()
-                    elif isinstance(w, ChoiceWidget): w.next()
+                if current_tab < 4:
+                    if entry[0] == "section_widget":
+                        _, _, w = entry
+                        if isinstance(w, BoolWidget): w.toggle()
+                        elif isinstance(w, ChoiceWidget): w.next()
+                elif current_tab == 4:
+                    if entry[0] == "config":
+                        _, name = entry
+                        msg, _ = load_config(name)
+                        msg_err = False
 
             elif key in ("left",):
                 items = tab_items[current_tab]
@@ -594,6 +621,24 @@ def run_tui(sections):
                     _, ci = entry
                     commands_to_run = [custom_commands[ci]["command"]]
                     break
+                elif etype == "config":
+                    _, name = entry
+                    tmp_sections = build_sections()
+                    run_order = load_named_config(name, tmp_sections)
+                    if not run_order:
+                        msg = f"config '{name}' has no run sections"
+                        msg_err = True
+                    else:
+                        cmds = []
+                        for sec in tmp_sections:
+                            if sec.name not in run_order:
+                                continue
+                            builder = COMMAND_BUILDERS.get(sec.name)
+                            if builder:
+                                cmds.append(builder(sec.widgets, {}))
+                        if cmds:
+                            commands_to_run = cmds
+                            break
 
             elif key == "r":
                 commands_to_run = []
@@ -635,6 +680,7 @@ def run_tui(sections):
                             run_order = [n for n in sec_names if sel[n]]
                             if run_order:
                                 msg = save_config(name, run_order)
+                                rebuild_configs_tab()
                                 msg_err = False
                             else:
                                 msg = "no sections selected, not saved"

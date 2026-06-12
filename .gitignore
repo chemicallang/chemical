@@ -13,4 +13,4 @@ lang/tests/build
 lib/tcc
 build/mingw
 scripts/tui-configs/last.json
-scripts/tui-configs/commands2.txt
+scripts/tui-configs/commands2.json

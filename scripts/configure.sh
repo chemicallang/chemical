@@ -2,11 +2,13 @@
 set -euo pipefail
 
 NO_LLVM=false
+RELEASE_BUILD=false
 GENERATOR=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-llvm) NO_LLVM=true; shift ;;
+    --release) RELEASE_BUILD=true; shift ;;
     --generator|-G)
       if [ -n "${2-}" ]; then
         GENERATOR="$2"; shift 2
@@ -19,6 +21,7 @@ while [ $# -gt 0 ]; do
       echo ""
       echo "Options:"
       echo "  --no-llvm                 Disable LLVM, sets BUILD_COMPILER=OFF"
+      echo "  --release                 Sets CMAKE_BUILD_TYPE to Release instead of Debug"
       echo "  --generator <name>, -G    CMake generator (Ninja, Unix Makefiles, etc.)"
       echo "  --help, -h                Show this help"
       exit 0
@@ -34,6 +37,11 @@ if [ -n "$GENERATOR" ]; then
 fi
 if [ "$NO_LLVM" = true ]; then
   CMAKE_ARGS+=(-DBUILD_COMPILER=OFF)
+fi
+if [ "$RELEASE_BUILD" = true ]; then
+  CMAKE_ARGS+=(-DCMAKE_BUILD_TYPE=Release)
+else
+  CMAKE_ARGS+=(-DCMAKE_BUILD_TYPE=Debug)
 fi
 
 cmake "${CMAKE_ARGS[@]}"

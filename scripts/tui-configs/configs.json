@@ -1,0 +1,240 @@
+{
+  "test-tcc": {
+    "sections": {
+      "Test": {
+        "backend": 0,
+        "libs": false,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": true,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Test"
+    ]
+  },
+  "build-tcc": {
+    "sections": {
+      "Test": {
+        "backend": 0,
+        "libs": false,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": true,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Build"
+    ]
+  },
+  "test-c-via-clang": {
+    "sections": {
+      "Test": {
+        "backend": 1,
+        "libs": false,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": true,
+        "use_c": true,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Test"
+    ]
+  },
+  "test-libs-tcc": {
+    "sections": {
+      "Test": {
+        "backend": 0,
+        "libs": true,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": true,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Test"
+    ]
+  },
+  "test-libs-llvm": {
+    "sections": {
+      "Test": {
+        "backend": 1,
+        "libs": true,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": false,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Test"
+    ]
+  },
+  "test-llvm": {
+    "sections": {
+      "Test": {
+        "backend": 1,
+        "libs": false,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": false,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 0,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 0,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Test"
+    ]
+  },
+  "build-llvm": {
+    "sections": {
+      "Test": {
+        "backend": 1,
+        "libs": false,
+        "no_run": false,
+        "no_build": false,
+        "emit_c": false,
+        "use_c": false,
+        "g_flag": true,
+        "cache": false,
+        "cached_plugins": false,
+        "mode": 1,
+        "output": "",
+        "jobs_test": ""
+      },
+      "Build": {
+        "target": 1,
+        "jobs": ""
+      },
+      "Configure": {
+        "no_llvm": false,
+        "msvc_auto": true,
+        "generator": 0,
+        "custom_generator": ""
+      },
+      "Setup": {
+        "with_llvm": false
+      }
+    },
+    "run": [
+      "Build"
+    ]
+  }
+}

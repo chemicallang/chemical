@@ -1,8 +1,8 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #define PROJECT_VERSION_MAJOR 0
-#define PROJECT_VERSION_MINOR 4
-#define PROJECT_VERSION_PATCH 6
+#define PROJECT_VERSION_MINOR 5
+#define PROJECT_VERSION_PATCH 0
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)

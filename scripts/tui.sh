@@ -31,7 +31,6 @@ trap 'rm -f "$TMPFILE" "$CMDS_FILE"' EXIT
 export CHEMICAL_CMDS_FILE="$CMDS_FILE"
 
 cat > "$TMPFILE" << 'ENDOFPYTHON'
-import datetime
 import json
 import os
 import shlex
@@ -196,23 +195,86 @@ def from_dict(sections, d):
                 elif isinstance(w, ChoiceWidget): w.selected = dd[w.key]
                 elif isinstance(w, TextWidget): w.value = dd[w.key]
 
-# ─── Handle --run first (stdlib only) ───────────────────────────
+# ─── Custom Commands ────────────────────────────────────────────
+COMMANDS_FILE = os.path.join(CONFIG_DIR, "commands.json")
+
+def load_commands():
+    if not os.path.exists(COMMANDS_FILE):
+        return []
+    try:
+        with open(COMMANDS_FILE) as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_commands(cmds):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(COMMANDS_FILE, "w") as f:
+        json.dump(cmds, f, indent=2)
+
+# ─── Named Configs (single file) ────────────────────────────────
+CONFIGS_FILE = os.path.join(CONFIG_DIR, "configs.json")
+
+def load_all_configs():
+    if not os.path.exists(CONFIGS_FILE):
+        return {}
+    try:
+        with open(CONFIGS_FILE) as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_all_configs(configs):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIGS_FILE, "w") as f:
+        json.dump(configs, f, indent=2)
+
+def save_named_config(name, sections, run_order):
+    configs = load_all_configs()
+    configs[name] = {"sections": to_dict(sections), "run": run_order}
+    save_all_configs(configs)
+
+def load_named_config(name, sections):
+    """Load widget state for a named config. Returns run list, or None if not found."""
+    configs = load_all_configs()
+    if name not in configs:
+        return None
+    from_dict(sections, configs[name]["sections"])
+    return configs[name].get("run", [])
+
+# ─── Handle --run (stdlib only) ─────────────────────────────────
 if len(sys.argv) > 1 and sys.argv[1] == "--run":
-    config_name = sys.argv[2] if len(sys.argv) > 2 else ""
-    if not config_name:
-        print("Usage: --run <config_name>", file=sys.stderr)
+    name = sys.argv[2] if len(sys.argv) > 2 else ""
+    if not name:
+        print("Usage: --run <name>", file=sys.stderr)
         sys.exit(1)
-    if not config_name.endswith(".json"):
-        config_name += ".json"
-    config_path = os.path.join(CONFIG_DIR, config_name)
-    if not os.path.exists(config_path):
-        print(f"Config '{config_name}' not found in {CONFIG_DIR}", file=sys.stderr)
+
+    # Try custom command first (case-insensitive name match)
+    for cmd in load_commands():
+        if cmd["name"].lower() == name.lower():
+            if CMDS_FILE:
+                with open(CMDS_FILE, "w") as f:
+                    f.write("set -e\n")
+                    f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+                    f.write(cmd["command"] + "\n")
+            sys.exit(0)
+
+    # Fall back to named config in configs.json
+    configs = load_all_configs()
+    matched = None
+    for k in configs:
+        if k.lower() == name.lower():
+            matched = k
+            break
+    if matched is None:
+        print(f"Config '{name}' not found", file=sys.stderr)
         sys.exit(1)
     sections = build_sections()
-    with open(config_path) as f:
-        from_dict(sections, json.load(f))
+    run_order = load_named_config(matched, sections)
     cmds = []
     for sec in sections:
+        if sec.name not in run_order:
+            continue
         builder = COMMAND_BUILDERS.get(sec.name)
         if builder:
             cmds.append(builder(sec.widgets, {}))
@@ -254,7 +316,7 @@ S = {
 }
 
 def c(text, *styles):
-    return "".join(S[s] for s in styles) + text + S["rst"]
+    return "".join(S[s] for s in styles if s) + text + S["rst"]
 
 def read_key():
     """Cross-platform raw key reader (stdlib only)."""
@@ -277,21 +339,44 @@ def read_key():
             if ch == "\x1b":
                 nxt = sys.stdin.read(1)
                 if nxt == "[":
-                    return {"A": "up", "B": "down", "C": "right", "D": "left"}.get(
-                        sys.stdin.read(1), ""
+                    k = sys.stdin.read(1)
+                    return {"A": "up", "B": "down", "C": "right", "D": "left", "Z": "s_tab"}.get(
+                        k, ""
                     )
                 return nxt if nxt else ch
             return ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
-def run_tui(sections):
-    flat = []
-    for si, sec in enumerate(sections):
-        flat.append((si, None))
-        for w in sec.widgets:
-            flat.append((si, w))
+def read_line(prompt):
+    """Read a line of text in raw mode (returns when Enter pressed)."""
+    sys.stdout.write(prompt)
+    sys.stdout.write("\033[?25h")
+    sys.stdout.flush()
+    buf = ""
+    while True:
+        ch = read_key()
+        if ch in ("\r", "\n"):
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            break
+        elif ch in ("\x7f", "\b"):
+            if buf:
+                buf = buf[:-1]
+                sys.stdout.write("\b \b")
+                sys.stdout.flush()
+        elif len(ch) == 1 and ord(ch) >= 32:
+            buf += ch
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+    sys.stdout.write("\033[?25l")
+    sys.stdout.flush()
+    return buf.strip()
 
+def run_tui(sections):
+    custom_commands = load_commands()
+    tab_names = ["Test", "Build", "Configure", "Setup", "Commands"]
+    current_tab = 0
     focus_idx = 0
     commands_to_run = []
     msg = ""
@@ -303,82 +388,116 @@ def run_tui(sections):
     def sclear():
         sys.stdout.write("\033[H\033[J")
 
-    def save_config(name):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(os.path.join(CONFIG_DIR, name), "w") as f:
-            json.dump(to_dict(sections), f, indent=2)
-        return f"saved '{name}'"
+    def save_config(name, run_order):
+        save_named_config(name, sections, run_order)
+        return f"saved '{name}' (run: {', '.join(run_order)})"
 
     def load_config(name):
-        path = os.path.join(CONFIG_DIR, name)
-        if not os.path.exists(path):
-            return f"config '{name}' not found"
-        with open(path) as f:
-            from_dict(sections, json.load(f))
-        return f"loaded '{name}'"
+        configs = load_all_configs()
+        if name not in configs:
+            return f"config '{name}' not found", []
+        from_dict(sections, configs[name]["sections"])
+        return f"loaded '{name}'", configs[name].get("run", [])
+
+    def build_tab_items():
+        items_list = []
+        for si, sec in enumerate(sections):
+            items = [("section_run", si)]
+            for w in sec.widgets:
+                items.append(("section_widget", si, w))
+            items_list.append(items)
+        items_list.append([("cmd", ci) for ci in range(len(custom_commands))])
+        return items_list
+
+    tab_items = build_tab_items()
+
+    def rebuild_cmds_tab():
+        nonlocal tab_items
+        tab_items[4] = [("cmd", ci) for ci in range(len(custom_commands))]
+
+    def current_items():
+        return tab_items[current_tab]
 
     def render():
         out = ""
         out += c(" Chemical Build TUI  ", "bold", "white", "bg_blue") + "\n"
+
+        # Tab bar
+        for i, name in enumerate(tab_names):
+            if i == current_tab:
+                out += c(f" {name} ", "bold", "white", "bg_blue")
+            else:
+                out += c(f" {name} ", "white", "bg_black")
+        out += "\n"
         out += c("─" * 60 + "\n", "dim")
 
-        wsi = 0
-        for si, sec in enumerate(sections):
-            out += c(f"\n  {sec.name}\n", "bold", "cyan")
+        items = tab_items[current_tab]
 
-            focused_btn = (wsi == focus_idx) and not editing
-            if focused_btn:
-                out += c(f"  [ Run {sec.name} ]\n", "bold", "black", "bg_green")
-            else:
-                out += c(f"  [ Run {sec.name} ]\n", "green")
-            wsi += 1
-
-            for w in sec.widgets:
-                focused = (wsi == focus_idx) and not editing
-
-                if isinstance(w, BoolWidget):
-                    chk = "X" if w.value else " "
-                    line = f"   [{chk}] {w.label}"
+        if current_tab < 4:
+            sec = sections[current_tab]
+            for fi, entry in enumerate(items):
+                focused = (fi == focus_idx) and not editing
+                etype = entry[0]
+                if etype == "section_run":
                     if focused:
-                        out += c(line + "\n", "rev")
-                    elif w.value:
-                        out += c(line + "\n", "bold", "green")
+                        out += c(f"  [ Run {sec.name} ]\n", "bold", "black", "bg_green")
                     else:
-                        out += line + "\n"
-
-                elif isinstance(w, ChoiceWidget):
-                    line = f"   {w.label}: "
-                    parts = []
-                    for ci, (ctext, _) in enumerate(w.choices):
-                        if ci == w.selected:
-                            parts.append(c(f"(*) {ctext}", "bold", "green"))
-                        else:
-                            parts.append(c(f"( ) {ctext}", "dim"))
-                    parts_str = "  ".join(parts)
-                    if focused:
-                        out += c(line, "rev") + parts_str + "\n"
-                    else:
-                        out += line + parts_str + "\n"
-
-                elif isinstance(w, TextWidget):
-                    if editing and w is edit_w:
-                        val = edit_buf if edit_buf else w.placeholder
-                        out += c(f"   {w.label}: [{val}] <-- typing\n", "rev")
-                    else:
-                        val = w.value if w.value else w.placeholder
-                        line = f"   {w.label}: [{val}]"
+                        out += c(f"  [ Run {sec.name} ]\n", "green")
+                elif etype == "section_widget":
+                    _, _, w = entry
+                    if isinstance(w, BoolWidget):
+                        chk = "X" if w.value else " "
+                        line = f"   [{chk}] {w.label}"
                         if focused:
                             out += c(line + "\n", "rev")
+                        elif w.value:
+                            out += c(line + "\n", "bold", "green")
                         else:
                             out += line + "\n"
-
-                wsi += 1
+                    elif isinstance(w, ChoiceWidget):
+                        line = f"   {w.label}: "
+                        parts = []
+                        for ci, (ctext, _) in enumerate(w.choices):
+                            if ci == w.selected:
+                                parts.append(c(f"(*) {ctext}", "bold", "green"))
+                            else:
+                                parts.append(c(f"( ) {ctext}", "dim"))
+                        parts_str = "  ".join(parts)
+                        if focused:
+                            out += c(line, "rev") + parts_str + "\n"
+                        else:
+                            out += line + parts_str + "\n"
+                    elif isinstance(w, TextWidget):
+                        if editing and w is edit_w:
+                            val = edit_buf if edit_buf else w.placeholder
+                            out += c(f"   {w.label}: [{val}] <-- typing\n", "rev")
+                        else:
+                            val = w.value if w.value else w.placeholder
+                            line = f"   {w.label}: [{val}]"
+                            if focused:
+                                out += c(line + "\n", "rev")
+                            else:
+                                out += line + "\n"
+        else:
+            if not items:
+                out += c("  No custom commands. Press n to add one.\n", "dim")
+            else:
+                for fi, entry in enumerate(items):
+                    focused = (fi == focus_idx) and not editing
+                    _, ci = entry
+                    cmd_name = custom_commands[ci]["name"]
+                    cmd_text = custom_commands[ci]["command"]
+                    if focused:
+                        out += c(f"   [{ci}] {cmd_name}\n", "rev")
+                    else:
+                        out += c(f"   [{ci}] {cmd_name}\n", "bold", "green")
+                    out += c(f"       > {cmd_text}\n", "dim")
 
         if msg:
             out += c(f"\n  {msg}\n", "bold" if msg_err else "", "red" if msg_err else "yellow")
 
         out += c("─" + "\n", "dim")
-        out += c("j/k:Nav  Space:Tog  Enter:Run  r:All  s:Save  l:Load  q:Quit\n", "white", "bg_black")
+        out += c("j/k:Nav Tab:Cycle Space:Tog Enter:Run r:All s:Save l:Load n:NewCmd d:DelCmd q:Quit\n", "white", "bg_black")
 
         return out
 
@@ -407,34 +526,75 @@ def run_tui(sections):
 
             if key == "q":
                 break
+
             elif key in ("j", "down"):
-                focus_idx = (focus_idx + 1) % len(flat)
+                items = tab_items[current_tab]
+                if items:
+                    focus_idx = (focus_idx + 1) % len(items)
+
             elif key in ("k", "up"):
-                focus_idx = (focus_idx - 1) % len(flat)
+                items = tab_items[current_tab]
+                if items:
+                    focus_idx = (focus_idx - 1) % len(items)
+
+            elif key == "\t":
+                current_tab = (current_tab + 1) % len(tab_names)
+                focus_idx = 0
+
+            elif key == "s_tab":
+                current_tab = (current_tab - 1) % len(tab_names)
+                focus_idx = 0
+
             elif key == " ":
-                si, w = flat[focus_idx]
-                if isinstance(w, BoolWidget): w.toggle()
-                elif isinstance(w, ChoiceWidget): w.next()
-            elif key in ("h", "left"):
-                si, w = flat[focus_idx]
-                if isinstance(w, ChoiceWidget): w.prev()
-            elif key in ("l", "right"):
-                si, w = flat[focus_idx]
-                if isinstance(w, ChoiceWidget): w.next()
+                items = tab_items[current_tab]
+                if not items: continue
+                entry = items[focus_idx]
+                if entry[0] == "section_widget":
+                    _, _, w = entry
+                    if isinstance(w, BoolWidget): w.toggle()
+                    elif isinstance(w, ChoiceWidget): w.next()
+
+            elif key in ("left",):
+                items = tab_items[current_tab]
+                if not items: continue
+                entry = items[focus_idx]
+                if entry[0] == "section_widget":
+                    _, _, w = entry
+                    if isinstance(w, ChoiceWidget): w.prev()
+
+            elif key in ("right",):
+                items = tab_items[current_tab]
+                if not items: continue
+                entry = items[focus_idx]
+                if entry[0] == "section_widget":
+                    _, _, w = entry
+                    if isinstance(w, ChoiceWidget): w.next()
+
             elif key in ("\r", "\n"):
-                si, w = flat[focus_idx]
-                if w is None:
+                items = tab_items[current_tab]
+                if not items: continue
+                entry = items[focus_idx]
+                etype = entry[0]
+                if etype == "section_run":
+                    _, si = entry
                     sec = sections[si]
                     builder = COMMAND_BUILDERS.get(sec.name)
                     if builder:
                         commands_to_run = [builder(sec.widgets, {})]
                         break
-                elif isinstance(w, TextWidget):
-                    editing = True
-                    edit_w = w
-                    edit_buf = w.value
-                elif isinstance(w, BoolWidget): w.toggle()
-                elif isinstance(w, ChoiceWidget): w.next()
+                elif etype == "section_widget":
+                    _, _, w = entry
+                    if isinstance(w, TextWidget):
+                        editing = True
+                        edit_w = w
+                        edit_buf = w.value
+                    elif isinstance(w, BoolWidget): w.toggle()
+                    elif isinstance(w, ChoiceWidget): w.next()
+                elif etype == "cmd":
+                    _, ci = entry
+                    commands_to_run = [custom_commands[ci]["command"]]
+                    break
+
             elif key == "r":
                 commands_to_run = []
                 for sec in sections:
@@ -442,47 +602,113 @@ def run_tui(sections):
                     if builder:
                         commands_to_run.append(builder(sec.widgets, {}))
                 break
+
             elif key == "s":
-                name = f"config-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"
-                msg = save_config(name)
-                msg_err = False
+                name = read_line("Save config as: ")
+                if not name:
+                    msg = "save cancelled"
+                    msg_err = True
+                else:
+                    sec_names = [sec.name for sec in sections]
+                    sel = {n: True for n in sec_names}
+                    s_idx = 0
+                    while True:
+                        sclear()
+                        out_lines = ["Select sections to run (j/k:Nav  Space:Tog  Enter:Done  Esc:Cancel):\n"]
+                        for i, n in enumerate(sec_names):
+                            chk = "X" if sel[n] else " "
+                            line = f"  [{chk}] {n}"
+                            if i == s_idx:
+                                out_lines.append(c(line, "rev") + "\n")
+                            else:
+                                out_lines.append(line + "\n")
+                        sys.stdout.write("".join(out_lines))
+                        sys.stdout.flush()
+                        k = read_key()
+                        if k in ("j", "down"):
+                            s_idx = (s_idx + 1) % len(sec_names)
+                        elif k in ("k", "up"):
+                            s_idx = (s_idx - 1) % len(sec_names)
+                        elif k == " ":
+                            sel[sec_names[s_idx]] = not sel[sec_names[s_idx]]
+                        elif k in ("\r", "\n"):
+                            run_order = [n for n in sec_names if sel[n]]
+                            if run_order:
+                                msg = save_config(name, run_order)
+                                msg_err = False
+                            else:
+                                msg = "no sections selected, not saved"
+                                msg_err = True
+                            break
+                        elif k == "\x1b":
+                            msg = "save cancelled"
+                            msg_err = True
+                            break
+
             elif key == "l":
-                os.makedirs(CONFIG_DIR, exist_ok=True)
-                configs = [f for f in os.listdir(CONFIG_DIR)
-                           if f.endswith(".json") and f != "last.json"]
-                if not configs:
+                all_configs = load_all_configs()
+                names = sorted(all_configs.keys())
+                if not names:
                     msg = "no saved configs"
                     msg_err = True
                 else:
-                    # Show configs and let user pick
                     sclear()
                     lines = ["Available configs:"]
-                    for i, cfg in enumerate(configs):
-                        lines.append(f"  [{i}] {cfg}")
+                    for i, nm in enumerate(names):
+                        run_list = ", ".join(all_configs[nm].get("run", []))
+                        lines.append(f"  [{i}] {nm}  ({run_list})")
                     lines.append("")
-                    sys.stdout.write("\n".join(lines) + "\nEnter number or name: ")
+                    sys.stdout.write("\n".join(lines) + "\n")
                     sys.stdout.flush()
-                    sys.stdout.write("\033[?25h")
-                    sys.stdout.flush()
-                    try:
-                        inp = sys.stdin.readline().strip()
-                    except:
-                        inp = ""
-                    sys.stdout.write("\033[?25l")
-                    sys.stdout.flush()
+                    inp = read_line("Enter number or name: ")
                     if inp:
+                        matched = None
                         try:
                             idx = int(inp)
-                            if 0 <= idx < len(configs):
-                                msg = load_config(configs[idx])
-                                msg_err = False
+                            if 0 <= idx < len(names):
+                                matched = names[idx]
                             else:
                                 msg = "invalid index"
                                 msg_err = True
                         except ValueError:
-                            nm = inp if inp.endswith(".json") else inp + ".json"
-                            msg = load_config(nm)
-                            msg_err = "not found" in msg
+                            for nm in names:
+                                if nm.lower() == inp.lower():
+                                    matched = nm
+                                    break
+                            if matched is None:
+                                msg = f"config '{inp}' not found"
+                                msg_err = True
+                        if matched is not None:
+                            msg, _ = load_config(matched)
+                            msg_err = False
+
+            elif key == "n":
+                name = read_line("New command name: ")
+                if name:
+                    cmd_str = read_line("Command: ")
+                    if cmd_str:
+                        custom_commands.append({"name": name, "command": cmd_str})
+                        save_commands(custom_commands)
+                        rebuild_cmds_tab()
+                        msg = f"added command '{name}'"
+                        msg_err = False
+
+            elif key == "d":
+                items = tab_items[current_tab]
+                if not items: continue
+                entry = items[focus_idx]
+                if entry[0] == "cmd":
+                    _, ci = entry
+                    cmd_name = custom_commands[ci]["name"]
+                    confirm = read_line(f"Delete '{cmd_name}'? (y/n): ")
+                    if confirm.lower() == "y":
+                        custom_commands.pop(ci)
+                        save_commands(custom_commands)
+                        rebuild_cmds_tab()
+                        msg = f"deleted command '{cmd_name}'"
+                        msg_err = False
+                        if focus_idx >= len(tab_items[current_tab]):
+                            focus_idx = max(0, len(tab_items[current_tab]) - 1)
     finally:
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()
@@ -520,10 +746,14 @@ if __name__ == "__main__":
         with open(CMDS_FILE, "w") as f:
             f.write("set -e\n")
             f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
-            if not _msvc_on:
+            has_section_cmds = any(isinstance(c, list) for c in commands)
+            if not _msvc_on and has_section_cmds:
                 f.write("export CHEMICAL_MSVC_AUTO=0\n")
             for cmd in commands:
-                f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+                if isinstance(cmd, list):
+                    f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+                else:
+                    f.write(cmd + "\n")
 ENDOFPYTHON
 
 "$PYTHON" "$TMPFILE" "$@"

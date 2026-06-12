@@ -38,27 +38,10 @@ import shlex
 import subprocess
 import sys
 
-try:
-    import curses
-    HAS_CURSES = True
-except ImportError:
-    HAS_CURSES = False
-
 SCRIPT_DIR = os.environ["CHEMICAL_SCRIPT_DIR"]
 REPO_ROOT = os.environ["CHEMICAL_REPO_ROOT"]
 CONFIG_DIR = os.path.join(SCRIPT_DIR, "tui-configs")
 CMDS_FILE = os.environ.get("CHEMICAL_CMDS_FILE", "")
-
-# ─── Color pairs ────────────────────────────────────────────────
-C_HEADER     = 1
-C_SECTION    = 2
-C_FOCUS      = 3
-C_CHECKED    = 4
-C_CMD        = 5
-C_FOOTER     = 6
-C_ERROR      = 7
-C_SUCCESS    = 8
-C_RUN_BTN    = 9
 
 # ─── Data model ──────────────────────────────────────────────────
 class Widget:
@@ -76,7 +59,7 @@ class ChoiceWidget(Widget):
     def __init__(self, key, label, choices, default=0):
         self.key = key
         self.label = label
-        self.choices = choices  # list of (display_text, flag_or_none)
+        self.choices = choices
         self.selected = default
     def prev(self): self.selected = (self.selected - 1) % len(self.choices)
     def next(self): self.selected = (self.selected + 1) % len(self.choices)
@@ -106,10 +89,7 @@ MODES = ["debug_quick", "debug_complete", "debug", "release_safe", "release_fast
 def build_sections():
     return [
         Section("Test", "scripts/test.sh", [
-            ChoiceWidget("backend", "Backend", [
-                ("--tcc", "--tcc"),
-                ("--llvm", "--llvm"),
-            ], default=0),
+            ChoiceWidget("backend", "Backend", [("--tcc", "--tcc"), ("--llvm", "--llvm")], default=0),
             BoolWidget("libs", "--libs", "--arg-test-libs"),
             BoolWidget("no_run", "--no-run", "--no-run"),
             BoolWidget("no_build", "--no-build", "--no-build"),
@@ -123,12 +103,7 @@ def build_sections():
             TextWidget("jobs_test", "Jobs", "-j", default="", placeholder="auto"),
         ]),
         Section("Build", "scripts/build.sh", [
-            ChoiceWidget("target", "Target", [
-                ("--tcc", "--tcc"),
-                ("--llvm", "--llvm"),
-                ("--lsp", "--lsp"),
-                ("--all", "--all"),
-            ], default=0),
+            ChoiceWidget("target", "Target", [("--tcc", "--tcc"), ("--llvm", "--llvm"), ("--lsp", "--lsp"), ("--all", "--all")], default=0),
             TextWidget("jobs", "Jobs", "-j", default="", placeholder="auto"),
         ]),
         Section("Configure", "scripts/configure.sh", [
@@ -142,33 +117,26 @@ def build_sections():
 # ─── Command builders ────────────────────────────────────────────
 def build_setup_cmd(widgets, opts):
     cmd = ["./scripts/setup.sh"]
-    w = by_key(widgets, "with_llvm")
-    if w.value: cmd.append("--with-llvm")
+    if by_key(widgets, "with_llvm").value: cmd.append("--with-llvm")
     return cmd
 
 def build_configure_cmd(widgets, opts):
     cmd = ["./scripts/configure.sh"]
-    w = by_key(widgets, "no_llvm")
-    if w.value: cmd.append("--no-llvm")
+    if by_key(widgets, "no_llvm").value: cmd.append("--no-llvm")
     return cmd
 
 def build_build_cmd(widgets, opts):
-    cmd = ["./scripts/build.sh"]
-    w = by_key(widgets, "target")
-    cmd.append(w.flag)
+    cmd = ["./scripts/build.sh", by_key(widgets, "target").flag]
     wj = by_key(widgets, "jobs")
     if wj.value: cmd.extend(["-j", wj.value])
     return cmd
 
 def build_test_cmd(widgets, opts):
-    cmd = ["./scripts/test.sh"]
-    w = by_key(widgets, "backend")
-    cmd.append(w.flag)
+    cmd = ["./scripts/test.sh", by_key(widgets, "backend").flag]
     for k in ["libs", "no_run", "no_build", "emit_c", "use_c", "g_flag", "cache", "cached_plugins"]:
         ww = by_key(widgets, k)
         if ww.value and ww.flag: cmd.append(ww.flag)
-    wm = by_key(widgets, "mode")
-    cmd.extend(["--mode", wm.flag])
+    cmd.extend(["--mode", by_key(widgets, "mode").flag])
     wo = by_key(widgets, "output")
     if wo.value: cmd.extend(["-o", wo.value])
     wj = by_key(widgets, "jobs_test")
@@ -208,369 +176,87 @@ def from_dict(sections, d):
                 elif isinstance(w, ChoiceWidget): w.selected = dd[w.key]
                 elif isinstance(w, TextWidget): w.value = dd[w.key]
 
-# ─── Safe rendering helpers ──────────────────────────────────────
-def safe_addstr(win, y, x, text, attr=0):
-    maxy, maxx = win.getmaxyx()
-    if y >= maxy or x >= maxx: return
-    avail = maxx - x - 1
-    if avail <= 0: return
-    # Simple char-based truncation
-    text = text[:avail]
-    try:
-        win.addstr(y, x, text, attr)
-    except curses.error:
-        pass
-
-# ─── TUI ─────────────────────────────────────────────────────────
-def main(stdscr):
-    curses.curs_set(0)
-    curses.use_default_colors()
-    curses.init_pair(C_HEADER,  curses.COLOR_WHITE,  curses.COLOR_BLUE)
-    curses.init_pair(C_SECTION, curses.COLOR_CYAN,   -1)
-    curses.init_pair(C_FOCUS,   curses.COLOR_BLACK,  curses.COLOR_WHITE)
-    curses.init_pair(C_CHECKED, curses.COLOR_GREEN,  -1)
-    curses.init_pair(C_CMD,     curses.COLOR_YELLOW,  -1)
-    curses.init_pair(C_FOOTER,  curses.COLOR_WHITE,  curses.COLOR_BLACK)
-    curses.init_pair(C_ERROR,   curses.COLOR_RED,    -1)
-    curses.init_pair(C_SUCCESS, curses.COLOR_GREEN,   -1)
-    curses.init_pair(C_RUN_BTN, curses.COLOR_BLACK,  curses.COLOR_GREEN)
-
+# ─── Handle --run first (stdlib only) ───────────────────────────
+if len(sys.argv) > 1 and sys.argv[1] == "--run":
+    config_name = sys.argv[2] if len(sys.argv) > 2 else ""
+    if not config_name:
+        print("Usage: --run <config_name>", file=sys.stderr)
+        sys.exit(1)
+    if not config_name.endswith(".json"):
+        config_name += ".json"
+    config_path = os.path.join(CONFIG_DIR, config_name)
+    if not os.path.exists(config_path):
+        print(f"Config '{config_name}' not found in {CONFIG_DIR}", file=sys.stderr)
+        sys.exit(1)
     sections = build_sections()
-    # Load last config if exists
-    last_cfg = os.path.join(CONFIG_DIR, "last.json")
-    if os.path.exists(last_cfg):
-        try:
-            with open(last_cfg) as f: from_dict(sections, json.load(f))
-        except: pass
-
-    # Build flat widget list for focus navigation
-    flat = []
-    for si, sec in enumerate(sections):
-        flat.append((si, None))  # None = run button for this section
-        for w in sec.widgets:
-            flat.append((si, w))
-
-    focus_idx = 0
-    editing_text = False
-    text_buf = ""
-    msg = ""
-    msg_pair = 0
-    running = False
-    commands_to_run = []
-
-    def save_config(name):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(os.path.join(CONFIG_DIR, name), "w") as f:
-            json.dump(to_dict(sections), f, indent=2)
-        return f"saved '{name}'"
-
-    def load_config(name):
-        path = os.path.join(CONFIG_DIR, name)
-        if not os.path.exists(path): return f"config '{name}' not found"
-        with open(path) as f: from_dict(sections, json.load(f))
-        nonlocal focus_idx; focus_idx = 0
-        return f"loaded '{name}'"
-
-    def make_cmds():
-        cmds = []
-        for sec in sections:
-            builder = COMMAND_BUILDERS.get(sec.name)
-            if builder: cmds.append((sec.name, builder(sec.widgets, {})))
-        return cmds
-
-    def queue_and_exit(cmds):
-        nonlocal commands_to_run
-        commands_to_run = cmds
-
-    while True:
-        try:
-            stdscr.clear()
-            maxy, maxx = stdscr.getmaxyx()
-            y = 0
-
-            if maxy < 15 or maxx < 50:
-                safe_addstr(stdscr, 0, 0, "Terminal too small (need at least 50x15)")
-                stdscr.refresh()
-                stdscr.getch()
-                continue
-
-            # Header
-            if y < maxy:
-                stdscr.attron(curses.color_pair(C_HEADER))
-                safe_addstr(stdscr, y, 0, " " * maxx)
-                safe_addstr(stdscr, y, 1, "Chemical Build TUI")
-                cfg_name = os.path.basename(last_cfg).replace(".json","") if os.path.exists(last_cfg) else "default"
-                cfg_text = f"  [{cfg_name}]"
-                safe_addstr(stdscr, y, 21, cfg_text, curses.A_DIM)
-                if running:
-                    status = " [running...]"
-                    stdscr.attron(curses.color_pair(C_CMD))
-                    safe_addstr(stdscr, y, maxx - len(status) - 1, status)
-                    stdscr.attroff(curses.color_pair(C_CMD))
-                stdscr.attroff(curses.color_pair(C_HEADER))
-                y += 1
-
-            if y < maxy:
-                safe_addstr(stdscr, y, 0, "-" * (maxx - 1), curses.A_DIM)
-                y += 1
-
-            # Content
-            wsi = 0
-            for si, sec in enumerate(sections):
-                if y >= maxy - 4: break
-                stdscr.attron(curses.color_pair(C_SECTION) | curses.A_BOLD)
-                safe_addstr(stdscr, y, 1, f"  {sec.name}")
-                stdscr.attroff(curses.color_pair(C_SECTION) | curses.A_BOLD)
-                y += 1
-
-                # Run button first (above options)
-                if y < maxy - 4:
-                    focused_btn = (wsi == focus_idx)
-                    btn_text = f"  [ Run {sec.name} ]  "
-                    if focused_btn:
-                        stdscr.attron(curses.color_pair(C_RUN_BTN))
-                        safe_addstr(stdscr, y, 4, btn_text)
-                        stdscr.attroff(curses.color_pair(C_RUN_BTN))
-                    else:
-                        safe_addstr(stdscr, y, 4, btn_text, curses.A_DIM)
-                    y += 1
-                wsi += 1
-
-                for w in sec.widgets:
-                    if y >= maxy - 4: break
-                    prefix = " " * 3
-                    focused = (wsi == focus_idx) and not editing_text
-                    attr = curses.color_pair(C_FOCUS) if focused else curses.A_NORMAL
-
-                    if isinstance(w, BoolWidget):
-                        chk = "[X]" if w.value else "[ ]"
-                        line = f"{prefix}{chk} {w.label}"
-                        if w.value:
-                            stdscr.attron(curses.color_pair(C_CHECKED))
-                            safe_addstr(stdscr, y, 0, line)
-                            stdscr.attroff(curses.color_pair(C_CHECKED))
-                        else:
-                            safe_addstr(stdscr, y, 0, line, attr)
-                        y += 1
-
-                    elif isinstance(w, ChoiceWidget):
-                        line = f"{prefix}{w.label}: "
-                        parts = []
-                        for ci, (ctext, _) in enumerate(w.choices):
-                            marker = "(*)" if ci == w.selected else "( )"
-                            parts.append(f"{marker}{ctext}")
-                        line += "  ".join(parts)
-                        safe_addstr(stdscr, y, 0, line, attr if focused else 0)
-                        y += 1
-
-                    elif isinstance(w, TextWidget):
-                        if editing_text and w is flat[focus_idx][1]:
-                            val = text_buf if text_buf else w.placeholder
-                            line = f"{prefix}{w.label}: [{val}]"
-                            safe_addstr(stdscr, y, 0, line, curses.color_pair(C_FOCUS))
-                            safe_addstr(stdscr, y, len(line), " <-- typing")
-                        else:
-                            val = w.value if w.value else w.placeholder
-                            line = f"{prefix}{w.label}: [{val}]"
-                            safe_addstr(stdscr, y, 0, line, attr if focused else 0)
-                        y += 1
-
-                    wsi += 1
-
-            if y < maxy - 2:
-                y += 1
-                cmds = make_cmds()
-                stdscr.attron(curses.color_pair(C_CMD) | curses.A_BOLD)
-                safe_addstr(stdscr, y, 1, "Commands:")
-                stdscr.attroff(curses.color_pair(C_CMD) | curses.A_BOLD)
-                y += 1
-                for cname, ccmd in cmds:
-                    if y >= maxy - 1: break
-                    line = "  " + " ".join(ccmd)
-                    safe_addstr(stdscr, y, 2, line, curses.A_DIM)
-                    y += 1
-
-            if msg and maxy > 2:
-                stdscr.attron(curses.color_pair(msg_pair) if msg_pair else curses.A_NORMAL)
-                safe_addstr(stdscr, maxy - 2, 1, msg)
-                stdscr.attroff(curses.color_pair(msg_pair) if msg_pair else curses.A_NORMAL)
-
-            shortcuts = (
-                "[Down/Up:Navigate] [Space:Toggle] [Enter:Run] "
-                "[r:Run All] [s:Save] [l:Load] [q:Quit]"
-            )
-            if maxy > 1:
-                stdscr.attron(curses.color_pair(C_FOOTER))
-                safe_addstr(stdscr, maxy - 1, 0, " " * maxx)
-                safe_addstr(stdscr, maxy - 1, 1, shortcuts)
-                stdscr.attroff(curses.color_pair(C_FOOTER))
-
-            stdscr.refresh()
-        except curses.error:
-            pass  # skip rendering errors
-
-        # ─── Input handling ──────────────────────────────────────
-        key = stdscr.getch()
-
-        if editing_text:
-            si, w = flat[focus_idx]
-            if key == 27:  # Escape
-                editing_text = False
-                w.value = text_buf
-            elif key in (10, 13, 9):  # Enter or Tab
-                editing_text = False
-                w.value = text_buf
-                focus_idx = (focus_idx + 1) % len(flat)
-            elif key == 263 or key == 127:  # Backspace
-                text_buf = text_buf[:-1]
-            elif key == 330:  # Delete
-                pass
-            elif 32 <= key <= 126:
-                text_buf += chr(key)
-            continue
-
-        if key == ord("q"):
-            # Save last config
-            try:
-                os.makedirs(CONFIG_DIR, exist_ok=True)
-                with open(last_cfg, "w") as f: json.dump(to_dict(sections), f)
-            except: pass
-            break
-
-        elif key == ord(" "):  # Space
-            if focus_idx < len(flat):
-                si, w = flat[focus_idx]
-                if isinstance(w, BoolWidget):
-                    w.toggle()
-                elif isinstance(w, ChoiceWidget):
-                    w.next()
-
-        elif key in (curses.KEY_DOWN, 9):  # Down or Tab
-            focus_idx = (focus_idx + 1) % len(flat)
-
-        elif key in (curses.KEY_UP, 353, curses.KEY_BTAB if hasattr(curses, 'KEY_BTAB') else -1):  # Up or Shift+Tab
-            focus_idx = (focus_idx - 1) % len(flat)
-
-        elif key == curses.KEY_LEFT:
-            if focus_idx < len(flat):
-                si, w = flat[focus_idx]
-                if isinstance(w, ChoiceWidget): w.prev()
-
-        elif key == curses.KEY_RIGHT:
-            if focus_idx < len(flat):
-                si, w = flat[focus_idx]
-                if isinstance(w, ChoiceWidget): w.next()
-
-        elif key in (10, 13):  # Enter
-            if focus_idx < len(flat):
-                si, w = flat[focus_idx]
-                if w is None:
-                    sec = sections[si]
-                    builder = COMMAND_BUILDERS.get(sec.name)
-                    if builder:
-                        cmd = builder(sec.widgets, {})
-                        queue_and_exit([cmd])
-                        break
-                elif isinstance(w, TextWidget):
-                    editing_text = True
-                    text_buf = w.value
-                elif isinstance(w, BoolWidget):
-                    w.toggle()
-                elif isinstance(w, ChoiceWidget):
-                    w.next()
-
-        elif key == ord("r"):
-            cmds = []
-            for sec in sections:
-                builder = COMMAND_BUILDERS.get(sec.name)
-                if builder:
-                    cmd = builder(sec.widgets, {})
-                    cmds.append(cmd)
-            queue_and_exit(cmds)
-            break
-
-        elif key == ord("s"):
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            name = f"config-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"
-            msg = save_config(name)
-
-        elif key == ord("l"):
-            # Load config - show list
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            configs = [f for f in os.listdir(CONFIG_DIR) if f.endswith(".json") and f != "last.json"]
-            if not configs:
-                msg = "no saved configs"
-                msg_pair = C_ERROR
-            else:
-                # Select from list using simple menu
-                selected = menu_selector(stdscr, "Select config", configs)
-                if selected:
-                    msg = load_config(selected)
-
-    # Write queued commands to the cmds file for the bash wrapper to execute
-    if commands_to_run and CMDS_FILE:
+    with open(config_path) as f:
+        from_dict(sections, json.load(f))
+    cmds = []
+    for sec in sections:
+        builder = COMMAND_BUILDERS.get(sec.name)
+        if builder:
+            cmds.append(builder(sec.widgets, {}))
+    if cmds and CMDS_FILE:
         with open(CMDS_FILE, "w") as f:
             f.write("set -e\n")
             f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
-            for cmd in commands_to_run:
+            for cmd in cmds:
                 f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
+    sys.exit(0)
 
-def menu_selector(stdscr, title, items):
-    """Simple menu selector overlay."""
-    maxy, maxx = stdscr.getmaxyx()
-    height = min(len(items) + 4, maxy - 4)
-    width = min(max(len(title) + 4, 40), maxx - 4)
-    sy = (maxy - height) // 2
-    sx = (maxx - width) // 2
+# ─── Cross-platform stdlib TUI (no external packages needed) ────
 
-    selected = 0
-    while True:
-        # Draw overlay
-        stdscr.attron(curses.color_pair(C_HEADER))
-        for dy in range(height):
-            stdscr.addstr(sy + dy, sx, " " * width)
-        stdscr.attroff(curses.color_pair(C_HEADER))
-        safe_addstr(stdscr, sy, sx, f" {title} ".center(width))
-        safe_addstr(stdscr, sy + 1, sx, "-" * width)
+S = {
+    "rst": "\033[0m",
+    "bold": "\033[1m",
+    "dim": "\033[2m",
+    "black": "\033[30m",
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "bg_blue": "\033[44m",
+    "bg_green": "\033[42m",
+    "bg_white": "\033[47m",
+    "bg_black": "\033[40m",
+    "rev": "\033[7m",
+}
 
-        for i, item in enumerate(items):
-            display = item[:width-4]
-            if i == selected:
-                stdscr.attron(curses.color_pair(C_FOCUS))
-                safe_addstr(stdscr, sy + 2 + i, sx + 2, f"> {display}")
-                stdscr.attroff(curses.color_pair(C_FOCUS))
-            else:
-                safe_addstr(stdscr, sy + 2 + i, sx + 2, f"  {display}")
+def c(text, *styles):
+    return "".join(S[s] for s in styles) + text + S["rst"]
 
-        safe_addstr(stdscr, sy + height - 1, sx, "-" * width)
-        safe_addstr(stdscr, sy + height - 1, sx + 1, "Up/Down:move  Enter:select  q:cancel")
-        stdscr.refresh()
+def read_key():
+    """Cross-platform raw key reader (stdlib only)."""
+    try:
+        import msvcrt
+        b = msvcrt.getch()
+        if b == b"\xe0":
+            return {"H": "up", "P": "down", "M": "right", "K": "left"}.get(
+                msvcrt.getch().decode(), ""
+            )
+        ch = b.decode("utf-8", errors="replace")
+        return ch
+    except ImportError:
+        import tty, termios
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                nxt = sys.stdin.read(1)
+                if nxt == "[":
+                    return {"A": "up", "B": "down", "C": "right", "D": "left"}.get(
+                        sys.stdin.read(1), ""
+                    )
+                return nxt if nxt else ch
+            return ch
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
-        key = stdscr.getch()
-        if key == ord("q") or key == 27: return None
-        elif key == 10 or key == 13: return items[selected]
-        elif key == curses.KEY_UP: selected = (selected - 1) % len(items)
-        elif key == curses.KEY_DOWN: selected = (selected + 1) % len(items)
-        elif key == 9: selected = (selected + 1) % len(items)
-
-# ─── Simple fallback TUI (when curses is not available) ────────────
-def simple_tui(sections):
-    """input()-based TUI for terminals without curses (e.g. Windows)."""
-
-    def save_config(name):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(os.path.join(CONFIG_DIR, name), "w") as f:
-            json.dump(to_dict(sections), f, indent=2)
-        return f"saved '{name}'"
-
-    def load_config(name):
-        path = os.path.join(CONFIG_DIR, name)
-        if not os.path.exists(path): return f"config '{name}' not found"
-        with open(path) as f:
-            from_dict(sections, json.load(f))
-        return f"loaded '{name}'"
-
-    # flat: list of (section_index, widget_or_None)
+def run_tui(sections):
     flat = []
     for si, sec in enumerate(sections):
         flat.append((si, None))
@@ -578,189 +264,228 @@ def simple_tui(sections):
             flat.append((si, w))
 
     focus_idx = 0
+    commands_to_run = []
     msg = ""
+    msg_err = False
+    editing = False
+    edit_w = None
+    edit_buf = ""
 
-    while True:
-        os.system("cls" if os.name == "nt" else "clear")
-        print("=" * 60)
-        print("  Chemical Build TUI (simple mode)")
-        print("=" * 60)
+    def sclear():
+        sys.stdout.write("\033[H\033[J")
+
+    def save_config(name):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(os.path.join(CONFIG_DIR, name), "w") as f:
+            json.dump(to_dict(sections), f, indent=2)
+        return f"saved '{name}'"
+
+    def load_config(name):
+        path = os.path.join(CONFIG_DIR, name)
+        if not os.path.exists(path):
+            return f"config '{name}' not found"
+        with open(path) as f:
+            from_dict(sections, json.load(f))
+        return f"loaded '{name}'"
+
+    def render():
+        out = ""
+        out += c(" Chemical Build TUI  ", "bold", "white", "bg_blue") + "\n"
+        out += c("─" * 60 + "\n", "dim")
 
         wsi = 0
         for si, sec in enumerate(sections):
-            print(f"\n  {sec.name}")
-            # Run button
-            focused_btn = (wsi == focus_idx)
-            prefix = " >" if focused_btn else "  "
-            print(f"{prefix} [ Run {sec.name} ]")
+            out += c(f"\n  {sec.name}\n", "bold", "cyan")
+
+            focused_btn = (wsi == focus_idx) and not editing
+            if focused_btn:
+                out += c(f"  [ Run {sec.name} ]\n", "bold", "black", "bg_green")
+            else:
+                out += c(f"  [ Run {sec.name} ]\n", "green")
             wsi += 1
 
             for w in sec.widgets:
-                focused = (wsi == focus_idx)
-                prefix = " >" if focused else "  "
+                focused = (wsi == focus_idx) and not editing
+
                 if isinstance(w, BoolWidget):
                     chk = "X" if w.value else " "
-                    print(f"{prefix} [{chk}] {w.label}")
+                    line = f"   [{chk}] {w.label}"
+                    if focused:
+                        out += c(line + "\n", "rev")
+                    elif w.value:
+                        out += c(line + "\n", "bold", "green")
+                    else:
+                        out += line + "\n"
+
                 elif isinstance(w, ChoiceWidget):
+                    line = f"   {w.label}: "
                     parts = []
                     for ci, (ctext, _) in enumerate(w.choices):
-                        marker = "*" if ci == w.selected else " "
-                        parts.append(f"({marker}){ctext}")
-                    print(f"{prefix} {w.label}: {'  '.join(parts)}")
+                        if ci == w.selected:
+                            parts.append(c(f"(*) {ctext}", "bold", "green"))
+                        else:
+                            parts.append(c(f"( ) {ctext}", "dim"))
+                    parts_str = "  ".join(parts)
+                    if focused:
+                        out += c(line, "rev") + parts_str + "\n"
+                    else:
+                        out += line + parts_str + "\n"
+
                 elif isinstance(w, TextWidget):
-                    val = w.value if w.value else w.placeholder
-                    print(f"{prefix} {w.label}: [{val}]")
+                    if editing and w is edit_w:
+                        val = edit_buf if edit_buf else w.placeholder
+                        out += c(f"   {w.label}: [{val}] <-- typing\n", "rev")
+                    else:
+                        val = w.value if w.value else w.placeholder
+                        line = f"   {w.label}: [{val}]"
+                        if focused:
+                            out += c(line + "\n", "rev")
+                        else:
+                            out += line + "\n"
+
                 wsi += 1
 
-        print()
-        print("-" * 60)
         if msg:
-            print(f"  {msg}")
-            msg = ""
-        print()
-        print("  Down/Up: navigate with j/k    Space: toggle    Enter: run focused")
-        print("  r: run all    s: save config    l: load config    q: quit")
-        print("-" * 60)
+            out += c(f"\n  {msg}\n", "bold" if msg_err else "", "red" if msg_err else "yellow")
 
-        try:
-            key = input("> ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            break
+        out += c("─" + "\n", "dim")
+        out += c("j/k:Nav  Space:Tog  Enter:Run  r:All  s:Save  l:Load  q:Quit\n", "white", "bg_black")
 
-        if key == "q":
-            try:
+        return out
+
+    sys.stdout.write("\033[?25l")
+    sys.stdout.flush()
+    try:
+        while True:
+            sclear()
+            sys.stdout.write(render())
+            sys.stdout.flush()
+
+            if editing:
+                key = read_key()
+                if key in ("\r", "\n"):
+                    editing = False
+                    edit_w.value = edit_buf
+                elif key == "\x1b":
+                    editing = False
+                elif key in ("\x7f", "\b"):
+                    edit_buf = edit_buf[:-1]
+                elif len(key) == 1 and ord(key) >= 32:
+                    edit_buf += key
+                continue
+
+            key = read_key()
+
+            if key == "q":
+                break
+            elif key in ("j", "down"):
+                focus_idx = (focus_idx + 1) % len(flat)
+            elif key in ("k", "up"):
+                focus_idx = (focus_idx - 1) % len(flat)
+            elif key == " ":
+                si, w = flat[focus_idx]
+                if isinstance(w, BoolWidget): w.toggle()
+                elif isinstance(w, ChoiceWidget): w.next()
+            elif key in ("h", "left"):
+                si, w = flat[focus_idx]
+                if isinstance(w, ChoiceWidget): w.prev()
+            elif key in ("l", "right"):
+                si, w = flat[focus_idx]
+                if isinstance(w, ChoiceWidget): w.next()
+            elif key in ("\r", "\n"):
+                si, w = flat[focus_idx]
+                if w is None:
+                    sec = sections[si]
+                    builder = COMMAND_BUILDERS.get(sec.name)
+                    if builder:
+                        commands_to_run = [builder(sec.widgets, {})]
+                        break
+                elif isinstance(w, TextWidget):
+                    editing = True
+                    edit_w = w
+                    edit_buf = w.value
+                elif isinstance(w, BoolWidget): w.toggle()
+                elif isinstance(w, ChoiceWidget): w.next()
+            elif key == "r":
+                commands_to_run = []
+                for sec in sections:
+                    builder = COMMAND_BUILDERS.get(sec.name)
+                    if builder:
+                        commands_to_run.append(builder(sec.widgets, {}))
+                break
+            elif key == "s":
+                name = f"config-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"
+                msg = save_config(name)
+                msg_err = False
+            elif key == "l":
                 os.makedirs(CONFIG_DIR, exist_ok=True)
-                with open(os.path.join(CONFIG_DIR, "last.json"), "w") as f:
-                    json.dump(to_dict(sections), f)
-            except:
-                pass
-            break
+                configs = [f for f in os.listdir(CONFIG_DIR)
+                           if f.endswith(".json") and f != "last.json"]
+                if not configs:
+                    msg = "no saved configs"
+                    msg_err = True
+                else:
+                    # Show configs and let user pick
+                    sclear()
+                    lines = ["Available configs:"]
+                    for i, cfg in enumerate(configs):
+                        lines.append(f"  [{i}] {cfg}")
+                    lines.append("")
+                    sys.stdout.write("\n".join(lines) + "\nEnter number or name: ")
+                    sys.stdout.flush()
+                    sys.stdout.write("\033[?25h")
+                    sys.stdout.flush()
+                    try:
+                        inp = sys.stdin.readline().strip()
+                    except:
+                        inp = ""
+                    sys.stdout.write("\033[?25l")
+                    sys.stdout.flush()
+                    if inp:
+                        try:
+                            idx = int(inp)
+                            if 0 <= idx < len(configs):
+                                msg = load_config(configs[idx])
+                                msg_err = False
+                            else:
+                                msg = "invalid index"
+                                msg_err = True
+                        except ValueError:
+                            nm = inp if inp.endswith(".json") else inp + ".json"
+                            msg = load_config(nm)
+                            msg_err = "not found" in msg
+    finally:
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
 
-        elif key == "j":
-            focus_idx = (focus_idx + 1) % len(flat)
+    return commands_to_run
 
-        elif key == "k":
-            focus_idx = (focus_idx - 1) % len(flat)
-
-        elif key == " " or key == "":
-            si, w = flat[focus_idx]
-            if isinstance(w, BoolWidget):
-                w.toggle()
-            elif isinstance(w, ChoiceWidget):
-                w.next()
-
-        elif key == "h":
-            si, w = flat[focus_idx]
-            if isinstance(w, ChoiceWidget):
-                w.prev()
-
-        elif key == "l":
-            si, w = flat[focus_idx]
-            if isinstance(w, ChoiceWidget):
-                w.next()
-
-        elif key == "r":
-            cmds = []
-            for sec in sections:
-                builder = COMMAND_BUILDERS.get(sec.name)
-                if builder:
-                    cmd = builder(sec.widgets, {})
-                    cmds.append(cmd)
-            if cmds and CMDS_FILE:
-                with open(CMDS_FILE, "w") as f:
-                    f.write("set -e\n")
-                    f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
-                    for cmd in cmds:
-                        f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
-            print("\nQueued commands, exiting...")
-            return
-
-        elif key == "" or key == "\n":
-            # Enter on empty input - run focused section
-            si, w = flat[focus_idx]
-            if w is None:
-                sec = sections[si]
-                builder = COMMAND_BUILDERS.get(sec.name)
-                if builder:
-                    cmd = builder(sec.widgets, {})
-                    if CMDS_FILE:
-                        with open(CMDS_FILE, "w") as f:
-                            f.write("set -e\n")
-                            f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
-                            f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
-                    print("\nQueued command, exiting...")
-                    return
-
-        elif key == "s":
-            name = f"config-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"
-            msg = save_config(name)
-
-        elif key.startswith("l") and len(key) > 1:
-            config_name = key[1:].strip()
-            if not config_name.endswith(".json"):
-                config_name += ".json"
-            msg = load_config(config_name)
-
-        elif key == "l" or key == "load":
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            configs = [f for f in os.listdir(CONFIG_DIR) if f.endswith(".json") and f != "last.json"]
-            if not configs:
-                msg = "no saved configs"
-            else:
-                print("Saved configs:")
-                for i, cfg in enumerate(configs):
-                    print(f"  [{i}] {cfg}")
-                try:
-                    idx = int(input("Enter number: ").strip())
-                    if 0 <= idx < len(configs):
-                        msg = load_config(configs[idx])
-                except (ValueError, IndexError):
-                    msg = "invalid selection"
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if args and args[0] == "--run" and len(args) >= 2:
-        config_name = args[1]
-        if not config_name.endswith(".json"):
-            config_name += ".json"
-        config_path = os.path.join(CONFIG_DIR, config_name)
-        if not os.path.exists(config_path):
-            print(f"Config '{config_name}' not found in {CONFIG_DIR}", file=sys.stderr)
-            sys.exit(1)
-        sections = build_sections()
-        with open(config_path) as f:
-            from_dict(sections, json.load(f))
-        cmds = []
-        for sec in sections:
-            builder = COMMAND_BUILDERS.get(sec.name)
-            if builder:
-                cmd = builder(sec.widgets, {})
-                cmds.append(cmd)
-        if cmds and CMDS_FILE:
-            with open(CMDS_FILE, "w") as f:
-                f.write("set -e\n")
-                f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
-                for cmd in cmds:
-                    f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
-        sys.exit(0)
-
-    if HAS_CURSES:
+    sections = build_sections()
+    last_cfg = os.path.join(CONFIG_DIR, "last.json")
+    if os.path.exists(last_cfg):
         try:
-            curses.wrapper(main)
-        except KeyboardInterrupt:
+            with open(last_cfg) as f:
+                from_dict(sections, json.load(f))
+        except:
             pass
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        sections = build_sections()
-        # Load last config if exists
-        last_cfg = os.path.join(CONFIG_DIR, "last.json")
-        if os.path.exists(last_cfg):
-            try:
-                with open(last_cfg) as f: from_dict(sections, json.load(f))
-            except: pass
-        simple_tui(sections)
+
+    commands = run_tui(sections)
+
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(last_cfg, "w") as f:
+            json.dump(to_dict(sections), f)
+    except:
+        pass
+
+    if commands and CMDS_FILE:
+        with open(CMDS_FILE, "w") as f:
+            f.write("set -e\n")
+            f.write("cd " + shlex.quote(REPO_ROOT) + "\n")
+            for cmd in commands:
+                f.write(" ".join(shlex.quote(c) for c in cmd) + "\n")
 ENDOFPYTHON
 
 "$PYTHON" "$TMPFILE" "$@"

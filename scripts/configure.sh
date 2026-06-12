@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 NO_LLVM=false
 RELEASE_BUILD=false
 GENERATOR=""
@@ -24,6 +26,9 @@ while [ $# -gt 0 ]; do
       echo "  --release                 Sets CMAKE_BUILD_TYPE to Release instead of Debug"
       echo "  --generator <name>, -G    CMake generator (Ninja, Unix Makefiles, etc.)"
       echo "  --help, -h                Show this help"
+      echo ""
+      echo "Environment variables:"
+      echo "  CHEMICAL_MSVC_AUTO=0    Disable automatic MSVC environment setup on Windows"
       exit 0
       ;;
     *)
@@ -31,9 +36,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# On Windows (Git Bash / MSYS2), ensure MSVC flags are not mangled by MSYS2
+source "$SCRIPT_DIR/msvc_env.sh"
+
 CMAKE_ARGS=(-S . -B cmake-build-debug)
 if [ -n "$GENERATOR" ]; then
   CMAKE_ARGS+=(-G "$GENERATOR")
+elif [ -n "${MSYSTEM-}" ] && [ -n "${INCLUDE-}" ]; then
+  # Windows Git Bash + MSVC environment (set by msvc_env.sh)
+  # → use MinGW Makefiles (matches CLion default)
+  CMAKE_ARGS+=(-G "MinGW Makefiles")
 fi
 if [ "$NO_LLVM" = true ]; then
   CMAKE_ARGS+=(-DBUILD_COMPILER=OFF)

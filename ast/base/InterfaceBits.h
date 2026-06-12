@@ -26,8 +26,8 @@ public:
     constexpr void clear(BitsType mask) { bits_ &= ~mask; }
     constexpr BitsType raw() const { return bits_; }
 
-    InterfaceBits& operator|=(const InterfaceBits& other) { bits_ |= other.bits_; return *this; }
-    InterfaceBits& operator&=(const InterfaceBits& other) { bits_ &= other.bits_; return *this; }
+    constexpr InterfaceBits& operator|=(const InterfaceBits& other) { bits_ |= other.bits_; return *this; }
+    constexpr InterfaceBits& operator&=(const InterfaceBits& other) { bits_ &= other.bits_; return *this; }
 
     friend constexpr InterfaceBits operator|(InterfaceBits a, const InterfaceBits& b) { a |= b; return a; }
     friend constexpr InterfaceBits operator&(InterfaceBits a, const InterfaceBits& b) { a &= b; return a; }

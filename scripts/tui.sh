@@ -108,6 +108,18 @@ def build_sections():
         ]),
         Section("Configure", "scripts/configure.sh", [
             BoolWidget("no_llvm", "--no-llvm", "--no-llvm"),
+            ChoiceWidget("generator", "Generator", [
+                ("Default (system)", ""),
+                ("Ninja", "Ninja"),
+                ("Unix Makefiles", "Unix Makefiles"),
+                ("Visual Studio 17 2022", "Visual Studio 17 2022"),
+                ("Visual Studio 16 2019", "Visual Studio 16 2019"),
+                ("Xcode", "Xcode"),
+                ("MinGW Makefiles", "MinGW Makefiles"),
+                ("NMake Makefiles", "NMake Makefiles"),
+                ("Custom...", "__custom__"),
+            ]),
+            TextWidget("custom_generator", "Custom Generator", "--generator", default="", placeholder="e.g. Ninja Multi-Config"),
         ]),
         Section("Setup", "scripts/setup.sh", [
             BoolWidget("with_llvm", "--with-llvm", "--with-llvm"),
@@ -123,6 +135,13 @@ def build_setup_cmd(widgets, opts):
 def build_configure_cmd(widgets, opts):
     cmd = ["./scripts/configure.sh"]
     if by_key(widgets, "no_llvm").value: cmd.append("--no-llvm")
+    gen = by_key(widgets, "generator")
+    gen_val = gen.flag
+    if gen_val == "__custom__":
+        cg = by_key(widgets, "custom_generator")
+        if cg.value: cmd.extend(["--generator", cg.value])
+    elif gen_val:
+        cmd.extend(["--generator", gen_val])
     return cmd
 
 def build_build_cmd(widgets, opts):

@@ -49,6 +49,9 @@ elif [ -n "${MSYSTEM-}" ] && [ -n "${INCLUDE-}" ]; then
 fi
 if [ "$NO_LLVM" = true ]; then
   CMAKE_ARGS+=(-DBUILD_COMPILER=OFF)
+else
+  # Explicitly ON to override any cached value from a previous --no-llvm run
+  CMAKE_ARGS+=(-DBUILD_COMPILER=ON)
 fi
 if [ "$RELEASE_BUILD" = true ]; then
   CMAKE_ARGS+=(-DCMAKE_BUILD_TYPE=Release)

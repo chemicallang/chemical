@@ -3,8 +3,10 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/mbedtls" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/secure_net" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/wiqis/accountlib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/wiqis/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/accountlib" vcs="Git" />

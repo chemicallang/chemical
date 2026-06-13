@@ -18,6 +18,8 @@
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/statements/VarInit.h"
 #include <filesystem>
+#include <random>
+
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -76,6 +78,47 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
     std::cout << std::flush;
 }
 
+#ifdef DEBUG
+
+namespace {
+
+    std::uint64_t file_order_seed() {
+        static const std::uint64_t seed = []() -> std::uint64_t {
+            if (const char* env = std::getenv("FILE_ORDER_SEED")) {
+                return static_cast<std::uint64_t>(std::strtoull(env, nullptr, 10));
+            }
+
+            return (static_cast<std::uint64_t>(std::random_device{}()) << 32) |
+                   static_cast<std::uint64_t>(std::random_device{}());
+        }();
+
+        return seed;
+    }
+
+    std::mt19937_64& file_order_rng() {
+        static std::mt19937_64 rng(file_order_seed());
+        return rng;
+    }
+
+    void print_file_order_seed_once() {
+        static const bool printed = [] {
+            std::cout << "File order seed: " << file_order_seed()
+                      << " (set FILE_ORDER_SEED to reproduce)\n";
+            return true;
+        }();
+        (void)printed;
+    }
+
+} // namespace
+
+void shuffle_files(std::vector<std::string>& files) {
+    std::sort(files.begin(), files.end());   // makes the shuffle reproducible across machines
+    print_file_order_seed_once();
+    std::shuffle(files.begin(), files.end(), file_order_rng());
+}
+
+#endif
+
 void ASTProcessor::determine_module_files(
         ImportPathHandler& path_handler,
         LocationManager& loc_man,
@@ -114,6 +157,15 @@ void ASTProcessor::determine_module_files(
                 if (std::filesystem::is_directory(dir_path_p)) {
                     std::vector<std::string> filePaths;
                     getFilesInDirectory(filePaths, dir_path_p);
+                    // why shuffle ? good question.
+                    // our compiler doesn't depend on file order, different declarations can be in any order in files (with any order)
+                    // our compiler would compile those files properly
+                    // but sometimes compiler has bugs in it, that only become visible when files are in certain order
+                    // so in debug mode, we always shuffle the files, in hopes to test the compiler in all sorts of file orderings
+                    // if there's a compiler crash it can be replicated via this seed we are printing
+#ifdef DEBUG
+                    shuffle_files(filePaths);
+#endif
                     for (auto& abs_path : filePaths) {
                         auto fileId = loc_man.encodeFile(abs_path);
                         files.emplace_back(fileId, &module->module_scope, abs_path);

@@ -38,7 +38,9 @@ llvm::GlobalValue::LinkageTypes global_var_linkage(VarInitStatement* stmt) {
 }
 
 void global_var_set_defaults(VarInitStatement* stmt, llvm::GlobalVariable* global) {
-    global->setDSOLocal(true);
+    if(!stmt->is_extern()) {
+        global->setDSOLocal(true);
+    }
     if(stmt->is_thread_local()) {
         global->setThreadLocal(true);
         global->setThreadLocalMode(llvm::GlobalValue::LocalExecTLSModel);

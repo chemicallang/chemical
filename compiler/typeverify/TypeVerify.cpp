@@ -232,6 +232,9 @@ void TypeVerifier::VisitDereferenceValue(DereferenceValue* value) {
 void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     RecursiveVisitor::VisitAddrOfValue(addrOfValue);
     const auto value = addrOfValue->value;
+    if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
+        diagnoser.error("cannot apply operator '&raw' to r-value", value);
+    }
     const auto linked = value->get_chain_last_linked();
     if(linked) {
         switch (linked->kind()) {
@@ -258,6 +261,9 @@ void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
         visit_it(refValue->value);
     }
     const auto value = refValue->value;
+    if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
+        diagnoser.error("cannot apply operator '&' to r-value", value);
+    }
     const auto linked = value->get_chain_last_linked();
     if(linked) {
         switch (linked->kind()) {

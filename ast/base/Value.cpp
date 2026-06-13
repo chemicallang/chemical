@@ -513,22 +513,6 @@ void Value::access_chain_assign_value(
 
 #endif
 
-bool Value::isValueKindRValue(ValueKind kind) {
-    switch(kind) {
-        case ValueKind::Bool:
-        case ValueKind::IntN:
-        case ValueKind::Double:
-        case ValueKind::Float:
-        case ValueKind::NegativeValue:
-        case ValueKind::BitwiseNot:
-        case ValueKind::SizeOfValue:
-        case ValueKind::AlignOfValue:
-            return true;
-        default:
-            return false;
-    }
-}
-
 bool isTypeRValue(BaseType* type) {
     switch(type->kind()) {
         case BaseTypeKind::Bool:
@@ -584,6 +568,12 @@ bool Value::isValueRValueInBackend() {
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::Expression:
+        case ValueKind::AddrOfValue:
+        case ValueKind::ReferenceOfValue:
+        case ValueKind::NullValue:
+        case ValueKind::InValue:
+        case ValueKind::IsValue:
             return true;
         case ValueKind::FunctionCall:
             return isTypeRValue(getType());
@@ -622,7 +612,7 @@ bool isTypeRValueFrontend(BaseType* type) {
             const auto linked = type->as_linked_type_unsafe()->linked;
             switch (linked->kind()) {
                 case ASTNodeKind::TypealiasStmt:
-                    return isTypeRValue(linked->as_typealias_unsafe()->actual_type);
+                    return isTypeRValueFrontend(linked->as_typealias_unsafe()->actual_type);
                 case ASTNodeKind::StructDecl:
                 case ASTNodeKind::VariantDecl:
                 case ASTNodeKind::VariantMember:
@@ -641,16 +631,25 @@ bool Value::isValueRValueInFrontend() {
     switch(kind()) {
         case ValueKind::Bool:
         case ValueKind::IntN:
+        case ValueKind::String:
         case ValueKind::Double:
         case ValueKind::Float:
         case ValueKind::NegativeValue:
+        case ValueKind::NotValue:
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
         case ValueKind::StructValue:
+        case ValueKind::Expression:
+        case ValueKind::AddrOfValue:
+        case ValueKind::ReferenceOfValue:
+        case ValueKind::NullValue:
+        case ValueKind::InValue:
+        case ValueKind::IsValue:
+        case ValueKind::ArrayValue:
             return true;
         case ValueKind::FunctionCall:
-            return isTypeRValue(getType());
+            return isTypeRValueFrontend(getType());
         case ValueKind::AccessChain: {
             const auto last = as_access_chain_unsafe()->values.back();
             if (last->kind() == ValueKind::FunctionCall) {

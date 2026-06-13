@@ -15,23 +15,15 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/statements/VarInit.h"
-#include "ast/values/CastedValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/GenericStructDecl.h"
-#include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/structures/GenericFuncDecl.h"
-#include "ast/statements/Return.h"
-#include "ast/statements/Typealias.h"
-#include "ast/utils/GenericUtils.h"
-#include "ast/types/GenericType.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "compiler/ASTDiagnoser.h"
-#include <sstream>
-#include <iostream>
 #include "preprocess/2c/BufferedWriter.h"
 
 #ifdef COMPILER_BUILD
@@ -1018,7 +1010,6 @@ Value *FunctionDeclaration::call(
     Value* debug_value
 ) {
     callScope = call_scope;
-    auto& allocator = fn_scope->allocator;
     auto self_param = get_self_param();
     if(self_param) {
         fn_scope->declare(self_param->name, parent);

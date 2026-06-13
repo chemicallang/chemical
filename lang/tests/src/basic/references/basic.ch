@@ -25,6 +25,10 @@ func assign_to_ref_struct(r : &mut AssignableReferencableStruct) {
     *r = AssignableReferencableStruct(9873)
 }
 
+func get_int_of_ass_ref_struct_ref(a : &AssignableReferencableStruct) : int {
+    return a.i
+}
+
 func take_ref(r : &ReferencableStruct) : int {
     return r.i;
 }
@@ -161,6 +165,9 @@ func test_references() {
         var j = AssignableReferencableStruct(22)
         assign_to_ref_struct(&mut j)
         return j.i == 9873
+    })
+    test("taking reference of a constructor call works", () => {
+        return get_int_of_ass_ref_struct_ref(&AssignableReferencableStruct(5239938)) == 5239938
     })
     test("integer references are passed as function arguments automatically", () => {
         var i = 3

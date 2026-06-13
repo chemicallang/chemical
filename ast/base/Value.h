@@ -65,11 +65,6 @@ private:
 public:
 
     /**
-     * check if given kind is a r value
-     */
-    static bool isValueKindRValue(ValueKind kind);
-
-    /**
      * default constructor
      */
     inline explicit constexpr Value(ValueKind k, SourceLocation loc) noexcept : _kind(k), _location(loc), _type(nullptr) {

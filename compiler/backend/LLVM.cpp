@@ -1642,6 +1642,22 @@ void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
     calculated_value->llvm_conditional_branch(gen, then_block, otherwise_block);
 }
 
+inline static bool isValueKindRValue(ValueKind k) {
+    switch(k) {
+        case ValueKind::Bool:
+        case ValueKind::IntN:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::NegativeValue:
+        case ValueKind::BitwiseNot:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr) {
 
     const auto value = dyn_value->value;
@@ -1652,12 +1668,12 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
     if(value->kind() == ValueKind::StructValue) {
         ptr = value->as_struct_value_unsafe()->llvm_allocate(gen, "", nullptr);
     } else {
-        if(Value::isValueKindRValue(value->kind())) {
+        if(isValueKindRValue(value->kind())) {
             ptr = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_value(gen), value->encoded_location());
         } else {
             ptr = value->llvm_pointer(gen);
         }
-    };
+    }
 
     // get the interface
     const auto inter_node = type->get_direct_linked_canonical_node();

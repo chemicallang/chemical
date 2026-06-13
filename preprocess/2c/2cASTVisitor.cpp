@@ -757,13 +757,34 @@ bool is_value_type_pointer_like(Value* value) {
     }
 }
 
+inline static bool isValueKindRValue(ValueKind k) {
+    switch(k) {
+        case ValueKind::Bool:
+        case ValueKind::IntN:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::NegativeValue:
+        case ValueKind::BitwiseNot:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+        case ValueKind::Expression:
+        case ValueKind::AddrOfValue:
+        case ValueKind::NullValue:
+        case ValueKind::InValue:
+        case ValueKind::IsValue:
+            return true;
+        default:
+            return false;
+    }
+}
+
 // when a value is being stored or passed as a reference we must write address of it
 // even if it means storing it in a temporary variable
 // for example my_func(3) <-- here parameter takes a constant reference, which means r values are allowed
 // so we must store 3 in a temporary variable and pass address of it
 // this returns whether the value has already been written, should not be re-written
 bool write_value_for_ref_with_val_type(ToCAstVisitor& visitor, Value* val, BaseType* value_type) {
-    if(Value::isValueKindRValue(val->val_kind())) {
+    if(isValueKindRValue(val->val_kind())) {
         const auto temp_var = visitor.get_local_temp_var_name();
         visitor.write("({ ");
         visitor.visit(value_type);
@@ -977,6 +998,15 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
             write(')');
         }
         // capturing function type
+        if(value->kind() == ValueKind::LambdaFunc) {
+            const auto cap_type_canonical = type->canonical();
+            const auto cap_type = cap_type_canonical->get_cap_func_type();
+            if (cap_type != nullptr) {
+                write_lambda_expansion_site(*this, value->as_lambda_func_unsafe(), type, cap_type, cap_type_canonical->kind() == BaseTypeKind::Reference);
+                return;
+            }
+        }
+        // capturing function type
         if (value->kind() == ValueKind::ReferenceOfValue) {
             const auto maybe_lamb = value->as_reference_of_value_unsafe()->value;
             if (maybe_lamb->kind() == ValueKind::LambdaFunc) {
@@ -987,18 +1017,8 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
                     return;
                 }
             }
-        }
-        // capturing function type
-        if(value->kind() == ValueKind::LambdaFunc) {
-            const auto cap_type_canonical = type->canonical();
-            const auto cap_type = cap_type_canonical->get_cap_func_type();
-            if (cap_type != nullptr) {
-                write_lambda_expansion_site(*this, value->as_lambda_func_unsafe(), type, cap_type, cap_type_canonical->kind() == BaseTypeKind::Reference);
-                return;
-            }
-        }
-        // automatically passing address to a reference type
-        if(type->kind() == BaseTypeKind::Reference && !isRef(*this, value)) {
+        } else if(type->kind() == BaseTypeKind::Reference && !isRef(*this, value)) {
+            // automatically passing address to a reference type
             const auto ref_type = type->as_reference_type_unsafe();
             if(write_value_for_ref_type(*this, value, ref_type)) {
                 return;
@@ -1908,10 +1928,6 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
-    if (type->isReferenceCanonical() && !Value::isValueKindRValue(assign->value->val_kind()) && !is_value_param_pointer_like(assign->value)) {
-        // special case, accept_mutating_value writes a & thinking a reference needs to pass
-        visitor.write('*');
-    }
     accept_movable_ref_value(visitor, type, assign->value);
 
 }

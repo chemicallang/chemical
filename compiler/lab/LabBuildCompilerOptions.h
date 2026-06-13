@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "LabJobAttributes.h"
 #include "compiler/ASTProcessorOptions.h"
 #include "compiler/OutputMode.h"
 #include "compiler/SanitizerOptions.h"
@@ -16,6 +17,11 @@ public:
      * the build directory, where everything will be outputted
      */
     std::string build_dir;
+
+    /**
+     * default job attributes, user changes these values using cli args
+     */
+    LabJobAttributes default_job_attrs;
 
     /**
      * translate to c, on llvm build compiler, we translate to C and use Clang
@@ -35,18 +41,6 @@ public:
 #else
     bool use_tcc = true;
 #endif
-
-    /**
-     * this means download the dependencies only
-     * no compilation or source code checking happens
-     */
-    bool download_only = false;
-
-    /**
-     * this means only source code will only be checked
-     * nothing will be compiled, downloads will still happen
-     */
-    bool check_only = false;
 
     /**
      * caching can be enabled or disabled, when enabled

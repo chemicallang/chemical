@@ -636,6 +636,7 @@ set(COMMON_SOURCES
         core/tests/NegativeLifetimeTests.h
         core/tests/NegativeLifetimeTests.cpp
         ast/values/ReferenceOfValue.cpp
+        compiler/lab/LabJobAttributes.h
 )
 
 # Chemical LSP Executable Target

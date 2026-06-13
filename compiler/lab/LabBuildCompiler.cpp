@@ -722,8 +722,8 @@ int LabBuildCompiler::process_module_tcc_bm(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
+        LabJob* job,
         const std::string_view& build_dir,
-        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -739,7 +739,7 @@ int LabBuildCompiler::process_module_tcc_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir, target_triple, single_file, use_clang, emit_c);
+    const auto result = process_module_tcc(mod, processor, c_visitor, job, build_dir, single_file, use_clang, emit_c);
     if(result != 0) {
         return result;
     }
@@ -759,8 +759,8 @@ int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
+        LabJob* job,
         const std::string_view& build_dir,
-        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -770,6 +770,7 @@ int LabBuildCompiler::process_module_tcc(
     const auto caching = options->is_caching_enabled;
     const auto verbose = options->verbose;
     const bool is_use_obj_format = options->use_mod_obj_format;
+    const auto target_triple = job->target_triple.to_view();
 
     auto& resolver = *processor.resolver;
 
@@ -816,7 +817,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // don't compile when user asked for checking only
-    if (options->check_only) {
+    if (job->attrs.check_only) {
         if(verbose) {
             std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
         }
@@ -992,6 +993,7 @@ int LabBuildCompiler::process_module_gen_bm(
         ASTProcessor& processor,
         Codegen& gen,
         CTranslator& cTranslator,
+        LabJob* job,
         const std::string_view& build_dir
 ) {
 
@@ -1005,7 +1007,7 @@ int LabBuildCompiler::process_module_gen_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_gen(mod, processor, gen, cTranslator, build_dir);
+    const auto result = process_module_gen(mod, processor, gen, cTranslator, job, build_dir);
     if(result != 0) {
         return result;
     }
@@ -1026,6 +1028,7 @@ int LabBuildCompiler::process_module_gen(
         ASTProcessor& processor,
         Codegen& gen,
         CTranslator& cTranslator,
+        LabJob* job,
         const std::string_view& build_dir
 ) {
 
@@ -1116,7 +1119,7 @@ int LabBuildCompiler::process_module_gen(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (currently
-    if(mod->has_changed.has_value() && !mod->has_changed.value() && !options->check_only) {
+    if(mod->has_changed.has_value() && !mod->has_changed.value() && !job->attrs.check_only) {
 
         if(verbose) {
             std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
@@ -1141,7 +1144,7 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // skip compilation when user asked to check only
-    if (options->check_only) {
+    if (job->attrs.check_only) {
         if(verbose) {
             std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
         }
@@ -1589,7 +1592,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     const auto is_job_intermediate = get_job_type == LabJobType::Intermediate;
     const auto is_single_file = options->translate_to_single_file || is_job_cbi || is_job_jit;
     // job caching means relink all if all objects are present
-    const auto job_caching = !options->check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
+    const auto job_caching = !job->attrs.check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
     const auto verbose = options->verbose;
     const auto bm_mod = options->benchmark_modules;
 
@@ -1610,7 +1613,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // if user asked us to download remote imports only
     // we skip compilation
-    if (options->download_only) {
+    if (job->attrs.download_only) {
         return 0;
     }
 
@@ -1749,6 +1752,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // if user only asked us to compile c files, we must not link the chemical object file
     auto did_compile_chemical = false;
 
+    // should we check only
+    const auto check_only = job->attrs.check_only;
+
     // compile dependencies modules for this executable
     for(auto mod : dependencies) {
 
@@ -1760,7 +1766,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             switch (mod->type) {
                 case LabModuleType::CPPFile:
                 case LabModuleType::CFile: {
-                    if (options->check_only) {
+                    if (check_only) {
                         // do not compile c or c++ files when in checking mode
                         continue;
                     }
@@ -1796,7 +1802,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir, job->target_triple.to_view(), is_single_file, use_clang, emit_c);
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, job, mods_dir, is_single_file, use_clang, emit_c);
         if(result != 0) {
             return result;
         }
@@ -1841,7 +1847,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         writeToFile(out_c_path, program);
     }
 
-    if(is_job_intermediate || options->check_only) {
+    if(is_job_intermediate || check_only) {
         // skip compilation, only intermediates required
         return 0;
     }
@@ -1876,7 +1882,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     const auto is_job_cbi = job_type == LabJobType::CBI;
     // job caching means relink all if all objects are present
-    const auto job_caching = !options->check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
+    const auto job_caching = !job->attrs.check_only && (is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled);
     const auto verbose = options->verbose;
 
     begin_job_print(job);
@@ -1896,7 +1902,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     // if user asked us to download remote imports only
     // we skip checking and compilation
-    if (options->download_only) {
+    if (job->attrs.download_only) {
         return 0;
     }
 
@@ -2013,6 +2019,9 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         }
     }
 
+    // should we check only (and skip compilation)
+    const auto check_only = job->attrs.check_only;
+
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 
@@ -2024,7 +2033,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         switch (mod->type) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
-                if (options->check_only) {
+                if (check_only) {
                     // do not compile c or c++ files when user asked to check only
                     continue;
                 }
@@ -2058,7 +2067,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             mod->bitcode_path.clear();
         }
 
-        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, mods_dir);
+        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, job, mods_dir);
         if(result != 0) {
             return result;
         }
@@ -2176,7 +2185,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
     if(result != 0) {
         return result;
     }
-    if (options->check_only || options->download_only) {
+    if (job->attrs.check_only || job->attrs.download_only) {
         // no linking required in this case
         return result;
     }
@@ -2193,7 +2202,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
     if(result != 0) {
         return result;
     }
-    if (options->check_only || options->download_only) {
+    if (job->attrs.check_only || job->attrs.download_only) {
         // no linking required in this case
         return result;
     }
@@ -2841,11 +2850,6 @@ TCCState* LabBuildCompiler::built_lab_file(
     // preparing translation
     c_visitor.prepare_translate();
 
-    auto prev_check_only = options->check_only;
-    // ofcourse we need to compile when building a lab file
-    // so we'll turn this off for now
-    options->check_only = false;
-
     // processing flattened dependencies
     for(const auto mod : outModDependencies) {
 
@@ -2854,15 +2858,12 @@ TCCState* LabBuildCompiler::built_lab_file(
         }
 
         // compile the module
-        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir, job->target_triple.to_view(), true, false, false);
+        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, job, lab_mods_dir, true, false, false);
         if(module_result != 0) {
             return nullptr;
         }
 
     }
-
-    // restore the check only option
-    options->check_only = prev_check_only;
 
     if(verbose) {
         std::cout << "[lab] symbol resolving current module" << std::endl;
@@ -3274,14 +3275,16 @@ int LabBuildCompiler::build_lab_file_no_alloc(
     context.storage.clear();
 
     // call the root build.lab build's function
-    out_run_job = build(&context);
+    const auto out_job = build(&context);
+    out_run_job = out_job;
 
-    // we must set the -o to this job
-    if (out_run_job != nullptr) {
-        auto& job_abs_path = out_run_job->abs_path;
+    if (out_job != nullptr) {
+
+        // we must set the -o to this job
+        auto& job_abs_path = out_job->abs_path;
         if (outputPath.empty()) {
             if (job_abs_path.empty()) {
-                job_abs_path.append(out_run_job->name.to_view());
+                job_abs_path.append(out_job->name.to_view());
 #ifdef _WIN32
                 job_abs_path.append(".exe");
 #endif
@@ -3290,6 +3293,10 @@ int LabBuildCompiler::build_lab_file_no_alloc(
             job_abs_path.clear();
             job_abs_path.append(outputPath);
         }
+
+        // default job attributes will be applied to this job
+        out_job->attrs = options->default_job_attrs;
+
     }
 
     // the status for the main job

@@ -569,8 +569,6 @@ bool Value::isValueRValueInBackend() {
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
         case ValueKind::Expression:
-        case ValueKind::AddrOfValue:
-        case ValueKind::ReferenceOfValue:
         case ValueKind::NullValue:
         case ValueKind::InValue:
         case ValueKind::IsValue:

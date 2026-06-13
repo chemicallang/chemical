@@ -16,6 +16,7 @@
 #include "compiler/OutputMode.h"
 #include "import_model/RemoteImport.h"
 #include "import_model/ModuleDependency.h"
+#include "LabJobAttributes.h"
 
 struct LabModule;
 
@@ -67,6 +68,11 @@ struct LabJob {
      * if a job is optional, upon failure, we don't quit doing other jobs
      */
     bool optional_job = false;
+
+    /**
+     * job attributes
+     */
+    LabJobAttributes attrs;
 
     /**
      * the target triple for every job can be different

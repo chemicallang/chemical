@@ -196,8 +196,8 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
+        LabJob* job,
         const std::string_view& build_dir,
-        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -210,8 +210,8 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
+        LabJob* job,
         const std::string_view& build_dir,
-        const std::string_view& target_triple,
         bool single_file,
         bool use_clang,
         bool emit_c
@@ -227,6 +227,7 @@ public:
             ASTProcessor& processor,
             Codegen& gen,
             CTranslator& cTranslator,
+            LabJob* job,
             const std::string_view& build_dir
     );
 
@@ -238,6 +239,7 @@ public:
             ASTProcessor& processor,
             Codegen& gen,
             CTranslator& cTranslator,
+            LabJob* job,
             const std::string_view& build_dir
     );
 

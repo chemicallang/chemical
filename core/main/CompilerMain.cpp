@@ -519,12 +519,6 @@ int compiler_main(int argc, char *argv[]) {
             opts->translate_to_single_file = false;
         }
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
-        if (options.has_value("download")) {
-            opts->download_only = true;
-        }
-        if (options.has_value("check")) {
-            opts->check_only = true;
-        }
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
         if (options.has_value("use-tcc", "use-tcc")) {
@@ -782,6 +776,12 @@ int compiler_main(int argc, char *argv[]) {
             LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
             LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir), mode);
             LabBuildContext::initialize_job(&final_job, &compiler_opts);
+            if (options.has_value("download")) {
+                final_job.attrs.download_only = true;
+            }
+            if (options.has_value("check")) {
+                final_job.attrs.check_only = true;
+            }
             const auto result = compiler.build_mod_file(context, args[0], &final_job, true);
             return result;
         }
@@ -867,10 +867,13 @@ int compiler_main(int argc, char *argv[]) {
     const auto defJobType = jit ? LabJobType::JITExecutable : LabJobType::Executable;
     auto job_type_opt = options.option_new("job-type", "jt");
     LabJob job(getJobTypeFromOpt(job_type_opt, defJobType), chem::string("a"), mode);
+    LabBuildContext::initialize_job(&job, &compiler_opts);
     job.mode = mode;
-    if(!target.empty()) {
-        // TODO: update the target data according to target triple
-        job.target_triple.append(target);
+    if (options.has_value("download")) {
+        job.attrs.download_only = true;
+    }
+    if (options.has_value("check")) {
+        job.attrs.check_only = true;
     }
 
     std::vector<std::unique_ptr<LabModule>> dependencies;

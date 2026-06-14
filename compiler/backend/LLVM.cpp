@@ -2281,6 +2281,43 @@ void AssignStatement::code_gen(Codegen &gen) {
             const auto lhs_was_moved = lhs->is_ref_moved();
             const auto destructor = container->destructor_func();
 
+
+            // For capturing function types, the instance struct (default_function_instance) contains
+            // a self-referencing pointer (fn_data_ptr -> buffer). The memcpy-to-temp pattern copies
+            // raw bytes including this self-referencing pointer, which still points to the original's
+            // buffer. When the new value overwrites the original's buffer, the temp's destructor
+            // runs on the new data. We must instead destruct the old value first, then assign.
+            if(lhs_type->kind() == BaseTypeKind::CapturingFunction) {
+                // destruct old value at original pointer
+                if(id != nullptr) {
+                    const auto node = id->linked;
+                    const auto drop_flag = gen.find_drop_flag(node);
+                    auto destructible = gen.create_destructible_for(node, drop_flag);
+                    if(destructible.has_value()) {
+                        destructible.value().pointer = pointer;
+                        gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
+                    }
+                    if (drop_flag) {
+                        const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
+                        gen.di.instr(instr, lhs->encoded_location());
+                    }
+                } else if(!lhs_was_moved) {
+                    if(destructor) {
+                        const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
+                        gen.di.instr(callInst, this);
+                    }
+                }
+                // assign new value
+                if(value->requires_memcpy_ref_struct(lhs_type)) {
+                    if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
+                        gen.warn("couldn't copy or move the struct to location", encoded_location());
+                    }
+                } else {
+                    value->llvm_assign_value(gen, pointer, lhs);
+                }
+                return;
+            }
+
             // instead of 1:
             // allocate temp
             // put rhs into temp

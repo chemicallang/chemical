@@ -39,6 +39,8 @@ func run_executable_tests() {
     test_destructors();
     test_continue_destruction()
     test_break_destruction()
+    test_temp_view_lifetime()
+    test_self_ref_destruct()
     test_references();
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();
@@ -102,7 +104,6 @@ func run_executable_tests() {
     test_conversions();
     test_thread_pool()
     test_time_types();
-    test_temp_view_lifetime()
 
 }
 

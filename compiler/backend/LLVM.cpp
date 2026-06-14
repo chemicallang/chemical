@@ -1816,6 +1816,11 @@ bool should_destruct_node(ASTNode* node, Value* returnValue) {
             }
             return true;
         }
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::VariantMember:
+        case ASTNodeKind::UnionDecl:
+            return true;
         default:
 #ifdef DEBUG
             CHEM_THROW_RUNTIME("unknown node, in should_destruct node");
@@ -2273,6 +2278,41 @@ void AssignStatement::code_gen(Codegen &gen) {
         ) : lhs_type->get_members_container();
         if(container) {
             const auto id = lhs->get_chain_id();
+            const auto lhs_was_moved = lhs->is_ref_moved();
+            const auto destructor = container->destructor_func();
+
+            if(!lhs_was_moved && destructor) {
+                const auto tmp = gen.builder->CreateAlloca(lhs_type->llvm_type(gen));
+                gen.di.instr(tmp, value->encoded_location());
+
+                if(value->requires_memcpy_ref_struct(lhs_type)) {
+                    if(!gen.copy_or_move_struct(lhs_type, value, tmp)) {
+                        gen.warn("couldn't copy or move the struct to temporary location", encoded_location());
+                    }
+                } else {
+                    value->llvm_assign_value(gen, tmp, lhs);
+                }
+
+                if(id != nullptr) {
+                    const auto node = id->linked;
+                    const auto drop_flag = gen.find_drop_flag(node);
+                    auto destructible = gen.create_destructible_for(node, drop_flag);
+                    if(destructible.has_value()) {
+                        gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
+                    }
+                    if (drop_flag) {
+                        const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
+                        gen.di.instr(instr, lhs->encoded_location());
+                    }
+                } else {
+                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
+                    gen.di.instr(callInst, this);
+                }
+
+                gen.memcpy_struct(lhs_type->llvm_type(gen), pointer, tmp, value->encoded_location());
+                return;
+            }
+
             if(id != nullptr) {
                 // lhs if identifier (can be connected to var init and function params), which must be destructed by checking drop flags
                 // we must memcpy the struct into the lhs pointer
@@ -2292,11 +2332,10 @@ void AssignStatement::code_gen(Codegen &gen) {
                     const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
                     gen.di.instr(instr, lhs->encoded_location());
                 }
-            } else if(!lhs->is_ref_moved()) {
+            } else if(!lhs_was_moved) {
                 // previous is not an id, however we must still drop what we are assigning to
-                const auto destr = container->destructor_func();
-                if(destr) {
-                    const auto callInst = gen.builder->CreateCall(destr->llvm_func(gen), { pointer });
+                if(destructor) {
+                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
                     gen.di.instr(callInst, this);
                 }
             }

@@ -32,8 +32,7 @@ func make_self_ref(initial : int, count : *mut int) : SelfRef {
 }
 
 func read_val_then_add(p : *mut int, extra : int) : SelfRef {
-    var r : SelfRef
-    r.value = *p + extra
+    var r = SelfRef { value : *p + extra, count : null }
     return r
 }
 

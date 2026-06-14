@@ -573,7 +573,6 @@ std::optional<Destructible> create_destructible_for(
         llvm::Value* oldDropFlag
 ) {
     const auto type = nonCanonType->canonical();
-    const auto location = node->encoded_location();
     const auto linkedNode = get_destructible_type_node(type);
     if(linkedNode) {
         if(type->kind() == BaseTypeKind::Array) {

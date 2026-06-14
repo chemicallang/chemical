@@ -1900,17 +1900,52 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
         set_ref_drop_flag(visitor, assign->lhs, true);
         visitor.new_line_and_indent();
     } else {
-        // destruct it
+        // Find destructor if it exists
+        FunctionDeclaration* destr = nullptr;
         if(type->kind() == BaseTypeKind::CapturingFunction) {
-            const auto destr = type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
-            if(destr) {
-                destruct_assign_lhs(visitor, assign->lhs, destr);
-            }
+            destr = type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
         } else {
-            const auto destr = type->get_destructor();
-            if (destr) {
-                destruct_assign_lhs(visitor, assign->lhs, destr);
-            }
+            destr = type->get_destructor();
+        }
+
+        if(destr) {
+            // SAFE PATTERN: Defer LHS destruction until after RHS evaluation
+            // to avoid use-after-free when RHS references LHS (e.g., x = f(x.to_view()))
+            auto temp_name = visitor.get_local_temp_var_name();
+
+            visitor.write("{");
+            visitor.indentation_level += 1;
+            visitor.new_line_and_indent();
+
+            // 1. Evaluate RHS into temp variable first (LHS still alive for .to_view() etc.)
+            visitor.visit(type);
+            visitor.space();
+            visitor.write(temp_name);
+            visitor.write(" = ");
+            accept_movable_ref_value(visitor, type, assign->value);
+            visitor.write(";");
+            visitor.new_line_and_indent();
+
+            // 2. Destroy old LHS
+            func_container_name(visitor, destr);
+            visitor.write("(&");
+            visitor.visit(assign->lhs);
+            visitor.write(");");
+            visitor.new_line_and_indent();
+
+            // 3. Assign temp to LHS
+            const auto prev_nested = visitor.nested_value;
+            visitor.nested_value = true;
+            visitor.visit(assign->lhs);
+            visitor.nested_value = prev_nested;
+            visitor.write(" = ");
+            visitor.write(temp_name);
+            visitor.write(";");
+            visitor.indentation_level -= 1;
+            visitor.new_line_and_indent();
+
+            visitor.write("}");
+            return;
         }
     }
     const auto prev_nested = visitor.nested_value;

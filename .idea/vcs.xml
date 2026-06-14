@@ -3,21 +3,13 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/account" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/mbedtls" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/account/build/remote/github.com/chemicallang/secure_net" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/accountlib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/components" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mbedtls" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/secure_net" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/totp" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/wiqis/accountlib" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/wiqis/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mbedtls" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />

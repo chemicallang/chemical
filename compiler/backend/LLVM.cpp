@@ -2281,38 +2281,36 @@ void AssignStatement::code_gen(Codegen &gen) {
             const auto lhs_was_moved = lhs->is_ref_moved();
             const auto destructor = container->destructor_func();
 
-            if(!lhs_was_moved && destructor) {
-                const auto tmp = gen.builder->CreateAlloca(lhs_type->llvm_type(gen));
-                gen.di.instr(tmp, value->encoded_location());
+            // instead of 1:
+            // allocate temp
+            // put rhs into temp
+            // destruct lhs
+            // copy temp into lhs
+            //
+            //
+            // we do 2:
+            // allocate temp
+            // copy lhs into temp
+            // put rhs into lhs
+            // destruct temp
 
-                if(value->requires_memcpy_ref_struct(lhs_type)) {
-                    if(!gen.copy_or_move_struct(lhs_type, value, tmp)) {
-                        gen.warn("couldn't copy or move the struct to temporary location", encoded_location());
-                    }
-                } else {
-                    value->llvm_assign_value(gen, tmp, lhs);
+            // allocate temp
+            const auto tmp = gen.builder->CreateAlloca(lhs_type->llvm_type(gen));
+            gen.di.instr(tmp, value->encoded_location());
+            // copy lhs into temp
+            gen.memcpy_struct(lhs_type->llvm_type(gen), tmp, pointer, value->encoded_location());
+
+            // put rhs into lhs
+            if(value->requires_memcpy_ref_struct(lhs_type)) {
+                // now we just need to memcpy the rhs by copy or move
+                if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
+                    gen.warn("couldn't copy or move the struct to location", encoded_location());
                 }
-
-                if(id != nullptr) {
-                    const auto node = id->linked;
-                    const auto drop_flag = gen.find_drop_flag(node);
-                    auto destructible = gen.create_destructible_for(node, drop_flag);
-                    if(destructible.has_value()) {
-                        gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
-                    }
-                    if (drop_flag) {
-                        const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
-                        gen.di.instr(instr, lhs->encoded_location());
-                    }
-                } else {
-                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
-                    gen.di.instr(callInst, this);
-                }
-
-                gen.memcpy_struct(lhs_type->llvm_type(gen), pointer, tmp, value->encoded_location());
-                return;
+            } else {
+                value->llvm_assign_value(gen, pointer, lhs);
             }
 
+            // destruct temp
             if(id != nullptr) {
                 // lhs if identifier (can be connected to var init and function params), which must be destructed by checking drop flags
                 // we must memcpy the struct into the lhs pointer
@@ -2323,6 +2321,7 @@ void AssignStatement::code_gen(Codegen &gen) {
                 // we're doing this conditionally, meaning a drop flag is checked to see if value should be dropped (was initialized)
                 auto destructible = gen.create_destructible_for(node, drop_flag);
                 if(destructible.has_value()) {
+                    destructible.value().pointer = tmp;
                     gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
                 }
                 // now we're going to set the drop flag back to true for this
@@ -2335,17 +2334,11 @@ void AssignStatement::code_gen(Codegen &gen) {
             } else if(!lhs_was_moved) {
                 // previous is not an id, however we must still drop what we are assigning to
                 if(destructor) {
-                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
+                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { tmp });
                     gen.di.instr(callInst, this);
                 }
             }
-            if(value->requires_memcpy_ref_struct(lhs_type)) {
-                // now we just need to memcpy the rhs by copy or move
-                if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
-                    gen.warn("couldn't copy or move the struct to location", encoded_location());
-                }
-                return;
-            }
+            return;
         }
     }
     // normal flow

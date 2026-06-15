@@ -37,6 +37,24 @@ public struct CSSLexer {
      */
     var start_chemical_lb_count : uchar
 
+    /**
+     * set to true when `{` enters chemical mode in a value context
+     * used by the '{' handler to distinguish:
+     *   - color: {expr}             → first { in value, enter chemical mode
+     *   - color: {a} solid {b}      → has_chemical_in_value is true, so second { also enters chemical mode
+     *   - :root{...}                → first { in value, but tokens_since_colon > 0, so selector block
+     *   - div:hover{...}            → first { in value, but tokens_since_colon > 0, so selector block
+     */
+    var has_chemical_in_value : bool
+
+    /**
+     * tracks how many non-whitespace tokens were read since the last ':'
+     * used together with has_chemical_in_value to decide whether { opens a
+     * selector block (tokens_since_colon > 0 && !has_chemical_in_value)
+     * or a chemical expression (tokens_since_colon == 0 || has_chemical_in_value)
+     */
+    var tokens_since_colon : uchar
+
     var where : CSSLexerWhere
 
 }
@@ -47,4 +65,6 @@ func (lexer : &mut CSSLexer) reset() {
     lexer.lb_count = 0;
     lexer.where = CSSLexerWhere.Declaration
     lexer.at_rule = false;
+    lexer.tokens_since_colon = 0
+    lexer.has_chemical_in_value = false
 }

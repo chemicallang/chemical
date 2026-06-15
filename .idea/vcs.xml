@@ -8,6 +8,7 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/emaillib" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/learn-chemical" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mbedtls" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/manage/build/remote/github.com/chemicallang/secure_net" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mbedtls" vcs="Git" />

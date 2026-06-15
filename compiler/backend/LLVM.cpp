@@ -1504,11 +1504,11 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     return value;
 }
 
-void AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     const auto last_ind = values.size() - 1;
     auto& last = values[last_ind];
-    last->access_chain_assign_value(gen, this, last_ind, destructibles, lhsPtr, lhs, nullptr);
+    last->access_chain_assign_value(gen, this, last_ind, destructibles, storagePtr, lhs, lhsPtr, nullptr);
     Value::destruct(gen, destructibles);
 }
 
@@ -1741,8 +1741,8 @@ llvm::Value* DynamicValue::llvm_ret_value(Codegen &gen, Value *returnValue) {
     return nullptr;
 }
 
-void DynamicValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
-    dyn_initialize(gen, this, lhsPtr);
+void DynamicValue::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
+    dyn_initialize(gen, this, storagePtr);
 }
 
 llvm::Value* DynamicValue::llvm_value(Codegen &gen, BaseType *expected_type) {
@@ -1957,7 +1957,7 @@ void TypealiasStatement::code_gen(Codegen &gen) {
 
 void ValueNode::code_gen(Codegen& gen) {
     if(gen.current_assignable.second) {
-        value->llvm_assign_value(gen, gen.current_assignable.second, gen.current_assignable.first);
+        value->llvm_assign_value(gen, gen.current_assignable.second, gen.current_assignable.first, gen.current_assignable.second);
     } else {
         gen.error("couldn't assign value node to current assignable", this);
     }
@@ -1975,7 +1975,7 @@ void BreakStatement::code_gen(Codegen &gen) {
     if(value) {
         auto& assignable = gen.current_assignable;
         if(assignable.second) {
-            value->llvm_assign_value(gen, assignable.second, assignable.first);
+            value->llvm_assign_value(gen, assignable.second, assignable.first, assignable.second);
         } else {
             gen.error("couldn't assign value in break statement", this);
         }
@@ -2281,106 +2281,61 @@ void AssignStatement::code_gen(Codegen &gen) {
             const auto lhs_was_moved = lhs->is_ref_moved();
             const auto destructor = container->destructor_func();
 
-
-            // For capturing function types, the instance struct (default_function_instance) contains
-            // a self-referencing pointer (fn_data_ptr -> buffer). The memcpy-to-temp pattern copies
-            // raw bytes including this self-referencing pointer, which still points to the original's
-            // buffer. When the new value overwrites the original's buffer, the temp's destructor
-            // runs on the new data. We must instead destruct the old value first, then assign.
-            if(lhs_type->kind() == BaseTypeKind::CapturingFunction) {
-                // destruct old value at original pointer
-                if(id != nullptr) {
-                    const auto node = id->linked;
-                    const auto drop_flag = gen.find_drop_flag(node);
-                    auto destructible = gen.create_destructible_for(node, drop_flag);
-                    if(destructible.has_value()) {
-                        destructible.value().pointer = pointer;
-                        gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
-                    }
-                    if (drop_flag) {
-                        const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
-                        gen.di.instr(instr, lhs->encoded_location());
-                    }
-                } else if(!lhs_was_moved) {
-                    if(destructor) {
-                        const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
-                        gen.di.instr(callInst, this);
-                    }
-                }
-                // assign new value
-                if(value->requires_memcpy_ref_struct(lhs_type)) {
-                    if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
-                        gen.warn("couldn't copy or move the struct to location", encoded_location());
-                    }
-                } else {
-                    value->llvm_assign_value(gen, pointer, lhs);
-                }
-                return;
-            }
-
-            // instead of 1:
+            // Strategy 1:
             // allocate temp
             // put rhs into temp
             // destruct lhs
             // copy temp into lhs
             //
-            //
-            // we do 2:
-            // allocate temp
-            // copy lhs into temp
-            // put rhs into lhs
-            // destruct temp
+            // lhsPtr (passed to llvm_assign_value) = original pointer (for reading old data if needed)
+            // storagePtr (passed to llvm_assign_value) = tmp (where to store new value)
 
             // allocate temp
             const auto tmp = gen.builder->CreateAlloca(lhs_type->llvm_type(gen));
             gen.di.instr(tmp, value->encoded_location());
-            // copy lhs into temp
-            gen.memcpy_struct(lhs_type->llvm_type(gen), tmp, pointer, value->encoded_location());
 
-            // put rhs into lhs
+            // put rhs into temp
             if(value->requires_memcpy_ref_struct(lhs_type)) {
-                // now we just need to memcpy the rhs by copy or move
-                if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
+                if(!gen.copy_or_move_struct(lhs_type, value, tmp)) {
                     gen.warn("couldn't copy or move the struct to location", encoded_location());
                 }
             } else {
-                value->llvm_assign_value(gen, pointer, lhs);
+                value->llvm_assign_value(gen, tmp, lhs, pointer);
             }
 
-            // destruct temp
+            // destruct old lhs value at original pointer
             if(id != nullptr) {
-                // lhs if identifier (can be connected to var init and function params), which must be destructed by checking drop flags
-                // we must memcpy the struct into the lhs pointer
-                // first if the lhs is not uninit, we must destruct it
                 const auto node = id->linked;
                 const auto drop_flag = gen.find_drop_flag(node);
-                // we must destruct the previous value before we memcpy this value into the pointer
-                // we're doing this conditionally, meaning a drop flag is checked to see if value should be dropped (was initialized)
                 auto destructible = gen.create_destructible_for(node, drop_flag);
                 if(destructible.has_value()) {
-                    destructible.value().pointer = tmp;
                     gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
                 }
-                // now we're going to set the drop flag back to true for this
-                // because if previously the drop flag was false, since we've reinitialized, we must set it to true,
-                // so it can be dropped, when the scope ends
-                if (drop_flag) {
+            } else if(!lhs_was_moved) {
+                if(destructor) {
+                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
+                    gen.di.instr(callInst, this);
+                }
+            }
+
+            // copy temp into lhs
+            gen.memcpy_struct(lhs_type->llvm_type(gen), pointer, tmp, value->encoded_location());
+
+            // set drop flag to true (reinitialized)
+            if(id != nullptr) {
+                const auto node = id->linked;
+                const auto drop_flag = gen.find_drop_flag(node);
+                if(drop_flag) {
                     const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
                     gen.di.instr(instr, lhs->encoded_location());
-                }
-            } else if(!lhs_was_moved) {
-                // previous is not an id, however we must still drop what we are assigning to
-                if(destructor) {
-                    const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { tmp });
-                    gen.di.instr(callInst, this);
                 }
             }
             return;
         }
     }
-    // normal flow
+    // normal flow for non-container types
     if (assOp == Operation::Assignment) {
-        value->llvm_assign_value(gen, pointer, lhs);
+        value->llvm_assign_value(gen, pointer, lhs, pointer);
     } else {
         llvm::Value* llvm_value = gen.operate(assOp, lhs, value);
         gen.assign_store(lhs, pointer, value, llvm_value, value->encoded_location());
@@ -2530,9 +2485,9 @@ llvm::Value* LoopValue::llvm_value(Codegen &gen, BaseType *type) {
     return loadInstr;
 }
 
-void LoopValue::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
+void LoopValue::llvm_assign_value(Codegen &gen, llvm::Value* storagePtr, Value *lhs, llvm::Value *lhsPtr) {
     auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = { lhs, lhsPtr };
+    gen.current_assignable = { lhs, storagePtr };
     stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
 }

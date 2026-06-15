@@ -42,9 +42,9 @@ llvm::AllocaInst* ZeroedValue::llvm_allocate(Codegen &gen, const std::string &id
     return (llvm::AllocaInst*) alloca;
 }
 
-void ZeroedValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void ZeroedValue::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
     const auto type = llvm_type(gen);
-    gen.builder->CreateStore(llvm::Constant::getNullValue(type), lhsPtr);
+    gen.builder->CreateStore(llvm::Constant::getNullValue(type), storagePtr);
 }
 
 unsigned int ZeroedValue::store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {

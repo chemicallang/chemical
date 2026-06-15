@@ -154,16 +154,16 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen, BaseType* expected_type) {
     return packed_lambda_val(gen, this);
 }
 
-void LambdaFunction::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void LambdaFunction::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
     // this refers to the lambda pointer
     const auto unpacked = llvm_value_unpacked(gen, nullptr);
     if(captureList.empty()) {
-        gen.assign_store(lhs, lhsPtr, this, unpacked, encoded_location());
+        gen.assign_store(lhs, storagePtr, this, unpacked, encoded_location());
     } else {
         const auto lhsType = lhs->getType();
         const auto can = lhsType->canonical();
         if(can->kind() == BaseTypeKind::CapturingFunction) {
-            gen.mutate_capturing_function(can, this, lhsPtr);
+            gen.mutate_capturing_function(can, this, storagePtr);
         } else {
             gen.error("capturing lambda being assigned to non capturing type", this);
         }

@@ -217,8 +217,9 @@ public:
             AccessChain* chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
-            llvm::Value* lhsPtr,
+            llvm::Value* storagePtr,
             Value *lhs,
+            llvm::Value* lhsPtr,
             BaseType *expected_type
     ) final;
 

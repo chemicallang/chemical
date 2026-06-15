@@ -88,7 +88,7 @@ public:
         return llvm_value(gen, nullptr);
     }
 
-    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) override;
 
     void generate_captured_destructor(Codegen &gen);
 

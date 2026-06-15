@@ -415,6 +415,29 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
             if(nextTok.type != TokenType.Colon) {
                 return null;
             }
+            // Check if this is a pseudo-class selector: tag:hover{...} or tag::before{...}
+            // Pattern: identifier : (identifier | :) { 
+            const afterColon = token + 2;
+            if(afterColon.type == TokenType.Identifier || afterColon.type == TokenType.PropertyName || afterColon.type == TokenType.Colon) {
+                // tag:hover{...} -> check if identifier follows and then {
+                // tag::before{...} -> check if ::identifier then {
+                if(afterColon.type == TokenType.Colon) {
+                    // ::pseudo-element pattern: check for identifier and then {
+                    const pseudoIdent = token + 3;
+                    if(pseudoIdent.type == TokenType.Identifier || pseudoIdent.type == TokenType.PropertyName) {
+                        const afterPseudo = token + 4;
+                        if(afterPseudo.type == TokenType.LBrace) {
+                            return null; // tag::pseudo{} - selector
+                        }
+                    }
+                } else {
+                    // :pseudo-class pattern: check if the token after identifier is {
+                    const afterIdent = token + 3;
+                    if(afterIdent.type == TokenType.LBrace || afterIdent.type == TokenType.Colon) {
+                        return null; // tag:hover{} or tag:hover::before{} - selector
+                    }
+                }
+            }
             // increment both tokens
             parser.increment();
             parser.increment();

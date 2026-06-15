@@ -27,6 +27,8 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         ':' => {
             if(css.where == CSSLexerWhere.Declaration) {
                 css.where = CSSLexerWhere.Value
+                css.tokens_since_colon = 0
+                css.has_chemical_in_value = false
             }
             return Token {
                 type : TokenType.Colon as int,
@@ -38,6 +40,8 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(css.where == CSSLexerWhere.Value) {
                 css.where = CSSLexerWhere.Declaration
             }
+            css.tokens_since_colon = 0
+            css.has_chemical_in_value = false
             return Token {
                 type : TokenType.Semicolon as int,
                 value : std::string_view(data_ptr, 1),
@@ -64,6 +68,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 
             if(isdigit(next) || (next == '.' && isdigit(next2))) {
                 provider.read_floating_digits()
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.Number as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -74,6 +79,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if (next == '-' || is_ident_start(next)) {
                 provider.read_css_id();
                 const value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                css.tokens_since_colon++;
                 if (css.where == CSSLexerWhere.Declaration) {
                     return Token{
                         type: TokenType.PropertyName as int,
@@ -101,6 +107,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 css.where = CSSLexerWhere.Selector;
                 const start = provider.current_data()
                 provider.read_css_id()
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.ClassName as int,
                     value : std::string_view(start, provider.current_data() - start),
@@ -108,6 +115,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 provider.read_digits()
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.Number as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -160,6 +168,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 css.where = CSSLexerWhere.Selector;
                 const start = provider.current_data()
                 provider.read_css_id()
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.Id as int,
                     value : std::string_view(start, provider.current_data() - start),
@@ -167,6 +176,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 provider.read_alpha_num()
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.HexColor as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -221,6 +231,9 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     css.chemical_mode = true;
                     css.lb_count++;
                     css.start_chemical_lb_count = css.lb_count;
+                    if(css.where == CSSLexerWhere.Value) {
+                        css.has_chemical_in_value = true;
+                    }
                     return Token {
                         type : TokenType.DollarLBrace as int,
                         value : std::string_view(data_ptr, 2),
@@ -262,6 +275,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
         '"' => {
             provider.read_double_quoted_value()
+            css.tokens_since_colon++;
             return Token {
                 type : TokenType.DoubleQuotedValue as int,
                 value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -270,6 +284,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
         '\'' => {
             provider.read_single_quoted_value()
+            css.tokens_since_colon++;
             return Token {
                 type : TokenType.SingleQuotedValue as int,
                 value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -369,6 +384,8 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             } else {
                 css.lb_count--;
             }
+            css.tokens_since_colon = 0
+            css.has_chemical_in_value = false
             return Token {
                 type : TokenType.RBrace as int,
                 value : std::string_view(data_ptr, 1),
@@ -384,9 +401,22 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             } else if(css.where == CSSLexerWhere.Selector) {
                 css.where = CSSLexerWhere.Declaration;
             } else if(css.where == CSSLexerWhere.Value) {
-                css.other_mode = true;
-                css.chemical_mode = true;
-                css.start_chemical_lb_count = css.lb_count
+                // has_chemical_in_value means we already entered chemical mode in this value,
+                // so this { is another chemical expression: e.g. color: {a} solid {b}
+                if(css.has_chemical_in_value) {
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.start_chemical_lb_count = css.lb_count;
+                } else if(css.tokens_since_colon == 0) {
+                    // No tokens since ':', this is a Chemical expression: color: {expr}
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.start_chemical_lb_count = css.lb_count;
+                    css.has_chemical_in_value = true;
+                } else {
+                    // Tokens were read since ':', this is a selector block: :root{...} or a:hover{...}
+                    css.where = CSSLexerWhere.Declaration;
+                }
             }
             return Token {
                 type : TokenType.LBrace as int,
@@ -401,6 +431,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         default => {
             if(isdigit(c)) {
                 provider.read_floating_digits();
+                css.tokens_since_colon++;
                 return Token {
                     type : TokenType.Number as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -409,6 +440,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             } else {
                 provider.read_css_id()
                 var value = std::string_view(data_ptr, provider.current_data() - data_ptr)
+                css.tokens_since_colon++;
                 if(css.where == CSSLexerWhere.Declaration) {
                     return Token {
                         type : TokenType.PropertyName as int,

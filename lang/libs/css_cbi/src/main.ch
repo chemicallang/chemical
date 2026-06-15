@@ -128,7 +128,9 @@ public func css_initializeLexer(lexer : *mut Lexer) {
         lb_count : 0,
         start_chemical_lb_count : 1,
         at_rule : false,
-        where : CSSLexerWhere.Declaration
+        where : CSSLexerWhere.Declaration,
+        tokens_since_colon : 0,
+        has_chemical_in_value : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

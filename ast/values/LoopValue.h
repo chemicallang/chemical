@@ -35,7 +35,7 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
-    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
+    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) final;
 
     llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) final;
 

@@ -493,9 +493,9 @@ llvm::Value* Value::llvm_ret_value(Codegen& gen, Value* returnValue) {
 /**
  * called by assignment, to assign the current value to left hand side
  */
-void Value::llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs) {
+void Value::llvm_assign_value(Codegen& gen, llvm::Value* storagePtr, Value* lhs, llvm::Value* lhsPtr) {
     const auto rhsValue = llvm_value(gen, lhs ? lhs->getType() : nullptr);
-    gen.assign_store(lhs, lhsPtr, this, rhsValue, encoded_location());
+    gen.assign_store(lhs, storagePtr, this, rhsValue, encoded_location());
 }
 
 void Value::access_chain_assign_value(
@@ -503,12 +503,13 @@ void Value::access_chain_assign_value(
     AccessChain* chain,
     unsigned int until,
     std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-    llvm::Value* lhsPtr,
+    llvm::Value* storagePtr,
     Value* lhs,
+    llvm::Value* lhsPtr,
     BaseType* expected_type
 ) {
     const auto value = access_chain_value(gen, chain->values, until, destructibles, expected_type);
-    gen.assign_store(lhs, lhsPtr, chain, value, encoded_location());
+    gen.assign_store(lhs, storagePtr, chain, value, encoded_location());
 }
 
 #endif

@@ -507,7 +507,7 @@ public:
     /**
      * called by assignment, to assign the current value to left hand side
      */
-    virtual void llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs);
+    virtual void llvm_assign_value(Codegen& gen, llvm::Value* storagePtr, Value* lhs, llvm::Value* lhsPtr);
 
     /**
      * destruct the given destructibles
@@ -617,8 +617,9 @@ public:
             AccessChain* chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-            llvm::Value* lhsPtr,
+            llvm::Value* storagePtr,
             Value* lhs,
+            llvm::Value* lhsPtr,
             BaseType* expected_type
     );
 

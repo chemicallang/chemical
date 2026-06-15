@@ -243,11 +243,11 @@ llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     }
 }
 
-void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
     const auto known_type = lhs->getType();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         const auto value = llvm_allocate(gen, "", nullptr);
-        gen.assign_store(lhs, lhsPtr, this, value, encoded_location());
+        gen.assign_store(lhs, storagePtr, this, value, encoded_location());
     } else if(lhs->as_deref_value()) {
         if(!definition->destructor_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
@@ -262,7 +262,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
             gen.error("definition has either a destructor function or does not allow direct init", lhs);
         }
     } else {
-        initialize_alloca(lhsPtr, gen, nullptr);
+        initialize_alloca(storagePtr, gen, nullptr);
     }
 }
 

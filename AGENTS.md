@@ -106,7 +106,93 @@ Lib tests CI:
 - AST uses `ASTAllocator` arena — batch-allocated, no per-node `delete`.
 - CLI entry is `LabBuildCompiler` → translates `chemical.mod` → JIT-compiles `build.lab` (TinyCC) → `LabJob` objects → parse → symres → typecheck → codegen → link.
 
-## Release
+## Compiled Packages (`lang/compiled/`)
 
-- Commit message must contain "releaseIt" to trigger CI release builds.
-- Release workflow produces: `{platform}-{arch}.zip`, `{platform}-{arch}-tcc.zip`, `{platform}-{arch}-lsp.zip`.
+Each package under `lang/compiled/<name>/` is a standalone Chemical application:
+- Entry: `chemical.mod` — declares `application <name>`, `source "src"`, imports.
+- Build: `cmake-build-debug/TCCCompiler lang/compiled/<name>/chemical.mod -o <output> --mode debug_quick --no-cache`
+- Compiled apps depend on `std`, `page`, `html_cbi`, `css_cbi`, `js_cbi`, `universal_cbi`, `net`, `json`, `fs`, and optionally `mongodb`, `totp`, `accountlib`.
+
+### Universal Component Pipeline
+
+`#universal ComponentName(props) { ... }` components (processed by `universal_cbi`):
+
+1. **Definition** — JSX-based components with `state` for reactivity, event handlers, `.map()` for loops.
+2. **SSR (server-side rendering)** — The component's JSX is compiled to C++ that writes HTML into `HtmlPage.pageHtml`. During SSR, `state` initializers run, conditionals evaluate, and static HTML is emitted.
+3. **Hydration** — The same JSX compiles to JavaScript that runs in the browser. The SSR HTML is captured and passed to a client-side function that hydrates it in-place.
+4. **Mounting** — `#html { <Component prop={value} /> }` generates:
+   - Server: calls the component's C++ SSR function → writes HTML to `page`
+   - Client: emits `window.$__uni_dispatch('scoped_ComponentName', element, {props})` which calls the JS version to hydrate
+
+### How `#html {}` Blocks Work
+
+The `#html { ... }` macro (processed by `html_cbi`):
+- Parses JSX/HTML into an AST
+- For native HTML elements (`<div>`, `<span>`), generates `page.append_view(...)` calls
+- For universal components (`<QuizTaker>`), generates:
+  1. C++ SSR function call (writes HTML to page buffer)
+  2. `page.capture_html_delta_to_js(index)` — copies the SSR HTML into the JS bundle
+  3. `page.truncate_html(index)` — removes SSR HTML from the page buffer (it's now in JS)
+  4. Emits `window.$_uc_h(htmlString, "ComponentName", props)` into the JS bundle
+- Prop values (`{expr}`) are C++ expressions evaluated at runtime
+
+### Prop Serialization Gotchas
+
+When passing C++ values as props to universal components via `#html { <Comp prop={value} /> }`:
+
+**Safe types:** `string`, `string_view`, `*char`, `int`, `uint`, `i64`, `bool`, `double`
+**Unsafe types:** C++ structs with `vector<>` fields — the serializer produces corrupt output
+
+The JS serializer wraps `string` values in **single quotes** in the generated JavaScript. This means:
+- `'` (single quote) in the data MUST be escaped as `\u0027` (valid JSON) — the serializer does NOT escape it
+- `\` (backslash) in the data will be interpreted as a JS escape sequence — if your JSON contains `\n`, it becomes a literal newline in the JS string. You must pre-escape `\` as `\\` in your string before passing
+- **Workaround:** Post-process string values with `js_string_escape()` that doubles backslashes and escapes single quotes
+
+```chemical
+func js_string_escape(view : string_view) : string {
+    var out = string()
+    for(var i = 0u; i < view.size(); i++) {
+        var c = view.get(i)
+        if(c == '\\') { out.append_view("\\\\") }
+        else if(c == '\'') { out.append_view("\\u0027") }
+        else { out.append(c) }
+    }
+    return out
+}
+```
+
+### Vector Access: `.get_ptr(i)` vs `.get(i)`
+
+For `vector<T>` where `T` has a destructor (strings, structs), **never use `.get(i)`**:
+- `.get(i)` returns `T` by **bitwise copy** — internals (like string data pointers) are shared
+- When the temporary is destroyed, it frees the shared pointer, causing **double-free**
+- Always use `.get_ptr(i)` which returns `*mut T` (a safe pointer)
+- Chemical auto-dereferences pointers for member access: `(*ptr).field` → just `ptr.field`
+
+Pattern:
+```chemical
+for(var i = 0u; i < vec.size(); i++) {
+    var item = vec.get_ptr(i)
+    // Use item.field, item.method() — auto-dereferenced
+}
+```
+
+### Json Library Notes
+
+- `JsonParser(bufferSize, 4096)` — parses JSON with configurable buffer
+- `ASTJsonHandler` — builds an AST of `JsonValue` variants
+- Types are in the top-level module (directly accessible, no `json::` prefix)
+- `JsonValue` variants: `Null`, `Boolean(bool)`, `Integer(i64)`, `Double(f64)`, `String(string)`, `Array(vector<JsonValue>)`, `Object(unordered_map<string, JsonValue>)`
+- Pattern matching: `if(val is JsonValue.String) { var String(s) = val else unreachable }`
+- Access map values: `obj_map.get_ptr(string("key"))` — returns `*mut JsonValue` or null
+
+### MongoDB Integration
+
+- Uses `lang/compiled/mongodb/` package
+- MongoDB C driver shared libraries: `libmongoc2.so`, `libbson2.so` in the build directory
+- Pool pattern: `pool.pop()` to get a client, `pool.push(&mut client)` to return it
+- Document building: `mongodb::Document.new()`, `.append_utf8(key, value)`, `.append_int64(key, value)`, `.append_oid(key, &oid)`
+- OID: `mongodb::OID.from_string(hex_id)`
+- Queries: `collection.find(filter).first()`, `collection.insert_one_with_id(&doc)`, `collection.delete_one(&filter)`
+
+## Release

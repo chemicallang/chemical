@@ -57,6 +57,8 @@ Do not assume the bug is in the component source. Many failures come from compil
 - `lang/libs/universal_cbi/src/converter/*`
 - `lang/libs/universal_cbi/src/react/*`
 - `lang/libs/page/src/page.ch`
+- `lang/libs/page/src/ssr.ch` — `SsrAttributeValue`, `renderJsAttrValue`, serialization to JS
+- `lang/libs/page/src/PageWriter.ch` — `HtmlPageWriter` interface, string serialization
 - `lang/libs/components/src/*`
 - `lang/compiled/*/output/*.html`
 - `lang/compiled/*/output/*.css`
@@ -141,6 +143,35 @@ Relevant files:
 - `lang/libs/universal_cbi/src/converter/converter_utils.ch`
 - `lang/libs/universal_cbi/src/converter/converter_base.ch`
 - `lang/libs/universal_cbi/src/converter/converter_core.ch`
+
+### Prop serialization breaks on special characters
+
+Symptoms:
+- `JSON.parse` error in browser console when mounting a universal component
+- "Bad control character in string literal" in JSON
+- "Unexpected identifier" or "Unterminated string" errors
+- Garbage bytes (`�`) in the generated JavaScript props object
+
+Root cause:
+- The universal system's `renderJsAttrValue` in `lang/libs/page/src/ssr.ch` wraps `string` values in **single quotes** (`'...'`) without escaping `'` or `\` inside them
+- This means any `'` in the data breaks the JS string, and any `\` followed by a JS-significant character (like `n`, `"`, `\`, etc.) creates unintended escape sequences
+- C++ structs with `vector<>` fields produce corrupt output when serialized — the serializer doesn't handle complex nested types
+
+Workarounds:
+1. **Never pass C++ structs with `vector<>` fields** as universal component props
+2. **Pre-serialize complex data to JSON** using `quiz_to_json()`-like functions
+3. **Post-process the JSON string** with `js_string_escape()` that doubles backslashes and escapes single quotes as `\u0027`
+4. **Keep all string data on the JS side** (defined in `state` inside the component) whenever possible
+
+Debug steps:
+1. Fetch the page HTML and find the `$__uni_dispatch(...)` call
+2. Examine the third argument (props object) — look for `�` (garbage bytes) or broken quotes
+3. Check if any prop value contains `'` or `\` that would be mangled by single-quote wrapping
+4. Check if any prop value is a C++ struct/object that the serializer can't handle
+
+Relevant files:
+- `lang/libs/page/src/ssr.ch` — `renderJsAttrValue()` serialization logic
+- `lang/libs/page/src/PageWriter.ch` — `HtmlPageWriter` interface
 
 ### Toggle visuals do not match state
 

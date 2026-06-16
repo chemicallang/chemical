@@ -434,8 +434,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.escapeHtml(text.value);
                  converter.put_chain_in();
              } else {
-                 converter.str.append_view("` "); // Use backticks to support multi-line strings
-                 converter.escapeJs(text.value);
+                 var decoded = decode_html_entities(text.value);
+                 converter.str.append_view("` ");
+                 converter.escapeJs(decoded.to_view());
                  converter.str.append_view(" `");
              }
         }

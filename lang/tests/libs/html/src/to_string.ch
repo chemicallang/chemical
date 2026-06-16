@@ -385,3 +385,21 @@ public func expression_with_parens_followed_by_text(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringHtmlOnly(), "<div>The answer is 42!</div>");
 }
+
+@test
+public func html_entities_in_expression_preserved(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{"&#9733; Star"}</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>&#9733; Star</div>");
+}
+
+@test
+public func html_entities_in_expression_with_text(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>Label: {"&#9734;"} text</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>Label: &#9734; text</div>");
+}

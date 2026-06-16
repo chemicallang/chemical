@@ -455,6 +455,177 @@ func (converter : &mut JsConverter) make_ssr_text(val : &std::string_view, locat
     return make_ssr_text_val(converter.builder, val, converter.support.ssrTextLinkedNode, location);
 }
 
+func append_utf8_codepoint(str : &mut std::string, cp : uint32_t) {
+    if(cp < 0x80) {
+        str.append(cp as char);
+    } else if(cp < 0x800) {
+        str.append((0xC0 | (cp >> 6)) as char);
+        str.append((0x80 | (cp & 0x3F)) as char);
+    } else if(cp < 0x10000) {
+        str.append((0xE0 | (cp >> 12)) as char);
+        str.append((0x80 | ((cp >> 6) & 0x3F)) as char);
+        str.append((0x80 | (cp & 0x3F)) as char);
+    } else {
+        str.append((0xF0 | (cp >> 18)) as char);
+        str.append((0x80 | ((cp >> 12) & 0x3F)) as char);
+        str.append((0x80 | ((cp >> 6) & 0x3F)) as char);
+        str.append((0x80 | (cp & 0x3F)) as char);
+    }
+}
+
+func lookup_named_entity(name : std::string_view) : uint32_t {
+    if(name.equals("amp")) return 38;
+    if(name.equals("lt")) return 60;
+    if(name.equals("gt")) return 62;
+    if(name.equals("quot")) return 34;
+    if(name.equals("apos")) return 39;
+    if(name.equals("nbsp")) return 160;
+    if(name.equals("iexcl")) return 161;
+    if(name.equals("cent")) return 162;
+    if(name.equals("pound")) return 163;
+    if(name.equals("curren")) return 164;
+    if(name.equals("yen")) return 165;
+    if(name.equals("brvbar")) return 166;
+    if(name.equals("sect")) return 167;
+    if(name.equals("uml")) return 168;
+    if(name.equals("copy")) return 169;
+    if(name.equals("ordf")) return 170;
+    if(name.equals("laquo")) return 171;
+    if(name.equals("not")) return 172;
+    if(name.equals("shy")) return 173;
+    if(name.equals("reg")) return 174;
+    if(name.equals("macr")) return 175;
+    if(name.equals("deg")) return 176;
+    if(name.equals("plusmn")) return 177;
+    if(name.equals("sup2")) return 178;
+    if(name.equals("sup3")) return 179;
+    if(name.equals("acute")) return 180;
+    if(name.equals("micro")) return 181;
+    if(name.equals("para")) return 182;
+    if(name.equals("middot")) return 183;
+    if(name.equals("cedil")) return 184;
+    if(name.equals("sup1")) return 185;
+    if(name.equals("ordm")) return 186;
+    if(name.equals("raquo")) return 187;
+    if(name.equals("frac14")) return 188;
+    if(name.equals("frac12")) return 189;
+    if(name.equals("frac34")) return 190;
+    if(name.equals("iquest")) return 191;
+    if(name.equals("times")) return 215;
+    if(name.equals("divide")) return 247;
+    if(name.equals("ndash")) return 8211;
+    if(name.equals("mdash")) return 8212;
+    if(name.equals("lsquo")) return 8216;
+    if(name.equals("rsquo")) return 8217;
+    if(name.equals("sbquo")) return 8218;
+    if(name.equals("ldquo")) return 8220;
+    if(name.equals("rdquo")) return 8221;
+    if(name.equals("bdquo")) return 8222;
+    if(name.equals("hellip")) return 8230;
+    if(name.equals("larr")) return 8592;
+    if(name.equals("uarr")) return 8593;
+    if(name.equals("rarr")) return 8594;
+    if(name.equals("darr")) return 8595;
+    if(name.equals("harr")) return 8596;
+    if(name.equals("bull")) return 8226;
+    if(name.equals("trade")) return 8482;
+    if(name.equals("euro")) return 8364;
+    if(name.equals("lsaquo")) return 8249;
+    if(name.equals("rsaquo")) return 8250;
+    if(name.equals("le")) return 8804;
+    if(name.equals("ge")) return 8805;
+    if(name.equals("ne")) return 8800;
+    if(name.equals("equiv")) return 8801;
+    if(name.equals("forall")) return 8704;
+    if(name.equals("part")) return 8706;
+    if(name.equals("exist")) return 8707;
+    if(name.equals("empty")) return 8709;
+    if(name.equals("nabla")) return 8711;
+    if(name.equals("isin")) return 8712;
+    if(name.equals("notin")) return 8713;
+    if(name.equals("ni")) return 8715;
+    if(name.equals("prod")) return 8719;
+    if(name.equals("sum")) return 8721;
+    if(name.equals("minus")) return 8722;
+    if(name.equals("lowast")) return 8727;
+    if(name.equals("radic")) return 8730;
+    if(name.equals("prop")) return 8733;
+    if(name.equals("infin")) return 8734;
+    if(name.equals("ang")) return 8736;
+    if(name.equals("and")) return 8743;
+    if(name.equals("or")) return 8744;
+    if(name.equals("cap")) return 8745;
+    if(name.equals("cup")) return 8746;
+    if(name.equals("int")) return 8747;
+    if(name.equals("there4")) return 8756;
+    if(name.equals("sim")) return 8764;
+    if(name.equals("cong")) return 8773;
+    if(name.equals("asymp")) return 8776;
+    if(name.equals("sub")) return 8834;
+    if(name.equals("sup")) return 8835;
+    if(name.equals("nsub")) return 8836;
+    if(name.equals("sube")) return 8838;
+    if(name.equals("supe")) return 8839;
+    if(name.equals("oplus")) return 8853;
+    if(name.equals("otimes")) return 8855;
+    if(name.equals("perp")) return 8869;
+    if(name.equals("sdot")) return 8901;
+    return 0;
+}
+
+func decode_html_entities(text : std::string_view) : std::string {
+    var result = std::string();
+    var i = 0u;
+    while(i < text.size()) {
+        if(text.data()[i] == '&') {
+            var semicolon = i + 1;
+            while(semicolon < text.size() && text.data()[semicolon] != ';') semicolon++;
+            if(semicolon < text.size()) {
+                var entity_body = std::string_view(text.data() + i + 1, semicolon - i - 1);
+                if(entity_body.size() > 0 && entity_body.data()[0] == '#') {
+                    var num_part = std::string_view(entity_body.data() + 1, entity_body.size() - 1);
+                    var is_hex = false;
+                    if(num_part.size() > 0 && (num_part.data()[0] == 'x' || num_part.data()[0] == 'X')) {
+                        is_hex = true;
+                        num_part = std::string_view(num_part.data() + 1, num_part.size() - 1);
+                    }
+                    var cp : uint32_t = 0;
+                    if(is_hex) {
+                        for(var j = 0u; j < num_part.size(); j++) {
+                            const c = num_part.data()[j];
+                            if(c >= '0' && c <= '9') cp = cp * 16 + (c as uint32_t - '0' as uint32_t);
+                            else if(c >= 'a' && c <= 'f') cp = cp * 16 + (c as uint32_t - 'a' as uint32_t + 10);
+                            else if(c >= 'A' && c <= 'F') cp = cp * 16 + (c as uint32_t - 'A' as uint32_t + 10);
+                            else { cp = 0; break; }
+                        }
+                    } else {
+                        for(var j = 0u; j < num_part.size(); j++) {
+                            const c = num_part.data()[j];
+                            if(c >= '0' && c <= '9') cp = cp * 10 + (c as uint32_t - '0' as uint32_t);
+                            else { cp = 0; break; }
+                        }
+                    }
+                    if(cp > 0) {
+                        append_utf8_codepoint(&mut result, cp);
+                        i = semicolon + 1;
+                        continue;
+                    }
+                } else {
+                    var cp = lookup_named_entity(entity_body);
+                    if(cp > 0) {
+                        append_utf8_codepoint(&mut result, cp);
+                        i = semicolon + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.append(text.data()[i]);
+        i++;
+    }
+    return result;
+}
+
 func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
     if(node == null) return false;
     switch(node.kind) {

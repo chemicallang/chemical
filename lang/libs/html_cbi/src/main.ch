@@ -109,6 +109,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 if(!html.in_paren_expr && html.lb_count == html.chem_start_lb) {
                     html.other_mode = false;
                     html.chemical_mode = false;
+                    html.after_chem_expr = true;
                 }
             } else if(nested.type == ChemicalTokenType.LParen) {
                 html.paren_count++;
@@ -163,7 +164,8 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         chem_start_lb : 0,
         in_paren_expr : false,
         expecting_html_block : false,
-        last_token_was_if : false
+        last_token_was_if : false,
+        after_chem_expr : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

@@ -155,6 +155,15 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         ' ', '\t', '\n', '\r' => {
+            if(html.after_chem_expr && !html.has_lt) {
+                html.after_chem_expr = false;
+                provider.skip_whitespaces();
+                return Token {
+                    type : TokenType.Text as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            }
             provider.skip_whitespaces();
             return getNextToken2(html, lexer);
         }

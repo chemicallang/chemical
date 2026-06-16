@@ -354,3 +354,34 @@ public func html_entities_preserved(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringHtmlOnly(), "<div>The <span>Chemical</span>&nbsp;Programming Language</div>");
 }
+
+@test
+public func text_after_expression_preserves_whitespace(env : &mut TestEnv) {
+    var value = "Hello"
+    var page = HtmlPage()
+    #html {
+        <div>{value} World</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>Hello World</div>");
+}
+
+@test
+public func text_between_two_expressions_with_spaces(env : &mut TestEnv) {
+    var a = 30
+    var b = "questions"
+    var page = HtmlPage()
+    #html {
+        <div>{a} {b}</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>30 questions</div>");
+}
+
+@test
+public func expression_with_parens_followed_by_text(env : &mut TestEnv) {
+    var value = 42
+    var page = HtmlPage()
+    #html {
+        <div>The answer is {value}!</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>The answer is 42!</div>");
+}

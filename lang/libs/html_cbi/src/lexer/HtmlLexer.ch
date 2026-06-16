@@ -46,6 +46,8 @@ public struct HtmlLexer {
 
     var expecting_html_block : bool
 
+    var after_chem_expr : bool
+
 }
 
 func (lexer : &mut HtmlLexer) reset() {
@@ -58,4 +60,5 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.last_token_was_if = false;
     lexer.chem_start_lb = 0;
     lexer.expecting_html_block = false;
+    lexer.after_chem_expr = false;
 }

@@ -65,6 +65,25 @@ void BeforeLinkSignature::link(std::vector<GenericTypeParameter*>& params) {
     linker.scope_end();
 }
 
+/**
+ * Visit the where clause of a function to link constraint types
+ */
+static void link_where_clause(TopLevelLinkSignature& signatureLinker, FunctionDeclaration* decl) {
+    if (!decl->where_clause) return;
+    auto& linker = signatureLinker.linker;
+    for (auto& constraint : decl->where_clause->constraints) {
+        // resolve the generic type parameter by name
+        const auto found = linker.find(constraint.param_name);
+        if (found && found->kind() == ASTNodeKind::GenericTypeParam) {
+            constraint.param = found->as_generic_type_param_unsafe();
+        }
+        // visit the trait types to link them
+        for (auto& trait_type : constraint.constraints) {
+            signatureLinker.visit(trait_type);
+        }
+    }
+}
+
 SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visitor) {
     return &visitor->linker;
 }
@@ -651,6 +670,9 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
         }
     }
     sig.visit(node->returnType);
+
+    // visit the where clause to link constraint types
+    link_where_clause(sig, node);
 
     // TODO: we can't tell if signature resolved perfectly
     // TODO: eliminate this flag
@@ -1700,6 +1722,23 @@ void calculate_gen_param_bits(const std::vector<GenericTypeParameter*>& params) 
     }
 }
 
+/**
+ * Calculates interface bits from where clause constraints.
+ * These bits are applied temporarily during function body visiting.
+ */
+static void calculate_where_clause_bits(const WhereClause* where_clause) {
+    if (!where_clause) return;
+    for (auto& c : where_clause->constraints) {
+        if (!c.param) continue;
+        for (auto& trait_type : c.constraints) {
+            const auto node = trait_type->get_direct_linked_node();
+            if (node && node->kind() == ASTNodeKind::InterfaceDecl) {
+                c.param->current_bits |= node->as_interface_def_unsafe()->interface_bits;
+            }
+        }
+    }
+}
+
 // does two things (currently)
 // 1 - links export statements
 // 2 - calculates interface bits of generic type parameters
@@ -1709,24 +1748,55 @@ void AfterBuildIndexesPass(SymbolResolver& resolver, std::vector<ASTNode*>& node
             case ASTNodeKind::ExportStmt:
                 LinkExportStatement(resolver, node->as_export_stmt_unsafe());
                 continue;
-            case ASTNodeKind::GenericFuncDecl:
+            case ASTNodeKind::NamespaceDecl:
+                AfterBuildIndexesPass(resolver, node->as_namespace_unsafe()->nodes);
+                continue;
+            case ASTNodeKind::GenericFuncDecl: {
                 calculate_gen_param_bits(node->as_gen_func_decl_unsafe()->generic_params);
+                // also calculate bits from where clause on the master function
+                calculate_where_clause_bits(node->as_gen_func_decl_unsafe()->master_impl->where_clause);
                 continue;
-            case ASTNodeKind::GenericStructDecl:
+            }
+            case ASTNodeKind::GenericStructDecl: {
                 calculate_gen_param_bits(node->as_gen_struct_def_unsafe()->generic_params);
+                // also apply where clause bits from member functions
+                for(const auto func : node->as_gen_struct_def_unsafe()->master_impl->evaluated_nodes()) {
+                    if (func->kind() == ASTNodeKind::FunctionDecl) {
+                        calculate_where_clause_bits(func->as_function_unsafe()->where_clause);
+                    }
+                }
                 continue;
+            }
             case ASTNodeKind::GenericUnionDecl:
                 calculate_gen_param_bits(node->as_gen_union_decl_unsafe()->generic_params);
                 continue;
-            case ASTNodeKind::GenericVariantDecl:
+            case ASTNodeKind::GenericVariantDecl: {
                 calculate_gen_param_bits(node->as_gen_variant_decl_unsafe()->generic_params);
+                for(const auto func : node->as_gen_variant_decl_unsafe()->master_impl->evaluated_nodes()) {
+                    if (func->kind() == ASTNodeKind::FunctionDecl) {
+                        calculate_where_clause_bits(func->as_function_unsafe()->where_clause);
+                    }
+                }
                 continue;
-            case ASTNodeKind::GenericInterfaceDecl:
+            }
+            case ASTNodeKind::GenericInterfaceDecl: {
                 calculate_gen_param_bits(node->as_gen_interface_decl_unsafe()->generic_params);
+                for(const auto func : node->as_gen_interface_decl_unsafe()->master_impl->evaluated_nodes()) {
+                    if (func->kind() == ASTNodeKind::FunctionDecl) {
+                        calculate_where_clause_bits(func->as_function_unsafe()->where_clause);
+                    }
+                }
                 continue;
-            case ASTNodeKind::GenericImplDecl:
+            }
+            case ASTNodeKind::GenericImplDecl: {
                 calculate_gen_param_bits(node->as_gen_impl_decl_unsafe()->generic_params);
+                for(const auto func : node->as_gen_impl_decl_unsafe()->master_impl->evaluated_nodes()) {
+                    if (func->kind() == ASTNodeKind::FunctionDecl) {
+                        calculate_where_clause_bits(func->as_function_unsafe()->where_clause);
+                    }
+                }
                 continue;
+            }
             case ASTNodeKind::GenericTypeDecl:
                 calculate_gen_param_bits(node->as_gen_type_decl_unsafe()->generic_params);
                 continue;

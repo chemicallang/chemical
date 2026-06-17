@@ -1,6 +1,6 @@
 public namespace std {
 
-public struct unordered_map_node<Key : Hashable | Eq, Value> {
+public struct unordered_map_node<Key : Hashable + Eq, Value> {
     var key : Key;
     var value : Value;
     var next : *mut unordered_map_node<Key, Value>; // Pointer to next node in the chain
@@ -8,7 +8,7 @@ public struct unordered_map_node<Key : Hashable | Eq, Value> {
 
 public comptime const LOAD_FACTOR_THRESHOLD2 : float = 0.75f
 
-public struct unordered_map<Key : Hashable | Eq, Value> {
+public struct unordered_map<Key : Hashable + Eq, Value> {
 
     var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
     var capacity : size_t;

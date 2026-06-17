@@ -18,6 +18,7 @@
 #include "ast/base/AnnotableNode.h"
 #include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
+#include "ast/structures/WhereClause.h"
 #include <unordered_map>
 
 class ExtendableMembersContainerNode;
@@ -205,6 +206,12 @@ public:
      * this is the instantiation number of the generic function, this helps us identify this function in generic decl
      */
     int generic_instantiation = -1;
+
+    /**
+     * optional where clause for constraining generic type parameters.
+     * Allocated on ASTAllocator, null if no where clause.
+     */
+    WhereClause* where_clause = nullptr;
 
     /**
      * external data is stored in

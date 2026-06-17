@@ -93,7 +93,7 @@ public struct vector<T> {
         push(value)
     }
 
-    func get(&self, index : size_t) : T {
+    func get(&self, index : size_t) : T where T : Copy {
         return data_ptr[index];
     }
 

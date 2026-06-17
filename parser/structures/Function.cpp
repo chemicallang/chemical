@@ -231,7 +231,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
                     } else {
                         break;
                     }
-                } while(consumeToken(TokenType::PipeSym));
+                } while(consumeToken(TokenType::PlusSym));
                 if(parameter->traits.empty()) {
                     error("expected a type after ':' in generic parameter list");
                     return true;
@@ -389,6 +389,37 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
         }
     } else {
         decl->returnType = { typeBuilder.getVoidType(), location };
+    }
+
+    // parsing the where clause if present
+    if(token->type == TokenType::WhereKw) {
+        token++;
+        std::vector<WhereConstraint> constraints;
+        do {
+            consumeNewLines();
+            auto param_id = consumeIdentifierOrKeyword();
+            if(!param_id) {
+                error("expected a generic type parameter name after 'where'");
+                break;
+            }
+            if(!consumeToken(TokenType::ColonSym)) {
+                error("expected ':' after the generic type parameter name in where clause");
+                break;
+            }
+            std::vector<TypeLoc> trait_types;
+            do {
+                consumeNewLines();
+                auto type = parseTypeLoc(allocator);
+                if(type) {
+                    trait_types.emplace_back(type);
+                } else {
+                    error("expected a trait/interface type in where clause");
+                    break;
+                }
+            } while(consumeToken(TokenType::PlusSym));
+            constraints.emplace_back(allocate_view(allocator, param_id->value), std::move(trait_types));
+        } while(consumeToken(TokenType::CommaSym));
+        decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints));
     }
 
     // HARD_RULE:

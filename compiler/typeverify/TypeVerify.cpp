@@ -15,6 +15,7 @@
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "core/source/LocationManager.h"
+#include "ast/values/IndexOperator.h"
 
 static GenericTypeParameter* get_generic_param(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked) {
@@ -225,12 +226,46 @@ inline void visit_dereference_value(TypeVerifier& verifier, DereferenceValue* va
     check_destructible_deref(verifier, value);
 }
 
+void check_destructible_index(TypeVerifier& verifier, IndexOperator* value) {
+    // skip check for array indexing (gives lvalue/reference, not copy)
+    const auto parentType = value->parent_val->getType();
+    if (parentType && parentType->kind() == BaseTypeKind::Array) return;
+    const auto childType = value->getType();
+    if (!childType) return;
+    const auto linked = childType->get_direct_linked_node();
+    if (linked) {
+        if (!verifier.is_unsafe && linked->kind() == ASTNodeKind::GenericTypeParam) {
+            const auto param = linked->as_generic_type_param_unsafe();
+            if (param->current_bits.has(InterfaceBits::COPY_BIT)) {
+                return;
+            }
+            verifier.diagnoser.error(value) << "index operator on a generic type parameter that is not `Copy` is not allowed, use `&raw` to take a pointer to the element instead";
+            return;
+        }
+        const auto container = linked->get_members_container();
+        if (container && container->has_destructor()) {
+            verifier.diagnoser.error(value) << "index operator on a destructible type is not allowed, use `&raw` to take a pointer to the element instead";
+        }
+    }
+}
+
+void TypeVerifier::VisitIndexOperator(IndexOperator* value) {
+    RecursiveVisitor::VisitIndexOperator(value);
+    if (!disable_index_destructible_check) {
+        check_destructible_index(*this, value);
+    }
+}
+
 void TypeVerifier::VisitDereferenceValue(DereferenceValue* value) {
     visit_dereference_value(*this, value, false);
 }
 
 void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
+    // when wrapping an index operator or access chain containing one, skip destructible check
+    const auto prev_disable = disable_index_destructible_check;
+    disable_index_destructible_check = true;
     RecursiveVisitor::VisitAddrOfValue(addrOfValue);
+    disable_index_destructible_check = prev_disable;
     const auto value = addrOfValue->value;
     if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
         diagnoser.error("cannot apply operator '&raw' to r-value", value);
@@ -258,7 +293,11 @@ void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
     if (refValue->value->kind() == ValueKind::DereferenceValue) {
         visit_dereference_value(*this, refValue->value->as_dereference_value_unsafe(), true);
     } else {
+        // when wrapping an index operator or access chain containing one, skip destructible check
+        const auto prev_disable = disable_index_destructible_check;
+        disable_index_destructible_check = true;
         visit_it(refValue->value);
+        disable_index_destructible_check = prev_disable;
     }
     const auto value = refValue->value;
     if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
@@ -889,6 +928,12 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     // we explicitly visit the lhs and value, because we need to switch toggles
     if (assign->lhs->kind() == ValueKind::DereferenceValue) {
         visit_dereference_value(*this, assign->lhs->as_dereference_value_unsafe(), true);
+    } else if (assign->lhs->kind() == ValueKind::IndexOperator) {
+        // IndexOperator on LHS is a write, skip destructible check
+        const auto prev_disable = disable_index_destructible_check;
+        disable_index_destructible_check = true;
+        RecursiveVisitor<TypeVerifier>::VisitIndexOperator(assign->lhs->as_index_op_unsafe());
+        disable_index_destructible_check = prev_disable;
     } else {
         visit_it(assign->lhs);
     }

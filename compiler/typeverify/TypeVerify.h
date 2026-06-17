@@ -50,6 +50,12 @@ public:
     bool is_unsafe = false;
 
     /**
+     * when set, IndexOperator destructible check is skipped
+     * used when IndexOperator is on LHS of assignment or wrapped in AddrOfValue/ReferenceOfValue
+     */
+    bool disable_index_destructible_check = false;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -106,6 +112,8 @@ public:
     void VisitPlacementNewValue(PlacementNewValue *value);
 
     void VisitIncDecValue(IncDecValue* value);
+
+    void VisitIndexOperator(IndexOperator* value);
 
     void VisitDereferenceValue(DereferenceValue* value);
 

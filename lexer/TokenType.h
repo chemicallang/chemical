@@ -105,6 +105,7 @@ enum class TokenType {
     DynKw,
     ZeroedKw,
     ConstKw,
+    WhereKw,
 
     // -------
 

@@ -1756,7 +1756,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     const auto check_only = job->attrs.check_only;
 
     // compile dependencies modules for this executable
+    const auto total_modules = dependencies.size();
+    size_t mod_index = 0;
     for(auto mod : dependencies) {
+        ++mod_index;
+        std::cout << "[lab] Compiling module " << mod_index << " of " << total_modules << " (" << *mod << ")" << std::endl;
 
         if(verbose) {
             std::cout << "[lab] " << "processing module " << *mod << std::endl;
@@ -2023,7 +2027,11 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     const auto check_only = job->attrs.check_only;
 
     // compile dependent modules for this executable
+    const auto total_modules = dependencies.size();
+    size_t mod_index = 0;
     for(auto mod : dependencies) {
+        ++mod_index;
+        std::cout << "[lab] Compiling module " << mod_index << " of " << total_modules << " (" << mod->name << ")" << std::endl;
 
         if(verbose) {
             std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;

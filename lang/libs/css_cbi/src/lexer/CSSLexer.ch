@@ -55,7 +55,7 @@ public struct CSSLexer {
      */
     var tokens_since_colon : uchar
 
-    var where : CSSLexerWhere
+    var where_state : CSSLexerWhere
 
 }
 
@@ -63,7 +63,7 @@ func (lexer : &mut CSSLexer) reset() {
     lexer.other_mode = false;
     lexer.chemical_mode = false;
     lexer.lb_count = 0;
-    lexer.where = CSSLexerWhere.Declaration
+    lexer.where_state = CSSLexerWhere.Declaration
     lexer.at_rule = false;
     lexer.tokens_since_colon = 0
     lexer.has_chemical_in_value = false

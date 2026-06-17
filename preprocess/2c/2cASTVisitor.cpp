@@ -5753,8 +5753,14 @@ void write_capturing_function_call(ToCAstVisitor& visitor, FunctionCall* call, C
     const auto fn_ptr_func = fn_ptr_func_node->as_function_unsafe();
     const auto data_ptr_func = data_ptr_func_node->as_function_unsafe();
 
-    auto temp_var = visitor.get_local_temp_var_name();
+    ArgsDestructionInfo info;
+    calculate_parent_val_destruct_dep(info, call->parent_val);
+    calculate_arg_destruction_deps(info, func_type, call);
+
     visitor.write("({ ");
+    write_alloc_vars_for_deps(visitor, info);
+
+    auto temp_var = visitor.get_local_temp_var_name();
     visitor.VisitCapturingFunctionType(capType);
     visitor.write("* ");
     visitor.write(temp_var);
@@ -5787,6 +5793,7 @@ void write_capturing_function_call(ToCAstVisitor& visitor, FunctionCall* call, C
     }
     complete_func_call_args(visitor, call, func_type, true);
     visitor.write(')');
+    write_destruct_vars_for_deps(visitor, info);
     visitor.write("; })");
 }
 
@@ -5902,6 +5909,8 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                 if (interface) {
                     // Dynamic dispatch
                     // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
+                    ArgsDestructionInfo info;
+                    handle_pre_call_destruction_deps(*this, info, func_type, call);
                     write('(');
                     write('(');
                     vtable_type_name(*this, interface);
@@ -5924,6 +5933,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                         func_call_args(*this, call, func_type);
                     }
                     write(')');
+                    handle_post_call_destruction_deps(*this, info, func_type, call);
                 } else {
                     write("[Dynamic Dispatch used with type other than interface]");
                     error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());

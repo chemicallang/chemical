@@ -101,6 +101,7 @@ public enum ChemicalTokenType {
     DynKw,
     ZeroedKw,
     ConstKw,
+    WhereKw,
 
     // -------
 

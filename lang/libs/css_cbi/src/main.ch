@@ -17,7 +17,7 @@ public func css_replacementNode(builder : *mut ASTBuilder, value : *mut Embedded
         builder : builder,
         support : &raw mut root.support,
         vec : scope_nodes,
-        parent : root.parent
+        parent : root.parent,
         str : std::string()
     }
     converter.convertCSSOM(root);
@@ -52,7 +52,7 @@ public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVal
         builder : builder,
         support : &raw mut root.support,
         vec : scope_nodes,
-        parent : root.parent
+        parent : root.parent,
         str : std::string()
     }
     converter.convertCSSOM(root);
@@ -128,7 +128,7 @@ public func css_initializeLexer(lexer : *mut Lexer) {
         lb_count : 0,
         start_chemical_lb_count : 1,
         at_rule : false,
-        where : CSSLexerWhere.Declaration,
+        where_state : CSSLexerWhere.Declaration,
         tokens_since_colon : 0,
         has_chemical_in_value : false
     }

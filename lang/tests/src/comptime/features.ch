@@ -171,6 +171,102 @@ comptime func comptime_block_combined_bitwise() : bool {
     return comptime { ((12 & 5) | (3 << 2)) == 12 }
 }
 
+// ---------- For-in loop in comptime (array iteration) ----------
+
+comptime func comptime_forin_array_sum() : int {
+    const arr : []int = [1, 2, 3, 4, 5]
+    var sum = 0
+    for(var i in arr) {
+        sum += i
+    }
+    return sum
+}
+
+comptime func comptime_forin_chars() : int {
+    const arr : []char = ['h', 'e', 'l', 'l', 'o']
+    var cnt = 0
+    for(var c in arr) {
+        cnt++
+    }
+    return cnt
+}
+
+comptime func comptime_forin_with_break() : int {
+    const arr : []int = [1, 2, 3, 4, 5]
+    var sum = 0
+    for(var i in arr) {
+        if(i == 3) {
+            break
+        }
+        sum += i
+    }
+    return sum
+}
+
+comptime func comptime_forin_with_continue() : int {
+    const arr : []int = [1, 2, 3, 4, 5]
+    var sum = 0
+    for(var i in arr) {
+        if(i == 3 || i == 5) {
+            continue
+        }
+        sum += i
+    }
+    return sum
+}
+
+comptime func comptime_forin_with_index() : int {
+    const arr : []int = [10, 20, 30, 40]
+    var sum = 0
+    for(var i, idx in arr) {
+        sum += i + idx as int
+    }
+    return sum
+}
+
+// ---------- Struct field mutation in comptime ----------
+
+struct ComptimeMutablePoint {
+    var x : int
+    var y : int
+}
+
+comptime func comptime_mutate_struct() : int {
+    var p = ComptimeMutablePoint { x : 10, y : 20 }
+    p.x = 30
+    p.y = 40
+    return p.x + p.y;
+}
+
+comptime func comptime_mutate_struct_in_loop() : int {
+    var p = ComptimeMutablePoint { x : 0, y : 0 }
+    var i = 0;
+    while(i < 5) {
+        p.x = p.x + i;
+        i++;
+    }
+    return p.x;
+}
+
+comptime func comptime_struct_method_mutation() : int {
+    var p = ComptimeMutablePoint { x : 5, y : 15 }
+    p.x = p.y + p.x
+    return p.x;
+}
+
+// ---------- Struct with nested struct mutation ----------
+
+// ---------- Multiple struct field assignments ----------
+
+comptime func comptime_multiple_field_assign() : int {
+    var p = ComptimeMutablePoint { x : 0, y : 0 }
+    p.x = 5
+    p.y = 10
+    p.x = p.x + p.y
+    p.y = p.x * 2
+    return p.x + p.y;
+}
+
 // ---------- Test runner ----------
 
 func test_comptime_features() {
@@ -262,5 +358,36 @@ func test_comptime_features() {
     })
     test("comptime: combined bitwise in comptime block", () => {
         return comptime_block_combined_bitwise();
+    })
+
+    // For-in loop tests
+    test("comptime for-in over array sums elements", () => {
+        return comptime_forin_array_sum() == 15;
+    })
+    test("comptime for-in over char array counts", () => {
+        return comptime_forin_chars() == 5;
+    })
+    test("comptime for-in loop with break works", () => {
+        return comptime_forin_with_break() == 3;
+    })
+    test("comptime for-in loop with continue works", () => {
+        return comptime_forin_with_continue() == 7;
+    })
+    test("comptime for-in loop with index works", () => {
+        return comptime_forin_with_index() == 106;
+    })
+
+    // Struct mutation tests
+    test("comptime struct field mutation works", () => {
+        return comptime_mutate_struct() == 70;
+    })
+    test("comptime struct field mutation in loop works", () => {
+        return comptime_mutate_struct_in_loop() == 10;
+    })
+    test("comptime struct method mutation works", () => {
+        return comptime_struct_method_mutation() == 20;
+    })
+    test("comptime multiple struct field assignments work", () => {
+        return comptime_multiple_field_assign() == 45;
     })
 }

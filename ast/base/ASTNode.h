@@ -574,7 +574,7 @@ public:
     }
 
     static inline constexpr bool isLoopASTNode(ASTNodeKind k) {
-        return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt || k == ASTNodeKind::LoopBlock;
+        return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt || k == ASTNodeKind::ForInLoopStmt || k == ASTNodeKind::LoopBlock;
     }
 
     static inline constexpr bool isMembersContainer(ASTNodeKind k) {
@@ -880,7 +880,7 @@ public:
      * as loop node unsafe
      */
     inline LoopASTNode* as_loop_node_unsafe() {
-        CHECK_COND(kind() == ASTNodeKind::WhileLoopStmt || kind() == ASTNodeKind::DoWhileLoopStmt || kind() == ASTNodeKind::ForLoopStmt || kind() == ASTNodeKind::LoopBlock);
+        CHECK_COND(kind() == ASTNodeKind::WhileLoopStmt || kind() == ASTNodeKind::DoWhileLoopStmt || kind() == ASTNodeKind::ForLoopStmt || kind() == ASTNodeKind::ForInLoopStmt || kind() == ASTNodeKind::LoopBlock);
         return (LoopASTNode*) this;
     }
 

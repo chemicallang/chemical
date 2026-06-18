@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ast/base/InterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/base/ASTNode.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Break.h"
@@ -9,7 +10,11 @@
 #include "ast/statements/AccessChainNode.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/structures/ForInLoop.h"
 #include "ast/structures/BlockScope.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/StringValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/IfValue.h"
@@ -72,6 +77,80 @@ void interpret(InterpretScope& scope, ForLoop* loop) {
             break;
         }
         child.interpret(loop->incrementerExpr);
+    }
+}
+
+void interpret(InterpretScope& scope, ForInLoop* loop) {
+    const auto evalExpr = loop->expr->evaluated_value(scope);
+    if(!evalExpr) {
+        scope.error("couldn't evaluate for-in expression", loop->expr);
+        return;
+    }
+
+    const auto kind = evalExpr->val_kind();
+
+    if(kind == ValueKind::String) {
+        const auto strVal = evalExpr->as_string_unsafe();
+        const auto& str = strVal->value;
+
+        for(uint64_t i = 0; i < str.size(); i++) {
+            InterpretScope child(&scope, scope.allocator, scope.global);
+
+            // declare the loop variable (char)
+            auto charVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                (uint64_t)(unsigned char)str[i],
+                scope.global->typeBuilder.getCharType(),
+                ZERO_LOC
+            );
+            child.declare(loop->id, charVal);
+
+            // declare the index variable if present
+            if(loop->index_init) {
+                auto indexVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                    i,
+                    (IntNType*) (BaseType*) loop->index_init->type,
+                    ZERO_LOC
+                );
+                child.declare(loop->index_init->name_view(), indexVal);
+            }
+
+            child.interpret(&loop->body);
+
+            if(loop->attrs.stoppedInterpretation) {
+                loop->attrs.stoppedInterpretation = false;
+                break;
+            }
+        }
+    } else if(kind == ValueKind::ArrayValue) {
+        const auto arrVal = evalExpr->as_array_value_unsafe();
+
+        for(uint64_t i = 0; i < arrVal->values.size(); i++) {
+            InterpretScope child(&scope, scope.allocator, scope.global);
+
+            const auto elemVal = arrVal->values[i]->evaluated_value(scope);
+            if(elemVal) {
+                child.declare(loop->id, elemVal);
+            }
+
+            // declare the index variable if present
+            if(loop->index_init) {
+                auto indexVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                    i,
+                    (IntNType*) (BaseType*) loop->index_init->type,
+                    ZERO_LOC
+                );
+                child.declare(loop->index_init->name_view(), indexVal);
+            }
+
+            child.interpret(&loop->body);
+
+            if(loop->attrs.stoppedInterpretation) {
+                loop->attrs.stoppedInterpretation = false;
+                break;
+            }
+        }
+    } else {
+        scope.error("for-in loop not supported for expression type (kind: " + std::to_string(static_cast<int>(kind)) + ") in comptime", loop->expr);
     }
 }
 
@@ -290,6 +369,9 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::ForLoopStmt:
             ::interpret(*this, node->as_for_loop_unsafe());
+            break;
+        case ASTNodeKind::ForInLoopStmt:
+            ::interpret(*this, node->as_for_in_loop_unsafe());
             break;
         case ASTNodeKind::ReturnStmt:
             ::interpret(*this, node->as_return_unsafe());

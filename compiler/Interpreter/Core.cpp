@@ -178,7 +178,6 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
     }
-    stmt->decl_scope = &scope;
 }
 
 void interpret(InterpretScope& scope, DoWhileLoop* loop) {

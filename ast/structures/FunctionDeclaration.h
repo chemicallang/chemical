@@ -170,15 +170,6 @@ struct FuncDeclAttributes {
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
-private:
-    /**
-     * TODO avoid storing the interpret return here
-     */
-    Value *interpretReturn = nullptr;
-    /**
-     * TODO call scope shouldn't be stored here
-     */
-    InterpretScope* callScope = nullptr;
 
 public:
 

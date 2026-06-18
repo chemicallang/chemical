@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/base/InterpretScope.h"
 #include "ast/structures/Scope.h"
 #include "ast/types/FunctionType.h"
 #include "std/except.h"
@@ -100,9 +101,15 @@ public:
     bool has_destructor_for_capture();
 
     void set_return(InterpretScope &scope, Value *value) override {
-#ifdef DEBUG
-        CHEM_THROW_RUNTIME("NOT YET IMPLEMENTED");
-#endif
+        if(value) {
+            // Same scope-walking as FunctionDeclaration::set_return:
+            // walk up the scope chain to find the function-level scope.
+            InterpretScope* target = &scope;
+            while(target->parent != nullptr && target->parent != (InterpretScope*) scope.global) {
+                target = target->parent;
+            }
+            target->returnValue = value->evaluated_value(*target);
+        }
     }
 
 };

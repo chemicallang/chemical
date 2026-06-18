@@ -292,9 +292,3 @@ BaseType* VarInitStatement::known_type() {
     return value->getType();
 }
 
-/**
- * called by assignment to assign a new value in the scope that this variable was declared
- */
-void VarInitStatement::declare(Value *new_value) {
-    decl_scope->declare(name_view(), new_value);
-}

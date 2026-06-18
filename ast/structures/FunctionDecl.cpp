@@ -989,10 +989,15 @@ Value *FunctionDeclaration::call(
 // called by the return statement
 void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
     if(value) {
-        // TODO this can be improved
-        // currently every return is first initialized in the current scope
-        // then every return is copied to the call scope
-        interpretReturn = value->evaluated_value(func_scope);
+        // Walk up the scope chain to find the function-level scope
+        // (created by call() with the global as parent).
+        // set_return may be called with a nested scope (inside if/block/etc.),
+        // but call() reads returnValue from the top-level fn_scope.
+        InterpretScope* target = &func_scope;
+        while(target->parent != nullptr && target->parent != func_scope.global) {
+            target = target->parent;
+        }
+        target->returnValue = value->evaluated_value(*target);
     }
     body->stopInterpretOnce();
 }
@@ -1009,7 +1014,6 @@ Value *FunctionDeclaration::call(
     bool evaluate_refs,
     Value* debug_value
 ) {
-    callScope = call_scope;
     auto self_param = get_self_param();
     if(self_param) {
         fn_scope->declare(self_param->name, parent);
@@ -1041,7 +1045,7 @@ Value *FunctionDeclaration::call(
         return nullptr;
     }
     fn_scope->interpret(&body.value());
-    return interpretReturn;
+    return fn_scope->returnValue;
 }
 
 BaseType* CapturedVariable::known_type() {

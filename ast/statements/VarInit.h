@@ -101,8 +101,6 @@ struct VarInitAttributes {
 class VarInitStatement : public ASTNode {
 public:
 
-    // TODO do not store the decl_scope here
-    InterpretScope *decl_scope = nullptr;
     chem::string_view located_id; ///< The identifier being initialized.
     TypeLoc type;
     Value* value; ///< The value being assigned to the identifier.
@@ -331,9 +329,5 @@ public:
 
 #endif
 
-    /**
-     * called by assignment to assign a new value in the scope that this variable was declared
-     */
-    void declare(Value *new_value);
 
 };

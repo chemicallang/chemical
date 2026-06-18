@@ -152,6 +152,14 @@ public:
     void error(std::string_view err, Value* any);
 
     /**
+     * Return value for the current function being interpreted.
+     * This is set by set_return() and retrieved by call() after
+     * body interpretation completes. Stored here instead of on
+     * AST nodes to avoid storing comptime state in the AST.
+     */
+    Value* returnValue = nullptr;
+
+    /**
      * Values that want to be deleted when the scope ends
      * must be deleted in the destructor
      */

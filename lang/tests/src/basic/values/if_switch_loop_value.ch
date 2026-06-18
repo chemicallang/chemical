@@ -25,7 +25,7 @@ struct if_val_fake_string_view_33 {
         return { d_count : ptr }
     }
     func empty(&self) : bool {
-        return true;
+        return false;
     }
 }
 
@@ -395,7 +395,7 @@ func test_if_switch_loop_value() {
         if(true) {
             var s = if_val_fake_string_33 { d_count : &raw mut final_d_count }
         }
-        if(final_d_count != 0) return false;
+        if(final_d_count != 1) return false;
         return true;
     })
     test("method chain without &self compiles in c translation", () => {

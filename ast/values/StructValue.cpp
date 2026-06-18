@@ -256,8 +256,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value
                 gen.error("expected a pointer or a reference", lhs);
                 return;
             }
-            const auto allocated = deref->llvm_pointer(gen);
-            initialize_alloca(allocated, gen, nullptr);
+            initialize_alloca(storagePtr, gen, nullptr);
         } else {
             gen.error("definition has either a destructor function or does not allow direct init", lhs);
         }

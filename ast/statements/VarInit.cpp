@@ -184,6 +184,14 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
         return;
     }
     code_gen_global_var(gen, false, false);
+    // external declarations from other modules should not be marked dso_local
+    // because they may be defined in a different shared object
+    if(llvm_ptr != nullptr) {
+        const auto gv = llvm::dyn_cast<llvm::GlobalVariable>(llvm_ptr);
+        if(gv != nullptr && gv->hasInitializer() == false) {
+            gv->setDSOLocal(false);
+        }
+    }
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) {

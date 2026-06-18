@@ -77,6 +77,7 @@ func run_executable_tests() {
     test_pointers_in_comptime();
     test_comptime();
     test_comptime_expressions();
+    test_comptime_features();
     test_compiler_vector();
 
     // --------------------------------------

@@ -400,4 +400,28 @@ func test_if_switch_loop_value() {
         return true;
     })
     **/
+    test("method chain without &self compiles in c translation", () => {
+        var limit_str = chain_no_self_view();
+        var limit = if(limit_str.empty()) 10 else chain_no_self_atoi(limit_str.to_string().c_str())
+        return true;
+    })
 }
+
+// helpers for testing method chain without &self on c translation backends
+struct chain_no_self_view {
+    func to_string() : chain_no_self_str {
+        return {}
+    }
+    func empty() : bool {
+        return true;
+    }
+}
+struct chain_no_self_str {
+    func c_str() : *char {
+        return null;
+    }
+    @delete
+    func delete(&mut self) {
+    }
+}
+func chain_no_self_atoi(a : *char) : int { return 0; }

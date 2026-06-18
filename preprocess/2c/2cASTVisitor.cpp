@@ -5343,22 +5343,10 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
                     // calling a function on a returned struct, but the function
                     // doesn't take &self, the struct expression still needs to
                     // be evaluated for side effects
-                    // generate: ({ struct_type __temp; func_call(&__temp); mangled_name; })
+                    // generate: ({ func_call(); mangled_name; })
                     visitor.write("({ ");
-                    const auto call_type = first->getType();
-                    const auto container = call_type->get_direct_linked_container();
-                    if(container) {
-                        visitor.visit(container->known_type());
-                        visitor.write("* ");
-                        const auto temp_name = visitor.get_local_temp_var_name();
-                        visitor.write_str(temp_name);
-                        visitor.write(" = &");
-                        accept_opt_nestable(visitor, first, false);
-                        visitor.write("; ");
-                    } else {
-                        visitor.visit(first);
-                        visitor.write("; ");
-                    }
+                    accept_opt_nestable(visitor, first, false);
+                    visitor.write("; ");
                     visitor.mangle(linked);
                     visitor.write("; })");
                 } else {

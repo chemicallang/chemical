@@ -90,7 +90,7 @@ Lib tests CI:
 | `compiler/typeverify/` | Second type-verification pass |
 | `parser/` | Recursive descent parser |
 | `lexer/` | Tokenizer |
-| `preprocess/` | C translation and visitors |
+| `preprocess/2c/` | C translation (2c) visitors and codegen |
 | `core/main/CompilerMain.cpp` | CLI entrypoint |
 | `server/` | LSP server implementation |
 | `lang/libs/` | Standard library + CBI macro plugin libs |
@@ -105,6 +105,43 @@ Lib tests CI:
 - `#macro` and `#universal` are CBI plugins compiled by TinyCC at build time.
 - AST uses `ASTAllocator` arena — batch-allocated, no per-node `delete`.
 - CLI entry is `LabBuildCompiler` → translates `chemical.mod` → JIT-compiles `build.lab` (TinyCC) → `LabJob` objects → parse → symres → typecheck → codegen → link.
+
+## LLVM Backend Gotchas
+
+### External declarations must not use `dso_local`
+
+When a global variable is declared in another module (`submod_extern_globe_var`), do **not** set `dso_local` on the LLVM global value. The linker will reject `dso_local` + external declarations as mismatched. Relevant: `ast/statements/VarInit.cpp`, `compiler/backend/LLVM.cpp`.
+
+### Struct assignment: temp + destruct + memcpy
+
+The LLVM backend (`StructValue.cpp`) assigns structs via a three-step pattern:
+1. **Bitwise copy** source into a stack-allocated temp
+2. **Call destructor** on the destination
+3. **memcpy** the temp onto the destination
+
+This pattern **breaks self-referencing pointers**. If a struct has a pointer field pointing to one of its own members (e.g., `function`'s `fn_data_ptr`), the bitwise copy produces a dangling pointer — the temp shares the same pointer, but after `memcpy` over the destination, the temp is destroyed. The destination's pointer now points to freed memory.
+
+Fixes considered: `@reflat` annotation to skip destruct+memcpy, `@move` hook for custom move semantics, or forbidding self-referencing pointers inside value types.
+
+### Unitialized variables and PHI nodes
+
+LLVM requires `UndefValue` for uninitialized phis in certain lowering patterns. Check `IRBuilder::CreatePHI` usage in `LLVM.cpp` when adding new PHI-based constructs.
+
+## C Codegen Gotchas
+
+### Struct-returning function expression pattern
+
+Functions returning structs are translated to C using the `(*({ ... }))` compound-expression pattern:
+```c
+(*({ struct Type __tmp; func(&__tmp, args...); &__tmp; }))
+```
+This allocates a temp, passes it as a hidden sret pointer, and dereferences the result to produce the struct value.
+
+**Warning:** When the result is discarded (expression-statement context), `gcc -Wall` emits `-Wunused-value` on the `*` dereference. This is a pre-existing pattern throughout generated C.
+
+### Method chains and `&self`
+
+In a method chain like `a.b().c()`, the receiver of `c()` is the result of `b()`. When `c()` has no `&self` parameter (no receiver needed), the C codegen in `preprocess/2c/2cASTVisitor.cpp` must **not** create a receiver pointer variable. Before the fix, it created an unused `struct Type* __chx__recv__N` variable, producing "unused variable" warnings.
 
 ## Compiled Packages (`lang/compiled/`)
 

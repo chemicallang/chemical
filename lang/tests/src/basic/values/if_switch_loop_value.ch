@@ -384,22 +384,20 @@ func test_if_switch_loop_value() {
         }
         return j.data == 10
     })
-    /** TODO: this doesn't compile on c translation backends
     test("correctly destructs struct in if value block", () => {
         // this syntax used to fail because destruction took place inside the '({' c block
         // it generated invalid c
         var limit_str = if_val_fake_string_view_33();
         var converted_d_count : int = 0
-        var limit = if(limit_str.empty()) 10 else if_val_fake_atoi(limit_str.to_string(&mut converted_d_count).c_str())
+        var limit = if(limit_str.empty()) 10 else if_val_fake_atoi(limit_str.to_string(&raw mut converted_d_count).c_str())
         if(converted_d_count != 1) return false;
         var final_d_count : int = 0
         if(true) {
-            var s = if_val_fake_string_33 { d_count : &mut final_d_count }
+            var s = if_val_fake_string_33 { d_count : &raw mut final_d_count }
         }
         if(final_d_count != 0) return false;
         return true;
     })
-    **/
     test("method chain without &self compiles in c translation", () => {
         var limit_str = chain_no_self_view();
         var limit = if(limit_str.empty()) 10 else chain_no_self_atoi(limit_str.to_string().c_str())

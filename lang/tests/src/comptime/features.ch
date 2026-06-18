@@ -267,6 +267,58 @@ comptime func comptime_multiple_field_assign() : int {
     return p.x + p.y;
 }
 
+// ---------- Comptime destructor tests ----------
+
+struct ComptimeDestructCount {
+    @delete
+    func delete(&self) {
+        // no-op destructor — just verifies the destructor body can be interpreted
+    }
+}
+
+struct ComptimeDestructWithBody {
+    var data : int
+    @delete
+    func delete(&self) {
+        self.data = self.data + 1
+    }
+}
+
+comptime func comptime_destruct_noop() : bool {
+    var d = ComptimeDestructCount {}
+    return true
+}
+
+comptime func comptime_destruct_in_block() : bool {
+    {
+        var d = ComptimeDestructCount {}
+    }
+    return true
+}
+
+comptime func comptime_destruct_in_if() : bool {
+    if(true) {
+        var d = ComptimeDestructCount {}
+    }
+    return true
+}
+
+comptime func comptime_destruct_in_while() : bool {
+    var i = 0
+    while(i < 3) {
+        var d = ComptimeDestructCount {}
+        i++
+    }
+    return true
+}
+
+comptime func comptime_destruct_for_loop() : bool {
+    for(var i = 0; i < 3; i++) {
+        var d = ComptimeDestructCount {}
+    }
+    return true
+}
+
 // ---------- Test runner ----------
 
 func test_comptime_features() {
@@ -389,5 +441,22 @@ func test_comptime_features() {
     })
     test("comptime multiple struct field assignments work", () => {
         return comptime_multiple_field_assign() == 45;
+    })
+
+    // Comptime destructor tests
+    test("comptime destructor no-op works", () => {
+        return comptime_destruct_noop();
+    })
+    test("comptime destructor called in block scope works", () => {
+        return comptime_destruct_in_block();
+    })
+    test("comptime destructor called in if scope works", () => {
+        return comptime_destruct_in_if();
+    })
+    test("comptime destructor called in while loop scope works", () => {
+        return comptime_destruct_in_while();
+    })
+    test("comptime destructor called in for loop scope works", () => {
+        return comptime_destruct_for_loop();
     })
 }

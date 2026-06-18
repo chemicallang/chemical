@@ -454,6 +454,94 @@ func get_destruct_or_not(count : *mut int, flag : bool) : &Destructible {
     return &d
 }
 
+// struct with destructor and Index implementation
+struct IndexableDestructible {
+    var data : int
+    var count : *mut int
+    var lamb : (c : *mut int) => void
+
+    @delete
+    func delete(&self) {
+        self.lamb(self.count);
+    }
+}
+
+func create_indexable(count : *mut int) : IndexableDestructible {
+    return IndexableDestructible {
+        data : 42,
+        count : count,
+        lamb : (c : *mut int) => { *c = *c + 1; }
+    }
+}
+
+    // workaround: can't take ref of member directly
+    func take_index_ref(ptr : &int) : &int {
+        return ptr
+    }
+}
+
+impl core::ops::Index<int, int> for IndexableDestructible {
+    func index(&self, idx : int) : &int {
+        if(idx == 0) {
+            return take_index_ref(&self.data)
+        }
+        return take_index_ref(&self.data)
+    }
+}
+
+func consume_int(val : int) : int {
+    return val
+}
+
+// test that IndexOperator with a function call parent_val destructs correctly
+// This tests the path where get_container()[index] pattern leaks the temp
+func test_index_op_parent_call_destruct() {
+    test("index operator with destructible parent func call destructs temp", () => {
+        var count = 0
+        {
+            var val = create_indexable(&raw mut count)[0]
+            var _ = val
+        }
+        return count == 1
+    })
+}
+
+// test that IndexOperator as a function arg destructs correctly
+func test_index_op_arg_destruct() {
+    test("index operator as arg with destructible parent func call destructs temp", () => {
+        var count = 0
+        {
+            consume_int(create_indexable(&raw mut count)[0])
+        }
+        return count == 1
+    })
+}
+
+// test that IndexOperator in a function call whose result is used
+func test_index_op_in_call_destruct() {
+    test("index operator in function call with destructible parent destructs temp", () => {
+        var count = 0
+        {
+            var val = consume_int(create_indexable(&raw mut count)[0])
+            var _ = val
+        }
+        return count == 1
+    })
+}
+
+// test multiple index operator uses
+func test_index_op_multi_destruct() {
+    test("multiple index operator uses with destructible parent all destruct", () => {
+        var count = 0
+        {
+            var a = create_indexable(&raw mut count)[0]
+            var b = create_indexable(&raw mut count)[1]
+            var _ = a + b
+        }
+        return count == 2
+    })
+}
+
 // the declaration/runner function
 func test_call_destruction() {
     test_index_destruct_parent()
@@ -482,4 +570,8 @@ func test_call_destruction() {
     test_ref_prevents_destruct()
     test_early_return_destruct()
     test_destruct_array_param()
+    test_index_op_parent_call_destruct()
+    test_index_op_arg_destruct()
+    test_index_op_in_call_destruct()
+    test_index_op_multi_destruct()
 }

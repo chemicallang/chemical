@@ -5583,6 +5583,33 @@ void dep_for_temporary_struct_chain(ArgsDestructionInfo& info, Value* val) {
     }
 }
 
+void dep_for_index_op_parent_call(ArgsDestructionInfo& info, Value* val) {
+    if(val->kind() == ValueKind::IndexOperator) {
+        const auto op = val->as_index_op_unsafe();
+        FunctionCall* call = nullptr;
+        if(op->parent_val->kind() == ValueKind::FunctionCall) {
+            call = op->parent_val->as_func_call_unsafe();
+        } else if(op->parent_val->kind() == ValueKind::AccessChain) {
+            const auto chain = op->parent_val->as_access_chain_unsafe();
+            if(!chain->values.empty() && chain->values.front()->kind() == ValueKind::FunctionCall) {
+                call = chain->values.front()->as_func_call_unsafe();
+            }
+        }
+        if(call) {
+            const auto type = call->getType()->canonical();
+            if(type->kind() == BaseTypeKind::Reference) return;
+            const auto container = type->get_direct_linked_container();
+            if(container && container->destructor_func()) {
+                info.deps.emplace_back(ArgDestructionDep {
+                    .decl = container,
+                    .destr = container->destructor_func(),
+                    .arg_val = call
+                });
+            }
+        }
+    }
+}
+
 void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* func_type, FunctionCall* call) {
     // go over each arg
     unsigned i = 0;
@@ -5600,6 +5627,9 @@ void calculate_arg_destruction_deps(ArgsDestructionInfo& info, FunctionType* fun
         // check for chained temp expressions like make_temp().to_view()
         // that create a destructible temporary needing deferred destruction
         dep_for_temporary_struct_chain(info, val);
+
+        // check for index operator whose parent_val is a destructible function call
+        dep_for_index_op_parent_call(info, val);
 
         i++;
     }
@@ -6909,9 +6939,41 @@ void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
                 write('0');
                 return;
             }
-            write("(*");
-            call_two_arg_operator_func(*this, func, op->parent_val, op->idx);
-            write(')');
+
+            ArgsDestructionInfo info;
+            dep_for_index_op_parent_call(info, op);
+
+            if(!info.deps.empty()) {
+                write("({ ");
+                write_alloc_vars_for_deps(*this, info);
+                const auto returnType = op->getType();
+                const auto typeKind = returnType->canonical()->kind();
+                if(typeKind != BaseTypeKind::Void) {
+                    visit(returnType);
+                    space();
+                    const auto saveVar = get_local_temp_var_name();
+                    write_str(saveVar);
+                    write(" = ");
+                    write("(*");
+                    call_two_arg_operator_func(*this, func, op->parent_val, op->idx);
+                    write(')');
+                    write("; ");
+                    write_destruct_vars_for_deps(*this, info);
+                    write_str(saveVar);
+                    write("; })");
+                } else {
+                    write("(*");
+                    call_two_arg_operator_func(*this, func, op->parent_val, op->idx);
+                    write(')');
+                    write("; ");
+                    write_destruct_vars_for_deps(*this, info);
+                    write("})");
+                }
+            } else {
+                write("(*");
+                call_two_arg_operator_func(*this, func, op->parent_val, op->idx);
+                write(')');
+            }
             return;
         }
     }

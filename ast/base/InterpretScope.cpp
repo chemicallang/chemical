@@ -15,6 +15,9 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
+#include "ast/values/StructValue.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "std/except.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
@@ -295,6 +298,52 @@ void InterpretScope::error(std::string_view err, ASTNode* any) {
 
 void InterpretScope::error(std::string_view err, Value* any) {
     global->interpret_error(err, any);
+}
+
+InterpretScope::~InterpretScope() {
+    if(should_destruct_values) {
+        destroy_values();
+    }
+}
+
+void InterpretScope::destroy_values() {
+    for(auto& [name, val] : values) {
+        // Skip the return value (it's been moved to the caller)
+        if(val == returnValue) continue;
+
+        // Only struct values can have destructors
+        if(val->val_kind() == ValueKind::StructValue) {
+            auto structVal = val->as_struct_value_unsafe();
+            // Use linked_extendable() and verify it's actually a StructDecl
+            // before casting to StructDefinition* (prevents UB on unions/variants)
+            auto ext = structVal->linked_extendable();
+            if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                auto structDef = (StructDefinition*) ext;
+                if(structDef->has_destructor()) {
+                    auto destructor_fn = structDef->destructor_func();
+                    if(destructor_fn && destructor_fn->body.has_value()) {
+                        // Temporarily override the current function type so that
+                        // return statements inside the destructor body work correctly
+                        const auto prev_func = global->current_func_type;
+                        global->current_func_type = destructor_fn;
+
+                        // Create a temporary scope to interpret the destructor body
+                        InterpretScope child_scope(global, allocator, global);
+                        child_scope.declare("self", val);
+                        child_scope.interpret(&destructor_fn->body.value());
+
+                        // Remove self from child scope to prevent recursive destruction
+                        auto self_it = child_scope.values.find("self");
+                        if(self_it != child_scope.values.end()) {
+                            child_scope.values.erase(self_it);
+                        }
+
+                        global->current_func_type = prev_func;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void InterpretScope::print_values() {

@@ -160,9 +160,22 @@ public:
     Value* returnValue = nullptr;
 
     /**
-     * Values that want to be deleted when the scope ends
-     * must be deleted in the destructor
+     * When set to false (e.g. global scope), values in this scope
+     * are NOT destructed when the scope ends.
      */
-    virtual ~InterpretScope() = default;
+    bool should_destruct_values = true;
+
+    /**
+     * Iterates over all values in this scope and calls destructors
+     * for struct values that have destructor functions defined.
+     * The returnValue is skipped (it has been moved to the caller).
+     */
+    void destroy_values();
+
+    /**
+     * Values that want to be deleted when the scope ends
+     * must be deleted in this destructor
+     */
+    virtual ~InterpretScope();
 
 };

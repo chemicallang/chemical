@@ -23,7 +23,8 @@ GlobalInterpretScope::GlobalInterpretScope(
     LocationManager& loc_man
 ) : ASTDiagnoser(loc_man), InterpretScope(nullptr, allocator, this), mode(mode), target_data(target_data),
     backend_context(context), build_compiler(buildCompiler), allocator(allocator), typeBuilder(typeBuilder) {
-
+    // Global scope should not destruct values - it's reused and outlives individual interpretations
+    should_destruct_values = false;
 }
 
 void GlobalInterpretScope::interpret_error(std::string& msg, SourceLocation loc) {

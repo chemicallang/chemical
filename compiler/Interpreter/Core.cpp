@@ -223,6 +223,32 @@ inline void interpret(InterpretScope& scope, BlockScope* body) {
     interpret(scope, body->nodes, stopped);
 }
 
+Value* evaluate(InterpretScope& scope, Scope* body);
+
+Value* evaluate(InterpretScope& scope, BlockScope* body) {
+    auto& nodes = body->nodes;
+    if(nodes.empty()) return scope.getNullValue();
+    if(nodes.size() > 1) {
+        for(unsigned i = 0; i < nodes.size() - 1; i++) {
+            scope.interpret(nodes[i]);
+        }
+    }
+    const auto last = nodes.back();
+    switch(last->kind()) {
+        case ASTNodeKind::ValueNode:
+            return last->as_value_node_unsafe()->value->evaluated_value(scope);
+        case ASTNodeKind::IfStmt:
+            return evaluated_value(scope, last->as_if_stmt_unsafe());
+        case ASTNodeKind::SwitchStmt:
+            return evaluated_value(scope, last->as_switch_stmt_unsafe());
+        case ASTNodeKind::Block:
+            return evaluate(scope, last->as_block_scope_unsafe());
+        default:
+            scope.interpret(last);
+            return scope.getNullValue();
+    }
+}
+
 Value* evaluate(InterpretScope& scope, Scope* body) {
     auto& nodes = body->nodes;
     if(nodes.size() > 1) {
@@ -243,6 +269,8 @@ Value* evaluate(InterpretScope& scope, Scope* body) {
             return evaluated_value(scope, last->as_if_stmt_unsafe());
         case ASTNodeKind::SwitchStmt:
             return evaluated_value(scope, last->as_switch_stmt_unsafe());
+        case ASTNodeKind::Block:
+            return evaluate(scope, last->as_block_scope_unsafe());
         default:
             scope.interpret(last);
             return scope.getNullValue();

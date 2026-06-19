@@ -44,6 +44,17 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                         scope, str, ptrType->type
                     );
                 }
+                case ValueKind::IntN: {
+                    // Casting integer to pointer: store the integer value as the pointer data
+                    const auto numVal = eval->get_number();
+                    if(numVal.has_value()) {
+                        return new (scope.allocate<PointerValue>()) PointerValue(
+                            (void*)(uintptr_t) numVal.value(), ptrType->type, 0, 0, encoded_location()
+                        );
+                    }
+                    scope.error("could not cast integer value to pointer", this);
+                    return eval;
+                }
                 case ValueKind::WrapValue:
                     // currently we shouldn't error out here, we use this
                     // maybe in the future, we should verify the underlying value

@@ -220,11 +220,16 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         }
     } else if(fKind == ValueKind::NullValue || sKind == ValueKind::NullValue) {
         // comparison with null, a == null or null == a
+        // Also handle PointerValue vs NullValue (null pointers)
+        auto isFirstNull = (fKind == ValueKind::NullValue) || 
+            (fKind == ValueKind::PointerValue && ((PointerValue*)fEvl)->data == nullptr);
+        auto isSecondNull = (sKind == ValueKind::NullValue) || 
+            (sKind == ValueKind::PointerValue && ((PointerValue*)sEvl)->data == nullptr);
         switch (operation) {
             case Operation::IsEqual:
-                return pack_bool(scope, fKind == ValueKind::NullValue && sKind == ValueKind::NullValue, location);
+                return pack_bool(scope, isFirstNull && isSecondNull, location);
             case Operation::IsNotEqual:
-                return pack_bool(scope, fKind != sKind, location);
+                return pack_bool(scope, isFirstNull != isSecondNull, location);
             default:
                 return new (scope.allocate<NullValue>()) NullValue(global->typeBuilder.getNullPtrType(), location);
         }
@@ -276,6 +281,44 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return ptrVal->decrement(scope, fEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
             default:
                 scope.error("unknown operation performed on a pointer value", debugValue);
+                return nullptr;
+        }
+    } else if(fKind == ValueKind::PointerValue && sKind == ValueKind::PointerValue) {
+        // Pointer - Pointer subtraction (element count difference)
+        auto firstPtr = (PointerValue*) fEvl;
+        auto secondPtr = (PointerValue*) sEvl;
+        const auto castedTypeSize = firstPtr->getType()->byte_size(scope.global->target_data);
+        if(castedTypeSize == 0) {
+            scope.error("cannot subtract pointers with zero-sized element type", debugValue);
+            return nullptr;
+        }
+        const auto byteDiff = (char*) firstPtr->data - (char*) secondPtr->data;
+        // Note: this is a signed difference (could be negative for subtraction)
+        // For pointer subtraction, we return the element count
+        switch(operation) {
+            case Operation::Subtraction: {
+                auto elemDiff = (int64_t)(byteDiff / (int64_t)castedTypeSize);
+                // Return signed 64-bit integer (ptrdiff_t equivalent)
+                return new (scope.allocate<IntNumValue>()) IntNumValue(
+                    (uint64_t) elemDiff,
+                    scope.global->typeBuilder.getIntNType(64, true),
+                    location
+                );
+            }
+            case Operation::IsEqual:
+                return pack_bool(scope, firstPtr->data == secondPtr->data, location);
+            case Operation::IsNotEqual:
+                return pack_bool(scope, firstPtr->data != secondPtr->data, location);
+            case Operation::LessThan:
+                return pack_bool(scope, firstPtr->data < secondPtr->data, location);
+            case Operation::GreaterThan:
+                return pack_bool(scope, firstPtr->data > secondPtr->data, location);
+            case Operation::LessThanOrEqual:
+                return pack_bool(scope, firstPtr->data <= secondPtr->data, location);
+            case Operation::GreaterThanOrEqual:
+                return pack_bool(scope, firstPtr->data >= secondPtr->data, location);
+            default:
+                scope.error("unknown operation between pointer values", debugValue);
                 return nullptr;
         }
     } else {

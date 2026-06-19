@@ -1271,10 +1271,9 @@ void Value::set_value(InterpretScope& scope, Value* value, Operation op, SourceL
         case ValueKind::Identifier:
             as_identifier_unsafe()->set_value(scope, value, op, location);
             return;
-            // TODO
-//        case ValueKind::FunctionCall:
-            // TODO
-//        case ValueKind::DereferenceValue:
+        case ValueKind::DereferenceValue:
+            as_dereference_value_unsafe()->set_value(scope, value, op, location);
+            return;
         default:
             scope.error("couldn't set the value of", this);
     }

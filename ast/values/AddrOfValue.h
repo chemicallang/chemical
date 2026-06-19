@@ -45,6 +45,8 @@ public:
 
     void determine_type();
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
     ASTNode *linked_node() final {
         return value->linked_node();
     }

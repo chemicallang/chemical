@@ -5,20 +5,18 @@ func run_executable_tests() {
     // Constructs that are mostly C like
     // ----------------------------------
     run_common_tests();
+    run_native_common_tests();
+    test_dereferences();
     test_var_init();
     test_lambda();
-    test_bodmas();
-    test_floating_expr();
-    test_nodes();
-    test_if_switch_loop_value();
-    test_numbers();
     test_structs();
     test_enum();
+    test_bodmas();
+    test_nodes();
+    test_if_switch_loop_value();
+    test_arrays();
     test_char_ptr_strings();
     test_strings();
-    test_arrays();
-    test_pointer_math();
-    test_casts();
     test_functions();
     test_name_hiding()
     test_implicit_functions();
@@ -26,10 +24,7 @@ func run_executable_tests() {
     test_namespaces();
     test_external_functions();
     test_is_value();
-    test_for_loop()
-    test_dereferences();
     test_auto_deref();
-    test_inc_dec();
     test_zeroed_value()
     test_typealias();
 
@@ -60,8 +55,6 @@ func run_executable_tests() {
     test_static_interfaces();
     test_interface_generic_dispatch();
     test_for_in()
-    test_struct_values()
-    test_in_value();
     test_core_ops();
     test_primitive_implementations()
     test_basic_interfaces()
@@ -75,16 +68,11 @@ func run_executable_tests() {
     // --------------------------------------
     test_satisfies();
     test_macros();
-    test_pointers_in_comptime();
+    test_failing_code();
     test_comptime();
     test_comptime_expressions();
     test_comptime_features();
     test_compiler_vector();
-
-    // --------------------------------------
-    // Others
-    // --------------------------------------
-    test_failing_code();
 
     // --------------------------------------
     // Language Helpers

@@ -2,6 +2,9 @@
 
 #include "ast/values/StringValue.h"
 #include "PointerValue.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/types/PointerType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
@@ -91,6 +94,24 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             const auto intNType = getType()->as_intn_type_unsafe();
             return intNType->create(scope.allocator, typeBuilder, deref_pointer(data, castedTypeSize), value_loc);
         }
+        case BaseTypeKind::Pointer: {
+            // Dereferencing a pointer to pointer: return a copy of the inner PointerValue
+            // data points to the inner PointerValue stored at this location
+            return new (scope.allocate<PointerValue>()) PointerValue(
+                data, getType()->as_pointer_type_unsafe()->type, 0, ahead, value_loc
+            );
+        }
+        case BaseTypeKind::Bool: {
+            return new (scope.allocate<BoolValue>()) BoolValue(
+                *((char*) data) != 0, typeBuilder.getBoolType(), value_loc
+            );
+        }
+        case BaseTypeKind::Linked:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Void:
+            scope.error("dereferencing to this type not yet supported in comptime", debugValue ? debugValue : this);
+            return nullptr;
         default:
             scope.error("dereferencing to unknown type", debugValue ? debugValue : this);
             return nullptr;

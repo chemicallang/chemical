@@ -30,6 +30,7 @@ bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
 
 Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
+    if(!eval) return nullptr;
     const auto k = eval->val_kind();
     switch(k) {
         case ValueKind::String:{
@@ -41,8 +42,48 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
             return val->deref(scope, encoded_location(), this);
         }
         default:
-            scope.error("couldn't dereference value in comptime", this);
+            // For non-pointer values, the DereferenceValue represents an implicit
+            // reference dereference (e.g., accessing a local variable).
+            // The value IS already the dereferenced value, return it directly.
             return eval;
+    }
+}
+
+void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {
+    // Evaluate the inner expression first
+    const auto ptrEval = value->evaluated_value(scope);
+    if(ptrEval->val_kind() == ValueKind::PointerValue) {
+        // This is a real pointer dereference (e.g., *ptr = value)
+        auto ptrVal = (PointerValue*) ptrEval;
+        const auto pointeeType = getType();
+        const auto byteSize = pointeeType->byte_size(scope.global->target_data);
+        if(byteSize > ptrVal->ahead) {
+            scope.error("cannot dereference pointer while type size is larger than bytes available", this);
+            return;
+        }
+        // Evaluate the new value
+        const auto newVal = rawValue->evaluated_value(scope);
+        if(!newVal) return;
+        // Write the new value's data to the pointer location
+        const auto num = newVal->get_number();
+        if(num.has_value()) {
+            switch(byteSize) {
+                case 1: *((char*) ptrVal->data) = (char) num.value(); break;
+                case 2: *((short*) ptrVal->data) = (short) num.value(); break;
+                case 4: *((int*) ptrVal->data) = (int) num.value(); break;
+                case 8:
+                default: *((uint64_t*) ptrVal->data) = num.value(); break;
+            }
+        } else if(newVal->val_kind() == ValueKind::String) {
+            auto strVal = newVal->as_string_unsafe();
+            memcpy(ptrVal->data, strVal->value.data(), std::min(strVal->value.size(), (size_t)byteSize));
+        } else {
+            scope.error("cannot assign value type through pointer dereference in interpret", this);
+        }
+    } else {
+        // Non-pointer inner: implicit reference deref (e.g., local variable access)
+        // Delegate to the inner value's set_value to handle assignment through scope
+        value->set_value(scope, rawValue, op, location);
     }
 }
 

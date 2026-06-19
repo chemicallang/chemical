@@ -245,7 +245,38 @@ inline void interpret(InterpretScope& scope, IncDecNode* node) {
 }
 
 inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
-    node->value.evaluated_value(scope);
+    // Evaluate the pattern match expression to check the variant type
+    // For now, the interpreter always takes the else branch (no variant type checking yet)
+    // This handles break/continue/return/defValue for pattern matching
+    const auto& elseExpr = node->value.elseExpression;
+    switch(elseExpr.kind) {
+        case PatternElseExprKind::Break:
+            stop_interpretation_above_once(node);
+            break;
+        case PatternElseExprKind::Continue:
+            skip_interpretation_above_once(node);
+            break;
+        case PatternElseExprKind::Return: {
+            if(elseExpr.value) {
+                scope.global->current_func_type->set_return(scope, elseExpr.value);
+            }
+            stop_interpretation_above(node->parent());
+            break;
+        }
+        case PatternElseExprKind::DefValue: {
+            if(elseExpr.value && !node->value.param_names.empty()) {
+                const auto evalValue = elseExpr.value->evaluated_value(scope);
+                if(evalValue) {
+                    scope.declare(node->value.param_names[0]->identifier, evalValue);
+                }
+            }
+            break;
+        }
+        default:
+            // No else expression - just evaluate normally
+            node->value.evaluated_value(scope);
+            break;
+    }
 }
 
 inline void interpret(InterpretScope& scope, PlacementNewNode* node) {

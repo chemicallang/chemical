@@ -8,6 +8,8 @@
 #include "IntNumValue.h"
 #include "ast/values/PointerValue.h"
 #include "ast/types/PointerType.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
 
 ASTNode *CastedValue::linked_node() {
     return getType()->linked_node();
@@ -26,6 +28,15 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
             if(eval->is_value_int_n()) {
                 return intNType->create(scope.allocator, scope.global->typeBuilder, ((IntNumValue*) eval)->get_num_value(), encoded_location());
             } else {
+                // Handle Float/Double to Integer cast
+                const auto eval_kind = eval->val_kind();
+                if(eval_kind == ValueKind::Float) {
+                    const auto floatVal = eval->as_float_unsafe();
+                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(int64_t)floatVal->value, encoded_location());
+                } else if(eval_kind == ValueKind::Double) {
+                    const auto doubleVal = eval->as_double_unsafe();
+                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(int64_t)doubleVal->value, encoded_location());
+                }
                 // TODO: cannot error out, we are returning intrinsics::wrap with a cast to integer
                 // scope.error("non integer value cannot be casted to integer type", this);
                 return eval;

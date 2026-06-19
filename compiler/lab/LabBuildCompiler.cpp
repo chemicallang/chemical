@@ -4833,6 +4833,27 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
     // create a scope for calling main
     InterpretScope call_scope(&global, *job_allocator, &global);
 
+    // interpret module-level variable declarations before main()
+    // these are declared in the global scope so all function scopes can find them
+    for(auto mod : dependencies) {
+        switch(mod->type) {
+            case LabModuleType::CFile:
+            case LabModuleType::CPPFile:
+            case LabModuleType::ObjFile:
+                continue;
+            default:
+                break;
+        }
+        for(auto& file_meta : mod->direct_files) {
+            auto& nodes = file_meta.result->unit.scope.body.nodes;
+            for(const auto node : nodes) {
+                if(node->kind() == ASTNodeKind::VarInitStmt) {
+                    global.interpret(node);
+                }
+            }
+        }
+    }
+
     // call main with no arguments (the interpretation module main takes no args)
     // if main does have parameters, we create default ones
     std::vector<Value*> call_args;

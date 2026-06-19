@@ -11,6 +11,7 @@
 #include "ast/structures/Scope.h"
 #include "ast/types/FunctionType.h"
 #include "std/except.h"
+#include <vector>
 
 class FunctionDeclaration;
 
@@ -99,6 +100,8 @@ public:
      * should generate a destructor for capture struct
      */
     bool has_destructor_for_capture();
+
+    Value* call(InterpretScope* call_scope, ASTAllocator& func_allocator, Value* parent, std::vector<Value*>& call_args);
 
     void set_return(InterpretScope &scope, Value *value) override {
         if(value) {

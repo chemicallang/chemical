@@ -48,4 +48,10 @@ enum class LabJobType : int {
      */
     Intermediate,
 
+    /**
+     * interprets the module instead of compiling it to an executable
+     * the interpreter runs the main function's body
+     */
+    Interpretation,
+
 };

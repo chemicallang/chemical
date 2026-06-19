@@ -56,6 +56,16 @@ enum class InlineStrategy : uint8_t {
 };
 
 /**
+ * contract flags that a function can have, these allow the compiler
+ * to toggle type checker flags when a function is used as a condition
+ * in a comptime if statement
+ */
+enum class ContractFlag : uint8_t {
+    None = 0,
+    IsInterpretation = 1,
+};
+
+/**
  * Function declaration's extra data
  * this is stored here, to avoid making declarations memory size insane
  */
@@ -166,6 +176,15 @@ struct FuncDeclAttributes {
      * the dependent module must not instantiate this function or call it using comptime
      */
     bool retained_body = false;
+
+    /**
+     * contract flag type, 0 means no contract
+     */
+    uint8_t contract_flag = 0;
+    /**
+     * when the function returns true, the contract flag is set to this value
+     */
+    bool contract_enable_value = false;
 
 };
 
@@ -410,6 +429,23 @@ public:
 
     inline void set_is_body_retained(bool value) {
         attrs.retained_body = value;
+    }
+
+    inline uint8_t get_contract_flag() const {
+        return attrs.contract_flag;
+    }
+
+    inline bool get_contract_enable_value() const {
+        return attrs.contract_enable_value;
+    }
+
+    inline void set_contract(ContractFlag flag, bool enable_value) {
+        attrs.contract_flag = static_cast<uint8_t>(flag);
+        attrs.contract_enable_value = enable_value;
+    }
+
+    inline bool has_contract() const {
+        return attrs.contract_flag != 0;
     }
 
     inline bool is_auto_called_func() {

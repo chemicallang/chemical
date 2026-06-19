@@ -16,7 +16,10 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/base/InterpretScope.h"
 #include "PointerValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include <cstring>
 
 #ifdef COMPILER_BUILD
 
@@ -146,7 +149,24 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
         }
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
-            return arr->values[index.value()]->copy(scope.allocator);
+            // Try to read from contiguousData first (handles uninitialized arrays)
+            if (arr->contiguousData) {
+                const auto elemSize = arr->getType()->elem_type->byte_size(scope.global->target_data);
+                if (elemSize > 0 && elemSize <= 8) {
+                    const auto maxIdx = arr->contiguousSize / elemSize;
+                    if (index.value() < maxIdx) {
+                        uint64_t val = 0;
+                        std::memcpy(&val, (char*)arr->contiguousData + index.value() * elemSize, elemSize);
+                        return new (scope.allocate<IntNumValue>()) IntNumValue(val, scope.global->typeBuilder.getIntNType((unsigned int)(elemSize * 8), true), location);
+                    }
+                }
+            }
+            // Fallback: read from values vector
+            if (index.value() < arr->values.size()) {
+                return arr->values[index.value()]->copy(scope.allocator);
+            }
+            // Out of bounds or uninitialized: return zero
+            return new (scope.allocate<IntNumValue>()) IntNumValue(0, scope.global->typeBuilder.getIntNType(32, true), location);
         }
         case ValueKind::PointerValue: {
             const auto ptrVal = (PointerValue*) value;
@@ -163,6 +183,74 @@ Value* IndexOperator::evaluated_value(InterpretScope &scope) {
     Value* eval = parent_val->evaluated_value(scope);
     if(!eval) return nullptr;
     return index_inside(scope, eval, idx, idx->encoded_location());
+}
+
+void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {
+    // Evaluate the parent to get the array or pointer
+    auto parentEval = parent_val->evaluated_value(scope);
+    if (!parentEval) {
+        scope.error("cannot set value: parent could not be evaluated", this);
+        return;
+    }
+    
+    // Evaluate the index
+    auto idxEval = idx->evaluated_value(scope);
+    auto idxOpt = idxEval->get_number();
+    if (!idxOpt.has_value()) {
+        scope.error("cannot set value: index is not a number", idx);
+        return;
+    }
+    auto i = idxOpt.value();
+    
+    // Evaluate the new value
+    auto newVal = rawValue->evaluated_value(scope);
+    if (!newVal) return;
+    
+    switch (parentEval->val_kind()) {
+        case ValueKind::ArrayValue: {
+            auto arrVal = (ArrayValue*)parentEval;
+            const auto elemSize = getType()->byte_size(scope.global->target_data);
+            // Write into contiguous data if available
+            if (arrVal->contiguousData && elemSize > 0 && elemSize <= 8) {
+                const auto maxIdx = arrVal->contiguousSize / elemSize;
+                if (i < maxIdx) {
+                    auto num = newVal->get_number();
+                    if (num.has_value()) {
+                        std::memcpy((char*)arrVal->contiguousData + i * elemSize, &num.value(), elemSize);
+                    }
+                    break;
+                }
+            }
+            // Fallback: write into values vector
+            if (i < arrVal->values.size()) {
+                arrVal->values[i] = newVal->copy(scope.allocator);
+            }
+            break;
+        }
+        case ValueKind::PointerValue: {
+            // ptr[i] = value — increment and write through pointer
+            auto ptrVal = (PointerValue*)parentEval;
+            auto incremented = ptrVal->increment(scope, i, location, this);
+            if (incremented) {
+                const auto byteSize = getType()->byte_size(scope.global->target_data);
+                if (byteSize <= incremented->ahead) {
+                    auto num = newVal->get_number();
+                    if (num.has_value()) {
+                        switch (byteSize) {
+                            case 1: *((char*)incremented->data) = (char)num.value(); break;
+                            case 2: *((short*)incremented->data) = (short)num.value(); break;
+                            case 4: *((int*)incremented->data) = (int)num.value(); break;
+                            case 8: default: *((uint64_t*)incremented->data) = num.value(); break;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            scope.error("cannot set value through indexing on this type", this);
+            break;
+    }
 }
 
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {

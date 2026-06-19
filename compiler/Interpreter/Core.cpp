@@ -287,6 +287,23 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
+    } else if (stmt->type) {
+        // Uninitialized variable: create a default zero value based on type
+        auto type = stmt->type;
+        auto kind = type->kind();
+        if (kind == BaseTypeKind::Array) {
+            auto arrType = type->as_array_type_unsafe();
+            auto size = arrType->get_array_size();
+            if (size > 0) {
+                auto arrVal = new (scope.allocate<ArrayValue>()) ArrayValue(stmt->encoded_location(), arrType);
+                arrVal->explicit_size = (unsigned int)size;
+                // evaluated_value will allocate zero-initialized contiguousData
+                arrVal->evaluated_value(scope);
+                scope.declare(stmt->name_view(), arrVal);
+            }
+        }
+        // For non-array types without a value, we don't declare anything
+        // (the variable will be found by its linked VarInitStatement AST node)
     }
 }
 

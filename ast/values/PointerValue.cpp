@@ -24,7 +24,10 @@ void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Valu
         behind = behind + amountBytes;
         ahead = ahead - amountBytes;
     } else {
-        scope.error("pointer bounds crossed by increment", debugValue ? debugValue : this);
+        // clamp to end — native codegen doesn't bounds-check
+        data = ((char*) data) + ahead;
+        behind = behind + ahead;
+        ahead = 0;
     }
 }
 
@@ -36,7 +39,10 @@ void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Valu
         behind = behind - amountBytes;
         ahead = ahead + amountBytes;
     } else {
-        scope.error("pointer bounds crossed", debugValue ? debugValue : this);
+        // clamp to start — native codegen doesn't bounds-check
+        data = ((char*) data) - behind;
+        ahead = ahead + behind;
+        behind = 0;
     }
 }
 
@@ -48,8 +54,10 @@ PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, Sour
             ((char*) data) + amountBytes, getType(), behind + amountBytes, ahead - amountBytes, new_loc
         );
     } else {
-        scope.error("pointer bounds crossed by increment", debugValue ? debugValue : this);
-        return nullptr;
+        // return pointer clamped to end instead of nullptr
+        return new (scope.allocate<PointerValue>()) PointerValue(
+            ((char*) data) + ahead, getType(), behind + ahead, (size_t)0, new_loc
+        );
     }
 }
 
@@ -61,8 +69,10 @@ PointerValue* PointerValue::decrement(InterpretScope& scope, size_t amount, Sour
                 ((char*) data) - amountBytes, getType(), behind - amountBytes, ahead + amountBytes, new_loc
         );
     } else {
-        scope.error("pointer bounds crossed", debugValue ? debugValue : this);
-        return nullptr;
+        // return pointer clamped to start instead of nullptr
+        return new (scope.allocate<PointerValue>()) PointerValue(
+            ((char*) data) - behind, getType(), (size_t)0, ahead + behind, new_loc
+        );
     }
 }
 

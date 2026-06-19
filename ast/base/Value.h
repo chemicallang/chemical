@@ -238,12 +238,12 @@ public:
     /**
      * set the value of this value, this is lhs in assignment
      */
-    void set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation location);
+    virtual void set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation location);
 
     /**
      * called on a identifier to set it's value in the given parent
      */
-    void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op, SourceLocation location);
+    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op, SourceLocation location);
 
     /**
      * give representation of the value as it appears in source

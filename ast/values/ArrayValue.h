@@ -12,11 +12,19 @@
 #include "ast/base/Value.h"
 #include "ast/types/ArrayType.h"
 
+class InterpretScope;
+
 class ArrayValue : public Value {
 public:
 
     std::vector<Value*> values;
     unsigned int explicit_size = 0;
+    
+    // Contiguous memory storage for interpreter mode — allows &arr[i] to produce
+    // PointerValues that span the full array allocation. Allocated on first
+    // evaluated_value() call for arrays with primitive element types.
+    void* contiguousData = nullptr;
+    size_t contiguousSize = 0;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -81,6 +89,12 @@ public:
         getType()->set_array_size(siz);
     }
 
+    /**
+     * Initializes contiguousData for interpreter mode if the element type
+     * is a primitive numeric type. Called lazily on first evaluated_value() call.
+     */
+    Value* evaluated_value(InterpretScope& scope) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
@@ -135,6 +149,10 @@ public:
         for (const auto &value: values) {
             copied_values.emplace_back(value->copy(allocator));
         }
+        // Transfer contiguous data pointer — it was allocated in the ASTAllocator arena
+        // and contains raw numeric values that remain valid for the arena lifetime.
+        arrVal->contiguousData = contiguousData;
+        arrVal->contiguousSize = contiguousSize;
         return arrVal;
     }
 

@@ -6,6 +6,13 @@
 #include "ast/types/ArrayType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
+#include <cstring>
 
 #ifdef COMPILER_BUILD
 
@@ -155,6 +162,44 @@ bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 }
 
 #endif
+
+Value* ArrayValue::evaluated_value(InterpretScope& scope) {
+    // Lazily allocate contiguous memory for primitive element types
+    if (!contiguousData) {
+        const auto elemType = known_elem_type();
+        if (elemType) {
+            const auto byteSize = elemType->byte_size(scope.global->target_data);
+            if (byteSize > 0 && byteSize <= 8) {
+                // Handle explicit-size arrays with no initializer (e.g. var d : [2]int)
+                size_t numElements;
+                if (!values.empty()) {
+                    numElements = values.size();
+                } else if (explicit_size > 0) {
+                    numElements = explicit_size;
+                } else {
+                    numElements = 0;
+                }
+                if (numElements > 0) {
+                    const auto totalSize = numElements * byteSize;
+                    auto* mem = (char*)scope.allocator.allocate_released_size(totalSize, alignof(uint64_t));
+                    if (mem) {
+                        contiguousData = mem;
+                        contiguousSize = totalSize;
+                        std::memset(mem, 0, totalSize); // zero-initialize
+                        // Copy initialized values into contiguous memory
+                        for (size_t i = 0; i < values.size(); i++) {
+                            const auto num = values[i]->get_number();
+                            if (num.has_value()) {
+                                std::memcpy(mem + i * byteSize, &num.value(), byteSize);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return this;
+}
 
 TypeLoc& ArrayValue::known_elem_type() const {
     return getType()->elem_type;

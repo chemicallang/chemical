@@ -25,10 +25,20 @@ IntNumValue* IntNumValue::create_number(
 }
 
 Value* IncDecValue::evaluated_value(InterpretScope &scope) {
-    const auto val = new (scope.allocate<IntNumValue>()) IntNumValue(1, scope.global->typeBuilder.getShortType(), encoded_location());
-    value->set_value(scope, val, increment ? Operation::Addition : Operation::Subtraction, encoded_location());
-    // TODO support post and pre properly
-    return value->evaluated_value(scope);
+    // Save old value before modification (needed for post-increment/decrement)
+    const auto oldVal = value->evaluated_value(scope);
+    
+    // Apply the increment/decrement operation
+    const auto delta = new (scope.allocate<IntNumValue>()) IntNumValue(1, scope.global->typeBuilder.getShortType(), encoded_location());
+    value->set_value(scope, delta, increment ? Operation::Addition : Operation::Subtraction, encoded_location());
+    
+    // For post-increment/decrement (i++), return the old value
+    // For pre-increment/decrement (++i), return the new value
+    if(post) {
+        return oldVal;
+    } else {
+        return value->evaluated_value(scope);
+    }
 }
 
 BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {

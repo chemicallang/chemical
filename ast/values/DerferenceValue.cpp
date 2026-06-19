@@ -52,6 +52,10 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
 void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {
     // Evaluate the inner expression first
     const auto ptrEval = value->evaluated_value(scope);
+    if(!ptrEval) {
+        scope.error("cannot assign through dereference: inner value could not be evaluated", this);
+        return;
+    }
     if(ptrEval->val_kind() == ValueKind::PointerValue) {
         // This is a real pointer dereference (e.g., *ptr = value)
         auto ptrVal = (PointerValue*) ptrEval;

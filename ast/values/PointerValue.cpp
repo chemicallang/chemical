@@ -18,7 +18,7 @@ PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
 void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
-    if(amountBytes < ahead) {
+    if(amountBytes <= ahead) {
         data = ((char*) data) + amountBytes;
         behind = behind + amountBytes;
         ahead = ahead - amountBytes;
@@ -42,7 +42,7 @@ void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Valu
 PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
-    if(amountBytes < ahead) {
+    if(amountBytes <= ahead) {
         return new (scope.allocate<PointerValue>()) PointerValue(
             ((char*) data) + amountBytes, getType(), behind + amountBytes, ahead - amountBytes, new_loc
         );

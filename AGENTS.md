@@ -210,7 +210,163 @@ This allocates a temp, passes it as a hidden sret pointer, and dereferences the 
 
 In a method chain like `a.b().c()`, the receiver of `c()` is the result of `b()`. When `c()` has no `&self` parameter (no receiver needed), the C codegen in `preprocess/2c/2cASTVisitor.cpp` must **not** create a receiver pointer variable. Before the fix, it created an unused `struct Type* __chx__recv__N` variable, producing "unused variable" warnings.
 
+## Interpreter Internals (For Comptime Test Development)
+
+The AST interpreter (`compiler/Interpreter/`) evaluates Chemical code directly without generating C or LLVM IR. It's used for:
+- **Comptime evaluation**: `comptime` functions and `comptime { }` blocks run in the interpreter
+- **Interpretation tests**: `--arg-interpret` runs the test suite through the interpreter
+
+### Core Classes
+
+| Class | File | Purpose |
+|-------|------|---------|
+| `InterpretScope` | `ast/base/InterpretScope.h` | Per-function/per-block scope with value map, parent chain, and pointer to `GlobalInterpretScope` |
+| `GlobalInterpretScope` | `ast/base/GlobalInterpretScope.h` | Global state — holds allocator, type builder, call stack, backend context |
+| `PointerValue` | `ast/values/PointerValue.h` | Simulates C pointers with `data` (void*), `behind` (bytes before), `ahead` (bytes after) for bounds checking |
+| `Value` | `ast/base/Value.h` | Base class for all interpreted values (IntN, Bool, Float, String, Struct, etc.) |
+
+### Pointer Model (`PointerValue`)
+
+The interpreter simulates pointer semantics with bounds tracking:
+
+```cpp
+class PointerValue {
+    void* data;        // Pointer to the actual data
+    size_t behind;     // Bytes available BEFORE data (for backward navigation)
+    size_t ahead;      // Bytes available AFTER data (for forward navigation)
+};
+```
+
+- **Increment**: `data += sizeof(T)`, `behind += sizeof(T)`, `ahead -= sizeof(T)` — fails if `amount > ahead`
+- **Decrement**: `data -= sizeof(T)`, `behind -= sizeof(T)`, `ahead += sizeof(T)` — fails if `amount > behind`
+- **Dereference**: checks `typeSize <= ahead` — fails if the type is larger than available bytes
+
+**Critical rule for test authors**: Pointer bounds are ENFORCED in interpretation mode but NOT in compiled mode (native C doesn't track bounds). Tests that pass pointers past element boundaries will fail in interpretation mode but work when compiled.
+
+**Bounds safety**: When a deref fails due to bounds mismatch, the interpreter returns a null value instead of crashing. The invalid pointer access is silently tolerated to match runtime behavior.
+
+### Reference Handling (`&mut i` vs `&raw mut i`)
+
+The parser distinguishes between two types of address-taking:
+
+```chemical
+var j = &mut i;       // Creates ReferenceOfValue → evaluates to PointerValue (interpreter)
+var k = &raw mut i;   // Creates AddrOfValue → evaluates to PointerValue (interpreter)
+```
+
+- `ReferenceOfValue::evaluated_value()` (in `ast/values/ReferenceOfValue.cpp`) creates a `PointerValue` pointing to the inner value's data field with bounds set to the type size.
+- `AddrOfValue::evaluated_value()` (in `ast/values/AddrOfValue.cpp`) creates a `PointerValue` similarly but handles more types (IntN, String, Bool, Float, Double, PointerValue).
+
+Both work identically in the interpreter — `*j = *j + 1` works for both `&mut i` and `&raw mut i`.
+
+### How Values Are Destroyed
+
+When an `InterpretScope` ends, its destructor calls `destroy_values()`:
+
+```cpp
+InterpretScope::~InterpretScope() {
+    if(should_destruct_values) {
+        destroy_values();
+    }
+}
+```
+
+`destroy_values()` iterates all values in the scope and for struct values with destructors (`@delete`), it creates a child scope and interprets the destructor body. The `self` parameter is removed from the child scope before destruction to prevent recursive cleanup.
+
+**Important**: PointerValues are NOT explicitly destroyed during scope cleanup — they're allocated on the arena allocator which is batch-cleared. However, their `data` pointer becomes dangling if the pointed-to value was also arena-allocated and the arena is cleared.
+
+### How Function Calls Work
+
+`FunctionDeclaration::call()` (in `ast/structures/FunctionDecl.cpp`):
+1. Saves and replaces `global->current_func_type`
+2. Pushes the call onto `global->call_stack`
+3. Creates an `InterpretScope fn_scope(global, func_allocator, global)` — parent=global, global=global
+4. Declares `self`, arguments, and default-value parameters in `fn_scope`
+5. Interprets the function body via `fn_scope.interpret(&body.value())`
+6. Reads `fn_scope.returnValue` and restores `current_func_type`/call_stack
+7. Returns the return value
+
+### Adding a New Comptime Test
+
+1. **Pick the right location**:
+   - `lang/tests/src/comptime/` — comptime-specific features (basic.ch, features.ch, expressions.ch, etc.)
+   - `lang/tests/common/src/` — tests shared between compiled and interpret modes
+   - `lang/tests/native_common/src/` — tests using pointer arithmetic (interpret + compiled, NOT JVM)
+
+2. **Write the test function**:
+   ```chemical
+   comptime func my_new_feature(a : int, b : int) : int {
+       return a + b;
+   }
+   
+   func test_my_feature() {
+       test("my new feature works", () => {
+           return my_new_feature(3, 4) == 7;
+       });
+   }
+   ```
+
+3. **Register in the test runner**:
+   - For interpret tests: add `test_my_feature();` to `run_common_tests()` in `lang/tests/common/src/main.ch`
+   - For native_common tests: add to `run_native_common_tests()` in `lang/tests/native_common/src/main.ch`
+   - For compiled-only tests: add to `main()` in `lang/tests/src/tests.ch`
+
+4. **Run the tests**:
+   ```bash
+   ./scripts/test.sh --tcc --interpret --no-build   # Interpret mode
+   ./scripts/test.sh --tcc --no-build                # Compiled mode
+   ```
+
+### Common Pitfalls for Comptime Tests
+
+1. **Pointer arithmetic past end of array/string**: Works in compiled mode but fails in interpreter with `cannot dereference pointer while type size is larger than bytes available`. Use `ahead`-safe operations.
+
+2. **Taking address of struct fields (`&raw p.field`)**: Not supported in interpreter ("address of struct not supported in comptime"). Use intermediate variables or pass by reference.
+
+3. **`void*` pointers**: Cannot be dereferenced directly in interpreter (unknown type). Cast to a concrete pointer type first.
+
+4. **Function pointers as parameters**: When passing a function as a parameter (e.g., `test(name, myFunc)` where `assert()` calls the passed function), the function reference must be resolvable through the Identifier's `linked` field. If the function can't be linked, the error "calling a function that is not found or has no body" appears (non-fatal).
+
+5. **Destructor bodies must be interpretable**: If a struct has an `@delete` destructor, the body must be valid Chemical code that the interpreter can evaluate. Empty destructors `{}` work fine.
+
+6. **Float/Double to IntN casts**: The interpreter supports `float→int` and `double→int` casting. Other cast combinations may fail with "unknown operation between values".
+
+### Test Suite Entry Points
+
+| Mode | Entry Function | Module | File |
+|------|---------------|--------|------|
+| Interpret | `main()` | `interpret_tests` | `lang/tests/interpret/src/main.ch` |
+| Native compiled | `main()` | `main` | `lang/tests/src/tests.ch` |
+| Common (shared) | `run_common_tests()` | `common_tests` | `lang/tests/common/src/main.ch` |
+| Native-common | `run_native_common_tests()` | `native_common_tests` | `lang/tests/native_common/src/main.ch` |
+
+### What's Supported in the Interpreter
+
+**Numbers**: `i8`–`i64`, `u8`–`u64`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `bool`, `char`
+
+**Operators**: `+`, `-`, `*`, `/`, `%`, `<<`, `>>`, `&`, `|`, `^`, `~`, `&&`, `||`, `!`, `==`, `!=`, `<`, `>`, `<=`, `>=`
+
+**Control flow**: `if/else`, `while`, `do-while`, `for`, `for-in`, `break`, `continue`, `return`, `switch`
+
+**Pointers**: `*`, `&raw`, `&mut`, `ptr++`, `ptr--`, `ptr + n`, `ptr - n`, `ptr - ptr`, comparison, double-deref `**ptr`
+
+**Structs**: Construction `{ field: val }`, member access, mutation, destructors
+
+**Generics**: Basic generic structs and functions
+
+**Casting**: `intN→intN`, `intN→long`, `long→intN`, `float→intN`, `double→intN`, `intN→pointer`
+
+**Not yet supported**: Full variant type matching at comptime (the else-expression path for break/continue/return/defValue IS supported — test 76 passes), struct pointers (`&raw struct_val` — use `&mut` references instead), variadic function calls, `@test` annotation dispatch
+
+### Native_common Tests
+
+Tests in `lang/tests/native_common/src/` run AFTER common tests (as test 98+) from `run_native_common_tests()`. These tests use pointer arithmetic and have known issues in interpretation mode:
+- **Pointer bounds mismatch**: When a pointer is incremented past its allocated buffer, `ahead` becomes 0 and dereferencing fails with a bounds check. The interpreter returns null instead of crashing, but tests may get wrong results.
+- **Struct pointers (`&raw struct_val`)**: Not supported — returns an error from `AddrOfValue::evaluated_value()`.
+- **Error visibility**: Failures in native_common tests don't produce "Test N failed" output because the error happens inside the lambda before `test()` can print. Look for `[warning]` or `[InterpretError]` messages to diagnose.
+
 ## Compiled Packages (`lang/compiled/`)
+
 
 Each package under `lang/compiled/<name>/` is a standalone Chemical application:
 - Entry: `chemical.mod` — declares `application <name>`, `source "src"`, imports.

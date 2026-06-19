@@ -169,3 +169,89 @@ These modules are all LSP-related and require the LSP server running to verify:
 ```
 
 LSP target name is `ChemicalLsp`. Read `CMakeLists.txt` before building the LSP target.
+
+## Developing Comptime Tests
+
+### Test Structure
+
+Interpret tests run via `--arg-interpret` and execute the AST interpreter directly. The entry point is:
+
+```chemical
+// lang/tests/interpret/src/main.ch
+public func main() {
+    run_common_tests();        // Tests 1-97 (core language features)
+    run_native_common_tests(); // Pointer arithmetic, casts, comptime pointers
+    print_test_stats();
+}
+```
+
+| Module | Location | What it tests |
+|--------|----------|---------------|
+| `common_tests` | `lang/tests/common/` | Core features (arithmetic, loops, structs, variants, inc/dec) |
+| `native_common_tests` | `lang/tests/native_common/` | Pointer operations, casts, comptime pointer arithmetic |
+| `interpret_tests` | `lang/tests/interpret/` | Wrapper that imports both and runs `main()` |
+
+### Comptime Test Files (in `lang/tests/src/comptime/`)
+
+| File | Tests |
+|------|-------|
+| `basic.ch` | Basic comptime: sum, structs, strings, enums, constructors, `get_child_fn`, `get_line_no` |
+| `features.ch` | Comptime features: bitwise ops, loops, casting, logical ops, for-in, struct mutation, destructors |
+| `expressions.ch` | `comptime { }` block expressions: arithmetic in comptime blocks |
+| `satisfies.ch` | `intrinsics::satisfies<T, U>()` type relationship tests |
+| `is_value.ch` | `intrinsics::is_same_type()` and `is` operator type identity tests |
+| `vector.ch` | `intrinsics::vector<T>()` vector operations |
+
+### Running Tests
+
+```bash
+# Quick iteration (interpret only, skip rebuild)
+./scripts/test.sh --tcc --interpret --no-build
+
+# Full compiled test run
+./scripts/test.sh --tcc --no-build
+
+# Both in sequence
+./scripts/test.sh --tcc --interpret --no-build && ./scripts/test.sh --tcc --no-build
+```
+
+### Adding a New Comptime Test
+
+1. **Create the test source** in `lang/tests/src/comptime/` or `lang/tests/common/src/`:
+
+   ```chemical
+   // lang/tests/src/comptime/my_feature.ch
+   comptime func my_feature(a : int, b : int) : int {
+       return a * b + a;
+   }
+
+   func test_my_feature() {
+       test("my feature works", () => {
+           return my_feature(3, 4) == 15;
+       });
+   }
+   ```
+
+2. **Register the test** by calling the function from the appropriate runner:
+   - For tests shared with runs: Add `test_my_feature();` to `run_common_tests()` in `lang/tests/common/src/main.ch`
+   - For tests with pointer arithmetic: Add to `run_native_common_tests()` in `lang/tests/native_common/src/main.ch`
+   - For compiled-only tests: Add to `main()` in `lang/tests/src/tests.ch`
+
+3. **Build and test**: Use the commands above.
+
+### Common Interpreter Pitfalls
+
+- **Pointer bounds**: The interpreter tracks `ahead`/`behind` on PointerValues. Dereferencing past bounds returns null (not crash). Tests with pointer arithmetic reaching one-past-end may fail.
+- **Struct pointers (`&raw struct_val`)**: Not supported in interpreter (returns error). Use `&mut struct_val` (ReferenceOfValue) instead, or parameter passing by reference.
+- **Function references as parameters**: Functions passed as `(params) => return_type` are called via `FunctionDeclaration::call()`. If the function reference can't be resolved, a non-fatal "function not found" error appears.
+- **Float/Double casts**: `float→int` and `double→int` are supported. Other float/double combinations work via standard arithmetic.
+- **Destructors**: Structs with `@delete` destructors have their destructor body interpreted when the scope exits. Empty destructors work fine.
+
+### Debugging Interpret Test Failures
+
+1. Check the test output for `[InterpretError]` messages — these indicate exact failures
+2. Look for "cannot dereference pointer" — pointer went past allocated bounds
+3. Look for "function call" — a function reference couldn't be resolved
+4. Look for "Operation between values" — an operation between incompatible types
+5. Add `std::cerr << "[DEBUG] ..." << std::endl;` to interpreter source files to trace specific operations
+6. The worst failures ("RUNTIME ERROR: invalid memory access") happen when `deref()` itself crashes — we've made this non-fatal by returning `getNullValue()` instead

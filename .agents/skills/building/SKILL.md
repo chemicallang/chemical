@@ -96,12 +96,43 @@ cmake-build-debug/TCCCompiler "lang/tests/build.lab" -o lang/tests/build/tests-t
 cmake-build-debug/Compiler "lang/tests/build.lab" -o lang/tests/build/tests.exe --mode debug_complete --no-cache
 ```
 
+### Interpretation Tests
+
+```bash
+./scripts/test.sh --tcc --interpret        # Build TCC + run interpretation tests
+./scripts/test.sh --tcc --interpret --no-build  # Skip rebuild
+
+# Manual:
+./chemical lang/tests/build.lab --arg-interpret --mode debug_complete --no-cache
+```
+
+The `--arg-interpret` flag causes `build.lab` to create a `LabJobType::Interpretation` job. The compiler calls `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp`, which:
+- Parses, symres, and typechecks `interpret/` + `common/` modules
+- Initializes module-level `VarInitStmt` variables on the global scope
+- Calls `main()` via the AST interpreter directly — no object code generated
+
+### How Tests Work
+
+Tests use a common framework at `lang/tests/common/src/test.ch` that works in both modes:
+
+```chemical
+comptime if(intrinsics::is_interpretation()) {
+    intrinsics::expr_println(`${ANSI_COLOR_GREEN}Test ${total_tests + 1} [${name}] succeeded${ANSI_COLOR_RESET}`);
+} else {
+    printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET);
+}
+```
+
+- **Interpretation path:** `intrinsics::expr_println(expr: %expressive_string)` walks the expressive string's parts — `StringValue` literals go directly to `std::cout`, `${}` expressions are evaluated and printed via `RepresentationVisitor` with `interpret_representation = true` (no quotes).
+- **Compiled path:** Standard `printf` with ANSI escape string constants.
+
 ### Compiler flags explained
 
 - `--mode debug_quick` — quickly compile the project with debug info
 - `--mode debug_complete` — full debug mode for LLVM backend
 - `--no-cache` — do not rely on previously generated objects
 - `--emit-c` — write the Translated.c file to the build directory
+- `--arg-interpret` — run in interpretation mode (interpret AST directly, no codegen)
 - `--arg-test-libs` — build library tests executable
 - `-frecompile-plugins` — recompile compiler plugins
 

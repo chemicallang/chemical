@@ -56,24 +56,91 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 
 Internal defaults: `--no-cache`, `-frecompile-plugins`. Pass `--cache`/`--cached-plugins` to opt out.
 
-CI equivalent (runs from release binary, no `--no-cache`):
+### Interpretation Tests
+
 ```bash
+./scripts/test.sh --tcc --interpret        # Build TCC + run interpretation tests
+./scripts/test.sh --tcc --interpret --no-build  # Skip rebuild
+```
+
+Manual:
+```bash
+./chemical lang/tests/build.lab --arg-interpret --mode debug_complete --no-cache
+```
+
+The `--arg-interpret` flag causes `build.lab` to create a `LabJobType::Interpretation` job instead of a compiled executable. The compiler calls `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp`, which:
+- Parses, symres, and typechecks `interpret/` + `common/` modules
+- Initializes module-level `VarInitStmt` nodes on the global scope
+- Finds the `main()` function and calls it directly via the AST interpreter
+- Never generates object code or links an executable
+
+### Compiled (Runtime) Tests
+
+```bash
+# CI equivalent (runs from release binary, no `--no-cache`):
 ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete
-```
 
-Lib tests CI:
-```bash
+# Lib tests CI:
 ./chemical lang/tests/build.lab -arg-test-libs -bm -v --assertions --mode debug_complete --no-cache
+
+# Add `--emit-c` to inspect the C translation output:
+./scripts/test.sh --tcc --emit-c
 ```
 
-## Test structure
+### How Tests Work
 
-- `lang/tests/src/test.ch` — assertion framework (`test(name, lambda)`, `assertEquals`).
-- `lang/tests/src/tests.ch` — `run_executable_tests()` lists inline tests.
+**Common test framework** (`lang/tests/common/src/test.ch`):
+```chemical
+@extern public func printf(format : *char, _ : any...) : int
+public func test(name : *char, assert : () => bool) {
+    if(assert()) {
+        comptime if(intrinsics::is_interpretation()) {
+            intrinsics::expr_println(`${ANSI_COLOR_GREEN}Test ${total_tests + 1} [${name}] succeeded${ANSI_COLOR_RESET}`);
+        } else {
+            printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET);
+        }
+    }
+}
+```
+
+Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path (interpretation) or `printf` path (compiled executable). Both paths produce identical output.
+
+**Interpretation path:** `intrinsics::expr_println(expr: %expressive_string)` — walks the expressive string's segment list, writes `StringValue` literals directly to `std::cout`, evaluates `${}` expression segments via `RepresentationVisitor` with `interpret_representation = true`. Defined in `ast/utils/GlobalFunctions.cpp` (class `InterpretExprPrintLn`).
+
+**Compiled path:** `printf` with `ANSI_COLOR_*` constants — standard C printf used at runtime. ANSI escape sequences are embedded as string constants.
+
+**`@test` annotation flow:** `intrinsics::get_tests<TestFunction>()` collects all `@test`-annotated functions. `test_runner(argc, argv)` from the `test` library dispatches them, each in a separate process via IPC.
+
+### Test structure
+
+- `lang/tests/common/src/test.ch` — shared test framework (`test()`, `assertEquals()`, `print_test_stats()`). Used by both interpretation and compiled modes.
+- `lang/tests/common/src/main.ch` — `run_common_tests()` with basic arithmetic and loop tests.
+- `lang/tests/interpret/` — interpretation-specific module (`interpret_tests`): imports `common_tests`, calls `run_common_tests()` then `print_test_stats()`. Entry point for `--arg-interpret`.
+- `lang/tests/src/tests.ch` — compiled executable entry: `main()` calls `run_executable_tests()` then `test_runner()`.
+- `lang/tests/src/test.ch` — deprecated; consolidated into `common/src/test.ch`.
 - **Inline tests**: manually listed in `tests.ch` via `test(name, () => bool)`.
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
 - Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `libs/`, `nodes/`, `stdlib/`.
 - Lib tests in `lang/tests/libs/*/src/`.
+
+### Interpretation Mode Details
+
+**Entry:** `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp:4701`.
+
+**Module-level variable initialization:** Before calling `main()`, the interpreter iterates all module dependencies and interprets `VarInitStmt` nodes (top-level `var`/`const` declarations) on the global scope. This ensures counters like `total_tests`, `tests_passed`, `tests_failed` are initialized before any test runs.
+
+**Lambda support:** `LambdaFunction::call()` (in `ast/values/LambdaFunction.cpp`) creates an `InterpretScope`, handles `self_param`, parameters, and captures, then interprets the lambda `Scope` body. Lambda calls are dispatched from `interpret_value` in `FunctionCall.cpp`.
+
+**Expressive string printing:** `intrinsics::expr_println` (class `InterpretExprPrintLn` in `ast/utils/GlobalFunctions.cpp`) is an intrinsic that:
+1. Evaluates its single `%expressive_string` argument
+2. Iterates `ExpressiveString::values` (alternating `StringValue` literals and expression nodes)
+3. String literals → written directly to `std::cout`
+4. Expression nodes → `evaluated_value(scope)` then printed via `RepresentationVisitor::visit()` with `interpret_representation = true` (no quotes/escapes)
+5. `expr_println` appends `\n`; `expr_print` does not
+
+**`intrinsics::is_interpretation()`:** Checks `call_scope->global->build_compiler->current_job->type == LabJobType::Interpretation`. Used inside `comptime if` to eliminate the runtime branch during codegen.
+
+**`intrinsics::expr_print` vs `intrinsics::println`:** The old `print`/`println` are variadic (`any...`), printing each argument space-separated. The new `expr_print`/`expr_println` take a single `%expressive_string` argument, enabling backtick template strings with `${}` interpolation.
 
 ## Architecture
 

@@ -4,6 +4,7 @@ func run_executable_tests() {
     // Basic language that should work
     // Constructs that are mostly C like
     // ----------------------------------
+    run_common_tests();
     test_var_init();
     test_lambda();
     test_bodmas();

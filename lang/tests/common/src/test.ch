@@ -2,10 +2,11 @@
 
 // -------------------------------------------------------
 // Common Test Infrastructure
-// Works in both compiled (runtime) and interpreted modes.
-// Uses comptime if to choose between intrinsics::expr_println
-// (interpretation) and printf (compiled mode).
+// Works in both compiled (runtime) and interpreted modes without requiring std lib
 // -------------------------------------------------------
+
+@extern
+public func printf(format : *char, _ : any...) : int
 
 const ANSI_COLOR_RESET = "\x1b[0m"
 const ANSI_COLOR_RED = "\x1b[31m"
@@ -34,13 +35,15 @@ public func test(name : *char, assert : () => bool) {
     total_tests++;
 }
 
-public func print_common_test_stats() {
+public func print_test_stats() {
+    var failed_color = if(tests_failed == 0) ANSI_COLOR_GREEN else ANSI_COLOR_RED
     comptime if(intrinsics::is_interpretation()) {
-        intrinsics::expr_println(`Common tests: ${total_tests} total, ${tests_passed} passed, ${tests_failed} failed`);
+        intrinsics::expr_println(`Total ${total_tests} ${ANSI_COLOR_GREEN}Passed ${tests_passed}${ANSI_COLOR_RESET} ${failed_color}Failed ${tests_failed}${ANSI_COLOR_RESET}`);
     } else {
-        printf("Common tests: %d total, %d passed, %d failed\n", total_tests, tests_passed, tests_failed);
+        printf("Total %d %sPassed %d%s %sFailed %d%s", total_tests, ANSI_COLOR_GREEN, tests_passed, ANSI_COLOR_RESET, failed_color, tests_failed, ANSI_COLOR_RESET);
     }
 }
+
 
 public func assertEquals(actual : int, expected : int) : bool {
     if(actual != expected) {

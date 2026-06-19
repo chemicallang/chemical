@@ -342,6 +342,73 @@ public:
     }
 };
 
+class InterpretExprPrint : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+    std::ostringstream ostring;
+    RepresentationVisitor visitor;
+
+    explicit InterpretExprPrint(TypeBuilder& cache, ASTNode* parent_node, chem::string_view identifier)
+        : FunctionDeclaration(
+            identifier,
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), visitor(ostring), param("expr", { cache.getExprStrType(), ZERO_LOC }, 0, nullptr, false, this, 0)
+    {
+        set_compiler_decl(true);
+        visitor.interpret_representation = true;
+        params = { &param };
+    };
+
+    explicit InterpretExprPrint(TypeBuilder& cache, ASTNode* parent_node)
+        : InterpretExprPrint(cache, parent_node, "expr_print") {
+
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            return nullptr;
+        }
+        const auto expr = call->values[0]->evaluated_value(*call_scope);
+        if(expr && expr->kind() == ValueKind::ExpressiveString) {
+            const auto expStr = expr->as_expressive_str_unsafe();
+            for(const auto val : expStr->values) {
+                if(val->kind() == ValueKind::String) {
+                    const auto strVal = static_cast<StringValue*>(val);
+                    std::cout.write(strVal->value.data(), strVal->value.size());
+                } else {
+                    const auto evaluated = val->evaluated_value(*call_scope);
+                    if(evaluated) {
+                        ostring.str("");
+                        ostring.clear();
+                        visitor.visit(evaluated);
+                        std::cout << ostring.str();
+                    }
+                }
+            }
+        }
+        return nullptr;
+    }
+};
+
+class InterpretExprPrintLn : public InterpretExprPrint {
+public:
+    inline explicit InterpretExprPrintLn(TypeBuilder& cache, ASTNode* parent_node)
+        : InterpretExprPrint(cache, parent_node, "expr_println") {
+
+    }
+    Value* call(InterpretScope *call_scope, ASTAllocator &allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        InterpretExprPrint::call(call_scope, allocator, call, parent_val, evaluate_refs);
+        std::cout << std::endl;
+        return nullptr;
+    }
+};
+
 class InterpretToString : public FunctionDeclaration {
 public:
 
@@ -2820,6 +2887,8 @@ public:
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
     InterpretExprStrBlockValue expr_str_blk_val;
+    InterpretExprPrint exprPrintFn;
+    InterpretExprPrintLn exprPrintlnFn;
 
     InterpretGetTests get_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
@@ -2850,7 +2919,8 @@ public:
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this),
-        expr_str_blk_val(cache, this), get_backend_name(cache, this), emit_raw(cache, this), raw_literal(cache, this),
+        expr_str_blk_val(cache, this), exprPrintFn(cache, this), exprPrintlnFn(cache, this),
+        get_backend_name(cache, this), emit_raw(cache, this), raw_literal(cache, this),
         multiple_value(cache, this), get_libs_dir(cache, this)
     {
         set_compiler_decl(true);
@@ -2862,7 +2932,8 @@ public:
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &expr_str_blk_val, &get_backend_name, &emit_raw, &raw_literal,
+            &expr_str_blk_val, &exprPrintFn, &exprPrintlnFn,
+            &get_backend_name, &emit_raw, &raw_literal,
             &multiple_value, &get_libs_dir
         };
     }

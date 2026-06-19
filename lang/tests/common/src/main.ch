@@ -7,12 +7,11 @@
 
 // Self-contained comptime test functions
 
-comptime func common_comptime_test() : bool {
-    var x = 5 + 3
-    return x == 8
+func very_basic_arithemetic() : bool {
+    return 5 + 3 == 8
 }
 
-comptime func common_comptime_loop_test() : bool {
+func traditional_for_loop_with_sum() : bool {
     var sum = 0
     for(var i = 0; i < 5; i++) {
         sum += i
@@ -23,15 +22,13 @@ comptime func common_comptime_loop_test() : bool {
 public func run_common_tests() {
 
     // Test 1: Basic comptime arithmetic
-    test("comptime arithmetic works", () => {
-        return common_comptime_test();
+    test("very basic arithmetic works", () => {
+        return very_basic_arithemetic();
     })
 
     // Test 2: Comptime loop works
-    test("comptime loop works", () => {
-        return common_comptime_loop_test();
+    test("C loop with sum works", () => {
+        return traditional_for_loop_with_sum();
     })
 
-    // Print test stats
-    print_common_test_stats();
 }

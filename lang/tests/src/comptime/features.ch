@@ -279,7 +279,7 @@ struct ComptimeDestructCount {
 struct ComptimeDestructWithBody {
     var data : int
     @delete
-    func delete(&self) {
+    func delete(&mut self) {
         self.data = self.data + 1
     }
 }

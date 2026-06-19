@@ -174,6 +174,11 @@ public:
     LabJob* build_cbi(chem::string_view* name);
 
     /**
+     * adds an interpretation job that'll interpret the module's main function
+     */
+    LabJob* build_interpretation(chem::string_view* name);
+
+    /**
      * has this build argument
      */
     bool has_arg(const std::string& name);

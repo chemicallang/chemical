@@ -193,6 +193,19 @@ LabJob* LabBuildContext::build_dynamic_lib(
     return exe;
 }
 
+LabJob* LabBuildContext::build_interpretation(
+        chem::string_view* name
+) {
+    auto job = new LabJob(LabJobType::Interpretation, chem::string(*name), compiler.options->def_out_mode);
+    initialize_job(job, compiler.options);
+    compiler.executables.emplace_back(job);
+    set_build_dir(job);
+    auto output_path = resolve_rel_child_path_str(job->build_dir.to_view(), name->view());
+    output_path += ".interpret";
+    job->abs_path.append(output_path);
+    return job;
+}
+
 LabJob* LabBuildContext::build_cbi(
         chem::string_view* name
 ) {

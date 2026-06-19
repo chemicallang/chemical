@@ -4,6 +4,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "sstream"
 #include <iostream>
 #include <utility>
@@ -709,6 +710,28 @@ public:
 #endif
     }
 };
+class InterpretIsInterpretation : public FunctionDeclaration {
+public:
+
+    explicit InterpretIsInterpretation(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "is_interpretation",
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+        set_contract(ContractFlag::IsInterpretation, true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        const auto is_interpretation = call_scope->global->build_compiler->current_job->type == LabJobType::Interpretation;
+        const auto boolType = call_scope->global->typeBuilder.getBoolType();
+        return new (allocator.allocate<BoolValue>()) BoolValue(is_interpretation, boolType, ZERO_LOC);
+    }
+};
+
 
 class InterpretGetRawLocation : public FunctionDeclaration {
 public:
@@ -2766,6 +2789,7 @@ public:
     InterpretCompilerVersion verFn;
     InterpretIsTcc isTccFn;
     InterpretIsClang isClangFn;
+    InterpretIsInterpretation isInterpretationFn;
     InterpretSize sizeFn;
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
@@ -2818,7 +2842,7 @@ public:
     ) : Namespace("intrinsics", nullptr, ZERO_LOC, AccessSpecifier::Public),
         llvmNamespace(cache, this), memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
-        wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
+        wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
         get_target_fn(cache, this), get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
@@ -2833,7 +2857,7 @@ public:
         nodes = {
             &llvmNamespace, &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
-            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
+            &retStructPtr, &verFn, &isTccFn, &isClangFn, &isInterpretationFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,

@@ -370,6 +370,11 @@ public:
     int do_to_chemical_job(LabJob* job);
 
     /**
+     * does an interpretation job (parse, symres, typecheck, then interpret main())
+     */
+    int do_interpretation_job(LabJob* job);
+
+    /**
      * will perform the job returning result
      */
     int do_job(LabJob* job);

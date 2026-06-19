@@ -37,7 +37,8 @@ public enum LabJobType {
     ToCTranslation,
     ToChemicalTranslation,
     ProcessingOnly,
-    CBI
+    CBI,
+    Interpretation
 }
 
 public enum LabJobStatus {
@@ -170,6 +171,9 @@ public interface BuildContext {
 
     // build a dynamic library using executable dependencies
     func build_dynamic_lib (&self, name : &std::string_view) : *mut LabJob;
+
+    // build an interpretation job, that interprets the main function
+    func build_interpretation (&self, name : &std::string_view) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
     func build_cbi (&self, name : &std::string_view) : *mut LabJobCBI

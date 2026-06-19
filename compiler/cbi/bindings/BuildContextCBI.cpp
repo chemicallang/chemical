@@ -121,6 +121,10 @@ LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name) {
     return self->build_cbi(name);
 }
 
+LabJob* BuildContextbuild_interpretation(LabBuildContext* self, chem::string_view* name) {
+    return self->build_interpretation(name);
+}
+
 void BuildContextset_environment_testing(LabBuildContext* self, LabJob* job, bool value) {
     if(value) {
         self->compiler.controller.ensure_test_resources();

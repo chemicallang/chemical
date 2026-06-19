@@ -56,6 +56,13 @@ public:
     bool disable_index_destructible_check = false;
 
     /**
+     * when set, the type checker knows we are in interpretation mode
+     * and can skip argument verification for comptime functions
+     * this flag is toggled by contracts on functions like intrinsics::is_interpretation()
+     */
+    bool is_interpretation_mode = false;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */

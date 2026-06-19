@@ -15,6 +15,10 @@
 #include "ast/structures/If.h"
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/NullValue.h"
+#include "ast/types/IntNType.h"
+#include "ast/types/NullPtrType.h"
 #include "Utils.h"
 #include "utils/ProcessUtils.h"
 #include "core/source/LocationManager.h"
@@ -223,6 +227,9 @@ int LabBuildCompiler::do_job(LabJob* job) {
             break;
         case LabJobType::ToChemicalTranslation:
             return_int = do_to_chemical_job(job);
+            break;
+        case LabJobType::Interpretation:
+            return_int = do_interpretation_job(job);
             break;
     }
     if(job->status == LabJobStatus::Launched) {
@@ -1257,6 +1264,9 @@ void begin_job_print(LabJob* job) {
             break;
         case LabJobType::ToChemicalTranslation:
             std::cout << "Translating to chemical";
+            break;
+        case LabJobType::Interpretation:
+            std::cout << "Interpreting";
             break;
         case LabJobType::Intermediate:
             std::cout << "Building intermediate files";
@@ -4686,4 +4696,172 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
     }
     
     return final_status;
+}
+
+int LabBuildCompiler::do_interpretation_job(LabJob* job) {
+
+    const auto verbose = options->verbose;
+    begin_job_print(job);
+
+    if(verbose) {
+        std::cout << "[lab] " << "flattening the module structure" << std::endl;
+    }
+
+    // process remote imports
+    LabBuildContext context(*this, path_handler, mod_storage, binder);
+    auto ri_res = process_remote_imports(context, job);
+    if(ri_res != 0) return ri_res;
+
+    if (job->attrs.download_only) {
+        return 0;
+    }
+
+    // flatten the dependencies
+    auto dependencies = flatten_dedupe_sorted(job->dependencies);
+
+    // zero out cached children, so they are calculated again during sym res
+    zero_out_cached_children(dependencies);
+
+    // build dir
+    auto build_dir = job->build_dir.to_std_string();
+    create_job_build_dir(verbose, build_dir);
+    auto mods_dir = resolve_rel_child_path_str(build_dir, "modules");
+    create_dir(mods_dir);
+
+    // for each module, determine its files
+    for (const auto mod : dependencies) {
+        ASTProcessor::determine_module_files(path_handler, loc_man, mod);
+        mod->has_changed = std::nullopt;
+        create_mod_dir(this, job->type, mods_dir, mod);
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
+    }
+
+    // interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
+    global.should_destruct_values = false;
+
+    // we hold the instantiated types inside this container
+    InstantiationsContainer instContainer;
+
+    // a new symbol resolver
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, implsIndex, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // the processor we use
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, *job_allocator, *mod_allocator, *file_allocator);
+
+    // create or rebind the global container (comptime functions like intrinsics namespace)
+    create_or_rebind_container(this, global, resolver, job->target_data);
+
+    // process each module: parse, symres, typecheck (no C translation)
+    const auto total_modules = dependencies.size();
+    size_t mod_index = 0;
+    for(auto mod : dependencies) {
+        ++mod_index;
+        std::cout << "[lab] Processing module " << mod_index << " of " << total_modules << " (" << *mod << ")" << std::endl;
+
+        if(verbose) {
+            std::cout << "[lab] " << "processing module '" << mod->name << "'" << std::endl;
+        }
+
+        // skip non-chemical modules
+        switch (mod->type) {
+            case LabModuleType::CFile:
+            case LabModuleType::CPPFile:
+            case LabModuleType::ObjFile:
+                if(verbose) {
+                    std::cout << "[lab] " << "skipping c/c++/obj module '" << *mod << "' in interpretation job" << std::endl;
+                }
+                continue;
+            default:
+                break;
+        }
+
+        // parse the module files
+        const auto parse_success = processor.import_module_files_direct(pool, mod->direct_files, mod);
+        if(!parse_success) {
+            if(verbose) {
+                std::cout << "[lab] " << "parsing failure in the module " << *mod << std::endl;
+            }
+            return 1;
+        }
+
+        // symbol resolve
+        const auto sym_res_status = processor.sym_res_module(mod);
+        if(sym_res_status != 0) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during symbol resolution in the module " << *mod << std::endl;
+            return sym_res_status;
+        }
+
+        // type verify
+        if(!processor.type_verify_module_parallel(pool, mod)) {
+            if(verbose) {
+                std::cout << "[lab] " << "failure during type verification in the module " << *mod << std::endl;
+            }
+            return 1;
+        }
+    }
+
+    // find the main function by iterating over module's direct files
+    FunctionDeclaration* main_fn = nullptr;
+    for(auto mod : dependencies) {
+        for(auto& file_meta : mod->direct_files) {
+            auto& nodes = file_meta.result->unit.scope.body.nodes;
+            for(const auto node : nodes) {
+                if(node->kind() == ASTNodeKind::FunctionDecl) {
+                    auto fn = node->as_function_unsafe();
+                    if(fn->name_view() == "main") {
+                        main_fn = fn;
+                        break;
+                    }
+                }
+            }
+            if(main_fn) break;
+        }
+        if(main_fn) break;
+    }
+
+    if(!main_fn) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "could not find main() function for interpretation job" << std::endl;
+        return 1;
+    }
+
+    std::cout << "[lab] " << "Interpreting main()..." << std::endl;
+
+    // create a scope for calling main
+    InterpretScope call_scope(&global, *job_allocator, &global);
+
+    // call main with no arguments (the interpretation module main takes no args)
+    // if main does have parameters, we create default ones
+    std::vector<Value*> call_args;
+
+    // Check if main has parameters and create defaults if so
+    if(main_fn->expectedArgsSize() > 0) {
+        // Create argc = 0 using IntNumValue (signed 32-bit int)
+        auto argc_val = IntNumValue::create_number(*job_allocator, type_builder, 32, true, 0, ZERO_LOC);
+        call_args.push_back(argc_val);
+
+        // Create argv = null using NullValue
+        auto argv_val = new (job_allocator->allocate<NullValue>()) NullValue(type_builder.getNullPtrType(), ZERO_LOC);
+        call_args.push_back(argv_val);
+    }
+
+    // Call main with the arguments
+    const auto result = main_fn->call(&call_scope, call_args, nullptr, &call_scope, false, nullptr);
+
+    if(result) {
+        auto eval_result = result->evaluated_value(call_scope);
+        std::cout << "[lab] " << "Interpretation job completed with return value" << std::endl;
+    } else {
+        std::cout << "[lab] " << "Interpretation job completed (no return value)" << std::endl;
+    }
+
+    // remove non-public nodes
+    for(auto mod : dependencies) {
+        remove_non_public_nodes(processor, mod->direct_files);
+    }
+
+    return 0;
 }

@@ -79,8 +79,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    void verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_type);
-
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
     void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic);

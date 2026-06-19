@@ -122,6 +122,8 @@ extern "C" {
 
     LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name);
 
+    LabJob* BuildContextbuild_interpretation(LabBuildContext* self, chem::string_view* name);
+
     void BuildContextset_environment_testing(LabBuildContext* self, LabJob* job, bool value);
 
     bool BuildContextcontains_cbi(LabBuildContext* self, chem::string_view* key);

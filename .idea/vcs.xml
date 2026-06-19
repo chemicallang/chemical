@@ -14,6 +14,8 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/mbedtls" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/quiz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/quiz/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/secure_net" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mdi-icons" vcs="Git" />

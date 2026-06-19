@@ -10,6 +10,7 @@ TEST_OUT_NAME=""
 RUN_TESTS=true
 BUILD_TARGET=true
 TEST_LIBS=false
+TEST_INTERPRET=false
 MODE="debug_quick"
 NO_CACHE="--no-cache"
 EMIT_C=false
@@ -23,6 +24,7 @@ usage() {
   echo "Options:"
   echo "  --tcc                   Use TCCCompiler (TinyCC backend)"
   echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
+  echo "  --interpret             Run tests via interpretation job (no executable produced)"
   echo "  --libs                  Include library tests (passes --arg-test-libs)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -48,6 +50,7 @@ while [ $# -gt 0 ]; do
       TARGET="Compiler"
       COMPILER_BIN="$BUILD_DIR/Compiler"
       ;;
+    --interpret) TEST_INTERPRET=true ;;
     --libs) TEST_LIBS=true ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -99,25 +102,37 @@ else
 fi
 
 # Build the test command
-CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
-[ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
-[ "$EMIT_C" = true ] && CMD+=("--emit-c")
-[ "$USE_C" = true ] && CMD+=("--use-c")
-[ "$DEBUG_FLAG" = true ] && CMD+=("-g")
-if [ "$TEST_LIBS" = true ]; then
-  CMD+=("--arg-test-libs")
-  [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
-fi
-
-echo "==> Compiling tests..."
-echo "${CMD[@]}"
-"${CMD[@]}"
-
-if [ "$RUN_TESTS" = true ]; then
-  if [ ! -f "$TEST_OUT" ]; then
-    echo "Error: Test executable not found at $TEST_OUT"
-    exit 1
+if [ "$TEST_INTERPRET" = true ]; then
+  # Interpretation mode: run the compiler which interprets main() directly
+  CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" --mode "$MODE" --arg-interpret)
+  [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
+  [ "$EMIT_C" = true ] && CMD+=("--emit-c")
+  [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  echo "==> Interpreting tests..."
+  echo "${CMD[@]}"
+  "${CMD[@]}"
+else
+  # Normal compilation mode: build executable then run
+  CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
+  [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
+  [ "$EMIT_C" = true ] && CMD+=("--emit-c")
+  [ "$USE_C" = true ] && CMD+=("--use-c")
+  [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  if [ "$TEST_LIBS" = true ]; then
+    CMD+=("--arg-test-libs")
+    [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
   fi
-  echo "==> Running tests..."
-  "$TEST_OUT"
+
+  echo "==> Compiling tests..."
+  echo "${CMD[@]}"
+  "${CMD[@]}"
+
+  if [ "$RUN_TESTS" = true ]; then
+    if [ ! -f "$TEST_OUT" ]; then
+      echo "Error: Test executable not found at $TEST_OUT"
+      exit 1
+    fi
+    echo "==> Running tests..."
+    "$TEST_OUT"
+  fi
 fi

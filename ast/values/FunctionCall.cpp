@@ -17,6 +17,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/ReferenceType.h"
@@ -1464,7 +1465,7 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     } else {
         scope.error("(function call) calling a function that is not found or has no body", call);
     }
-    return nullptr;
+    return scope.global->typeBuilder.getNullValue();
 }
 
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {

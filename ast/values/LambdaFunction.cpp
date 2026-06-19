@@ -170,7 +170,7 @@ void LambdaFunction::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Va
     }
 }
 
-llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
+    llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
     std::vector<llvm::Type*> members;
     for(auto& cap : captureList) {
         members.emplace_back(cap->llvm_type(gen));
@@ -179,6 +179,61 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 }
 
 #endif
+
+Value* LambdaFunction::call(
+    InterpretScope *call_scope,
+    ASTAllocator& func_allocator,
+    Value* parent,
+    std::vector<Value*>& call_args
+) {
+    const auto global = call_scope->global;
+    const auto prev_func = global->current_func_type;
+    global->current_func_type = this;
+
+    InterpretScope fn_scope(global, func_allocator, global);
+
+    auto self_param = get_self_param();
+    if(self_param) {
+        fn_scope.declare(self_param->name, parent);
+    }
+
+    auto i = 0u;
+    while (i < call_args.size()) {
+        const auto param = func_param_for_arg_at(i);
+        if(!param) break;
+        const auto param_val = call_args[i]->scope_value(*call_scope);
+        fn_scope.declare(param->name, param_val);
+        i++;
+    }
+
+    auto expected = expectedArgsSize();
+    while(i < expected) {
+        const auto param = func_param_for_arg_at(i);
+        if (param) {
+            if(param->defValue) {
+                fn_scope.declare(param->name, param->defValue->scope_value(*call_scope));
+            } else if(!isInVarArgs(i)) {
+                call_scope->error("lambda parameter doesn't have default value, no argument exists for it", this);
+            }
+        }
+        i++;
+    }
+
+    for(const auto cap : captureList) {
+        const auto captured_val = call_scope->find_value(cap->name);
+        if(captured_val) {
+            fn_scope.declare(cap->name, captured_val);
+        } else {
+            auto err = chem::string("could not find captured variable '") + chem::string(cap->name) + "' in current scope";
+                call_scope->error(err.to_view(), this);
+        }
+    }
+
+    fn_scope.interpret(&scope);
+
+    global->current_func_type = prev_func;
+    return fn_scope.returnValue;
+}
 
 bool LambdaFunction::has_destructor_for_capture() {
     if(captureList.empty()) {

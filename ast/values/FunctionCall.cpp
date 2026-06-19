@@ -1462,9 +1462,17 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     auto func = call->safe_linked_func();
     if (func) {
         return func->call(&scope, scope.allocator, call, parent);
-    } else {
-        scope.error("(function call) calling a function that is not found or has no body", call);
     }
+    // For direct function calls (parent is nullptr from get_parent_from(Identifier)),
+    // try evaluating the parent_val in scope to find lambda values
+    if(!parent && call->parent_val) {
+        auto evaluated = call->parent_val->evaluated_value(scope);
+        if(evaluated && evaluated->kind() == ValueKind::LambdaFunc) {
+            auto lambda = static_cast<LambdaFunction*>(evaluated);
+            return lambda->call(&scope, scope.allocator, parent, call->values);
+        }
+    }
+    scope.error("(function call) calling a function that is not found or has no body", call);
     return scope.global->typeBuilder.getNullValue();
 }
 

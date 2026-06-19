@@ -5,5 +5,6 @@
 
 public func main() {
     run_common_tests();
+    run_native_common_tests();
     print_test_stats();
 }

@@ -62,7 +62,7 @@ var do_asm = false;
 var do_bc = true;
 var do_to_ch = true;
 
-func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob, common_mod : *mut Module) : *mut Module {
+func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob, common_mod : *mut Module, native_common_mod : *mut Module) : *mut Module {
 
     // setting the environment testing for the given job
     // this sets def.test to true
@@ -130,7 +130,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob, common_mod :
     const docgen_module = docgenMod.build(ctx, job)
 
     // currently the last dependency becomes null if we don't take it out like this
-    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, net_module, docgen_module, test_env_module, test_module, common_mod ]
+    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, net_module, docgen_module, test_env_module, test_module, common_mod, native_common_mod ]
     const main_mod_path = lab::rel_path_to("src");
     const module = ctx.directory_app_module(std::string_view(""), std::string_view("main"), std::string_view(&main_mod_path), dependencies);
 
@@ -261,9 +261,13 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
     const zero_deps_arr : []*mut Module = []
     const zero_deps = std::span<*mut Module>(zero_deps_arr, 0)
 
-    // the common test module
+    // the common test module (basic language-level tests, no pointers — works on all backends)
     const common_path = lab::rel_path_to("common")
     const common_mod = ctx.chemical_dir_module(std::string_view(""), std::string_view("common_tests"), std::string_view(&common_path), zero_deps)
+
+    // the native_common test module (pointer arithmetic tests — native & interpret only, not JVM)
+    const native_common_path = lab::rel_path_to("native_common")
+    const native_common_mod = ctx.chemical_dir_module(std::string_view(""), std::string_view("native_common_tests"), std::string_view(&native_common_path), [ common_mod ])
 
     const headers_path = build_dir_path(ctx, std::string_view("headers.ch"));
     if(intrinsics::is_clang()) {
@@ -297,7 +301,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
     if(do_c) {
         const output_dir = build_dir_path(ctx, std::string_view("ToCJob.dir/output.c"));
         const job = ctx.translate_to_c(std::string_view("ToCJob"), output_dir.to_view())
-        ctx.add_module(job, get_main_module(ctx, job, common_mod))
+        ctx.add_module(job, get_main_module(ctx, job, common_mod, native_common_mod))
     }
 
     const definition = std::string_view("CHECK_DEF")
@@ -306,7 +310,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         // Build the interpretation module with common_tests as dependency
         const interp_name = std::string_view("chemical-interpret");
         const interp_path = lab::rel_path_to("interpret");
-        const interp_deps = [ common_mod ]
+        const interp_deps = [ native_common_mod, common_mod ]
         const interp_mod = ctx.directory_app_module(std::string_view(""), std::string_view("interpret_tests"), std::string_view(&interp_path), interp_deps);
         const interp_job = ctx.build_interpretation(&interp_name);
         ctx.add_module(interp_job, interp_mod);
@@ -317,7 +321,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     if(do_dyn_lib) {
         const job = ctx.build_dynamic_lib(&exe_name);
-        ctx.add_module(job, get_main_module(ctx, job, common_mod))
+        ctx.add_module(job, get_main_module(ctx, job, common_mod, native_common_mod))
         ctx.define(job, &definition);
         if(do_one_job) {
             return null;
@@ -329,7 +333,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
     // ctx.add_module(jit_job, get_main_module(ctx, jit_job))
 
     const exe_job = ctx.build_exe(&exe_name)
-    ctx.add_module(exe_job, get_main_module(ctx, exe_job, common_mod))
+    ctx.add_module(exe_job, get_main_module(ctx, exe_job, common_mod, native_common_mod))
 
     ctx.define(exe_job, &definition);
 

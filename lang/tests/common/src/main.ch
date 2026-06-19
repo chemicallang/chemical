@@ -31,4 +31,12 @@ public func run_common_tests() {
         return traditional_for_loop_with_sum();
     })
 
+    // Basic language tests (no pointers — compatible with all backends)
+    test_numbers();
+    test_floating_expr();
+    test_struct_values();
+    test_in_value();
+    test_for_loop();
+    test_inc_dec();
+
 }

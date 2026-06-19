@@ -1467,9 +1467,24 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     // try evaluating the parent_val in scope to find lambda values
     if(!parent && call->parent_val) {
         auto evaluated = call->parent_val->evaluated_value(scope);
-        if(evaluated && evaluated->kind() == ValueKind::LambdaFunc) {
+        if(!evaluated) {
+            scope.error("(function call) evaluated value is null", call);
+            return scope.global->typeBuilder.getNullValue();
+        }
+        if(evaluated->kind() == ValueKind::LambdaFunc) {
             auto lambda = static_cast<LambdaFunction*>(evaluated);
             return lambda->call(&scope, scope.allocator, parent, call->values);
+        }
+        // Handle function references passed as parameters (e.g., function pointers)
+        // The evaluated value may be an Identifier linking to a FunctionDeclaration
+        if(evaluated->kind() == ValueKind::Identifier) {
+            auto id = evaluated->as_identifier_unsafe();
+            if(id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
+                auto func_decl = id->linked->as_function_unsafe();
+                if(func_decl) {
+                    return func_decl->call(&scope, scope.allocator, call, parent);
+                }
+            }
         }
     }
     scope.error("(function call) calling a function that is not found or has no body", call);

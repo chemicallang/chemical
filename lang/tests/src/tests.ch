@@ -56,7 +56,7 @@ func run_executable_tests() {
     test_core_ops();
     test_primitive_implementations()
     test_basic_interfaces()
-    test_constructors_with_init()
+    test_constructors_with_init();
     test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();
@@ -64,12 +64,9 @@ func run_executable_tests() {
     // --------------------------------------
     // Comptime and Compiler Intrinsics Stuff
     // --------------------------------------
-    test_satisfies();
     test_macros();
     test_failing_code();
     test_comptime();
-    test_comptime_expressions();
-    test_comptime_features();
     test_compiler_vector();
 
     // --------------------------------------

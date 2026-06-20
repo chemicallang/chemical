@@ -1,3 +1,5 @@
+// Copyright (c) Chemical Language Foundation 2025.
+
 func <T> deduce_gen_sum(a : T, b : T) : T {
     return a + b;
 }

@@ -138,7 +138,10 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
                 *((char*) data) != 0, typeBuilder.getBoolType(), value_loc
             );
         }
-        case BaseTypeKind::Linked:
+        case BaseTypeKind::Linked: {
+            // data was set by AddrOfValue to point to a StructValue
+            return (StructValue*) data;
+        }
         case BaseTypeKind::Float:
         case BaseTypeKind::Double:
         case BaseTypeKind::Void:

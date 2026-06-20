@@ -98,4 +98,11 @@ public func run_common_tests() {
     test_basic_generics();
     test_generic_type_deduction();
 
+    // Language feature tests moved from native (no variant matching, no raw pointers, no std deps)
+    test_unicode();
+    test_lambda();
+    // test_name_hiding() and test_implicit_functions() have interpreter issues
+    // (RUNTIME ERROR: invalid memory access) — kept native-only
+
+
 }

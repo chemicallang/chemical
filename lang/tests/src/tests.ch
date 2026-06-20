@@ -8,7 +8,7 @@ func run_executable_tests() {
     run_native_common_tests();
     test_dereferences();
     test_var_init();
-    test_lambda();
+    // test_lambda() moved to common (covered by run_common_tests())
     test_structs();
     test_nodes();
     test_if_switch_loop_value();

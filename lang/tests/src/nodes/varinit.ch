@@ -32,7 +32,25 @@ namespace wrapped_variable {
     const thing = 3456
 }
 
-func test_var_init() {
+func test_native_var_init() {
+    // Variant-specific tests (crash interpreter — native-only)
+    test("variant inherited in top level variable initialized to default value", () => {
+        return variant_inheriter_variable.a == 10
+    })
+    test("variant in top level variables work - 1", () => {
+        switch(variant_inheriter_variable) {
+            None => { return true; }
+            default => { return false; }
+        }
+    })
+    test("variant in top level variables work - 2", () => {
+        switch(variant_inheriter_variable2) {
+            None => { return false; }
+            Some(x) => { return x == 837 }
+            default => { return false; }
+        }
+    })
+    // Tests that crash interpreter (namespace access, auto-zero, typed vars, etc.)
     test("wrapped variable in namespace works", () => {
         var x = wrapped_variable::thing;
         return x == 3456
@@ -52,22 +70,6 @@ func test_var_init() {
     test("structs in top level variables work - 2", ()=> {
         return struct_inheriter_variable2.b == 36
     })
-    test("variant inherited in top level variable initialized to default value", () => {
-        return variant_inheriter_variable.a == 10
-    })
-    test("variant in top level variables work - 1", () => {
-        switch(variant_inheriter_variable) {
-            None => { return true; }
-            default => { return false; }
-        }
-    })
-    test("variant in top level variables work - 2", () => {
-        switch(variant_inheriter_variable2) {
-            None => { return false; }
-            Some(x) => { return x == 837 }
-            default => { return false; }
-        }
-    })
     test("can initialize normal variables", () => {
         var x = 5;
         return x == 5;
@@ -85,12 +87,6 @@ func test_var_init() {
     test("can initialize a typed variable", () => {
         var x : int = 5;
         return x == 5;
-    })
-    test("global comptime constants work", () => {
-        return glob_ct_const == 400;
-    })
-    test("global constants work", () => {
-        return glob_const == 800;
     })
     test("local constants work as well", () => {
         const something = 1200 + 400

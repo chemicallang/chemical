@@ -7,7 +7,9 @@ func run_executable_tests() {
     run_common_tests();
     run_native_common_tests();
     test_dereferences();
-    test_var_init();
+    // test_var_init() moved to common (covered by run_common_tests())
+    // Native-only: variant init tests (crash interpreter)
+    test_native_var_init();
     // test_lambda() moved to common (covered by run_common_tests())
     test_structs();
     test_nodes();
@@ -24,6 +26,10 @@ func run_executable_tests() {
     // test_enum() moved to common (covered by run_common_tests())
     // Native-only: address of enum works in function (crashes interpreter)
     test_native_enum();
+    // test_constructors_with_init() moved to common (3 tests covered by run_common_tests())
+    // Native-only: implicit constructor chain + inheritance init (crash interpreter)
+    test_native_constructors_init();
+    // test_interface_generic_dispatch() called in extended syntax section below
     test_auto_deref();
     test_zeroed_value()
 
@@ -61,7 +67,7 @@ func run_executable_tests() {
     test_core_ops();
     test_primitive_implementations()
     test_basic_interfaces()
-    test_constructors_with_init();
+    // test_constructors_with_init() moved to common (covered by run_common_tests())
     test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();

@@ -70,23 +70,15 @@ struct InitBlockManualDefConsCall7 : InitDefConsStruct {
 
 }
 
-func test_constructors_with_init() {
+func test_native_constructors_init() {
 
+    // Native-only: implicit constructor chain crashes interpreter
     test("default auto constructor call in init block works", () => {
         var c = InitBlockAutoDefConsCall()
         return c.d.a == 98 && c.d.b == 87
     })
 
-    test("default manual constructor call in init block works - 1", () => {
-        var c = InitBlockManualDefConsCall()
-        return c.d.a == 98 && c.d.b == 87
-    })
-
-    test("default manual constructor call in init block works - 2", () => {
-        var c = InitBlockManualDefConsCall2()
-        return c.d.a == 98 && c.d.b == 87
-    })
-
+    // Native-only: inheritance init crashes interpreter
     test("default manual constructor call in init block works - 3", () => {
         var c = InitBlockManualDefConsCall3()
         return c.a == 98 && c.b == 87

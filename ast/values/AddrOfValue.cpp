@@ -9,6 +9,7 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/values/PointerValue.h"
@@ -18,6 +19,7 @@
 #include "ast/values/DoubleValue.h"
 #include "StringValue.h"
 #include "compiler/lab/TargetData.h"
+
 
 void AddrOfValue::determine_type() {
     const auto valueType = value->getType();
@@ -30,44 +32,71 @@ uint64_t AddrOfValue::byte_size(TargetData& target) {
 }
 
 Value* AddrOfValue::evaluated_value(InterpretScope &scope) {
-    // Detect &arr[i] pattern — arr[i] is an AccessChain wrapping an IndexOperator.
+    // Detect &arr[i] pattern — arr[i] is an AccessChain wrapping an IndexOperator,
+    // or directly an IndexOperator (when arr is a plain variable reference).
     // Create a PointerValue into the array's contiguous memory so pointer arithmetic
     // spans the full array, not just one element.
-    // &arr[i] pattern: arr[i] is an AccessChain wrapping an IndexOperator.
-    // Get the ArrayValue from the IndexOperator's parent_val directly.
-    if (value->val_kind() == ValueKind::AccessChain) {
-        auto chain = (AccessChain*)value;
-        if (!chain->values.empty()) {
-            auto lastVal = chain->values.back();
-            if (lastVal->val_kind() == ValueKind::IndexOperator) {
-                auto indexOp = (IndexOperator*)lastVal;
-                // parent_val is the array variable — evaluate it to get the ArrayValue
-                auto arrEval = indexOp->parent_val->evaluated_value(scope);
-                if (arrEval && arrEval->val_kind() == ValueKind::ArrayValue) {
-                    auto arrVal = (ArrayValue*)arrEval;
-                    if (arrVal->contiguousData && arrVal->contiguousSize > 0) {
-                        const auto ptrType = getType();
-                        const auto pointeeType = ptrType->type;
-                        const auto elemSize = pointeeType->byte_size(scope.global->target_data);
-                        if (elemSize > 0) {
-                            auto idxEval = indexOp->idx->evaluated_value(scope);
-                            auto idxOpt = idxEval->get_number();
-                            if (idxOpt.has_value()) {
-                                auto idx = idxOpt.value();
-                                auto offset = idx * elemSize;
-                                if (offset < arrVal->contiguousSize) {
-                                    auto ahead = arrVal->contiguousSize - offset;
-                                    return new (scope.allocate<PointerValue>()) PointerValue(
-                                        (char*)arrVal->contiguousData + offset, pointeeType,
-                                        offset, ahead, encoded_location()
-                                    );
-                                }
-                            }
+    auto handleIndexOp = [&](IndexOperator* indexOp) -> Value* {
+        auto arrEval = indexOp->parent_val->evaluated_value(scope);
+        // If parent_val evaluates back to itself (a VariableIdentifier for module-level var),
+        // extract the ArrayValue from the linked VarInitStmt
+        if (arrEval && arrEval->val_kind() == ValueKind::Identifier) {
+            auto ident = (VariableIdentifier*)arrEval;
+            auto linkedNode = ident->linked_node();
+            if (linkedNode && linkedNode->kind() == ASTNodeKind::VarInitStmt) {
+                auto init = linkedNode->as_var_init_unsafe();
+                if (init->value && init->value->val_kind() == ValueKind::ArrayValue) {
+                    arrEval = init->value;
+                }
+            }
+        }
+        
+        if (arrEval && arrEval->val_kind() == ValueKind::ArrayValue) {
+            auto arrVal = (ArrayValue*)arrEval;
+            // Ensure element type is determined (may be missing for AST-level ArrayValues)
+            if (!arrVal->getType() || !arrVal->getType()->elem_type) {
+                arrVal->determine_type(scope.allocator);
+            }
+            // Ensure contiguousData is allocated (lazy allocation in evaluated_value)
+            arrVal->evaluated_value(scope);
+            auto cd = arrVal->contiguousData;
+            auto cs = arrVal->contiguousSize;
+            if (cd && cs > 0) {
+                const auto ptrType = getType();
+                const auto pointeeType = ptrType->type;
+                const auto elemSize = pointeeType->byte_size(scope.global->target_data);
+                if (elemSize > 0) {
+                    auto idxEval = indexOp->idx->evaluated_value(scope);
+                    auto idxOpt = idxEval->get_number();
+                    if (idxOpt.has_value()) {
+                        auto idx = idxOpt.value();
+                        auto offset = idx * elemSize;
+                        if (offset < cs) {
+                            auto ahead = cs - offset;
+                            return new (scope.allocate<PointerValue>()) PointerValue(
+                                (char*)cd + offset, pointeeType,
+                                offset, ahead, encoded_location()
+                            );
                         }
                     }
                 }
             }
         }
+        return nullptr;
+    };
+
+    if (value->val_kind() == ValueKind::AccessChain) {
+        auto chain = (AccessChain*)value;
+        if (!chain->values.empty()) {
+            auto lastVal = chain->values.back();
+            if (lastVal->val_kind() == ValueKind::IndexOperator) {
+                auto result = handleIndexOp((IndexOperator*)lastVal);
+                if (result) return result;
+            }
+        }
+    } else if (value->val_kind() == ValueKind::IndexOperator) {
+        auto result = handleIndexOp((IndexOperator*)value);
+        if (result) return result;
     }
     
     const auto inner = value->evaluated_value(scope);

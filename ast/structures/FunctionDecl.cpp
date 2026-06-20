@@ -1000,6 +1000,15 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         target->returnValue = value->evaluated_value(*target);
     }
     body->stopInterpretOnce();
+    // Propagate the stop signal up the InterpretScope chain so that
+    // non-loop scopes (e.g. if-block bodies) also stop iterating.
+    // Without this, nested scopes continue interpreting sibling nodes
+    // after a return, potentially overwriting the return value.
+    InterpretScope* stop_target = &func_scope;
+    while(stop_target != nullptr && stop_target != func_scope.global) {
+        stop_target->stopInterpretation = true;
+        stop_target = stop_target->parent;
+    }
 }
 
 FunctionDeclaration *FunctionDeclaration::as_function() {

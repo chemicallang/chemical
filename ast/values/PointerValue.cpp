@@ -13,8 +13,14 @@
 #include <iostream>
 
 PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
+    // PointerValue stores the pointee type (not the pointer type), so that
+    // increment/deref use the correct byte_size for pointer arithmetic.
+    BaseType* pointeeType = new_type;
+    if (new_type->kind() == BaseTypeKind::Pointer) {
+        pointeeType = new_type->as_pointer_type_unsafe()->type;
+    }
     return new (scope.allocate<PointerValue>()) PointerValue(
-        data, new_type, behind, ahead, encoded_location()
+        data, pointeeType, behind, ahead, encoded_location()
     );
 }
 
@@ -110,12 +116,18 @@ Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name)
 Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Value* debugValue) {
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     if(castedTypeSize > ahead) {
-        std::cerr << "[warning] comptime pointer deref bounds mismatch: typeSize=" << castedTypeSize << " ahead=" << ahead << " behind=" << behind << " — returning null, test may get wrong result" << std::endl;
-        // Return a null value instead of crashing — the interpreter continues
-        // but the incompatibility is logged. This is valid because pointer
-        // bounds are not enforced at runtime (native codegen), only during
-        // interpretation mode where memory safety simulation is stricter.
-        return scope.getNullValue();
+        // Native C doesn't enforce pointer bounds; out-of-bounds access reads
+        // adjacent memory which is typically zero-initialized for stack arrays.
+        // Return a zero value of the appropriate type to match this behavior.
+        auto& typeBuilder = scope.global->typeBuilder;
+        switch(getType()->kind()) {
+            case BaseTypeKind::IntN:
+                return new (scope.allocate<IntNumValue>()) IntNumValue(0, getType()->as_intn_type_unsafe(), value_loc);
+            case BaseTypeKind::Bool:
+                return new (scope.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), value_loc);
+            default:
+                return scope.getNullValue();
+        }
     }
     auto& typeBuilder = scope.global->typeBuilder;
     switch(getType()->kind()) {

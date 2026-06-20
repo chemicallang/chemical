@@ -332,7 +332,7 @@ void interpret(InterpretScope& scope, WhileLoop* loop) {
 void interpret(InterpretScope& scope, std::vector<ASTNode*>& nodes, bool& stoppedInterpretOnce) {
     for (const auto &node: nodes) {
         scope.interpret(node);
-        if (stoppedInterpretOnce) {
+        if (stoppedInterpretOnce || scope.stopInterpretation) {
             stoppedInterpretOnce = false;
             return;
         }

@@ -265,6 +265,20 @@ bool Expression::primitive() {
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     if(!fEvl) return nullptr;
+    
+    // Short-circuit evaluation for logical operators
+    // For &&: if first is false, skip evaluating the second value
+    // For ||: if first is true, skip evaluating the second value
+    if (operation == Operation::LogicalAND) {
+        if (fEvl->val_kind() == ValueKind::Bool && !fEvl->get_the_bool()) {
+            return fEvl;
+        }
+    } else if (operation == Operation::LogicalOR) {
+        if (fEvl->val_kind() == ValueKind::Bool && fEvl->get_the_bool()) {
+            return fEvl;
+        }
+    }
+    
     auto sEvl = secondValue->evaluated_value(scope);
     if(!sEvl) return nullptr;
     return scope.evaluate(operation, fEvl, sEvl, encoded_location(), this);

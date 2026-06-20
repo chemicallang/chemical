@@ -206,7 +206,13 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
-        const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
+        uint64_t answer;
+        if(operation == Operation::RightShift && !first->getType()->as_intn_type_unsafe()->is_unsigned()) {
+            // Arithmetic right shift for signed types: cast to int64_t to preserve sign
+            answer = (uint64_t)((int64_t)first->get_num_value() >> second->get_num_value());
+        } else {
+            answer = operate(operation, first->get_num_value(), second->get_num_value());
+        }
         if(is_bool_output(operation)) {
             return pack_bool(scope, answer, location);
         } else {

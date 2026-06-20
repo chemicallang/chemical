@@ -268,6 +268,10 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return ptrVal->increment(scope, sEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
             case Operation::Subtraction:
                 return ptrVal->decrement(scope, sEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            case Operation::IsEqual:
+                return pack_bool(scope, (uintptr_t)ptrVal->data == sEvl->get_number().value_or(0), location);
+            case Operation::IsNotEqual:
+                return pack_bool(scope, (uintptr_t)ptrVal->data != sEvl->get_number().value_or(0), location);
             default:
                 scope.error("unknown operation performed on a pointer value", debugValue);
                 return nullptr;
@@ -279,6 +283,10 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return ptrVal->increment(scope, fEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
             case Operation::Subtraction:
                 return ptrVal->decrement(scope, fEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            case Operation::IsEqual:
+                return pack_bool(scope, (uintptr_t)ptrVal->data == fEvl->get_number().value_or(0), location);
+            case Operation::IsNotEqual:
+                return pack_bool(scope, (uintptr_t)ptrVal->data != fEvl->get_number().value_or(0), location);
             default:
                 scope.error("unknown operation performed on a pointer value", debugValue);
                 return nullptr;

@@ -4,10 +4,12 @@
 #include "PointerValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/StructValue.h"
 #include "ast/types/PointerType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/base/BaseType.h"
 #include <iostream>
 
 PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
@@ -88,6 +90,21 @@ uint64_t deref_pointer(void* data, uint64_t type_size) {
         default:
             return *((uint64_t*) data);
     }
+}
+
+Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name) {
+    auto pointeeType = getType();
+    if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
+        auto structVal = (StructValue*) data;
+        if(structVal) {
+            return structVal->child(scope, name);
+        }
+    }
+    auto dereffed = deref(scope, encoded_location(), this);
+    if(dereffed) {
+        return dereffed->child(scope, name);
+    }
+    return nullptr;
 }
 
 Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Value* debugValue) {

@@ -90,10 +90,12 @@ Value* AddrOfValue::evaluated_value(InterpretScope &scope) {
                 scope, strVal, pointeeType
             );
         }
-        case ValueKind::StructValue:
-            // Struct pointers not yet supported in comptime/interpret
-            scope.error("address of struct not supported in comptime", this);
-            return nullptr;
+        case ValueKind::StructValue: {
+            auto structVal = (StructValue*) inner;
+            return new (scope.allocate<PointerValue>()) PointerValue(
+                structVal, pointeeType, 0, byteSize, encoded_location()
+            );
+        }
         case ValueKind::PointerValue: {
             // Taking address of a pointer: create a new PointerValue pointing to the pointer's data
             auto ptrVal = (PointerValue*) inner;

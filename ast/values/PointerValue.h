@@ -81,4 +81,6 @@ public:
      */
     Value* deref(InterpretScope& scope, SourceLocation location, Value* debugValue);
 
+    Value* child(InterpretScope& scope, const chem::string_view& name) final;
+
 };

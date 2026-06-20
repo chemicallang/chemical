@@ -43,6 +43,10 @@ public:
         return value->evaluated_value(scope);
     }
 
+    Value* evaluated_value(InterpretScope &scope) override {
+        return value->evaluated_value(scope);
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

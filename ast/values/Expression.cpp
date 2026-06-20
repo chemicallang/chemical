@@ -264,7 +264,9 @@ bool Expression::primitive() {
  */
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
+    if(!fEvl) return nullptr;
     auto sEvl = secondValue->evaluated_value(scope);
+    if(!sEvl) return nullptr;
     return scope.evaluate(operation, fEvl, sEvl, encoded_location(), this);
 }
 

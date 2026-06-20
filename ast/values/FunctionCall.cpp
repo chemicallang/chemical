@@ -1488,13 +1488,38 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
         }
     }
     // Handle variant member constructor calls (e.g., VariantType.MemberName(args))
-    // The parent_val identifier is linked directly to a VariantMember
-    if(!parent && call->parent_val) {
-        auto evaluated = call->parent_val->evaluated_value(scope);
-        if(evaluated && evaluated->kind() == ValueKind::Identifier) {
-            auto id = evaluated->as_identifier_unsafe();
-            if(id->linked && id->linked->kind() == ASTNodeKind::VariantMember) {
-                auto member = id->linked->as_variant_member_unsafe();
+    {
+        chem::string_view memberName;
+        ASTNode* variantDef = nullptr;
+        if(parent && parent->kind() == ValueKind::Identifier) {
+            auto parentId = parent->as_identifier_unsafe();
+            if(parentId->linked) {
+                auto lk = parentId->linked->kind();
+                if(lk == ASTNodeKind::VariantDecl || lk == ASTNodeKind::GenericVariantDecl) {
+                    variantDef = parentId->linked;
+                    if(call->parent_val->kind() == ValueKind::AccessChain) {
+                        auto chain = call->parent_val->as_access_chain_unsafe();
+                        auto nameVal = chain->values.back();
+                        if(nameVal->kind() == ValueKind::Identifier) {
+                            memberName = nameVal->as_identifier_unsafe()->value;
+                        }
+                    }
+                }
+            }
+        } else if(!parent && call->parent_val) {
+            auto evaluated = call->parent_val->evaluated_value(scope);
+            if(evaluated && evaluated->kind() == ValueKind::Identifier) {
+                auto id = evaluated->as_identifier_unsafe();
+                if(id->linked && id->linked->kind() == ASTNodeKind::VariantMember) {
+                    variantDef = id->linked->parent();
+                    memberName = id->value;
+                }
+            }
+        }
+        if(variantDef && !memberName.empty()) {
+            auto memberNode = variantDef->child(memberName);
+            if(memberNode && memberNode->kind() == ASTNodeKind::VariantMember) {
+                auto member = memberNode->as_variant_member_unsafe();
                 auto structType = call->getType();
                 auto structVal = new (scope.allocate<StructValue>()) StructValue(structType, call->encoded_location());
                 for(auto& [paramName, param] : member->values) {

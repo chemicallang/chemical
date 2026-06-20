@@ -258,7 +258,6 @@ func test_nodes() {
        } while(j != 5);
        return j == 5;
     });
-    test_switch_statement();
     test("struct value initialization", () => {
         var p = Point {
             x : 5,

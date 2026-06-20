@@ -48,5 +48,7 @@ public func run_common_tests() {
     test_comptime_expressions();
     test_comptime_features();
     test_annotations();
+    test_switch_statement();
+    test_bodmas();
 
 }

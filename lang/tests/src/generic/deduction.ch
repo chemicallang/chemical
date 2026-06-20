@@ -76,3 +76,17 @@ func test_generic_type_deduction() {
         return take_gen_ret_long(give_gen_ret<int>(15, 15)) == 50;
     })
 }
+
+// Native-only deduction tests that use variant pattern matching (not supported in interpreter)
+func test_native_deduction_variants() {
+    test("nested generic type parameters can be deduced via variant - 1", () => {
+        const s = DeduceThingVar.Some<int>(20)
+        return deduce_thing_var(s) == 20;
+    })
+    test("nested generic type parameters can be deduced via variant - 2", () => {
+        const s = DeduceThingVar.Some<long>(40)
+        return deduce_thing_var(s) == 40;
+    })
+}
+
+

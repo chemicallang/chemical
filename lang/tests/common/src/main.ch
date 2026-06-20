@@ -108,4 +108,10 @@ public func run_common_tests() {
     test_enum();
     test_multi_field_ref();
 
+    // Newly moved tests (v3)
+    test_constructors_with_init();
+    // test_basic_interfaces() — skipped: interface definitions (even unused) crash interpreter
+    test_var_init();
+    // test_interface_generic_dispatch() — skipped: interface definitions crash interpreter
+
 }

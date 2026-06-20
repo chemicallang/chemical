@@ -21,7 +21,9 @@ func run_executable_tests() {
     test_unions();
     test_namespaces();
     test_external_functions();
-    test_enum();
+    // test_enum() moved to common (covered by run_common_tests())
+    // Native-only: address of enum works in function (crashes interpreter)
+    test_native_enum();
     test_auto_deref();
     test_zeroed_value()
 
@@ -39,7 +41,7 @@ func run_executable_tests() {
     test_references();
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();
-    test_multi_field_ref();
+    // test_multi_field_ref() moved to common (covered by run_common_tests())
     // test_basic_generics() and test_generic_type_deduction() are now
     // covered by run_common_tests() (common module version without variant
     // pattern matching). Native-only specifics are called separately:

@@ -104,5 +104,8 @@ public func run_common_tests() {
     // test_name_hiding() and test_implicit_functions() have interpreter issues
     // (RUNTIME ERROR: invalid memory access) — kept native-only
 
+    // More moved tests (no variant matching, no raw ptrs, no std deps)
+    test_enum();
+    test_multi_field_ref();
 
 }

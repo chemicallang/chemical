@@ -36,6 +36,9 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                 } else if(eval_kind == ValueKind::Double) {
                     const auto doubleVal = eval->as_double_unsafe();
                     return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(int64_t)doubleVal->value, encoded_location());
+                } else if(eval_kind == ValueKind::PointerValue) {
+                    const auto ptrVal = (PointerValue*) eval;
+                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(uintptr_t)ptrVal->data, encoded_location());
                 }
                 // TODO: cannot error out, we are returning intrinsics::wrap with a cast to integer
                 // scope.error("non integer value cannot be casted to integer type", this);

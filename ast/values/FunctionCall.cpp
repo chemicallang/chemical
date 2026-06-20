@@ -1487,6 +1487,29 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
             }
         }
     }
+    // Handle variant member constructor calls (e.g., VariantType.MemberName(args))
+    // The parent_val identifier is linked directly to a VariantMember
+    if(!parent && call->parent_val) {
+        auto evaluated = call->parent_val->evaluated_value(scope);
+        if(evaluated && evaluated->kind() == ValueKind::Identifier) {
+            auto id = evaluated->as_identifier_unsafe();
+            if(id->linked && id->linked->kind() == ASTNodeKind::VariantMember) {
+                auto member = id->linked->as_variant_member_unsafe();
+                auto structType = call->getType();
+                auto structVal = new (scope.allocate<StructValue>()) StructValue(structType, call->encoded_location());
+                for(auto& [paramName, param] : member->values) {
+                    auto idx = param->index;
+                    if(idx < call->values.size()) {
+                        auto paramVal = call->values[idx]->evaluated_value(scope);
+                        if(paramVal) {
+                            structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
+                        }
+                    }
+                }
+                return structVal;
+            }
+        }
+    }
     scope.error("(function call) calling a function that is not found or has no body", call);
     return scope.global->typeBuilder.getNullValue();
 }

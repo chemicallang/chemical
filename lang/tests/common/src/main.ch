@@ -39,4 +39,10 @@ public func run_common_tests() {
     test_for_loop();
     test_inc_dec();
 
+    // Type system tests
+    test_typealias();
+    test_is_value();
+
+
+
 }

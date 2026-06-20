@@ -70,6 +70,10 @@ bool operate(Operation op, bool first, bool second) {
             return first && second;
         case Operation::LogicalOR:
             return first || second;
+        case Operation::IsEqual:
+            return first == second;
+        case Operation::IsNotEqual:
+            return first != second;
         default:
 #ifdef DEBUG
             CHEM_THROW_RUNTIME("unknown operation between bool values");

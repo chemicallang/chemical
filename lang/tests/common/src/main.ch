@@ -42,7 +42,11 @@ public func run_common_tests() {
     // Type system tests
     test_typealias();
     test_is_value();
+    test_satisfies();
 
-
+    // Comptime tests
+    test_comptime_expressions();
+    test_comptime_features();
+    test_annotations();
 
 }

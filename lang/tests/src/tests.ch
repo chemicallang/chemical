@@ -10,7 +10,6 @@ func run_executable_tests() {
     test_var_init();
     test_lambda();
     test_structs();
-    test_enum();
     test_bodmas();
     test_nodes();
     test_if_switch_loop_value();
@@ -23,10 +22,9 @@ func run_executable_tests() {
     test_unions();
     test_namespaces();
     test_external_functions();
-    test_is_value();
+    test_enum();
     test_auto_deref();
     test_zeroed_value()
-    test_typealias();
 
     // -------------------------------------------
     // Extended Syntax

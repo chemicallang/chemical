@@ -188,7 +188,9 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                         std::memset(mem, 0, totalSize); // zero-initialize
                         // Copy initialized values into contiguous memory
                         for (size_t i = 0; i < values.size(); i++) {
-                            const auto num = values[i]->get_number();
+                            // Evaluate the value first (handles CastedValue which doesn't implement get_number)
+                            auto evaluatedVal = values[i]->evaluated_value(scope);
+                            const auto num = evaluatedVal ? evaluatedVal->get_number() : std::nullopt;
                             if (num.has_value()) {
                                 std::memcpy(mem + i * byteSize, &num.value(), byteSize);
                             }

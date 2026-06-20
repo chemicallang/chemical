@@ -166,6 +166,15 @@ public:
     bool should_destruct_values = true;
 
     /**
+     * When a return statement is interpreted inside this scope,
+     * this flag is set to stop further interpretation of sibling
+     * nodes in all parent scopes up to the function scope.
+     * Prevents non-loop scopes (like if-blocks) from continuing
+     * after a return has been processed.
+     */
+    bool stopInterpretation = false;
+
+    /**
      * Iterates over all values in this scope and calls destructors
      * for struct values that have destructor functions defined.
      * The returnValue is skipped (it has been moved to the caller).

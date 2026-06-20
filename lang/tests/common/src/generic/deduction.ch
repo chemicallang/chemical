@@ -1,4 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
+//
+// Generic type deduction tests — moved from lang/tests/src/generic/deduction.ch
+// These work in all backends (JVM + interpret + native).
 
 func <T> deduce_gen_sum(a : T, b : T) : T {
     return a + b;
@@ -59,16 +62,9 @@ func test_generic_type_deduction() {
         }
         return deduce_thing(s) == 40;
     })
-    test("nested generic type parameters can be deduced in function call - 1", () => {
-        const s = DeduceThingVar.Some<int>(20)
-        return deduce_thing_var(s) == 20;
-    })
-    test("nested generic type parameters can be deduced in function call - 2", () => {
-        const s = DeduceThingVar.Some<long>(40)
-        return deduce_thing_var(s) == 40;
-    })
-    // TODO these types weren't being inferred, however we are unsure if we should
-    //    infer the type from return statement
+    // NOTE: "nested generic type parameters can be deduced in function call - 3/4"
+    // use variant pattern matching (DeduceThingVar with Some/None) which is
+    // not supported by the interpreter — kept in native only
     test("generic return type can be deduced when in function call - 1", () => {
         return take_gen_ret(give_gen_ret<int>(16, 16)) == 42;
     })
@@ -76,17 +72,3 @@ func test_generic_type_deduction() {
         return take_gen_ret_long(give_gen_ret<int>(15, 15)) == 50;
     })
 }
-
-// Native-only deduction tests that use variant pattern matching (not supported in interpreter)
-func test_native_deduction_variants() {
-    test("nested generic type parameters can be deduced via variant - 1", () => {
-        const s = DeduceThingVar.Some<int>(20)
-        return deduce_thing_var(s) == 20;
-    })
-    test("nested generic type parameters can be deduced via variant - 2", () => {
-        const s = DeduceThingVar.Some<long>(40)
-        return deduce_thing_var(s) == 40;
-    })
-}
-
-

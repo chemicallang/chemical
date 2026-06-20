@@ -51,4 +51,51 @@ public func run_common_tests() {
     test_switch_statement();
     test_bodmas();
 
+    // First 10 (confirmed working)
+    test("basic generic function with no generic args works", () => {
+        return gen_sum(10, 20) == 30;
+    })
+    test("basic generic function with generic args works", () => {
+        return gen_sum<long, long, long>(20, 20) == 40;
+    })
+    test("generic functions can be called inside other calls", () => {
+        return is_this_60(gen_sum<long, long, long>(30, 30));
+    })
+    test("generic functions result can be saved into variables", () => {
+        var i = gen_sum<long, long, long>(30, 40);
+        return i == 70;
+    })
+    test("generic struct works - 1", () => {
+        var p = PairGen <int, int, int> { a : 10, b : 12 }
+        return p.add() == 22;
+    })
+    test("generic struct works - 2", () => {
+        var p = PairGen <long, long, long> { a : 20, b : 15 }
+        return p.add() == 35
+    })
+    test("generic struct can be passed as function arg", () => {
+        return mul_int_pair(PairGen <int, int, int> {
+            a : 2,
+            b : 9
+        }) == 18
+    })
+    test("generic structs can be returned - 1", () => {
+        const p = create_pair_gen();
+        return p.add() == 25;
+    })
+    test("generic structs can be returned - 2", () => {
+        const p = create_pair_gen_long();
+        return p.add() == 26;
+    })
+    test("extension functions work on generic nodes", () => {
+        var p = PairGen<short, short, short> {
+            a : 56,
+            b : 7
+        }
+        return p.ext_div<short, short, short>() == 8;
+    })
+    // Generic tests (no pointers, no std deps, no native calls)
+    test_basic_generics();
+    test_generic_type_deduction();
+
 }

@@ -40,8 +40,11 @@ func run_executable_tests() {
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();
     test_multi_field_ref();
-    test_basic_generics();
-    test_generic_type_deduction();
+    // test_basic_generics() and test_generic_type_deduction() are now
+    // covered by run_common_tests() (common module version without variant
+    // pattern matching). Native-only specifics are called separately:
+    test_native_generic_specifics();
+    test_native_deduction_variants();
     test_dynamic_dispatch();
     test_variants();
     test_imported_modules();

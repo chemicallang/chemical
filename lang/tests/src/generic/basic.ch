@@ -714,3 +714,57 @@ func test_basic_generics() {
         return s.give() == 9474
     })
 }
+
+// Native-only generic tests that can't run in interpret mode:
+// - @direct_init structs (ShortPairGen)
+// - variant pattern matching
+// - raw pointer operations
+// - external module dependencies
+func test_native_generic_specifics() {
+    test("generic struct can be stored in another struct - 1", () => {
+        var p = ShortPairGen()
+        return p.add() == 43;
+    })
+    test("generic struct can be stored in another struct - 2", () => {
+        var p = ShortPairGen {
+            pair : PairGen<short, short, short> {
+                a : 20,
+                b : 41
+            }
+        }
+        return p.add() == 61 && p.pair.add() == 61;
+    })
+    test("generic variants declared and used from other files work - 1", () => {
+        const g = get_other_var1(10, true);
+        return get_other_var1_value(g) == 10;
+    })
+    test("generic variants declared and used from other files work - 2", () => {
+        const g = get_other_var1(10, false);
+        return get_other_var1_value(g) == -1;
+    })
+    test("generic variants declared and used from other files work - 3", () => {
+        const g = get_other_var1_point(10, true);
+        return get_other_var1_point_value(g) == 30;
+    })
+    test("generic variants declared and used from other files work - 4", () => {
+        const g = get_other_var1_point(10, false);
+        return get_other_var1_point_value(g) == -1;
+    })
+    test("generic methods can call other generic methods which return structs", () => {
+        var giver = GenFuncProvider<GenAddTestStruct> {
+            value : GenAddTestStruct { a : 9234, b : 347 }
+        }
+        var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &raw mut giver }
+        var provided = provider.get_value()
+        return provided.a == 9234 && provided.b == 347
+    })
+    test("public generic can use protected generic declarations and instantiate it", () => {
+        var v = GenPublicUseNonPublic<int> {}
+        return v.give() == 83334
+    })
+    test("monomorphization of a struct present in a module that is not directly inherited works", () => {
+        var s = ExposedGenSecond<int> { value : 9473 }
+        return s.give() == 9474
+    })
+}
+

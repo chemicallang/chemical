@@ -239,16 +239,60 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
     return nullptr;
 }
 
+/**
+ * Helper: declare variant case variables from the matched variant case
+ * into the given interpret scope. Returns the number of variables declared.
+ */
+static unsigned declare_variant_case_vars(
+    InterpretScope& scope,
+    SwitchStatement* stmt,
+    Scope* body,
+    Value* cond
+) {
+    if(!cond || cond->val_kind() != ValueKind::StructValue) return 0;
+    auto condStruct = cond->as_struct_value_unsafe();
+    const auto variantDef = stmt->getVarDefFromExpr();
+    if(!variantDef) return 0;
+    unsigned count = 0;
+    for(auto& casePair : stmt->cases) {
+        if(casePair.first && casePair.first->val_kind() == ValueKind::VariantCase) {
+            if(&stmt->scopes[casePair.second] == body) {
+                auto varCase = casePair.first->as_variant_case_unsafe();
+                for(auto& caseVar : varCase->identifier_list) {
+                    auto found = condStruct->values.find(caseVar->name);
+                    if(found != condStruct->values.end() && found->second.value) {
+                        scope.declare(caseVar->name, found->second.value);
+                        count++;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return count;
+}
+
 void interpret(InterpretScope& scope, SwitchStatement* stmt) {
     const auto body = eval_switch_stmt_block(scope, stmt);
     if(body) {
-        scope.interpret(body);
+        // Use a child scope for variant switch cases to keep variable declarations clean
+        InterpretScope child(&scope, scope.allocator, scope.global);
+        if(!scope.global->variant_member_index_map.empty()) {
+            const auto cond = stmt->expression->evaluated_value(scope);
+            declare_variant_case_vars(child, stmt, body, cond);
+        }
+        child.interpret(body);
     }
 }
 
 Value* evaluated_value(InterpretScope &scope, SwitchStatement* stmt) {
     const auto body = eval_switch_stmt_block(scope, stmt);
     if(body) {
+        // For variant switches, need to declare case variables before evaluating
+        if(!scope.global->variant_member_index_map.empty()) {
+            const auto cond = stmt->expression->evaluated_value(scope);
+            declare_variant_case_vars(scope, stmt, body, cond);
+        }
         return evaluate(scope, body);
     }
     return scope.getNullValue();

@@ -1051,6 +1051,20 @@ Value *FunctionDeclaration::call(
         Value* param_val;
         const auto arg = call_args[i];
         param_val = arg->scope_value(*call_scope);
+        // Check if this argument needs implicit constructor conversion
+        if(param && param->type && param_val) {
+            auto imp_cons = param->type->implicit_constructor_for(param_val);
+            if(imp_cons && imp_cons != this) {
+                InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
+                std::vector<Value*> imp_args = { param_val->evaluated_value(*call_scope) };
+                Value* newVal = imp_cons->call(
+                    call_scope, imp_args, (Value*)nullptr, &imp_scope, true, debug_value
+                );
+                if(newVal) {
+                    param_val = newVal;
+                }
+            }
+        }
         fn_scope->declare(param->name, param_val);
         i++;
     }
@@ -1121,7 +1135,35 @@ Value *FunctionDeclaration::call(
                 static_cast<VariablesContainerBase*>(structDef),
                 encoded_location()
             );
+            // Step 1: Initialize inherited structs by calling their default constructors
+            for(auto& inherited : structDef->inherited) {
+                const auto node = inherited.type->get_direct_linked_canonical_node();
+                if(node && node->kind() == ASTNodeKind::StructDecl) {
+                    const auto parentDef = node->as_struct_def_unsafe();
+                    const auto parentCons = parentDef->default_constructor_func();
+                    if(parentCons) {
+                        InterpretScope nested_scope(fn_scope->global, fn_scope->allocator, fn_scope->global);
+                        std::vector<Value*> nested_call_args;
+                        Value* parentVal = parentCons->call(
+                            call_scope, nested_call_args, (Value*) nullptr, &nested_scope, true, (Value*) nullptr
+                        );
+                        if(parentVal && parentVal->kind() == ValueKind::StructValue) {
+                            auto parentStructVal = parentVal->as_struct_value_unsafe();
+                            for(auto& [pname, pmember] : parentStructVal->values) {
+                                if(structVal->values.find(pname) == structVal->values.end()) {
+                                    structVal->values.emplace(pname, pmember);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Step 2: Initialize member variables (default values + struct default constructors)
             for(const auto var : structDef->variables()) {
+                // Skip inherited members that were already initialized above
+                if(structVal->values.find(var->name) != structVal->values.end()) {
+                    continue;
+                }
                 const auto defVal = var->default_value();
                 if(defVal) {
                     auto val = defVal->scope_value(*fn_scope);
@@ -1150,6 +1192,20 @@ Value *FunctionDeclaration::call(
                 }
             }
             fn_scope->returnValue = structVal;
+        }
+    }
+    // Step 3: If the return value needs implicit constructor conversion, call the implicit constructor
+    if(fn_scope->returnValue && returnType) {
+        auto imp_cons = returnType->implicit_constructor_for(fn_scope->returnValue);
+        if(imp_cons && imp_cons != this) {
+            InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
+            std::vector<Value*> imp_args = { fn_scope->returnValue };
+            Value* newVal = imp_cons->call(
+                call_scope, imp_args, (Value*) nullptr, &imp_scope, true, debug_value
+            );
+            if(newVal) {
+                fn_scope->returnValue = newVal;
+            }
         }
     }
     return fn_scope->returnValue;

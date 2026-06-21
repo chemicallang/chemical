@@ -904,7 +904,7 @@ FunctionCall* get_runtime_call(GlobalInterpretScope* global) {
         return nullptr;
     } else {
         // first comptime function call
-        return global->call_stack.front();
+        return global->call_stack.back();
     }
 }
 

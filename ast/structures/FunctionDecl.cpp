@@ -19,6 +19,8 @@
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/StructValue.h"
+#include "ast/structures/StructMember.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/VariantDefinition.h"
@@ -1054,6 +1056,48 @@ Value *FunctionDeclaration::call(
         return nullptr;
     }
     fn_scope->interpret(&body.value());
+    if(!fn_scope->returnValue && is_constructor_fn() && is_generated_fn()) {
+        const auto linkedNode = returnType->linked_node();
+        if(linkedNode && linkedNode->kind() == ASTNodeKind::StructDecl) {
+            auto structDef = static_cast<StructDefinition*>(linkedNode);
+            auto retType = returnType.copy(fn_scope->allocator);
+            auto structVal = new (fn_scope->allocate<StructValue>()) StructValue(
+                retType,
+                structDef,
+                static_cast<VariablesContainerBase*>(structDef),
+                encoded_location()
+            );
+            for(const auto var : structDef->variables()) {
+                const auto defVal = var->default_value();
+                if(defVal) {
+                    auto val = defVal->scope_value(*fn_scope);
+                    const StructMemberInitializer init(var->name, val);
+                    structVal->values.emplace(var->name, init);
+                } else if(var->kind() == ASTNodeKind::StructMember) {
+                    const auto member = static_cast<StructMember*>(var);
+                    const auto kt = member->known_type();
+                    if(kt) {
+                        const auto linked = kt->get_direct_linked_canonical_node();
+                        if(linked && linked->kind() == ASTNodeKind::StructDecl) {
+                            const auto defCons = linked->as_struct_def_unsafe()->default_constructor_func();
+                            if(defCons) {
+                                InterpretScope nested_scope(fn_scope->global, fn_scope->allocator, fn_scope->global);
+                                std::vector<Value*> nested_call_args;
+                                Value* nestedVal = defCons->call(
+                                    call_scope, nested_call_args, (Value*) nullptr, &nested_scope, true, (Value*) nullptr
+                                );
+                                if(nestedVal) {
+                                    const StructMemberInitializer memberInit(var->name, nestedVal);
+                                    structVal->values.emplace(var->name, memberInit);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            fn_scope->returnValue = structVal;
+        }
+    }
     return fn_scope->returnValue;
 }
 

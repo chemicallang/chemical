@@ -699,7 +699,8 @@ public:
      * just a helper method, to evaluate a value as a boolean
      */
     inline bool evaluated_bool(InterpretScope& scope) {
-        return evaluated_value(scope)->get_the_bool();
+        auto val = evaluated_value(scope);
+        return val && val->get_the_bool();
     }
 
     /**

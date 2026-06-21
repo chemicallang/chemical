@@ -27,4 +27,24 @@ public:
     Value* evaluated_value(InterpretScope &scope) final {
         return underlying;
     }
+
+    Value* child(InterpretScope& scope, const chem::string_view& name) final {
+        const auto eval = underlying->evaluated_value(scope);
+        return eval ? eval->child(scope, name) : nullptr;
+    }
+
+    Value* call_member(InterpretScope& scope, const chem::string_view& name, std::vector<Value*>& values) final {
+        const auto eval = underlying->evaluated_value(scope);
+        return eval ? eval->call_member(scope, name, values) : nullptr;
+    }
+
+    Value* index(InterpretScope& scope, int i) final {
+        const auto eval = underlying->evaluated_value(scope);
+        return eval ? eval->index(scope, i) : nullptr;
+    }
+
+    Value* find_in(InterpretScope& scope, Value* parent) final {
+        const auto eval = underlying->evaluated_value(scope);
+        return eval ? eval->find_in(scope, parent) : nullptr;
+    }
 };

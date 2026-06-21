@@ -120,4 +120,14 @@ public func run_common_tests() {
     test_implicit_functions();
     test_name_hiding();
 
+
+
+    // EXTENDED SYNTAX
+
+    test_destructors();
+    test_continue_destruction()
+    test_break_destruction()
+    test_self_ref_destruct()
+    test_call_destruction()
+
 }

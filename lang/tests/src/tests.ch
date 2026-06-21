@@ -32,12 +32,8 @@ func run_executable_tests() {
     // Extended Syntax
     // this syntax is mostly present in languages like C++ and Rust
     // -------------------------------------------
-    test_destructors();
-    test_continue_destruction()
-    test_break_destruction()
     test_temp_view_lifetime()
-    test_self_ref_destruct()
-    test_call_destruction()
+
     test_references();
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();

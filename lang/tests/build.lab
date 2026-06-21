@@ -314,6 +314,7 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         const interp_mod = ctx.directory_app_module(std::string_view(""), std::string_view("interpret_tests"), std::string_view(&interp_path), interp_deps);
         const interp_job = ctx.build_interpretation(&interp_name);
         ctx.add_module(interp_job, interp_mod);
+        ctx.define(interp_job, &definition);
         return interp_job;
     }
 

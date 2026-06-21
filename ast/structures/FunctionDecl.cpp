@@ -1014,7 +1014,11 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         while(target->parent != nullptr && target->parent != func_scope.global) {
             target = target->parent;
         }
-        target->returnValue = value->evaluated_value(*target);
+        // Evaluate the return value expression in the current scope (func_scope),
+        // not in the function-level scope (*target). Variables like variant case
+        // variables are declared in nested scopes inside the function body and
+        // would not be found when evaluating from the function-level scope.
+        target->returnValue = value->evaluated_value(func_scope);
     }
     body->stopInterpretOnce();
     // Propagate the stop signal up the InterpretScope chain so that

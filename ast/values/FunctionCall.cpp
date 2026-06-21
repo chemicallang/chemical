@@ -1573,11 +1573,25 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                 }
                 for(auto& [paramName, param] : member->values) {
                     auto idx = param->index;
+                    Value* paramVal = nullptr;
                     if(idx < call->values.size()) {
-                        auto paramVal = call->values[idx]->evaluated_value(scope);
-                        if(paramVal) {
-                            structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
+                        paramVal = call->values[idx]->evaluated_value(scope);
+                    } else if(param->def_value) {
+                        // Use default value when no argument is provided
+                        paramVal = param->def_value->evaluated_value(scope);
+                    }
+                    if(paramVal) {
+                        // Apply implicit constructor conversion if needed
+                        auto paramType = param->type->canonical();
+                        auto implicit_constructor = paramType->implicit_constructor_for(paramVal);
+                        if(implicit_constructor) {
+                            InterpretScope imp_scope(scope.global, scope.allocator, scope.global);
+                            std::vector<Value*> imp_args = { paramVal };
+                            paramVal = implicit_constructor->call(
+                                &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
+                            );
                         }
+                        structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
                     }
                 }
                 return structVal;

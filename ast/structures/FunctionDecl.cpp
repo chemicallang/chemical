@@ -982,6 +982,21 @@ Value *FunctionDeclaration::call(
     global->current_func_type = this;
     global->call_stack.emplace_back(call_obj);
     InterpretScope fn_scope(global, func_allocator, global);
+    // Propagate implicit args from the lexical scope chain into this function scope.
+    // When a provide block stores implicit args in a scope, inner function calls create
+    // new scopes with parent=global — they won't find the provide's scope via parent chain.
+    // By copying args here, inner nested calls can find them through call_scope->implicit_args.
+    {
+        InterpretScope* propagate = call_scope;
+        while(propagate) {
+            for(auto& [name, val] : propagate->implicit_args) {
+                if(fn_scope.implicit_args.find(name) == fn_scope.implicit_args.end()) {
+                    fn_scope.implicit_args[name] = val;
+                }
+            }
+            propagate = propagate->parent;
+        }
+    }
     const auto value = call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
     global->call_stack.pop_back();
     global->current_func_type = prev_func;
@@ -1050,6 +1065,45 @@ Value *FunctionDeclaration::call(
             }
         }
         i++;
+    }
+    // Handle implicit parameters (those before explicit params in the params list).
+    // These are NOT reachable via func_param_for_arg_at() because it uses
+    // explicit_func_arg_offset() = total_implicit_params(), which skips them.
+    // Instead, iterate params directly to find undeclared implicit params.
+    for(const auto& param : params) {
+        if(!param->is_implicit()) break;
+        if(param->name == "self") continue; // handled above
+        // Skip if already declared (e.g. from call_args for mixed implicit+explicit)
+        if(fn_scope->values.find(param->name) != fn_scope->values.end()) {
+            continue;
+        }
+        // Look up implicit args: first check the lexical scope chain (call_scope),
+        // then fall back to fn_scope which has args propagated from the outer call().
+        // This handles nested function calls where the provide block's scope is not
+        // in the parent chain of the nested function's call_scope.
+        Value* implicit_val = nullptr;
+        InterpretScope* lookup_scope = call_scope;
+        while(lookup_scope) {
+            auto found = lookup_scope->implicit_args.find(param->name);
+            if(found != lookup_scope->implicit_args.end()) {
+                implicit_val = found->second;
+                break;
+            }
+            lookup_scope = lookup_scope->parent;
+        }
+        if(!implicit_val && fn_scope) {
+            auto found = fn_scope->implicit_args.find(param->name);
+            if(found != fn_scope->implicit_args.end()) {
+                implicit_val = found->second;
+            }
+        }
+        if(implicit_val) {
+            fn_scope->declare(param->name, implicit_val);
+        } else if(param->defValue) {
+            fn_scope->declare(param->name, param->defValue->scope_value(*call_scope));
+        } else if(!isInVarArgs(param->index)) {
+            call_scope->error("couldn't find implicit argument '" + param->name.str() + "' in current scope", debug_value);
+        }
     }
     if(!body.has_value()) {
         call_scope->error("cannot call a function with no body at comptime", debug_value);

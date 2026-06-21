@@ -160,6 +160,13 @@ public:
     Value* returnValue = nullptr;
 
     /**
+     * Implicit arguments map — populated by `provide` statements.
+     * When a function with implicit parameters is called, the interpreter
+     * looks up the parameter name in this map from the caller's scope.
+     */
+    std::unordered_map<chem::string_view, Value*> implicit_args;
+
+    /**
      * When set to false (e.g. global scope), values in this scope
      * are NOT destructed when the scope ends.
      */

@@ -32,7 +32,8 @@
 #include "ast/values/StructValue.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
-
+#include "ast/statements/ProvideStmt.h"
+#include "ast/structures/LoopBlock.h"
 
 
 void stop_interpretation_above(ASTNode* node) {
@@ -336,6 +337,31 @@ inline void interpret(InterpretScope& scope, PlacementNewNode* node) {
     node->value.evaluated_value(scope);
 }
 
+void interpret(InterpretScope& scope, LoopBlock* loop) {
+    InterpretScope child(&scope, scope.allocator, scope.global);
+    while (true) {
+        child.interpret(&loop->body);
+        if (loop->stoppedInterpretation) {
+            loop->stoppedInterpretation = false;
+            break;
+        }
+    }
+}
+
+void interpret(InterpretScope& scope, ProvideStmt* stmt) {
+    // Evaluate the provide value
+    auto val = stmt->value->evaluated_value(scope);
+    if(val) {
+        // Store the implicit arg in the current scope's map.
+        // The provide body is interpreted in-place (same scope, no new scope),
+        // so the implicit arg is available for any function called within.
+        scope.implicit_args[stmt->identifier] = val;
+    }
+    scope.interpret(&stmt->body);
+    // Clean up
+    scope.implicit_args.erase(stmt->identifier);
+}
+
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
@@ -506,6 +532,12 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::WhileLoopStmt:
             ::interpret(*this, node->as_while_loop_unsafe());
+            break;
+        case ASTNodeKind::LoopBlock:
+            ::interpret(*this, node->as_loop_block_unsafe());
+            break;
+        case ASTNodeKind::ProvideStmt:
+            ::interpret(*this, node->as_provide_stmt_unsafe());
             break;
         case ASTNodeKind::Scope:
             ::interpret(*this, node->as_scope_unsafe());

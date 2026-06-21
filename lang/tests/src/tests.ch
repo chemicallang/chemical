@@ -17,9 +17,6 @@ func run_executable_tests() {
     test_arrays();
     test_char_ptr_strings();
     test_strings();
-    test_functions();
-    test_name_hiding()
-    test_implicit_functions();
     test_unions();
     test_namespaces();
     test_external_functions();
@@ -60,7 +57,6 @@ func run_executable_tests() {
     test_moves();
     test_generic_moves();
     test_new();
-    test_extension_functions();
     test_static_interfaces();
     test_interface_generic_dispatch();
     test_for_in()
@@ -77,8 +73,7 @@ func run_executable_tests() {
     // --------------------------------------
     test_macros();
     test_failing_code();
-    test_comptime();
-    test_compiler_vector();
+    test_comptime_intrinsics()
 
     // --------------------------------------
     // Language Helpers
@@ -95,7 +90,6 @@ func run_executable_tests() {
     test_variant_pattern_matching();
     test_optional_type();
     test_result_type();
-    test_constructors();
     test_unordered_map();
     test_deque();
     test_conversions();

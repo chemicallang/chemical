@@ -101,8 +101,6 @@ public func run_common_tests() {
     // Language feature tests moved from native (no variant matching, no raw pointers, no std deps)
     test_unicode();
     test_lambda();
-    // test_name_hiding() and test_implicit_functions() have interpreter issues
-    // (RUNTIME ERROR: invalid memory access) — kept native-only
 
     // More moved tests (no variant matching, no raw ptrs, no std deps)
     test_enum();
@@ -113,5 +111,13 @@ public func run_common_tests() {
     // test_basic_interfaces() — skipped: interface definitions (even unused) crash interpreter
     test_var_init();
     // test_interface_generic_dispatch() — skipped: interface definitions crash interpreter
+
+    test_comptime();
+    test_compiler_vector();
+    test_constructors();
+    test_extension_functions();
+    test_functions();
+    test_implicit_functions();
+    test_name_hiding();
 
 }

@@ -664,14 +664,32 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
 }
 
 Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) {
+    // Check direct values
     auto value = values.find(name);
-    if (value == values.end()) {
+    if (value != values.end()) {
+        return value->second.value;
+    }
+    // Check member functions
+    if(definition) {
         auto func = definition->member(name);
         if(func) {
             return this;
-        } else {
-            return nullptr;
+        }
+        // Check inherited struct values (flattened in the interpreter)
+        for(auto& inh : definition->inherited) {
+            const auto linked = inh.type->get_direct_linked_canonical_node();
+            if(linked && linked->kind() == ASTNodeKind::StructDecl) {
+                auto inhDecl = linked->as_struct_def_unsafe();
+                auto found = values.find(inhDecl->name_view());
+                if(found != values.end() && found->second.value) {
+                    // Recursively search the inherited struct's values
+                    auto childVal = found->second.value->child(scope, name);
+                    if(childVal) {
+                        return childVal;
+                    }
+                }
+            }
         }
     }
-    return value->second.value;
+    return nullptr;
 }

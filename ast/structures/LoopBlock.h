@@ -17,6 +17,7 @@ class LoopBlock : public LoopASTNode {
 public:
 
     Value* first_broken = nullptr;
+    bool stoppedInterpretation = false;
 
     /**
      * constructor
@@ -39,6 +40,10 @@ public:
         const auto blk = new (allocator.allocate<LoopBlock>()) LoopBlock(parent(), encoded_location());
         copy_into(allocator, blk);
         return blk;
+    }
+
+    void stopInterpretation() final {
+        stoppedInterpretation = true;
     }
 
     Value* get_first_broken();

@@ -1301,6 +1301,14 @@ public:
     }
 
     /**
+     * return as provide statement
+     */
+    inline ProvideStmt* as_provide_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::ProvideStmt);
+        return (ProvideStmt*) this;
+    }
+
+    /**
      * return as export statement
      */
     inline ExportStmt* as_export_stmt_unsafe() {

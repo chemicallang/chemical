@@ -1494,26 +1494,33 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
         return func->call(&scope, scope.allocator, call, parent);
     }
     // For direct function calls (parent is nullptr from get_parent_from(Identifier)),
-    // try evaluating the parent_val in scope to find lambda values
+    // try evaluating the parent_val in scope to find lambda values or function pointers
     if(!parent && call->parent_val) {
         auto evaluated = call->parent_val->evaluated_value(scope);
         if(!evaluated) {
             scope.error("(function call) evaluated value is null", call);
             return scope.global->typeBuilder.getNullValue();
         }
-        if(evaluated->kind() == ValueKind::LambdaFunc) {
-            auto lambda = static_cast<LambdaFunction*>(evaluated);
-            return lambda->call(&scope, scope.allocator, parent, call->values);
-        }
-        // Handle function references passed as parameters (e.g., function pointers)
-        // The evaluated value may be an Identifier linking to a FunctionDeclaration
-        if(evaluated->kind() == ValueKind::Identifier) {
-            auto id = evaluated->as_identifier_unsafe();
-            if(id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
-                auto func_decl = id->linked->as_function_unsafe();
-                if(func_decl) {
-                    return func_decl->call(&scope, scope.allocator, call, parent);
+        // Use the general evaluator that handles LambdaFunc, Identifier, AccessChain,
+        // and any other callable value (e.g. function pointers from get_child_fn)
+        return interpret_value_with_evaluated_parent(call, scope, evaluated);
+    }
+    // When parent is a struct value, look up the member being called and dispatch
+    if(parent) {
+        chem::string_view memberName;
+        if(call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
+            auto chain = call->parent_val->as_access_chain_unsafe();
+            if(!chain->values.empty()) {
+                auto lastVal = chain->values.back();
+                if(lastVal->val_kind() == ValueKind::Identifier) {
+                    memberName = lastVal->as_identifier_unsafe()->value;
                 }
+            }
+        }
+        if(!memberName.empty()) {
+            auto memberVal = parent->child(scope, memberName);
+            if(memberVal) {
+                return interpret_value_with_evaluated_parent(call, scope, memberVal);
             }
         }
     }

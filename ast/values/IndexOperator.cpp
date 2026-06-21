@@ -149,7 +149,16 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
         }
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
-            // Try to read from contiguousData first (handles uninitialized arrays)
+            // Prefer the stored values vector — it contains evaluated AST results
+            // (e.g. FunctionCall that returns a struct). Only fall back to contiguousData
+            // for uninitialized arrays with primitive element types.
+            if (index.value() < arr->values.size()) {
+                auto evalVal = arr->values[index.value()]->evaluated_value(scope);
+                if(evalVal) {
+                    return evalVal->copy(scope.allocator);
+                }
+            }
+            // Fallback: read from contiguousData (handles uninitialized primitive arrays)
             if (arr->contiguousData) {
                 const auto elemSize = arr->getType()->elem_type->byte_size(scope.global->target_data);
                 if (elemSize > 0 && elemSize <= 8) {
@@ -160,10 +169,6 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
                         return new (scope.allocate<IntNumValue>()) IntNumValue(val, scope.global->typeBuilder.getIntNType((unsigned int)(elemSize * 8), true), location);
                     }
                 }
-            }
-            // Fallback: read from values vector
-            if (index.value() < arr->values.size()) {
-                return arr->values[index.value()]->copy(scope.allocator);
             }
             // Out of bounds or uninitialized: return zero
             return new (scope.allocate<IntNumValue>()) IntNumValue(0, scope.global->typeBuilder.getIntNType(32, true), location);

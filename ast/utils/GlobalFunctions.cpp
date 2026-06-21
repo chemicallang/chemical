@@ -904,7 +904,7 @@ public:
 
     explicit InterpretGetCallerLineNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             "get_caller_line_no",
-            {cache.getUIntType(), ZERO_LOC},
+            {cache.getU64Type(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,

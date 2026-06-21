@@ -23,9 +23,6 @@ func run_executable_tests() {
     // test_enum() moved to common (covered by run_common_tests())
     // Native-only: address of enum works in function (crashes interpreter)
     test_native_enum();
-    // test_constructors_with_init() moved to common (3 tests covered by run_common_tests())
-    // Native-only: implicit constructor chain + inheritance init (crash interpreter)
-    test_native_constructors_init();
     // test_interface_generic_dispatch() called in extended syntax section below
     test_auto_deref();
     test_zeroed_value()

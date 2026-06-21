@@ -91,23 +91,23 @@ func test_constructors_with_init() {
         return c.d.a == 98 && c.d.b == 87
     })
 
-    // InitBlockManualDefConsCall3 (inherited, no @make) — crashes interpreter
-    // test("default manual constructor call in init block works - 3", () => {
-    //     var c = InitBlockManualDefConsCall3()
-    //     return c.a == 98 && c.b == 87
-    // })
+    test("default auto constructor call in init block works", () => {
+        var c = InitBlockAutoDefConsCall()
+        return c.d.a == 98 && c.d.b == 87
+    })
 
-    // InitBlockAutoDefConsCall — skipped: implicit constructor chain crashes interpreter
-    // InitBlockManualDefConsCall3,6,7 — inheritance init crashes interpreter
-    
-    // test("default manual constructor call in init block works - 6", () => {
-    //     var c = InitBlockManualDefConsCall6()
-    //     return c.a == 98 && c.b == 87
-    // })
-
-    // test("default manual constructor call in init block works - 7", () => {
-    //     var c = InitBlockManualDefConsCall7()
-    //     return c.a == 98 && c.b == 87
-    // })
+    // Native-only: inheritance init crashes interpreter
+    test("default manual constructor call in init block works - 3", () => {
+        var c = InitBlockManualDefConsCall3()
+        return c.a == 98 && c.b == 87
+    })
+    test("default manual constructor call in init block works - 6", () => {
+        var c = InitBlockManualDefConsCall6()
+        return c.a == 98 && c.b == 87
+    })
+    test("default manual constructor call in init block works - 7", () => {
+        var c = InitBlockManualDefConsCall7()
+        return c.a == 98 && c.b == 87
+    })
 
 }

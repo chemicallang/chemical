@@ -1458,6 +1458,36 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     }
 }
 
+/**
+ * Handles a function call where the callable has already been evaluated from the
+ * parent_val (e.g. when parent_val is itself a FunctionCall that returns a function
+ * pointer, an AccessChain to a function, or a LambdaFunction). The 'parent' argument
+ * is the already-evaluated callable value.
+ */
+Value* interpret_value_with_evaluated_parent(FunctionCall* call, InterpretScope &scope, Value* evaluated) {
+    if(!evaluated) {
+        scope.error("(function call) evaluated callable is null", call);
+        return scope.global->typeBuilder.getNullValue();
+    }
+    // Lambda functions are directly callable
+    if(evaluated->kind() == ValueKind::LambdaFunc) {
+        auto lambda = static_cast<LambdaFunction*>(evaluated);
+        return lambda->call(&scope, scope.allocator, (Value*) nullptr, call->values);
+    }
+    // An AccessChain/Identifier that links to a FunctionDeclaration — call it directly.
+    // This is the case for results of intrinsics::get_child_fn<T>("name") which return
+    // an AccessChain whose final Identifier is linked to the target FunctionDeclaration.
+    ASTNode* linked = evaluated->linked_node();
+    if(linked && linked->kind() == ASTNodeKind::FunctionDecl) {
+        auto func_decl = linked->as_function_unsafe();
+        if(func_decl) {
+            return func_decl->call(&scope, scope.allocator, call, nullptr);
+        }
+    }
+    scope.error("(function call) calling a function that is not found or has no body", call);
+    return scope.global->typeBuilder.getNullValue();
+}
+
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if (func) {
@@ -1520,8 +1550,20 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
             auto memberNode = variantDef->child(memberName);
             if(memberNode && memberNode->kind() == ASTNodeKind::VariantMember) {
                 auto member = memberNode->as_variant_member_unsafe();
-                auto structType = call->getType();
-                auto structVal = new (scope.allocate<StructValue>()) StructValue(structType, call->encoded_location());
+                auto structType = call->getType();                    auto structVal = new (scope.allocate<StructValue>()) StructValue(structType, call->encoded_location());
+                // Store the variant member index in the global interpret scope map
+                // (not on the StructValue itself, to avoid storing interpretation state in AST nodes)
+                // variantDef is ASTNode* and could be VariantDecl or GenericVariantDecl;
+                // get the proper VariantDefinition* for direct_child_index
+                int64_t memberIndex = -1;
+                if(variantDef->kind() == ASTNodeKind::VariantDecl) {
+                    memberIndex = variantDef->as_variant_def_unsafe()->direct_child_index(member->name);
+                } else if(variantDef->kind() == ASTNodeKind::GenericVariantDecl) {
+                    memberIndex = variantDef->as_gen_variant_decl_unsafe()->master_impl->direct_child_index(member->name);
+                }
+                if(memberIndex >= 0) {
+                    scope.global->variant_member_index_map[structVal] = memberIndex;
+                }
                 for(auto& [paramName, param] : member->values) {
                     auto idx = param->index;
                     if(idx < call->values.size()) {
@@ -1540,6 +1582,14 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
 }
 
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {
+    // When the parent_val is itself a callable expression (e.g. a FunctionCall like
+    // 'give_me_some_sum()' in 'give_me_some_sum()(9, 4)', or an AccessChain that resolves
+    // to a function pointer), we must evaluate it first to obtain the callable value,
+    // rather than traversing into its inner parent_val via get_parent_from.
+    if(parent_val && parent_val->val_kind() == ValueKind::FunctionCall) {
+        auto evaluated = parent_val->evaluated_value(scope);
+        return interpret_value_with_evaluated_parent(this, scope, evaluated);
+    }
     const auto parent = get_parent_from(parent_val);
     const auto evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
     return interpret_value(this, scope, evaluated_parent);

@@ -11,6 +11,7 @@
 #include "compiler/ASTDiagnoser.h"
 #include <vector>
 #include <memory>
+#include <unordered_map>
 #include "compiler/lab/TargetData.h"
 #include "TypeLoc.h"
 #include "compiler/OutputMode.h"
@@ -28,6 +29,8 @@ struct GlobalContainer;
 class TypeBuilder;
 
 struct IffyBase;
+
+class StructValue;
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:
@@ -82,6 +85,13 @@ public:
      * the type cache is used to get types
      */
     TypeBuilder& typeBuilder;
+
+    /**
+     * Maps StructValue pointers to their variant member index.
+     * Used by the interpreter to match variant values against switch case arms.
+     * Stored here (not on StructValue) to avoid storing interpretation state in AST nodes.
+     */
+    std::unordered_map<const StructValue*, int64_t> variant_member_index_map;
 
     /**
      * The constructor

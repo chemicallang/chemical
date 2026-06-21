@@ -27,6 +27,13 @@
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/If.h"
 #include "ast/base/LoopASTNode.h"
+#include "ast/values/VariantCase.h"
+#include "ast/values/VariantCaseVariable.h"
+#include "ast/values/StructValue.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantDefinition.h"
+
+
 
 void stop_interpretation_above(ASTNode* node) {
     if(ASTNode::isLoopASTNode(node->kind())) {
@@ -165,6 +172,48 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
         scope.error("couldn't evaluate the expression", stmt->expression);
         return nullptr;
     }
+
+    // Check if this is a variant switch — match by member index instead of value equality.
+    const auto variantDef = stmt->getVarDefFromExpr();
+    if(variantDef) {
+        // Determine the active member index from the condition (the variant struct value).
+        int condMemberIndex = -1;
+        if(cond->val_kind() == ValueKind::StructValue) {
+            auto structVal = cond->as_struct_value_unsafe();
+            auto it = scope.global->variant_member_index_map.find(structVal);
+            if(it != scope.global->variant_member_index_map.end()) {
+                condMemberIndex = (int)it->second;
+            }
+        }
+        if(condMemberIndex >= 0) {
+            unsigned i = 0;
+            const auto size = stmt->scopes.size();
+            while(i < size) {
+                for(auto& casePair : stmt->cases) {
+                    if(casePair.second == i && casePair.first) {
+                        // VariantCase carries the VariantMember pointer
+                        if(casePair.first->val_kind() == ValueKind::VariantCase) {
+                            auto varCase = casePair.first->as_variant_case_unsafe();
+                            auto member = varCase->member;
+                            if(member) {
+                                int caseMemberIndex = (int)variantDef->direct_child_index(member->name_view());
+                                if(caseMemberIndex == condMemberIndex) {
+                                    return &stmt->scopes[i];
+                                }
+                            }
+                        }
+                    }
+                }
+                i++;
+            }
+            if(stmt->has_default_case()) {
+                return &stmt->scopes[stmt->defScopeInd];
+            }
+            return nullptr;
+        }
+        // Fall through to normal matching if we couldn't determine the member index
+    }
+
     unsigned i = 0;
     const auto size = stmt->scopes.size();
     while(i < size) {
@@ -172,6 +221,10 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
             if(casePair.second == i && casePair.first) {
                 auto eval_first = casePair.first->evaluated_value(scope);
                 const auto isEqualEval = scope.evaluate(Operation::IsEqual, eval_first, cond, ZERO_LOC, casePair.first);
+                if(!isEqualEval || isEqualEval->val_kind() == ValueKind::NullValue) {
+                    // evaluate returned null (unknown operation) — skip this case
+                    continue;
+                }
                 if(isEqualEval->val_kind() == ValueKind::Bool && isEqualEval->get_the_bool()) {
                     return &stmt->scopes[i];
                 }

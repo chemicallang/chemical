@@ -405,6 +405,7 @@ InterpretScope::~InterpretScope() {
 
 void InterpretScope::destroy_values() {
     for(auto& [name, val] : values) {
+        if (val == nullptr) continue;
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;
 

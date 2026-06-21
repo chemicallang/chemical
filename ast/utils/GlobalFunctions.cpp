@@ -591,6 +591,11 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
     }
 }
 
+bool is_interpretation_mode(InterpretScope* call_scope) {
+    const auto curr_job = call_scope->global->build_compiler->current_job;
+    return curr_job ? curr_job->type == LabJobType::Interpretation : false;
+}
+
 class InterpretWrap : public FunctionDeclaration {
 public:
 
@@ -615,6 +620,10 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto underlying = call->values[0];
+        // In interpretation mode, wrap is a no-op since there is no runtime
+        if (is_interpretation_mode(call_scope)) {
+            return underlying->evaluated_value(*call_scope);
+        }
         const auto evaluated = evaluated_comptime(underlying, *call_scope);
         return new (allocator.allocate<WrapValue>()) WrapValue(evaluated);
     }
@@ -793,7 +802,7 @@ public:
         set_contract(ContractFlag::IsInterpretation, true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        const auto is_interpretation = call_scope->global->build_compiler->current_job->type == LabJobType::Interpretation;
+        const auto is_interpretation = is_interpretation_mode(call_scope);
         const auto boolType = call_scope->global->typeBuilder.getBoolType();
         return new (allocator.allocate<BoolValue>()) BoolValue(is_interpretation, boolType, ZERO_LOC);
     }

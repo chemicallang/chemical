@@ -623,13 +623,95 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
     );
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
-    for (auto &value: values) {
-        struct_value->values.emplace(value.first, StructMemberInitializer { value.first, value.second.value->scope_value(scope) });
+    for (auto & value: values) {
+        auto val = value.second.value->scope_value(scope);
+        if(definition && val) {
+            // Check if we need implicit constructor conversion
+            for(const auto var : definition->variables()) {
+                if(var->name == value.first) {
+                    auto kt = var->known_type();
+                    if(kt) {
+                        auto imp_cons = kt->implicit_constructor_for(val);
+                        if(imp_cons) {
+                            InterpretScope imp_scope(scope.global, scope.allocator, scope.global);
+                            std::vector<Value*> imp_args = { val };
+                            auto newVal = imp_cons->call(
+                                &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
+                            );
+                            if(newVal) val = newVal;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        // Use erase+emplace to overwrite any default value that was set earlier
+        struct_value->values.erase(value.first);
+        struct_value->values.emplace(value.first, StructMemberInitializer { value.first, val });
     }
-//    struct_value->generic_list.reserve(generic_list.size());
-//    for(const auto& arg : generic_list) {
-//        struct_value->generic_list.emplace_back(arg->copy(scope.allocator));
-//    }
+    // Handle inherited struct default initialization
+    if(definition) {
+        for(auto& inh : definition->inherited) {
+            const auto node = inh.type->get_direct_linked_canonical_node();
+            if(node && node->kind() == ASTNodeKind::StructDecl) {
+                auto parentDef = node->as_struct_def_unsafe();
+                auto parentCons = parentDef->default_constructor_func();
+                if(parentCons) {
+                    // Check if any of the parent's member variables or the parent struct name are already set
+                    bool hasParentMembers = false;
+                    for(const auto pvar : parentDef->variables()) {
+                        if(struct_value->values.find(pvar->name) != struct_value->values.end()) {
+                            hasParentMembers = true;
+                            break;
+                        }
+                    }
+                    // Also check if the inherited struct type name is in values (literal syntax like
+                    // `ExtFuncTestPoint : ExtFuncTestPoint { a: 23, b: 8 }`)
+                    if(!hasParentMembers && struct_value->values.find(inh.ref_type_name()) != struct_value->values.end()) {
+                        hasParentMembers = true;
+                    }
+                    if(!hasParentMembers) {
+                        InterpretScope nested_scope(scope.global, scope.allocator, scope.global);
+                        std::vector<Value*> nested_args;
+                        Value* parentVal = parentCons->call(
+                            &scope, nested_args, (Value*)nullptr, &nested_scope, true, (Value*)nullptr
+                        );
+                        if(parentVal && parentVal->kind() == ValueKind::StructValue) {
+                            auto parentStructVal = parentVal->as_struct_value_unsafe();
+                            for(auto& [pname, pmember] : parentStructVal->values) {
+                                if(struct_value->values.find(pname) == struct_value->values.end()) {
+                                    struct_value->values.emplace(pname, pmember);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Initialize fields whose types have @make constructors but no explicit value
+        for(const auto var : definition->variables()) {
+            if(struct_value->values.find(var->name) != struct_value->values.end()) {
+                continue; // Already has a value
+            }
+            auto kt = var->known_type();
+            if(!kt) continue;
+            const auto linked = kt->get_direct_linked_canonical_node();
+            if(linked && linked->kind() == ASTNodeKind::StructDecl) {
+                auto fieldDef = linked->as_struct_def_unsafe();
+                auto fieldCons = fieldDef->default_constructor_func();
+                if(fieldCons) {
+                    InterpretScope nested_scope(scope.global, scope.allocator, scope.global);
+                    std::vector<Value*> nested_args;
+                    Value* fieldVal = fieldCons->call(
+                        &scope, nested_args, (Value*)nullptr, &nested_scope, true, (Value*)nullptr
+                    );
+                    if(fieldVal) {
+                        struct_value->values.emplace(var->name, StructMemberInitializer(var->name, fieldVal));
+                    }
+                }
+            }
+        }
+    }
     return struct_value;
 }
 

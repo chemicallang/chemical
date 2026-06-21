@@ -160,6 +160,25 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     // iterator for previous value
     auto itr = scope.find_value_iterator(value);
     if(itr.first == itr.second.values.end()) {
+        // Try looking up through self (for struct member access like `a *= 2` in a method)
+        auto linkedNode = linked_node();
+        if(linkedNode && linkedNode->kind() == ASTNodeKind::StructMember) {
+            auto foundSelf = scope.find_value("self");
+            if(foundSelf) {
+                auto childVal = foundSelf->child(scope, value);
+                if(childVal) {
+                    // Evaluate the operation before setting on self
+                    if (op != Operation::Assignment) {
+                        auto evalNewValue = rawValue->evaluated_value(scope);
+                        auto newValue = scope.evaluate(op, childVal, evalNewValue, passed_loc, this);
+                        foundSelf->set_child_value(scope, value, newValue, Operation::Assignment);
+                    } else {
+                        foundSelf->set_child_value(scope, value, rawValue->evaluated_value(scope), op);
+                    }
+                    return;
+                }
+            }
+        }
         scope.error("couldn't find identifier '" + value.str() + "' in current scope", this);
         return;
     }

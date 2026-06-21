@@ -1073,7 +1073,22 @@ Value *FunctionDeclaration::call(
         auto param = func_param_for_arg_at(i);
         if (param) {
             if(param->defValue) {
-                fn_scope->declare(param->name, param->defValue->scope_value(*call_scope));
+                Value* param_val = param->defValue->scope_value(*call_scope);
+                // Apply implicit constructor conversion for default values
+                if(param->type && param_val) {
+                    auto imp_cons = param->type->implicit_constructor_for(param_val);
+                    if(imp_cons && imp_cons != this) {
+                        InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
+                        std::vector<Value*> imp_args = { param_val->evaluated_value(*call_scope) };
+                        Value* newVal = imp_cons->call(
+                            call_scope, imp_args, (Value*)nullptr, &imp_scope, true, debug_value
+                        );
+                        if(newVal) {
+                            param_val = newVal;
+                        }
+                    }
+                }
+                fn_scope->declare(param->name, param_val);
             } else if(!isInVarArgs(i)) {
                 call_scope->error("function parameter doesn't have default value, no argument exists for it", debug_value);
             }

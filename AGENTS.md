@@ -358,6 +358,129 @@ InterpretScope::~InterpretScope() {
 
 **Not yet supported**: Full variant type matching at comptime (the else-expression path for break/continue/return/defValue IS supported — test 76 passes), struct pointers (`&raw struct_val` — use `&mut` references instead), variadic function calls, `@test` annotation dispatch
 
+### Interpreter Move Semantics (Critical Knowledge)
+
+The interpreter implements move semantics via `InterpretScope::move_clear_source()` — a **pointer-matching** approach that scans the scope chain for any variable pointing to the same `StructValue*` pointer and clears it (sets to `nullptr`). This prevents double-destruction when a destructible struct is moved.
+
+#### Why Pointer-Matching Instead of AST Type Checks
+
+The compiler may replace `VariableIdentifier` AST nodes with the resolved `StructValue` during resolution. Old code that checked `val_kind() == ValueKind::Identifier` would miss this case. The pointer-matching approach (`val == valuePtr`) works regardless of what the AST looks like.
+
+#### The `move_clear_source()` function (in `ast/base/InterpretScope.cpp`)
+
+```cpp
+void InterpretScope::move_clear_source(Value* initializer, const chem::string_view& new_name) {
+    if(!initializer || initializer->val_kind() != ValueKind::StructValue) return;
+    auto structVal = initializer->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext || ext->kind() != ASTNodeKind::StructDecl) return;
+    auto sd = (StructDefinition*)ext;
+    if(!sd->has_destructor()) return;
+    InterpretScope* scanScope = this;
+    while(scanScope) {
+        for(auto& [name, val] : scanScope->values) {
+            if(name != new_name && val == initializer) {
+                val = nullptr;
+                return;
+            }
+        }
+        scanScope = scanScope->parent;
+    }
+}
+```
+
+Key points:
+- Only runs for destructible structs (`has_destructor()`)
+- Scans up the parent chain (local scope → function scope → global)
+- Skips `new_name` to avoid self-clearing (e.g., `var x = x` shouldn't nullify `x`)
+- Uses `new_name.empty()` to indicate "clear anything that matches" (used in function args, variant constructors, struct member inits)
+
+#### Places that call move_clear_source()
+
+| Location | File | `new_name` | Purpose |
+|----------|------|-----------|---------|
+| `VarInitStatement::interpret()` | `compiler/Interpreter/Core.cpp` | `stmt->name_view()` | `var y = x` → clears `x` (move) |
+| `AssignStatement::interpret()` | `compiler/Interpreter/Core.cpp` | LHS name | `a = d` → clears `d` (move) |
+| `StructValue::initialized_value()` | `ast/values/StructValue.cpp` | empty | Struct member init move |
+| `FunctionCall::interpret_value()` (variant ctor) | `ast/values/FunctionCall.cpp` | empty | Variant constructor move |
+| `FunctionDeclaration::call()` | `ast/structures/FunctionDecl.cpp` | empty | Function argument move |
+
+#### Temp Struct Destruction (Bare Expressions)
+
+Bare expressions that produce destructible structs (e.g., `create_destructible(...)`, `d.copy().copy()`) need their temps destructed. The interpreter handles this in three places:
+
+1. **`ValueWrapperNode::interpret()`** — Wraps bare expression statements. If the value is a `FunctionCall`, evaluates it and calls `destruct_temp_struct()`. If it's an `AccessChain`, evaluates each step, collects all `FunctionCall` results, then destructs them all.
+
+2. **`AccessChainNode::interpret()`** — Same pattern: evaluates chain step-by-step, collects temps, destructs all at end. Handles `d.copy().copy().copy()` where ALL intermediate results must be cleaned up.
+
+3. **`AccessChain::evaluated_value()`** — When the chain starts with a FunctionCall (`create_destructible(...).data`), destructs the intermediate struct temp after extracting the field value.
+
+#### `destruct_temp_struct()` Helper (in `compiler/Interpreter/Core.cpp`)
+
+```cpp
+static void destruct_temp_struct(InterpretScope& scope, Value* val) {
+    if(!val || val->val_kind() != ValueKind::StructValue) return;
+    auto structVal = val->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext) return;
+    auto container = ext;
+    if(!container->has_destructor()) return;
+    auto destructor_fn = container->destructor_func();
+    if(!destructor_fn || !destructor_fn->body.has_value()) return;
+    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+    temp_scope.declare("self", val);
+    temp_scope.interpret(&destructor_fn->body.value());
+    // Remove self so it's not destructed again when temp_scope is destroyed
+    auto self_it = temp_scope.values.find("self");
+    if(self_it != temp_scope.values.end()) {
+        temp_scope.values.erase(self_it);
+    }
+}
+```
+
+Critical: The destructor runs in a **temp scope** with `self` removed after interpretation — prevents double-destruction when `temp_scope` is destroyed.
+
+#### AssignStatement Old-Value Destruction
+
+Assignment uses a careful 3-step approach:
+1. **Save** the old LHS value pointer (before `set_value` overwrites it)
+2. **Perform** assignment via `set_value()` (evaluates RHS, may take pointer to LHS)
+3. **Destruct** the old LHS value (safe because RHS has already been resolved)
+4. **Clear** the RHS source (move semantics)
+
+This ordering is critical for self-referencing assignments like `x = f(x.get_ptr(), N)`, where the RHS function takes a pointer to the LHS data.
+
+#### Array Value Destruction
+
+`InterpretScope::destroy_values()` recursively destructs structs, including:
+- `StructValue` with destructor → calls destructor body + recursively destructs members
+- `ArrayValue` → destructs each element that is a struct value with a destructor
+- Elements populated by `evaluated_value()` or `set_value()` — modifications through `&arr[i]` affect actual elements via `PointerValue`
+
+### Remaining Interpretation Test Failures (as of fix session)
+
+After fixing 16 of 32 baseline failures, the following 16 tests remain. Categorized by root cause:
+
+| Tests | Root Cause | Difficulty |
+|-------|-----------|-----------|
+| 757-760 | **Array element destruction** — elements set via pointer in array aren't tracked by scope, so `destroy_values` doesn't find them | Medium |
+| 798-799, 822 | **Method chain dispatch** — `get_parent_from()` returns `nullptr` for `self` in chained method calls like `d.copy().copy()`. The interpreter cannot dispatch methods through chains where the receiver is a temporary | Hard |
+| 811-812 | **Self-referencing assignment** — deeper pointer/copy semantics where the destructor of the old LHS corrupts data that the new value depends on | Hard |
+| 722-723, 800 | **Generic dispatch move semantics** — generic function monomorphization may not trigger the same move-semantic paths | Medium |
+| 629, 831, 838 | **Edge cases** — miscellanous edge cases that need individual investigation | Varies |
+| 784 | **Variant destruct** — partially fixed, a variant path may not be fully covered | Medium |
+
+### Debugging Interpretation Test Failures
+
+1. Check test output for `[InterpretError]` messages — exact failure locations
+2. Look for `"cannot dereference pointer"` — pointer went past allocated bounds
+3. Look for `"function call"` — a function reference couldn't be resolved
+4. Look for `"Operation between values"` — incompatible type operation
+5. Add `std::cerr << "[DEBUG] ..." << std::endl;` to interpreter source files
+6. The worst failures (`"RUNTIME ERROR: invalid memory access"`) happen when `deref()` crashes — the interpreter now returns `getNullValue()` instead (non-fatal)
+7. For struct destruction issues, add debug output in `InterpretScope::destroy_values()`
+8. To trace value tracking, add `scope.print_values()` in key locations
+
 ### Native_common Tests
 
 Tests in `lang/tests/native_common/src/` run AFTER common tests (as test 98+) from `run_native_common_tests()`. These tests use pointer arithmetic and have known issues in interpretation mode:

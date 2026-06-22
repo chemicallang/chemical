@@ -393,10 +393,31 @@ Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
 }
 
 inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
-    // Only destruct temp structs from bare function calls, not variables or other expressions
+    // Destruct temp structs from bare expressions
     if(node->value->val_kind() == ValueKind::FunctionCall) {
         auto result = node->value->evaluated_value(scope);
         destruct_temp_struct(scope, result);
+    } else if(node->value->val_kind() == ValueKind::AccessChain) {
+        auto chain = node->value->as_access_chain_unsafe();
+        if(chain->values.empty()) return;
+        // Same temp tracking as AccessChainNode::interpret
+        std::vector<Value*> temps;
+        Value* current = nullptr;
+        for(unsigned i = 0; i < chain->values.size(); i++) {
+            auto& val = chain->values[i];
+            if(val->val_kind() == ValueKind::Identifier) {
+                auto id = val->as_identifier_unsafe();
+                current = current ? current->child(scope, id->value) : id->evaluated_value(scope);
+            } else {
+                current = val->evaluated_value(scope);
+                if(val->val_kind() == ValueKind::FunctionCall && current) {
+                    temps.push_back(current);
+                }
+            }
+        }
+        for(auto t : temps) {
+            destruct_temp_struct(scope, t);
+        }
     } else {
         node->value->evaluated_value(scope);
     }
@@ -406,18 +427,39 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
 inline void interpret(InterpretScope& scope, AccessChainNode* node) {
     auto& chain = node->chain;
     if(chain.values.empty()) return;
-    // When the first chain value is a FunctionCall, it produces a temp struct
-    // that must be destructed after the rest of the chain completes.
-    // E.g.: create_destructible(&raw mut count, 858).data;
-    if(chain.values[0]->val_kind() == ValueKind::FunctionCall) {
-        auto structTemp = chain.values[0]->evaluated_value(scope);
-        if(chain.values.size() > 1) {
-            evaluate_from(chain.values, scope, structTemp, 1);
+    // Evaluate the chain. For method chains like d.copy().copy().copy(),
+    // ALL function call temps must be destructed at the end.
+    // Strategy: first evaluate the chain to get the final result, then
+    // go back and destruct every FunctionCall's result.
+    // We evaluate each FunctionCall in sequence to create its temp struct,
+    // collect the temps, then destruct them all after.
+    
+    if(chain.values.size() == 1) {
+        auto result = chain.values[0]->evaluated_value(scope);
+        destruct_temp_struct(scope, result);
+        return;
+    }
+    
+    // Evaluate each value in the chain, collecting FunctionCall temps
+    std::vector<Value*> temps;
+    Value* current = nullptr;
+    for(unsigned i = 0; i < chain.values.size(); i++) {
+        auto& val = chain.values[i];
+        if(val->val_kind() == ValueKind::Identifier) {
+            auto id = val->as_identifier_unsafe();
+            current = current ? current->child(scope, id->value) : id->evaluated_value(scope);
+        } else {
+            current = val->evaluated_value(scope);
+            // Track function call results (temps that need destruction)
+            if(val->val_kind() == ValueKind::FunctionCall && current) {
+                temps.push_back(current);
+            }
         }
-        destruct_temp_struct(scope, structTemp);
-    } else {
-        // For other chains (e.g. a.b.c), just evaluate and discard — no temps to manage
-        chain.evaluated_value(scope);
+    }
+    
+    // Destruct all collected temps — for a bare statement, everything is discarded
+    for(auto t : temps) {
+        destruct_temp_struct(scope, t);
     }
 }
 

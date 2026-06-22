@@ -72,6 +72,26 @@ void skip_interpretation_above_once(ASTNode* node) {
 
 Value* evaluate(InterpretScope& scope, Scope* body);
 
+// Helper: destruct a temp struct value in the given scope by calling its destructor body
+static void destruct_temp_struct(InterpretScope& scope, Value* val) {
+    if(!val || val->val_kind() != ValueKind::StructValue) return;
+    auto structVal = val->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext) return;
+    auto container = ext;
+    if(!container->has_destructor()) return;
+    auto destructor_fn = container->destructor_func();
+    if(!destructor_fn || !destructor_fn->body.has_value()) return;
+    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+    temp_scope.declare("self", val);
+    temp_scope.interpret(&destructor_fn->body.value());
+    // Remove self so it's not destructed again when temp_scope is destroyed
+    auto self_it = temp_scope.values.find("self");
+    if(self_it != temp_scope.values.end()) {
+        temp_scope.values.erase(self_it);
+    }
+}
+
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
     stop_interpretation_above_once(stmt->parent());
 }
@@ -81,7 +101,31 @@ inline void interpret(InterpretScope& scope, ContinueStatement* stmt) {
 }
 
 inline void interpret(InterpretScope& scope, AssignStatement* assign) {
+    // Handle assignment with move semantics:
+    // 1. Destruct the old LHS value before overwriting it.
+    // 2. Perform the assignment.
+    // 3. Clear the RHS source (move, not copy) so it's not destructed twice.
+    if(assign->assOp == Operation::Assignment) {
+        if(assign->lhs->val_kind() == ValueKind::Identifier) {
+            auto lhsId = assign->lhs->as_identifier_unsafe();
+            auto lhsIt = scope.find_value_iterator(lhsId->value);
+            if(lhsIt.first != lhsIt.second.values.end()) {
+                destruct_temp_struct(scope, lhsIt.first->second);
+            }
+        }
+    }
     assign->lhs->set_value(scope, assign->value, assign->assOp, assign->encoded_location());
+    // Clear the RHS source (move semantics)
+    if(assign->assOp == Operation::Assignment) {
+        chem::string_view lhsName;
+        if(assign->lhs->val_kind() == ValueKind::Identifier) {
+            lhsName = assign->lhs->as_identifier_unsafe()->value;
+        }
+        auto rhsVal = assign->value->evaluated_value(scope);
+        if(rhsVal) {
+            scope.move_clear_source(rhsVal, lhsName);
+        }
+    }
 }
 
 void interpret(InterpretScope& scope, ForLoop* loop) {
@@ -342,26 +386,6 @@ Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
     return scope.getNullValue();
 }
 
-// Helper: destruct a temp struct value in the given scope by calling its destructor body
-static void destruct_temp_struct(InterpretScope& scope, Value* val) {
-    if(!val || val->val_kind() != ValueKind::StructValue) return;
-    auto structVal = val->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext) return;
-    auto container = ext;
-    if(!container->has_destructor()) return;
-    auto destructor_fn = container->destructor_func();
-    if(!destructor_fn || !destructor_fn->body.has_value()) return;
-    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
-    temp_scope.declare("self", val);
-    temp_scope.interpret(&destructor_fn->body.value());
-    // Remove self so it's not destructed again when temp_scope is destroyed
-    auto self_it = temp_scope.values.find("self");
-    if(self_it != temp_scope.values.end()) {
-        temp_scope.values.erase(self_it);
-    }
-}
-
 inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
     // Only destruct temp structs from bare function calls, not variables or other expressions
     if(node->value->val_kind() == ValueKind::FunctionCall) {
@@ -480,25 +504,11 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
         }
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
-        // Handle move semantics: if the initializer is a direct variable reference
-        // to a non-copyable struct, clear the source (move, not copy).
-        if(stmt->value->val_kind() == ValueKind::Identifier) {
-            auto id = stmt->value->as_identifier_unsafe();
-            auto it = scope.find_value_iterator(id->value);
-            if(it.first != it.second.values.end() && it.first->second != nullptr) {
-                auto srcVal = it.first->second;
-                if(srcVal->val_kind() == ValueKind::StructValue) {
-                    auto ext = srcVal->as_struct_value_unsafe()->linked_extendable();
-                    if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                        auto sd = (StructDefinition*)ext;
-                        if(sd->has_destructor()) {
-                            // Move: clear the source value so it's not destructed
-                            it.first->second = nullptr;
-                        }
-                    }
-                }
-            }
-        }
+        // Handle move semantics: if the initializer references an existing destructible
+        // struct variable, clear the source (move, not copy). Uses pointer-matching
+        // instead of AST node type checks, because the compiler may have replaced
+        // VariableIdentifier nodes with the resolved StructValue during resolution.
+        scope.move_clear_source(initializer, stmt->name_view());
     } else if (stmt->type) {
         // Uninitialized variable: create a default zero value based on type
         auto type = stmt->type;

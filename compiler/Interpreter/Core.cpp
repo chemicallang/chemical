@@ -15,6 +15,13 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/types/LinkedType.h"
+#include "ast/values/PointerValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/statements/Typealias.h"
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/IfValue.h"
@@ -424,9 +431,50 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                 arrVal->evaluated_value(scope);
                 scope.declare(stmt->name_view(), arrVal);
             }
+        } else if (kind == BaseTypeKind::Linked) {
+            auto linkedType = type->as_linked_type_unsafe();
+            // Resolve typealiases to the underlying struct definition
+            ASTNode* linked = linkedType->linked;
+            if (linked && linked->kind() == ASTNodeKind::TypealiasStmt) {
+                auto alias = (TypealiasStatement*) linked;
+                if (alias->actual_type) {
+                    auto actualKind = alias->actual_type->kind();
+                    if (actualKind == BaseTypeKind::Linked) {
+                        linked = alias->actual_type->as_linked_type_unsafe()->linked;
+                    }
+                }
+            }
+            if (linked && linked->kind() == ASTNodeKind::StructDecl) {
+                auto structDef = (StructDefinition*) linked;
+                auto structVal = new (scope.allocate<StructValue>()) StructValue(
+                    stmt->type, structDef, structDef, stmt->encoded_location()
+                );
+                // Populate all fields with default/null values
+                for (const auto field : structDef->variables()) {
+                    auto defValue = field->default_value();
+                    if (defValue) {
+                        structVal->values.emplace(
+                            field->name,
+                            StructMemberInitializer { field->name, defValue->scope_value(scope) }
+                        );
+                    } else {
+                        structVal->values.emplace(
+                            field->name,
+                            StructMemberInitializer { field->name, scope.getNullValue() }
+                        );
+                    }
+                }
+                scope.declare(stmt->name_view(), structVal);
+            }
+        } else if (kind == BaseTypeKind::IntN) {
+            auto intType = type->as_intn_type_unsafe();
+            auto val = new (scope.allocate<IntNumValue>()) IntNumValue(0, intType, stmt->encoded_location());
+            scope.declare(stmt->name_view(), val);
+        } else if (kind == BaseTypeKind::Bool) {
+            auto& typeBuilder = scope.global->typeBuilder;
+            auto val = new (scope.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), stmt->encoded_location());
+            scope.declare(stmt->name_view(), val);
         }
-        // For non-array types without a value, we don't declare anything
-        // (the variable will be found by its linked VarInitStatement AST node)
     }
 }
 

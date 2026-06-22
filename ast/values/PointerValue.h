@@ -83,4 +83,6 @@ public:
 
     Value* child(InterpretScope& scope, const chem::string_view& name) final;
 
+    void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) final;
+
 };

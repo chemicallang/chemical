@@ -38,6 +38,7 @@
 #include "ast/values/VariantCase.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/AccessChain.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/statements/ProvideStmt.h"
@@ -341,12 +342,53 @@ Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
     return scope.getNullValue();
 }
 
-inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
-    node->value->evaluated_value(scope);
+// Helper: destruct a temp struct value in the given scope by calling its destructor body
+static void destruct_temp_struct(InterpretScope& scope, Value* val) {
+    if(!val || val->val_kind() != ValueKind::StructValue) return;
+    auto structVal = val->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext) return;
+    auto container = ext;
+    if(!container->has_destructor()) return;
+    auto destructor_fn = container->destructor_func();
+    if(!destructor_fn || !destructor_fn->body.has_value()) return;
+    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+    temp_scope.declare("self", val);
+    temp_scope.interpret(&destructor_fn->body.value());
+    // Remove self so it's not destructed again when temp_scope is destroyed
+    auto self_it = temp_scope.values.find("self");
+    if(self_it != temp_scope.values.end()) {
+        temp_scope.values.erase(self_it);
+    }
 }
 
+inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
+    // Only destruct temp structs from bare function calls, not variables or other expressions
+    if(node->value->val_kind() == ValueKind::FunctionCall) {
+        auto result = node->value->evaluated_value(scope);
+        destruct_temp_struct(scope, result);
+    } else {
+        node->value->evaluated_value(scope);
+    }
+}
+
+
 inline void interpret(InterpretScope& scope, AccessChainNode* node) {
-    node->chain.evaluated_value(scope);
+    auto& chain = node->chain;
+    if(chain.values.empty()) return;
+    // When the first chain value is a FunctionCall, it produces a temp struct
+    // that must be destructed after the rest of the chain completes.
+    // E.g.: create_destructible(&raw mut count, 858).data;
+    if(chain.values[0]->val_kind() == ValueKind::FunctionCall) {
+        auto structTemp = chain.values[0]->evaluated_value(scope);
+        if(chain.values.size() > 1) {
+            evaluate_from(chain.values, scope, structTemp, 1);
+        }
+        destruct_temp_struct(scope, structTemp);
+    } else {
+        // For other chains (e.g. a.b.c), just evaluate and discard — no temps to manage
+        chain.evaluated_value(scope);
+    }
 }
 
 inline void interpret(InterpretScope& scope, IncDecNode* node) {

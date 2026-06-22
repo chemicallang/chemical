@@ -1591,6 +1591,27 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                                 &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
                             );
                         }
+                        // Move semantics: if the argument is a direct variable reference
+                        // to a destructible struct, clear the source to prevent double-destruction.
+                        if(paramVal && paramVal->val_kind() == ValueKind::StructValue &&
+                           idx < call->values.size()) {
+                            auto argVal = call->values[idx];
+                            if(argVal->val_kind() == ValueKind::Identifier) {
+                                auto srcStruct = paramVal->as_struct_value_unsafe();
+                                auto ext = srcStruct->linked_extendable();
+                                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                                    auto sd = (StructDefinition*)ext;
+                                    if(sd->has_destructor()) {
+                                        auto argId = argVal->as_identifier_unsafe();
+                                        auto scopeIt = scope.find_value_iterator(argId->value);
+                                        if(scopeIt.first != scopeIt.second.values.end() &&
+                                           scopeIt.first->second == paramVal) {
+                                            scopeIt.first->second = nullptr;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
                     }
                 }

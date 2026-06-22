@@ -225,7 +225,7 @@ public:
     /**
      * set the child value, with given name, performing operation op
      */
-    void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op);
+    virtual void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op);
 
     /**
      * this function expects this identifier value to find itself in the parent value given to it

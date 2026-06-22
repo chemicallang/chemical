@@ -1255,9 +1255,16 @@ void Value::set_child_value(InterpretScope& scope, const chem::string_view& name
         case ValueKind::StructValue:
             as_struct_value_unsafe()->set_child_value(scope, name, value, op);
             return;
-        default:
+        default: {
+            // Try to evaluate to get the underlying value
+            auto evaluated = evaluated_value(scope);
+            if(evaluated && evaluated != this) {
+                evaluated->set_child_value(scope, name, value, op);
+                return;
+            }
             scope.error("can't set child value with name " + name.str(), this);
             return;
+        }
     }
 }
 

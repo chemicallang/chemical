@@ -164,3 +164,18 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             return nullptr;
     }
 }
+
+void PointerValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
+    auto pointeeType = getType();
+    if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
+        auto structVal = (StructValue*) data;
+        if(structVal) {
+            structVal->set_child_value(scope, name, value, op);
+            return;
+        }
+    }
+    auto dereffed = deref(scope, encoded_location(), this);
+    if(dereffed) {
+        dereffed->set_child_value(scope, name, value, op);
+    }
+}

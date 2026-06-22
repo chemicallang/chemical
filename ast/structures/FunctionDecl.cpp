@@ -1142,7 +1142,13 @@ Value *FunctionDeclaration::call(
         call_scope->error("cannot call a function with no body at comptime", debug_value);
         return nullptr;
     }
-    fn_scope->interpret(&body.value());
+    {
+        InterpretScope body_scope(fn_scope, fn_scope->allocator, fn_scope->global);
+        body_scope.interpret(&body.value());
+        if(fn_scope->returnValue) {
+            body_scope.returnValue = fn_scope->returnValue;
+        }
+    }
     if(!fn_scope->returnValue && is_constructor_fn() && is_generated_fn()) {
         const auto linkedNode = returnType->linked_node();
         if(linkedNode && linkedNode->kind() == ASTNodeKind::StructDecl) {

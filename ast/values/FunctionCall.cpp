@@ -1592,21 +1592,25 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                             );
                         }
                         // Move semantics: if the argument is a direct variable reference
-                        // to a destructible struct, clear the source to prevent double-destruction.
-                        if(paramVal && paramVal->val_kind() == ValueKind::StructValue &&
-                           idx < call->values.size()) {
+                        // to a destructible struct in the caller's scope, clear the source
+                        // to prevent double-destruction. We look up by variable NAME, not by
+                        // pointer equality, because paramVal may have been replaced by the
+                        // implicit constructor's return value.
+                        if(idx < call->values.size()) {
                             auto argVal = call->values[idx];
                             if(argVal->val_kind() == ValueKind::Identifier) {
-                                auto srcStruct = paramVal->as_struct_value_unsafe();
-                                auto ext = srcStruct->linked_extendable();
-                                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                                    auto sd = (StructDefinition*)ext;
-                                    if(sd->has_destructor()) {
-                                        auto argId = argVal->as_identifier_unsafe();
-                                        auto scopeIt = scope.find_value_iterator(argId->value);
-                                        if(scopeIt.first != scopeIt.second.values.end() &&
-                                           scopeIt.first->second == paramVal) {
-                                            scopeIt.first->second = nullptr;
+                                auto argId = argVal->as_identifier_unsafe();
+                                auto scopeIt = scope.find_value_iterator(argId->value);
+                                if(scopeIt.first != scopeIt.second.values.end() &&
+                                   scopeIt.first->second != nullptr) {
+                                    auto srcVal = scopeIt.first->second;
+                                    if(srcVal->val_kind() == ValueKind::StructValue) {
+                                        auto ext = srcVal->as_struct_value_unsafe()->linked_extendable();
+                                        if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                                            auto sd = (StructDefinition*)ext;
+                                            if(sd->has_destructor()) {
+                                                scopeIt.first->second = nullptr;
+                                            }
                                         }
                                     }
                                 }

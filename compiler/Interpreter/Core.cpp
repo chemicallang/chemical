@@ -464,6 +464,20 @@ void interpret(InterpretScope& scope, ProvideStmt* stmt) {
 
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
+        // Check if the initializer is an AccessChain starting with a FunctionCall.
+        // In that case, the FunctionCall produces an intermediate struct temp that
+        // must be destructed after the field access completes.
+        // E.g.: var data = create_destructible(&raw mut count, 858).data
+        if(stmt->value->val_kind() == ValueKind::AccessChain) {
+            auto chain = stmt->value->as_access_chain_unsafe();
+            if(!chain->values.empty() && chain->values[0]->val_kind() == ValueKind::FunctionCall && chain->values.size() > 1) {
+                auto chainTemp = chain->values[0]->evaluated_value(scope);
+                auto chainResult = evaluate_from(chain->values, scope, chainTemp, 1);
+                scope.declare(stmt->name_view(), chainResult);
+                destruct_temp_struct(scope, chainTemp);
+                return;
+            }
+        }
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
         // Handle move semantics: if the initializer is a direct variable reference

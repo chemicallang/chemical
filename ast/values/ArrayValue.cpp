@@ -164,31 +164,66 @@ bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 #endif
 
 Value* ArrayValue::evaluated_value(InterpretScope& scope) {
-    // Lazily allocate contiguous memory for primitive element types
+    // Lazily allocate contiguous memory for primitive element types, or populate
+    // StructValue elements for struct element types.
     if (!contiguousData) {
         const auto elemType = known_elem_type();
         if (elemType) {
             const auto byteSize = elemType->byte_size(scope.global->target_data);
-            if (byteSize > 0 && byteSize <= 8) {
-                // Handle explicit-size arrays with no initializer (e.g. var d : [2]int)
-                size_t numElements;
-                if (!values.empty()) {
-                    numElements = values.size();
-                } else if (explicit_size > 0) {
-                    numElements = explicit_size;
-                } else {
-                    numElements = 0;
+            // Compute number of elements
+            size_t numElements = 0;
+            if (!values.empty()) {
+                numElements = values.size();
+            } else if (explicit_size > 0) {
+                numElements = explicit_size;
+            } else {
+                const auto arrType = getType();
+                if (arrType) {
+                    numElements = arrType->get_array_size();
                 }
-                if (numElements > 0) {
+            }
+            if (numElements > 0) {
+                const auto linkedNode = elemType->get_direct_linked_canonical_node();
+                // Struct element types (byteSize may be > 8 or 0): populate values with StructValues
+                if (linkedNode && linkedNode->kind() == ASTNodeKind::StructDecl) {
+                    auto structDef = (StructDefinition*) linkedNode;
+                    // Only populate if values hasn't been initialized yet
+                    if (values.empty()) {
+                        values.reserve(numElements);
+                        for (size_t i = 0; i < numElements; i++) {
+                            auto structVal = new (scope.allocate<StructValue>()) StructValue(
+                                getType()->elem_type.copy(scope.allocator),
+                                structDef,
+                                (VariablesContainerBase*) structDef,
+                                encoded_location()
+                            );
+                            for (const auto field : structDef->variables()) {
+                                auto defValue = field->default_value();
+                                if (defValue) {
+                                    structVal->values.emplace(
+                                        field->name,
+                                        StructMemberInitializer{field->name, defValue->scope_value(scope)}
+                                    );
+                                } else {
+                                    structVal->values.emplace(
+                                        field->name,
+                                        StructMemberInitializer{field->name, scope.getNullValue()}
+                                    );
+                                }
+                            }
+                            values.push_back(structVal);
+                        }
+                    }
+                } else if (byteSize > 0 && byteSize <= 8) {
+                    // Primitive types: allocate contiguousData
                     const auto totalSize = numElements * byteSize;
                     auto* mem = (char*)scope.allocator.allocate_released_size(totalSize, alignof(uint64_t));
                     if (mem) {
                         contiguousData = mem;
                         contiguousSize = totalSize;
-                        std::memset(mem, 0, totalSize); // zero-initialize
+                        std::memset(mem, 0, totalSize);
                         // Copy initialized values into contiguous memory
                         for (size_t i = 0; i < values.size(); i++) {
-                            // Evaluate the value first (handles CastedValue which doesn't implement get_number)
                             auto evaluatedVal = values[i]->evaluated_value(scope);
                             const auto num = evaluatedVal ? evaluatedVal->get_number() : std::nullopt;
                             if (num.has_value()) {
@@ -196,6 +231,20 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+    // For arrays that already have struct elements (from initializers like [Struct{...}]),
+    // evaluate each element to get runtime values with properly evaluated field initializers.
+    if(!values.empty()) {
+        for(size_t i = 0; i < values.size(); i++) {
+            auto elem = values[i];
+            if(elem->val_kind() == ValueKind::StructValue) {
+                auto sv = (StructValue*)elem;
+                auto sv_eval = sv->evaluated_value(scope);
+                if(sv_eval && sv_eval != elem) {
+                    values[i] = sv_eval;
                 }
             }
         }

@@ -111,7 +111,7 @@ public:
             while(target->parent != nullptr && target->parent != (InterpretScope*) scope.global) {
                 target = target->parent;
             }
-            target->returnValue = value->evaluated_value(*target);
+            target->returnValue = value->evaluated_value(scope);
         }
     }
 

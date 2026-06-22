@@ -19,6 +19,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/values/WrapValue.h"
 #include "std/except.h"
 
@@ -409,7 +410,6 @@ void InterpretScope::destroy_values() {
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;
 
-        // Only struct values can have destructors
         if(val->val_kind() == ValueKind::StructValue) {
             auto structVal = val->as_struct_value_unsafe();
             // Use linked_extendable() and verify it's actually a StructDecl
@@ -420,23 +420,46 @@ void InterpretScope::destroy_values() {
                 if(structDef->has_destructor()) {
                     auto destructor_fn = structDef->destructor_func();
                     if(destructor_fn && destructor_fn->body.has_value()) {
-                        // Temporarily override the current function type so that
-                        // return statements inside the destructor body work correctly
                         const auto prev_func = global->current_func_type;
                         global->current_func_type = destructor_fn;
 
-                        // Create a temporary scope to interpret the destructor body
                         InterpretScope child_scope(global, allocator, global);
                         child_scope.declare("self", val);
                         child_scope.interpret(&destructor_fn->body.value());
 
-                        // Remove self from child scope to prevent recursive destruction
                         auto self_it = child_scope.values.find("self");
                         if(self_it != child_scope.values.end()) {
                             child_scope.values.erase(self_it);
                         }
 
                         global->current_func_type = prev_func;
+                    }
+                }
+            }
+        } else if(val->val_kind() == ValueKind::ArrayValue) {
+            auto arrVal = val->as_array_value_unsafe();
+            for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
+                auto elemVal = arrVal->values[ei];
+                if(elemVal && elemVal->val_kind() == ValueKind::StructValue) {
+                    auto elemStruct = elemVal->as_struct_value_unsafe();
+                    auto elemExt = elemStruct->linked_extendable();
+                    if(elemExt && elemExt->kind() == ASTNodeKind::StructDecl) {
+                        auto elemDef = (StructDefinition*) elemExt;
+                        if(elemDef->has_destructor()) {
+                            auto elemDest = elemDef->destructor_func();
+                            if(elemDest && elemDest->body.has_value()) {
+                                const auto prev_func = global->current_func_type;
+                                global->current_func_type = elemDest;
+                                InterpretScope child_scope(global, allocator, global);
+                                child_scope.declare("self", elemVal);
+                                child_scope.interpret(&elemDest->body.value());
+                                auto self_it = child_scope.values.find("self");
+                                if(self_it != child_scope.values.end()) {
+                                    child_scope.values.erase(self_it);
+                                }
+                                global->current_func_type = prev_func;
+                            }
+                        }
                     }
                 }
             }

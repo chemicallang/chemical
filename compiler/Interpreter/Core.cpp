@@ -417,6 +417,25 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
+        // Handle move semantics: if the initializer is a direct variable reference
+        // to a non-copyable struct, clear the source (move, not copy).
+        if(stmt->value->val_kind() == ValueKind::Identifier) {
+            auto id = stmt->value->as_identifier_unsafe();
+            auto it = scope.find_value_iterator(id->value);
+            if(it.first != it.second.values.end() && it.first->second != nullptr) {
+                auto srcVal = it.first->second;
+                if(srcVal->val_kind() == ValueKind::StructValue) {
+                    auto ext = srcVal->as_struct_value_unsafe()->linked_extendable();
+                    if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                        auto sd = (StructDefinition*)ext;
+                        if(sd->has_destructor()) {
+                            // Move: clear the source value so it's not destructed
+                            it.first->second = nullptr;
+                        }
+                    }
+                }
+            }
+        }
     } else if (stmt->type) {
         // Uninitialized variable: create a default zero value based on type
         auto type = stmt->type;

@@ -1591,30 +1591,12 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                                 &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
                             );
                         }
-                        // Move semantics: if the argument is a direct variable reference
-                        // to a destructible struct in the caller's scope, clear the source
-                        // to prevent double-destruction. We look up by variable NAME, not by
-                        // pointer equality, because paramVal may have been replaced by the
-                        // implicit constructor's return value.
+                        // Move semantics: if the argument references an existing destructible
+                        // struct variable in the caller's scope, clear the source to prevent
+                        // double-destruction. Uses pointer-matching instead of AST node type
+                        // checks, because the compiler may have replaced identifiers.
                         if(idx < call->values.size()) {
-                            auto argVal = call->values[idx];
-                            if(argVal->val_kind() == ValueKind::Identifier) {
-                                auto argId = argVal->as_identifier_unsafe();
-                                auto scopeIt = scope.find_value_iterator(argId->value);
-                                if(scopeIt.first != scopeIt.second.values.end() &&
-                                   scopeIt.first->second != nullptr) {
-                                    auto srcVal = scopeIt.first->second;
-                                    if(srcVal->val_kind() == ValueKind::StructValue) {
-                                        auto ext = srcVal->as_struct_value_unsafe()->linked_extendable();
-                                        if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                                            auto sd = (StructDefinition*)ext;
-                                            if(sd->has_destructor()) {
-                                                scopeIt.first->second = nullptr;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            scope.move_clear_source(paramVal, chem::string_view());
                         }
                         structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
                     }

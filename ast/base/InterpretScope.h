@@ -189,6 +189,16 @@ public:
     void destroy_values();
 
     /**
+     * Move semantics helper: after declaring a new variable that holds a destructible
+     * struct, scan the scope chain for any existing variable pointing to the same
+     * StructValue pointer and clear it (set to nullptr). This prevents double-
+     * destruction when a struct is moved from one variable to another.
+     * Works correctly regardless of whether the AST node is a VariableIdentifier
+     * or has been replaced by the compiler during resolution.
+     */
+    void move_clear_source(Value* initializer, const chem::string_view& new_name);
+
+    /**
      * Values that want to be deleted when the scope ends
      * must be deleted in this destructor
      */

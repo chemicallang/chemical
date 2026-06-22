@@ -393,7 +393,6 @@ void InterpretScope::destroy_values() {
             if(target_val->val_kind() == ValueKind::StructValue) {
                 auto structVal = target_val->as_struct_value_unsafe();
                 auto ext = structVal->linked_extendable();
-                // Handle both StructDecl (structs) and VariantDecl (variants)
                 if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
                     ExtendableMembersContainerNode* container = ext;
                     if(container->has_destructor()) {
@@ -414,20 +413,28 @@ void InterpretScope::destroy_values() {
                             global->current_func_type = prev_func;
                         }
                     }
-                } else {
-                    // No linked or unknown container — iterate member values and destruct recursively
-                    for(auto& [member_name, member_init] : structVal->values) {
-                        if(member_init.value) {
-                            self_ref(member_init.value, self_ref);
-                        }
+                }
+                // Always recursively destruct member values, matching C backend behavior:
+                // the C codegen calls the user destructor first, then generates member
+                // destruction code. With proper move semantics in struct literal initialization,
+                // the source variable is cleared before it's stored as a member, so there's
+                // no double-destruction risk.
+                for(auto& [member_name, member_init] : structVal->values) {
+                    if(member_init.value) {
+                        self_ref(member_init.value, self_ref);
                     }
                 }
             } else if(target_val->val_kind() == ValueKind::ArrayValue) {
                 auto arrVal = target_val->as_array_value_unsafe();
-                // Destruct each element in values vector (struct elements)
+                // Destruct each element that is a struct value with a destructor.
+                // Elements were populated by evaluated_value() or by set_value() and
+                // AddrOfValue already creates PointerValues pointing directly into this
+                // vector, so modifications through &arr[i] affect the actual elements.
                 for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
                     auto elemVal = arrVal->values[ei];
-                    self_ref(elemVal, self_ref);
+                    if(elemVal) {
+                        self_ref(elemVal, self_ref);
+                    }
                 }
             }
         };

@@ -17,6 +17,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/values/PointerValue.h"
+#include "ast/types/PointerType.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
@@ -494,6 +495,13 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
         } else if (kind == BaseTypeKind::IntN) {
             auto intType = type->as_intn_type_unsafe();
             auto val = new (scope.allocate<IntNumValue>()) IntNumValue(0, intType, stmt->encoded_location());
+            scope.declare(stmt->name_view(), val);
+        } else if (kind == BaseTypeKind::Pointer) {
+            // Uninitialized pointer: declare as null pointer
+            auto& typeBuilder = scope.global->typeBuilder;
+            auto val = new (scope.allocate<PointerValue>()) PointerValue(
+                nullptr, type->as_pointer_type_unsafe()->type, 0, 0, stmt->encoded_location()
+            );
             scope.declare(stmt->name_view(), val);
         } else if (kind == BaseTypeKind::Bool) {
             auto& typeBuilder = scope.global->typeBuilder;

@@ -19,6 +19,7 @@
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/values/StructValue.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -1055,6 +1056,26 @@ Value *FunctionDeclaration::call(
         Value* param_val;
         const auto arg = call_args[i];
         param_val = arg->scope_value(*call_scope);
+        // Move semantics: if the argument is a direct variable reference to a struct
+        // with a destructor, clear the source so it's not destructed again when the
+        // caller's scope ends. This matches the behavior when initializing a variable
+        // from another variable (see VarInitStatement::interpret()).
+        if(arg->val_kind() == ValueKind::Identifier) {
+            auto id = arg->as_identifier_unsafe();
+            auto it = call_scope->find_value_iterator(id->value);
+            if(it.first != it.second.values.end() && it.first->second != nullptr) {
+                auto srcVal = it.first->second;
+                if(srcVal->val_kind() == ValueKind::StructValue) {
+                    auto ext = srcVal->as_struct_value_unsafe()->linked_extendable();
+                    if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                        auto sd = (StructDefinition*)ext;
+                        if(sd->has_destructor()) {
+                            it.first->second = nullptr;
+                        }
+                    }
+                }
+            }
+        }
         // Check if this argument needs implicit constructor conversion
         if(param && param->type && param_val) {
             auto imp_cons = param->type->implicit_constructor_for(param_val);

@@ -625,6 +625,26 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
     struct_value->values.reserve(values.size());
     for (auto & value: values) {
         auto val = value.second.value->scope_value(scope);
+        // Move semantics: if the initializer is a direct variable reference to a struct
+        // with a destructor, make a copy and clear the source so it's not destructed twice.
+        if(val && val->val_kind() == ValueKind::StructValue) {
+            auto srcStruct = val->as_struct_value_unsafe();
+            auto ext = srcStruct->linked_extendable();
+            if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                auto sd = (StructDefinition*)ext;
+                if(sd->has_destructor() && value.second.value->val_kind() == ValueKind::Identifier) {
+                    auto id = value.second.value->as_identifier_unsafe();
+                    auto it = scope.find_value_iterator(id->value);
+                    if(it.first != it.second.values.end() && it.first->second != nullptr) {
+                        if(it.first->second == val) {
+                            // Copy the value and clear the source (move semantics)
+                            val = val->copy(scope.allocator);
+                            it.first->second = nullptr;
+                        }
+                    }
+                }
+            }
+        }
         if(definition && val) {
             // Check if we need implicit constructor conversion
             for(const auto var : definition->variables()) {

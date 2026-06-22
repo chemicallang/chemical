@@ -57,8 +57,10 @@ Value* AddrOfValue::evaluated_value(InterpretScope &scope) {
             if (!arrVal->getType() || !arrVal->getType()->elem_type) {
                 arrVal->determine_type(scope.allocator);
             }
-            // Ensure contiguousData is allocated (lazy allocation in evaluated_value)
+            // Ensure element storage is initialized (lazy allocation in evaluated_value)
             arrVal->evaluated_value(scope);
+
+            // Try contiguousData first (primitive element types)
             auto cd = arrVal->contiguousData;
             auto cs = arrVal->contiguousSize;
             if (cd && cs > 0) {
@@ -78,6 +80,24 @@ Value* AddrOfValue::evaluated_value(InterpretScope &scope) {
                                 offset, ahead, encoded_location()
                             );
                         }
+                    }
+                }
+            }
+
+            // Fallback: struct elements stored in the values vector
+            auto idxEval = indexOp->idx->evaluated_value(scope);
+            auto idxOpt = idxEval->get_number();
+            if (idxOpt.has_value()) {
+                auto idx = idxOpt.value();
+                if (idx < arrVal->values.size()) {
+                    auto elemVal = arrVal->values[idx];
+                    if (elemVal && elemVal->val_kind() == ValueKind::StructValue) {
+                        const auto ptrType = getType();
+                        const auto pointeeType = ptrType->type;
+                        const auto elemSize = pointeeType->byte_size(scope.global->target_data);
+                        return new (scope.allocate<PointerValue>()) PointerValue(
+                            (StructValue*)elemVal, pointeeType, 0, elemSize, encoded_location()
+                        );
                     }
                 }
             }

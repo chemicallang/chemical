@@ -43,11 +43,17 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
             const auto val = (PointerValue*) eval;
             return val->deref(scope, encoded_location(), this);
         }
-        default:
-            // For non-pointer values, the DereferenceValue represents an implicit
-            // reference dereference (e.g., accessing a local variable).
-            // The value IS already the dereferenced value, return it directly.
+        default: {
+            // Try evaluating further (handles AddrOfValue→PointerValue, etc.)
+            const auto further = eval->evaluated_value(scope);
+            if(further && further != eval) {
+                if(further->val_kind() == ValueKind::PointerValue) {
+                    return ((PointerValue*)further)->deref(scope, encoded_location(), this);
+                }
+                return further;
+            }
             return eval;
+        }
     }
 }
 

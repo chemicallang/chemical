@@ -102,19 +102,25 @@ inline void interpret(InterpretScope& scope, ContinueStatement* stmt) {
 
 inline void interpret(InterpretScope& scope, AssignStatement* assign) {
     // Handle assignment with move semantics:
-    // 1. Destruct the old LHS value before overwriting it.
-    // 2. Perform the assignment.
-    // 3. Clear the RHS source (move, not copy) so it's not destructed twice.
+    // 1. Save the old LHS value (must NOT destruct before set_value, because
+    //    the RHS may take a pointer to the LHS — e.g. x = f(x.get_ptr(), N)).
+    // 2. Perform the assignment (set_value evaluates RHS, overwrites LHS).
+    // 3. Destruct the old LHS value (safe now — set_value already resolved RHS).
+    // 4. Clear the RHS source (move, not copy) so it's not destructed twice.
+    Value* oldLhsVal = nullptr;
     if(assign->assOp == Operation::Assignment) {
         if(assign->lhs->val_kind() == ValueKind::Identifier) {
             auto lhsId = assign->lhs->as_identifier_unsafe();
             auto lhsIt = scope.find_value_iterator(lhsId->value);
             if(lhsIt.first != lhsIt.second.values.end()) {
-                destruct_temp_struct(scope, lhsIt.first->second);
+                oldLhsVal = lhsIt.first->second;
             }
         }
     }
     assign->lhs->set_value(scope, assign->value, assign->assOp, assign->encoded_location());
+    if(oldLhsVal) {
+        destruct_temp_struct(scope, oldLhsVal);
+    }
     // Clear the RHS source (move semantics)
     if(assign->assOp == Operation::Assignment) {
         chem::string_view lhsName;

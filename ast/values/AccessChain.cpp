@@ -9,6 +9,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/StructValue.h"
 #include "ast/base/ASTAllocator.h"
 
 uint64_t AccessChain::byte_size(TargetData& target) {
@@ -177,7 +178,32 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     }
     if(values.size() == 1) return values[0]->evaluated_value(scope);
     Value* evaluated = values[0]->evaluated_value(scope);
-    return evaluate_from(values, scope, evaluated, 1);
+    auto result = evaluate_from(values, scope, evaluated, 1);
+    // If the first value in the chain is a FunctionCall that returns a destructible
+    // struct, destruct the intermediate temp. The result is a field/method of that
+    // struct, not the struct itself, so the struct temp must be cleaned up.
+    // E.g.: create_destructible(...).data → destruct the create_destructible temp.
+    if(values.size() > 1 && values[0]->val_kind() == ValueKind::FunctionCall &&
+       evaluated && evaluated->val_kind() == ValueKind::StructValue) {
+        auto structVal = evaluated->as_struct_value_unsafe();
+        auto ext = structVal->linked_extendable();
+        if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+            auto sd = (StructDefinition*)ext;
+            if(sd->has_destructor()) {
+                auto destructor_fn = sd->destructor_func();
+                if(destructor_fn && destructor_fn->body.has_value()) {
+                    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+                    temp_scope.declare("self", evaluated);
+                    temp_scope.interpret(&destructor_fn->body.value());
+                    auto self_it = temp_scope.values.find("self");
+                    if(self_it != temp_scope.values.end()) {
+                        temp_scope.values.erase(self_it);
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 ASTNode *AccessChain::linked_node() {

@@ -536,8 +536,9 @@ inline void interpret(InterpretScope& scope, Scope* body) {
 inline void interpret(InterpretScope& scope, BlockScope* body) {
     // TODO: stoppedInterpretOnce flag should be removed from Scope
     // TODO: BlockScope never stops, even if a return happens in the body
+    InterpretScope child_scope(&scope, scope.allocator, scope.global);
     bool stopped = false; // never stops
-    interpret(scope, body->nodes, stopped);
+    interpret(child_scope, body->nodes, stopped);
 }
 
 Value* evaluate(InterpretScope& scope, Scope* body);

@@ -229,7 +229,13 @@ Value* LambdaFunction::call(
         }
     }
 
-    fn_scope.interpret(&scope);
+    {
+        InterpretScope body_scope(&fn_scope, fn_scope.allocator, fn_scope.global);
+        body_scope.interpret(&scope);
+        if(fn_scope.returnValue) {
+            body_scope.returnValue = fn_scope.returnValue;
+        }
+    }
 
     global->current_func_type = prev_func;
     return fn_scope.returnValue;

@@ -410,6 +410,8 @@ void InterpretScope::destroy_values() {
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;
 
+        std::cerr << "[DESTROY] " << name << " kind=" << (int)val->val_kind() << std::endl;
+
         if(val->val_kind() == ValueKind::StructValue) {
             auto structVal = val->as_struct_value_unsafe();
             // Use linked_extendable() and verify it's actually a StructDecl

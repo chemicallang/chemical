@@ -86,7 +86,10 @@ void interpret(InterpretScope& scope, ForLoop* loop) {
     InterpretScope child(&scope, scope.allocator, scope.global);
     child.interpret(loop->initializer);
     while (loop->conditionExpr->evaluated_bool(child)) {
-        child.interpret(&loop->body);
+        {
+            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            body_scope.interpret(&loop->body);
+        } // body_scope destroyed here, calling destructors on iteration-local variables
         if (loop->stoppedInterpretation) {
             loop->stoppedInterpretation = false;
             break;
@@ -391,7 +394,10 @@ inline void interpret(InterpretScope& scope, PlacementNewNode* node) {
 void interpret(InterpretScope& scope, LoopBlock* loop) {
     InterpretScope child(&scope, scope.allocator, scope.global);
     while (true) {
-        child.interpret(&loop->body);
+        {
+            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            body_scope.interpret(&loop->body);
+        } // body_scope destroyed here, calling destructors on iteration-local variables
         if (loop->stoppedInterpretation) {
             loop->stoppedInterpretation = false;
             break;
@@ -500,7 +506,10 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
 void interpret(InterpretScope& scope, DoWhileLoop* loop) {
     InterpretScope child(&scope, scope.allocator, scope.global);
     do {
-        child.interpret(&loop->body);
+        {
+            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            body_scope.interpret(&loop->body);
+        } // body_scope destroyed here, calling destructors on iteration-local variables
         if (loop->stoppedInterpretation) {
             loop->stoppedInterpretation = false;
             break;
@@ -511,7 +520,10 @@ void interpret(InterpretScope& scope, DoWhileLoop* loop) {
 void interpret(InterpretScope& scope, WhileLoop* loop) {
     InterpretScope child(&scope, scope.allocator, scope.global);
     while (loop->condition->evaluated_bool(child)) {
-        child.interpret(&loop->body);
+        {
+            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            body_scope.interpret(&loop->body);
+        } // body_scope destroyed here, calling destructors on iteration-local variables
         if (loop->stoppedInterpretation) {
             loop->stoppedInterpretation = false;
             break;

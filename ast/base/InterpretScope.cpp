@@ -354,29 +354,6 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return nullptr;
         }
     } else {
-        std::string fname = fEvl ? fEvl->representation() : "null";
-        std::string sname = sEvl ? sEvl->representation() : "null";
-        std::string opname;
-        switch(operation) {
-            case Operation::Addition: opname = "Add"; break;
-            case Operation::Subtraction: opname = "Sub"; break;
-            case Operation::Multiplication: opname = "Mul"; break;
-            case Operation::Division: opname = "Div"; break;
-            case Operation::IsEqual: opname = "Eq"; break;
-            case Operation::IsNotEqual: opname = "Neq"; break;
-            case Operation::GreaterThan: opname = "Gt"; break;
-            case Operation::LessThan: opname = "Lt"; break;
-            case Operation::GreaterThanOrEqual: opname = "Gte"; break;
-            case Operation::LessThanOrEqual: opname = "Lte"; break;
-            default: opname = "Op" + std::to_string((int)operation); break;
-        }
-        std::cerr << "DBG: op=" << opname << " fKind=" << (int)fKind << "(" << fname << ") sKind=" << (int)sKind << "(" << sname << ")" << std::endl;
-        std::cerr << "DBG_CALLSTACK: ";
-        for(const auto& cf : scope.global->call_stack) {
-            if(cf) std::cerr << cf->representation() << " -> ";
-        }
-        if(scope.global->current_func_type) std::cerr << scope.global->current_func_type->representation();
-        std::cerr << std::endl;
         scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
     }
@@ -410,62 +387,52 @@ void InterpretScope::destroy_values() {
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;
 
-        std::cerr << "[DESTROY] " << name << " kind=" << (int)val->val_kind() << std::endl;
+        // Recursive helper to destruct a single value (struct, array, or nested)
+        auto destruct_value = [this](Value* target_val, auto& self_ref) -> void {
+            if (!target_val) return;
+            if(target_val->val_kind() == ValueKind::StructValue) {
+                auto structVal = target_val->as_struct_value_unsafe();
+                auto ext = structVal->linked_extendable();
+                // Handle both StructDecl (structs) and VariantDecl (variants)
+                if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
+                    ExtendableMembersContainerNode* container = ext;
+                    if(container->has_destructor()) {
+                        auto destructor_fn = container->destructor_func();
+                        if(destructor_fn && destructor_fn->body.has_value()) {
+                            const auto prev_func = global->current_func_type;
+                            global->current_func_type = destructor_fn;
 
-        if(val->val_kind() == ValueKind::StructValue) {
-            auto structVal = val->as_struct_value_unsafe();
-            // Use linked_extendable() and verify it's actually a StructDecl
-            // before casting to StructDefinition* (prevents UB on unions/variants)
-            auto ext = structVal->linked_extendable();
-            if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                auto structDef = (StructDefinition*) ext;
-                if(structDef->has_destructor()) {
-                    auto destructor_fn = structDef->destructor_func();
-                    if(destructor_fn && destructor_fn->body.has_value()) {
-                        const auto prev_func = global->current_func_type;
-                        global->current_func_type = destructor_fn;
+                            InterpretScope child_scope(global, allocator, global);
+                            child_scope.declare("self", target_val);
+                            child_scope.interpret(&destructor_fn->body.value());
 
-                        InterpretScope child_scope(global, allocator, global);
-                        child_scope.declare("self", val);
-                        child_scope.interpret(&destructor_fn->body.value());
-
-                        auto self_it = child_scope.values.find("self");
-                        if(self_it != child_scope.values.end()) {
-                            child_scope.values.erase(self_it);
-                        }
-
-                        global->current_func_type = prev_func;
-                    }
-                }
-            }
-        } else if(val->val_kind() == ValueKind::ArrayValue) {
-            auto arrVal = val->as_array_value_unsafe();
-            for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
-                auto elemVal = arrVal->values[ei];
-                if(elemVal && elemVal->val_kind() == ValueKind::StructValue) {
-                    auto elemStruct = elemVal->as_struct_value_unsafe();
-                    auto elemExt = elemStruct->linked_extendable();
-                    if(elemExt && elemExt->kind() == ASTNodeKind::StructDecl) {
-                        auto elemDef = (StructDefinition*) elemExt;
-                        if(elemDef->has_destructor()) {
-                            auto elemDest = elemDef->destructor_func();
-                            if(elemDest && elemDest->body.has_value()) {
-                                const auto prev_func = global->current_func_type;
-                                global->current_func_type = elemDest;
-                                InterpretScope child_scope(global, allocator, global);
-                                child_scope.declare("self", elemVal);
-                                child_scope.interpret(&elemDest->body.value());
-                                auto self_it = child_scope.values.find("self");
-                                if(self_it != child_scope.values.end()) {
-                                    child_scope.values.erase(self_it);
-                                }
-                                global->current_func_type = prev_func;
+                            auto self_it = child_scope.values.find("self");
+                            if(self_it != child_scope.values.end()) {
+                                child_scope.values.erase(self_it);
                             }
+
+                            global->current_func_type = prev_func;
+                        }
+                    }
+                } else {
+                    // No linked or unknown container — iterate member values and destruct recursively
+                    for(auto& [member_name, member_init] : structVal->values) {
+                        if(member_init.value) {
+                            self_ref(member_init.value, self_ref);
                         }
                     }
                 }
+            } else if(target_val->val_kind() == ValueKind::ArrayValue) {
+                auto arrVal = target_val->as_array_value_unsafe();
+                // Destruct each element in values vector (struct elements)
+                for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
+                    auto elemVal = arrVal->values[ei];
+                    self_ref(elemVal, self_ref);
+                }
             }
-        }
+        };
+
+        destruct_value(val, destruct_value);
     }
 }
 

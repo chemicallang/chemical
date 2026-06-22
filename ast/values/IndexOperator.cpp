@@ -18,6 +18,8 @@
 #include "PointerValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/StructValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include <cstring>
 
@@ -177,6 +179,26 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
             const auto ptrVal = (PointerValue*) value;
             const auto incremented = ptrVal->increment(scope, index.value(), location, indexVal);
             return incremented->deref(scope, location, indexVal);
+        }
+        case ValueKind::StructValue: {
+            // Index operator overloading: look up the 'index' method on the struct
+            auto structVal = value->as_struct_value_unsafe();
+            auto ext = structVal->linked_extendable();
+            if(ext) {
+                auto memberFn = ext->child("index");
+                if(memberFn && memberFn->kind() == ASTNodeKind::FunctionDecl) {
+                    auto indexFn = memberFn->as_function_unsafe();
+                    // Create a function call to the index method
+                    auto call = new (scope.allocate<FunctionCall>()) FunctionCall(
+                        nullptr, indexFn->returnType, location
+                    );
+                    call->values = { indexVal };
+                    return indexFn->call(&scope, scope.allocator, call, value);
+                }
+            }
+            // Fall through to error
+            scope.error("indexing on unknown value", value);
+            return nullptr;
         }
         default:
             scope.error("indexing on unknown value", value);

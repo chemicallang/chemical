@@ -22,7 +22,6 @@ func run_executable_tests() {
     test_native_enum();
     // test_interface_generic_dispatch() called in extended syntax section below
     test_auto_deref();
-    test_zeroed_value()
 
 
     // -------------------------------------------

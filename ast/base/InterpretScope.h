@@ -182,6 +182,14 @@ public:
     bool stopInterpretation = false;
 
     /**
+     * When a break A with a value (break i) is interpreted inside a loop,
+     * the evaluated value is stored here so that LoopValue::evaluated_value()
+     * can retrieve it. Stored on the scope rather than on AST nodes to avoid
+     * polluting the AST with interpretation state.
+     */
+    Value* loop_break_value = nullptr;
+
+    /**
      * Iterates over all values in this scope and calls destructors
      * for struct values that have destructor functions defined.
      * The returnValue is skipped (it has been moved to the caller).

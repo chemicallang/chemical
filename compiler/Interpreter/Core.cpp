@@ -43,6 +43,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/structures/LoopBlock.h"
+#include "ast/values/LoopValue.h"
 
 
 void stop_interpretation_above(ASTNode* node) {
@@ -93,6 +94,10 @@ static void destruct_temp_struct(InterpretScope& scope, Value* val) {
 }
 
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
+    if(stmt->value) {
+        // Store the break value so LoopValue::evaluated_value() can retrieve it
+        scope.loop_break_value = stmt->value->evaluated_value(scope);
+    }
     stop_interpretation_above_once(stmt->parent());
 }
 
@@ -495,6 +500,25 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
             }
             break;
         }
+        case PatternElseExprKind::Unreachable: {
+            // For else unreachable, extract the member value from the variant struct
+            if(!node->value.param_names.empty() && node->value.member) {
+                const auto evalExpr = node->value.expression->evaluated_value(scope);
+                if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
+                    auto variantStruct = evalExpr->as_struct_value_unsafe();
+                    // Extract the member parameter values from the variant struct
+                    for(auto& pm : node->value.param_names) {
+                        if(pm->member_param) {
+                            auto found = variantStruct->values.find(pm->member_param->name);
+                            if(found != variantStruct->values.end() && found->second.value) {
+                                scope.declare(pm->identifier, found->second.value);
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
         default:
             // No else expression - just evaluate normally
             node->value.evaluated_value(scope);
@@ -518,6 +542,27 @@ void interpret(InterpretScope& scope, LoopBlock* loop) {
             break;
         }
     }
+}
+
+Value* LoopValue::evaluated_value(InterpretScope& scope) {
+    InterpretScope child(&scope, scope.allocator, scope.global);
+    while (true) {
+        {
+            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            body_scope.interpret(&stmt.body);
+            // Capture break value before body_scope is destroyed
+            if(body_scope.loop_break_value) {
+                scope.loop_break_value = body_scope.loop_break_value;
+            }
+        }
+        if (stmt.stoppedInterpretation) {
+            stmt.stoppedInterpretation = false;
+            break;
+        }
+    }
+    auto result = scope.loop_break_value;
+    scope.loop_break_value = nullptr;
+    return result ? result : scope.getNullValue();
 }
 
 void interpret(InterpretScope& scope, ProvideStmt* stmt) {

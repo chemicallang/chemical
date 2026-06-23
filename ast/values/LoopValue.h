@@ -25,9 +25,11 @@ public:
                 stmt.parent(),
                 encoded_location()
         );
-        stmt.copy_into(allocator, &stmt);
+        stmt.copy_into(allocator, &copied->stmt);
         return copied;
     }
+
+    Value* evaluated_value(InterpretScope& scope) override;
 
 #ifdef COMPILER_BUILD
 

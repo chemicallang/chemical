@@ -308,19 +308,21 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
 
 /**
  * Helper: declare variant case variables from the matched variant case
- * into the given interpret scope. Returns the number of variables declared.
+ * into the given interpret scope. Returns a vector of declared variable names
+ * so the caller can erase them after the body is interpreted, preventing
+ * double-destruction when the variant struct's destructor cleans up the shared value.
  */
-static unsigned declare_variant_case_vars(
+static std::vector<chem::string_view> declare_variant_case_vars(
     InterpretScope& scope,
     SwitchStatement* stmt,
     Scope* body,
     Value* cond
 ) {
-    if(!cond || cond->val_kind() != ValueKind::StructValue) return 0;
+    std::vector<chem::string_view> declared;
+    if(!cond || cond->val_kind() != ValueKind::StructValue) return declared;
     auto condStruct = cond->as_struct_value_unsafe();
     const auto variantDef = stmt->getVarDefFromExpr();
-    if(!variantDef) return 0;
-    unsigned count = 0;
+    if(!variantDef) return declared;
     for(auto& casePair : stmt->cases) {
         if(casePair.first && casePair.first->val_kind() == ValueKind::VariantCase) {
             if(&stmt->scopes[casePair.second] == body) {
@@ -329,14 +331,14 @@ static unsigned declare_variant_case_vars(
                     auto found = condStruct->values.find(caseVar->name);
                     if(found != condStruct->values.end() && found->second.value) {
                         scope.declare(caseVar->name, found->second.value);
-                        count++;
+                        declared.push_back(caseVar->name);
                     }
                 }
                 break;
             }
         }
     }
-    return count;
+    return declared;
 }
 
 void interpret(InterpretScope& scope, SwitchStatement* stmt) {
@@ -344,11 +346,21 @@ void interpret(InterpretScope& scope, SwitchStatement* stmt) {
     if(body) {
         // Use a child scope for variant switch cases to keep variable declarations clean
         InterpretScope child(&scope, scope.allocator, scope.global);
+        std::vector<chem::string_view> caseVarNames;
         if(!scope.global->variant_member_index_map.empty()) {
             const auto cond = stmt->expression->evaluated_value(scope);
-            declare_variant_case_vars(child, stmt, body, cond);
+            caseVarNames = declare_variant_case_vars(child, stmt, body, cond);
         }
         child.interpret(body);
+        // Erase pattern-matched case variables from child scope to prevent
+        // double-destruction. These variables share pointers with the variant
+        // struct's internal values; when the child scope is destroyed, the
+        // shared structs would be destructed again when the variant goes out
+        // of scope. By erasing from the child scope, we let the variant's
+        // destructor (called when the outer scope ends) handle cleanup.
+        for(auto& varName : caseVarNames) {
+            child.values.erase(varName);
+        }
     }
 }
 
@@ -503,7 +515,7 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
         case PatternElseExprKind::Unreachable: {
             // For else unreachable, extract the member value from the variant struct
             if(!node->value.param_names.empty() && node->value.member) {
-                const auto evalExpr = node->value.expression->evaluated_value(scope);
+                auto evalExpr = node->value.expression->evaluated_value(scope);
                 if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
                     auto variantStruct = evalExpr->as_struct_value_unsafe();
                     // Extract the member parameter values from the variant struct
@@ -512,6 +524,9 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
                             auto found = variantStruct->values.find(pm->member_param->name);
                             if(found != variantStruct->values.end() && found->second.value) {
                                 scope.declare(pm->identifier, found->second.value);
+                                // Erase from variant struct to prevent double-destruction.
+                                // The declared variable now owns the value.
+                                variantStruct->values.erase(found);
                             }
                         }
                     }

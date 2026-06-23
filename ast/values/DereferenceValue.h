@@ -58,6 +58,8 @@ public:
 
     void set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location);
 
+    void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) override;
+
     ASTNode* linked_node() override {
         return value->linked_node();
     }

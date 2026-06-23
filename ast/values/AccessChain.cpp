@@ -94,16 +94,11 @@ Value *AccessChain::parent(InterpretScope &scope) {
 }
 
 inline Value* AccessChain::parent_value(InterpretScope &scope) {
-#ifdef DEBUG
-    auto p = parent(scope);
-    if (p == nullptr) {
-        scope.error("parent is nullptr in access cain " + Value::representation(), (ASTNode*) this);
-    } else if (p->evaluated_value(scope) == nullptr) {
-        scope.error("evaluated value of parent is nullptr in access chain " + Value::representation() + " pointer " +
-                    p->representation(), (ASTNode*) this);
-    }
-#endif
-    return parent(scope)->evaluated_value(scope);
+    // Do NOT call evaluated_value() on the parent — that would create a copy
+    // of the intermediate struct value, causing modifications through the chain
+    // (e.g., d2.d.a = 90) to be lost. The raw parent pointer from child() is
+    // the actual value stored in the struct and is what set_child_value needs.
+    return parent(scope);
 }
 
 void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {

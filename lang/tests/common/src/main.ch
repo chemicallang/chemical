@@ -128,5 +128,6 @@ public func run_common_tests() {
 
 
     test_dereferences();
+    test_if_switch_loop_value();
 
 }

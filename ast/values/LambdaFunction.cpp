@@ -237,6 +237,14 @@ Value* LambdaFunction::call(
         }
     }
 
+    // Self reference parameter (&self) should not be destructed when fn_scope ends.
+    if(self_param && self_param->type && self_param->type->is_reference()) {
+        auto self_it = fn_scope.values.find(self_param->name);
+        if(self_it != fn_scope.values.end()) {
+            self_it->second = nullptr;
+        }
+    }
+
     global->current_func_type = prev_func;
     return fn_scope.returnValue;
 }

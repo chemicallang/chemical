@@ -444,12 +444,38 @@ void InterpretScope::destroy_values() {
 }
 
 void InterpretScope::move_clear_source(Value* initializer, const chem::string_view& new_name) {
-    if(!initializer || initializer->val_kind() != ValueKind::StructValue) return;
-    auto structVal = initializer->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext || ext->kind() != ASTNodeKind::StructDecl) return;
-    auto sd = (StructDefinition*)ext;
-    if(!sd->has_destructor()) return;
+    if(!initializer) return;
+    
+    bool shouldClear = false;
+    
+    if(initializer->val_kind() == ValueKind::StructValue) {
+        auto structVal = initializer->as_struct_value_unsafe();
+        auto ext = structVal->linked_extendable();
+        if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+            auto sd = (StructDefinition*)ext;
+            if(sd->has_destructor()) {
+                shouldClear = true;
+            }
+        }
+    } else if(initializer->val_kind() == ValueKind::ArrayValue) {
+        auto arrVal = initializer->as_array_value_unsafe();
+        for(auto elem : arrVal->values) {
+            if(elem && elem->val_kind() == ValueKind::StructValue) {
+                auto sv = elem->as_struct_value_unsafe();
+                auto ext = sv->linked_extendable();
+                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                    auto sd = (StructDefinition*)ext;
+                    if(sd->has_destructor()) {
+                        shouldClear = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    if(!shouldClear) return;
+    
     InterpretScope* scanScope = this;
     while(scanScope) {
         for(auto& [name, val] : scanScope->values) {

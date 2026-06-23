@@ -100,6 +100,13 @@ Value* ReferenceOfValue::evaluated_value(InterpretScope& scope) {
                 scope, strVal, pointeeType
             );
         }
+        case ValueKind::StructValue: {
+            auto structVal = (StructValue*) inner;
+            const auto byteSize = pointeeType ? pointeeType->byte_size(scope.global->target_data) : 0;
+            return new (scope.allocate<PointerValue>()) PointerValue(
+                structVal, pointeeType, 0, byteSize, encoded_location()
+            );
+        }
         default:
             // For unsupported types, fall back to returning inner directly
             return inner;

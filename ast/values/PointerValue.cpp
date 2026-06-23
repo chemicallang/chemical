@@ -152,7 +152,14 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
         }
         case BaseTypeKind::Linked: {
             // data was set by AddrOfValue to point to a StructValue
-            return (StructValue*) data;
+            // Return a COPY of the struct — *ptr should produce a new value,
+            // not a reference to the original. Without this copy, mutations
+            // through the dereferenced value would affect the original.
+            auto srcStruct = (StructValue*) data;
+            if(srcStruct) {
+                return srcStruct->copy(scope.allocator);
+            }
+            return scope.getNullValue();
         }
         case BaseTypeKind::Float:
         case BaseTypeKind::Double:

@@ -152,12 +152,19 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
         }
         case BaseTypeKind::Linked: {
             // data was set by AddrOfValue to point to a StructValue
-            // Return a COPY of the struct — *ptr should produce a new value,
-            // not a reference to the original. Without this copy, mutations
-            // through the dereferenced value would affect the original.
             auto srcStruct = (StructValue*) data;
             if(srcStruct) {
-                return srcStruct->copy(scope.allocator);
+                // Only copy non-destructible (trivially copyable) structs.
+                // For destructible structs and variants, return the original
+                // since move semantics handle cleanup via move_clear_source.
+                auto ext = srcStruct->linked_extendable();
+                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                    auto sd = (StructDefinition*)ext;
+                    if(!sd->has_destructor()) {
+                        return srcStruct->copy(scope.allocator);
+                    }
+                }
+                return srcStruct; // return original for destructible structs/variants
             }
             return scope.getNullValue();
         }

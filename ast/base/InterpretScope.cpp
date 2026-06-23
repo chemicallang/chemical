@@ -479,9 +479,22 @@ void InterpretScope::move_clear_source(Value* initializer, const chem::string_vi
     InterpretScope* scanScope = this;
     while(scanScope) {
         for(auto& [name, val] : scanScope->values) {
-            if(name != new_name && val == initializer) {
-                val = nullptr;
-                return;
+            if(name != new_name) {
+                if(val == initializer) {
+                    val = nullptr;
+                    return;
+                }
+                // For ArrayValue initializers, also check if any scope variable
+                // holds a struct that matches an element in the array.
+                if(initializer->val_kind() == ValueKind::ArrayValue && val != nullptr) {
+                    auto arrVal = initializer->as_array_value_unsafe();
+                    for(auto elem : arrVal->values) {
+                        if(elem && val == elem) {
+                            val = nullptr;
+                            return;
+                        }
+                    }
+                }
             }
         }
         scanScope = scanScope->parent;

@@ -306,7 +306,32 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     const auto eval = idx->evaluated_value(scope);
     const auto num_value = eval->get_number();
     if(num_value.has_value()) {
-        return parent->index(scope, num_value.value());
+        // First, evaluate the parent to get the actual array/pointer value
+        auto parentEval = parent->evaluated_value(scope);
+        if(!parentEval) return nullptr;
+        // For ArrayValue, return the raw element directly (without copy)
+        // so that assignments through the chain (e.g., arr[i].field = val)
+        // modify the original element.  Evaluate non-StructValue elements
+        // on access (DereferenceValue, FunctionCall) so they produce their
+        // computed values and subsequent field access works on the real element.
+        if(parentEval->val_kind() == ValueKind::ArrayValue) {
+            auto arr = parentEval->as_array_value_unsafe();
+            if(num_value.value() < arr->values.size()) {
+                auto rawElem = arr->values[num_value.value()];
+                // Only evaluate non-StructValue && non-Identifier elements
+                // (skip VariableIdentifiers to avoid sharing struct pointers)
+                if(rawElem && rawElem->val_kind() != ValueKind::StructValue &&
+                   rawElem->val_kind() != ValueKind::Identifier) {
+                    auto evalElem = rawElem->evaluated_value(scope);
+                    if(evalElem && evalElem != rawElem) {
+                        arr->values[num_value.value()] = evalElem;
+                        return evalElem;
+                    }
+                }
+                return rawElem;
+            }
+        }
+        return parentEval->index(scope, num_value.value());
     }
     return nullptr;
 }

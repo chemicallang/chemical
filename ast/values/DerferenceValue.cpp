@@ -107,6 +107,31 @@ void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operati
     }
 }
 
+void DereferenceValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* newValue, Operation op) {
+    // Evaluate the inner expression to get the pointer
+    const auto ptrEval = value->evaluated_value(scope);
+    if(!ptrEval) {
+        scope.error("cannot set child through dereference: inner value could not be evaluated", this);
+        return;
+    }
+    if(ptrEval->val_kind() == ValueKind::PointerValue) {
+        auto ptrVal = (PointerValue*) ptrEval;
+        // Write through the pointer directly — access the underlying struct via data
+        // and set the child field on it. This avoids going through deref() which
+        // creates a copy and would lose modifications.
+        if(ptrVal->data) {
+            auto structVal = (StructValue*) ptrVal->data;
+            auto newVal = newValue->evaluated_value(scope);
+            if(newVal) {
+                structVal->set_child_value(scope, name, newVal, op);
+                return;
+            }
+        }
+    }
+    // Fallback: default behavior
+    Value::set_child_value(scope, name, newValue, op);
+}
+
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<DereferenceValue>()) DereferenceValue(
             value->copy(allocator),

@@ -1239,6 +1239,15 @@ Value *FunctionDeclaration::call(
             }
         }
     }
+    // Self reference parameter (&self) should not be destructed when fn_scope ends.
+    // The struct value is owned by the caller's scope; destructing it here would
+    // prematurely call the destructor on the caller's struct.
+    if(self_param && self_param->type && self_param->type->is_reference()) {
+        auto self_it = fn_scope->values.find(self_param->name);
+        if(self_it != fn_scope->values.end()) {
+            self_it->second = nullptr;
+        }
+    }
     return fn_scope->returnValue;
 }
 

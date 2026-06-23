@@ -209,7 +209,29 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
 Value* IndexOperator::evaluated_value(InterpretScope &scope) {
     Value* eval = parent_val->evaluated_value(scope);
     if(!eval) return nullptr;
-    return index_inside(scope, eval, idx, idx->encoded_location());
+    auto result = index_inside(scope, eval, idx, idx->encoded_location());
+    // If the parent was a FunctionCall producing a temp struct with a destructor,
+    // destruct it after the index operation completes. The temp is NOT tracked
+    // by any scope, and the self-ref fix prevents method scopes from destructing
+    // it via the &self parameter. Without this, temps from expressions like
+    // create_indexable(...)[0] would be leaked.
+    if(parent_val && parent_val->val_kind() == ValueKind::FunctionCall && eval->val_kind() == ValueKind::StructValue) {
+        auto structVal = eval->as_struct_value_unsafe();
+        auto ext = structVal->linked_extendable();
+        if(ext && ext->has_destructor()) {
+            auto destructor_fn = ext->destructor_func();
+            if(destructor_fn && destructor_fn->body.has_value()) {
+                InterpretScope child_scope(scope.global, scope.allocator, scope.global);
+                child_scope.declare("self", eval);
+                child_scope.interpret(&destructor_fn->body.value());
+                auto self_it = child_scope.values.find("self");
+                if(self_it != child_scope.values.end()) {
+                    child_scope.values.erase(self_it);
+                }
+            }
+        }
+    }
+    return result;
 }
 
 void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {

@@ -1609,6 +1609,22 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     return scope.global->typeBuilder.getNullValue();
 }
 
+static void destruct_func_call_temp(InterpretScope& scope, Value* val) {
+    if(!val || val->val_kind() != ValueKind::StructValue) return;
+    auto structVal = val->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext || !ext->has_destructor()) return;
+    auto destructor_fn = ext->destructor_func();
+    if(!destructor_fn || !destructor_fn->body.has_value()) return;
+    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+    temp_scope.declare("self", val);
+    temp_scope.interpret(&destructor_fn->body.value());
+    auto self_it = temp_scope.values.find("self");
+    if(self_it != temp_scope.values.end()) {
+        temp_scope.values.erase(self_it);
+    }
+}
+
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     // When the parent_val is itself a callable expression (e.g. a FunctionCall like
     // 'give_me_some_sum()' in 'give_me_some_sum()(9, 4)', or an AccessChain that resolves
@@ -1616,11 +1632,21 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     // rather than traversing into its inner parent_val via get_parent_from.
     if(parent_val && parent_val->val_kind() == ValueKind::FunctionCall) {
         auto evaluated = parent_val->evaluated_value(scope);
-        return interpret_value_with_evaluated_parent(this, scope, evaluated);
+        auto result = interpret_value_with_evaluated_parent(this, scope, evaluated);
+        if(evaluated && evaluated != result) {
+            destruct_func_call_temp(scope, evaluated);
+        }
+        return result;
     }
     const auto parent = get_parent_from(parent_val);
     const auto evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
-    return interpret_value(this, scope, evaluated_parent);
+    auto result = interpret_value(this, scope, evaluated_parent);
+    // If the parent was itself a FunctionCall (temp from nested method call),
+    // destruct the intermediate temp after using it as the receiver.
+    if(parent && parent->val_kind() == ValueKind::FunctionCall && evaluated_parent && evaluated_parent != result) {
+        destruct_func_call_temp(scope, evaluated_parent);
+    }
+    return result;
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {

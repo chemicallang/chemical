@@ -113,6 +113,14 @@ public:
             }
             target->returnValue = value->evaluated_value(scope);
         }
+        // Stop interpreting statement siblings after a return.
+        // Without this, a `return true;` inside an `if` inside a lambda would
+        // not prevent a subsequent `return false;` from overwriting returnValue.
+        InterpretScope* stop_target = &scope;
+        while(stop_target != nullptr && stop_target != (InterpretScope*) scope.global) {
+            stop_target->stopInterpretation = true;
+            stop_target = stop_target->parent;
+        }
     }
 
 };

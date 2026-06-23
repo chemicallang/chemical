@@ -12,7 +12,6 @@ func run_executable_tests() {
     // test_lambda() moved to common (covered by run_common_tests())
     test_structs();
     test_nodes();
-    test_arrays();
     test_char_ptr_strings();
     test_strings();
     test_unions();

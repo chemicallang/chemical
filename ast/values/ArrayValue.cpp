@@ -237,7 +237,11 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
     }
     // For arrays that already have struct elements (from initializers like [Struct{...}]),
     // evaluate each element to get runtime values with properly evaluated field initializers.
-    if(!values.empty()) {
+    // Only runs ONCE — without this guard, AddrOfValue::evaluated_value() calls
+    // arrVal->evaluated_value() on every &arr[i] access, which replaces ALL array
+    // elements with fresh default copies, wiping out modifications made through pointers.
+    if(!structElementsEvaluated && !values.empty()) {
+        structElementsEvaluated = true;
         for(size_t i = 0; i < values.size(); i++) {
             auto elem = values[i];
             if(elem->val_kind() == ValueKind::StructValue) {

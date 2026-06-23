@@ -26,6 +26,12 @@ public:
     void* contiguousData = nullptr;
     size_t contiguousSize = 0;
 
+    // Guards the struct element re-evaluation loop so it only runs once.
+    // Without this guard, AddrOfValue::evaluated_value() calls arrVal->evaluated_value()
+    // on every &arr[i] access, which replaces ALL array elements with fresh default
+    // copies, wiping out modifications made through pointers (e.g. ptr.lamb = lambda).
+    bool structElementsEvaluated = false;
+
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
     llvm::AllocaInst *arr;

@@ -20,6 +20,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/values/WrapValue.h"
 #include "std/except.h"
 
@@ -460,8 +461,16 @@ void InterpretScope::move_clear_source(Value* initializer, const chem::string_vi
     } else if(initializer->val_kind() == ValueKind::ArrayValue) {
         auto arrVal = initializer->as_array_value_unsafe();
         for(auto elem : arrVal->values) {
-            if(elem && elem->val_kind() == ValueKind::StructValue) {
-                auto sv = elem->as_struct_value_unsafe();
+            if(!elem) continue;
+            Value* actualElem = elem;
+            // Resolve Identifier elements to their actual value to check
+            // if they contain destructible structs (e.g. [d] where d is a struct).
+            if(elem->val_kind() == ValueKind::Identifier) {
+                auto idVal = elem->as_identifier_unsafe();
+                actualElem = find_value(idVal->value);
+            }
+            if(actualElem && actualElem->val_kind() == ValueKind::StructValue) {
+                auto sv = actualElem->as_struct_value_unsafe();
                 auto ext = sv->linked_extendable();
                 if(ext && ext->kind() == ASTNodeKind::StructDecl) {
                     auto sd = (StructDefinition*)ext;
@@ -488,10 +497,25 @@ void InterpretScope::move_clear_source(Value* initializer, const chem::string_vi
                 // holds a struct that matches an element in the array.
                 if(initializer->val_kind() == ValueKind::ArrayValue && val != nullptr) {
                     auto arrVal = initializer->as_array_value_unsafe();
-                    for(auto elem : arrVal->values) {
-                        if(elem && val == elem) {
+                    for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
+                        auto elem = arrVal->values[ei];
+                        if(!elem) continue;
+                        if(val == elem) {
                             val = nullptr;
                             return;
+                        }
+                        // Identifier elements (from [d] syntax) need to be resolved
+                        // to their actual value for comparison.
+                        if(elem->val_kind() == ValueKind::Identifier) {
+                            auto idVal = elem->as_identifier_unsafe();
+                            auto actualVal = find_value(idVal->value);
+                            if(actualVal && val == actualVal) {
+                                val = nullptr;
+                                // Replace the identifier in the array with the actual
+                                // value so that array destruction properly cleans it up.
+                                arrVal->values[ei] = actualVal;
+                                return;
+                            }
                         }
                     }
                 }

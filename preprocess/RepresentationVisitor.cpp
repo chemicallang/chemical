@@ -88,6 +88,7 @@
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/BitwiseNot.h"
+#include "ast/values/ZeroedValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/UnsafeValue.h"
@@ -763,6 +764,12 @@ void RepresentationVisitor::VisitDynamicValue(DynamicValue* value) {
     write(">(");
     visit(value->value);
     write(')');
+}
+
+void RepresentationVisitor::VisitZeroedValue(ZeroedValue* value) {
+    write("zeroed<");
+    visit(value->getType());
+    write(">()");
 }
 
 void RepresentationVisitor::VisitCastedValue(CastedValue *casted) {

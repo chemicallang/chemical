@@ -255,6 +255,8 @@ public:
 
     void VisitDynamicValue(DynamicValue* value);
 
+    void VisitZeroedValue(ZeroedValue* value);
+
     void VisitArrayValue(ArrayValue* value);
 
     void VisitStructValue(StructValue* value);

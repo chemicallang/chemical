@@ -141,5 +141,7 @@ public func run_common_tests() {
     test_structs();
     test_unions();
     test_nodes();
+    test_variants();
+    test_moves()
 
 }

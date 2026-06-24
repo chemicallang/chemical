@@ -11,6 +11,7 @@ func run_executable_tests() {
     test_deref_pass_func_call()
 
 
+    test_variant_native();
     // -------------------------------------------
     // Extended Syntax
     // this syntax is mostly present in languages like C++ and Rust
@@ -21,10 +22,8 @@ func run_executable_tests() {
     test_native_generic_specifics();
     test_native_deduction_variants();
     test_dynamic_dispatch();
-    test_variants();
     test_imported_modules();
     test_modules_import();
-    test_moves();
     test_generic_moves();
     test_new();
     test_static_interfaces();

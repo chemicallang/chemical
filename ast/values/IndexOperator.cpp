@@ -151,9 +151,32 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
         }
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
-            // Prefer the stored values vector — it contains evaluated AST results
-            // (e.g. FunctionCall that returns a struct). Only fall back to contiguousData
-            // for uninitialized arrays with primitive element types.
+            // Use contiguousData for numeric primitive types (IntN, Bool, Float, Double)
+            // where writes through pointers (from &mut arr[i]) are stored. This keeps
+            // reads in sync with pointer writes that bypass the values vector.
+            // For reference/pointer/struct element types, use the values vector since
+            // their data cannot be serialized into contiguousData via get_number().
+            if (arr->contiguousData) {
+                // Check element type to confirm it's a numeric type
+                auto elemType = arr->getType() ? arr->getType()->elem_type->canonical() : nullptr;
+                if(elemType) {
+                    auto elemKind = elemType->kind();
+                    if(elemKind == BaseTypeKind::IntN || elemKind == BaseTypeKind::Bool ||
+                       elemKind == BaseTypeKind::Float || elemKind == BaseTypeKind::Double) {
+                        const auto elemSize = elemType->byte_size(scope.global->target_data);
+                        if (elemSize > 0 && elemSize <= 8) {
+                            const auto maxIdx = arr->contiguousSize / elemSize;
+                            if (index.value() < maxIdx) {
+                                uint64_t val = 0;
+                                std::memcpy(&val, (char*)arr->contiguousData + index.value() * elemSize, elemSize);
+                                return new (scope.allocate<IntNumValue>()) IntNumValue(val, scope.global->typeBuilder.getIntNType((unsigned int)(elemSize * 8), true), location);
+                            }
+                        }
+                    }
+                }
+            }
+            // Fallback: use the stored values vector for struct elements or when
+            // contiguousData is not available (uninitialized arrays).
             if (index.value() < arr->values.size()) {
                 auto rawElem = arr->values[index.value()];
                 // For StructValue elements, return the raw element directly (no copy)
@@ -166,18 +189,6 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
                 auto evalVal = rawElem->evaluated_value(scope);
                 if(evalVal) {
                     return evalVal->copy(scope.allocator);
-                }
-            }
-            // Fallback: read from contiguousData (handles uninitialized primitive arrays)
-            if (arr->contiguousData) {
-                const auto elemSize = arr->getType()->elem_type->byte_size(scope.global->target_data);
-                if (elemSize > 0 && elemSize <= 8) {
-                    const auto maxIdx = arr->contiguousSize / elemSize;
-                    if (index.value() < maxIdx) {
-                        uint64_t val = 0;
-                        std::memcpy(&val, (char*)arr->contiguousData + index.value() * elemSize, elemSize);
-                        return new (scope.allocate<IntNumValue>()) IntNumValue(val, scope.global->typeBuilder.getIntNType((unsigned int)(elemSize * 8), true), location);
-                    }
                 }
             }
             // Out of bounds or uninitialized: return zero

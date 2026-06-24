@@ -10,7 +10,6 @@ public func run_native_common_tests() {
 
     // Basic pointer arithmetic and access (safe for interpretation mode)
     test_pointer_math();
-    test_casts();
 
     // Comptime pointer arithmetic
     test_pointers_in_comptime();

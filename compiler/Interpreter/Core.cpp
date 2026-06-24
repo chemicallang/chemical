@@ -22,6 +22,8 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/UnnamedUnion.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
@@ -644,13 +646,13 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                     }
                 }
             }
-            if (linked && linked->kind() == ASTNodeKind::StructDecl) {
-                auto structDef = (StructDefinition*) linked;
+            if (linked && (linked->kind() == ASTNodeKind::StructDecl || linked->kind() == ASTNodeKind::UnionDecl)) {
+                auto container = (ExtendableMembersContainerNode*) linked;
                 auto structVal = new (scope.allocate<StructValue>()) StructValue(
-                    stmt->type, structDef, structDef, stmt->encoded_location()
+                    stmt->type, container, container, stmt->encoded_location()
                 );
                 // Populate all fields with default/null values
-                for (const auto field : structDef->variables()) {
+                for (const auto field : container->variables()) {
                     auto defValue = field->default_value();
                     if (defValue) {
                         structVal->values.emplace(
@@ -658,10 +660,43 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                             StructMemberInitializer { field->name, defValue->scope_value(scope) }
                         );
                     } else {
-                        structVal->values.emplace(
-                            field->name,
-                            StructMemberInitializer { field->name, scope.getNullValue() }
-                        );
+                        // check if field type is an unnamed struct/union — recursively init
+                        auto fieldType = field->known_type();
+                        if(fieldType && fieldType->kind() == BaseTypeKind::Linked) {
+                            auto fieldLinked = fieldType->as_linked_type_unsafe()->linked;
+                            if(fieldLinked && (fieldLinked->kind() == ASTNodeKind::UnnamedStruct || fieldLinked->kind() == ASTNodeKind::UnnamedUnion)) {
+                                VariablesContainerBase* subContainer;
+                                if(fieldLinked->kind() == ASTNodeKind::UnnamedStruct) {
+                                    subContainer = fieldLinked->as_unnamed_struct_unsafe();
+                                } else {
+                                    subContainer = fieldLinked->as_unnamed_union_unsafe();
+                                }
+                                auto subVal = new (scope.allocate<StructValue>()) StructValue(
+                                    fieldType, nullptr, subContainer, stmt->encoded_location()
+                                );
+                                for(const auto subField : subContainer->variables()) {
+                                    auto subDef = subField->default_value();
+                                    subVal->values.emplace(
+                                        subField->name,
+                                        StructMemberInitializer { subField->name, subDef ? subDef->scope_value(scope) : scope.getNullValue() }
+                                    );
+                                }
+                                structVal->values.emplace(
+                                    field->name,
+                                    StructMemberInitializer { field->name, subVal }
+                                );
+                            } else {
+                                structVal->values.emplace(
+                                    field->name,
+                                    StructMemberInitializer { field->name, scope.getNullValue() }
+                                );
+                            }
+                        } else {
+                            structVal->values.emplace(
+                                field->name,
+                                StructMemberInitializer { field->name, scope.getNullValue() }
+                            );
+                        }
                     }
                 }
                 scope.declare(stmt->name_view(), structVal);
@@ -672,7 +707,6 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
             scope.declare(stmt->name_view(), val);
         } else if (kind == BaseTypeKind::Pointer) {
             // Uninitialized pointer: declare as null pointer
-            auto& typeBuilder = scope.global->typeBuilder;
             auto val = new (scope.allocate<PointerValue>()) PointerValue(
                 nullptr, type->as_pointer_type_unsafe()->type, 0, 0, stmt->encoded_location()
             );

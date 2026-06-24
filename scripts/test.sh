@@ -16,6 +16,7 @@ NO_CACHE="--no-cache"
 EMIT_C=false
 USE_C=false
 DEBUG_FLAG=false
+GDB=false
 RECOMPILE_PLUGINS="-frecompile-plugins"
 
 usage() {
@@ -35,6 +36,7 @@ usage() {
   echo "  --use-c                 Translate to C and compile with embedded Clang (Compiler only)"
   echo "  --cached-plugins        Skip recompiling CBI plugins (default: -frecompile-plugins)"
   echo "  -g                      Pass -g to the compiler (debug symbols)"
+  echo "  --gdb                   Run tests under GDB (implies -g)"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
   echo "  --help, -h              Show this help"
   exit 1
@@ -61,6 +63,7 @@ while [ $# -gt 0 ]; do
     --use-c) USE_C=true ;;
     --cached-plugins) RECOMPILE_PLUGINS="" ;;
     -g) DEBUG_FLAG=true ;;
+    --gdb) GDB=true; DEBUG_FLAG=true ;;
     -j) JOBS="$2"; shift ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -109,8 +112,13 @@ if [ "$TEST_INTERPRET" = true ]; then
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
   echo "==> Interpreting tests..."
-  echo "${CMD[@]}"
-  "${CMD[@]}"
+  if [ "$GDB" = true ]; then
+    echo "gdb --args ${CMD[@]}"
+    gdb --args "${CMD[@]}"
+  else
+    echo "${CMD[@]}"
+    "${CMD[@]}"
+  fi
 else
   # Normal compilation mode: build executable then run
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$TEST_OUT" --mode "$MODE")
@@ -133,6 +141,10 @@ else
       exit 1
     fi
     echo "==> Running tests..."
-    "$TEST_OUT"
+    if [ "$GDB" = true ]; then
+      gdb "$TEST_OUT"
+    else
+      "$TEST_OUT"
+    fi
   fi
 fi

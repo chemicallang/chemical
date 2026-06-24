@@ -104,7 +104,6 @@ public func run_common_tests() {
 
     // More moved tests (no variant matching, no raw ptrs, no std deps)
     test_enum();
-    test_multi_field_ref();
 
     // Newly moved tests (v3)
     test_constructors_with_init();
@@ -126,6 +125,11 @@ public func run_common_tests() {
     test_self_ref_destruct()
     test_call_destruction()
 
+
+    // References
+    test_references()
+    test_deref_and_refs()
+    test_multi_field_ref();
 
     test_dereferences();
     test_if_switch_loop_value();

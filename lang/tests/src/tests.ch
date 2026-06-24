@@ -9,8 +9,7 @@ func run_executable_tests() {
     test_nodes();
     test_char_ptr_strings();
     test_external_functions();
-    // test_interface_generic_dispatch() called in extended syntax section below
-    test_auto_deref();
+    test_deref_pass_func_call()
 
 
     // -------------------------------------------
@@ -18,14 +17,8 @@ func run_executable_tests() {
     // this syntax is mostly present in languages like C++ and Rust
     // -------------------------------------------
     test_temp_view_lifetime()
-
-    test_references();
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();
-    // test_multi_field_ref() moved to common (covered by run_common_tests())
-    // test_basic_generics() and test_generic_type_deduction() are now
-    // covered by run_common_tests() (common module version without variant
-    // pattern matching). Native-only specifics are called separately:
     test_native_generic_specifics();
     test_native_deduction_variants();
     test_dynamic_dispatch();

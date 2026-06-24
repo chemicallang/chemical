@@ -28,7 +28,7 @@ variant OptIntStorage8373 {
     None
 }
 
-func test_auto_deref() {
+func test_deref_and_refs() {
     test("OLD auto dereferences when value is being passed to function calls", () => {
         var i = 38
         return take_int(*give_ref(&mut i)) == 38
@@ -155,12 +155,5 @@ func test_auto_deref() {
         var ref = give_ref(&mut i)
         var ref2 = ref
         return *ref == *ref2;
-    })
-    test("automatic dereferences when passing to var args parameter", () => {
-        var i = 788
-        var ref = give_ref(&mut i)
-        var str : [20]char = []
-        snprintf(&raw mut str[0], 19, "%d", *ref);
-        return strncmp(&raw str[0], "788", 3) == 0
     })
 }

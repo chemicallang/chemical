@@ -50,11 +50,19 @@ void GlobalInterpretScope::interpret_error(std::string_view& error, ASTNode* any
 }
 
 void GlobalInterpretScope::interpret_error(std::string& error, Value* any) {
-    interpret_error(error, any->encoded_location());
+    if(any) {
+        interpret_error(error, any->encoded_location());
+    } else {
+        interpret_error(error, SourceLocation(0));
+    }
 }
 
 void GlobalInterpretScope::interpret_error(std::string_view& error, Value* any) {
-    interpret_error(error, any->encoded_location());
+    if(any) {
+        interpret_error(error, any->encoded_location());
+    } else {
+        interpret_error(error, SourceLocation(0));
+    }
 }
 
 void GlobalInterpretScope::interpret_error(std::string& error, const TypeLoc& any) {

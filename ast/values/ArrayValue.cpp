@@ -261,6 +261,33 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                     values[i] = evalVal;
                 }
             }
+            // Implicit constructor conversion: if the element type is a struct with
+            // an @implicit constructor matching this value, call it to produce the
+            // correct struct value (e.g. [55] where element type ImpPair has an
+            // @implicit constructor that takes int).
+            auto& current = values[i];
+            if(current && current->val_kind() != ValueKind::StructValue) {
+                Value* resolved = current;
+                if(current->val_kind() == ValueKind::Identifier) {
+                    resolved = current->evaluated_value(scope);
+                }
+                if(resolved) {
+                    auto elemTypeBase = known_elem_type();
+                    if(elemTypeBase) {
+                        auto imp_cons = elemTypeBase->implicit_constructor_for(resolved);
+                        if(imp_cons) {
+                            InterpretScope imp_scope(scope.global, scope.allocator, scope.global);
+                            std::vector<Value*> imp_args = { resolved };
+                            auto newVal = imp_cons->call(
+                                &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
+                            );
+                            if(newVal) {
+                                values[i] = newVal;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     return this;

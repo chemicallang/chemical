@@ -106,7 +106,11 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
         values[0]->set_value(scope, rawValue, op, passed_loc);
     } else {
         auto parent = parent_value(scope);
-        values[values.size() - 1]->set_value_in(scope, parent, rawValue->scope_value(scope), op, passed_loc);
+        if(parent) {
+            values[values.size() - 1]->set_value_in(scope, parent, rawValue->scope_value(scope), op, passed_loc);
+        } else {
+            scope.error("(access chain) parent is null for set_value", (ASTNode*) this);
+        }
     }
 }
 

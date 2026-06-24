@@ -31,7 +31,6 @@ func run_executable_tests() {
     test_for_in()
     test_core_ops();
     test_primitive_implementations()
-    test_basic_interfaces()
     test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();

@@ -1491,6 +1491,18 @@ Value* interpret_value_with_evaluated_parent(FunctionCall* call, InterpretScope 
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if (func) {
+        // If this is a member function and no parent was provided, look for self/this in scope
+        if(!parent && func->has_self_param()) {
+            auto foundSelf = scope.find_value("self");
+            if(foundSelf) {
+                parent = foundSelf;
+            } else {
+                auto foundThis = scope.find_value("this");
+                if(foundThis) {
+                    parent = foundThis;
+                }
+            }
+        }
         return func->call(&scope, scope.allocator, call, parent);
     }
     // For direct function calls (parent is nullptr from get_parent_from(Identifier)),

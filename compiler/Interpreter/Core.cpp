@@ -638,14 +638,45 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
             }
         } else if (kind == BaseTypeKind::Linked) {
             auto linkedType = type->as_linked_type_unsafe();
-            // Resolve typealiases to the underlying struct definition
+            // Resolve typealiases to the underlying struct definition or primitive type
             ASTNode* linked = linkedType->linked;
+            BaseType* resolvedActualType = nullptr;
             if (linked && linked->kind() == ASTNodeKind::TypealiasStmt) {
                 auto alias = (TypealiasStatement*) linked;
                 if (alias->actual_type) {
+                    resolvedActualType = alias->actual_type;
                     auto actualKind = alias->actual_type->kind();
                     if (actualKind == BaseTypeKind::Linked) {
                         linked = alias->actual_type->as_linked_type_unsafe()->linked;
+                    }
+                }
+            }
+            // Handle primitive types resolved through typealias (e.g. namespace_typealias = int)
+            if(resolvedActualType) {
+                auto resolvedKind = resolvedActualType->kind();
+                if(resolvedKind == BaseTypeKind::IntN) {
+                    auto intType = resolvedActualType->as_intn_type_unsafe();
+                    auto val = new (scope.allocate<IntNumValue>()) IntNumValue(0, intType, stmt->encoded_location());
+                    scope.declare(stmt->name_view(), val);
+                    return;
+                } else if(resolvedKind == BaseTypeKind::Bool) {
+                    auto val = new (scope.allocate<BoolValue>()) BoolValue(false, scope.global->typeBuilder.getBoolType(), stmt->encoded_location());
+                    scope.declare(stmt->name_view(), val);
+                    return;
+                } else if(resolvedKind == BaseTypeKind::Pointer) {
+                    auto ptrType = resolvedActualType->as_pointer_type_unsafe();
+                    auto val = new (scope.allocate<PointerValue>()) PointerValue(nullptr, ptrType->type, 0, 0, stmt->encoded_location());
+                    scope.declare(stmt->name_view(), val);
+                    return;
+                } else if(resolvedKind == BaseTypeKind::Array) {
+                    auto arrType = resolvedActualType->as_array_type_unsafe();
+                    auto size = arrType->get_array_size();
+                    if(size > 0) {
+                        auto arrVal = new (scope.allocate<ArrayValue>()) ArrayValue(stmt->encoded_location(), arrType);
+                        arrVal->explicit_size = (unsigned int)size;
+                        arrVal->evaluated_value(scope);
+                        scope.declare(stmt->name_view(), arrVal);
+                        return;
                     }
                 }
             }

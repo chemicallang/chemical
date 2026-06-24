@@ -95,7 +95,6 @@ Value* ReferenceOfValue::evaluated_value(InterpretScope& scope) {
             auto ptrVal = (PointerValue*)innerEval;
             const auto refType = getType();
             const auto pointeeType = refType ? refType->as_reference_type_unsafe()->type : nullptr;
-            const auto byteSize = pointeeType ? pointeeType->byte_size(scope.global->target_data) : 8;
             return new (scope.allocate<PointerValue>()) PointerValue(
                 ptrVal->data, pointeeType, ptrVal->behind, ptrVal->ahead, encoded_location()
             );

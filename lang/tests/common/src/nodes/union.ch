@@ -42,12 +42,12 @@ public struct test_string_union {
     union {
         struct {
             var data : *char;
-            var length : size_t
+            var length : u64
         } constant;
         struct {
             var data : *mut char;
-            var length : size_t;
-            var capacity : size_t;
+            var length : u64;
+            var capacity : u64;
         } heap;
         struct {
             var buffer : [16]char;
@@ -56,13 +56,13 @@ public struct test_string_union {
     } storage;
     var state : char
 
-    func size(&self) : size_t {
+    func size(&self) : u64 {
         switch(state) {
             '0' => {
                 return storage.constant.length;
             }
             '1' => {
-                return storage.sso.length as size_t;
+                return storage.sso.length as u64;
             }
             '2' => {
                 return storage.heap.length;

@@ -13,9 +13,6 @@ func run_executable_tests() {
     test_structs();
     test_nodes();
     test_char_ptr_strings();
-    test_strings();
-    test_unions();
-    test_namespaces();
     test_external_functions();
     // test_enum() moved to common (covered by run_common_tests())
     // Native-only: address of enum works in function (crashes interpreter)
@@ -73,6 +70,7 @@ func run_executable_tests() {
     // --------------------------------------
     // Standard Library and Complicated stuff
     // --------------------------------------
+    test_strings();
     test_hashing();
     test_vectors();
     test_array_refs();

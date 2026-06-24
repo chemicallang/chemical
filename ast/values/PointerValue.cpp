@@ -101,9 +101,11 @@ uint64_t deref_pointer(void* data, uint64_t type_size) {
 Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name) {
     auto pointeeType = getType();
     if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
-        auto structVal = (StructValue*) data;
-        if(structVal) {
-            return structVal->child(scope, name);
+        if(!pointeeType->get_direct_linked_enum()) {
+            auto structVal = (StructValue*) data;
+            if(structVal) {
+                return structVal->child(scope, name);
+            }
         }
     }
     auto dereffed = deref(scope, encoded_location(), this);
@@ -151,6 +153,16 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             );
         }
         case BaseTypeKind::Linked: {
+            // check if this is an enum (data stores raw int64, not a StructValue*)
+            auto enumDecl = getType()->get_direct_linked_enum();
+            if(enumDecl) {
+                auto rawVal = deref_pointer(data, castedTypeSize);
+                return new (scope.allocate<IntNumValue>()) IntNumValue(
+                    rawVal,
+                    scope.global->typeBuilder.getIntType(),
+                    value_loc
+                );
+            }
             // data was set by AddrOfValue to point to a StructValue
             auto srcStruct = (StructValue*) data;
             if(srcStruct) {
@@ -182,10 +194,13 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
 void PointerValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
     auto pointeeType = getType();
     if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
-        auto structVal = (StructValue*) data;
-        if(structVal) {
-            structVal->set_child_value(scope, name, value, op);
-            return;
+        // enum values don't have named children, fall through to deref
+        if(!pointeeType->get_direct_linked_enum()) {
+            auto structVal = (StructValue*) data;
+            if(structVal) {
+                structVal->set_child_value(scope, name, value, op);
+                return;
+            }
         }
     }
     auto dereffed = deref(scope, encoded_location(), this);

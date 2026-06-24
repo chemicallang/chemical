@@ -726,10 +726,33 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                                 );
                             }
                         } else {
-                            structVal->values.emplace(
-                                field->name,
-                                StructMemberInitializer { field->name, scope.getNullValue() }
-                            );
+                            // Check field type and create proper zero value
+                            auto fieldType = field->known_type();
+                            if(fieldType) {
+                                auto fieldKind = fieldType->kind();
+                                if(fieldKind == BaseTypeKind::IntN) {
+                                    auto intType = fieldType->as_intn_type_unsafe();
+                                    auto zeroVal = new (scope.allocate<IntNumValue>()) IntNumValue(0, intType, stmt->encoded_location());
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, zeroVal });
+                                } else if(fieldKind == BaseTypeKind::Bool) {
+                                    auto zeroVal = new (scope.allocate<BoolValue>()) BoolValue(false, scope.global->typeBuilder.getBoolType(), stmt->encoded_location());
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, zeroVal });
+                                } else if(fieldKind == BaseTypeKind::Float) {
+                                    auto zeroVal = new (scope.allocate<FloatValue>()) FloatValue(0.0f, scope.global->typeBuilder.getFloatType(), stmt->encoded_location());
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, zeroVal });
+                                } else if(fieldKind == BaseTypeKind::Double) {
+                                    auto zeroVal = new (scope.allocate<DoubleValue>()) DoubleValue(0.0, scope.global->typeBuilder.getDoubleType(), stmt->encoded_location());
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, zeroVal });
+                                } else if(fieldKind == BaseTypeKind::Pointer) {
+                                    auto ptrType = fieldType->as_pointer_type_unsafe();
+                                    auto zeroVal = new (scope.allocate<PointerValue>()) PointerValue(nullptr, ptrType->type, 0, 0, stmt->encoded_location());
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, zeroVal });
+                                } else {
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, scope.getNullValue() });
+                                }
+                            } else {
+                                structVal->values.emplace(field->name, StructMemberInitializer { field->name, scope.getNullValue() });
+                            }
                         }
                     }
                 }

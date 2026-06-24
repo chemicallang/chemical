@@ -6,8 +6,6 @@ func run_executable_tests() {
     // ----------------------------------
     run_common_tests();
     run_native_common_tests();
-    // test_lambda() moved to common (covered by run_common_tests())
-    test_structs();
     test_nodes();
     test_char_ptr_strings();
     test_external_functions();

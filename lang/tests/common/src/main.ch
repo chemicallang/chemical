@@ -133,6 +133,7 @@ public func run_common_tests() {
     test_zeroed_value();
     test_common_char_ptr_strings();
     test_namespaces();
+    test_structs();
     test_unions();
 
 }

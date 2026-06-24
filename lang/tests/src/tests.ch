@@ -12,6 +12,7 @@ func run_executable_tests() {
 
 
     test_variant_native();
+    test_static_external();
     // -------------------------------------------
     // Extended Syntax
     // this syntax is mostly present in languages like C++ and Rust
@@ -26,7 +27,6 @@ func run_executable_tests() {
     test_modules_import();
     test_generic_moves();
     test_new();
-    test_static_interfaces();
     test_interface_generic_dispatch();
     test_for_in()
     test_core_ops();

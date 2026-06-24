@@ -723,6 +723,7 @@ void StructValue::declare_default_values(
         tsl::ordered_map<chem::string_view, StructMemberInitializer> &into,
         InterpretScope &scope
 ) {
+    if(!definition) return;
     for (const auto field : definition->variables()) {
         const auto defValue = field->default_value();
         if (into.find(field->name) == into.end() && defValue) {

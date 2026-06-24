@@ -219,6 +219,12 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto found = scope.find_value(value);
     if (found != nullptr) {
+        // Resolve through chains of VariableIdentifiers to prevent
+        // infinite recursion in child(). If the found value is itself
+        // an identifier, resolve it further.
+        if(found->val_kind() == ValueKind::Identifier && found != this) {
+            return static_cast<VariableIdentifier*>(found)->evaluated_value(scope);
+        }
         return found;
     }
     auto linkedNode = linked_node();
@@ -227,12 +233,24 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         if(linked_kind == ASTNodeKind::StructMember) {
             const auto found_self = scope.find_value("self");
             if(found_self) {
-                return found_self->child(scope, value);
+                // Guard against self-referencing: when this same VariableIdentifier
+                // is stored in the scope under "self", resolving would cause infinite
+                // recursion. Return this to let child() handle the nullptr path.
+                if(found_self == this) return this;
+                auto childResult = found_self->child(scope, value);
+                if(childResult && childResult->val_kind() == ValueKind::Identifier && childResult != this) {
+                    return static_cast<VariableIdentifier*>(childResult)->evaluated_value(scope);
+                }
+                return childResult;
             }
         } else if(linked_kind == ASTNodeKind::VarInitStmt) {
             const auto init = linked->as_var_init_unsafe();
             if(init->is_const()) {
-                return init->value;
+                auto constVal = init->value;
+                if(constVal && constVal->val_kind() == ValueKind::Identifier && constVal != this) {
+                    return static_cast<VariableIdentifier*>(constVal)->evaluated_value(scope);
+                }
+                return constVal;
             }
         } else if(linked_kind == ASTNodeKind::EnumMember) {
             const auto mem = linked->as_enum_member_unsafe();

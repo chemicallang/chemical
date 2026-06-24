@@ -94,6 +94,14 @@ public:
     std::unordered_map<const StructValue*, int64_t> variant_member_index_map;
 
     /**
+     * Break value for loop value expressions (e.g., var j = loop { break i; }).
+     * Stored on the global scope so it survives child scope destruction (if/switch
+     * bodies create child scopes that are destroyed before the loop's body scope
+     * can read the break value).
+     */
+    Value* loop_break_value = nullptr;
+
+    /**
      * The constructor
      */
     explicit GlobalInterpretScope(

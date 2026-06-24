@@ -43,6 +43,7 @@ public func run_common_tests() {
     test_typealias();
     test_is_value();
     test_satisfies();
+    test_casts();
 
     // Comptime tests
     test_comptime_expressions();

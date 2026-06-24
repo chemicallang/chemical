@@ -1,5 +1,3 @@
-using namespace std;
-
 namespace cool {
     struct Pair2 {
         var a : int

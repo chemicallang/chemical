@@ -31,6 +31,11 @@ public:
         return referenced->linked_node();
     }
 
+    uint64_t byte_size(TargetData& target) final {
+        // Dynamic type is a fat pointer: data pointer + vtable pointer = 16 bytes on 64-bit
+        return 16;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen& gen) final;

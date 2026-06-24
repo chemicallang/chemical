@@ -97,8 +97,10 @@ static void destruct_temp_struct(InterpretScope& scope, Value* val) {
 
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
     if(stmt->value) {
-        // Store the break value so LoopValue::evaluated_value() can retrieve it
-        scope.loop_break_value = stmt->value->evaluated_value(scope);
+        // Store the break value on the global scope so it survives child scope destruction.
+        // When break is inside a nested scope (if body, switch case, etc.), the child scope
+        // is destroyed before the loop's body_scope can read it. The global scope outlives all.
+        scope.global->loop_break_value = stmt->value->evaluated_value(scope);
     }
     stop_interpretation_above_once(stmt->parent());
 }
@@ -567,9 +569,10 @@ Value* LoopValue::evaluated_value(InterpretScope& scope) {
         {
             InterpretScope body_scope(&child, scope.allocator, scope.global);
             body_scope.interpret(&stmt.body);
-            // Capture break value before body_scope is destroyed
-            if(body_scope.loop_break_value) {
-                scope.loop_break_value = body_scope.loop_break_value;
+            // Capture break value from global scope (survives nested scope destruction)
+            if(scope.global->loop_break_value) {
+                scope.loop_break_value = scope.global->loop_break_value;
+                scope.global->loop_break_value = nullptr;
             }
         }
         if (stmt.stoppedInterpretation) {

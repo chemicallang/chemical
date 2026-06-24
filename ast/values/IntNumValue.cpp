@@ -9,8 +9,10 @@
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/PointerType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/PointerValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
 IntNumValue* IntNumValue::create_number(
@@ -25,10 +27,45 @@ IntNumValue* IntNumValue::create_number(
 }
 
 Value* IncDecValue::evaluated_value(InterpretScope &scope) {
-    // Save old value before modification (needed for post-increment/decrement)
-    const auto oldVal = value->evaluated_value(scope);
+    // Check if the inner value has a reference type (&mut int, &int).
+    // In the interpreter, references are stored as PointerValues pointing to the actual
+    // data. We need to increment the pointed-to VALUE, not the pointer itself.
+    // Regular pointers (*mut int, *int) should use the normal pointer arithmetic path.
+    const auto innerType = value->getType();
+    if(innerType && innerType->canonical()->kind() == BaseTypeKind::Reference) {
+        const auto rawVal = value->evaluated_value(scope);
+        if(rawVal && rawVal->val_kind() == ValueKind::PointerValue) {
+            auto ptrVal = (PointerValue*)rawVal;
+            auto dereffed = ptrVal->deref(scope, encoded_location(), this);
+            if(dereffed) {
+                auto num = dereffed->get_number();
+                if(num.has_value()) {
+                    auto oldNum = num.value();
+                    uint64_t newNum = increment ? oldNum + 1 : oldNum - 1;
+                    const auto byteSize = ptrVal->getType()->byte_size(scope.global->target_data);
+                    if(byteSize > 0 && byteSize <= 8) {
+                        std::memcpy(ptrVal->data, &newNum, byteSize);
+                    }
+                    if(post) {
+                        return new (scope.allocate<IntNumValue>()) IntNumValue(
+                            oldNum,
+                            scope.global->typeBuilder.getIntNType((unsigned int)(byteSize * 8), true),
+                            encoded_location()
+                        );
+                    } else {
+                        return new (scope.allocate<IntNumValue>()) IntNumValue(
+                            newNum,
+                            scope.global->typeBuilder.getIntNType((unsigned int)(byteSize * 8), true),
+                            encoded_location()
+                        );
+                    }
+                }
+            }
+        }
+    }
     
-    // Apply the increment/decrement operation
+    // Apply the increment/decrement operation (normal path for integers and pointers)
+    const auto oldVal = value->evaluated_value(scope);
     const auto delta = new (scope.allocate<IntNumValue>()) IntNumValue(1, scope.global->typeBuilder.getShortType(), encoded_location());
     value->set_value(scope, delta, increment ? Operation::Addition : Operation::Subtraction, encoded_location());
     

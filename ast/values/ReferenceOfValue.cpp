@@ -8,6 +8,7 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/DereferenceValue.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/values/IntNumValue.h"
@@ -21,40 +22,83 @@
 Value* ReferenceOfValue::evaluated_value(InterpretScope& scope) {
     // &mut arr[i] pattern: arr[i] is an AccessChain wrapping an IndexOperator.
     // Get the ArrayValue from the IndexOperator's parent_val directly.
-    if (value->val_kind() == ValueKind::AccessChain) {
-        auto chain = (AccessChain*)value;
-        if (!chain->values.empty()) {
-            auto lastVal = chain->values.back();
-            if (lastVal->val_kind() == ValueKind::IndexOperator) {
-                auto indexOp = (IndexOperator*)lastVal;
-                // parent_val is the array variable — evaluate it to get the ArrayValue
-                auto arrEval = indexOp->parent_val->evaluated_value(scope);
-                if (arrEval && arrEval->val_kind() == ValueKind::ArrayValue) {
-                    auto arrVal = (ArrayValue*)arrEval;
-                    if (arrVal->contiguousData && arrVal->contiguousSize > 0) {
-                        const auto refType = getType();
-                        const auto pointeeType = refType ? refType->as_reference_type_unsafe()->type : nullptr;
-                        if (pointeeType) {
-                            const auto elemSize = pointeeType->byte_size(scope.global->target_data);
-                            if (elemSize > 0) {
-                                auto idxEval = indexOp->idx->evaluated_value(scope);
-                                auto idxOpt = idxEval->get_number();
-                                if (idxOpt.has_value()) {
-                                    auto idx = idxOpt.value();
-                                    auto offset = idx * elemSize;
-                                    if (offset < arrVal->contiguousSize) {
-                                        auto ahead = arrVal->contiguousSize - offset;
-                                        return new (scope.allocate<PointerValue>()) PointerValue(
-                                            (char*)arrVal->contiguousData + offset, pointeeType,
-                                            offset, ahead, encoded_location()
-                                        );
-                                    }
-                                }
+    auto handleIndexOp = [&](IndexOperator* indexOp) -> Value* {
+        auto arrEval = indexOp->parent_val->evaluated_value(scope);
+        if (arrEval && arrEval->val_kind() == ValueKind::ArrayValue) {
+            auto arrVal = (ArrayValue*)arrEval;
+            const auto refType = getType();
+            const auto pointeeType = refType ? refType->as_reference_type_unsafe()->type : nullptr;
+            // Try contiguousData first (primitive element types)
+            if (arrVal->contiguousData && arrVal->contiguousSize > 0) {
+                if (pointeeType) {
+                    const auto elemSize = pointeeType->byte_size(scope.global->target_data);
+                    if (elemSize > 0) {
+                        auto idxEval = indexOp->idx->evaluated_value(scope);
+                        auto idxOpt = idxEval->get_number();
+                        if (idxOpt.has_value()) {
+                            auto idx = idxOpt.value();
+                            auto offset = idx * elemSize;
+                            if (offset < arrVal->contiguousSize) {
+                                auto ahead = arrVal->contiguousSize - offset;
+                                return new (scope.allocate<PointerValue>()) PointerValue(
+                                    (char*)arrVal->contiguousData + offset, pointeeType,
+                                    offset, ahead, encoded_location()
+                                );
                             }
                         }
                     }
                 }
             }
+            // Fallback: struct elements in values vector
+            if (pointeeType) {
+                auto idxEval = indexOp->idx->evaluated_value(scope);
+                auto idxOpt = idxEval->get_number();
+                if (idxOpt.has_value()) {
+                    auto idx = idxOpt.value();
+                    if (idx < arrVal->values.size()) {
+                        auto elemVal = arrVal->values[idx];
+                        if (elemVal && elemVal->val_kind() == ValueKind::StructValue) {
+                            const auto byteSize = pointeeType->byte_size(scope.global->target_data);
+                            return new (scope.allocate<PointerValue>()) PointerValue(
+                                (StructValue*)elemVal, pointeeType, 0, byteSize, encoded_location()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        return nullptr;
+    };
+    
+    if (value->val_kind() == ValueKind::AccessChain) {
+        auto chain = (AccessChain*)value;
+        if (!chain->values.empty()) {
+            auto lastVal = chain->values.back();
+            if (lastVal->val_kind() == ValueKind::IndexOperator) {
+                auto result = handleIndexOp((IndexOperator*)lastVal);
+                if (result) return result;
+            }
+        }
+    } else if (value->val_kind() == ValueKind::IndexOperator) {
+        auto result = handleIndexOp((IndexOperator*)value);
+        if (result) return result;
+    }
+    
+    // Handle &mut *ptr pattern: when taking a reference of a dereference of a pointer,
+    // use the original pointer's data directly instead of creating a copy via deref.
+    // This is critical for: var j = &mut u; assign_to_passed_ref(&mut *j)
+    // where *j would create a copy of u if we followed the normal path.
+    if (value->val_kind() == ValueKind::DereferenceValue) {
+        auto derefVal = (DereferenceValue*)value;
+        auto innerEval = derefVal->getValue()->evaluated_value(scope);
+        if(innerEval && innerEval->val_kind() == ValueKind::PointerValue) {
+            auto ptrVal = (PointerValue*)innerEval;
+            const auto refType = getType();
+            const auto pointeeType = refType ? refType->as_reference_type_unsafe()->type : nullptr;
+            const auto byteSize = pointeeType ? pointeeType->byte_size(scope.global->target_data) : 8;
+            return new (scope.allocate<PointerValue>()) PointerValue(
+                ptrVal->data, pointeeType, ptrVal->behind, ptrVal->ahead, encoded_location()
+            );
         }
     }
     

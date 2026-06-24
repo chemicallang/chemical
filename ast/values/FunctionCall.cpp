@@ -1575,13 +1575,35 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                 // variantDef is ASTNode* and could be VariantDecl or GenericVariantDecl;
                 // get the proper VariantDefinition* for direct_child_index
                 int64_t memberIndex = -1;
+                VariantDefinition* actualVariantDef = nullptr;
                 if(variantDef->kind() == ASTNodeKind::VariantDecl) {
-                    memberIndex = variantDef->as_variant_def_unsafe()->direct_child_index(member->name);
+                    actualVariantDef = variantDef->as_variant_def_unsafe();
+                    memberIndex = actualVariantDef->direct_child_index(member->name);
                 } else if(variantDef->kind() == ASTNodeKind::GenericVariantDecl) {
-                    memberIndex = variantDef->as_gen_variant_decl_unsafe()->master_impl->direct_child_index(member->name);
+                    actualVariantDef = variantDef->as_gen_variant_decl_unsafe()->master_impl;
+                    memberIndex = actualVariantDef->direct_child_index(member->name);
                 }
                 if(memberIndex >= 0) {
                     scope.global->variant_member_index_map[structVal] = memberIndex;
+                }
+                // Initialize inherited fields from parent structs
+                if(actualVariantDef) {
+                    for(auto& inh : actualVariantDef->inherited) {
+                        auto linkedNode = inh.type->get_direct_linked_canonical_node();
+                        if(linkedNode && linkedNode->kind() == ASTNodeKind::StructDecl) {
+                            auto inheritedStruct = linkedNode->as_struct_def_unsafe();
+                            for(auto field : inheritedStruct->variables()) {
+                                auto defValue = field->default_value();
+                                if(defValue) {
+                                    auto val = defValue->scope_value(scope);
+                                    structVal->values.emplace(field->name, StructMemberInitializer { field->name, val });
+                                    if(val) {
+                                        scope.move_clear_source(val, field->name);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 for(auto& [paramName, param] : member->values) {
                     auto idx = param->index;

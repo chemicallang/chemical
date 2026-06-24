@@ -6,6 +6,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/structures/EnumMember.h"
+#include "ast/structures/Namespace.h"
 #include "ast/types/VoidType.h"
 #include "TypeInsideValue.h"
 
@@ -132,6 +133,29 @@ bool VariableIdentifier::compile_time_computable() {
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const chem::string_view &name) {
+    // Handle namespace member lookup for qualified access (e.g., ns::thing)
+    if(linked && linked->kind() == ASTNodeKind::NamespaceDecl) {
+        auto ns = linked->as_namespace_unsafe();
+        auto found = ns->extended.find(name);
+        if(found != ns->extended.end()) {
+            if(found->second->kind() == ASTNodeKind::VarInitStmt) {
+                auto varInit = found->second->as_var_init_unsafe();
+                if(varInit->value) {
+                    return varInit->value->evaluated_value(scope);
+                }
+            }
+        }
+        // Also check in nodes directly if not found in extended
+        for(auto node : ns->nodes) {
+            if(node->kind() == ASTNodeKind::VarInitStmt) {
+                auto varInit = node->as_var_init_unsafe();
+                if(varInit->name_view() == name && varInit->value) {
+                    return varInit->value->evaluated_value(scope);
+                }
+            }
+        }
+        return nullptr;
+    }
     const auto eval = evaluated_value(scope);
     if(eval && eval != this) {
         return eval->child(scope, name);

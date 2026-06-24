@@ -155,7 +155,15 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
             // (e.g. FunctionCall that returns a struct). Only fall back to contiguousData
             // for uninitialized arrays with primitive element types.
             if (index.value() < arr->values.size()) {
-                auto evalVal = arr->values[index.value()]->evaluated_value(scope);
+                auto rawElem = arr->values[index.value()];
+                // For StructValue elements, return the raw element directly (no copy)
+                // so that modifications through the array index (e.g. arr[0].data = 5)
+                // are preserved. The evaluated_value+copy path would create a fresh
+                // copy losing modifications.
+                if(rawElem && rawElem->val_kind() == ValueKind::StructValue) {
+                    return rawElem;
+                }
+                auto evalVal = rawElem->evaluated_value(scope);
                 if(evalVal) {
                     return evalVal->copy(scope.allocator);
                 }

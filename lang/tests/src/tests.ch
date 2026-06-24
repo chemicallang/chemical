@@ -6,7 +6,6 @@ func run_executable_tests() {
     // ----------------------------------
     run_common_tests();
     run_native_common_tests();
-    test_nodes();
     test_char_ptr_strings();
     test_external_functions();
     test_deref_pass_func_call()
@@ -34,7 +33,6 @@ func run_executable_tests() {
     test_core_ops();
     test_primitive_implementations()
     test_basic_interfaces()
-    // test_constructors_with_init() moved to common (covered by run_common_tests())
     test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();

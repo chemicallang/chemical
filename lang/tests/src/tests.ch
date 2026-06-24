@@ -22,7 +22,6 @@ func run_executable_tests() {
     test_ref_of_deref_hidden_ptr();
     test_native_generic_specifics();
     test_native_deduction_variants();
-    test_dynamic_dispatch();
     test_imported_modules();
     test_modules_import();
     test_generic_moves();

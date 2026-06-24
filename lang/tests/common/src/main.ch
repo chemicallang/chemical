@@ -145,5 +145,6 @@ public func run_common_tests() {
     test_moves()
     test_static_interfaces()
     test_basic_interfaces()
+    test_dynamic_dispatch()
 
 }

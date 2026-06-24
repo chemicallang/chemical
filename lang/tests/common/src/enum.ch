@@ -170,4 +170,7 @@ func test_enum() {
     test("starting indexes in enum work - 3", () => {
         return StartingValueInEnum.NegFirst == -10 && StartingValueInEnum.NegSecond == -9;
     })
+    test("address of enum works in function", () => {
+        return take_addr_of_enum_param(MultiNum.Second) == MultiNum.Second
+    })
 }

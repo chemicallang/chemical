@@ -14,9 +14,6 @@ func run_executable_tests() {
     test_nodes();
     test_char_ptr_strings();
     test_external_functions();
-    // test_enum() moved to common (covered by run_common_tests())
-    // Native-only: address of enum works in function (crashes interpreter)
-    test_native_enum();
     // test_interface_generic_dispatch() called in extended syntax section below
     test_auto_deref();
 

@@ -24,19 +24,34 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
         auto evalVal = value->evaluated_value(scope);
         if(evalVal && evalVal->val_kind() == ValueKind::StructValue) {
             auto structVal = evalVal->as_struct_value_unsafe();
-            auto it = scope.global->variant_member_index_map.find(structVal);
-            if(it != scope.global->variant_member_index_map.end()) {
-                auto typeLinked = type->get_linked_canonical_node(true, false);
-                if(typeLinked && typeLinked->kind() == ASTNodeKind::VariantMember) {
-                    auto member = typeLinked->as_variant_member_unsafe();
-                    auto variantDef = member->parent();
-                    int64_t memberIndex = variantDef->direct_child_index(member->name_view());
-                    bool matches = it->second == memberIndex;
-                    bool result = is_negating ? !matches : matches;
-                    return new (scope.allocate<BoolValue>()) BoolValue(
-                        result, typeBuilder.getBoolType(), encoded_location()
-                    );
+            auto typeLinked = type->get_linked_canonical_node(true, false);
+            if(typeLinked && typeLinked->kind() == ASTNodeKind::VariantMember) {
+                auto member = typeLinked->as_variant_member_unsafe();
+                auto variantDef = member->parent();
+                int64_t memberIndex = variantDef->direct_child_index(member->name_view());
+                bool matches = false;
+                // Primary: check variant_member_index on the struct (always correct
+                // since copies carry the field).
+                if(structVal->get_variant_member_index() >= 0) {
+                    matches = structVal->get_variant_member_index() == memberIndex;
                 }
+                // Fallback: determine variant member from struct's values vs member params.
+                // This handles copy struct values (where the pointer-based map lookup fails).
+                // Only applies when the member has parameters (otherwise can't distinguish).
+                if(!matches && memberIndex >= 0 && !member->values.empty()) {
+                    bool allParamsMatch = true;
+                    for(auto& [paramName, param] : member->values) {
+                        if(structVal->values.find(paramName) == structVal->values.end()) {
+                            allParamsMatch = false;
+                            break;
+                        }
+                    }
+                    matches = allParamsMatch;
+                }
+                bool resultBool = is_negating ? !matches : matches;
+                return new (scope.allocate<BoolValue>()) BoolValue(
+                    resultBool, typeBuilder.getBoolType(), encoded_location()
+                );
             }
         }
     }

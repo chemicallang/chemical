@@ -1629,10 +1629,22 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                     }
                 }
             } else if(parent->val_kind() == ValueKind::Identifier) {
-                // Evaluate the identifier to get the underlying struct value
-                auto evaluated = parent->evaluated_value(scope);
-                if(evaluated && evaluated->val_kind() == ValueKind::StructValue) {
-                    structDef = evaluated->as_struct_value_unsafe()->linked_extendable();
+                // Evaluate the identifier: try scope lookup first, then evaluated_value
+                auto identStr = parent->as_identifier_unsafe()->value;
+                auto foundVal = scope.find_value(identStr);
+                Value* evaluated = foundVal ? foundVal : parent->evaluated_value(scope);
+                if(evaluated) {
+                    if(evaluated->val_kind() == ValueKind::StructValue) {
+                        structDef = evaluated->as_struct_value_unsafe()->linked_extendable();
+                    } else if(evaluated->val_kind() == ValueKind::DynamicValue) {
+                        auto dynVal = static_cast<DynamicValue*>(evaluated);
+                        if(dynVal->value) {
+                            auto inner = dynVal->value->evaluated_value(scope);
+                            if(inner && inner->val_kind() == ValueKind::StructValue) {
+                                structDef = inner->as_struct_value_unsafe()->linked_extendable();
+                            }
+                        }
+                    }
                 }
             } else if(parent->val_kind() == ValueKind::PointerValue) {
                 // For pointer receivers, get the pointed-to struct type
@@ -1820,7 +1832,7 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                     memberIndex = actualVariantDef->direct_child_index(member->name);
                 }
                 if(memberIndex >= 0) {
-                    scope.global->variant_member_index_map[structVal] = memberIndex;
+                    structVal->set_variant_member_index(memberIndex);
                 }
                 // Initialize inherited fields from parent structs
                 if(actualVariantDef) {
@@ -1835,6 +1847,34 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                                     structVal->values.emplace(field->name, StructMemberInitializer { field->name, val });
                                     if(val) {
                                         scope.move_clear_source(val, field->name);
+                                    }
+                                }
+                            }
+                            // Call inherited struct's @make constructor to fill fields
+                            // that don't have per-field default values
+                            auto parentCons = inheritedStruct->get_first_constructor();
+                            if(parentCons) {
+                                // Check if any inherited fields are already set
+                                bool hasParentMembers = false;
+                                for(const auto pvar : inheritedStruct->variables()) {
+                                    if(structVal->values.find(pvar->name) != structVal->values.end()) {
+                                        hasParentMembers = true;
+                                        break;
+                                    }
+                                }
+                                if(!hasParentMembers) {
+                                    InterpretScope nested_scope(scope.global, scope.allocator, scope.global);
+                                    std::vector<Value*> nested_args;
+                                    Value* parentVal = parentCons->call(
+                                        &scope, nested_args, (Value*)nullptr, &nested_scope, true, (Value*)nullptr
+                                    );
+                                    if(parentVal && parentVal->kind() == ValueKind::StructValue) {
+                                        auto parentStructVal = parentVal->as_struct_value_unsafe();
+                                        for(auto& [pname, pmember] : parentStructVal->values) {
+                                            if(structVal->values.find(pname) == structVal->values.end()) {
+                                                structVal->values.emplace(pname, pmember);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1909,7 +1949,34 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
         return result;
     }
     const auto parent = get_parent_from(parent_val);
-    const auto evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
+    Value* evaluated_parent;
+    if(parent && parent_val && parent_val->val_kind() == ValueKind::AccessChain) {
+        // When the parent_val is an AccessChain (e.g., c.p in c.p.call()),
+        // evaluate the chain's prefix to get the actual receiver value,
+        // rather than just the penultimate element (which may be an Identifier
+        // that doesn't evaluate on its own).
+        auto chain = parent_val->as_access_chain_unsafe();
+        if(chain->values.size() >= 2) {
+            auto first = chain->values[0]->evaluated_value(scope);
+            // Evaluate up to the second-to-last element (skip the last AccessChain element)
+            unsigned endIdx = (unsigned)(chain->values.size() - 1);
+            evaluated_parent = first;
+            for(unsigned ci = 1; ci < endIdx; ci++) {
+                auto val = chain->values[ci];
+                if(val->val_kind() == ValueKind::Identifier) {
+                    auto id = val->as_identifier_unsafe();
+                    evaluated_parent = evaluated_parent ? evaluated_parent->child(scope, id->value) : nullptr;
+                } else {
+                    evaluated_parent = val->evaluated_value(scope);
+                }
+                if(!evaluated_parent) break;
+            }
+        } else {
+            evaluated_parent = parent->evaluated_value(scope);
+        }
+    } else {
+        evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
+    }
     auto result = interpret_value(this, scope, evaluated_parent);
     // If the parent was itself a FunctionCall (temp from nested method call),
     // destruct the intermediate temp after using it as the receiver.

@@ -87,13 +87,6 @@ public:
     TypeBuilder& typeBuilder;
 
     /**
-     * Maps StructValue pointers to their variant member index.
-     * Used by the interpreter to match variant values against switch case arms.
-     * Stored here (not on StructValue) to avoid storing interpretation state in AST nodes.
-     */
-    std::unordered_map<const StructValue*, int64_t> variant_member_index_map;
-
-    /**
      * Break value for loop value expressions (e.g., var j = loop { break i; }).
      * Stored on the global scope so it survives child scope destruction (if/switch
      * bodies create child scopes that are destroyed before the loop's body scope

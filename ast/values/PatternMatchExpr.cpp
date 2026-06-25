@@ -221,45 +221,36 @@ Value* PatternMatchExpr::evaluated_value(InterpretScope &scope) {
     auto evalExpr = expression->evaluated_value(scope);
     if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue && member) {
         auto structVal = evalExpr->as_struct_value_unsafe();
-        auto it = scope.global->variant_member_index_map.find(structVal);
-        if(it != scope.global->variant_member_index_map.end()) {
+        int64_t structMemberIndex = structVal->get_variant_member_index();
+        if(structMemberIndex >= 0) {
             auto variantDef = member->parent();
             int64_t memberIndex = variantDef->direct_child_index(member->name_view());
-            bool matches = it->second == memberIndex;
+            bool matches = structMemberIndex == memberIndex;
             return new (scope.allocate<BoolValue>()) BoolValue(
                 matches,
                 scope.global->typeBuilder.getBoolType(),
                 encoded_location()
             );
         }
-        // Fallback: try to determine the variant member from the struct's values
-        // This handles cases where the struct was copied (e.g., retrieved from an array)
-        // and the pointer-based map lookup fails.
-        auto ext = structVal->linked_extendable();
-        if(ext && (ext->kind() == ASTNodeKind::VariantDecl ||
-                   ext->kind() == ASTNodeKind::GenericVariantDecl)) {
-            auto variantDef = ext->as_variant_def_unsafe();
+        // Fallback: determine variant member from struct's values vs member params.
+        // This handles copies (where the pointer-based map lookup fails).
+        if(member && !member->values.empty()) {
+            auto variantDef = member->parent();
             int64_t memberIndex = variantDef->direct_child_index(member->name_view());
             if(memberIndex >= 0) {
-                // Check if this struct has values matching the expected member
-                // by looking at the member's parameter names
-                auto foundMember = variantDef->child(member->name_view());
-                if(foundMember && foundMember->kind() == ASTNodeKind::VariantMember) {
-                    auto vm = foundMember->as_variant_member_unsafe();
-                    bool allParamsMatch = true;
-                    for(auto& [paramName, param] : vm->values) {
-                        if(structVal->values.find(paramName) == structVal->values.end()) {
-                            allParamsMatch = false;
-                            break;
-                        }
+                bool allParamsMatch = true;
+                for(auto& [paramName, param] : member->values) {
+                    if(structVal->values.find(paramName) == structVal->values.end()) {
+                        allParamsMatch = false;
+                        break;
                     }
-                    if(allParamsMatch) {
-                        return new (scope.allocate<BoolValue>()) BoolValue(
-                            true,
-                            scope.global->typeBuilder.getBoolType(),
-                            encoded_location()
-                        );
-                    }
+                }
+                if(allParamsMatch) {
+                    return new (scope.allocate<BoolValue>()) BoolValue(
+                        true,
+                        scope.global->typeBuilder.getBoolType(),
+                        encoded_location()
+                    );
                 }
             }
         }

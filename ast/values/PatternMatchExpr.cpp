@@ -8,6 +8,12 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/base/TypeBuilder.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/StructValue.h"
+#include "ast/types/BoolType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -208,4 +214,28 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
         diagnoser.error("linked declaration is not a variant", expression);
         return nullptr;
     }
+}
+
+Value* PatternMatchExpr::evaluated_value(InterpretScope &scope) {
+    // Evaluate the expression being matched (e.g. the variant value)
+    auto evalExpr = expression->evaluated_value(scope);
+    if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue && member) {
+        auto structVal = evalExpr->as_struct_value_unsafe();
+        auto it = scope.global->variant_member_index_map.find(structVal);
+        if(it != scope.global->variant_member_index_map.end()) {
+            auto variantDef = member->parent();
+            int64_t memberIndex = variantDef->direct_child_index(member->name_view());
+            bool matches = it->second == memberIndex;
+            return new (scope.allocate<BoolValue>()) BoolValue(
+                matches,
+                scope.global->typeBuilder.getBoolType(),
+                encoded_location()
+            );
+        }
+    }
+    return new (scope.allocate<BoolValue>()) BoolValue(
+        false,
+        scope.global->typeBuilder.getBoolType(),
+        encoded_location()
+    );
 }

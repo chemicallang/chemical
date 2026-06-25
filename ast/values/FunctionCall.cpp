@@ -30,6 +30,9 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/Scope.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/FileScope.h"
 
 #ifdef COMPILER_BUILD
 
@@ -1459,6 +1462,65 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 }
 
 /**
+ * Find the concrete implementation of an interface method for a given struct type.
+ * Searches through the struct's parent scope (FileScope, Namespace) for ImplDefinitions
+ * that implement the given interface for the given struct, and returns the matching
+ * function by name.
+ */
+static FunctionDeclaration* find_interface_impl_fn(
+    InterfaceDefinition* interfaceDef,
+    ExtendableMembersContainerNode* structDef,
+    const chem::string_view& funcName
+) {
+    // Helper lambda to search a vector of ASTNode* for matching ImplDefinitions
+    auto searchNodes = [&](const std::vector<ASTNode*>& nodes) -> FunctionDeclaration* {
+        for (auto child : nodes) {
+            if (!child || child->kind() != ASTNodeKind::ImplDecl) continue;
+            auto impl = child->as_impl_def_unsafe();
+            if (!impl || !impl->struct_type) continue;
+            auto implStruct = impl->struct_type->get_direct_linked_canonical_node();
+            if (!implStruct || implStruct != structDef) continue;
+            if (!impl->interface_type) continue;
+            auto implInterfaceNode = impl->interface_type->get_direct_linked_node();
+            if (implInterfaceNode != interfaceDef) continue;
+            auto fn = impl->direct_child_function(funcName);
+            if (fn && fn->body.has_value()) return fn;
+        }
+        return nullptr;
+    };
+    // Strategy 1: Search from interfaceDef's parent scope (always reliable —
+    // interfaces are proper parsed AST nodes with a valid parent chain)
+    auto ifaceParent = interfaceDef->parent();
+    if (ifaceParent) {
+        if (ifaceParent->kind() == ASTNodeKind::NamespaceDecl) {
+            auto result = searchNodes(ifaceParent->as_namespace_unsafe()->nodes);
+            if (result) return result;
+        } else if (ifaceParent->kind() == ASTNodeKind::FileScope) {
+            // FileScope has `body.nodes` (Scope), not `nodes` directly
+            auto result = searchNodes(static_cast<FileScope*>(ifaceParent)->body.nodes);
+            if (result) return result;
+        } else if (ifaceParent->kind() == ASTNodeKind::Scope) {
+            auto result = searchNodes(static_cast<Scope*>(ifaceParent)->nodes);
+            if (result) return result;
+        }
+    }
+    // Strategy 2 (fallback): Search from structDef's parent scope.
+    // Less reliable because struct defs from generic instantiations or
+    // comptime may have corrupted parent pointers.
+    auto structParent = structDef->parent();
+    if (structParent && reinterpret_cast<intptr_t>(structParent) > 0x1000) {
+        if (structParent->kind() == ASTNodeKind::NamespaceDecl) {
+            return searchNodes(structParent->as_namespace_unsafe()->nodes);
+        } else if (structParent->kind() == ASTNodeKind::FileScope) {
+            return searchNodes(static_cast<FileScope*>(structParent)->body.nodes);
+        } else if (structParent->kind() == ASTNodeKind::Scope) {
+            return searchNodes(static_cast<Scope*>(structParent)->nodes);
+        }
+    }
+    return nullptr;
+}
+
+/**
  * Handles a function call where the callable has already been evaluated from the
  * parent_val (e.g. when parent_val is itself a FunctionCall that returns a function
  * pointer, an AccessChain to a function, or a LambdaFunction). The 'parent' argument
@@ -1500,6 +1562,39 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                 auto foundThis = scope.find_value("this");
                 if(foundThis) {
                     parent = foundThis;
+                }
+            }
+        }
+        // Interface dispatch: if function has no body and is an interface method,
+        // find and call the concrete implementation for the receiver's struct type.
+        if(!func->body.has_value() && func->parent() &&
+           func->parent()->kind() == ASTNodeKind::InterfaceDecl && parent) {
+            auto interfaceDef = func->parent()->as_interface_def_unsafe();
+            ExtendableMembersContainerNode* structDef = nullptr;
+            // Try to get struct definition from the value directly (handles DynamicType receivers)
+            if(parent->val_kind() == ValueKind::StructValue) {
+                structDef = parent->as_struct_value_unsafe()->linked_extendable();
+            }
+            // Fall back to type-based lookup for non-StructValue receivers
+            if(!structDef) {
+                auto parentType = parent->getType();
+                if(parentType) {
+                    auto structNode = parentType->get_direct_linked_canonical_node();
+                    if(structNode && (structNode->kind() == ASTNodeKind::StructDecl ||
+                                      structNode->kind() == ASTNodeKind::VariantDecl)) {
+                        structDef = structNode->as_extendable_members_container_unsafe();
+                    }
+                }
+            }
+            if(structDef) {
+                auto implFunc = find_interface_impl_fn(
+                    interfaceDef,
+                    structDef,
+                    func->name_view()
+                );
+                if(implFunc) {
+                    auto result = implFunc->call(&scope, scope.allocator, call, parent);
+                    if(result) return result;
                 }
             }
         }

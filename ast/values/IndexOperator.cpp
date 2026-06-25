@@ -179,11 +179,12 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
             // contiguousData is not available (uninitialized arrays).
             if (index.value() < arr->values.size()) {
                 auto rawElem = arr->values[index.value()];
-                // For StructValue elements, return the raw element directly (no copy)
-                // so that modifications through the array index (e.g. arr[0].data = 5)
-                // are preserved. The evaluated_value+copy path would create a fresh
-                // copy losing modifications.
-                if(rawElem && rawElem->val_kind() == ValueKind::StructValue) {
+                // For StructValue and ArrayValue elements, return the raw element directly
+                // (no copy) so that modifications through the array index
+                // (e.g. arr[0].data = 5, arr[0][0] = 2) are preserved.
+                // The evaluated_value+copy path would create a fresh copy losing modifications.
+                if(rawElem && (rawElem->val_kind() == ValueKind::StructValue ||
+                               rawElem->val_kind() == ValueKind::ArrayValue)) {
                     return rawElem;
                 }
                 auto evalVal = rawElem->evaluated_value(scope);

@@ -230,6 +230,21 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                             values.push_back(structVal);
                         }
                     }
+                } else if (elemType->kind() == BaseTypeKind::Array) {
+                    // Nested array element type: populate values with sub-ArrayValues
+                    if (values.empty()) {
+                        values.reserve(numElements);
+                        auto innerArrType = elemType->as_array_type_unsafe();
+                        for (size_t i = 0; i < numElements; i++) {
+                            auto innerArrVal = new (scope.allocate<ArrayValue>()) ArrayValue(
+                                encoded_location(),
+                                (ArrayType*) getType()->elem_type->copy(scope.allocator)
+                            );
+                            innerArrVal->explicit_size = (unsigned int)innerArrType->get_array_size();
+                            innerArrVal->evaluated_value(scope);
+                            values.push_back(innerArrVal);
+                        }
+                    }
                 } else if (byteSize > 0 && byteSize <= 8) {
                     // Primitive types: allocate contiguousData
                     const auto totalSize = numElements * byteSize;

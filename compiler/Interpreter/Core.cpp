@@ -47,6 +47,7 @@
 #include "ast/statements/ProvideStmt.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/values/LoopValue.h"
+#include "ast/structures/UnsafeBlock.h"
 
 
 void stop_interpretation_above(ASTNode* node) {
@@ -1063,11 +1064,14 @@ void InterpretScope::interpret(ASTNode* node) {
         case ASTNodeKind::Scope:
             ::interpret(*this, node->as_scope_unsafe());
             break;
-        case ASTNodeKind::Block:
-            ::interpret(*this, node->as_block_scope_unsafe());
-            break;
-        default:
-            break;
+    case ASTNodeKind::Block:
+        ::interpret(*this, node->as_block_scope_unsafe());
+        break;
+    case ASTNodeKind::UnsafeBlock:
+        ::interpret(*this, &node->as_unsafe_block_unsafe()->scope);
+        break;
+    default:
+        break;
     }
 }
 

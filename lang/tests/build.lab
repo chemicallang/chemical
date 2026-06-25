@@ -1,6 +1,8 @@
 import lab
 import std
 import cstd
+import "./common/build.lab" as commonMod
+import "./native_common/build.lab" as commonNativeMod
 import "./submod2/build.lab" as submod2
 import "./submod3/build.lab" as submod3
 import "@cstd/build.lab" as cstdMod
@@ -62,26 +64,15 @@ var do_asm = false;
 var do_bc = true;
 var do_to_ch = true;
 
-func get_common_mod(ctx : *mut AppBuildContext, core_module : *mut Module) : *mut Module {
+func get_common_mod(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Module {
 
-    const common_deps_arr : []*mut Module = [ core_module ]
-    const common_deps = std::span<*mut Module>(common_deps_arr, 1)
-
-    // the common test module (basic language-level tests, no pointers — works on all backends)
-    const common_path = lab::rel_path_to("common")
-    const common_mod = ctx.chemical_dir_module(std::string_view(""), std::string_view("common_tests"), std::string_view(&common_path), common_deps)
-
-    return common_mod;
+    return commonMod.build(ctx, job)
 
 }
 
-func get_common_native_mod(ctx : *mut AppBuildContext, common_mod : *mut Module) : *mut Module {
+func get_common_native_mod(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Module {
 
-    // the native_common test module (pointer arithmetic tests — native & interpret only, not JVM)
-    const native_common_path = lab::rel_path_to("native_common")
-    const native_common_mod = ctx.chemical_dir_module(std::string_view(""), std::string_view("native_common_tests"), std::string_view(&native_common_path), [ common_mod ])
-
-    return native_common_mod
+    return commonNativeMod.build(ctx, job)
 
 }
 
@@ -98,10 +89,10 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     var core_module = coreMod.build(ctx, job)
 
     // the common module
-    var common_mod = get_common_mod(ctx, core_module)
+    var common_mod = get_common_mod(ctx, job)
 
     // the native common module
-    var native_common_mod = get_common_native_mod(ctx, common_mod);
+    var native_common_mod = get_common_native_mod(ctx, job);
 
     const exe_name = std::string_view("chemical-tests");
     const ext_c_path = lab::rel_path_to("ext/file.c");
@@ -333,9 +324,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         const interp_name = std::string_view("chemical-interpret");
         const interp_path = lab::rel_path_to("interpret");
         const interp_job = ctx.build_interpretation(&interp_name);
-        var core_module = coreMod.build(ctx, interp_job)
-        var common_module = get_common_mod(ctx, core_module)
-        var native_common_mod = get_common_native_mod(ctx, common_module);
+        var common_module = get_common_mod(ctx, interp_job)
+        var native_common_mod = get_common_native_mod(ctx, interp_job);
         const interp_deps = [ native_common_mod, common_module ]
         const interp_mod = ctx.directory_app_module(std::string_view(""), std::string_view("interpret_tests"), std::string_view(&interp_path), interp_deps);
         ctx.add_module(interp_job, interp_mod);

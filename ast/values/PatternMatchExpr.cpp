@@ -232,6 +232,37 @@ Value* PatternMatchExpr::evaluated_value(InterpretScope &scope) {
                 encoded_location()
             );
         }
+        // Fallback: try to determine the variant member from the struct's values
+        // This handles cases where the struct was copied (e.g., retrieved from an array)
+        // and the pointer-based map lookup fails.
+        auto ext = structVal->linked_extendable();
+        if(ext && (ext->kind() == ASTNodeKind::VariantDecl ||
+                   ext->kind() == ASTNodeKind::GenericVariantDecl)) {
+            auto variantDef = ext->as_variant_def_unsafe();
+            int64_t memberIndex = variantDef->direct_child_index(member->name_view());
+            if(memberIndex >= 0) {
+                // Check if this struct has values matching the expected member
+                // by looking at the member's parameter names
+                auto foundMember = variantDef->child(member->name_view());
+                if(foundMember && foundMember->kind() == ASTNodeKind::VariantMember) {
+                    auto vm = foundMember->as_variant_member_unsafe();
+                    bool allParamsMatch = true;
+                    for(auto& [paramName, param] : vm->values) {
+                        if(structVal->values.find(paramName) == structVal->values.end()) {
+                            allParamsMatch = false;
+                            break;
+                        }
+                    }
+                    if(allParamsMatch) {
+                        return new (scope.allocate<BoolValue>()) BoolValue(
+                            true,
+                            scope.global->typeBuilder.getBoolType(),
+                            encoded_location()
+                        );
+                    }
+                }
+            }
+        }
     }
     return new (scope.allocate<BoolValue>()) BoolValue(
         false,

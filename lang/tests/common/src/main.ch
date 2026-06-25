@@ -151,5 +151,8 @@ public func run_common_tests() {
     test_hidden_ptr_self_in_methods();
     test_ref_of_deref_hidden_ptr();
     test_interface_generic_dispatch()
+    test_generic_static_interfaces()
 
+    test_new();
+    test_core_ops();
 }

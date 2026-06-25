@@ -21,10 +21,6 @@ func run_executable_tests() {
     test_native_generic_specifics();
     test_imported_modules();
     test_modules_import();
-    test_new();
-    test_for_in()
-    test_core_ops();
-    test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();
 
@@ -44,6 +40,7 @@ func run_executable_tests() {
     // --------------------------------------
     // Standard Library and Complicated stuff
     // --------------------------------------
+    test_for_in()
     test_strings();
     test_hashing();
     test_vectors();

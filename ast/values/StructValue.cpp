@@ -743,6 +743,7 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
     for (const auto &value: values) {
         struct_value->values.emplace(value.first, StructMemberInitializer { value.first, value.second.value->copy(allocator) });
     }
+    struct_value->set_variant_member_index(get_variant_member_index());
 //    struct_value->generic_list.reserve(generic_list.size());
 //    for(const auto& arg : generic_list) {
 //        struct_value->generic_list.emplace_back(arg->copy(allocator));

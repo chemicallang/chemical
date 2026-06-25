@@ -24,6 +24,10 @@ private:
 
     // we only store pointer to definition, if found
     ExtendableMembersContainerNode *definition = nullptr;
+    // Variant member index (-1 if not a variant), stored directly on the struct
+    // so that copies automatically carry the index. Previously stored in a global
+    // map keyed by pointer, which failed for copies.
+    int64_t variant_member_index = -1;
 
 public:
 
@@ -141,6 +145,14 @@ public:
 
     ExtendableMembersContainerNode* linked_extendable() {
         return definition;
+    }
+
+    void set_variant_member_index(int64_t idx) {
+        variant_member_index = idx;
+    }
+
+    int64_t get_variant_member_index() const {
+        return variant_member_index;
     }
 
     StructDefinition* linked_struct() {

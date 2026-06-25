@@ -248,44 +248,57 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
 
     // Check if this is a variant switch — match by member index instead of value equality.
     const auto variantDef = stmt->getVarDefFromExpr();
-    if(variantDef) {
-        // Determine the active member index from the condition (the variant struct value).
-        int condMemberIndex = -1;
-        if(cond->val_kind() == ValueKind::StructValue) {
-            auto structVal = cond->as_struct_value_unsafe();
-            auto it = scope.global->variant_member_index_map.find(structVal);
-            if(it != scope.global->variant_member_index_map.end()) {
-                condMemberIndex = (int)it->second;
-            }
+    
+    // Determine the active member index from the condition (the variant struct value).
+    int condMemberIndex = -1;
+    Value* derefCond = cond;
+    if(cond->val_kind() == ValueKind::StructValue) {
+        auto structVal = cond->as_struct_value_unsafe();
+        condMemberIndex = (int)structVal->get_variant_member_index();
+    } else if(cond->val_kind() == ValueKind::PointerValue) {
+        auto ptrVal = static_cast<PointerValue*>(cond);
+        auto deref = ptrVal->deref(scope, cond->encoded_location(), cond);
+        if(deref && deref->val_kind() == ValueKind::StructValue) {
+            derefCond = deref;
+            condMemberIndex = (int)deref->as_struct_value_unsafe()->get_variant_member_index();
         }
-        if(condMemberIndex >= 0) {
-            unsigned i = 0;
-            const auto size = stmt->scopes.size();
-            while(i < size) {
-                for(auto& casePair : stmt->cases) {
-                    if(casePair.second == i && casePair.first) {
-                        // VariantCase carries the VariantMember pointer
-                        if(casePair.first->val_kind() == ValueKind::VariantCase) {
-                            auto varCase = casePair.first->as_variant_case_unsafe();
-                            auto member = varCase->member;
-                            if(member) {
-                                int caseMemberIndex = (int)variantDef->direct_child_index(member->name_view());
-                                if(caseMemberIndex == condMemberIndex) {
-                                    return &stmt->scopes[i];
-                                }
+    } else if(cond->val_kind() == ValueKind::Identifier) {
+        auto eval = cond->evaluated_value(scope);
+        if(eval && eval->val_kind() == ValueKind::StructValue) {
+            derefCond = eval;
+            condMemberIndex = (int)eval->as_struct_value_unsafe()->get_variant_member_index();
+        }
+    }
+    
+    if(condMemberIndex >= 0) {
+        unsigned i = 0;
+        const auto size = stmt->scopes.size();
+        while(i < size) {
+            for(auto& casePair : stmt->cases) {
+                if(casePair.second == i && casePair.first) {
+                    // VariantCase carries the VariantMember pointer
+                    if(casePair.first->val_kind() == ValueKind::VariantCase) {
+                        auto varCase = casePair.first->as_variant_case_unsafe();
+                        auto member = varCase->member;
+                        if(member) {
+                            auto memberParent = member->parent();
+                            int caseMemberIndex = (int)memberParent->direct_child_index(member->name_view());
+                            if(caseMemberIndex == condMemberIndex) {
+                                return &stmt->scopes[i];
                             }
                         }
                     }
                 }
-                i++;
             }
-            if(stmt->has_default_case()) {
-                return &stmt->scopes[stmt->defScopeInd];
-            }
-            return nullptr;
+            i++;
         }
-        // Fall through to normal matching if we couldn't determine the member index
+        if(stmt->has_default_case()) {
+            return &stmt->scopes[stmt->defScopeInd];
+        }
+        return nullptr;
     }
+    
+    // Fall through to normal matching if we couldn't determine the member index
 
     unsigned i = 0;
     const auto size = stmt->scopes.size();
@@ -294,7 +307,7 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
             if(casePair.second == i && casePair.first) {
                 // VariantCase matching: match by member index instead of value equality.
                 // Handles StructValue, Identifier, and PointerValue condition types.
-                if(casePair.first->val_kind() == ValueKind::VariantCase && variantDef) {
+                if(casePair.first->val_kind() == ValueKind::VariantCase) {
                     Value* effectiveCond = cond;
                     if(effectiveCond->val_kind() == ValueKind::Identifier) {
                         effectiveCond = effectiveCond->evaluated_value(scope);
@@ -308,14 +321,15 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
                         auto varCase = casePair.first->as_variant_case_unsafe();
                         if(varCase && varCase->member) {
                             auto condStruct = effectiveCond->as_struct_value_unsafe();
-                            auto it = scope.global->variant_member_index_map.find(condStruct);
-                            int condIdx = (it != scope.global->variant_member_index_map.end()) ? (int)it->second : -1;
-                            int caseIdx = (int)variantDef->direct_child_index(varCase->member->name_view());
+                            int condIdx = (int)condStruct->get_variant_member_index();
+                            auto memberParent = varCase->member->parent();
+                            int caseIdx = (int)memberParent->direct_child_index(varCase->member->name_view());
                             if(condIdx == caseIdx) {
                                 return &stmt->scopes[i];
                             }
-                            // Fallback: check if case member's parameter names are in the struct
-                            if(condIdx < 0) {
+                            // Fallback: check if case member's parameter names are in the struct.
+                            // Only applies when the case has parameters (otherwise can't distinguish).
+                            if(condIdx < 0 && !varCase->identifier_list.empty()) {
                                 bool allParamsMatch = true;
                                 for(auto& caseVar : varCase->identifier_list) {
                                     if(caseVar->member_param) {
@@ -364,8 +378,18 @@ static std::vector<chem::string_view> declare_variant_case_vars(
     Value* cond
 ) {
     std::vector<chem::string_view> declared;
-    if(!cond || cond->val_kind() != ValueKind::StructValue) return declared;
-    auto condStruct = cond->as_struct_value_unsafe();
+    if(!cond) return declared;
+    Value* effectiveCond = cond;
+    // Unwrap Identifier and PointerValue to get the underlying struct
+    if(effectiveCond->val_kind() == ValueKind::Identifier) {
+        effectiveCond = effectiveCond->evaluated_value(scope);
+    }
+    if(effectiveCond && effectiveCond->val_kind() == ValueKind::PointerValue) {
+        auto ptrVal = static_cast<PointerValue*>(effectiveCond);
+        effectiveCond = ptrVal->deref(scope, cond->encoded_location(), cond);
+    }
+    if(!effectiveCond || effectiveCond->val_kind() != ValueKind::StructValue) return declared;
+    auto condStruct = effectiveCond->as_struct_value_unsafe();
     const auto variantDef = stmt->getVarDefFromExpr();
     if(!variantDef) return declared;
     for(auto& casePair : stmt->cases) {
@@ -373,7 +397,9 @@ static std::vector<chem::string_view> declare_variant_case_vars(
             if(&stmt->scopes[casePair.second] == body) {
                 auto varCase = casePair.first->as_variant_case_unsafe();
                 for(auto& caseVar : varCase->identifier_list) {
-                    auto found = condStruct->values.find(caseVar->name);
+                    // Use the actual variant parameter name, not the user-chosen case label name
+                    auto paramName = caseVar->member_param ? caseVar->member_param->name : caseVar->name;
+                    auto found = condStruct->values.find(paramName);
                     if(found != condStruct->values.end() && found->second.value) {
                         scope.declare(caseVar->name, found->second.value);
                         declared.push_back(caseVar->name);
@@ -392,10 +418,8 @@ void interpret(InterpretScope& scope, SwitchStatement* stmt) {
         // Use a child scope for variant switch cases to keep variable declarations clean
         InterpretScope child(&scope, scope.allocator, scope.global);
         std::vector<chem::string_view> caseVarNames;
-        if(!scope.global->variant_member_index_map.empty()) {
-            const auto cond = stmt->expression->evaluated_value(scope);
-            caseVarNames = declare_variant_case_vars(child, stmt, body, cond);
-        }
+        const auto cond = stmt->expression->evaluated_value(scope);
+        caseVarNames = declare_variant_case_vars(child, stmt, body, cond);
         child.interpret(body);
         // Erase pattern-matched case variables from child scope to prevent
         // double-destruction. These variables share pointers with the variant
@@ -413,10 +437,8 @@ Value* evaluated_value(InterpretScope &scope, SwitchStatement* stmt) {
     const auto body = eval_switch_stmt_block(scope, stmt);
     if(body) {
         // For variant switches, need to declare case variables before evaluating
-        if(!scope.global->variant_member_index_map.empty()) {
-            const auto cond = stmt->expression->evaluated_value(scope);
-            declare_variant_case_vars(scope, stmt, body, cond);
-        }
+        const auto cond = stmt->expression->evaluated_value(scope);
+        declare_variant_case_vars(scope, stmt, body, cond);
         return evaluate(scope, body);
     }
     return scope.getNullValue();
@@ -585,59 +607,65 @@ inline void interpret(InterpretScope& scope, IncDecNode* node) {
 }
 
 inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
-    // Evaluate the pattern match expression to check the variant type
-    // For now, the interpreter always takes the else branch (no variant type checking yet)
-    // This handles break/continue/return/defValue for pattern matching
-    const auto& elseExpr = node->value.elseExpression;
-    switch(elseExpr.kind) {
-        case PatternElseExprKind::Break:
-            stop_interpretation_above_once(node);
-            break;
-        case PatternElseExprKind::Continue:
-            skip_interpretation_above_once(node);
-            break;
-        case PatternElseExprKind::Return: {
-            if(elseExpr.value) {
-                scope.global->current_func_type->set_return(scope, elseExpr.value);
-            }
-            stop_interpretation_above(node->parent());
-            break;
+    // Evaluate the pattern match: check if the variant matches the expected member
+    bool matches = false;
+    Value* evalExpr = nullptr;
+    if(!node->value.param_names.empty() && node->value.member) {
+        evalExpr = node->value.expression->evaluated_value(scope);
+        if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
+            auto evalBool = node->value.evaluated_value(scope);
+            matches = evalBool && evalBool->get_the_bool();
         }
-        case PatternElseExprKind::DefValue: {
-            if(elseExpr.value && !node->value.param_names.empty()) {
-                const auto evalValue = elseExpr.value->evaluated_value(scope);
-                if(evalValue) {
-                    scope.declare(node->value.param_names[0]->identifier, evalValue);
-                }
-            }
-            break;
-        }
-        case PatternElseExprKind::Unreachable: {
-            // For else unreachable, extract the member value from the variant struct
-            if(!node->value.param_names.empty() && node->value.member) {
-                auto evalExpr = node->value.expression->evaluated_value(scope);
-                if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
-                    auto variantStruct = evalExpr->as_struct_value_unsafe();
-                    // Extract the member parameter values from the variant struct
-                    for(auto& pm : node->value.param_names) {
-                        if(pm->member_param) {
-                            auto found = variantStruct->values.find(pm->member_param->name);
-                            if(found != variantStruct->values.end() && found->second.value) {
-                                scope.declare(pm->identifier, found->second.value);
-                                // Erase from variant struct to prevent double-destruction.
-                                // The declared variable now owns the value.
-                                variantStruct->values.erase(found);
-                            }
-                        }
+    }
+    if(matches) {
+        // Pattern matched — extract variables from the variant struct
+        if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
+            auto variantStruct = evalExpr->as_struct_value_unsafe();
+            for(auto& pm : node->value.param_names) {
+                if(pm->member_param) {
+                    auto found = variantStruct->values.find(pm->member_param->name);
+                    if(found != variantStruct->values.end() && found->second.value) {
+                        scope.declare(pm->identifier, found->second.value);
+                        variantStruct->values.erase(found);
                     }
                 }
             }
-            break;
         }
-        default:
-            // No else expression - just evaluate normally
-            node->value.evaluated_value(scope);
-            break;
+    } else {
+        // Pattern didn't match — handle the else expression
+        const auto& elseExpr = node->value.elseExpression;
+        switch(elseExpr.kind) {
+            case PatternElseExprKind::Break:
+                stop_interpretation_above_once(node);
+                break;
+            case PatternElseExprKind::Continue:
+                skip_interpretation_above_once(node);
+                break;
+            case PatternElseExprKind::Return: {
+                if(elseExpr.value) {
+                    scope.global->current_func_type->set_return(scope, elseExpr.value);
+                }
+                stop_interpretation_above(node->parent());
+                break;
+            }
+            case PatternElseExprKind::DefValue: {
+                if(elseExpr.value && !node->value.param_names.empty()) {
+                    const auto evalValue = elseExpr.value->evaluated_value(scope);
+                    if(evalValue) {
+                        scope.declare(node->value.param_names[0]->identifier, evalValue);
+                    }
+                }
+                break;
+            }
+            case PatternElseExprKind::Unreachable: {
+                // Unreachable was handled above — pattern should have matched
+                break;
+            }
+            default:
+                // No else expression — just evaluate normally
+                node->value.evaluated_value(scope);
+                break;
+        }
     }
 }
 

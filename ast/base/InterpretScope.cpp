@@ -355,6 +355,8 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return nullptr;
         }
     } else {
+        std::fprintf(stderr, "[DBG_EVAL] unknown operation: fKind=%d sKind=%d op=%d\n",
+            (int)fKind, (int)sKind, (int)operation);
         scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
     }

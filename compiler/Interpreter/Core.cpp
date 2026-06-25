@@ -28,6 +28,7 @@
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/IfValue.h"
+#include "ast/values/PatternMatchExpr.h"
 #include "ast/values/ValueNode.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
@@ -291,6 +292,46 @@ Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
     while(i < size) {
         for(auto& casePair : stmt->cases) {
             if(casePair.second == i && casePair.first) {
+                // VariantCase matching: match by member index instead of value equality.
+                // Handles StructValue, Identifier, and PointerValue condition types.
+                if(casePair.first->val_kind() == ValueKind::VariantCase && variantDef) {
+                    Value* effectiveCond = cond;
+                    if(effectiveCond->val_kind() == ValueKind::Identifier) {
+                        effectiveCond = effectiveCond->evaluated_value(scope);
+                    } else if(effectiveCond->val_kind() == ValueKind::PointerValue) {
+                        // Dereference pointer to get the underlying struct
+                        auto ptrVal = static_cast<PointerValue*>(effectiveCond);
+                        auto deref = ptrVal->deref(scope, cond->encoded_location(), cond);
+                        if(deref) effectiveCond = deref;
+                    }
+                    if(effectiveCond && effectiveCond->val_kind() == ValueKind::StructValue) {
+                        auto varCase = casePair.first->as_variant_case_unsafe();
+                        if(varCase && varCase->member) {
+                            auto condStruct = effectiveCond->as_struct_value_unsafe();
+                            auto it = scope.global->variant_member_index_map.find(condStruct);
+                            int condIdx = (it != scope.global->variant_member_index_map.end()) ? (int)it->second : -1;
+                            int caseIdx = (int)variantDef->direct_child_index(varCase->member->name_view());
+                            if(condIdx == caseIdx) {
+                                return &stmt->scopes[i];
+                            }
+                            // Fallback: check if case member's parameter names are in the struct
+                            if(condIdx < 0) {
+                                bool allParamsMatch = true;
+                                for(auto& caseVar : varCase->identifier_list) {
+                                    if(caseVar->member_param) {
+                                        if(condStruct->values.find(caseVar->member_param->name) == condStruct->values.end()) {
+                                            allParamsMatch = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if(allParamsMatch) {
+                                    return &stmt->scopes[i];
+                                }
+                            }
+                        }
+                    }
+                }
                 auto eval_first = casePair.first->evaluated_value(scope);
                 const auto isEqualEval = scope.evaluate(Operation::IsEqual, eval_first, cond, ZERO_LOC, casePair.first);
                 if(!isEqualEval || isEqualEval->val_kind() == ValueKind::NullValue) {
@@ -381,34 +422,89 @@ Value* evaluated_value(InterpretScope &scope, SwitchStatement* stmt) {
     return scope.getNullValue();
 }
 
-Scope* eval_if_stmt_block(InterpretScope& scope, IfStatement* stmt) {
-    if (stmt->condition->evaluated_bool(scope)) {
-        return &stmt->ifBody;
-    } else {
-        for (auto const &elseIf: stmt->elseIfs) {
-            if (elseIf.first->evaluated_bool(scope)) {
+Scope* pm_eval_body_for_if(InterpretScope& scope, IfStatement* stmt) {
+    if(stmt->condition->val_kind() == ValueKind::PatternMatchExpr) {
+        auto patt = static_cast<PatternMatchExpr*>(stmt->condition);
+        auto exprVal = patt->expression->evaluated_value(scope);
+        bool matches = patt->evaluated_bool(scope);
+        if(matches) {
+            return &stmt->ifBody;
+        }
+        for(auto const &elseIf : stmt->elseIfs) {
+            if(elseIf.first->val_kind() == ValueKind::PatternMatchExpr) {
+                auto elsePatt = static_cast<PatternMatchExpr*>(elseIf.first);
+                exprVal = elsePatt->expression->evaluated_value(scope);
+                matches = elsePatt->evaluated_bool(scope);
+                if(matches) {
+                    return const_cast<Scope *>(&elseIf.second);
+                }
+            } else if(elseIf.first->evaluated_bool(scope)) {
                 return const_cast<Scope *>(&elseIf.second);
             }
         }
-        if (stmt->elseBody.has_value()) {
+        if(stmt->elseBody.has_value()) {
+            return &stmt->elseBody.value();
+        }
+        return nullptr;
+    }
+    if(stmt->condition->evaluated_bool(scope)) {
+        return &stmt->ifBody;
+    } else {
+        for(auto const &elseIf : stmt->elseIfs) {
+            if(elseIf.first->val_kind() == ValueKind::PatternMatchExpr) {
+                auto elsePatt = static_cast<PatternMatchExpr*>(elseIf.first);
+                auto exprVal = elsePatt->expression->evaluated_value(scope);
+                bool matches = elsePatt->evaluated_bool(scope);
+                if(matches) {
+                    return const_cast<Scope *>(&elseIf.second);
+                }
+            } else if(elseIf.first->evaluated_bool(scope)) {
+                return const_cast<Scope *>(&elseIf.second);
+            }
+        }
+        if(stmt->elseBody.has_value()) {
             return &stmt->elseBody.value();
         }
     }
     return nullptr;
 }
 
+static void pm_declare_vars_from_patt(InterpretScope& scope, InterpretScope& child, PatternMatchExpr* patt) {
+    if(patt->param_names.empty() || !patt->member) return;
+    auto exprVal = patt->expression->evaluated_value(scope);
+    if(exprVal && exprVal->val_kind() == ValueKind::StructValue) {
+        auto vs = exprVal->as_struct_value_unsafe();
+        for(auto& pm : patt->param_names) {
+            if(pm->member_param) {
+                auto found = vs->values.find(pm->member_param->name);
+                if(found != vs->values.end() && found->second.value) {
+                    child.declare(pm->identifier, found->second.value);
+                    vs->values.erase(found);
+                }
+            }
+        }
+    }
+}
+
 void interpret(InterpretScope& scope, IfStatement* stmt) {
-    const auto block = eval_if_stmt_block(scope, stmt);
+    const auto block = pm_eval_body_for_if(scope, stmt);
     if(block) {
         InterpretScope child(&scope, scope.allocator, scope.global);
+        if(stmt->condition->val_kind() == ValueKind::PatternMatchExpr) {
+            pm_declare_vars_from_patt(scope, child, static_cast<PatternMatchExpr*>(stmt->condition));
+        }
         child.interpret(block);
     }
 }
 
 Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
-    const auto body = eval_if_stmt_block(scope, stmt);
+    const auto body = pm_eval_body_for_if(scope, stmt);
     if(body) {
-        return evaluate(scope, body);
+        InterpretScope child(&scope, scope.allocator, scope.global);
+        if(stmt->condition->val_kind() == ValueKind::PatternMatchExpr) {
+            pm_declare_vars_from_patt(scope, child, static_cast<PatternMatchExpr*>(stmt->condition));
+        }
+        return evaluate(child, body);
     }
     return scope.getNullValue();
 }

@@ -740,6 +740,33 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                 return;
             }
         }
+        // Handle string literal to char array conversion:
+        // var str : [10]char = "hello" — convert string to char array with padding
+        if(stmt->value->val_kind() == ValueKind::String && stmt->type && stmt->type->kind() == BaseTypeKind::Array) {
+            auto arrType = stmt->type->as_array_type_unsafe();
+            auto elemType = arrType->elem_type;
+            if(elemType && elemType->canonical()->kind() == BaseTypeKind::IntN &&
+               elemType->canonical()->isCharType()) {
+                auto strVal = stmt->value->as_string_unsafe();
+                auto arrSize = arrType->get_array_size();
+                if(arrSize > 0) {
+                    auto arrVal = new (scope.allocate<ArrayValue>()) ArrayValue(stmt->encoded_location(), arrType);
+                    arrVal->explicit_size = (unsigned int)arrSize;
+                    // Copy string chars into array values up to the array size
+                    for(uint64_t i = 0; i < (uint64_t)arrSize; i++) {
+                        char c = (i < strVal->value.size()) ? strVal->value[i] : '\0';
+                        auto charVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                            (uint64_t)(unsigned char)c,
+                            scope.global->typeBuilder.getCharType(),
+                            stmt->encoded_location()
+                        );
+                        arrVal->values.push_back(charVal);
+                    }
+                    scope.declare(stmt->name_view(), arrVal);
+                    return;
+                }
+            }
+        }
         auto initializer = stmt->value->scope_value(scope);
         scope.declare(stmt->name_view(), initializer);
         // Handle move semantics: if the initializer references an existing destructible

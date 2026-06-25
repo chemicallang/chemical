@@ -28,11 +28,15 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
+#include "ast/values/DynamicValue.h"
+#include "ast/values/PointerValue.h"
+#include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/FileScope.h"
+#include <cstdio>
 
 #ifdef COMPILER_BUILD
 
@@ -1479,10 +1483,27 @@ static FunctionDeclaration* find_interface_impl_fn(
             auto impl = child->as_impl_def_unsafe();
             if (!impl || !impl->struct_type) continue;
             auto implStruct = impl->struct_type->get_direct_linked_canonical_node();
-            if (!implStruct || implStruct != structDef) continue;
+            bool structMatches = (implStruct == structDef);
+            if (!implStruct || !structMatches) {
+                // The same canonical struct can have different pointer representations
+                // when accessed through different resolution paths. Fall back to name
+                // comparison in this case.
+                if(!structMatches && implStruct && structDef &&
+                    implStruct->get_node_identifier() == structDef->get_node_identifier()) {
+                    structMatches = true;
+                }
+                if (!structMatches) {
+                    continue;
+                }
+            }
             if (!impl->interface_type) continue;
             auto implInterfaceNode = impl->interface_type->get_direct_linked_node();
-            if (implInterfaceNode != interfaceDef) continue;
+            bool interfaceMatches = (implInterfaceNode == interfaceDef);
+            if (!interfaceMatches && implInterfaceNode && interfaceDef &&
+                implInterfaceNode->get_node_identifier() == interfaceDef->get_node_identifier()) {
+                interfaceMatches = true;
+            }
+            if (!interfaceMatches) continue;
             auto fn = impl->direct_child_function(funcName);
             if (fn && fn->body.has_value()) return fn;
         }
@@ -1571,18 +1592,47 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
            func->parent()->kind() == ASTNodeKind::InterfaceDecl && parent) {
             auto interfaceDef = func->parent()->as_interface_def_unsafe();
             ExtendableMembersContainerNode* structDef = nullptr;
-            // Try to get struct definition from the value directly (handles DynamicType receivers)
+            // Try to get struct definition from the value directly
             if(parent->val_kind() == ValueKind::StructValue) {
                 structDef = parent->as_struct_value_unsafe()->linked_extendable();
-            }
-            // Fall back to type-based lookup for non-StructValue receivers
-            if(!structDef) {
-                auto parentType = parent->getType();
-                if(parentType) {
-                    auto structNode = parentType->get_direct_linked_canonical_node();
-                    if(structNode && (structNode->kind() == ASTNodeKind::StructDecl ||
-                                      structNode->kind() == ASTNodeKind::VariantDecl)) {
-                        structDef = structNode->as_extendable_members_container_unsafe();
+            } else if(parent->val_kind() == ValueKind::DynamicValue) {
+                auto dynVal = static_cast<DynamicValue*>(parent);
+                // Strategy 1: try to evaluate the inner value to get the actual struct
+                if(dynVal->value) {
+                    auto evaluated = dynVal->value->evaluated_value(scope);
+                    if(evaluated && evaluated->val_kind() == ValueKind::StructValue) {
+                        structDef = evaluated->as_struct_value_unsafe()->linked_extendable();
+                    }
+                }
+                // Strategy 2: fallback to type-based resolution from the inner value's type
+                if(!structDef && dynVal->value && dynVal->value->getType()) {
+                    auto typeNode = dynVal->value->getType()->get_direct_linked_canonical_node();
+                    if(typeNode && (typeNode->kind() == ASTNodeKind::StructDecl ||
+                                    typeNode->kind() == ASTNodeKind::VariantDecl)) {
+                        structDef = typeNode->as_extendable_members_container_unsafe();
+                    }
+                }
+            } else if(parent->val_kind() == ValueKind::Identifier) {
+                // Evaluate the identifier to get the underlying struct value
+                auto evaluated = parent->evaluated_value(scope);
+                if(evaluated && evaluated->val_kind() == ValueKind::StructValue) {
+                    structDef = evaluated->as_struct_value_unsafe()->linked_extendable();
+                }
+            } else if(parent->val_kind() == ValueKind::PointerValue) {
+                // For pointer receivers, get the pointed-to struct type
+                auto ptrVal = static_cast<PointerValue*>(parent);
+                if(ptrVal && ptrVal->getType()) {
+                    auto ptrType = ptrVal->getType();
+                    // PointerValue's type is the pointer type; unwrap to find the pointee
+                    if(ptrType->kind() == BaseTypeKind::Pointer) {
+                        auto pointeeType = static_cast<PointerType*>(ptrType)->type;
+                        if(pointeeType) {
+                            auto typeNode = pointeeType->get_direct_linked_canonical_node();
+                            if(typeNode && (typeNode->kind() == ASTNodeKind::StructDecl ||
+                                            typeNode->kind() == ASTNodeKind::VariantDecl)) {
+                                structDef = typeNode->as_extendable_members_container_unsafe();
+                            }
+                        }
                     }
                 }
             }
@@ -1593,8 +1643,80 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                     func->name_view()
                 );
                 if(implFunc) {
-                    auto result = implFunc->call(&scope, scope.allocator, call, parent);
+                    // Unwrap DynamicValue/Identifier parent to get the underlying
+                    // struct value, so that the impl function body can access
+                    // fields via self.xxx.
+                    Value* effectiveParent = parent;
+                    int maxUnwrap = 5;
+                    while(effectiveParent && maxUnwrap-- > 0) {
+                        if(effectiveParent->val_kind() == ValueKind::DynamicValue) {
+                            auto dynVal = static_cast<DynamicValue*>(effectiveParent);
+                            if(dynVal->value) {
+                                effectiveParent = dynVal->value->evaluated_value(scope);
+                                continue;
+                            }
+                        }
+                        if(effectiveParent->val_kind() == ValueKind::Identifier) {
+                            auto ident = static_cast<VariableIdentifier*>(effectiveParent);
+                            auto found = scope.find_value(ident->value);
+                            if(found) {
+                                effectiveParent = found;
+                                continue;
+                            }
+                            // If not in scope, try evaluated_value as fallback
+                            effectiveParent = effectiveParent->evaluated_value(scope);
+                            continue;
+                        }
+                        break;
+                    }
+                    auto result = implFunc->call(&scope, scope.allocator, call, effectiveParent);
                     if(result) return result;
+                }
+            }
+            // Also try looking up the impl from the parent type if the direct lookup failed
+            // This handles cases where the parent is a DynamicValue wrapping a struct
+            if(!structDef && parent->getType()) {
+                // Try name-based resolution: search for the struct type by name in scope
+                auto parentType = parent->getType();
+                // Walk up to find struct definition through the type's linked chain
+                ASTNode* typeNode = parentType->get_direct_linked_node();
+                if(typeNode && (typeNode->kind() == ASTNodeKind::StructDecl ||
+                                typeNode->kind() == ASTNodeKind::VariantDecl)) {
+                    structDef = typeNode->as_extendable_members_container_unsafe();
+                    if(structDef) {
+                        auto implFunc = find_interface_impl_fn(
+                            interfaceDef,
+                            structDef,
+                            func->name_view()
+                        );
+                        if(implFunc) {
+                            auto result = implFunc->call(&scope, scope.allocator, call, parent);
+                            if(result) return result;
+                        }
+                    }
+                }
+            }
+        }
+        // Also try interface dispatch when parent is null but we can resolve the type
+        // from the function's parent interface and search scope
+        if(!func->body.has_value() && !parent &&
+           func->parent() && func->parent()->kind() == ASTNodeKind::InterfaceDecl) {
+            // Try to find a receiver from scope (self/this or first arg with struct type)
+            auto foundSelf = scope.find_value("self");
+            if(!foundSelf) foundSelf = scope.find_value("this");
+            if(foundSelf && foundSelf->getType()) {
+                auto typeNode = foundSelf->getType()->get_direct_linked_canonical_node();
+                if(typeNode && (typeNode->kind() == ASTNodeKind::StructDecl ||
+                                typeNode->kind() == ASTNodeKind::VariantDecl)) {
+                    auto structDef = typeNode->as_extendable_members_container_unsafe();
+                    auto interfaceDef = func->parent()->as_interface_def_unsafe();
+                    auto implFunc = find_interface_impl_fn(
+                        interfaceDef, structDef, func->name_view()
+                    );
+                    if(implFunc) {
+                        auto result = implFunc->call(&scope, scope.allocator, call, foundSelf);
+                        if(result) return result;
+                    }
                 }
             }
         }

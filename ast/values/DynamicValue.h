@@ -34,6 +34,25 @@ public:
         return getType()->referenced;
     }
 
+    Value* evaluated_value(InterpretScope& scope) override {
+        if(!value) return this;
+        auto evaluated = value->evaluated_value(scope);
+        if(evaluated && evaluated != value) {
+            return evaluated;
+        }
+        return this;
+    }
+
+    Value* child(InterpretScope& scope, const chem::string_view& name) override {
+        if(!value) return nullptr;
+        // Evaluate the inner value to get the actual struct, then delegate child lookup
+        auto inner = value->evaluated_value(scope);
+        if(!inner || inner == value) {
+            inner = this;
+        }
+        return inner->child(scope, name);
+    }
+
     Value* copy(ASTAllocator &allocator) override {
         const auto dyn_type = new (allocator.allocate<DynamicType>()) DynamicType(
             getType()->referenced->copy(allocator)

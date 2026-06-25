@@ -62,9 +62,14 @@ func test_generic_type_deduction() {
         }
         return deduce_thing(s) == 40;
     })
-    // NOTE: "nested generic type parameters can be deduced in function call - 3/4"
-    // use variant pattern matching (DeduceThingVar with Some/None) which is
-    // not supported by the interpreter — kept in native only
+    test("nested generic type parameters can be deduced via variant - 1", () => {
+        const s = DeduceThingVar.Some<int>(20)
+        return deduce_thing_var(s) == 20;
+    })
+    test("nested generic type parameters can be deduced via variant - 2", () => {
+        const s = DeduceThingVar.Some<long>(40)
+        return deduce_thing_var(s) == 40;
+    })
     test("generic return type can be deduced when in function call - 1", () => {
         return take_gen_ret(give_gen_ret<int>(16, 16)) == 42;
     })

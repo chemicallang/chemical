@@ -7,7 +7,7 @@ func run_executable_tests() {
     run_common_tests();
     run_native_common_tests();
     test_char_ptr_strings();
-    test_external_functions();
+    test_downloaded_module()
     test_deref_pass_func_call()
 
 
@@ -18,18 +18,12 @@ func run_executable_tests() {
     // this syntax is mostly present in languages like C++ and Rust
     // -------------------------------------------
     test_temp_view_lifetime()
-    test_hidden_ptr_self_in_methods();
-    test_ref_of_deref_hidden_ptr();
     test_native_generic_specifics();
-    test_native_deduction_variants();
     test_imported_modules();
     test_modules_import();
-    test_generic_moves();
     test_new();
-    test_interface_generic_dispatch();
     test_for_in()
     test_core_ops();
-    test_primitive_implementations()
     test_generic_static_interfaces();
     test_external_interfaces();
     test_capturing_lambda();

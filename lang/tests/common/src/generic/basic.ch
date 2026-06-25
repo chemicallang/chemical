@@ -1,9 +1,3 @@
-// Copyright (c) Chemical Language Foundation 2025.
-//
-// Generic tests — moved from lang/tests/src/generic/basic.ch
-// These tests work in all backends (JVM + interpret + native):
-// no raw pointer operations, no native method calls, no std dependency.
-
 func <T = int, K = int, R = int> gen_sum(a : T, b : K) : R {
     return a + b;
 }
@@ -56,6 +50,23 @@ func mul_int_pair(pair_gen : PairGen<int, int, int>) : int {
 
 func <T, U, V> (pair : &PairGen<T, U, V>) ext_div() : V {
     return pair.a / pair.b;
+}
+
+@direct_init
+struct ShortPairGen {
+    var pair : PairGen<short, short, short>
+    @constructor
+    func make() {
+        return ShortPairGen {
+            pair = PairGen<short, short, short> {
+                a : 33,
+                b : 10
+            }
+        }
+    }
+    func add(&self) : short {
+        return pair.add();
+    }
 }
 
 func get_other_gen_long(val : long) : OtherGen9<long> {
@@ -283,6 +294,20 @@ func <T> gen_lamb_with_param() : T {
         return a;
     }
     return lamb(93837)
+}
+
+struct GenFuncProvider<T> {
+    var value : T
+    func give_value(&self) : T {
+        return value;
+    }
+}
+
+struct GenFuncDelegateProvider<T> {
+    var ptr : *mut GenFuncProvider<T>
+    func get_value(&self) : T {
+        return ptr.give_value()
+    }
 }
 
 func <T = short> give_me_size_of_this_gen_kinda() : T {
@@ -648,6 +673,45 @@ func test_basic_generics() {
         var obj = generic_identifier_replacement_test<generic_id_repl_Creator2>()
         return obj.a == 234 && obj.b == 432
     })
-    // NOTE: Last 2 tests in native version (GenPublicUseNonPublic, ExposedGenSecond)
-    // depend on external modules (submod/, submod3/) — kept in native only
+    test("generic struct can be stored in another struct - 1", () => {
+        var p = ShortPairGen()
+        return p.add() == 43;
+    })
+    test("generic struct can be stored in another struct - 2", () => {
+        var p = ShortPairGen {
+            pair : PairGen<short, short, short> {
+                a : 20,
+                b : 41
+            }
+        }
+        return p.add() == 61 && p.pair.add() == 61;
+    })
+    test("generic variants declared and used from other files work - 1", () => {
+        const g = get_other_var1(10, true);
+        return get_other_var1_value(g) == 10;
+    })
+    test("generic variants declared and used from other files work - 2", () => {
+        const g = get_other_var1(10, false);
+        return get_other_var1_value(g) == -1;
+    })
+    test("generic variants declared and used from other files work - 3", () => {
+        const g = get_other_var1_point(10, true);
+        return get_other_var1_point_value(g) == 30;
+    })
+    test("generic variants declared and used from other files work - 4", () => {
+        const g = get_other_var1_point(10, false);
+        return get_other_var1_point_value(g) == -1;
+    })
+    test("generic methods can call other generic methods which return structs", () => {
+        var giver = GenFuncProvider<GenAddTestStruct> {
+            value : GenAddTestStruct { a : 9234, b : 347 }
+        }
+        var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &raw mut giver }
+        var provided = provider.get_value()
+        return provided.a == 9234 && provided.b == 347
+    })
+    test("public generic can use protected generic declarations and instantiate it", () => {
+        var v = GenPublicUseNonPublic<int> {}
+        return v.give() == 83334
+    })
 }

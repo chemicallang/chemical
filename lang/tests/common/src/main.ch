@@ -146,5 +146,10 @@ public func run_common_tests() {
     test_static_interfaces()
     test_basic_interfaces()
     test_dynamic_dispatch()
+    test_primitive_implementations()
+    test_external_functions()
+    test_hidden_ptr_self_in_methods();
+    test_ref_of_deref_hidden_ptr();
+    test_interface_generic_dispatch()
 
 }

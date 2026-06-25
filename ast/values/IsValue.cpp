@@ -8,6 +8,9 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/TypeInsideValue.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
 
 Value* IsValue::evaluated_value(InterpretScope &scope) {
@@ -15,9 +18,29 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
     const auto result = get_comp_time_result();
     if(result.has_value()) {
         return new (scope.allocate<BoolValue>()) BoolValue(result.value(), typeBuilder.getBoolType(), encoded_location());
-    } else {
-        return new (scope.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), encoded_location());
     }
+    // Runtime variant member check: handle `value is VariantType.Member` expressions
+    if(value) {
+        auto evalVal = value->evaluated_value(scope);
+        if(evalVal && evalVal->val_kind() == ValueKind::StructValue) {
+            auto structVal = evalVal->as_struct_value_unsafe();
+            auto it = scope.global->variant_member_index_map.find(structVal);
+            if(it != scope.global->variant_member_index_map.end()) {
+                auto typeLinked = type->get_linked_canonical_node(true, false);
+                if(typeLinked && typeLinked->kind() == ASTNodeKind::VariantMember) {
+                    auto member = typeLinked->as_variant_member_unsafe();
+                    auto variantDef = member->parent();
+                    int64_t memberIndex = variantDef->direct_child_index(member->name_view());
+                    bool matches = it->second == memberIndex;
+                    bool result = is_negating ? !matches : matches;
+                    return new (scope.allocate<BoolValue>()) BoolValue(
+                        result, typeBuilder.getBoolType(), encoded_location()
+                    );
+                }
+            }
+        }
+    }
+    return new (scope.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), encoded_location());
 }
 
 std::optional<bool> get_from_node(BaseType* type, ASTNode* linked, bool is_negating) {

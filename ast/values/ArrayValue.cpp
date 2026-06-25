@@ -3,6 +3,7 @@
 #include "ArrayValue.h"
 #include "StructValue.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/types/ArrayType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/values/FunctionCall.h"
@@ -211,6 +212,21 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                                     );
                                 }
                             }
+                            values.push_back(structVal);
+                        }
+                    }
+                } else if (linkedNode && linkedNode->kind() == ASTNodeKind::VariantDecl) {
+                    auto variantDef = (VariantDefinition*) linkedNode;
+                    if (values.empty()) {
+                        values.reserve(numElements);
+                        for (size_t i = 0; i < numElements; i++) {
+                            auto elemType = getType()->elem_type.copy(scope.allocator);
+                            auto structVal = new (scope.allocate<StructValue>()) StructValue(
+                                (BaseType*) elemType,
+                                (ExtendableMembersContainerNode*) variantDef,
+                                (VariablesContainerBase*) nullptr,
+                                encoded_location()
+                            );
                             values.push_back(structVal);
                         }
                     }

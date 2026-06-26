@@ -5,10 +5,16 @@
 #include "IntNumValue.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/base/ASTNode.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/StructValue.h"
 #include "ast/types/IntNType.h"
 #include "compiler/ASTDiagnoser.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "compiler/lab/LabBuildCompiler.h"
 
 uint64_t NegativeValue::byte_size(TargetData& data) {
 // TODO check this out
@@ -76,11 +82,36 @@ void NegativeValue::determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNode
 
 Value* NegativeValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
+    if(!eval) return nullptr;
     const auto eval_kind = eval->val_kind();
     if(eval_kind == ValueKind::IntN) {
         return pack_by_kind(scope, eval->as_int_num_value_unsafe()->getType()->IntNKind(), -((IntNumValue*) eval)->get_num_value(), encoded_location());
     } else if(eval_kind == ValueKind::Double || eval_kind == ValueKind::Float) {
         return pack_by_kind(scope, eval_kind, -get_double_value(eval, eval_kind), encoded_location());
+    } else if(eval_kind == ValueKind::StructValue && scope.global && scope.global->build_compiler) {
+        // Operator overload fallback: look up the neg operator implementation
+        auto& coreNodes = scope.global->build_compiler->coreNodes;
+        auto& implsIndex = scope.global->build_compiler->implsIndex;
+        auto structVal = eval->as_struct_value_unsafe();
+        auto ext = structVal->linked_extendable();
+        if(ext) {
+            auto container = ext->get_members_container();
+            if(container) {
+                auto overloaded = implsIndex.get_neg_op_impl(coreNodes, container);
+                if(overloaded) {
+                    const auto prev_func = scope.global->current_func_type;
+                    scope.global->current_func_type = overloaded;
+                    scope.global->call_stack.emplace_back(nullptr);
+                    InterpretScope fn_scope(scope.global, scope.global->allocator, scope.global);
+                    std::vector<Value*> emptyArgs;
+                    auto result = overloaded->call(&scope, emptyArgs, eval, &fn_scope, true, this);
+                    scope.global->call_stack.pop_back();
+                    scope.global->current_func_type = prev_func;
+                    return result;
+                }
+            }
+        }
+        return nullptr;
     } else {
         return nullptr;
     }

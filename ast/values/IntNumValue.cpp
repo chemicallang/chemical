@@ -5,6 +5,9 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/base/ASTNode.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/StructValue.h"
 #include "ast/values/IntNumValue.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -14,6 +17,7 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/PointerValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "compiler/lab/LabBuildCompiler.h"
 
 IntNumValue* IntNumValue::create_number(
         ASTAllocator& alloc,
@@ -58,6 +62,41 @@ Value* IncDecValue::evaluated_value(InterpretScope &scope) {
                             scope.global->typeBuilder.getIntNType((unsigned int)(byteSize * 8), true),
                             encoded_location()
                         );
+                    }
+                }
+            }
+        }
+    }
+    
+    // Operator overload fallback for struct types with Increment/Decrement impl
+    if(scope.global && scope.global->build_compiler) {
+        auto& coreNodes = scope.global->build_compiler->coreNodes;
+        auto& implsIndex = scope.global->build_compiler->implsIndex;
+        auto innerType = value->getType();
+        if(innerType) {
+            auto canonical = innerType->canonical();
+            auto node = canonical->get_linked_canonical_node(true, false);
+            if(node) {
+                auto container = node->get_members_container();
+                if(container) {
+                    auto overloaded = implsIndex.get_inc_dec_op_impl(coreNodes, container, increment, post);
+                    if(overloaded) {
+                        const auto prev_func = scope.global->current_func_type;
+                        scope.global->current_func_type = overloaded;
+                        scope.global->call_stack.emplace_back(nullptr);
+                        InterpretScope fn_scope(scope.global, scope.global->allocator, scope.global);
+                        // Evaluate the value to get the struct, then call inc_pre/inc_post with self
+                        const auto rawVal = value->evaluated_value(scope);
+                        if(!rawVal) {
+                            scope.global->call_stack.pop_back();
+                            scope.global->current_func_type = prev_func;
+                            return nullptr;
+                        }
+                        std::vector<Value*> emptyArgs;
+                        auto result = overloaded->call(&scope, emptyArgs, rawVal, &fn_scope, true, this);
+                        scope.global->call_stack.pop_back();
+                        scope.global->current_func_type = prev_func;
+                        return result;
                     }
                 }
             }

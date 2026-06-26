@@ -1145,7 +1145,7 @@ Value *FunctionDeclaration::call(
         }
     }
     if(!body.has_value()) {
-        call_scope->error("cannot call a function with no body at comptime", debug_value);
+        // Function with no body (extern declaration). Skip interpretation gracefully.
         return nullptr;
     }
     {

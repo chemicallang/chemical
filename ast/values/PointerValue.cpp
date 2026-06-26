@@ -4,8 +4,12 @@
 #include "PointerValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/FloatType.h"
+#include "ast/types/DoubleType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
@@ -180,10 +184,31 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             }
             return scope.getNullValue();
         }
-        case BaseTypeKind::Float:
-        case BaseTypeKind::Double:
+        case BaseTypeKind::Float: {
+            // Read the float value at the pointer location
+            float floatVal = 0.0f;
+            if(castedTypeSize >= sizeof(float)) {
+                floatVal = *((float*)data);
+            }
+            return new (scope.allocate<FloatValue>()) FloatValue(
+                floatVal, 
+                (FloatType*)(BaseType*) getType(), 
+                value_loc
+            );
+        }
+        case BaseTypeKind::Double: {
+            double doubleVal = 0.0;
+            if(castedTypeSize >= sizeof(double)) {
+                doubleVal = *((double*)data);
+            }
+            return new (scope.allocate<DoubleValue>()) DoubleValue(
+                doubleVal,
+                (DoubleType*)(BaseType*) getType(),
+                value_loc
+            );
+        }
         case BaseTypeKind::Void:
-            scope.error("dereferencing to this type not yet supported in comptime", debugValue ? debugValue : this);
+            scope.error("dereferencing to void type not supported in comptime", debugValue ? debugValue : this);
             return nullptr;
         default:
             scope.error("dereferencing to unknown type", debugValue ? debugValue : this);

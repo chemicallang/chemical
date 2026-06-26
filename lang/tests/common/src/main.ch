@@ -155,4 +155,6 @@ public func run_common_tests() {
 
     test_new();
     test_core_ops();
+
+    test_for_in()
 }

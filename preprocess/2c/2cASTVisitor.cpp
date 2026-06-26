@@ -6639,12 +6639,7 @@ void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
     write('(');
     auto prev = array_types_as_subscript;
     array_types_as_subscript = true;
-    const auto pure_t = size_of->for_type->pure_type(allocator);
-    if(pure_t->kind() == BaseTypeKind::Reference) {
-        visit(pure_t->as_reference_type_unsafe()->type);
-    } else {
-        visit(size_of->for_type);
-    }
+    visit(size_of->for_type);
     array_types_as_subscript = prev;
     write(')');
 }
@@ -6652,7 +6647,7 @@ void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
 void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("_Alignof");
     write('(');
-    visit(align_of->for_type->removeReferenceFromType());
+    visit(align_of->for_type);
     write(')');
 }
 

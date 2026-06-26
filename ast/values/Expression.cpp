@@ -19,6 +19,9 @@
 #include "ast/structures/ImplDefinition.h"
 #include "compiler/symres/CoreNodes.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "compiler/lab/LabBuildCompiler.h"
+#include "ast/structures/FunctionDeclaration.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
@@ -263,24 +266,51 @@ bool Expression::primitive() {
  * @return
  */
 Value *Expression::evaluate(InterpretScope &scope) {
+    // Check for operator overloading using the AST-level type (before value evaluation)
+    FunctionDeclaration* overloaded = nullptr;
+    auto glob = scope.global;
+    if(glob && glob->build_compiler) {
+        overloaded = get_overloaded_func(
+            glob->build_compiler->coreNodes,
+            glob->build_compiler->implsIndex
+        );
+    }
+    
     auto fEvl = firstValue->evaluated_value(scope);
     if(!fEvl) return nullptr;
     
     // Short-circuit evaluation for logical operators
-    // For &&: if first is false, skip evaluating the second value
-    // For ||: if first is true, skip evaluating the second value
     if (operation == Operation::LogicalAND) {
-        if (fEvl->val_kind() == ValueKind::Bool && !fEvl->get_the_bool()) {
-            return fEvl;
-        }
+        if (fEvl->val_kind() == ValueKind::Bool && !fEvl->get_the_bool()) return fEvl;
     } else if (operation == Operation::LogicalOR) {
-        if (fEvl->val_kind() == ValueKind::Bool && fEvl->get_the_bool()) {
-            return fEvl;
-        }
+        if (fEvl->val_kind() == ValueKind::Bool && fEvl->get_the_bool()) return fEvl;
     }
     
     auto sEvl = secondValue->evaluated_value(scope);
     if(!sEvl) return nullptr;
+    
+    // Dispatch operator overloads: call the impl function with self=fEvl and rhs=sEvl
+    if(overloaded) {
+        const auto prev_func = glob->current_func_type;
+        glob->current_func_type = overloaded;
+        glob->call_stack.emplace_back(nullptr);
+        InterpretScope fn_scope(glob, glob->allocator, glob);
+        InterpretScope* prop = &scope;
+        while(prop) {
+            for(auto& [name, val] : prop->implicit_args) {
+                if(fn_scope.implicit_args.find(name) == fn_scope.implicit_args.end()) {
+                    fn_scope.implicit_args[name] = val;
+                }
+            }
+            prop = prop->parent;
+        }
+        std::vector<Value*> opArgs = { sEvl };
+        auto result = overloaded->call(&scope, opArgs, fEvl, &fn_scope, true, this);
+        glob->call_stack.pop_back();
+        glob->current_func_type = prev_func;
+        return result;
+    }
+    
     return scope.evaluate(operation, fEvl, sEvl, encoded_location(), this);
 }
 

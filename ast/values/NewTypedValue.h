@@ -33,6 +33,8 @@ public:
         return type->linked_node();
     }
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

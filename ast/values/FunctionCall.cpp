@@ -30,6 +30,10 @@
 #include "ast/types/DynamicType.h"
 #include "ast/values/DynamicValue.h"
 #include "ast/values/PointerValue.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -1542,6 +1546,52 @@ static FunctionDeclaration* find_interface_impl_fn(
 }
 
 /**
+ * Searches for an interface implementation function for primitive types.
+ * Unlike find_interface_impl_fn which matches struct definitions by AST node,
+ * this matches by comparing the parent's BaseType with impl->struct_type
+ * using is_same(). This enables dispatch for impls like:
+ *   impl MyInterface for int { ... }
+ *   impl MyInterface for &int { ... }
+ *   impl MyInterface for *int { ... }
+ */
+static FunctionDeclaration* find_primitive_interface_impl_fn(
+    InterfaceDefinition* interfaceDef,
+    const chem::string_view& funcName,
+    BaseType* parentType
+) {
+    auto searchNodes = [&](const std::vector<ASTNode*>& nodes) -> FunctionDeclaration* {
+        for (auto child : nodes) {
+            if (!child || child->kind() != ASTNodeKind::ImplDecl) continue;
+            auto impl = child->as_impl_def_unsafe();
+            if (!impl || !impl->struct_type) continue;
+            if (!impl->interface_type) continue;
+            auto implInterfaceNode = impl->interface_type->get_direct_linked_node();
+            bool interfaceMatches = (implInterfaceNode == interfaceDef);
+            if (!interfaceMatches && implInterfaceNode && interfaceDef &&
+                implInterfaceNode->get_node_identifier() == interfaceDef->get_node_identifier()) {
+                interfaceMatches = true;
+            }
+            if (!interfaceMatches) continue;
+            if (!parentType->is_same(impl->struct_type)) continue;
+            auto fn = impl->direct_child_function(funcName);
+            if (fn && fn->body.has_value()) return fn;
+        }
+        return nullptr;
+    };
+    auto ifaceParent = interfaceDef->parent();
+    if (ifaceParent) {
+        if (ifaceParent->kind() == ASTNodeKind::NamespaceDecl) {
+            return searchNodes(ifaceParent->as_namespace_unsafe()->nodes);
+        } else if (ifaceParent->kind() == ASTNodeKind::FileScope) {
+            return searchNodes(static_cast<FileScope*>(ifaceParent)->body.nodes);
+        } else if (ifaceParent->kind() == ASTNodeKind::Scope) {
+            return searchNodes(static_cast<Scope*>(ifaceParent)->nodes);
+        }
+    }
+    return nullptr;
+}
+
+/**
  * Handles a function call where the callable has already been evaluated from the
  * parent_val (e.g. when parent_val is itself a FunctionCall that returns a function
  * pointer, an AccessChain to a function, or a LambdaFunction). The 'parent' argument
@@ -1719,6 +1769,74 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                         );
                         if(implFunc) {
                             auto result = implFunc->call(&scope, scope.allocator, call, parent);
+                            if(result) return result;
+                        }
+                    }
+                }
+                // Try primitive type impl matching when all struct-based resolution failed
+                if(!structDef) {
+                    // For DynamicValue, extract the inner value and its type;
+                    // parent->getType() returns DynamicType, not the underlying primitive type.
+                    BaseType* primitiveType = parentType;
+                    Value* primitiveSelf = parent;
+                    if(parent->val_kind() == ValueKind::DynamicValue) {
+                        auto dynVal = static_cast<DynamicValue*>(parent);
+                        if(dynVal->value) {
+                            auto evalInner = dynVal->value->evaluated_value(scope);
+                            if(evalInner && evalInner != parent) {
+                                primitiveSelf = evalInner;
+                                if(evalInner->getType()) {
+                                    primitiveType = evalInner->getType();
+                                }
+                            } else if(dynVal->value->getType()) {
+                                primitiveType = dynVal->value->getType();
+                            }
+                        }
+                    }
+                    auto implFunc = find_primitive_interface_impl_fn(
+                        interfaceDef,
+                        func->name_view(),
+                        primitiveType
+                    );
+                    if(implFunc) {
+                        Value* selfPtr = primitiveSelf;
+                        if(primitiveSelf->val_kind() != ValueKind::PointerValue) {
+                            auto byteSize = primitiveType->byte_size(scope.global->target_data);
+                            switch(primitiveSelf->val_kind()) {
+                                case ValueKind::IntN: {
+                                    auto intVal = static_cast<IntNumValue*>(primitiveSelf);
+                                    selfPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                                        &intVal->value, primitiveType, 0, byteSize, call->encoded_location()
+                                    );
+                                    break;
+                                }
+                                case ValueKind::Bool: {
+                                    auto boolVal = static_cast<BoolValue*>(primitiveSelf);
+                                    selfPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                                        &boolVal->value, primitiveType, 0, 1, call->encoded_location()
+                                    );
+                                    break;
+                                }
+                                case ValueKind::Float: {
+                                    auto floatVal = static_cast<FloatValue*>(primitiveSelf);
+                                    selfPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                                        &floatVal->value, primitiveType, 0, sizeof(float), call->encoded_location()
+                                    );
+                                    break;
+                                }
+                                case ValueKind::Double: {
+                                    auto doubleVal = static_cast<DoubleValue*>(primitiveSelf);
+                                    selfPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                                        &doubleVal->value, primitiveType, 0, sizeof(double), call->encoded_location()
+                                    );
+                                    break;
+                                }
+                                default:
+                                    break;
+                            }
+                        }
+                        if(selfPtr) {
+                            auto result = implFunc->call(&scope, scope.allocator, call, selfPtr);
                             if(result) return result;
                         }
                     }

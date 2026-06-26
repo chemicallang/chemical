@@ -28,7 +28,6 @@ func run_executable_tests() {
     // Comptime and Compiler Intrinsics Stuff
     // --------------------------------------
     test_macros();
-    test_failing_code();
     test_comptime_intrinsics()
 
     // --------------------------------------

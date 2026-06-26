@@ -89,13 +89,31 @@ void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operati
         } else if(newVal->val_kind() == ValueKind::String) {
             auto strVal = newVal->as_string_unsafe();
             memcpy(ptrVal->data, strVal->value.data(), std::min(strVal->value.size(), (size_t)byteSize));
-        } else if(newVal->val_kind() == ValueKind::StructValue && pointeeType->kind() == BaseTypeKind::Linked) {
-            auto targetStruct = (StructValue*) ptrVal->data;
-            auto newStruct = (StructValue*) newVal;
-            if(targetStruct) {
-                for(auto& [name, member] : newStruct->values) {
-                    targetStruct->set_child_value(scope, name, member.value, Operation::Assignment);
+        } else if(newVal->val_kind() == ValueKind::StructValue) {
+            auto srcStruct = (StructValue*) newVal;
+            // Check if the pointee type supports struct semantics
+            if(pointeeType->kind() == BaseTypeKind::Linked || pointeeType->kind() == BaseTypeKind::Pointer) {
+                auto targetStruct = (StructValue*) ptrVal->data;
+                if(targetStruct) {
+                    // Copy all member values from source to destination
+                    for(auto& [name, member] : srcStruct->values) {
+                        targetStruct->set_child_value(scope, name, member.value, Operation::Assignment);
+                    }
+                } else {
+                    // Write the struct pointer directly into the memory
+                    *((void**)ptrVal->data) = (void*)srcStruct;
                 }
+            } else if(byteSize > 0 && ptrVal->data) {
+                // Write the struct value's data into the memory location as raw bytes
+                // This handles pointer-to-pointer assignments (e.g., *ptr = inner_ptr)
+                *((void**)ptrVal->data) = (void*)srcStruct;
+            } else {
+                scope.error("cannot assign value type through pointer dereference in interpret", this);
+            }
+        } else if(newVal->val_kind() == ValueKind::PointerValue) {
+            // Assigning a pointer value through pointer dereference (e.g., *ptr = &raw y)
+            if(ptrVal->data && byteSize >= sizeof(void*)) {
+                *((void**)ptrVal->data) = ((PointerValue*)newVal)->data;
             }
         } else {
             scope.error("cannot assign value type through pointer dereference in interpret", this);

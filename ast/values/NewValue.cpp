@@ -19,6 +19,7 @@
 #include "ast/types/FloatType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/structures/VariantDefinition.h"
+#include <cstring>
 
 Value* NewValue::evaluated_value(InterpretScope& scope) {
     auto inner = value->evaluated_value(scope);
@@ -102,12 +103,14 @@ Value* NewTypedValue::evaluated_value(InterpretScope& scope) {
             );
         }
         case BaseTypeKind::Pointer: {
-            // Pointer to pointer (e.g. `new *int`): create null pointer value
-            auto nullVal = new (scope.allocate<NullValue>()) NullValue(
-                scope.global->typeBuilder.getNullPtrType(), encoded_location()
-            );
+            // Pointer to pointer (e.g. `new *int`): allocate raw untracked memory
+            // (not tracked in ptr_storage) so that dereference+assignment through the
+            // pointer writes to raw memory instead of corrupting a tracked AST object's
+            // vtable. The initial value is zero (null pointer).
+            auto storage = scope.allocator.allocate_released_size(sizeof(void*), alignof(void*));
+            std::memset(storage, 0, sizeof(void*));
             return new (scope.allocate<PointerValue>()) PointerValue(
-                nullVal, canonical, 0, sizeof(void*), encoded_location()
+                storage, canonical, 0, sizeof(void*), encoded_location()
             );
         }
         case BaseTypeKind::Linked: {

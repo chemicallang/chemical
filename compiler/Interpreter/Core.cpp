@@ -230,6 +230,160 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
                 break;
             }
         }
+    } else if(loop->iteration_kind == ForInLoopIterationKind::Linear) {
+        if(evalExpr->val_kind() != ValueKind::StructValue) {
+            scope.error("for-in loop with Linear iteration expects a struct value", loop->expr);
+            return;
+        }
+        auto structVal = evalExpr->as_struct_value_unsafe();
+
+        bool reversed = loop->is_reversed();
+
+        auto dataChild = structVal->child(scope, "_data");
+        if(!dataChild) {
+            scope.error("for-in loop with Linear iteration: struct must have _data field", loop->expr);
+            return;
+        }
+
+        auto sizeChild = structVal->child(scope, "_size");
+        if(!sizeChild) {
+            scope.error("for-in loop with Linear iteration: struct must have _size field", loop->expr);
+            return;
+        }
+        auto sizeNum = sizeChild->get_number();
+        if(!sizeNum.has_value()) {
+            scope.error("for-in loop with Linear iteration: _size must be a numeric value", loop->expr);
+            return;
+        }
+        uint64_t size = sizeNum.value();
+        if(size == 0) return;
+
+        if(dataChild->val_kind() == ValueKind::ArrayValue) {
+            auto arrayVal = (ArrayValue*)dataChild;
+            BaseType* elemType = arrayVal->known_elem_type();
+            uint64_t elemSize = elemType->byte_size(scope.global->target_data);
+
+            bool stopped = false;
+            auto iterate = [&](uint64_t idx) {
+                if(idx >= arrayVal->values.size()) return;
+                InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                if(loop->is_reference()) {
+                    if(arrayVal->contiguousData) {
+                        auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                            (void*)((uint8_t*)arrayVal->contiguousData + idx * elemSize),
+                            elemType, 0, elemSize, loop->encoded_location()
+                        );
+                        child_scope.declare(loop->id, elemPtr);
+                    } else {
+                        scope.error("for-in loop with Linear iteration: reference iteration over struct-element array not supported", loop->expr);
+                        stopped = true;
+                        return;
+                    }
+                } else {
+                    child_scope.declare(loop->id, arrayVal->values[idx]);
+                }
+                if(loop->index_init) {
+                    auto indexVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                        idx,
+                        (IntNType*)(BaseType*)loop->index_init->type,
+                        ZERO_LOC
+                    );
+                    child_scope.declare(loop->index_init->name_view(), indexVal);
+                }
+                child_scope.interpret(&loop->body);
+                if(loop->attrs.stoppedInterpretation) {
+                    loop->attrs.stoppedInterpretation = false;
+                    stopped = true;
+                }
+            };
+
+            if(reversed) {
+                for(uint64_t idx = size; idx-- > 0; ) {
+                    iterate(idx);
+                    if(stopped) break;
+                }
+            } else {
+                for(uint64_t idx = 0; idx < size; idx++) {
+                    iterate(idx);
+                    if(stopped) break;
+                }
+            }
+        } else if(dataChild->val_kind() == ValueKind::PointerValue) {
+            auto dataPtr = (PointerValue*)dataChild;
+
+            auto ptrType = dataPtr->getType();
+            BaseType* elemType = ptrType;
+            if(ptrType && ptrType->kind() == BaseTypeKind::Pointer) {
+                elemType = ptrType->as_pointer_type_unsafe()->type;
+            }
+            uint64_t elemSize = elemType->byte_size(scope.global->target_data);
+
+            if(reversed) {
+                for(uint64_t idx = size; idx-- > 0; ) {
+                    InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                    auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                        (void*)((uint8_t*)dataPtr->data + idx * elemSize),
+                        elemType,
+                        0,
+                        elemSize,
+                        loop->encoded_location()
+                    );
+                    if(loop->is_reference()) {
+                        child_scope.declare(loop->id, elemPtr);
+                    } else {
+                        auto elemVal = elemPtr->deref(scope, loop->encoded_location(), loop->expr);
+                    if(elemVal) {
+                        child_scope.declare(loop->id, elemVal);
+                    }
+                }
+                if(loop->index_init) {
+                    auto indexVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                        idx,
+                        (IntNType*)(BaseType*)loop->index_init->type,
+                        ZERO_LOC
+                    );
+                    child_scope.declare(loop->index_init->name_view(), indexVal);
+                }
+                child_scope.interpret(&loop->body);
+                if(loop->attrs.stoppedInterpretation) {
+                    loop->attrs.stoppedInterpretation = false;
+                    break;
+                }
+            }
+        } else {
+            for(uint64_t idx = 0; idx < size; idx++) {
+                InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
+                    (void*)((uint8_t*)dataPtr->data + idx * elemSize),
+                    elemType,
+                    0,
+                    elemSize,
+                    loop->encoded_location()
+                );
+                if(loop->is_reference()) {
+                    child_scope.declare(loop->id, elemPtr);
+                } else {
+                    auto elemVal = elemPtr->deref(scope, loop->encoded_location(), loop->expr);
+                    if(elemVal) {
+                        child_scope.declare(loop->id, elemVal);
+                    }
+                }
+                if(loop->index_init) {
+                    auto indexVal = new (scope.allocate<IntNumValue>()) IntNumValue(
+                        idx,
+                        (IntNType*)(BaseType*)loop->index_init->type,
+                        ZERO_LOC
+                    );
+                    child_scope.declare(loop->index_init->name_view(), indexVal);
+                }
+                child_scope.interpret(&loop->body);
+                if(loop->attrs.stoppedInterpretation) {
+                    loop->attrs.stoppedInterpretation = false;
+                    break;
+                }
+            }
+        }
+        }
     } else {
         scope.error("for-in loop not supported for expression type (kind: " + std::to_string(static_cast<int>(kind)) + ") in comptime", loop->expr);
     }

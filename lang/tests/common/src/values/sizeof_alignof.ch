@@ -174,41 +174,47 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("sizeof on references returns sizeof underlying type - 1", () => {
-        return sizeof(&char) == sizeof(char) && sizeof(&uchar) == sizeof(uchar)
+    test("sizeof of a pointer is correct", () => {
+        if(def.is64Bit) {
+            return sizeof(*void) == 8
+        } else {
+            return sizeof(*void) == 4
+        }
     })
-    test("sizeof on references returns sizeof underlying type - 2", () => {
-        return sizeof(&short) == sizeof(short) && sizeof(&ushort) == sizeof(ushort)
+    test("sizeof of a reference is correct", () => {
+        if(def.is64Bit) {
+            return sizeof(&void) == 8
+        } else {
+            return sizeof(&void) == 4
+        }
     })
-    test("sizeof on references returns sizeof underlying type - 3", () => {
-        return sizeof(&int) == sizeof(int) && sizeof(&uint) == sizeof(uint)
+    test("sizeof on references returns sizeof pointer", () => {
+        var s = sizeof(*void)
+        return sizeof(&char) == s && sizeof(&uchar) == s && sizeof(&short) == s && sizeof(&ushort) == s &&
+            sizeof(&int) == s && sizeof(&uint) == s && sizeof(&long) == s && sizeof(&ulong) == s &&
+            sizeof(&long) == s && sizeof(&ulong) == s && sizeof(&bigint) == s && sizeof(&ubigint) == s &&
+            sizeof(&SizeOfStrT1) == s
     })
-    test("sizeof on references returns sizeof underlying type - 4", () => {
-        return sizeof(&long) == sizeof(long) && sizeof(&ulong) == sizeof(ulong)
+    test("alignof of a pointer is correct", () => {
+        if(def.is64Bit) {
+            return alignof(*void) == 8
+        } else {
+            return alignof(*void) == 4
+        }
     })
-    test("sizeof on references returns sizeof underlying type - 5", () => {
-        return sizeof(&bigint) == sizeof(bigint) && sizeof(&ubigint) == sizeof(ubigint)
+    test("alignof of a reference is correct", () => {
+        if(def.is64Bit) {
+            return alignof(&void) == 8
+        } else {
+            return alignof(&void) == 4
+        }
     })
-    test("sizeof on references returns sizeof underlying type - 6", () => {
-        return sizeof(&SizeOfStrT1) == sizeof(SizeOfStrT1)
-    })
-    test("alignof on references returns alignof underlying type - 1", () => {
-        return alignof(&char) == alignof(char) && alignof(&uchar) == alignof(uchar)
-    })
-    test("alignof on references returns alignof underlying type - 2", () => {
-        return alignof(&short) == alignof(short) && alignof(&ushort) == alignof(ushort)
-    })
-    test("alignof on references returns alignof underlying type - 3", () => {
-        return alignof(&int) == alignof(int) && alignof(&uint) == alignof(uint)
-    })
-    test("alignof on references returns alignof underlying type - 4", () => {
-        return alignof(&long) == alignof(long) && alignof(&ulong) == alignof(ulong)
-    })
-    test("alignof on references returns alignof underlying type - 5", () => {
-        return alignof(&bigint) == alignof(bigint) && alignof(&ubigint) == alignof(ubigint)
-    })
-    test("alignof on references returns alignof underlying type - 6", () => {
-        return alignof(&SizeOfStrT1) == alignof(SizeOfStrT1)
+    test("alignof on references returns sizeof pointer", () => {
+        var s = alignof(*void)
+        return alignof(&char) == s && alignof(&uchar) == s && alignof(&short) == s && alignof(&ushort) == s &&
+            alignof(&int) == s && alignof(&uint) == s && alignof(&long) == s && alignof(&ulong) == s &&
+            alignof(&long) == s && alignof(&ulong) == s && alignof(&bigint) == s && alignof(&ubigint) == s &&
+            alignof(&SizeOfStrT1) == s
     })
     test("sizeof with array types work", () => {
         return sizeof([4]int) == 4 * 4;

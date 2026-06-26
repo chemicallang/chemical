@@ -22,6 +22,11 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/values/StructValue.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/FileScope.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
@@ -267,6 +272,7 @@ bool Expression::primitive() {
  */
 Value *Expression::evaluate(InterpretScope &scope) {
     // Check for operator overloading using the AST-level type (before value evaluation)
+    // Try first value's type first, then second value's type as fallback
     FunctionDeclaration* overloaded = nullptr;
     auto glob = scope.global;
     if(glob && glob->build_compiler) {
@@ -274,6 +280,23 @@ Value *Expression::evaluate(InterpretScope &scope) {
             glob->build_compiler->coreNodes,
             glob->build_compiler->implsIndex
         );
+        // If not found via first value, try second value's type
+        if(!overloaded) {
+            // Use a temporary swap approach to check second value's type
+            auto tempFirst = firstValue;
+            firstValue = secondValue;
+            auto tempSecond = secondValue;
+            secondValue = tempFirst;
+            overloaded = get_overloaded_func(
+                glob->build_compiler->coreNodes,
+                glob->build_compiler->implsIndex
+            );
+            // Restore original order — if overloaded is found, it's called
+            // with self=sEvl and rhs=fEvl below
+            firstValue = tempFirst;
+            secondValue = tempSecond;
+        }
+
     }
     
     auto fEvl = firstValue->evaluated_value(scope);
@@ -288,6 +311,90 @@ Value *Expression::evaluate(InterpretScope &scope) {
     
     auto sEvl = secondValue->evaluated_value(scope);
     if(!sEvl) return nullptr;
+    
+    // Try to find overloaded operator from evaluated values' runtime types if AST-level lookup failed
+    if(!overloaded && glob && glob->build_compiler) {
+        // Helper: find the container (ExtendableMembersContainerNode) from a value
+        auto findStructDef = [](Value* val) -> ExtendableMembersContainerNode* {
+            if(!val) return nullptr;
+            if(val->val_kind() == ValueKind::StructValue) {
+                auto sv = val->as_struct_value_unsafe();
+                auto ext = sv->linked_extendable();
+                if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
+                    return ext;
+                }
+            }
+            return nullptr;
+        };
+        // Map operation to operator function name
+        const char* opName = nullptr;
+        switch(operation) {
+            case Operation::Addition: opName = "add"; break;
+            case Operation::Subtraction: opName = "sub"; break;
+            case Operation::Multiplication: opName = "mul"; break;
+            case Operation::Division: opName = "div"; break;
+            case Operation::Modulus: opName = "rem"; break;
+            case Operation::IsEqual: opName = "eq"; break;
+            case Operation::IsNotEqual: opName = "ne"; break;
+            case Operation::LessThan: opName = "lt"; break;
+            case Operation::LessThanOrEqual: opName = "lte"; break;
+            case Operation::GreaterThan: opName = "gt"; break;
+            case Operation::GreaterThanOrEqual: opName = "gte"; break;
+            case Operation::BitwiseAND: opName = "bitand"; break;
+            case Operation::BitwiseOR: opName = "bitor"; break;
+            case Operation::BitwiseXOR: opName = "bitxor"; break;
+            case Operation::LeftShift: opName = "shl"; break;
+            case Operation::RightShift: opName = "shr"; break;
+            default: break;
+        }
+        ExtendableMembersContainerNode* structDef = findStructDef(fEvl);
+        if(!structDef) structDef = findStructDef(sEvl);
+        if(structDef && opName) {
+            // Try implsIndex first
+            auto container = structDef->get_members_container();
+            if(container) {
+                overloaded = glob->build_compiler->implsIndex.get_expr_op_impl(
+                    glob->build_compiler->coreNodes, container, operation
+                );
+            }
+            // Fallback: search parent scope for ImplDefinitions matching this struct
+            if(!overloaded) {
+                chem::string_view opNameSv(opName);
+                // Search the struct's parent chain for ImplDefinitions
+                auto searchParent = [&](ASTNode* parent) {
+                    if(!parent) return;
+                    std::vector<ASTNode*>* nodes = nullptr;
+                    if(parent->kind() == ASTNodeKind::NamespaceDecl) {
+                        nodes = &parent->as_namespace_unsafe()->nodes;
+                    } else if(parent->kind() == ASTNodeKind::FileScope) {
+                        nodes = &static_cast<FileScope*>(parent)->body.nodes;
+                    } else if(parent->kind() == ASTNodeKind::Scope) {
+                        nodes = &static_cast<Scope*>(parent)->nodes;
+                    }
+                    if(!nodes) return;
+                    for(auto child : *nodes) {
+                        if(!child || child->kind() != ASTNodeKind::ImplDecl) continue;
+                        auto impl = child->as_impl_def_unsafe();
+                        if(!impl || !impl->struct_type) continue;
+                        // Check if impl's struct type matches our structDef
+                        auto implStruct = impl->struct_type->get_direct_linked_canonical_node();
+                        bool matches = (implStruct == structDef);
+                        if(!matches && implStruct && structDef &&
+                            implStruct->get_node_identifier() == structDef->get_node_identifier()) {
+                            matches = true;
+                        }
+                        if(!matches) continue;
+                        auto fn = impl->direct_child_function(opNameSv);
+                        if(fn && fn->body.has_value()) {
+                            overloaded = fn;
+                            return;
+                        }
+                    }
+                };
+                searchParent(structDef->parent());
+            }
+        }
+    }
     
     // Dispatch operator overloads: call the impl function with self=fEvl and rhs=sEvl
     if(overloaded) {

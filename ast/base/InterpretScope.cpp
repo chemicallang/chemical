@@ -376,6 +376,19 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
             }
             return scope.evaluate(operation, fEvl, unwrapped, location, debugValue);
         }
+        // Utility: get MembersContainer from a value using type-based lookup (more reliable than linked_extendable)
+        auto getContainerFromValue = [](Value* val) -> MembersContainer* {
+            if(!val) return nullptr;
+            auto type = val->getType();
+            if(type) {
+                auto canonical = type->canonical();
+                if(canonical) {
+                    auto node = canonical->get_linked_canonical_node(true, false);
+                    if(node) return node->get_members_container();
+                }
+            }
+            return nullptr;
+        };
         // Handle compound assignment operators: convert AddTo→add_assign, SubtractFrom→sub_assign, etc.
         {
             Operation compoundToBinary = operation;
@@ -397,22 +410,11 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 if(glob && glob->build_compiler) {
                     auto& coreNodes = glob->build_compiler->coreNodes;
                     auto& implsIndex = glob->build_compiler->implsIndex;
-                    MembersContainer* container = nullptr;
-                    if(fKind == ValueKind::StructValue) {
-                        auto structVal = fEvl->as_struct_value_unsafe();
-                        auto ext = structVal->linked_extendable();
-                        if(ext) container = ext->get_members_container();
-                    }
-                    if(!container && sKind == ValueKind::StructValue) {
-                        auto structVal = sEvl->as_struct_value_unsafe();
-                        auto ext = structVal->linked_extendable();
-                        if(ext) container = ext->get_members_container();
-                    }
+                    MembersContainer* container = getContainerFromValue(fEvl);
+                    if(!container) container = getContainerFromValue(sEvl);
                     if(container) {
-                        // Use assignment_operator_impl_base which maps Addition → add_assign, etc.
                         auto impl = implsIndex.get_ass_op_impl(coreNodes, container, compoundToBinary);
                         if(!impl) {
-                            // Fallback: try via expr_op_impl which maps to the binary operator
                             impl = implsIndex.get_expr_op_impl(coreNodes, container, compoundToBinary);
                         }
                         if(impl) {
@@ -435,64 +437,44 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         if(glob && glob->build_compiler) {
             auto& coreNodes = glob->build_compiler->coreNodes;
             auto& implsIndex = glob->build_compiler->implsIndex;
-            // Try to find a container with operator overloads from either operand
-            auto findContainer = [&](Value* val) -> MembersContainer* {
-                if(!val) return nullptr;
-                if(val->val_kind() == ValueKind::StructValue) {
-                    auto structVal = val->as_struct_value_unsafe();
-                    auto ext = structVal->linked_extendable();
-                    if(ext) return ext->get_members_container();
-                }
-                auto type = val->getType();
-                if(type) {
-                    auto canonical = type->canonical();
-                    if(canonical) {
-                        auto node = canonical->get_linked_canonical_node(true, false);
-                        if(node) return node->get_members_container();
-                    }
-                }
-                return nullptr;
-            };
-            MembersContainer* container = findContainer(fEvl);
-            if(!container) container = findContainer(sEvl);
+            // Convert compound assignment ops to binary for lookup in the regular fallback
+            Operation lookupOp = operation;
+            switch(operation) {
+                case Operation::AddTo: lookupOp = Operation::Addition; break;
+                case Operation::SubtractFrom: lookupOp = Operation::Subtraction; break;
+                case Operation::MultiplyBy: lookupOp = Operation::Multiplication; break;
+                case Operation::DivideBy: lookupOp = Operation::Division; break;
+                case Operation::ModuloBy: lookupOp = Operation::Modulus; break;
+                case Operation::ShiftLeftBy: lookupOp = Operation::LeftShift; break;
+                case Operation::ShiftRightBy: lookupOp = Operation::RightShift; break;
+                case Operation::ANDWith: lookupOp = Operation::BitwiseAND; break;
+                case Operation::ExclusiveORWith: lookupOp = Operation::BitwiseXOR; break;
+                case Operation::InclusiveORWith: lookupOp = Operation::BitwiseOR; break;
+                default: break;
+            }
+            MembersContainer* container = getContainerFromValue(fEvl);
+            if(!container) container = getContainerFromValue(sEvl);
             if(container) {
-                FunctionDeclaration* overloaded = implsIndex.get_expr_op_impl(coreNodes, container, operation);
-                if(!overloaded && fEvl != sEvl) {
-                    MembersContainer* altContainer = findContainer(sEvl);
-                    if(altContainer && altContainer != container) {
-                        overloaded = implsIndex.get_expr_op_impl(coreNodes, altContainer, operation);
-                    }
+                // Try specific assign operator impl first (for compound assignments like +=)
+                FunctionDeclaration* overloaded = nullptr;
+                if(lookupOp != operation) {
+                    overloaded = implsIndex.get_ass_op_impl(coreNodes, container, lookupOp);
                 }
-                // Fallback: search the container's children directly for the operator function
                 if(!overloaded) {
-                    const char* opName = nullptr;
-                    switch(operation) {
-                        case Operation::Addition: opName = "add"; break;
-                        case Operation::Subtraction: opName = "sub"; break;
-                        case Operation::Multiplication: opName = "mul"; break;
-                        case Operation::Division: opName = "div"; break;
-                        case Operation::Modulus: opName = "rem"; break;
-                        case Operation::IsEqual: opName = "eq"; break;
-                        case Operation::IsNotEqual: opName = "ne"; break;
-                        case Operation::LessThan: opName = "lt"; break;
-                        case Operation::LessThanOrEqual: opName = "lte"; break;
-                        case Operation::GreaterThan: opName = "gt"; break;
-                        case Operation::GreaterThanOrEqual: opName = "gte"; break;
-                        case Operation::BitwiseAND: opName = "bitand"; break;
-                        case Operation::BitwiseOR: opName = "bitor"; break;
-                        case Operation::BitwiseXOR: opName = "bitxor"; break;
-                        case Operation::LeftShift: opName = "shl"; break;
-                        case Operation::RightShift: opName = "shr"; break;
-                        default: break;
-                    }
-                    if(opName) {
-                        chem::string_view opNameSv(opName);
-                        auto childFn = container->child(opNameSv);
-                        if(childFn && childFn->kind() == ASTNodeKind::FunctionDecl) {
-                            overloaded = childFn->as_function_unsafe();
+                    overloaded = implsIndex.get_expr_op_impl(coreNodes, container, lookupOp);
+                }
+                if(!overloaded && fEvl != sEvl) {
+                    MembersContainer* altContainer = getContainerFromValue(sEvl);
+                    if(altContainer && altContainer != container) {
+                        if(!overloaded && lookupOp != operation) {
+                            overloaded = implsIndex.get_ass_op_impl(coreNodes, altContainer, lookupOp);
+                        }
+                        if(!overloaded) {
+                            overloaded = implsIndex.get_expr_op_impl(coreNodes, altContainer, lookupOp);
                         }
                     }
                 }
+    
                 if(overloaded) {
                     const auto prev_func = glob->current_func_type;
                     glob->current_func_type = overloaded;

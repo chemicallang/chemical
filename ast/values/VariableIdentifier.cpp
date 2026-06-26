@@ -5,8 +5,12 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
+#include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/Namespace.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/FileScope.h"
+#include "ast/structures/Scope.h"
 #include "ast/types/VoidType.h"
 #include "TypeInsideValue.h"
 
@@ -217,18 +221,115 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
         return;
     }
 
-    auto nextValue = newValue;
-
     if (op != Operation::Assignment) {
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
+
+        // Handle operator overloads for compound assignments on struct-like values
+        // First, try to get the actual struct value by evaluating (resolves AccessChain, Identifier, etc.)
+        auto resolvedPrev = prevValue->evaluated_value(scope);
+        if(resolvedPrev && resolvedPrev->val_kind() == ValueKind::StructValue) {
+            auto glob = scope.global;
+            if(glob && glob->build_compiler) {
+                auto structVal = resolvedPrev->as_struct_value_unsafe();
+                auto ext = structVal->linked_extendable();
+                if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
+                    auto& coreNodes = glob->build_compiler->coreNodes;
+                    auto& implsIndex = glob->build_compiler->implsIndex;
+                    // Convert compound assignment ops (AddTo→Addition) for lookup
+                    Operation binaryOp = op;
+                    switch(op) {
+                        case Operation::AddTo: binaryOp = Operation::Addition; break;
+                        case Operation::SubtractFrom: binaryOp = Operation::Subtraction; break;
+                        case Operation::MultiplyBy: binaryOp = Operation::Multiplication; break;
+                        case Operation::DivideBy: binaryOp = Operation::Division; break;
+                        case Operation::ModuloBy: binaryOp = Operation::Modulus; break;
+                        case Operation::ShiftLeftBy: binaryOp = Operation::LeftShift; break;
+                        case Operation::ShiftRightBy: binaryOp = Operation::RightShift; break;
+                        case Operation::ANDWith: binaryOp = Operation::BitwiseAND; break;
+                        case Operation::ExclusiveORWith: binaryOp = Operation::BitwiseXOR; break;
+                        case Operation::InclusiveORWith: binaryOp = Operation::BitwiseOR; break;
+                        default: break;
+                    }
+                    FunctionDeclaration* overloaded = implsIndex.get_ass_op_impl(
+                        coreNodes, ext->get_members_container(), binaryOp
+                    );
+                    // Fallback: search parent scope for ImplDefinitions matching this struct
+                    if(!overloaded) {
+                        const char* lookupName = nullptr;
+                        switch(binaryOp) {
+                            case Operation::Addition: lookupName = "add_assign"; break;
+                            case Operation::Subtraction: lookupName = "sub_assign"; break;
+                            case Operation::Multiplication: lookupName = "mul_assign"; break;
+                            case Operation::Division: lookupName = "div_assign"; break;
+                            case Operation::Modulus: lookupName = "rem_assign"; break;
+                            case Operation::LeftShift: lookupName = "shl_assign"; break;
+                            case Operation::RightShift: lookupName = "shr_assign"; break;
+                            case Operation::BitwiseAND: lookupName = "bitand_assign"; break;
+                            case Operation::BitwiseXOR: lookupName = "bitxor_assign"; break;
+                            case Operation::BitwiseOR: lookupName = "bitor_assign"; break;
+                            default: break;
+                        }
+                        if(lookupName) {
+                            chem::string_view nameSv(lookupName);
+                            ASTNode* searchNode = ext->parent();
+                            while(searchNode) {
+                                std::vector<ASTNode*>* nodes = nullptr;
+                                if(searchNode->kind() == ASTNodeKind::NamespaceDecl) {
+                                    nodes = &searchNode->as_namespace_unsafe()->nodes;
+                                } else if(searchNode->kind() == ASTNodeKind::FileScope) {
+                                    nodes = &static_cast<FileScope*>(searchNode)->body.nodes;
+                                } else if(searchNode->kind() == ASTNodeKind::Scope) {
+                                    nodes = &static_cast<Scope*>(searchNode)->nodes;
+                                }
+                                if(nodes) {
+                                    for(auto child : *nodes) {
+                                        if(!child || child->kind() != ASTNodeKind::ImplDecl) continue;
+                                        auto impl = child->as_impl_def_unsafe();
+                                        if(!impl || !impl->struct_type) continue;
+                                        auto implStruct = impl->struct_type->get_direct_linked_canonical_node();
+                                        bool matches = (implStruct == ext);
+                                        if(!matches && implStruct && ext &&
+                                            implStruct->get_node_identifier() == ext->get_node_identifier()) {
+                                            matches = true;
+                                        }
+                                        if(!matches) continue;
+                                        auto fn = impl->direct_child_function(nameSv);
+                                        if(fn && fn->body.has_value()) {
+                                            overloaded = fn;
+                                            break;
+                                        }
+                                    }
+                                    if(overloaded) break;
+                                }
+                                searchNode = searchNode->parent();
+                            }
+                        }
+                    }
+                    if(overloaded) {
+                        const auto prev_func = glob->current_func_type;
+                        glob->current_func_type = overloaded;
+                        glob->call_stack.emplace_back(nullptr);
+                        InterpretScope fn_scope(glob, glob->allocator, glob);
+                        std::vector<Value*> opArgs = { newValue };
+                        auto result = overloaded->call(&scope, opArgs, prevValue, &fn_scope, true, this);
+                        glob->call_stack.pop_back();
+                        glob->current_func_type = prev_func;
+                        itr.first->second = result;
+                        return;
+                    }
+                }
+            }
+        }
+
         // TODO debug value being passed as this, it should be taken as a parameter
-        nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc, this);
+        auto nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc, this);
+        itr.first->second = nextValue;
 
+    } else {
+        itr.first->second = newValue;
     }
-
-    itr.first->second = nextValue;
 
 }
 

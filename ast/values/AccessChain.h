@@ -139,6 +139,7 @@ public:
 
     Value* evaluated_value(InterpretScope &scope);
 
+
     inline std::string chain_representation() {
         return Value::representation();
     }

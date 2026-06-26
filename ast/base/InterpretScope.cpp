@@ -23,6 +23,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/WrapValue.h"
 #include "std/except.h"
+#include "compiler/lab/LabBuildCompiler.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -355,6 +356,82 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return nullptr;
         }
     } else {
+        // Fallback: try operator overload dispatch via build_compiler
+        auto glob = scope.global;
+        if(glob && glob->build_compiler) {
+            auto& coreNodes = glob->build_compiler->coreNodes;
+            auto& implsIndex = glob->build_compiler->implsIndex;
+            // Try to find a container with operator overloads from either operand
+            auto findContainer = [&](Value* val) -> MembersContainer* {
+                if(!val) return nullptr;
+                if(val->val_kind() == ValueKind::StructValue) {
+                    auto structVal = val->as_struct_value_unsafe();
+                    auto ext = structVal->linked_extendable();
+                    if(ext) return ext->get_members_container();
+                }
+                auto type = val->getType();
+                if(type) {
+                    auto canonical = type->canonical();
+                    if(canonical) {
+                        auto node = canonical->get_linked_canonical_node(true, false);
+                        if(node) return node->get_members_container();
+                    }
+                }
+                return nullptr;
+            };
+            MembersContainer* container = findContainer(fEvl);
+            if(!container) container = findContainer(sEvl);
+            if(container) {
+                FunctionDeclaration* overloaded = implsIndex.get_expr_op_impl(coreNodes, container, operation);
+                if(!overloaded && fEvl != sEvl) {
+                    MembersContainer* altContainer = findContainer(sEvl);
+                    if(altContainer && altContainer != container) {
+                        overloaded = implsIndex.get_expr_op_impl(coreNodes, altContainer, operation);
+                    }
+                }
+                // Fallback: search the container's children directly for the operator function
+                if(!overloaded) {
+                    const char* opName = nullptr;
+                    switch(operation) {
+                        case Operation::Addition: opName = "add"; break;
+                        case Operation::Subtraction: opName = "sub"; break;
+                        case Operation::Multiplication: opName = "mul"; break;
+                        case Operation::Division: opName = "div"; break;
+                        case Operation::Modulus: opName = "rem"; break;
+                        case Operation::IsEqual: opName = "eq"; break;
+                        case Operation::IsNotEqual: opName = "ne"; break;
+                        case Operation::LessThan: opName = "lt"; break;
+                        case Operation::LessThanOrEqual: opName = "lte"; break;
+                        case Operation::GreaterThan: opName = "gt"; break;
+                        case Operation::GreaterThanOrEqual: opName = "gte"; break;
+                        case Operation::BitwiseAND: opName = "bitand"; break;
+                        case Operation::BitwiseOR: opName = "bitor"; break;
+                        case Operation::BitwiseXOR: opName = "bitxor"; break;
+                        case Operation::LeftShift: opName = "shl"; break;
+                        case Operation::RightShift: opName = "shr"; break;
+                        default: break;
+                    }
+                    if(opName) {
+                        chem::string_view opNameSv(opName);
+                        auto childFn = container->child(opNameSv);
+                        if(childFn && childFn->kind() == ASTNodeKind::FunctionDecl) {
+                            overloaded = childFn->as_function_unsafe();
+                        }
+                    }
+                }
+                if(overloaded) {
+                    const auto prev_func = glob->current_func_type;
+                    glob->current_func_type = overloaded;
+                    glob->call_stack.emplace_back(nullptr);
+                    InterpretScope fn_scope(glob, glob->allocator, glob);
+                    std::vector<Value*> opArgs = { sEvl };
+                    auto result = overloaded->call(&scope, opArgs, fEvl, &fn_scope, true, debugValue);
+                    glob->call_stack.pop_back();
+                    glob->current_func_type = prev_func;
+                    return result;
+                }
+            }
+        }
         std::fprintf(stderr, "[DBG_EVAL] unknown operation: fKind=%d sKind=%d op=%d\n",
             (int)fKind, (int)sKind, (int)operation);
         scope.error("Operation between values of unknown kind", debugValue);

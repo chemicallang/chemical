@@ -21,6 +21,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/StructValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "compiler/lab/LabBuildCompiler.h"
 #include <cstring>
 
 #ifdef COMPILER_BUILD
@@ -201,20 +202,35 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
             return incremented->deref(scope, location, indexVal);
         }
         case ValueKind::StructValue: {
-            // Index operator overloading: look up the 'index' method on the struct
+            // Index operator overloading: find the 'index' method via impl blocks
             auto structVal = value->as_struct_value_unsafe();
             auto ext = structVal->linked_extendable();
+            FunctionDeclaration* indexFn = nullptr;
             if(ext) {
+                // Try direct child lookup
                 auto memberFn = ext->child("index");
                 if(memberFn && memberFn->kind() == ASTNodeKind::FunctionDecl) {
-                    auto indexFn = memberFn->as_function_unsafe();
-                    // Create a function call to the index method
-                    auto call = new (scope.allocate<FunctionCall>()) FunctionCall(
-                        nullptr, indexFn->returnType, location
-                    );
-                    call->values = { indexVal };
-                    return indexFn->call(&scope, scope.allocator, call, value);
+                    indexFn = memberFn->as_function_unsafe();
                 }
+            }
+            // Fallback: use implsIndex to find the index implementation
+            if(!indexFn && scope.global && scope.global->build_compiler) {
+                auto& implsIndex = scope.global->build_compiler->implsIndex;
+                auto& coreNodes = scope.global->build_compiler->coreNodes;
+                if(ext) {
+                    auto container = ext->get_members_container();
+                    if(container) {
+                        auto foundFn = implsIndex.get_index_op_impl(coreNodes, container);
+                        if(foundFn) indexFn = foundFn;
+                    }
+                }
+            }
+            if(indexFn) {
+                auto call = new (scope.allocate<FunctionCall>()) FunctionCall(
+                    nullptr, indexFn->returnType, location
+                );
+                call->values = { indexVal };
+                return indexFn->call(&scope, scope.allocator, call, value);
             }
             // Fall through to error
             scope.error("indexing on unknown value", value);
@@ -314,6 +330,48 @@ void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation 
                     }
                 }
             }
+            break;
+        }
+        case ValueKind::StructValue: {
+            // Index operator overloading: look up the 'index' method on the struct
+            auto structVal = parentEval->as_struct_value_unsafe();
+            auto ext = structVal->linked_extendable();
+            if(ext) {
+                // Try index_mut (mutable index) first, then index
+                auto memberFn = ext->child("index");
+                if(memberFn && memberFn->kind() == ASTNodeKind::FunctionDecl) {
+                    auto indexFn = memberFn->as_function_unsafe();
+                    // Create a function call to set via index: indexFn(structVal, idx) = newVal
+                    // Call the index function to get a reference, then assign through it
+                    InterpretScope child_scope(scope.global, scope.allocator, scope.global);
+                    std::vector<Value*> idxArgs = { idx, rawValue };
+                    // For index + assignment (like s[0] = 76), we call index(&self, idx) which
+                    // returns a reference, then assign the value through that reference
+                    auto call = new (scope.allocate<FunctionCall>()) FunctionCall(
+                        nullptr, indexFn->returnType, location
+                    );
+                    call->values = { idx };
+                    auto ref = indexFn->call(&scope, scope.allocator, call, structVal);
+                    if(ref && ref->val_kind() == ValueKind::PointerValue) {
+                        auto ptrRef = static_cast<PointerValue*>(ref);
+                        // Assign the new value through the pointer
+                        auto num = newVal->get_number();
+                        if(num.has_value()) {
+                            const auto byteSize = getType()->byte_size(scope.global->target_data);
+                            if(byteSize <= ptrRef->ahead) {
+                                switch(byteSize) {
+                                    case 1: *((char*)ptrRef->data) = (char)num.value(); break;
+                                    case 2: *((short*)ptrRef->data) = (short)num.value(); break;
+                                    case 4: *((int*)ptrRef->data) = (int)num.value(); break;
+                                    case 8: *((uint64_t*)ptrRef->data) = num.value(); break;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            scope.error("cannot set value through indexing on this type", this);
             break;
         }
         default:

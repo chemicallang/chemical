@@ -275,9 +275,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
                         );
                         child_scope.declare(loop->id, elemPtr);
                     } else {
-                        scope.error("for-in loop with Linear iteration: reference iteration over struct-element array not supported", loop->expr);
-                        stopped = true;
-                        return;
+                        child_scope.declare(loop->id, arrayVal->values[idx]);
                     }
                 } else {
                     child_scope.declare(loop->id, arrayVal->values[idx]);

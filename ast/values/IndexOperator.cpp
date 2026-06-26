@@ -141,16 +141,20 @@ ASTNode *IndexOperator::linked_node() {
 Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, SourceLocation location) {
     const auto evalIndex = indexVal->evaluated_value(scope);
     const auto index = evalIndex->get_number();
-    if(!index.has_value()) {
-        scope.error("index value doesn't evaluate to a number", indexVal);
-        return nullptr;
-    }
     switch(value->val_kind()) {
         case ValueKind::String: {
+            if(!index.has_value()) {
+                scope.error("index value doesn't evaluate to a number for string", indexVal);
+                return nullptr;
+            }
             const auto str = value->as_string_unsafe();
             return new (scope.allocate<IntNumValue>()) IntNumValue(str->value[index.value()], scope.global->typeBuilder.getCharType(), location);
         }
         case ValueKind::ArrayValue: {
+            if(!index.has_value()) {
+                scope.error("index value doesn't evaluate to a number for array", indexVal);
+                return nullptr;
+            }
             const auto arr = value->as_array_value_unsafe();
             // Use contiguousData for numeric primitive types (IntN, Bool, Float, Double)
             // where writes through pointers (from &mut arr[i]) are stored. This keeps

@@ -22,6 +22,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/WrapValue.h"
+#include "ast/values/CastedValue.h"
 #include "std/except.h"
 #include "compiler/lab/LabBuildCompiler.h"
 
@@ -356,6 +357,79 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return nullptr;
         }
     } else {
+            // Handle CastedValue: unwrap to the underlying evaluated value
+        if(fKind == ValueKind::CastedValue) {
+            auto casted = (CastedValue*)fEvl;
+            auto unwrapped = casted->evaluated_value(scope);
+            if(!unwrapped) {
+                scope.error("Operation between values of unknown kind (casted value resolved to null)", debugValue);
+                return nullptr;
+            }
+            return scope.evaluate(operation, unwrapped, sEvl, location, debugValue);
+        }
+        if(sKind == ValueKind::CastedValue) {
+            auto casted = (CastedValue*)sEvl;
+            auto unwrapped = casted->evaluated_value(scope);
+            if(!unwrapped) {
+                scope.error("Operation between values of unknown kind (casted value resolved to null)", debugValue);
+                return nullptr;
+            }
+            return scope.evaluate(operation, fEvl, unwrapped, location, debugValue);
+        }
+        // Handle compound assignment operators: convert AddTo→add_assign, SubtractFrom→sub_assign, etc.
+        {
+            Operation compoundToBinary = operation;
+            switch(operation) {
+                case Operation::AddTo: compoundToBinary = Operation::Addition; break;
+                case Operation::SubtractFrom: compoundToBinary = Operation::Subtraction; break;
+                case Operation::MultiplyBy: compoundToBinary = Operation::Multiplication; break;
+                case Operation::DivideBy: compoundToBinary = Operation::Division; break;
+                case Operation::ModuloBy: compoundToBinary = Operation::Modulus; break;
+                case Operation::ShiftLeftBy: compoundToBinary = Operation::LeftShift; break;
+                case Operation::ShiftRightBy: compoundToBinary = Operation::RightShift; break;
+                case Operation::ANDWith: compoundToBinary = Operation::BitwiseAND; break;
+                case Operation::ExclusiveORWith: compoundToBinary = Operation::BitwiseXOR; break;
+                case Operation::InclusiveORWith: compoundToBinary = Operation::BitwiseOR; break;
+                default: break;
+            }
+            if(compoundToBinary != operation) {
+                auto glob = scope.global;
+                if(glob && glob->build_compiler) {
+                    auto& coreNodes = glob->build_compiler->coreNodes;
+                    auto& implsIndex = glob->build_compiler->implsIndex;
+                    MembersContainer* container = nullptr;
+                    if(fKind == ValueKind::StructValue) {
+                        auto structVal = fEvl->as_struct_value_unsafe();
+                        auto ext = structVal->linked_extendable();
+                        if(ext) container = ext->get_members_container();
+                    }
+                    if(!container && sKind == ValueKind::StructValue) {
+                        auto structVal = sEvl->as_struct_value_unsafe();
+                        auto ext = structVal->linked_extendable();
+                        if(ext) container = ext->get_members_container();
+                    }
+                    if(container) {
+                        // Use assignment_operator_impl_base which maps Addition → add_assign, etc.
+                        auto impl = implsIndex.get_ass_op_impl(coreNodes, container, compoundToBinary);
+                        if(!impl) {
+                            // Fallback: try via expr_op_impl which maps to the binary operator
+                            impl = implsIndex.get_expr_op_impl(coreNodes, container, compoundToBinary);
+                        }
+                        if(impl) {
+                            const auto prev_func = glob->current_func_type;
+                            glob->current_func_type = impl;
+                            glob->call_stack.emplace_back(nullptr);
+                            InterpretScope fn_scope(glob, glob->allocator, glob);
+                            std::vector<Value*> opArgs = { sEvl };
+                            auto result = impl->call(&scope, opArgs, fEvl, &fn_scope, true, debugValue);
+                            glob->call_stack.pop_back();
+                            glob->current_func_type = prev_func;
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
         // Fallback: try operator overload dispatch via build_compiler
         auto glob = scope.global;
         if(glob && glob->build_compiler) {

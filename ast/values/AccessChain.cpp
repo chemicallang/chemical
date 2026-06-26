@@ -123,6 +123,7 @@ Value *AccessChain::pointer(InterpretScope &scope) {
     }
 }
 
+
 void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::vector<Value*>& source, unsigned from) {
     const auto size = source.size();
     while(from < size) {

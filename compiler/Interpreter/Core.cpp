@@ -24,6 +24,11 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/FileScope.h"
+#include "ast/structures/Scope.h"
+#include "ast/structures/Namespace.h"
+#include "compiler/lab/LabBuildCompiler.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Return.h"
 #include "ast/values/SwitchValue.h"
@@ -112,6 +117,102 @@ inline void interpret(InterpretScope& scope, ContinueStatement* stmt) {
 }
 
 inline void interpret(InterpretScope& scope, AssignStatement* assign) {
+    // Handle compound assignments on struct types by dispatching the operator overload
+    // (e.g., add_assign for +=) before the general set_value() fallback.
+    if(assign->assOp != Operation::Assignment) {
+        auto lhsType = assign->lhs->getType();
+        if(lhsType) {
+            auto canon = lhsType->canonical();
+            ExtendableMembersContainerNode* container = nullptr;
+            if(canon->kind() == BaseTypeKind::Linked) {
+                auto linked = canon->as_linked_type_unsafe()->linked;
+                if(linked && (linked->kind() == ASTNodeKind::StructDecl ||
+                              linked->kind() == ASTNodeKind::VariantDecl ||
+                              linked->kind() == ASTNodeKind::UnionDecl)) {
+                    container = (ExtendableMembersContainerNode*)linked;
+                }
+            }
+            if(container) {
+                auto glob = scope.global;
+                if(glob && glob->build_compiler) {
+                    const char* opName = nullptr;
+                    switch(assign->assOp) {
+                        case Operation::Addition: opName = "add_assign"; break;
+                        case Operation::Subtraction: opName = "sub_assign"; break;
+                        case Operation::Multiplication: opName = "mul_assign"; break;
+                        case Operation::Division: opName = "div_assign"; break;
+                        case Operation::Modulus: opName = "rem_assign"; break;
+                        case Operation::LeftShift: opName = "shl_assign"; break;
+                        case Operation::RightShift: opName = "shr_assign"; break;
+                        case Operation::BitwiseAND: opName = "bitand_assign"; break;
+                        case Operation::BitwiseXOR: opName = "bitxor_assign"; break;
+                        case Operation::BitwiseOR: opName = "bitor_assign"; break;
+                        default: break;
+                    }
+                    if(opName) {
+                        FunctionDeclaration* overloaded = nullptr;
+                        chem::string_view nameSv(opName);
+                        ASTNode* searchNode = container->parent();
+                        while(searchNode) {
+                            std::vector<ASTNode*>* nodes = nullptr;
+                            if(searchNode->kind() == ASTNodeKind::NamespaceDecl) {
+                                nodes = &searchNode->as_namespace_unsafe()->nodes;
+                            } else if(searchNode->kind() == ASTNodeKind::FileScope) {
+                                nodes = &static_cast<FileScope*>(searchNode)->body.nodes;
+                            } else if(searchNode->kind() == ASTNodeKind::Scope) {
+                                nodes = &static_cast<Scope*>(searchNode)->nodes;
+                            }
+                            if(nodes) {
+                                for(auto child : *nodes) {
+                                    if(!child || child->kind() != ASTNodeKind::ImplDecl) continue;
+                                    auto impl = child->as_impl_def_unsafe();
+                                    if(!impl || !impl->struct_type) continue;
+                                    auto implStruct = impl->struct_type->get_direct_linked_canonical_node();
+                                    bool matches = (implStruct == container);
+                                    if(!matches && implStruct && container &&
+                                        implStruct->get_node_identifier() == container->get_node_identifier()) {
+                                        matches = true;
+                                    }
+                                    if(!matches) continue;
+                                    auto fn = impl->direct_child_function(nameSv);
+                                    if(fn && fn->body.has_value()) {
+                                        overloaded = fn;
+                                        break;
+                                    }
+                                }
+                                if(overloaded) break;
+                            }
+                            searchNode = searchNode->parent();
+                        }
+                        if(overloaded) {
+                            auto rhsVal = assign->value->evaluated_value(scope);
+                            if(!rhsVal) return;
+                            Value* selfVal = nullptr;
+                            if(assign->lhs->val_kind() == ValueKind::Identifier) {
+                                auto lhsId = assign->lhs->as_identifier_unsafe();
+                                auto lhsIt = scope.find_value_iterator(lhsId->value);
+                                if(lhsIt.first != lhsIt.second.values.end()) {
+                                    selfVal = lhsIt.first->second;
+                                }
+                            } else {
+                                selfVal = assign->lhs->evaluated_value(scope);
+                            }
+                            if(!selfVal) return;
+                            const auto prev_func = glob->current_func_type;
+                            glob->current_func_type = overloaded;
+                            glob->call_stack.emplace_back(nullptr);
+                            InterpretScope fn_scope(glob, glob->allocator, glob);
+                            std::vector<Value*> opArgs = { rhsVal };
+                            auto result = overloaded->call(&scope, opArgs, selfVal, &fn_scope, true, assign->value);
+                            glob->call_stack.pop_back();
+                            glob->current_func_type = prev_func;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
     // Handle assignment with move semantics:
     // 1. Save the old LHS value (must NOT destruct before set_value, because
     //    the RHS may take a pointer to the LHS — e.g. x = f(x.get_ptr(), N)).

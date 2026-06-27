@@ -604,7 +604,10 @@ Value *StructValue::call_member(
 void StructValue::set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op) {
     auto ptr = values.find(name);
     if (ptr == values.end()) {
-        std::cerr << "unresolved child by name '" + name.str() + "' in struct";
+        // If the child name is not found, insert it rather than silently ignoring.
+        // This handles placement new into uninitialized structs/variants where
+        // the target struct has empty values but the source provides field data.
+        values.emplace(name, StructMemberInitializer { name, value });
         return;
     }
     ptr.value().value = value;

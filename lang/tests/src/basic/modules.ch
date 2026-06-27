@@ -1,5 +1,11 @@
+@extern
+public func check_external_sum(a : int, b : int) : int
+
 
 func test_imported_modules() {
+    test("external sum function is available", () => {
+        return check_external_sum(80, 20) == 100;
+    })
     test("function imported from other module works", () => {
         return extern_imported_sum(10, 10) == 40;
     })

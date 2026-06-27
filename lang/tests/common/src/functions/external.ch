@@ -1,6 +1,3 @@
-@extern
-public func check_external_sum(a : int, b : int) : int
-
 if(intrinsics::is_clang()) {
 
     @extern
@@ -13,9 +10,6 @@ if(intrinsics::is_clang()) {
 // public var exposed_constant_213 : int
 
 func test_external_functions() {
-    test("external sum function is available", () => {
-        return check_external_sum(80, 20) == 100;
-    })
     comptime if(intrinsics::is_clang()) {
         test("can call function from C++", () => {
             // C++ adds dummy 3 to confuse you

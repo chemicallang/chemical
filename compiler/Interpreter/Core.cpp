@@ -1020,7 +1020,18 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                 }
             }
         }
-        auto initializer = stmt->value->scope_value(scope);
+        Value* initializer;
+        if(stmt->value->val_kind() == ValueKind::ArrayValue) {
+            // ArrayValue initializers: use evaluated_value instead of scope_value.
+            // scope_value calls copy() which deep-copies ALL elements, creating new
+            // StructValue pointers that break move_clear_source's ability to match
+            // the original scope variable's pointer against the copied array element.
+            // Since array literal AST nodes are used only once per declaration,
+            // returning the original node is safe and preserves move semantics.
+            initializer = stmt->value->evaluated_value(scope);
+        } else {
+            initializer = stmt->value->scope_value(scope);
+        }
         scope.declare(stmt->name_view(), initializer);
         // Handle move semantics: if the initializer references an existing destructible
         // struct variable, clear the source (move, not copy). Uses pointer-matching

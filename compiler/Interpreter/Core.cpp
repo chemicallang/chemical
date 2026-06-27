@@ -1115,10 +1115,43 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                                 );
                                 for(const auto subField : subContainer->variables()) {
                                     auto subDef = subField->default_value();
-                                    subVal->values.emplace(
-                                        subField->name,
-                                        StructMemberInitializer { subField->name, subDef ? subDef->scope_value(scope) : scope.getNullValue() }
-                                    );
+                                    // Recursively initialize unnamed struct/union members
+                                    auto subFieldType = subField->known_type();
+                                    if(subFieldType && subFieldType->kind() == BaseTypeKind::Linked) {
+                                        auto subFieldLinked = subFieldType->as_linked_type_unsafe()->linked;
+                                        if(subFieldLinked && (subFieldLinked->kind() == ASTNodeKind::UnnamedStruct || subFieldLinked->kind() == ASTNodeKind::UnnamedUnion)) {
+                                            VariablesContainerBase* subSubContainer;
+                                            if(subFieldLinked->kind() == ASTNodeKind::UnnamedStruct) {
+                                                subSubContainer = subFieldLinked->as_unnamed_struct_unsafe();
+                                            } else {
+                                                subSubContainer = subFieldLinked->as_unnamed_union_unsafe();
+                                            }
+                                            auto innerSubVal = new (scope.allocate<StructValue>()) StructValue(
+                                                subFieldType, nullptr, subSubContainer, stmt->encoded_location()
+                                            );
+                                            for(const auto innerField : subSubContainer->variables()) {
+                                                auto innerDef = innerField->default_value();
+                                                innerSubVal->values.emplace(
+                                                    innerField->name,
+                                                    StructMemberInitializer { innerField->name, innerDef ? innerDef->scope_value(scope) : scope.getNullValue() }
+                                                );
+                                            }
+                                            subVal->values.emplace(
+                                                subField->name,
+                                                StructMemberInitializer { subField->name, innerSubVal }
+                                            );
+                                        } else {
+                                            subVal->values.emplace(
+                                                subField->name,
+                                                StructMemberInitializer { subField->name, subDef ? subDef->scope_value(scope) : scope.getNullValue() }
+                                            );
+                                        }
+                                    } else {
+                                        subVal->values.emplace(
+                                            subField->name,
+                                            StructMemberInitializer { subField->name, subDef ? subDef->scope_value(scope) : scope.getNullValue() }
+                                        );
+                                    }
                                 }
                                 structVal->values.emplace(
                                     field->name,

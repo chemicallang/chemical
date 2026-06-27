@@ -11,6 +11,8 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/ASTAllocator.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 uint64_t AccessChain::byte_size(TargetData& target) {
     return values[values.size() - 1]->byte_size(target);
@@ -107,12 +109,14 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
     } else {
         auto parent = parent_value(scope);
         if(parent) {
-            // Before assigning, save the old value so its destructor can be called.
+            // Save the old value before assignment for destructor call
             Value* oldVal = nullptr;
-            auto lastVal = values[values.size() - 1];
-            if(lastVal->val_kind() == ValueKind::Identifier) {
-                auto id = lastVal->as_identifier_unsafe();
-                oldVal = parent->child(scope, id->value);
+            if(op == Operation::Assignment) {
+                auto lastVal = values[values.size() - 1];
+                if(lastVal->val_kind() == ValueKind::Identifier) {
+                    auto id = lastVal->as_identifier_unsafe();
+                    oldVal = parent->child(scope, id->value);
+                }
             }
             auto newVal = rawValue->scope_value(scope);
             values[values.size() - 1]->set_value_in(scope, parent, newVal, op, passed_loc);

@@ -107,7 +107,35 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
     } else {
         auto parent = parent_value(scope);
         if(parent) {
-            values[values.size() - 1]->set_value_in(scope, parent, rawValue->scope_value(scope), op, passed_loc);
+            // Before assigning, save the old value so its destructor can be called.
+            Value* oldVal = nullptr;
+            auto lastVal = values[values.size() - 1];
+            if(lastVal->val_kind() == ValueKind::Identifier) {
+                auto id = lastVal->as_identifier_unsafe();
+                oldVal = parent->child(scope, id->value);
+            }
+            auto newVal = rawValue->scope_value(scope);
+            values[values.size() - 1]->set_value_in(scope, parent, newVal, op, passed_loc);
+            // Destruct the old value if it's a destructible struct being replaced
+            if(oldVal && oldVal->val_kind() == ValueKind::StructValue) {
+                auto structVal = oldVal->as_struct_value_unsafe();
+                auto ext = structVal->linked_extendable();
+                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                    auto sd = (StructDefinition*)ext;
+                    if(sd->has_destructor()) {
+                        auto destructor_fn = sd->destructor_func();
+                        if(destructor_fn && destructor_fn->body.has_value()) {
+                            InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+                            temp_scope.declare("self", oldVal);
+                            temp_scope.interpret(&destructor_fn->body.value());
+                            auto self_it = temp_scope.values.find("self");
+                            if(self_it != temp_scope.values.end()) {
+                                temp_scope.values.erase(self_it);
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             scope.error("(access chain) parent is null for set_value", (ASTNode*) this);
         }

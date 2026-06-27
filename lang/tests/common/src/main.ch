@@ -159,4 +159,6 @@ public func run_common_tests() {
     test_for_in()
     test_sizeof_alignof()
     test_failing_code()
+    test_variant_pattern_matching();
+
 }

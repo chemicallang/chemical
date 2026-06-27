@@ -3,7 +3,7 @@ func give_ref(i : &mut int) : &mut int {
 }
 
 func test_deref_pass_func_call() {
-    test("automatic dereferences when passing to var args parameter", () => {
+    test("dereference when passing to var args parameter works", () => {
         var i = 788
         var ref = give_ref(&mut i)
         var str : [20]char = []

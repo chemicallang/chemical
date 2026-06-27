@@ -23,6 +23,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/PointerValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/Namespace.h"
@@ -302,6 +303,21 @@ Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     if(!fEvl) return nullptr;
     
+    // Auto-deref references: when the AST type has been unwrapped from a reference
+    // (e.g. IndexOperator returns &int but determine_type resolved to int),
+    // the evaluated value is a PointerValue while the type says it's not a pointer.
+    // Deref the PointerValue to get the underlying value for comparison/arithmetic.
+    if(fEvl->val_kind() == ValueKind::PointerValue) {
+        auto valType = firstValue->getType();
+        if(valType) {
+            auto kind = valType->canonical()->kind();
+            if(kind != BaseTypeKind::Pointer && kind != BaseTypeKind::Reference) {
+                auto dereffed = ((PointerValue*)fEvl)->deref(scope, encoded_location(), this);
+                if(dereffed) fEvl = dereffed;
+            }
+        }
+    }
+    
     // Short-circuit evaluation for logical operators
     if (operation == Operation::LogicalAND) {
         if (fEvl->val_kind() == ValueKind::Bool && !fEvl->get_the_bool()) return fEvl;
@@ -311,6 +327,18 @@ Value *Expression::evaluate(InterpretScope &scope) {
     
     auto sEvl = secondValue->evaluated_value(scope);
     if(!sEvl) return nullptr;
+    
+    // Auto-deref references for the second value (same as first value above)
+    if(sEvl->val_kind() == ValueKind::PointerValue) {
+        auto valType = secondValue->getType();
+        if(valType) {
+            auto kind = valType->canonical()->kind();
+            if(kind != BaseTypeKind::Pointer && kind != BaseTypeKind::Reference) {
+                auto dereffed = ((PointerValue*)sEvl)->deref(scope, encoded_location(), this);
+                if(dereffed) sEvl = dereffed;
+            }
+        }
+    }
     
     // Try to find overloaded operator from evaluated values' runtime types if AST-level lookup failed
     if(!overloaded && glob && glob->build_compiler) {

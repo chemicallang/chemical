@@ -214,6 +214,19 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         sEvl = underlying->evaluated_value(scope);
         if(!sEvl) return nullptr;
     }
+    // Resolve complex values that should not reach the core evaluation logic
+    {
+        auto resVal = fEvl->evaluated_value(scope);
+        if(resVal && resVal != fEvl) {
+            fEvl = resVal;
+        }
+    }
+    {
+        auto resVal = sEvl->evaluated_value(scope);
+        if(resVal && resVal != sEvl) {
+            sEvl = resVal;
+        }
+    }
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
     if(fKind == ValueKind::Bool && sKind == ValueKind::Bool) {
@@ -568,9 +581,18 @@ void InterpretScope::destroy_values() {
                 // vector, so modifications through &arr[i] affect the actual elements.
                 for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
                     auto elemVal = arrVal->values[ei];
-                    if(elemVal) {
-                        self_ref(elemVal, self_ref);
+                    if(!elemVal) continue;
+                    // Resolve Identifier elements (from move semantics like [d])
+                    // to the actual struct value so the destructor can run.
+                    if(elemVal->val_kind() == ValueKind::Identifier) {
+                        auto idVal = elemVal->as_identifier_unsafe();
+                        auto resolved = find_value(idVal->value);
+                        if(resolved) {
+                            elemVal = resolved;
+                            arrVal->values[ei] = resolved;
+                        }
                     }
+                    self_ref(elemVal, self_ref);
                 }
             }
         };

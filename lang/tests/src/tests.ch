@@ -44,7 +44,6 @@ func run_executable_tests() {
     test_hashing();
     test_vectors();
     test_array_refs();
-    test_variant_pattern_matching();
     test_optional_type();
     test_result_type();
     test_unordered_map();

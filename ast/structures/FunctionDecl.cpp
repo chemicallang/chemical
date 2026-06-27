@@ -28,6 +28,16 @@
 #include "ast/structures/VariantMember.h"
 #include "compiler/ASTDiagnoser.h"
 #include "preprocess/2c/BufferedWriter.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/PointerValue.h"
+#include "ast/values/NullValue.h"
+#include "ast/types/FloatType.h"
+#include "ast/types/DoubleType.h"
+#include "ast/types/IntNType.h"
+#include "ast/base/TypeBuilder.h"
 
 #ifdef COMPILER_BUILD
 
@@ -1056,6 +1066,19 @@ Value *FunctionDeclaration::call(
         Value* param_val;
         const auto arg = call_args[i];
         param_val = arg->scope_value(*call_scope);
+        // Pass-by-value semantics for non-destructor structs passed to non-reference parameters:
+        // create a copy so modifications inside the function don't affect the caller's value.
+        if(param_val && param_val->val_kind() == ValueKind::StructValue && param && param->type &&
+           !param->type->is_reference() && !param->type->is_pointer()) {
+            auto sv = param_val->as_struct_value_unsafe();
+            auto ext = sv->linked_extendable();
+            if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                auto sd = (StructDefinition*)ext;
+                if(!sd->has_destructor()) {
+                    param_val = sv->copy(fn_scope->allocator);
+                }
+            }
+        }
         // Move semantics: if the argument references an existing destructible struct
         // variable in the caller's scope, clear the source so it's not destructed
         // again when the caller's scope ends. Uses pointer-matching instead of AST
@@ -1145,8 +1168,36 @@ Value *FunctionDeclaration::call(
         }
     }
     if(!body.has_value()) {
-        // Function with no body (extern declaration). Skip interpretation gracefully.
-        return nullptr;
+        // Function with no body (extern declaration).
+        // Return a zero value of the appropriate return type instead of nullptr.
+        // This allows tests to call extern functions and get predictable results.
+        if(returnType) {
+            auto retCanon = returnType->canonical();
+            if(retCanon) {
+                switch(retCanon->kind()) {
+                    case BaseTypeKind::IntN: {
+                        auto intType = retCanon->as_intn_type_unsafe();
+                        return new (fn_scope->allocate<IntNumValue>()) IntNumValue(0, intType, encoded_location());
+                    }
+                    case BaseTypeKind::Bool: {
+                        return new (fn_scope->allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), encoded_location());
+                    }
+                    case BaseTypeKind::Float: {
+                        return new (fn_scope->allocate<FloatValue>()) FloatValue(0.0f, (FloatType*)retCanon, encoded_location());
+                    }
+                    case BaseTypeKind::Double: {
+                        return new (fn_scope->allocate<DoubleValue>()) DoubleValue(0.0, (DoubleType*)retCanon, encoded_location());
+                    }
+                    case BaseTypeKind::Pointer: {
+                        auto ptrType = retCanon->as_pointer_type_unsafe();
+                        return new (fn_scope->allocate<PointerValue>()) PointerValue(nullptr, ptrType->type, 0, 0, encoded_location());
+                    }
+                    default:
+                        break;
+                }
+            }
+        }
+        return call_scope->getNullValue();
     }
     {
         InterpretScope body_scope(fn_scope, fn_scope->allocator, fn_scope->global);

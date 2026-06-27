@@ -145,10 +145,20 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             return intNType->create(scope.allocator, typeBuilder, deref_pointer(data, castedTypeSize), value_loc);
         }
         case BaseTypeKind::Pointer: {
-            // Dereferencing a pointer to pointer: return a copy of the inner PointerValue
-            // data points to the inner PointerValue stored at this location
+            // Dereferencing a pointer to pointer: read the stored pointer value from data.
+            // data is raw memory allocated by NewTypedValue for `new *int`, where the user
+            // stored a void* via DereferenceValue::set_value (e.g., *x = &raw y).
+            // Read back that void* and create a PointerValue pointing to the target data.
+            void* storedPtr = *((void**)data);
+            auto pointeeType = getType()->as_pointer_type_unsafe()->type;
+            if(!storedPtr) {
+                return new (scope.allocate<PointerValue>()) PointerValue(
+                    nullptr, pointeeType, 0, 0, value_loc
+                );
+            }
+            auto pointeeSize = pointeeType->byte_size(scope.global->target_data);
             return new (scope.allocate<PointerValue>()) PointerValue(
-                data, getType()->as_pointer_type_unsafe()->type, 0, ahead, value_loc
+                storedPtr, pointeeType, 0, pointeeSize, value_loc
             );
         }
         case BaseTypeKind::Bool: {

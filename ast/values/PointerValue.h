@@ -5,6 +5,8 @@
 #include "ast/base/Value.h"
 #include "ast/values/StringValue.h"
 
+class ArrayValue;
+
 /**
  * it's sole purpose to simulate pointers in comptime
  */
@@ -17,6 +19,15 @@ public:
     size_t behind;
     // the amount (bytes) pointer can go ahead according to the type
     size_t ahead;
+
+    // When a pointer is backed by an array (array-to-pointer decay), this
+    // points to the owning ArrayValue and elementIndex tracks the current
+    // position. Increment/decrement adjust the index; deref/child access
+    // backingArray->values[elementIndex]. This enables `*Point ptr = [a, b]`
+    // pattern to work in the interpreter for struct element types where
+    // elements are not contiguous in memory.
+    ArrayValue* backingArray = nullptr;
+    size_t elementIndex = 0;
 
     /**
      * constructor
@@ -46,9 +57,12 @@ public:
     }
 
     PointerValue* copy(ASTAllocator &allocator) override {
-        return new (allocator.allocate<PointerValue>()) PointerValue(
+        auto pv = new (allocator.allocate<PointerValue>()) PointerValue(
             data, getType(), behind, ahead, encoded_location()
         );
+        pv->backingArray = backingArray;
+        pv->elementIndex = elementIndex;
+        return pv;
     }
 
     /**

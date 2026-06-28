@@ -1,6 +1,9 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "StructValue.h"
+#include "PointerValue.h"
+#include "ArrayValue.h"
+#include "ast/types/PointerType.h"
 
 #include "compiler/mangler/NameMangler.h"
 #include <memory>
@@ -758,7 +761,35 @@ Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) 
     // Check direct values
     auto value = values.find(name);
     if (value != values.end()) {
-        return value->second.value;
+        auto val = value->second.value;
+        // Array-to-pointer decay on access: if the stored value is an ArrayValue
+        // and the field type is a pointer, return a PointerValue wrapping the array
+        // so pointer arithmetic and field access work correctly.
+        if(val && val->val_kind() == ValueKind::ArrayValue && definition) {
+            for(const auto var : definition->variables()) {
+                if(var->name == name) {
+                    auto kt = var->known_type();
+                    if(kt && kt->kind() == BaseTypeKind::Pointer) {
+                        auto arrVal = (ArrayValue*)val;
+                        auto ptrType = kt->as_pointer_type_unsafe();
+                        auto elemType = ptrType->type;
+                        arrVal->evaluated_value(scope);
+                        if(!arrVal->values.empty()) {
+                            auto pv = new (scope.allocate<PointerValue>()) PointerValue(
+                                (void*)arrVal->values[0], elemType, 0,
+                                elemType->byte_size(scope.global->target_data) * arrVal->values.size(),
+                                val->encoded_location()
+                            );
+                            pv->backingArray = arrVal;
+                            pv->elementIndex = 0;
+                            return pv;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return val;
     }
     // Check member functions
     if(definition) {

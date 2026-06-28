@@ -17,6 +17,9 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/values/PointerValue.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/ReferenceOfValue.h"
+#include "ast/values/AddrOfValue.h"
 #include "ast/types/PointerType.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/FloatValue.h"
@@ -359,6 +362,15 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
         uint64_t size = sizeNum.value();
         if(size == 0) return;
 
+        // If _data is a PointerValue backed by an ArrayValue (from array-to-pointer
+        // decay), unwrap it to the underlying array so the existing ArrayValue
+        // iteration logic handles struct elements correctly.
+        if(dataChild->val_kind() == ValueKind::PointerValue) {
+            auto pv = (PointerValue*)dataChild;
+            if(pv->backingArray) {
+                dataChild = pv->backingArray;
+            }
+        }
         if(dataChild->val_kind() == ValueKind::ArrayValue) {
             auto arrayVal = (ArrayValue*)dataChild;
             BaseType* elemType = arrayVal->known_elem_type();
@@ -788,8 +800,25 @@ Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
 inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
     // Destruct temp structs from bare expressions
     if(node->value->val_kind() == ValueKind::FunctionCall) {
+        auto call = node->value->as_func_call_unsafe();
         auto result = node->value->evaluated_value(scope);
         destruct_temp_struct(scope, result);
+        // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
+        // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
+        // creates a temp struct that must be destructed after the outer call completes.
+        for(auto arg : call->values) {
+            if(arg->val_kind() == ValueKind::ReferenceOfValue) {
+                auto refOf = arg->as_reference_of_value_unsafe();
+                if(refOf->innerEvaluatedResult) {
+                    destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                }
+            } else if(arg->val_kind() == ValueKind::AddrOfValue) {
+                auto addrOf = arg->as_addr_of_value_unsafe();
+                if(addrOf->innerEvaluatedResult) {
+                    destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
+                }
+            }
+        }
     } else if(node->value->val_kind() == ValueKind::AccessChain) {
         auto chain = node->value->as_access_chain_unsafe();
         if(chain->values.empty()) return;

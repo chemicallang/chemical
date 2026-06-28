@@ -120,6 +120,7 @@ Value* AddrOfValue::evaluated_value(InterpretScope &scope) {
     }
     
     const auto inner = value->evaluated_value(scope);
+    innerEvaluatedResult = inner;
     if(!inner) return nullptr;
     const auto ptrType = getType();
     const auto pointeeType = ptrType->type;

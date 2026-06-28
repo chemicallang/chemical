@@ -2,6 +2,7 @@
 
 #include "ast/values/StringValue.h"
 #include "PointerValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/FloatValue.h"
@@ -27,6 +28,14 @@ PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
 }
 
 void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
+    if(backingArray) {
+        auto newIndex = elementIndex + amount;
+        if(newIndex >= backingArray->values.size()) {
+            newIndex = backingArray->values.size() - 1;
+        }
+        elementIndex = newIndex;
+        return;
+    }
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= ahead) {
@@ -42,6 +51,14 @@ void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Valu
 }
 
 void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
+    if(backingArray) {
+        if(amount > elementIndex) {
+            elementIndex = 0;
+        } else {
+            elementIndex -= amount;
+        }
+        return;
+    }
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= behind) {
@@ -57,6 +74,18 @@ void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Valu
 }
 
 PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
+    if(backingArray) {
+        auto newIndex = elementIndex + amount;
+        if(newIndex >= backingArray->values.size()) {
+            newIndex = backingArray->values.size() - 1;
+        }
+        auto pv = new (scope.allocate<PointerValue>()) PointerValue(
+            data, getType(), behind, ahead, new_loc
+        );
+        pv->backingArray = backingArray;
+        pv->elementIndex = newIndex;
+        return pv;
+    }
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= ahead) {
@@ -72,6 +101,15 @@ PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, Sour
 }
 
 PointerValue* PointerValue::decrement(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
+    if(backingArray) {
+        auto newIndex = (amount > elementIndex) ? (size_t)0 : (elementIndex - amount);
+        auto pv = new (scope.allocate<PointerValue>()) PointerValue(
+            data, getType(), behind, ahead, new_loc
+        );
+        pv->backingArray = backingArray;
+        pv->elementIndex = newIndex;
+        return pv;
+    }
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= behind) {
@@ -101,6 +139,13 @@ uint64_t deref_pointer(void* data, uint64_t type_size) {
 }
 
 Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name) {
+    if(backingArray) {
+        if(elementIndex < backingArray->values.size()) {
+            auto elem = backingArray->values[elementIndex];
+            if(elem) return elem->child(scope, name);
+        }
+        return nullptr;
+    }
     auto pointeeType = getType();
     if(pointeeType) {
         auto kind = pointeeType->kind();
@@ -121,6 +166,12 @@ Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name)
 }
 
 Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Value* debugValue) {
+    if(backingArray) {
+        if(elementIndex < backingArray->values.size()) {
+            return backingArray->values[elementIndex];
+        }
+        return scope.getNullValue();
+    }
     const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     if(castedTypeSize > ahead) {
         // Native C doesn't enforce pointer bounds; out-of-bounds access reads
@@ -266,6 +317,15 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
 }
 
 void PointerValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
+    if(backingArray) {
+        if(elementIndex < backingArray->values.size()) {
+            auto elem = backingArray->values[elementIndex];
+            if(elem) {
+                elem->set_child_value(scope, name, value, op);
+                return;
+            }
+        }
+    }
     auto pointeeType = getType();
     if(pointeeType) {
         auto kind = pointeeType->kind();

@@ -16,6 +16,10 @@ public:
 
     Value* value;
     bool is_mutable = false;
+    // When evaluated_value() is called and wraps a FunctionCall result,
+    // stores the inner evaluated result (the struct temp) so the enclosing
+    // expression can destruct it after use. Set during evaluated_value().
+    Value* innerEvaluatedResult = nullptr;
 
     /**
      * constructor

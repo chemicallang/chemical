@@ -103,6 +103,7 @@ Value* ReferenceOfValue::evaluated_value(InterpretScope& scope) {
     
     // Evaluate the inner expression to get its value
     const auto inner = value->evaluated_value(scope);
+    innerEvaluatedResult = inner;
     if(!inner) return nullptr;
     
     // Get the reference type and its underlying type

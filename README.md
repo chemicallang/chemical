@@ -133,6 +133,9 @@ For detailed instructions covering all platforms, IDEs, and scenarios, see the [
 | `scripts/build.sh` | Build targets: `--tcc`, `--llvm`, `--lsp`, `--all` |
 | `scripts/test.sh` | Build & run tests: `--tcc`, `--llvm`, `--libs`, `--no-run`, `--no-build` |
 
+> ⚠️ **`--no-build`**: Skips rebuilding the C++ compiler — changes to `.cpp`/`.h` files are **ignored**.
+> Only use when iterating on `.ch` test files without compiler changes.
+
 #### LSP
 
 1. Clone `chemical-vscode` for the VS Code extension.

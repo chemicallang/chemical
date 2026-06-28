@@ -96,6 +96,12 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 ./scripts/test.sh --tcc --no-build
 ```
 
+> ⚠️ **`--no-build` warning**: This flag **skips rebuilding the C++ compiler binary**.
+> Changes to `.cpp`/`.h` files in the compiler source **will NOT be reflected** —
+> the previously built binary is used as-is. Only use `--no-build` when iterating on
+> `.ch` test files or Chemical library sources **without any compiler C++ changes**.
+> To include C++ changes, omit `--no-build` (or rebuild once without it first).
+
 ### Manual test commands
 
 Full test suite (LLVM backend):

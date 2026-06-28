@@ -56,6 +56,13 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 
 Internal defaults: `--no-cache`, `-frecompile-plugins`. Pass `--cache`/`--cached-plugins` to opt out.
 
+> ⚠️ **`--no-build` warning**: This flag **skips rebuilding the C++ compiler binary**.
+> Any changes you make to `.cpp`/`.h` files in the compiler source **will NOT be picked up** —
+> the previously built binary is used unchanged. Only use `--no-build` when you are iterating
+> on `.ch` test files or Chemical library sources **without any compiler C++ changes**.
+> To include C++ changes, omit `--no-build` (or run once without it to rebuild first,
+> then iterate with `--no-build`).
+
 ### Interpretation Tests
 
 ```bash

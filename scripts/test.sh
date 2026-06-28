@@ -30,6 +30,7 @@ usage() {
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
   echo "  --no-build              Skip building compiler target, use existing binary"
+  echo "                          WARNING: Only use when no C++ changes have been made."
   echo "  --mode <mode>           Compilation mode (default: debug_quick)"
   echo "  --cache                 Use cached objects (default: --no-cache)"
   echo "  --emit-c                Emit C translation output"

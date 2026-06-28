@@ -280,6 +280,12 @@ When a variant member constructor is called (e.g., `Option.Some(value)`), `Funct
 ./chemical lang/tests/build.lab --arg-interpret --mode debug_complete --no-cache
 ```
 
+> ⚠️ **`--no-build` warning**: This flag **skips rebuilding the C++ compiler binary**.
+> Changes to `.cpp`/`.h` files in the compiler source **will NOT be picked up** —
+> the previously built binary is used. Only use `--no-build` when iterating on `.ch`
+> test files **without any compiler C++ changes**. To pick up C++ changes, omit
+> `--no-build` (run once without it first).
+
 ### Test Organization
 
 | Module | Location | What It Tests |

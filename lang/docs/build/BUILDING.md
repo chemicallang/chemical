@@ -121,6 +121,44 @@ Library tests:
 cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-libs -frecompile-plugins
 ```
 
+### Isolating a Single Test Case for Debugging
+
+Running the full test suite on every iteration is time consuming. For faster debugging,
+**isolate the failing test** by copying its source (plus dependencies) into a single
+stand-alone file at `lang/compiled/temp.ch` — the `lang/compiled/` directory is in
+`.gitignore`, so nothing there will be committed.
+
+**Workflow:**
+
+1. Copy the failing test's code into `lang/compiled/temp.ch`
+2. Rebuild the compiler after any C++ changes:
+   ```bash
+   ./scripts/build.sh --tcc      # For TCCCompiler
+   ./scripts/build.sh --llvm     # For Compiler (LLVM)
+   ```
+3. Compile the single file:
+   - **LLVM IR inspection** (Compiler target):
+     ```bash
+     cmake-build-debug/Compiler "lang/compiled/temp.ch" --out-ll-all --build-dir "lang/compiled" \
+         -o "lang/compiled/temp.exe" --mode debug_complete --debug-ir -v --assertions -fno-unwind-tables
+     ```
+     LLVM IR is written to `lang/compiled/modules/main/llvm_ir.ll`
+   - **C translation** (TCCCompiler target):
+     ```bash
+     cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.c" -v -bm-modules
+     cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.exe" -v -bm-modules
+     ```
+4. Run the executable: `./lang/compiled/temp.exe`
+5. Inspect the generated LLVM IR or C translation
+6. Add debug logs, rebuild, and repeat
+
+**Key flags:**
+- `--mode debug_complete` — max debug info (omit for cleaner IR)
+- `--debug-ir` — don't crash on bad IR
+- `--assertions` — verify generated IR is valid
+- `-fno-unwind-tables` — cleaner IR output
+- `-v` — verbose output
+
 ## Build TUI
 
 For an interactive terminal UI that wraps all of the above scripts, use `scripts/tui.sh`:

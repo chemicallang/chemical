@@ -262,3 +262,50 @@ public func main() {
 4. Look for "Operation between values" — an operation between incompatible types
 5. Add `std::cerr << "[DEBUG] ..." << std::endl;` to interpreter source files to trace specific operations
 6. The worst failures ("RUNTIME ERROR: invalid memory access") happen when `deref()` itself crashes — we've made this non-fatal by returning `getNullValue()` instead
+
+## Debugging with a Single Test File
+
+Running the full test suite on every iteration is slow. Instead of working through
+the entire test suite, **isolate the failing test** by copying its source code
+(plus the types/functions it depends on) into a single file at `lang/compiled/temp.ch`.
+The `lang/compiled/` directory is in `.gitignore`, so nothing there will be committed.
+
+### Workflow
+
+1. **Copy the test** — put the failing test's code into `lang/compiled/temp.ch`
+2. **Rebuild the compiler** after any C++ changes:
+   ```bash
+   ./scripts/build.sh --tcc      # For TCCCompiler
+   ./scripts/build.sh --llvm     # For Compiler (LLVM)
+   ```
+3. **Compile the single file** (choose one):
+   - **LLVM IR inspection** (Compiler target):
+     ```bash
+     cmake-build-debug/Compiler "lang/compiled/temp.ch" --out-ll-all --build-dir "lang/compiled" \
+         -o "lang/compiled/temp.exe" --mode debug_complete --debug-ir -v --assertions -fno-unwind-tables
+     ```
+     LLVM IR is emitted at `lang/compiled/modules/main/llvm_ir.ll`
+   - **C translation** (TCCCompiler target):
+     ```bash
+     # Produce .c output:
+     cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.c" -v -bm-modules
+     # Or produce an executable:
+     cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.exe" -v -bm-modules
+     ```
+4. **Run the executable**: `./lang/compiled/temp.exe`
+5. **Inspect the generated IR / C** to diagnose codegen bugs
+6. **Add debug logs** to the compiler source, rebuild, and repeat
+
+### Flags Explained
+
+- `--mode debug_complete` — maximum debug info in LLVM IR; omit for cleaner IR without metadata
+- `--mode debug_quick` — minimal debug info (good for TCCCompiler)
+- `--debug-ir` — don't crash on potentially bad IR
+- `--assertions` — verify the generated IR is valid
+- `-fno-unwind-tables` — cleaner IR (removes unwind data on Windows)
+- `-v` — verbose output
+- `-bm-modules` — emit build module information
+
+> ⚠️ **Always rebuild the compiler** (`./scripts/build.sh --tcc` or `--llvm`) after
+> changing `.cpp`/`.h` files. The previously built binary is used otherwise and
+> your changes won't be reflected.

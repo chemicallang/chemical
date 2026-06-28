@@ -1640,24 +1640,19 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
         // find and call the concrete implementation for the receiver's struct type.
         if(!func->body.has_value() && func->parent() &&
            func->parent()->kind() == ASTNodeKind::InterfaceDecl && parent) {
-            std::fprintf(stderr, "[DBG848] ENTER interface dispatch, parent kind=%d func=%s\n", (int)parent->val_kind(), func->name_view().data());
             auto interfaceDef = func->parent()->as_interface_def_unsafe();
             ExtendableMembersContainerNode* structDef = nullptr;
             // Try to get struct definition from the value directly
             if(parent->val_kind() == ValueKind::StructValue) {
                 structDef = parent->as_struct_value_unsafe()->linked_extendable();
-                std::fprintf(stderr, "[DBG848] StructValue linked_extendable=%p\n", (void*)structDef);
                 // Fallback: if linked_extendable is null, use type-based resolution
                 if(!structDef) {
                     auto parentType = parent->getType();
-                    std::fprintf(stderr, "[DBG848] parentType=%p kind=%d\n", (void*)parentType, parentType ? (int)parentType->kind() : -1);
                     if(parentType) {
                         auto structNode = parentType->get_direct_linked_canonical_node();
-                        std::fprintf(stderr, "[DBG848] structNode=%p kind=%d\n", (void*)structNode, structNode ? (int)structNode->kind() : -1);
                         if(structNode && (structNode->kind() == ASTNodeKind::StructDecl ||
                                           structNode->kind() == ASTNodeKind::VariantDecl)) {
                             structDef = structNode->as_extendable_members_container_unsafe();
-                            std::fprintf(stderr, "[DBG848] fallback structDef=%p\n", (void*)structDef);
                         }
                     }
                 }
@@ -1868,7 +1863,6 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
             }
         }
         if(!func->body.has_value() && func->parent() && func->parent()->kind() == ASTNodeKind::InterfaceDecl) {
-            std::fprintf(stderr, "[DBG848] NO parent or no structDef, falling through to func->call\n");
         }
         return func->call(&scope, scope.allocator, call, parent);
     }

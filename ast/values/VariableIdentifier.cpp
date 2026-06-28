@@ -355,7 +355,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto linkedNode = linked_node();
     if(linkedNode) {
         const auto linked_kind = linkedNode->kind();
-        if(linked_kind == ASTNodeKind::StructMember) {
+        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
             const auto found_self = scope.find_value("self");
             if(found_self) {
                 // Guard against self-referencing: when this same VariableIdentifier

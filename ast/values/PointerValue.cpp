@@ -104,11 +104,14 @@ uint64_t deref_pointer(void* data, uint64_t type_size) {
 
 Value* PointerValue::child(InterpretScope& scope, const chem::string_view& name) {
     auto pointeeType = getType();
-    if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
-        if(!pointeeType->get_direct_linked_enum()) {
-            auto structVal = (StructValue*) data;
-            if(structVal) {
-                return structVal->child(scope, name);
+    if(pointeeType) {
+        auto kind = pointeeType->kind();
+        if(kind == BaseTypeKind::Linked || kind == BaseTypeKind::Struct || kind == BaseTypeKind::Union || kind == BaseTypeKind::Generic) {
+            if(!pointeeType->get_direct_linked_enum()) {
+                auto structVal = (StructValue*) data;
+                if(structVal) {
+                    return structVal->child(scope, name);
+                }
             }
         }
     }
@@ -217,6 +220,44 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
                 value_loc
             );
         }
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union: {
+            auto srcStruct = (StructValue*) data;
+            if(srcStruct) {
+                auto ext = srcStruct->linked_extendable();
+                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                    auto sd = (StructDefinition*)ext;
+                    if(!sd->has_destructor()) {
+                        return srcStruct->copy(scope.allocator);
+                    }
+                }
+                return srcStruct;
+            }
+            return scope.getNullValue();
+        }
+        case BaseTypeKind::Generic: {
+            auto enumDecl = getType()->get_direct_linked_enum();
+            if(enumDecl) {
+                auto rawVal = deref_pointer(data, castedTypeSize);
+                return new (scope.allocate<IntNumValue>()) IntNumValue(
+                    rawVal,
+                    scope.global->typeBuilder.getIntType(),
+                    value_loc
+                );
+            }
+            auto srcStruct = (StructValue*) data;
+            if(srcStruct) {
+                auto ext = srcStruct->linked_extendable();
+                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
+                    auto sd = (StructDefinition*)ext;
+                    if(!sd->has_destructor()) {
+                        return srcStruct->copy(scope.allocator);
+                    }
+                }
+                return srcStruct;
+            }
+            return scope.getNullValue();
+        }
         case BaseTypeKind::Void:
             scope.error("dereferencing to void type not supported in comptime", debugValue ? debugValue : this);
             return nullptr;
@@ -228,13 +269,15 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
 
 void PointerValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
     auto pointeeType = getType();
-    if(pointeeType && pointeeType->kind() == BaseTypeKind::Linked) {
-        // enum values don't have named children, fall through to deref
-        if(!pointeeType->get_direct_linked_enum()) {
-            auto structVal = (StructValue*) data;
-            if(structVal) {
-                structVal->set_child_value(scope, name, value, op);
-                return;
+    if(pointeeType) {
+        auto kind = pointeeType->kind();
+        if(kind == BaseTypeKind::Linked || kind == BaseTypeKind::Struct || kind == BaseTypeKind::Union || kind == BaseTypeKind::Generic) {
+            if(!pointeeType->get_direct_linked_enum()) {
+                auto structVal = (StructValue*) data;
+                if(structVal) {
+                    structVal->set_child_value(scope, name, value, op);
+                    return;
+                }
             }
         }
     }

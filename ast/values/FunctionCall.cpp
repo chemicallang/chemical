@@ -1749,6 +1749,7 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                     }
                     auto result = implFunc->call(&scope, scope.allocator, call, effectiveParent);
                     if(result) return result;
+                    return scope.global->typeBuilder.getNullValue();
                 }
             }
             // Also try looking up the impl from the parent type if the direct lookup failed

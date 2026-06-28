@@ -1061,6 +1061,20 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
         } else {
             initializer = stmt->value->scope_value(scope);
         }
+        // Coerce integer literal types to match the declared type (e.g. var i : long = 61
+        // should create an IntNumValue with LongType, not IntType).
+        if(stmt->type != nullptr && initializer && initializer->val_kind() == ValueKind::IntN &&
+           stmt->type->kind() == BaseTypeKind::IntN) {
+            auto initType = static_cast<IntNType*>(initializer->getType());
+            auto declType = static_cast<IntNType*>((BaseType*)stmt->type);
+            if(initType && declType && initType->IntNKind() != declType->IntNKind()) {
+                auto intVal = static_cast<IntNumValue*>(initializer);
+                initializer = new (scope.allocate<IntNumValue>()) IntNumValue(
+                    intVal->value, declType, stmt->encoded_location()
+                );
+            }
+        }
+
         scope.declare(stmt->name_view(), initializer);
         // Handle move semantics: if the initializer references an existing destructible
         // struct variable, clear the source (move, not copy). Uses pointer-matching

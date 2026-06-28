@@ -806,19 +806,19 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
         // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
         // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
         // creates a temp struct that must be destructed after the outer call completes.
-        for(auto arg : call->values) {
-            if(arg->val_kind() == ValueKind::ReferenceOfValue) {
-                auto refOf = arg->as_reference_of_value_unsafe();
-                if(refOf->innerEvaluatedResult) {
-                    destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                for(auto arg : call->values) {
+                    if(arg->val_kind() == ValueKind::ReferenceOfValue) {
+                        auto refOf = arg->as_reference_of_value_unsafe();
+                        if(refOf->innerEvaluatedResult) {
+                            destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                        }
+                    } else if(arg->val_kind() == ValueKind::AddrOfValue) {
+                        auto addrOf = arg->as_addr_of_value_unsafe();
+                        if(addrOf->innerEvaluatedResult) {
+                            destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
+                        }
+                    }
                 }
-            } else if(arg->val_kind() == ValueKind::AddrOfValue) {
-                auto addrOf = arg->as_addr_of_value_unsafe();
-                if(addrOf->innerEvaluatedResult) {
-                    destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
-                }
-            }
-        }
     } else if(node->value->val_kind() == ValueKind::AccessChain) {
         auto chain = node->value->as_access_chain_unsafe();
         if(chain->values.empty()) return;
@@ -857,8 +857,28 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
     // collect the temps, then destruct them all after.
     
     if(chain.values.size() == 1) {
-        auto result = chain.values[0]->evaluated_value(scope);
+        auto val = chain.values[0];
+        auto result = val->evaluated_value(scope);
         destruct_temp_struct(scope, result);
+        // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
+        // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
+        // creates a temp struct that must be destructed after the outer call completes.
+        if(val->val_kind() == ValueKind::FunctionCall) {
+            auto call = val->as_func_call_unsafe();
+            for(auto arg : call->values) {
+                if(arg->val_kind() == ValueKind::ReferenceOfValue) {
+                    auto refOf = arg->as_reference_of_value_unsafe();
+                    if(refOf->innerEvaluatedResult) {
+                        destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                    }
+                } else if(arg->val_kind() == ValueKind::AddrOfValue) {
+                    auto addrOf = arg->as_addr_of_value_unsafe();
+                    if(addrOf->innerEvaluatedResult) {
+                        destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
+                    }
+                }
+            }
+        }
         return;
     }
     

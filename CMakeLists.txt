@@ -697,9 +697,6 @@ add_executable(ChemicalLsp core/targets/LSPMain.cpp ${COMMON_SOURCES}
 set(LSP_USE_SANITIZERS OFF CACHE BOOL "Turn off UBSan/ASan in lsp-framework" FORCE)
 add_subdirectory(lib/lsp-framework)
 
-# Add an executable target for the second executable
-add_executable(Interpreter core/targets/Interpreter.cpp ${COMMON_SOURCES})
-
 set(COMPILER_SOURCES
         compiler/Codegen.h
         compiler/Codegen.cpp
@@ -818,7 +815,6 @@ endfunction()
 
 # Disables rtti exceptions
 if(DISABLE_RTTI_EXCEPTIONS)
-    chem_disable_rtti_exceptions(Interpreter)
     chem_disable_rtti_exceptions(TCCCompiler)
     if(BUILD_COMPILER)
         chem_disable_rtti_exceptions(Compiler)
@@ -834,11 +830,6 @@ target_include_directories(ChemicalLsp PRIVATE
         ${COMMON_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/lib/lsp-framework
         ${LSP_GENERATED_FILES_DIR}
-)
-
-# Add include directories for LspCpp
-target_include_directories(Interpreter PRIVATE
-        ${COMMON_INCLUDE_DIRS}
 )
 
 # Add include directories for Compiler
@@ -864,7 +855,6 @@ if (MSVC)
         target_compile_options(Compiler PRIVATE /wd4267)
     endif()
     target_compile_options(TCCCompiler PRIVATE /wd4267)
-    target_compile_options(Interpreter PRIVATE /wd4267)
     target_compile_options(ChemicalLsp PRIVATE /wd4267)
 endif()
 
@@ -890,9 +880,6 @@ elseif(APPLE)
     # macOS: do nothing, can't fully statically link libc++
     message(STATUS "macOS detected, skipping static linking of standard libraries")
 endif()
-
-# Linking interpreter
-target_link_libraries(Interpreter)
 
 if(APPLE)
     if(BUILD_COMPILER)

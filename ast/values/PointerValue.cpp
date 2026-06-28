@@ -14,8 +14,6 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/base/BaseType.h"
-#include <iostream>
-
 PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
     // PointerValue stores the pointee type (not the pointer type), so that
     // increment/deref use the correct byte_size for pointer arithmetic.

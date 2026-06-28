@@ -204,7 +204,7 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     const auto last = values.back();
     if(last->kind() == ValueKind::Identifier) {
         const auto last_id = last->as_identifier_unsafe();
-        if(last_id->linked->kind() == ASTNodeKind::EnumMember) {
+        if(last_id->linked && last_id->linked->kind() == ASTNodeKind::EnumMember) {
             return last_id->linked->as_enum_member_unsafe()->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
         }
     }

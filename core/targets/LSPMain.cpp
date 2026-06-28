@@ -1,4 +1,3 @@
-
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include <lsp/messages.h> // Generated message definitions
@@ -45,22 +44,12 @@ std::vector<std::string> getTokenTypes() {
     };
 }
 
-// 2) Per-client session: runs the LSP loop until error or disconnect
-void run_session(
-        std::atomic_bool& g_shutdown,
-        lsp::io::SocketListener& listener,
-        lsp::io::Socket socket
+// Shared handler registration used by both socket (run_session) and stdio (run_stdio_session) transports
+static void registerDefaultHandlers(
+        lsp::MessageHandler& handler,
+        WorkspaceManager& manager,
+        std::function<std::nullptr_t()> onShutdown
 ) {
-  try {
-
-    auto exePath = getExecutablePath();
-
-    bool local_shutdown = false;
-//    SocketStream stream();
-    lsp::Connection connection(socket);
-    lsp::MessageHandler handler(connection);
-    WorkspaceManager manager(exePath.c_str(), handler);
-
     handler.add<lsp::requests::Initialize>([&manager](lsp::InitializeParams&& params){
 
 #ifdef DEBUG_LOG_REQS
@@ -267,11 +256,33 @@ void run_session(
         }
     });
 
-    handler.add<lsp::requests::Shutdown>([&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
+    // Shutdown handler uses the user-provided callback
+    handler.add<lsp::requests::Shutdown>([onShutdown = std::move(onShutdown)]() -> std::nullptr_t {
 #ifdef DEBUG_LOG_REQS
         std::cout << "[lsp] lsp::requests::Shutdown" << std::endl;
 #endif
-        // 1) mark both local and global shutdown
+        onShutdown();
+        return nullptr;
+    });
+}
+
+// 2) Per-client session: runs the LSP loop until error or disconnect (TCP socket)
+void run_session(
+        std::atomic_bool& g_shutdown,
+        lsp::io::SocketListener& listener,
+        lsp::io::Socket socket
+) {
+  try {
+
+    auto exePath = getExecutablePath();
+
+    bool local_shutdown = false;
+//    SocketStream stream();
+    lsp::Connection connection(socket);
+    lsp::MessageHandler handler(connection);
+    WorkspaceManager manager(exePath.c_str(), handler);
+
+    registerDefaultHandlers(handler, manager, [&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
         local_shutdown = true;
         g_shutdown.store(true, std::memory_order_relaxed);
         return nullptr;
@@ -289,7 +300,7 @@ void run_session(
     socket.close();
 
     // If this was *the* session that asked us to shut down,
-    // we should also close the acceptor (to break out of main’s accept loop):
+    // we should also close the acceptor (to break out of main's accept loop):
     if (g_shutdown.load(std::memory_order_relaxed)) {
         listener.shutdown();
     }
@@ -305,6 +316,40 @@ void run_session(
     std::cerr << "[LSP][Fatal] Unknown error\n";
   }
   // thread exits, socket closed on destruction
+}
+
+// 3) stdio session: runs the LSP loop over stdin/stdout
+void run_stdio_session() {
+  try {
+    auto exePath = getExecutablePath();
+    bool local_shutdown = false;
+
+    std::cout << "[LSP] Using stdio transport" << std::endl;
+
+    lsp::io::Stream& stream = lsp::io::standardIO();
+    lsp::Connection connection(stream);
+    lsp::MessageHandler handler(connection);
+    WorkspaceManager manager(exePath.c_str(), handler);
+
+    registerDefaultHandlers(handler, manager, [&local_shutdown]() -> std::nullptr_t {
+        local_shutdown = true;
+        return nullptr;
+    });
+
+    // Main loop: will block inside processIncomingMessages()
+    while (!local_shutdown) {
+        handler.processIncomingMessages();
+    }
+
+    std::cout << "[LSP] Shutting down (stdio)." << std::endl;
+
+  } catch (const lsp::RequestError& e) {
+    std::cerr << "[LSP][RequestError] " << e.code() << ": " << e.what() << "\n";
+  } catch (const std::exception& e) {
+    std::cerr << "[LSP][Fatal] Unexpected exception: " << e.what() << "\n";
+  } catch (...) {
+    std::cerr << "[LSP][Fatal] Unknown error\n";
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -324,6 +369,7 @@ int main(int argc, char *argv[]) {
             CmdOption("shmName", CmdOptionType::SingleValue),
             CmdOption("evtChildDone", CmdOptionType::SingleValue),
             CmdOption("evtParentAck", CmdOptionType::SingleValue),
+            CmdOption("stdio", CmdOptionType::NoValue),
 #ifdef DEBUG
             CmdOption("run-tests", CmdOptionType::NoValue),
 #endif
@@ -342,6 +388,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 #endif
+
+    // --stdio mode: use stdin/stdout transport instead of TCP socket
+    if (options.has_value("stdio")) {
+        run_stdio_session();
+        return 0;
+    }
 
     auto& compileOpt = options.cmd_opt("cc");
     if(compileOpt.has_multi_value()) {

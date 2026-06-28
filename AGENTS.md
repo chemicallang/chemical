@@ -495,6 +495,93 @@ Tests in `lang/tests/native_common/src/` run AFTER common tests (as test 98+) fr
 - **Struct pointers (`&raw struct_val`)**: Not supported — returns an error from `AddrOfValue::evaluated_value()`.
 - **Error visibility**: Failures in native_common tests don't produce "Test N failed" output because the error happens inside the lambda before `test()` can print. Look for `[warning]` or `[InterpretError]` messages to diagnose.
 
+## Debugging: Isolating a Single Test Case
+
+Running the full test suite (`./scripts/test.sh --tcc`) on every iteration is time consuming.
+The test modules are large and produce very long LLVM IR and C translation outputs, making
+it hard to find the exact code for a single test failure.
+
+### The Workflow
+
+Instead of running the full suite, **isolate the failing test** by copying its source code
+(plus any types/functions it depends on) into a single stand-alone file at
+`lang/compiled/temp.ch`. The `lang/compiled/` directory is in `.gitignore`,
+so no files there will be committed.
+
+You can then compile that single file directly with either the `Compiler` (LLVM) or
+`TCCCompiler` (TinyCC/C translation) targets. This gives you:
+- A focused LLVM IR dump for just your test case
+- A focused C translation output for just your test case
+- A compiled executable you can run directly
+- The ability to add debug logs, recompile, and re-run quickly
+
+### Rebuilding the Compiler First
+
+After making changes to C++ source files (`.cpp`/`.h`), **always rebuild the compiler
+binary** before compiling your test case:
+
+```bash
+# For Compiler target (LLVM/Clang backend):
+./scripts/build.sh --llvm
+
+# For TCCCompiler target (TinyCC backend):
+./scripts/build.sh --tcc
+```
+
+> ⚠️ If you skip rebuilding, the old binary is used and your C++ changes are **ignored**.
+
+### Compiling a Standalone Test File (Compiler / LLVM Backend)
+
+Use the `Compiler` binary to compile `temp.ch` and emit LLVM IR:
+
+```bash
+cmake-build-debug/Compiler "lang/compiled/temp.ch" --out-ll-all --build-dir "lang/compiled" \
+    -o "lang/compiled/temp.exe" --mode debug_complete --debug-ir -v --assertions -fno-unwind-tables
+```
+
+**Output:**
+- Executable at `lang/compiled/temp.exe`
+- LLVM IR at `lang/compiled/modules/main/llvm_ir.ll`
+
+**Run the compiled executable:**
+```bash
+./lang/compiled/temp.exe
+```
+
+**Flag explanations:**
+- `--mode debug_complete` — adds maximum debug information (omit for cleaner IR without debug metadata)
+- `--debug-ir` — don't crash on potentially bad IR (LLVM's own validation may still crash)
+- `--assertions` — verify the generated IR is valid
+- `-fno-unwind-tables` — makes the IR cleaner (on Windows, removes unwind data above every function)
+- `-v` — verbose output
+
+### Compiling a Standalone Test File (TCCCompiler / C Translation)
+
+Use the `TCCCompiler` binary to translate to C or produce an executable:
+
+```bash
+# Emit C translation output (file extension determines behavior):
+cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.c" -v -bm-modules
+
+# Produce an executable:
+cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.exe" -v -bm-modules
+```
+
+**Flag explanations:**
+- `-v` — verbose output
+- `-bm-modules` — emit build module information
+- `--mode debug_quick` — minimal debug info (omit for even less noise)
+- Use mode `debug_complete` for maximum debug information
+
+### Quick Iteration Loop
+
+1. Write/update the test case in `lang/compiled/temp.ch`
+2. If you changed C++ code: rebuild the compiler (see above)
+3. Compile the test case with one of the commands above
+4. Run the compiled executable and check the output
+5. Inspect the LLVM IR or C translation output to find codegen bugs
+6. Add debug logs to the compiler source, rebuild, and repeat
+
 ## Compiled Packages (`lang/compiled/`)
 
 

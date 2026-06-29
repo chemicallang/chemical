@@ -92,8 +92,9 @@ func render_universal_jsx(
                             ssrTextStructVal.add_value("size", builder.make_ubigint_value(0, location));
                             call.get_args().push(ssrTextStructVal);
                         } else {
+                            var getHtmlSizeId = builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location)
                             var getSizeCall = builder.make_function_call_value(
-                                builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, getHtmlSizeId ]), location),
                                 location
                             );
                             var startIdxNameStr = std::string();
@@ -131,12 +132,14 @@ func render_universal_jsx(
                                 location
                             );
                             var startIdxId = builder.make_identifier(&startIdxName, startIdxVar, false, location);
+                            const dataId = builder.make_identifier(view("data"), converter.support.dataFn, false, location)
                             var dataCall = builder.make_function_call_value(
-                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, dataId ]), location),
                                 location
                             );
+                            const sizeId = builder.make_identifier(view("size"), converter.support.sizeFn, false, location)
                             var sizeCall = builder.make_function_call_value(
-                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, pageHtmlId, sizeId ]), location),
                                 location
                             );
 
@@ -144,8 +147,9 @@ func render_universal_jsx(
                             appendCall.get_args().push(builder.make_expression_value(sizeCall, startIdxId, Operation.Subtraction, sizeCall.getType(), location));
                             converter.vec.push(appendCall);
 
+                            const truncateHtmlId = builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location)
                             var truncateCall = builder.make_function_call_node(
-                                builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ pageId, truncateHtmlId ]), location),
                                 converter.parent,
                                 location
                             );
@@ -154,11 +158,11 @@ func render_universal_jsx(
 
                             const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
                             var dataCall2 = builder.make_function_call_value(
-                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, dataId ]), location),
                                 location
                             );
                             var sizeCall2 = builder.make_function_call_value(
-                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+                                builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, sizeId ]), location),
                                 location
                             );
                             ssrTextStructVal.add_value("data", dataCall2);

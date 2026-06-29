@@ -6,7 +6,7 @@ func (converter : &mut ASTConverter) emit_append_js_call(value : *mut Value, len
 
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
     var id = builder.make_identifier(std::string_view("append_js"), support.appendJsFn, false, location)
-    const chain = builder.make_access_chain(&std::span<*mut Value>([ base as *mut Value, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
 
     var args = call.get_args()

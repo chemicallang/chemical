@@ -1119,15 +1119,18 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                     var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
                     var childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
 
+                    const appendHtmlId = builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location)
                     var appendCall = builder.make_function_call_node(
-                        builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location) ]), location),
+                        builder.make_access_chain(&std::span<*mut Value>([ pageId, appendHtmlId ]), location),
                         converter.parent,
                         location
                     );
                     const dataIdNode = converter.support.childrenParamNode.child("data");
                     const sizeIdNode = converter.support.childrenParamNode.child("size");
-                    const childrenDataAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, builder.make_identifier(view("data"), dataIdNode, false, location) ]), location);
-                    const childrenSizeAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, builder.make_identifier(view("size"), sizeIdNode, false, location) ]), location);
+                    const dataId = builder.make_identifier(view("data"), dataIdNode, false, location)
+                    const childrenDataAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, dataId ]), location);
+                    const sizeId = builder.make_identifier(view("size"), sizeIdNode, false, location)
+                    const childrenSizeAccess = builder.make_access_chain(&std::span<*mut Value>([ childrenId, sizeId ]), location);
                     const appendCallParams = appendCall.get_args();
                     appendCallParams.push(childrenDataAccess);
                     appendCallParams.push(childrenSizeAccess);

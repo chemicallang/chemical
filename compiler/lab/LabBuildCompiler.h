@@ -126,7 +126,7 @@ public:
     /**
      * the current job being compiled
      */
-    LabJob* current_job;
+    LabJob* current_job = nullptr;
 
     /**
      * used to resolve remote imports conflicts manually, via command line

@@ -592,7 +592,7 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
 }
 
 bool is_interpretation_mode(InterpretScope* call_scope) {
-    const auto curr_job = call_scope->global->build_compiler->current_job;
+    const auto curr_job = call_scope->global->build_compiler ? call_scope->global->build_compiler->current_job : nullptr;
     return curr_job ? curr_job->type == LabJobType::Interpretation : false;
 }
 

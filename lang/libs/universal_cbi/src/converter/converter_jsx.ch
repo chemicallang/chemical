@@ -165,8 +165,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // we render the children into page
         // then take the page's html string and pass it to child component
 
+        const getHtmlSizeId = builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location)
         var getSizeCall = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, getHtmlSizeId ]), location),
             location
         );
         var startIdxNameStr = std::string();
@@ -179,7 +180,8 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         // 3. Extract range and truncate
         var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-        var pageHtmlAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId2, builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location) ]), location);
+        const pageHtmlId = builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location)
+        var pageHtmlAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId2, pageHtmlId ]), location);
 
         var childrenHtmlNameStr = std::string();
         childrenHtmlNameStr.append_view("childrenHtml_");
@@ -197,18 +199,21 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         }
 
         var childrenHtmlId = builder.make_identifier(&childrenHtmlName, childrenHtmlVar , false, location);
+        const appendWithLenId = builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location)
         var appendCall = builder.make_function_call_node(
-            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, appendWithLenId ]), location),
             converter.parent,
             location
         );
         var startIdxId = builder.make_identifier(&startIdxName, startIdxVar , false, location);
+        const dataId = builder.make_identifier(view("data"), converter.support.dataFn, false, location)
         var dataCall = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, dataId ]), location),
             location
         );
+        const sizeId = builder.make_identifier(view("size"), converter.support.sizeFn, false, location)
         var sizeCall = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, sizeId ]), location),
             location
         );
         
@@ -217,8 +222,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         body.push(appendCall);
 
         var pageId3 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+        const truncateHtmlId = builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location)
         var truncateCall = builder.make_function_call_node(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId3, builder.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId3, truncateHtmlId ]), location),
             converter.parent,
             location
         );
@@ -227,13 +233,13 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 
         // 4. Construct SsrText and pass as 3rd arg
         const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
-        
+
         var dataCall2 = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("data"), converter.support.dataFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, dataId ]), location),
             location
         );
         var sizeCall2 = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, builder.make_identifier(view("size"), converter.support.sizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, sizeId ]), location),
             location
         );
         
@@ -260,8 +266,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         const support = converter.support;
         var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
 
+        const getHtmlSize = builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location)
         var getSizeCall = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, getHtmlSize ]), location),
             location
         );
         var sIdxNameStr = std::string("sIdx_");
@@ -285,8 +292,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.str.append_view("(() => { const html = `");
         converter.put_chain_in();
 
+        const captureHtmlDeltaToJsId = builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location)
         const capCall = builder.make_function_call_node(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location) ]), location),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, captureHtmlDeltaToJsId ]), location),
             converter.parent,
             location
         );

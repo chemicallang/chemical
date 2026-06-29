@@ -5,7 +5,7 @@ func (converter : &mut ASTConverter) make_write_to_page_call(value : *mut Value,
     const location = intrinsics::get_raw_location();
     var pageArg = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var id = builder.make_identifier(&fn_name, fnPtr, false, location);
-    const chain = builder.make_access_chain(&std::span<*mut Value>([ value as *mut Value, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ value, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(pageArg)

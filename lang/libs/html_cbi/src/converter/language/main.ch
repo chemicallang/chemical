@@ -80,7 +80,7 @@ func (converter : &mut ASTConverter) resolve_and_put_prop(element : *mut HtmlEle
                 var part = std::string_view(path.data() + remStart, nextDot - remStart);
                 
                 var id = builder.make_identifier(&part, null, false, loc);
-                const chain = builder.make_access_chain(&std::span<*mut Value>([ current as *mut Value, id as *mut Value ]), loc)
+                const chain = builder.make_access_chain(&std::span<*mut Value>([ current, id ]), loc)
                 current = chain as *mut Value;
                 
                 if(nextDot == path.size()) break;
@@ -225,7 +225,7 @@ func (converter : &mut ASTConverter) emit_append_html_call(value : *mut Value, l
     var name = if (converter.in_head) std::string_view("append_head") else std::string_view("append_html")
     var fnPtr = if (converter.in_head) support.appendHeadFn else support.appendHtmlFn
     var id = builder.make_identifier(&name, fnPtr, false, location)
-    const chain = builder.make_access_chain(&std::span<*mut Value>([ base as *mut Value, id ]), location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     
     var args = call.get_args()

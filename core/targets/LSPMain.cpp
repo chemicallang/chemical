@@ -23,6 +23,7 @@
 #include "server/build/ChildProcessBuild.h"
 #include "server/build/ContextSerialization.h"
 #include "server/tests/LspTests.h"
+#include "server/model/ClientKind.h"
 
 #include <sstream>
 #include <iostream>
@@ -33,7 +34,7 @@
 #define DEBUG_LOG_REQS
 #endif
 
-std::vector<std::string> getTokenTypes() {
+std::vector<std::string> getTokenTypes(ClientKind client_kind = ClientKind::Unknown) {
     // the order here is insanely important
     // because these entries correspond to enum entries
     return {
@@ -72,7 +73,7 @@ static void registerDefaultHandlers(
              lsp::SemanticTokensOptions{
                  .workDoneProgress = false,
                  .legend = {
-                     getTokenTypes(),
+                     getTokenTypes(manager.client_kind),
                     { "declaration","definition","readonly","static","deprecated","abstract","async","modification","documentation","defaultlibrary", }
                  },
                  .range = false,
@@ -270,7 +271,8 @@ static void registerDefaultHandlers(
 void run_session(
         std::atomic_bool& g_shutdown,
         lsp::io::SocketListener& listener,
-        lsp::io::Socket socket
+        lsp::io::Socket socket,
+        ClientKind client_kind = ClientKind::Unknown
 ) {
   try {
 
@@ -281,6 +283,7 @@ void run_session(
     lsp::Connection connection(socket);
     lsp::MessageHandler handler(connection);
     WorkspaceManager manager(exePath.c_str(), handler);
+    manager.client_kind = client_kind;
 
     registerDefaultHandlers(handler, manager, [&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
         local_shutdown = true;
@@ -319,7 +322,7 @@ void run_session(
 }
 
 // 3) stdio session: runs the LSP loop over stdin/stdout
-void run_stdio_session() {
+void run_stdio_session(ClientKind client_kind = ClientKind::Unknown) {
   try {
     auto exePath = getExecutablePath();
     bool local_shutdown = false;
@@ -330,6 +333,7 @@ void run_stdio_session() {
     lsp::Connection connection(stream);
     lsp::MessageHandler handler(connection);
     WorkspaceManager manager(exePath.c_str(), handler);
+    manager.client_kind = client_kind;
 
     registerDefaultHandlers(handler, manager, [&local_shutdown]() -> std::nullptr_t {
         local_shutdown = true;
@@ -370,6 +374,7 @@ int main(int argc, char *argv[]) {
             CmdOption("evtChildDone", CmdOptionType::SingleValue),
             CmdOption("evtParentAck", CmdOptionType::SingleValue),
             CmdOption("stdio", CmdOptionType::NoValue),
+            CmdOption("client", CmdOptionType::SingleValue),
 #ifdef DEBUG
             CmdOption("run-tests", CmdOptionType::NoValue),
 #endif
@@ -389,9 +394,22 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+    // --client flag: override client detection (e.g. "zed", "vscode")
+    ClientKind client_kind = ClientKind::Unknown;
+    if(options.has_value("client")) {
+        auto client_str = options.option_new("client").value();
+        if(client_str == "zed" || client_str == "Zed") {
+            client_kind = ClientKind::Zed;
+        } else if(client_str == "vscode" || client_str == "VS Code") {
+            client_kind = ClientKind::VSCode;
+        } else if(client_str == "intellij" || client_str == "IntelliJ" || client_str == "IntelliJ IDEA") {
+            client_kind = ClientKind::IntelliJ;
+        }
+    }
+
     // --stdio mode: use stdin/stdout transport instead of TCP socket
     if (options.has_value("stdio")) {
-        run_stdio_session();
+        run_stdio_session(client_kind);
         return 0;
     }
 
@@ -475,7 +493,7 @@ int main(int argc, char *argv[]) {
             std::cout << "[LSP] Accepted connection"  << std::endl;
 
             // Detach a thread to serve this client
-            std::thread(&run_session, std::ref(g_shutdown), std::ref(socketListener), std::move(socket)).detach();
+            std::thread(&run_session, std::ref(g_shutdown), std::ref(socketListener), std::move(socket), client_kind).detach();
 
         }
 

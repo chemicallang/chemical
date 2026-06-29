@@ -15,6 +15,7 @@
 #include "utils/LRUCache.h"
 #include <future>
 #include "server/model/LexResult.h"
+#include "server/model/ClientKind.h"
 #include "server/model/ASTResult.h"
 #include "server/model/AnonymousFileData.h"
 #include "compiler/cbi/model/CompilerBinder.h"
@@ -65,6 +66,11 @@ namespace lsp {
  */
 class WorkspaceManager {
 public:
+
+    /**
+     * identifies the client (zed, vscode, etc.) for client-specific behavior
+     */
+    ClientKind client_kind = ClientKind::Unknown;
 
     /**
      * the argv is the path to the lsp executable

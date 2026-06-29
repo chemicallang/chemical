@@ -201,6 +201,19 @@ int WorkspaceManager::build_context_from_build_lab() {
 }
 
 void WorkspaceManager::initialize(const lsp::InitializeParams &params) {
+
+    // detect client from protocol if not overridden via CLI
+    if(client_kind == ClientKind::Unknown && params.clientInfo.has_value()) {
+        auto& name = params.clientInfo->name;
+        if(name.find("Zed") != std::string::npos) {
+            client_kind = ClientKind::Zed;
+        } else if(name.find("Visual Studio Code") != std::string::npos || name.find("VS Code") != std::string::npos || name.find("vscode") != std::string::npos) {
+            client_kind = ClientKind::VSCode;
+        } else if(name.find("IntelliJ IDEA") != std::string::npos || name.find("intellij") != std::string::npos) {
+            client_kind = ClientKind::IntelliJ;
+        }
+    }
+
     if(!params.rootUri.isNull()) {
         project_path = canonical_path(params.rootUri->path());
         // compile build.lab asynchronously

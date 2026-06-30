@@ -182,8 +182,11 @@ int WorkspaceManager::build_context_from_build_lab() {
             auto result = launch_child_build(context_information, lsp_exe_path, mod_file);
             if(result == 0) {
                 post_build_lab();
+                report_build_failure(mod_file, "");
             } else {
                 std::cerr << "[lsp] failed build '" << mod_file << "'" << std::endl;
+                report_build_failure(mod_file,
+                    "Build file compilation failed. Configure the project or run it in the terminal to see detailed errors.");
             }
         }
         auto lab_path = get_build_lab_path();
@@ -192,8 +195,11 @@ int WorkspaceManager::build_context_from_build_lab() {
             auto result = launch_child_build(context_information, lsp_exe_path, lab_path);
             if(result == 0) {
                 post_build_lab();
+                report_build_failure(lab_path, "");
             } else {
                 std::cerr << "[lsp] failed build '" << lab_path << "'" << std::endl;
+                report_build_failure(lab_path,
+                    "Build file compilation failed. Configure the project or run it in the terminal to see detailed errors.");
             }
         }
     });
@@ -584,6 +590,36 @@ void WorkspaceManager::onClosedFile(const std::string &path) {
 
 void WorkspaceManager::clearAllStoredContents() {
     overriddenSources.clear();
+}
+
+void WorkspaceManager::report_build_failure(const std::string& buildFilePath, const std::string& errorMsg) {
+
+    // Cancel any pending publish_diagnostics task so it doesn't overwrite
+    {
+        std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
+        if (publish_diagnostics_task.valid()) {
+            publish_diagnostics_cancel_flag.store(true);
+            publish_diagnostics_task.wait();
+        }
+        publish_diagnostics_cancel_flag.store(false);
+    }
+
+    if(errorMsg.empty()) {
+        // Clear build diagnostics
+        notify_diagnostics(buildFilePath, {});
+    } else {
+        // Report build failure as diagnostic on the build file
+        std::vector<lsp::Diagnostic> diags;
+        diags.emplace_back(
+            lsp::Range(
+                lsp::Position(0, 0),
+                lsp::Position(0, 1)
+            ),
+            errorMsg,
+            lsp::DiagnosticSeverity::Error
+        );
+        notify_diagnostics(buildFilePath, std::move(diags));
+    }
 }
 
 WorkspaceManager::~WorkspaceManager() {

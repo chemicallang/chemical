@@ -824,6 +824,10 @@ Value* evaluate_comptime_func(
         // visitor.error("comptime function call didn't return anything", call);
         return nullptr;
     }
+    // TODO: no use evaluating the value again
+    // the value is already being evaluated in the set_return
+    // but removing this causes bugs, so we keep it
+    // once we have shifted to runtime value, we can discard this
     auto eval_call = value->evaluated_value(visitor.comptime_scope);
     visitor.evaluated_func_calls[call] = eval_call;
     return eval_call;

@@ -18,11 +18,14 @@
 class WrapValue : public Value {
 public:
     Value* underlying;
-    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, underlying->getType(), ZERO_LOC), underlying(underlying) {
+    explicit constexpr WrapValue(Value* underlying) : Value(ValueKind::WrapValue, underlying->getType(), ZERO_LOC), underlying(underlying) {
+
+    }
+    explicit constexpr WrapValue(Value* underlying, BaseType* type) : Value(ValueKind::WrapValue, type, ZERO_LOC), underlying(underlying) {
 
     }
     Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));
+        return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator), getType()->copy(allocator));
     }
     Value* evaluated_value(InterpretScope &scope) final {
         return underlying;

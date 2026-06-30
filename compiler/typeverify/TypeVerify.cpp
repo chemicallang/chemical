@@ -345,6 +345,10 @@ void TypeVerifier::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     }
 }
 
+void TypeVerifier::VisitWrapValue(WrapValue* value) {
+    visit(value->underlying);
+}
+
 constexpr auto NonPublicDeclCallError = "calling a non-public function in a public generic declaration is not allowed, please use public/protected";
 constexpr auto NonPublicDeclError = "non-public decl is being called in a public generic context, please use public/protected";
 

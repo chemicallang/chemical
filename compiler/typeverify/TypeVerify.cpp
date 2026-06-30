@@ -5,6 +5,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/RuntimeValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ImplDefinition.h"
@@ -345,7 +346,7 @@ void TypeVerifier::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     }
 }
 
-void TypeVerifier::VisitWrapValue(WrapValue* value) {
+void TypeVerifier::VisitRuntimeValue(RuntimeValue* value) {
     visit(value->underlying);
 }
 

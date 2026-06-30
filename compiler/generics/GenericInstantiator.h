@@ -215,7 +215,7 @@ public:
 
     void VisitDereferenceValue(DereferenceValue* value);
 
-    void VisitWrapValue(WrapValue* value);
+    void VisitRuntimeValue(RuntimeValue* value);
 
     void VisitExpression(Expression *expr);
 

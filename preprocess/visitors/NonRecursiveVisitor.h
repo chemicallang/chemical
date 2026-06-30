@@ -387,6 +387,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitRuntimeValue(RuntimeValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitExtractionValue(ExtractionValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -849,6 +853,9 @@ public:
                 return;
             case ValueKind::WrapValue:
                 static_cast<Derived*>(this)->VisitWrapValue((WrapValue*) value);
+                return;
+            case ValueKind::RuntimeValue:
+                static_cast<Derived*>(this)->VisitRuntimeValue((RuntimeValue*) value);
                 return;
             case ValueKind::ExtractionValue:
                 static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);

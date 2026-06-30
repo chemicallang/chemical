@@ -247,9 +247,9 @@ public struct CommandLineStream {
 }
 
 public comptime func print(expr : %expressive_string) : any {
-    return intrinsics::wrap(intrinsics::expr_str_block_value(CommandLineStream{}, expr))
+    return %runtime_value(intrinsics::expr_str_block_value(CommandLineStream{}, expr))
 }
 
 public comptime func println(expr : %expressive_string) : any {
-    return intrinsics::wrap(intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n'))
+    return %runtime_value(intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n'))
 }

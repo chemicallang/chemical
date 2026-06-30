@@ -70,7 +70,7 @@ public struct string {
 
     @constructor
     comptime func make(value : %literal_string) {
-        return intrinsics::wrap(constructor2(value, intrinsics::size(value), false))
+        return %runtime_value(constructor2(value, intrinsics::size(value), false))
     }
 
     @constructor
@@ -366,7 +366,7 @@ public struct string {
     }
 
     comptime func append_expr(&mut self, expr : %expressive_string) {
-        return intrinsics::wrap(intrinsics::expr_str_block_value(StringStream { str : self }, expr)) as void
+        return %runtime_value(intrinsics::expr_str_block_value(StringStream { str : self }, expr)) as void
     }
 
     func append_char_ptr(&mut self, value : *char) {

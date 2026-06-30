@@ -522,8 +522,8 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
     }
 }
 
-void GenericInstantiator::VisitWrapValue(WrapValue* value) {
-    RecursiveVisitor<GenericInstantiator>::VisitWrapValue(value);
+void GenericInstantiator::VisitRuntimeValue(RuntimeValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitRuntimeValue(value);
     value->getType()->as_runtime_type_unsafe()->underlying = value->underlying->getType();
 }
 

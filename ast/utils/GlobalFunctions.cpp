@@ -596,6 +596,14 @@ bool is_interpretation_mode(InterpretScope* call_scope) {
     return curr_job ? curr_job->type == LabJobType::Interpretation : false;
 }
 
+Value* runtime_value_of(InterpretScope& scope, Value* underlying) {
+    // In interpretation mode, wrap is a no-op since there is no runtime
+    if (is_interpretation_mode(&scope)) {
+        return underlying->evaluated_value(scope);
+    }
+    return evaluated_comptime(underlying, scope);
+}
+
 class InterpretWrap : public FunctionDeclaration {
 public:
 

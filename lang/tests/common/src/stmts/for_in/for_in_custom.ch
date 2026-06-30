@@ -20,7 +20,7 @@ struct span<T> {
     @implicit
     @constructor
     comptime func make2(array : []%maybe_runtime<T>) {
-        return intrinsics::wrap(constructor<T>(array, intrinsics::size(array)))
+        return %runtime_value(constructor<T>(array, intrinsics::size(array)))
     }
 
     @constructor

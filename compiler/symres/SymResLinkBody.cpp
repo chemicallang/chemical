@@ -48,6 +48,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/RuntimeValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "compiler/symres/SymbolResolver.h"
@@ -2589,7 +2590,7 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     value->ptr_type.type = value->value->getType();
 }
 
-void SymResLinkBody::VisitWrapValue(WrapValue* value) {
+void SymResLinkBody::VisitRuntimeValue(RuntimeValue* value) {
     visit(value->underlying);
     const auto runtimeType = value->getType()->as_runtime_type_unsafe();
     runtimeType->underlying = value->underlying->getType();

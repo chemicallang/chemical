@@ -9,9 +9,9 @@ struct Pair66 {
     @constructor
     comptime func check(value : bool) {
         if(value){
-            return intrinsics::wrap(first())
+            return %runtime_value(first())
         } else {
-            return intrinsics::wrap(second())
+            return %runtime_value(second())
         }
     }
 
@@ -107,7 +107,7 @@ comptime func return_runtime_sum() : (a : int, b : int) => int {
 }
 
 comptime func sum_multiple(x : int) : int {
-    return intrinsics::wrap(runtime_sum(x * 2, x * 2)) as int;
+    return %runtime_value(runtime_sum(x * 2, x * 2)) as int;
 }
 
 func ret_struct_comptime() : Pair66 {
@@ -130,7 +130,7 @@ func ret_struct_implicit_b() : Pair66 {
 struct CompTimeCounter {
     @constructor
     comptime func constructor(thing : %runtime<*mut int>) {
-        return intrinsics::wrap(actual(thing, 1));
+        return %runtime_value(actual(thing, 1));
     }
     @constructor
     func actual(thing : *mut int, inc : int) {

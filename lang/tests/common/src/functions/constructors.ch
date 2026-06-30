@@ -30,7 +30,7 @@ struct constructable_obj_comptime {
     @implicit
     @constructor
     comptime func make(value : %literal_string) {
-        return intrinsics::wrap(constructor(value, intrinsics::size(value)))
+        return %runtime_value(constructor(value, intrinsics::size(value)))
     }
 
     @constructor

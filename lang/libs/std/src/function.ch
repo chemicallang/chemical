@@ -33,7 +33,7 @@ public struct default_function_instance {
         const destr = intrinsics::get_lambda_cap_destructor(lambda)
         const size_data = intrinsics::sizeof_lambda_captured(lambda);
         const align_data = intrinsics::alignof_lambda_captured(lambda)
-        return intrinsics::wrap(make2(ptr, cap, destr as destructor_type, size_data, align_data))
+        return %runtime_value(make2(ptr, cap, destr as destructor_type, size_data, align_data))
     }
 
     @make

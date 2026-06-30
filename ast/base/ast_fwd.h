@@ -230,6 +230,8 @@ class LambdaFunction;
 
 class TypeInsideValue;
 
+class RuntimeValue;
+
 class AnyType;
 
 class ArrayType;

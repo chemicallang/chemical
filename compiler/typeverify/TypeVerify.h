@@ -130,7 +130,7 @@ public:
 
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
-    void VisitWrapValue(WrapValue* value);
+    void VisitRuntimeValue(RuntimeValue* value);
 
     // -------- Generic Declarations ------------
     // -------- Only Template is visited --------

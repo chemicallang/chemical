@@ -274,7 +274,7 @@ public:
 
     void VisitPlacementNewValue(PlacementNewValue* value);
 
-    void VisitWrapValue(WrapValue* value);
+    void VisitRuntimeValue(RuntimeValue* value);
 
     void VisitNotValue(NotValue* value);
 

@@ -509,7 +509,7 @@ public namespace lab {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return intrinsics::wrap(curr_dir_of(loc_path, loc_path_size)) as std::string
+        return %runtime_value(curr_dir_of(loc_path, loc_path_size)) as std::string
     }
 
     // TODO: remove retained, once runtime magic val support is available
@@ -522,7 +522,7 @@ public namespace lab {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return intrinsics::wrap(view_of(loc_path, loc_path_size)) as std::string_view
+        return %runtime_value(view_of(loc_path, loc_path_size)) as std::string_view
     }
 
     // TODO: remove retained, once runtime magic val support is available
@@ -533,7 +533,7 @@ public namespace lab {
     }
 
     public comptime func rel_path_to(path : *char) : std::string {
-        return intrinsics::wrap(appended_str(curr_dir(), path)) as std::string
+        return %runtime_value(appended_str(curr_dir(), path)) as std::string
     }
 
 }

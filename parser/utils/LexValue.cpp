@@ -45,7 +45,7 @@
 #include "ast/values/AddrOfValue.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "ast/values/ExpressiveString.h"
-#include "ast/values/WrapValue.h"
+#include "ast/values/RuntimeValue.h"
 
 bool is_escaped_self(char self) {
     switch(self) {
@@ -813,7 +813,7 @@ Value* Parser::parseMagicValue(ASTAllocator& allocator) {
                 token++;
             }
             const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
-            return new (allocator.allocate<WrapValue>()) WrapValue(expr, runtime_type);
+            return new (allocator.allocate<RuntimeValue>()) RuntimeValue(expr, runtime_type);
         }
         default:
             error("unknown identifier after symbol '%', unrecognized magic value");
@@ -896,7 +896,7 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::LParen:
             return parseParenExpression(allocator);
         case TokenType::ModSym:
-            return parseMagicValue(allocator);
+            return parseAfterValue(allocator, parseMagicValue(allocator));
         case TokenType::NotSym:
             return parseAfterValue(allocator, (Value*) parseNotValue(allocator));
         case TokenType::BitNotSym:

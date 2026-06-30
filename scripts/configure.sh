@@ -43,9 +43,29 @@ CMAKE_ARGS=(-S . -B cmake-build-debug)
 if [ -n "$GENERATOR" ]; then
   CMAKE_ARGS+=(-G "$GENERATOR")
 elif [ -n "${MSYSTEM-}" ]; then
-  # Windows Git Bash / MSYS2 (MinGW GCC or MSVC)
+  # Windows Git Bash / MSYS2
   # → use MinGW Makefiles (matches CLion default, works with both MSVC and MinGW GCC)
   CMAKE_ARGS+=(-G "MinGW Makefiles")
+fi
+
+# ── Detect a usable C++ compiler ─────────────────────────────────────────────
+# On Windows with MSYS2 / Git Bash, cl.exe may be in PATH from a previous VS
+# installation even when the MSVC environment (INCLUDE/LIB) is NOT properly
+# set up.  This causes "fatal error C1083: Cannot open include file" failures.
+#
+# If CHEMICAL_MSVC_READY is not set (msvc_env.sh failed to validate INCLUDE
+# paths) but cl.exe is present, we must force CMake to use MinGW GCC instead.
+#
+if [ -n "${MSYSTEM-}" ] && (command -v cl.exe &>/dev/null || command -v cl &>/dev/null); then
+  if [ "${CHEMICAL_MSVC_READY:-0}" != "1" ]; then
+    # MSVC binary is in PATH but environment is broken — fall back to MinGW
+    if command -v g++.exe &>/dev/null; then
+      echo "[configure] MSVC environment broken (INCLUDE/LIB missing). Falling back to MinGW GCC." >&2
+      CMAKE_ARGS+=(-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++)
+    else
+      echo "[configure] WARNING: cl.exe found but MSVC env broken and no MinGW GCC available." >&2
+    fi
+  fi
 fi
 if [ "$NO_LLVM" = true ]; then
   CMAKE_ARGS+=(-DBUILD_COMPILER=OFF)

@@ -34,7 +34,14 @@ export MSYS2_ARG_CONV_EXCL="/nologo;/EHsc;/Fe;/Fo;/I;/D;/c;/GR;/GR-;/Zi;/Ob;/Od;
 
 # ── 2. Set INCLUDE / LIB for MSVC standard library ──────────────────────────
 # Already set?  Skip (user has run vcvarsall manually or has custom setup).
-[ -n "${INCLUDE-}" ] && [ -n "${LIB-}" ] && return
+if [ -n "${INCLUDE-}" ] && [ -n "${LIB-}" ]; then
+  # Even though INCLUDE/LIB are set, verify cl.exe is actually reachable
+  if command -v cl.exe &>/dev/null; then
+    CHEMICAL_MSVC_READY=1
+    export CHEMICAL_MSVC_READY
+  fi
+  return
+fi
 
 # Locate vswhere
 _vs_vswhere=""
@@ -87,29 +94,61 @@ case "$(uname -m 2>/dev/null || true)" in
   *)            _arch="x64" ;;  # sensible default
 esac
 
-# ── Build include paths ──────────────────────────────────────────────────────
+# ── Build include paths (validate each exists) ──────────────────────────────
 _INCLUDE=""
-_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\include;"
-_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\include;"
-_INCLUDE="${_INCLUDE}${_vs_path}\\VC\\Auxiliary\\VS\\include;"
-_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\ucrt;"
-_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\um;"
-_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\shared;"
-_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\winrt;"
-_INCLUDE="${_INCLUDE}${_kit_path}\\Include\\${_sdk_ver}\\cppwinrt"
+for _base in \
+    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\include" \
+    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\include" \
+    "${_vs_path}\\VC\\Auxiliary\\VS\\include" \
+    "${_kit_path}\\Include\\${_sdk_ver}\\ucrt" \
+    "${_kit_path}\\Include\\${_sdk_ver}\\um" \
+    "${_kit_path}\\Include\\${_sdk_ver}\\shared" \
+    "${_kit_path}\\Include\\${_sdk_ver}\\winrt" \
+    "${_kit_path}\\Include\\${_sdk_ver}\\cppwinrt"; do
+    # Convert Windows path to Unix for existence check
+    _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+    if [ -d "$_ux" ]; then
+        _INCLUDE="${_INCLUDE}${_base};"
+    fi
+done
 
-# ── Build library paths ───────────────────────────────────────────────────────
+# ── Build library paths (validate each exists) ────────────────────────────────
 _LIB=""
-_LIB="${_LIB}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\lib\\${_arch};"
-_LIB="${_LIB}${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\lib\\${_arch};"
-_LIB="${_LIB}${_kit_path}\\Lib\\${_sdk_ver}\\ucrt\\${_arch};"
-_LIB="${_LIB}${_kit_path}\\Lib\\${_sdk_ver}\\um\\${_arch}"
+for _base in \
+    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\lib\\${_arch}" \
+    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\lib\\${_arch}" \
+    "${_kit_path}\\Lib\\${_sdk_ver}\\ucrt\\${_arch}" \
+    "${_kit_path}\\Lib\\${_sdk_ver}\\um\\${_arch}"; do
+    _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+    if [ -d "$_ux" ]; then
+        _LIB="${_LIB}${_base};"
+    fi
+done
 
-# ── Build PATH ──────────────────────────────────────────────────────────────────
-# Add MSVC compiler directory so cl.exe, link.exe etc. are available
-_VSBIN="${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\bin\\Host${_arch}\\${_arch}"
-export PATH="${_VSBIN};${PATH-}"
+# Strip trailing semicolons
+_INCLUDE="${_INCLUDE%;}"
+_LIB="${_LIB%;}"
 
-# ── Export ────────────────────────────────────────────────────────────────────
-export INCLUDE="$_INCLUDE"
-export LIB="$_LIB"
+# ── Validation ────────────────────────────────────────────────────────────────
+CHEMICAL_MSVC_READY=0
+if [ -n "$_INCLUDE" ] && [ -n "$_LIB" ]; then
+    # Verify cl.exe exists in the expected bin directory
+    _VSBIN="${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\bin\\Host${_arch}\\${_arch}"
+    _cl_ux=$(echo "$_VSBIN" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+    if [ -f "${_cl_ux}/cl.exe" ]; then
+        CHEMICAL_MSVC_READY=1
+        export CHEMICAL_MSVC_READY
+
+        # ── Build PATH ────────────────────────────────────────────────────────
+        export PATH="${_VSBIN};${PATH-}"
+
+        # ── Export ────────────────────────────────────────────────────────────
+        export INCLUDE="$_INCLUDE"
+        export LIB="$_LIB"
+    fi
+fi
+
+if [ "$CHEMICAL_MSVC_READY" != 1 ]; then
+    echo "[msvc_env] MSVC environment setup failed — INCLUDE/LIB paths or cl.exe not found." >&2
+    echo "[msvc_env] If MinGW is available, configure.sh will fall back to it automatically." >&2
+fi

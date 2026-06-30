@@ -42,9 +42,9 @@ source "$SCRIPT_DIR/msvc_env.sh"
 CMAKE_ARGS=(-S . -B cmake-build-debug)
 if [ -n "$GENERATOR" ]; then
   CMAKE_ARGS+=(-G "$GENERATOR")
-elif [ -n "${MSYSTEM-}" ] && [ -n "${INCLUDE-}" ]; then
-  # Windows Git Bash + MSVC environment (set by msvc_env.sh)
-  # → use MinGW Makefiles (matches CLion default)
+elif [ -n "${MSYSTEM-}" ]; then
+  # Windows Git Bash / MSYS2 (MinGW GCC or MSVC)
+  # → use MinGW Makefiles (matches CLion default, works with both MSVC and MinGW GCC)
   CMAKE_ARGS+=(-G "MinGW Makefiles")
 fi
 if [ "$NO_LLVM" = true ]; then

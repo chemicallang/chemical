@@ -582,6 +582,12 @@ public:
     void clearAllStoredContents();
 
     /**
+     * publishes build failure diagnostics on the given file path
+     * when errorMsg is empty, clears any existing build diagnostics
+     */
+    void report_build_failure(const std::string& buildFilePath, const std::string& errorMsg);
+
+    /**
      * destructor
      */
     ~WorkspaceManager();

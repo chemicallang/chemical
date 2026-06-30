@@ -16,8 +16,6 @@ public:
 
     friend class NewValue;
 
-    static const PointerType void_ptr_instance;
-
     BaseType* type;
     bool is_mutable;
 

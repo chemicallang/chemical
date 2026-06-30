@@ -27,6 +27,7 @@
 #include "compiler/ASTProcessor.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
+#include <lsp/messagehandler.h>
 #include "server/analyzers/FormatterAnalyzer.h"
 #include <iostream>
 #include <fstream>
@@ -594,7 +595,7 @@ void WorkspaceManager::clearAllStoredContents() {
 
 void WorkspaceManager::report_build_failure(const std::string& buildFilePath, const std::string& errorMsg) {
 
-    // Cancel any pending publish_diagnostics task so it doesn't overwrite
+    // Cancel any pending publish_diagnostics task to avoid races
     {
         std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
         if (publish_diagnostics_task.valid()) {
@@ -604,22 +605,17 @@ void WorkspaceManager::report_build_failure(const std::string& buildFilePath, co
         publish_diagnostics_cancel_flag.store(false);
     }
 
-    if(errorMsg.empty()) {
-        // Clear build diagnostics
-        notify_diagnostics(buildFilePath, {});
-    } else {
-        // Report build failure as diagnostic on the build file
-        std::vector<lsp::Diagnostic> diags;
-        diags.emplace_back(
-            lsp::Range(
-                lsp::Position(0, 0),
-                lsp::Position(0, 1)
-            ),
-            errorMsg,
-            lsp::DiagnosticSeverity::Error
-        );
-        notify_diagnostics(buildFilePath, std::move(diags));
+    // Send a custom notification instead of publishing diagnostics on the file.
+    // publishDiagnostics replaces ALL diagnostics for the given URI, which would
+    // erase the detailed per-problem diagnostics (import errors, syntax issues, etc.)
+    // that the normal LSP analysis produces for chemical.mod / build.lab files.
+    auto obj = lsp::json::Object();
+    obj["success"] = lsp::json::Value(errorMsg.empty());
+    obj["uri"] = lsp::json::Value(std::string(buildFilePath));
+    if(!errorMsg.empty()) {
+        obj["message"] = lsp::json::Value(std::string(errorMsg));
     }
+    handler.sendNotification("chemical/buildStatus", lsp::json::Value(std::move(obj)));
 }
 
 WorkspaceManager::~WorkspaceManager() {

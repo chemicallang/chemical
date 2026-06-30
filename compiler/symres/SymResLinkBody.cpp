@@ -2589,6 +2589,12 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     value->ptr_type.type = value->value->getType();
 }
 
+void SymResLinkBody::VisitWrapValue(WrapValue* value) {
+    visit(value->underlying);
+    const auto runtimeType = value->getType()->as_runtime_type_unsafe();
+    runtimeType->underlying = value->underlying->getType();
+}
+
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
     // determine the type of not value

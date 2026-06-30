@@ -107,6 +107,7 @@
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/PatternMatchExpr.h"
+#include "ast/values/WrapValue.h"
 #include "ast/values/ZeroedValue.h"
 
 template<typename Derived>
@@ -553,6 +554,10 @@ public:
 
     inline void VisitDereferenceValue(DereferenceValue* value) {
         visit_it(value->getValue());
+    }
+
+    inline void VisitWrapValue(WrapValue* value) {
+        visit_it(value->underlying);
     }
 
     void VisitPlacementNewValue(PlacementNewValue *value) {

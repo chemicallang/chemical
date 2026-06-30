@@ -215,6 +215,8 @@ public:
 
     void VisitDereferenceValue(DereferenceValue* value);
 
+    void VisitWrapValue(WrapValue* value);
+
     void VisitExpression(Expression *expr);
 
     void VisitIndexOperator(IndexOperator* value);

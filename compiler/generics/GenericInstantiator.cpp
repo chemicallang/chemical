@@ -522,6 +522,11 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
     }
 }
 
+void GenericInstantiator::VisitWrapValue(WrapValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitWrapValue(value);
+    value->getType()->as_runtime_type_unsafe()->underlying = value->underlying->getType();
+}
+
 void GenericInstantiator::VisitExpression(Expression *expr) {
     RecursiveVisitor<GenericInstantiator>::VisitExpression(expr);
     expr->determine_type(typeBuilder, coreNodes, implsIndex, diagnoser, targetData);

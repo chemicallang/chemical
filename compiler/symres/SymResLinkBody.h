@@ -274,6 +274,8 @@ public:
 
     void VisitPlacementNewValue(PlacementNewValue* value);
 
+    void VisitWrapValue(WrapValue* value);
+
     void VisitNotValue(NotValue* value);
 
     void VisitBitwiseNot(BitwiseNot* value);

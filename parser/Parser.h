@@ -1102,6 +1102,11 @@ public:
     Value* parsePreIncDecValue(ASTAllocator& allocator, bool increment);
 
     /**
+     * parse a magic value
+     */
+    Value* parseMagicValue(ASTAllocator& allocator);
+
+    /**
      * parses access chain like x.y.z or a value like 10, could be int, string, char
      */
     Value* parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool parseStruct = false);

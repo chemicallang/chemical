@@ -39,11 +39,13 @@
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedValueType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/AddrOfValue.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "ast/values/ExpressiveString.h"
+#include "ast/values/WrapValue.h"
 
 bool is_escaped_self(char self) {
     switch(self) {
@@ -784,6 +786,41 @@ Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
     return new (allocator.allocate<IncDecValue>()) IncDecValue(expr, increment, false, loc_single(t));
 }
 
+Value* Parser::parseMagicValue(ASTAllocator& allocator) {
+    if (token->type != TokenType::ModSym) return nullptr;
+    token++;
+    const auto kid = consumeIdentifierOrKeyword();
+    if (kid == nullptr) {
+        unexpected_error("a keyword or identifier expected after symbol '%'");
+        return nullptr;
+    }
+    const auto hasher = std::hash<chem::string_view>();
+    switch (hasher(kid->value)) {
+        case hasher("runtime_value"): {
+            if (token->type != TokenType::LParen) {
+                unexpected_error("expected a '(' after '%runtime_value'");
+            } else {
+                token++;
+            }
+            const auto expr = parseExpression(allocator, true, true);
+            if (expr == nullptr) {
+                unexpected_error("expected an expression after '%runtime_value('");
+                return nullptr;
+            }
+            if (token->type != TokenType::RParen) {
+                unexpected_error("expected a ')' after '%runtime_value'");
+            } else {
+                token++;
+            }
+            const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
+            return new (allocator.allocate<WrapValue>()) WrapValue(expr, runtime_type);
+        }
+        default:
+            error("unknown identifier after symbol '%', unrecognized magic value");
+            return nullptr;
+    }
+}
+
 Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool parseStruct) {
     const auto start_token = token;
     switch(start_token->type) {
@@ -814,6 +851,8 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return (Value*) parseNumberValue(allocator);
         case TokenType::LParen:
             return parseParenExpressionNoAfterValue(allocator);
+        case TokenType::ModSym:
+            return parseMagicValue(allocator);
         case TokenType::NotSym:
             return (Value*) parseNotValue(allocator);
         case TokenType::BitNotSym:
@@ -856,6 +895,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseAfterValue(allocator, (Value*) parseNumberValue(allocator));
         case TokenType::LParen:
             return parseParenExpression(allocator);
+        case TokenType::ModSym:
+            return parseMagicValue(allocator);
         case TokenType::NotSym:
             return parseAfterValue(allocator, (Value*) parseNotValue(allocator));
         case TokenType::BitNotSym:

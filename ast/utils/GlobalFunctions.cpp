@@ -17,7 +17,6 @@
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/CastedValue.h"
-#include "ast/values/WrapValue.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
@@ -542,14 +541,7 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
             const auto call = value->as_func_call_unsafe();
             const auto decl = call->safe_linked_func();
             if(decl && decl->is_comptime()) {
-                const auto val = call->evaluated_value(scope);
-                if(val->kind() == ValueKind::WrapValue) {
-                    // TODO handle nested wrap values
-                    // unsure how to handle nested wrap values at the moment (must think about it more)
-                    return val->as_wrap_value_unsafe()->underlying;
-                } else {
-                    return val;
-                }
+                return call->evaluated_value(scope);
             } else {
                 const auto copied = call->copy(scope.allocator);
                 copied->parent_val = (Value*) evaluated_comptime(call->parent_val, scope);
@@ -603,65 +595,6 @@ Value* runtime_value_of(InterpretScope& scope, Value* underlying) {
     }
     return evaluated_comptime(underlying, scope);
 }
-
-class InterpretWrap : public FunctionDeclaration {
-public:
-
-    FunctionParam valueParam;
-
-    explicit InterpretWrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            "wrap",
-            {cache.getRuntimeAnyType(), ZERO_LOC},
-            true,
-            parent_node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
-    {
-        set_compiler_decl(true);
-        // having a generic type parameter T requires that user gives type during function call to wrap
-        // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
-//        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(&valueParam);
-    }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        auto underlying = call->values[0];
-        // In interpretation mode, wrap is a no-op since there is no runtime
-        if (is_interpretation_mode(call_scope)) {
-            return underlying->evaluated_value(*call_scope);
-        }
-        const auto evaluated = evaluated_comptime(underlying, *call_scope);
-        return new (allocator.allocate<WrapValue>()) WrapValue(evaluated);
-    }
-};
-
-class InterpretUnwrap : public FunctionDeclaration {
-public:
-
-    FunctionParam valueParam;
-
-    explicit InterpretUnwrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            "unwrap",
-            {cache.getAnyType(), ZERO_LOC},
-            true,
-            parent_node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
-        set_compiler_decl(true);
-        // having a generic type parameter T requires that user gives type during function call to wrap
-        // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
-//        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(&valueParam);
-    }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return call->values[0]->evaluated_value(*call_scope)->copy(call_scope->allocator);
-    }
-};
 
 class InterpretRetStructPtr : public FunctionDeclaration {
 public:
@@ -1270,60 +1203,6 @@ public:
         } else {
             return get_bool(allocator, typeBuilder, false);
         }
-    }
-};
-
-class InterpretIsPtrNull : public FunctionDeclaration {
-public:
-
-    PointerType ptrType;
-    FunctionParam valueParam;
-
-    NullValue nullVal;
-
-    explicit InterpretIsPtrNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            "isNull",
-            {cache.getBoolType(), ZERO_LOC},
-            false,
-            parent_node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), nullVal(cache.getNullPtrType(), ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
-                                                                            valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
-    {
-        set_compiler_decl(true);
-        params.emplace_back(&valueParam);
-    }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, ZERO_LOC));
-    }
-};
-
-class InterpretIsPtrNotNull : public FunctionDeclaration {
-public:
-
-    PointerType ptrType;
-    FunctionParam valueParam;
-
-    NullValue nullVal;
-
-    explicit InterpretIsPtrNotNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            "isNotNull",
-            {cache.getBoolType(), ZERO_LOC},
-            false,
-            parent_node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), nullVal(cache.getNullPtrType(), ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
-                                                                               valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
-    {
-        set_compiler_decl(true);
-        params.emplace_back(&valueParam);
-    }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, ZERO_LOC));
     }
 };
 
@@ -2836,39 +2715,18 @@ public:
 
 };
 
-class PtrNamespace : public Namespace {
-public:
-
-    InterpretIsPtrNull isNullFn;
-    InterpretIsPtrNotNull isNotNullFn;
-
-    explicit PtrNamespace(
-            TypeBuilder& cache,
-            ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, ZERO_LOC, AccessSpecifier::Public),
-        isNullFn(cache, this), isNotNullFn(cache, this)
-    {
-        set_compiler_decl(true);
-        nodes = { &isNullFn, &isNotNullFn };
-    }
-
-};
-
 class IntrinsicsNamespace : public Namespace {
 public:
 
     // sub namespaces
     LLVMNamespace llvmNamespace;
     MemNamespace memNamespace;
-    PtrNamespace ptrNamespace;
 
     InterpretSupports interpretSupports;
     InterpretPrint printFn;
     InterpretPrintLn printlnFn;
     InterpretToString to_stringFn;
     InterpretTypeToString type_to_stringFn;
-    InterpretWrap wrapFn;
-    InterpretUnwrap unwrapFn;
     InterpretRetStructPtr retStructPtr;
     InterpretCompilerVersion verFn;
     InterpretIsTcc isTccFn;
@@ -2926,9 +2784,9 @@ public:
     IntrinsicsNamespace(
             TypeBuilder& cache
     ) : Namespace("intrinsics", nullptr, ZERO_LOC, AccessSpecifier::Public),
-        llvmNamespace(cache, this), memNamespace(cache, this), ptrNamespace(cache, this),
+        llvmNamespace(cache, this), memNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
-        wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this),
+        retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
         get_target_fn(cache, this), get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
@@ -2942,9 +2800,9 @@ public:
     {
         set_compiler_decl(true);
         nodes = {
-            &llvmNamespace, &memNamespace, &ptrNamespace,
-            &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
-            &retStructPtr, &verFn, &isTccFn, &isClangFn, &isInterpretationFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
+            &llvmNamespace, &memNamespace,
+            &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &retStructPtr, &verFn,
+            &isTccFn, &isClangFn, &isInterpretationFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
@@ -3248,7 +3106,6 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     // these namespaces (which may be invalid, because their allocators have been destroyed)
     container.intrinsics_namespace.extended.clear();
     container.intrinsics_namespace.memNamespace.extended.clear();
-    container.intrinsics_namespace.ptrNamespace.extended.clear();
 
     // wire up implsIndex and CoreNodes for expressive strings
     container.intrinsics_namespace.expr_str_blk_val.set_impls(resolver.implsIndex, resolver.coreNodes);

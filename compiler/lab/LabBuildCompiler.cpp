@@ -583,6 +583,11 @@ void set_defined_declarations(ASTNode* node) {
             decl->has_declared = true;
             break;
         }
+        case ASTNodeKind::InterfaceDecl: {
+            const auto decl = node->as_interface_def_unsafe();
+            decl->has_declared = true;
+            break;
+        }
         case ASTNodeKind::TypealiasStmt: {
             const auto decl = node->as_typealias_unsafe();
             decl->has_declared = true;
@@ -789,10 +794,6 @@ int LabBuildCompiler::process_module_tcc(
     // direct files are stored inside the module
     auto& direct_files = mod->direct_files;
 
-    // we always build the module
-    std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
-    std::cout << *mod << rang::bg::reset << rang::fg::reset << std::endl;
-
     if(verbose) {
         std::cout << "[lab] " << "parsing the module '" << *mod << '\'' << std::endl;
     }
@@ -846,6 +847,7 @@ int LabBuildCompiler::process_module_tcc(
 
         bool cache_succeeded = false;
 
+        // single file means 'are we translating into a single C file ?'
         if (single_file) {
 
             // append the partial c output to buffered writer
@@ -872,7 +874,6 @@ int LabBuildCompiler::process_module_tcc(
 
             // multi file output
             // each module has its own object file, lets locate that object file and use it for caching
-            // append the partial c output to buffered writer
             if(fs::exists(mod->object_path.to_view())) {
 
                 if(verbose) {
@@ -892,23 +893,27 @@ int LabBuildCompiler::process_module_tcc(
 
         if (cache_succeeded) {
 
-            // now we still need declarations of this module, so other modules can call functions
-            // lets first check declaration file exists, if that exists, reuse that
-            // otherwise we must declare the module ourselves
-            auto partial_h_out = get_partial_h_path(build_dir, mod);
-            if (fs::exists(partial_h_out)) {
+            if (!single_file) {
 
-                if(verbose) {
-                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << partial_h_out << "', skipping declaration" << std::endl;
+                // now we still need declarations of this module, so functions of other modules can be called
+                // lets first check declaration file exists, if that exists, reuse that
+                // otherwise we must declare the module ourselves
+                auto partial_h_out = get_partial_h_path(build_dir, mod);
+                if (fs::exists(partial_h_out)) {
+
+                    if(verbose) {
+                        std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << partial_h_out << "', skipping declaration" << std::endl;
+                    }
+
+                    // reuse the partial h we generated earlier, since module hasn't changed
+                    c_visitor.writer.append_file(partial_h_out.c_str());
+
+                } else {
+
+                    // declare it ourselves
+                    processor.declare_module(c_visitor, mod);
+
                 }
-
-                // reuse the partial h we generated earlier, since module hasn't changed
-                c_visitor.writer.append_file(partial_h_out.c_str());
-
-            } else {
-
-                // declare it ourselves
-                processor.declare_module(c_visitor, mod);
 
             }
 
@@ -1775,7 +1780,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     size_t mod_index = 0;
     for(auto mod : dependencies) {
         ++mod_index;
-        std::cout << "[lab] Compiling module " << mod_index << " of " << total_modules << " (" << *mod << ")" << std::endl;
 
         if(verbose) {
             std::cout << "[lab] " << "processing module " << *mod << std::endl;
@@ -1819,6 +1823,10 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         ) {
             continue;
         }
+
+        // building a module and printing progress
+        std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
+        std::cout << *mod <<" (" << mod_index << " / " << total_modules << ")" << rang::bg::reset << rang::fg::reset << std::endl;
 
         // the actual translation happens here
         const auto result = process_module_tcc_bm(mod, processor, c_visitor, job, mods_dir, is_single_file, use_clang, emit_c);

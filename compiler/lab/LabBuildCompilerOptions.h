@@ -161,6 +161,11 @@ public:
 
 
     /**
+     * whether testing environment has been enabled through --test CLI arg
+     */
+    bool is_testing_env = false;
+
+    /**
      * constructor
      */
     LabBuildCompilerOptions(

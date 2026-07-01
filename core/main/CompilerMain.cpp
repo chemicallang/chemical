@@ -535,6 +535,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->fno_asynchronous_unwind_tables = options.has_value("", "fno-asynchronous-unwind-tables");
         opts->no_pie = options.has_value("no-pie", "no-pie");
 #endif
+        opts->is_testing_env = options.has_value("test");
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         auto mode_opt = options.option_new("plugin-mode", "pm");
         if(mode_opt.has_value()) {
@@ -698,8 +699,6 @@ int compiler_main(int argc, char *argv[]) {
     if(threadCount <= 0) threadCount = 1;
 
     auto build_dir_opt = options.option_new("build-dir", "b");
-    // TODO: handle this parameter
-    const auto is_testing_env = options.has_value("test");
 
     const auto is_lab_file = args[0].ends_with(".lab");
     const auto is_mod_file = args[0].ends_with(".mod");
@@ -746,6 +745,9 @@ int compiler_main(int argc, char *argv[]) {
         }
         if(mode_opt.has_value()) {
             context.build_args["mode"] = mode_opt.value();
+        }
+        if(options.has_value("test")) {
+            context.build_args["test"] = "true";
         }
         for(auto& opt : options.options) {
             if(opt.first.starts_with("arg-")) {

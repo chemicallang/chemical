@@ -57,7 +57,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     job->target_data.lsp = true;
 #endif
     // we should allow changing this
-    job->target_data.test = false;
+    job->target_data.test = options->is_testing_env;
 
 }
 

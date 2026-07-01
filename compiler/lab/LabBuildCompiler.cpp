@@ -201,6 +201,11 @@ int LabBuildCompiler::do_job(LabJob* job) {
     const auto bm = options->benchmark;
     current_job = job;
 
+    // ensure test resources are available in testing environment
+    if(job->target_data.test) {
+        controller.ensure_test_resources();
+    }
+
     // benchmark
     BenchmarkResults bm_res;
     if(bm) {

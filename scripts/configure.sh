@@ -63,7 +63,11 @@ if [ -n "${MSYSTEM-}" ] && (command -v cl.exe &>/dev/null || command -v cl &>/de
       echo "[configure] MSVC environment broken (INCLUDE/LIB missing). Falling back to MinGW GCC." >&2
       CMAKE_ARGS+=(-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++)
     else
-      echo "[configure] WARNING: cl.exe found but MSVC env broken and no MinGW GCC available." >&2
+      echo "[configure] ERROR: cl.exe found but MSVC environment is broken (INCLUDE/LIB not set)" >&2
+      echo "[configure]   and no MinGW GCC fallback is available." >&2
+      echo "[configure] Install MinGW GCC (e.g. via 'pacman -S mingw-w64-x86_64-gcc' in MSYS2)" >&2
+      echo "[configure] or run from a Visual Studio Developer Command Prompt." >&2
+      exit 1
     fi
   fi
 fi

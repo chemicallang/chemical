@@ -54,38 +54,12 @@ else
   done
 fi
 
-[ -z "$_vs_vswhere" ] || [ ! -f "$_vs_vswhere" ] && return
+if [ -n "$_vs_vswhere" ] && [ -f "$_vs_vswhere" ]; then
+    # Get VS installation path from vswhere
+    _vs_path=$("$_vs_vswhere" -latest -property installationPath 2>/dev/null | tr -d '\r\n')
+fi
 
-# Get VS installation path (returns Windows-style path, e.g. D:\Software\...)
-_vs_path=$("$_vs_vswhere" -latest -property installationPath 2>/dev/null | tr -d '\r\n')
-[ -z "$_vs_path" ] && return
-
-# Convert to Unix-style for bash file-checks (e.g. /d/Software/...)
-_vs_ux=$(echo "$_vs_path" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
-
-# Read MSVC tools version
-_vs_ver_file="${_vs_ux}/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt"
-[ ! -f "$_vs_ver_file" ] && return
-_vs_ver=$(cat "$_vs_ver_file" 2>/dev/null | tr -d '\r\n')
-[ -z "$_vs_ver" ] && return
-
-# Windows Kits root (probe common locations, keep as Unix path for bash checks)
-_kit_root_ux=""
-for _kr in "/c/Program Files (x86)/Windows Kits/10" \
-           "/d/Windows Kits/10" \
-           "/c/Program Files/Windows Kits/10"; do
-  [ -d "$_kr/Include" ] && { _kit_root_ux="$_kr"; break; }
-done
-[ -z "$_kit_root_ux" ] && return
-
-# Convert to Windows path: /d/Windows Kits/10 → D:\Windows Kits\10
-_kit_path=$(echo "$_kit_root_ux" | sed 's|^/\([a-zA-Z]\)/|\U\1:\\|; s|/|\\|g')
-
-# Latest SDK version from the Include directory
-_sdk_ver=$(ls "$_kit_root_ux/Include/" 2>/dev/null | sort -V | tail -1)
-[ -z "$_sdk_ver" ] && return
-
-# Architecture directory
+# Architecture directory (needed by both manual path construction and vcvarsall fallback)
 case "$(uname -m 2>/dev/null || true)" in
   x86_64|amd64) _arch="x64" ;;
   i686|x86)     _arch="x86" ;;
@@ -94,63 +68,107 @@ case "$(uname -m 2>/dev/null || true)" in
   *)            _arch="x64" ;;  # sensible default
 esac
 
-# ── Build include paths (validate each exists) ──────────────────────────────
-_INCLUDE=""
-for _base in \
-    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\include" \
-    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\include" \
-    "${_vs_path}\\VC\\Auxiliary\\VS\\include" \
-    "${_kit_path}\\Include\\${_sdk_ver}\\ucrt" \
-    "${_kit_path}\\Include\\${_sdk_ver}\\um" \
-    "${_kit_path}\\Include\\${_sdk_ver}\\shared" \
-    "${_kit_path}\\Include\\${_sdk_ver}\\winrt" \
-    "${_kit_path}\\Include\\${_sdk_ver}\\cppwinrt"; do
-    # Convert Windows path to Unix for existence check
-    _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
-    if [ -d "$_ux" ]; then
-        _INCLUDE="${_INCLUDE}${_base};"
+if [ -n "${_vs_path-}" ]; then
+
+    # Convert to Unix-style for bash file-checks (e.g. /d/Software/...)
+    _vs_ux=$(echo "$_vs_path" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+
+    # Read MSVC tools version
+    _vs_ver=""
+    _vs_ver_file="${_vs_ux}/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt"
+    if [ -f "$_vs_ver_file" ]; then
+        _vs_ver=$(cat "$_vs_ver_file" 2>/dev/null | tr -d '\r\n')
     fi
-done
 
-# ── Build library paths (validate each exists) ────────────────────────────────
-_LIB=""
-for _base in \
-    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\lib\\${_arch}" \
-    "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\lib\\${_arch}" \
-    "${_kit_path}\\Lib\\${_sdk_ver}\\ucrt\\${_arch}" \
-    "${_kit_path}\\Lib\\${_sdk_ver}\\um\\${_arch}"; do
-    _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
-    if [ -d "$_ux" ]; then
-        _LIB="${_LIB}${_base};"
+    # Windows Kits root (probe common locations, keep as Unix path for bash checks)
+    _kit_root_ux=""
+    for _kr in "/c/Program Files (x86)/Windows Kits/10" \
+               "/d/Windows Kits/10" \
+               "/c/Program Files/Windows Kits/10"; do
+      [ -d "$_kr/Include" ] && { _kit_root_ux="$_kr"; break; }
+    done
+
+    # Convert to Windows path: /d/Windows Kits/10 → D:\Windows Kits\10
+    _kit_path=""
+    if [ -n "$_kit_root_ux" ]; then
+        _kit_path=$(echo "$_kit_root_ux" | sed 's|^/\([a-zA-Z]\)/|\U\1:\\|; s|/|\\|g')
     fi
-done
 
-# Strip trailing semicolons
-_INCLUDE="${_INCLUDE%;}"
-_LIB="${_LIB%;}"
-
-# ── Validation ────────────────────────────────────────────────────────────────
-CHEMICAL_MSVC_READY=0
-if [ -n "$_INCLUDE" ] && [ -n "$_LIB" ]; then
-    # Verify cl.exe exists in the expected bin directory
-    _VSBIN="${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\bin\\Host${_arch}\\${_arch}"
-    _cl_ux=$(echo "$_VSBIN" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
-    if [ -f "${_cl_ux}/cl.exe" ]; then
-        CHEMICAL_MSVC_READY=1
-        export CHEMICAL_MSVC_READY
-
-        # ── Build PATH ────────────────────────────────────────────────────────
-        export PATH="${_VSBIN};${PATH-}"
-
-        # ── Export ────────────────────────────────────────────────────────────
-        export INCLUDE="$_INCLUDE"
-        export LIB="$_LIB"
+    # Latest SDK version from the Include directory
+    _sdk_ver=""
+    if [ -n "$_kit_root_ux" ]; then
+        _sdk_ver=$(ls "$_kit_root_ux/Include/" 2>/dev/null | sort -V | tail -1)
     fi
-fi
+
+    # Build include paths only when both vs_ver and sdk_ver are available
+    _INCLUDE=""
+    _LIB=""
+    if [ -n "$_vs_ver" ] && [ -n "$_sdk_ver" ] && [ -n "$_kit_path" ]; then
+        for _base in \
+            "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\include" \
+            "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\include" \
+            "${_vs_path}\\VC\\Auxiliary\\VS\\include" \
+            "${_kit_path}\\Include\\${_sdk_ver}\\ucrt" \
+            "${_kit_path}\\Include\\${_sdk_ver}\\um" \
+            "${_kit_path}\\Include\\${_sdk_ver}\\shared" \
+            "${_kit_path}\\Include\\${_sdk_ver}\\winrt" \
+            "${_kit_path}\\Include\\${_sdk_ver}\\cppwinrt"; do
+            _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+            if [ -d "$_ux" ]; then
+                _INCLUDE="${_INCLUDE}${_base};"
+            fi
+        done
+
+        for _base in \
+            "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\lib\\${_arch}" \
+            "${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\ATLMFC\\lib\\${_arch}" \
+            "${_kit_path}\\Lib\\${_sdk_ver}\\ucrt\\${_arch}" \
+            "${_kit_path}\\Lib\\${_sdk_ver}\\um\\${_arch}"; do
+            _ux=$(echo "$_base" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+            if [ -d "$_ux" ]; then
+                _LIB="${_LIB}${_base};"
+            fi
+        done
+
+        # Strip trailing semicolons
+        _INCLUDE="${_INCLUDE%;}"
+        _LIB="${_LIB%;}"
+    fi
+
+    # ── Validation ────────────────────────────────────────────────────────────
+    CHEMICAL_MSVC_READY=0
+    if [ -n "$_INCLUDE" ] && [ -n "$_LIB" ]; then
+        _VSBIN="${_vs_path}\\VC\\Tools\\MSVC\\${_vs_ver}\\bin\\Host${_arch}\\${_arch}"
+        _cl_ux=$(echo "$_VSBIN" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+        if [ -f "${_cl_ux}/cl.exe" ]; then
+            CHEMICAL_MSVC_READY=1
+            export CHEMICAL_MSVC_READY
+            export PATH="${_VSBIN};${PATH-}"
+            export INCLUDE="$_INCLUDE"
+            export LIB="$_LIB"
+        fi
+    fi
+
+fi # end of [ -n "$_vs_path" ]
 
 # ── Fallback: use vcvarsall.bat if manual paths failed ──────────────────────
-if [ "$CHEMICAL_MSVC_READY" != 1 ] && [ -n "${_vs_path-}" ]; then
-    _vcvars_win="${_vs_path}\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+if [ "$CHEMICAL_MSVC_READY" != 1 ]; then
+    # Determine vcvarsall.bat path: from vswhere result or search common locations
+    _vcvars_win=""
+    if [ -n "${_vs_path-}" ]; then
+        _vcvars_win="${_vs_path}\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+    else
+        for _base in "/c/Program Files/Microsoft Visual Studio/2022/Community" \
+                     "/c/Program Files/Microsoft Visual Studio/2022/BuildTools" \
+                     "/c/Program Files/Microsoft Visual Studio/2022/Professional" \
+                     "/c/Program Files (x86)/Microsoft Visual Studio/2019/Community" \
+                     "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools"; do
+            if [ -f "$_base/VC/Auxiliary/Build/vcvarsall.bat" ]; then
+                _vcvars_win=$(echo "$_base" | sed 's|/|\\|g; s|^\([a-z]\)/|\1:\\|')\\VC\\Auxiliary\\Build\\vcvarsall.bat
+                break
+            fi
+        done
+    fi
     _vcvars_ux=$(echo "$_vcvars_win" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
     if [ -f "$_vcvars_ux" ]; then
         echo "[msvc_env] Manual path construction failed, trying vcvarsall.bat..." >&2

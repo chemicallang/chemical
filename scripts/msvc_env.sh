@@ -148,6 +148,31 @@ if [ -n "$_INCLUDE" ] && [ -n "$_LIB" ]; then
     fi
 fi
 
+# ── Fallback: use vcvarsall.bat if manual paths failed ──────────────────────
+if [ "$CHEMICAL_MSVC_READY" != 1 ] && [ -n "${_vs_path-}" ]; then
+    _vcvars_win="${_vs_path}\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+    _vcvars_ux=$(echo "$_vcvars_win" | sed 's|\\|/|g; s|^\([a-zA-Z]\):|/\1|')
+    if [ -f "$_vcvars_ux" ]; then
+        echo "[msvc_env] Manual path construction failed, trying vcvarsall.bat..." >&2
+        # Invoke vcvarsall.bat via cmd.exe, then echo each variable between markers
+        # to reliably capture potentially multiline values from cmd's 'set' output
+        _vs_env=$(cmd //c "\"${_vcvars_win}\" ${_arch} >nul 2>&1 && echo XX_INCLUDE_XX && echo %INCLUDE% && echo XX_LIB_XX && echo %LIB% && echo XX_PATH_XX && echo %PATH%" 2>/dev/null || true)
+        if [ -n "$_vs_env" ]; then
+            _new_include=$(echo "$_vs_env" | sed -n '/^XX_INCLUDE_XX$/,/^XX_LIB_XX$/{/^XX_INCLUDE_XX$/d;/^XX_LIB_XX$/d;p}')
+            _new_lib=$(echo "$_vs_env" | sed -n '/^XX_LIB_XX$/,/^XX_PATH_XX$/{/^XX_LIB_XX$/d;/^XX_PATH_XX$/d;p}')
+            _new_path=$(echo "$_vs_env" | sed -n '/^XX_PATH_XX$/,/^$/{/^XX_PATH_XX$/d;p}')
+            if [ -n "$_new_include" ] && [ -n "$_new_lib" ]; then
+                export INCLUDE="$_new_include"
+                export LIB="$_new_lib"
+                export PATH="$_new_path"
+                CHEMICAL_MSVC_READY=1
+                export CHEMICAL_MSVC_READY
+                echo "[msvc_env] vcvarsall.bat succeeded." >&2
+            fi
+        fi
+    fi
+fi
+
 if [ "$CHEMICAL_MSVC_READY" != 1 ]; then
     echo "[msvc_env] MSVC environment setup failed — INCLUDE/LIB paths or cl.exe not found." >&2
     echo "[msvc_env] If MinGW is available, configure.sh will fall back to it automatically." >&2

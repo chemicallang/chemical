@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# On Windows (Git Bash / MSYS2), ensure MSVC flags are not mangled by MSYS2
+# and INCLUDE/LIB are set up correctly for cl.exe
+source "$SCRIPT_DIR/msvc_env.sh"
+
 BUILD_DIR="cmake-build-debug"
 JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 TARGET=""

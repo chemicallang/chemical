@@ -14,3 +14,4 @@ lib/tcc
 build/mingw
 scripts/tui-configs/last.json
 scripts/tui-configs/commands2.json
+utils/Version.h

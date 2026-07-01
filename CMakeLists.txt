@@ -87,7 +87,8 @@ endif ()
 # For printing the version in the compiler
 configure_file(
         "${PROJECT_SOURCE_DIR}/utils/Version.h.in"
-        "${PROJECT_SOURCE_DIR}/utils/Version.h"
+        "${PROJECT_BINARY_DIR}/include/utils/Version.h"
+        @ONLY
 )
 
 # Enable verbose output
@@ -752,6 +753,7 @@ set(COMMON_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/ctpl
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/rang
+        ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
 # Only add sanitizer flags in Debug builds

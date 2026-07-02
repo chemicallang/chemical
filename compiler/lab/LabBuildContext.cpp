@@ -34,7 +34,6 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
                 // keeping it empty, so host target triple is used
                 job->target_data.c = true;
                 job->target_data.tcc = true;
-                job->target_data.cbi = true;
                 break;
             case LabJobType::JITExecutable:
                 // no need to initialize target triple
@@ -45,6 +44,9 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
             default:
                 break;
         }
+    }
+    if (job->type == LabJobType::CBI) {
+        job->target_data.cbi = true;
     }
     // tiny cc doesn't support target triple
     if(!target_triple.empty() && job->target_triple.empty()) {

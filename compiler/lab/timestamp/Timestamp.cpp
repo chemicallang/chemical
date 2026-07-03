@@ -3,6 +3,7 @@
 #include "Timestamp.h"
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
@@ -11,15 +12,19 @@ namespace fs = std::filesystem;
  * to check if files have changed
  */
 void save_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& output_file, OutputMode mode) {
+    // sort files to ensure deterministic order regardless of source ordering
+    std::vector<std::string_view> sorted_files(files.begin(), files.end());
+    std::sort(sorted_files.begin(), sorted_files.end());
+
     std::ofstream ofs(output_file.data(), std::ios::binary);
-    size_t num_files = files.size();
+    size_t num_files = sorted_files.size();
     ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
 
     // write the mode
     int mode_int = static_cast<int>(mode);
     ofs.write(reinterpret_cast<const char*>(&mode_int), sizeof(mode_int));
 
-    for (const auto& file_abs_path : files) {
+    for (const auto& file_abs_path : sorted_files) {
         fs::path file_path(file_abs_path);
         if (fs::exists(file_path)) {
             uintmax_t file_size = fs::file_size(file_path);
@@ -54,47 +59,46 @@ void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::str
 
 bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file, OutputMode mode) {
     std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
-
-    if (!ifs.is_open()) {
-        return false;
-    }
+    if (!ifs.is_open()) return false;
 
     size_t prev_num_files;
     ifs.read(reinterpret_cast<char*>(&prev_num_files), sizeof(prev_num_files));
+    if (prev_num_files != files.size()) return false;
 
-    if (prev_num_files != files.size()) {
-        return false;
-    }
-
-    // read and compare the mode
     int prev_mode_int;
     ifs.read(reinterpret_cast<char*>(&prev_mode_int), sizeof(prev_mode_int));
-    if (prev_mode_int != static_cast<int>(mode)) {
-        return false;
-    }
+    if (prev_mode_int != static_cast<int>(mode)) return false;
 
-    for (const auto& file : files) {
-        fs::path file_path(file);
-        if (fs::exists(file_path)) {
-            uintmax_t current_file_size = fs::file_size(file_path);
-            auto current_mod_time = fs::last_write_time(file_path);
+    // sort current files to match the saved (sorted) order
+    std::vector<std::string_view> sorted(files.begin(), files.end());
+    std::sort(sorted.begin(), sorted.end());
 
-            size_t file_str_size;
-            ifs.read(reinterpret_cast<char*>(&file_str_size), sizeof(file_str_size));
+    for (size_t i = 0; i < prev_num_files; i++) {
+        size_t file_str_size;
+        ifs.read(reinterpret_cast<char*>(&file_str_size), sizeof(file_str_size));
 
-            std::string prev_file_str(file_str_size, '\0');
-            ifs.read(&prev_file_str[0], (std::streamsize) file_str_size);
+        // fast path: skip the string allocation if sizes don't match
+        if (sorted[i].size() != file_str_size) return false;
 
-            uintmax_t prev_file_size;
-            ifs.read(reinterpret_cast<char*>(&prev_file_size), sizeof(prev_file_size));
+        // read saved path and compare directly with the sorted current path
+        std::string saved_path(file_str_size, '\0');
+        ifs.read(&saved_path[0], (std::streamsize) file_str_size);
+        if (saved_path != sorted[i]) return false;
 
-            fs::file_time_type prev_mod_time;
-            ifs.read(reinterpret_cast<char*>(&prev_mod_time), sizeof(prev_mod_time));
+        uintmax_t saved_size;
+        ifs.read(reinterpret_cast<char*>(&saved_size), sizeof(saved_size));
 
-            if (prev_file_str != file_path.string() || prev_file_size != current_file_size || prev_mod_time != current_mod_time) {
-                return false;
-            }
-        } else {
+        fs::file_time_type saved_mod_time;
+        ifs.read(reinterpret_cast<char*>(&saved_mod_time), sizeof(saved_mod_time));
+
+        // stat the current file
+        fs::path file_path(sorted[i]);
+        if (!fs::exists(file_path)) return false;
+
+        uintmax_t current_file_size = fs::file_size(file_path);
+        auto current_mod_time = fs::last_write_time(file_path);
+
+        if (saved_size != current_file_size || saved_mod_time != current_mod_time) {
             return false;
         }
     }

@@ -1683,17 +1683,21 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
         const auto job_obj_exists = is_single_file && fs::exists(job_obj_path);
 
-        // check the job object path exists (since we are caching)
-        if (!job_obj_exists) {
-
-            // checking which modules have changed
-            for (auto& dep: exe->dependencies) {
-                auto has_changed = has_module_changed(this, dep.module, mods_dir, true, is_single_file);
-                if (has_changed) {
-                    has_any_changed = true;
-                }
+        // checking which modules have changed
+        for (auto& dep: exe->dependencies) {
+            auto has_changed = has_module_changed(this, dep.module, mods_dir, true, is_single_file);
+            if (has_changed) {
+                has_any_changed = true;
             }
+        }
 
+        if(verbose) {
+            if(has_any_changed) {
+                std::cout << "[lab] " << "one of dependencies of the job has changed" << std::endl;
+            }
+            if(!job_obj_exists) {
+                std::cout << "[lab] " << "job object file at '" << job_obj_path << "' does not exist" << std::endl;
+            }
         }
 
         if (job_obj_exists && !has_any_changed) {

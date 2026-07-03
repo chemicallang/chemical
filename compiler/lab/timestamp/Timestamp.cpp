@@ -51,7 +51,6 @@ void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::str
     std::vector<std::string_view> paths;
     paths.reserve(files.size());
     for(const auto f : files) {
-        // TODO: we should not be putting files that are external to module (imported using '@' usually)
         paths.emplace_back(f->abs_path);
     }
     save_mod_timestamp(paths, output_file, mode);

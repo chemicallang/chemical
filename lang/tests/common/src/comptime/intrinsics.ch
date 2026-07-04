@@ -48,11 +48,20 @@ func test_comptime_intrinsics() {
     })
 
     test("comptime if with is_runtime works correctly", () => {
-        comptime if(intrinsics::is_runtime()) {
-            // In runtime compilation, this runs; in interpretation, the else runs
-            // Both paths should return true since the test itself always passes
+        comptime if(intrinsics::is_interpretation()) {
+            comptime if(intrinsics::is_runtime()) {
+                return false;
+            }
+            comptime if(!intrinsics::is_comptime()) {
+                return false;
+            }
         } else {
-            // In interpretation mode
+            comptime if(!intrinsics::is_runtime()) {
+                return false;
+            }
+            comptime if(intrinsics::is_comptime()) {
+                return false;
+            }
         }
         return true;
     })

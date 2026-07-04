@@ -56,9 +56,10 @@ public:
     bool disable_index_destructible_check = false;
 
     /**
-     * when set, the type checker knows we are in interpretation mode
+     * when set, the type checker knows we are in interpretation/comptime mode
      * and can skip argument verification for comptime functions
-     * this flag is toggled by contracts on functions like intrinsics::is_interpretation()
+     * this flag is toggled by contracts on functions like intrinsics::is_interpretation(),
+     * intrinsics::is_comptime(), or intrinsics::is_runtime() (with inverted enable_value)
      */
     bool is_interpretation_mode = false;
 

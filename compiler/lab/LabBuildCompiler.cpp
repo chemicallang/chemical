@@ -4757,7 +4757,7 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
     }
 
     // interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man, true);
     global.should_destruct_values = false;
 
     // we hold the instantiated types inside this container

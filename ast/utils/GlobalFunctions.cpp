@@ -584,8 +584,7 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
 }
 
 bool is_interpretation_mode(InterpretScope* call_scope) {
-    const auto curr_job = call_scope->global->build_compiler ? call_scope->global->build_compiler->current_job : nullptr;
-    return curr_job ? curr_job->type == LabJobType::Interpretation : false;
+    return call_scope->global->interpretation_mode;
 }
 
 Value* runtime_value_of(InterpretScope& scope, Value* underlying) {
@@ -749,6 +748,78 @@ public:
     }
 };
 
+
+class InterpretIsRuntime : public FunctionDeclaration {
+public:
+
+    explicit InterpretIsRuntime(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "is_runtime",
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+        set_contract(ContractFlag::IsInterpretation, false);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        const auto global = call_scope->global;
+        const auto boolType = global->typeBuilder.getBoolType();
+        // In interpretation mode, is_runtime() always returns false
+        if(global->interpretation_mode) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, boolType, ZERO_LOC);
+        }
+        bool is_runtime;
+        if(!global->is_runtime_call) {
+            // Outside codegen eval (e.g. during symres): always runtime in compiled mode
+            is_runtime = true;
+        } else {
+            // Inside codegen eval: runtime iff call_stack is empty (direct codegen context).
+            // call_stack is populated by FunctionDeclaration::call() for each interpreted
+            // function call. If non-empty, we're inside an interpreted comptime evaluation
+            // (comptime func or comptime block), so is_runtime = false.
+            is_runtime = global->call_stack.empty();
+        }
+        return new (allocator.allocate<BoolValue>()) BoolValue(is_runtime, boolType, ZERO_LOC);
+    }
+};
+
+class InterpretIsComptime : public FunctionDeclaration {
+public:
+
+    explicit InterpretIsComptime(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "is_comptime",
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+        set_contract(ContractFlag::IsInterpretation, true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        const auto global = call_scope->global;
+        const auto boolType = global->typeBuilder.getBoolType();
+        // In interpretation mode, is_comptime() always returns true
+        if(global->interpretation_mode) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(true, boolType, ZERO_LOC);
+        }
+        bool is_comptime;
+        if(!global->is_runtime_call) {
+            // Outside codegen eval (e.g. during symres): in compiled mode, is_comptime = false
+            is_comptime = false;
+        } else {
+            // Inside codegen eval: comptime iff call_stack is non-empty (inside interpreted
+            // comptime evaluation, e.g. comptime func or comptime block)
+            is_comptime = !global->call_stack.empty();
+        }
+        return new (allocator.allocate<BoolValue>()) BoolValue(is_comptime, boolType, ZERO_LOC);
+    }
+};
 
 class InterpretGetRawLocation : public FunctionDeclaration {
 public:
@@ -2732,6 +2803,8 @@ public:
     InterpretIsTcc isTccFn;
     InterpretIsClang isClangFn;
     InterpretIsInterpretation isInterpretationFn;
+    InterpretIsRuntime isRuntimeFn;
+    InterpretIsComptime isComptimeFn;
     InterpretSize sizeFn;
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
@@ -2786,7 +2859,7 @@ public:
     ) : Namespace("intrinsics", nullptr, ZERO_LOC, AccessSpecifier::Public),
         llvmNamespace(cache, this), memNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
-        retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this),
+        retStructPtr(cache, this), verFn(cache, this),         isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this), isRuntimeFn(cache, this), isComptimeFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
         get_target_fn(cache, this), get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
@@ -2802,7 +2875,7 @@ public:
         nodes = {
             &llvmNamespace, &memNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &retStructPtr, &verFn,
-            &isTccFn, &isClangFn, &isInterpretationFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
+            &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,

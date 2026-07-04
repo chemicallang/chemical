@@ -3342,13 +3342,13 @@ int LabBuildCompiler::build_lab_file_no_alloc(
 
         // do the job
         const auto result = do_job(exe.get());
-        if (exe.get() == out_run_job) {
+        if(result != 0) {
             job_result = result;
         }
 
         // check if job is optional and we need to quit on failure
         if(result != 0 && !exe->optional_job) {
-            std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code " << job_result << rang::fg::reset << std::endl;
+            std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code " << result << rang::fg::reset << std::endl;
             break;
         }
 
@@ -3474,7 +3474,7 @@ int LabBuildCompiler::run_invocation(
         is64Bit = false;
     #endif
 #endif
-    
+
     // For local projects, build in the current directory's build folder
     // For remote/transformers, we'll override this once we have the module name
     compiler_opts.out_mode = mode;
@@ -3483,9 +3483,9 @@ int LabBuildCompiler::run_invocation(
     CompilerBinder binder;
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
-    
+
     LabBuildContext context(compiler, compiler.path_handler, compiler.mod_storage, compiler.binder);
-    
+
     // 0. Built-in: `chemical run tests [extra args]`
     //    Downloads the hosted test script via curl to a temp file, then executes it
     //    with a proper argv array — no shell quoting issues, output goes to current terminal.
@@ -3581,10 +3581,10 @@ int LabBuildCompiler::run_invocation(
     if (args.size() >= 1) {
         auto& first_arg = target;
         std::string second_arg(args[0]);
-        
+
         bool first_is_file = first_arg.ends_with(".lab") || first_arg.ends_with(".mod");
         bool second_is_file = second_arg.ends_with(".lab") || second_arg.ends_with(".mod");
-        
+
         if (!first_is_file && second_is_file) {
             // Probably a transformer
             std::vector<std::string_view> transformer_args;
@@ -3605,7 +3605,7 @@ int LabBuildCompiler::run_invocation(
             });
         }
     }
-    
+
     // 3. Is it a local project?
     if (target.ends_with(".lab") || target.ends_with(".mod")) {
         return compiler.do_allocating([&]() -> int {
@@ -3619,7 +3619,7 @@ int LabBuildCompiler::run_invocation(
         });
 
     }
-    
+
     // 4. It's a remote module run
     return compiler.do_allocating([&]() -> int {
         return compiler.run_remote_module(target, args, context);
@@ -3769,7 +3769,7 @@ bool LabBuildCompiler::parse_remote_import_from(RemoteImport& import, ASTAllocat
     if (from_path_view.empty()) return false;
 
     auto last_slash = from_path_view.find_last_of('/');
-    
+
     chem::string mod_scope, mod_name, origin;
     bool has_remote_origin = false;
 
@@ -4340,7 +4340,7 @@ bool LabBuildCompiler::add_remote_import(LabJob* job, RemoteImport& import, Conf
             }
             return true;
         }
-        
+
         // merge requesters
         std::vector<RemoteImportRequester> merged_requesters = std::move(existing.requesters);
         for(auto& req : import.requesters) {
@@ -4372,8 +4372,8 @@ int LabBuildCompiler::resolve_remote_import_conflict(ConflictResolutionStrategy 
     }
 
     // 1 - if the versions / commit hash / branch are same, this means its just a duplicate
-    if (existing.version == current.version && 
-        existing.branch == current.branch && 
+    if (existing.version == current.version &&
+        existing.branch == current.branch &&
         existing.commit == current.commit &&
         existing.subdir == current.subdir) {
         keep_existing = true;
@@ -4476,7 +4476,7 @@ struct RemoteImportProgress {
     void finish() {
         int current_total = total.load();
         int done = completed.load();
-        
+
         {
             std::lock_guard<std::mutex> lock(mutex);
             if (done >= current_total && errors.empty() && current_total > 0) {
@@ -4488,7 +4488,7 @@ struct RemoteImportProgress {
                 for (int i = 0; i < last_width; ++i) std::cout << " ";
                 std::cout << "\r" << std::flush;
             }
-            
+
             if (!errors.empty()) {
                 for (const auto& err : errors) {
                     std::cerr << err;
@@ -4496,7 +4496,7 @@ struct RemoteImportProgress {
                 errors.clear();
             }
         }
-        
+
         is_first_time_printing = true;
         last_width = 0;
     }
@@ -4589,7 +4589,7 @@ static int download_remote_import(
         std::string null_dev = "/dev/null";
 #endif
         std::vector<std::string> arg_list;
-        
+
         if(!import->commit.empty()) {
              fs::create_directories(target_dir);
              auto commit_str = import->commit.str();
@@ -4711,7 +4711,7 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
 
         if (final_status != 0) break;
     }
-    
+
     return final_status;
 }
 

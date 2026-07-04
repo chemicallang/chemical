@@ -47,6 +47,7 @@ func run_executable_tests() {
     test_optional_type();
     test_result_type();
     test_unordered_map();
+    test_ordered_map();
     test_deque();
     test_conversions();
     test_thread_pool()

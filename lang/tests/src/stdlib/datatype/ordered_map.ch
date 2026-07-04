@@ -179,4 +179,92 @@ func test_ordered_map() {
         map.find(string("three"), &mut third)
         return first == 1 && second == 2 && third == 3
     })
+
+    test("ordered_map order preserved across resize", () => {
+        var map = std::ordered_map<int, int>()
+        var expected = 0
+        while(expected < 25) {
+            map.insert(expected, expected * 10)
+            expected += 1
+        }
+        var count = 0
+        for(var entry in map) {
+            if(entry.key != count) return false
+            if(entry.value != count * 10) return false
+            count += 1
+        }
+        return count == 25
+    })
+
+    test("ordered_map insert after erase appends at tail", () => {
+        var map = std::ordered_map<int, int>()
+        map.insert(1, 100)
+        map.insert(2, 200)
+        map.insert(3, 300)
+        map.erase(2)
+        map.insert(4, 400)
+        var count = 0
+        for(var entry in map) {
+            if(count == 0 && (entry.key != 1 || entry.value != 100)) return false
+            if(count == 1 && (entry.key != 3 || entry.value != 300)) return false
+            if(count == 2 && (entry.key != 4 || entry.value != 400)) return false
+            count += 1
+        }
+        return count == 3
+    })
+
+    test("ordered_map insert after erase-all creates fresh order", () => {
+        var map = std::ordered_map<int, int>()
+        map.insert(1, 100)
+        map.insert(2, 200)
+        map.clear()
+        map.insert(3, 300)
+        map.insert(4, 400)
+        var count = 0
+        for(var entry in map) {
+            if(count == 0 && (entry.key != 3 || entry.value != 300)) return false
+            if(count == 1 && (entry.key != 4 || entry.value != 400)) return false
+            count += 1
+        }
+        return count == 2
+    })
+
+    test("ordered_map get_ptr mutation works", () => {
+        var map = std::ordered_map<int, int>()
+        map.insert(1, 100)
+        var ptr = map.get_ptr(1)
+        if(ptr == null) return false
+        *ptr = 500
+        var val : int = 0
+        map.find(1, &mut val)
+        return val == 500
+    })
+
+    test("ordered_map single element iteration and reverse", () => {
+        var map = std::ordered_map<int, int>()
+        map.insert(42, 420)
+        var fwd = 0
+        for(var entry in map) {
+            if(entry.key != 42 || entry.value != 420) return false
+            fwd += 1
+        }
+        if(fwd != 1) return false
+        var rev = 0
+        for(var entry in map reversed) {
+            if(entry.key != 42 || entry.value != 420) return false
+            rev += 1
+        }
+        return rev == 1
+    })
+
+    test("ordered_map single element erase", () => {
+        var map = std::ordered_map<int, int>()
+        map.insert(1, 100)
+        if(map.size() != 1) return false
+        if(map.empty()) return false
+        map.erase(1)
+        if(map.size() != 0) return false
+        if(!map.empty()) return false
+        return !map.contains(1)
+    })
 }

@@ -672,7 +672,9 @@ strings[0].append_view("first")
 
 Hash map container for key-value pairs.
 
-The unordered_map currently doesn't support `[key]` operator for lookups or assignment.
+**Does not support `[key]` operator** for lookups or assignment.
+
+**Warning**: The `iterator()` method scans buckets — iteration order is **not** deterministic. Use `ordered_map` if you need predictable insertion-order iteration.
 
 #### Constructor
 ```chemical
@@ -704,15 +706,61 @@ map.clear()
 #### Usage Examples
 ```chemical
 var word_count = std::unordered_map<std::string, int>()
-
-// Count words
 word_count.insert("hello", 1)
 word_count.insert("world", 2)
-
-// Check and increment
 if(word_count.contains("hello")) {
     word_count.insert("hello", (*word_count.get_ptr("hello")) + 1)
 }
+```
+
+### std::ordered_map
+
+Insertion-order-preserving hash map. Same API as `unordered_map` but iteration follows insertion order via an internal doubly-linked list.
+
+**Key constraint**: `Key : Hashable + Eq` (same as `unordered_map`).
+
+#### How it works
+- Hash table (same bucket-chain structure as `unordered_map`) for O(1) lookups
+- Each node has `order_prev` / `order_next` pointers forming a linked list in insertion order
+- `insert` appends new keys to the tail; `insert` of an existing key updates the value without changing position
+- `erase` splices the node out of both the hash chain and the linked list
+- Iterator walks `order_next` from head to tail (no bucket scanning)
+- Reverse iterator walks `order_prev` from tail to head
+
+#### Methods
+Same as unordered_map: `insert`, `find`, `contains`, `get_ptr`, `erase`, `clear`, `size`, `empty`, `isEmpty`
+
+#### Iteration
+```chemical
+for(var entry in map)                 // insertion order
+for(var entry, i in map)              // with index
+for(var& entry in map)                // by reference
+for(var entry in map reversed)        // reverse insertion order
+```
+
+#### Constructor
+```chemical
+var map = std::ordered_map<std::string, int>()
+var map2 = std::ordered_map<int, std::string>()
+```
+
+#### Usage Examples
+```chemical
+var map = std::ordered_map<std::string, int>()
+map.insert("first", 1)
+map.insert("second", 2)
+map.insert("third", 3)
+
+// Iteration is guaranteed to yield: first→1, second→2, third→3
+for(var entry in map) {
+    // entry.key, entry.value
+}
+
+// Erase a key
+map.erase("second")  // remaining order: first→1, third→3
+
+// Update (position unchanged)
+map.insert("first", 100)  // still at position 1
 ```
 
 ### std:: Option and Result Types
@@ -1045,6 +1093,108 @@ variant MyVariant {
 3. **Leverage destructors for RAII** - Get modern safety with C-like performance
 4. **Use variants judiciously** - Great for certain use cases but not a replacement for all enums
 5. **Standard library when beneficial** - Use std containers when they provide clear advantages
+
+## Critical Gotchas (From Implementation)
+
+### 1. `&key` in parameter means reference, not address-of
+
+When a function signature uses `&Key` as a parameter type, it means **reference to Key** — pass the value directly, **don't** prefix with `&`:
+
+```chemical
+func contains(&self, key : &Key) : bool    // key is a reference
+
+// CORRECT:
+map.contains(10)
+
+// WRONG — taking address of r-value literal:
+map.contains(&10)   // ERROR: cannot apply operator '&' to r-value
+```
+
+The same applies to `erase(key)`, `get_ptr(key)`, `find(key, &mut out)`.
+
+Only use explicit `&` when the parameter type is a raw pointer (`*Key` or `*mut Key`).
+
+### 2. Multi-line expressions break inside lambdas
+
+The parser errors on expressions spanning multiple lines inside a lambda body:
+
+```chemical
+// WRONG — parser error:
+test("name", () => {
+    return a == 1 && b == 2
+        && c == 3           // ERROR here
+})
+
+// CORRECT — use if/return statements:
+test("name", () => {
+    if(a != 1) return false
+    if(b != 2) return false
+    if(c != 3) return false
+    return true
+})
+```
+
+### 3. `reversed` is a keyword — cannot use as field name
+
+The `reversed` keyword used in `for(var entry in map reversed)` conflicts with user-defined identifiers. If you name a struct field `reversed`, the compiler errors:
+
+```
+error: couldn't find value for member 'reversed'
+```
+
+Use a different name like `reverse_dir` or avoid the name entirely.
+
+### 4. `vector<T>` does NOT support `operator[]`
+
+You **cannot** use `vec[0]`, `vec[1]`, etc. to index into a `std::vector`. There is no index operator overload. To access elements, use `.get(i)` or `.get_ptr(i)`:
+
+```chemical
+var vec = std::vector<int>()
+vec.push(10)
+vec.push(20)
+
+// WRONG:
+// var x = vec[0]     // ERROR
+
+// CORRECT:
+var x = vec.get(0)
+var px = vec.get_ptr(0)   // returns *mut int
+```
+
+### 5. Implementing for-in requires Iterable/ReversibleIterable
+
+To make a custom type iterable with `for(var x in obj)`, implement `core::iterable::Iterable<T, Cursor>`:
+
+```chemical
+impl core::iterable::Iterable<MyNode, MyCursor> for MyStruct {
+    func begin(&self) : MyCursor { ... }
+    func valid(&self, c : MyCursor) : bool { ... }
+    func current(&self, c : MyCursor) : &MyNode { ... }
+    func next(&self, c : MyCursor) : MyCursor { ... }
+}
+```
+
+For `reversed` support, additionally implement `ReversibleIterable`:
+
+```chemical
+impl core::iterable::ReversibleIterable<MyNode, MyCursor> for MyStruct {
+    func rbegin(&self) : MyCursor { ... }     // start from end
+    func previous(&self, c : MyCursor) : MyCursor { ... }  // walk backward
+    func count(&self) : size_t { ... }
+}
+```
+
+The cursor struct does not need a `reversed` flag — `next()` is used for forward iteration, `previous()` for reverse. They are never called in the same loop.
+
+### 6. Hash table + linked list pattern for ordered maps
+
+To build an insertion-order-preserving map:
+- Each node has separate pointers for the **hash chain** (`hash_next`) and the **order chain** (`order_prev` / `order_next`)
+- `head` / `tail` pointers on the map track the ordered list
+- `insert` appends new nodes to the tail (`tail.order_next = newNode; tail = newNode`)
+- `erase` splices the node out of the order list (`prev.order_next = next; next.order_prev = prev`)
+- `resize` rehashes by walking the order list (not the buckets), preserving the linked list pointers unchanged
+- The `@delete` destructor walks the order list (not buckets) for cleanup, then frees the table
 
 ## Common Patterns
 

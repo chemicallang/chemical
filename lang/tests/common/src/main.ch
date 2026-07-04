@@ -113,6 +113,7 @@ public func run_common_tests() {
     // test_interface_generic_dispatch() — skipped: interface definitions crash interpreter
 
     test_comptime();
+    test_comptime_intrinsics();
     test_compiler_vector();
     test_constructors();
     test_extension_functions();

@@ -57,6 +57,19 @@ public:
     LabBuildCompiler* build_compiler;
 
     /**
+     * whether the current job is an interpretation job
+     * stored as a flag to avoid chasing build_compiler->current_job->type
+     */
+    bool interpretation_mode = false;
+
+    /**
+     * set to true when a comptime function evaluation is triggered
+     * from codegen (2c or LLVM), as opposed to running in the
+     * pure interpretation mode
+     */
+    bool is_runtime_call = false;
+
+    /**
      * a pointer to backend context is stored, so compile time
      * function calls can generate code based on the backend
      */
@@ -104,7 +117,8 @@ public:
         LabBuildCompiler* buildCompiler,
         ASTAllocator& allocator,
         TypeBuilder& typeBuilder,
-        LocationManager& loc_man
+        LocationManager& loc_man,
+        bool interpretation_mode = false
     );
 
     /**

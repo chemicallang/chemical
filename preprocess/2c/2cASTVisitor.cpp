@@ -814,7 +814,10 @@ Value* evaluate_comptime_func(
 ) {
     const auto prev = visitor.comptime_scope.current_func_type;
     visitor.comptime_scope.current_func_type = visitor.current_func_type;
+    const auto prev_runtime_call = visitor.comptime_scope.is_runtime_call;
+    visitor.comptime_scope.is_runtime_call = true;
     auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, build_parent_chain(call->parent_val, visitor.allocator), false);
+    visitor.comptime_scope.is_runtime_call = prev_runtime_call;
     visitor.comptime_scope.current_func_type = prev;
     // put all diagnostics for this function inside the diagnoser
     auto& diags = visitor.comptime_scope.diagnostics;

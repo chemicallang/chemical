@@ -3396,63 +3396,80 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     }
     const auto struct_val = val->as_struct_value();
     const auto val_type = val->getType();
-    if(struct_val) {
 
+    // Helper: check if type is an interface (or generic interface) without active_user.
+    // Such types are emitted as void* in C, so returning a concrete struct requires boxing.
+    auto is_iface_void_ptr = [](BaseType* t) -> bool {
+        auto check_linked = [](ASTNode* linked) -> bool {
+            if(linked->kind() == ASTNodeKind::InterfaceDecl) {
+                return linked->as_interface_def_unsafe()->active_user == nullptr;
+            }
+            if(linked->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                return linked->as_gen_interface_decl_unsafe()->master_impl->active_user == nullptr;
+            }
+            return false;
+        };
+        if(t->kind() == BaseTypeKind::Linked) {
+            return check_linked(t->as_linked_type_unsafe()->linked);
+        }
+        if(t->kind() == BaseTypeKind::Generic) {
+            return check_linked(t->as_generic_type_unsafe()->referenced->linked);
+        }
+        return false;
+    };
+
+    if(struct_val) {
+        if(is_iface_void_ptr(type)) {
+            // Return type is interface as void* — box the struct: allocate local temp,
+            // init with value, then store its address in the return param.
+            const auto temp_name = get_local_temp_var_name();
+            new_line_and_indent();
+            const auto struct_def = struct_val->linked_struct();
+            if(struct_def) {
+                write("struct ");
+                mangle(struct_def);
+                write(" ");
+                write_str(temp_name);
+                write(" = ");
+                visit(val);
+                write(";");
+                new_line_and_indent();
+                write('*');
+                write(get_struct_return_param_name(*this));
+                write(" = (void*)&");
+                write_str(temp_name);
+            }
+        } else {
             write('*');
             write(get_struct_return_param_name(*this));
             write(" = ");
             accept_mutating_value_explicit(type, val);
-
-            // auto size = struct_val->values.size();
-            // bool has_value_before = false;
-            // for(const auto& mem : struct_val->values) {
-            //     if(has_value_before) {
-            //         write(';');
-            //         new_line_and_indent();
-            //     } else  {
-            //         has_value_before = true;
-            //     }
-            //     auto child_member = struct_val->child_member(mem.first);
-            //     write(get_struct_return_param_name(*this));
-            //     write("->");
-            //     write(mem.first);
-            //     write(" = ");
-            //     accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value);
-            // }
-            // const auto container = struct_val->variables();
-            // for(const auto mem : container->variables()) {
-            //     if(has_value_before) {
-            //         write(';');
-            //         new_line_and_indent();
-            //         has_value_before = false;
-            //     }
-            //     const auto defValue = mem->default_value();
-            //     if(defValue) {
-            //         auto found = struct_val->values.find(mem->name);
-            //         if(found == struct_val->values.end()) {
-            //             has_value_before = true;
-            //             write(get_struct_return_param_name(*this));
-            //             write("->");
-            //             write(mem->name);
-            //             write(" = ");
-            //             accept_mutating_value(mem->known_type(), defValue);
-            //         }
-            //     }
-            // }
-
+        }
     } else if(val->kind() == ValueKind::LambdaFunc && type->kind() == BaseTypeKind::CapturingFunction) {
         write('*');
         write(get_struct_return_param_name(*this));
         write(" = ");
         accept_mutating_value_explicit(type, val);
     } else if(val_type->isStructLikeType()) {
-        write('*');
-        write(get_struct_return_param_name(*this));
-        write(" = ");
-        if(is_value_param_pointer_like(val)) {
+        if(is_iface_void_ptr(type)) {
+            // Non-struct-value (e.g. function call result) being returned as interface type.
+            // The value is already a pointer to a temporary, store the pointer cast to void*.
             write('*');
+            write(get_struct_return_param_name(*this));
+            write(" = (void*)");
+            if(!is_value_param_pointer_like(val)) {
+                write('&');
+            }
+            visit(val);
+        } else {
+            write('*');
+            write(get_struct_return_param_name(*this));
+            write(" = ");
+            if(is_value_param_pointer_like(val)) {
+                write('*');
+            }
+            visit(val);
         }
-        visit(val);
     } else {
         accept_mutating_value_explicit(type, val);
     }

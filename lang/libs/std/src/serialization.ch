@@ -71,4 +71,66 @@ interface Serializer<T> {
 
 }
 
+// Decoder
+
+interface Decoder<T> {
+
+    func decode_null(&self) : Result<Unit, SerializationError>
+
+    func decode_bool(&self) : Result<bool, SerializationError>
+
+    func decode_char(&self) : Result<char, SerializationError>
+
+    func decode_u64(&self) : Result<u64, SerializationError>
+
+    func decode_i64(&self) : Result<i64, SerializationError>
+
+    func decode_double(&self) : Result<double, SerializationError>
+
+    func decode_float(&self) : Result<float, SerializationError>
+
+    func decode_str_of_len(&self, l : u64) : Result<std::string, SerializationError>
+
+    func decode_str(&self) : Result<std::string, SerializationError>
+
+    func decode_bytes(&self) : Result<vector<u8>, SerializationError>
+
+    func array(&self) : Result<ArrayDecoder<T>, SerializationError>
+
+    func object(&self) : Result<ObjectDecoder<T>, SerializationError>
+
+    func map(&self) : Result<MapDecoder<T>, SerializationError>
+
+}
+
+interface ArrayDecoder<T> {
+
+    func <K : Deserializer<T>> decode(&self) : Result<K, SerializationError>
+
+    func remaining(&self) : Result<u64, SerializationError>
+
+}
+
+interface ObjectDecoder<T> {
+
+    func <V : Deserializer<T>> field(&self, name : *char) : Result<V, SerializationError>
+
+    func remaining(&self) : Result<u64, SerializationError>
+
+}
+
+interface MapDecoder<T> {
+
+    func <K : Deserializer<T>, V : Deserializer<T>> decode(&self) : Result<(K, V), SerializationError>
+
+    func remaining(&self) : Result<u64, SerializationError>
+
+}
+
+interface Deserializer<T> {
+
+    func deserialize(&self, decoder : Decoder<T>) : Result<Unit, SerializationError>
+
+}
+
 }

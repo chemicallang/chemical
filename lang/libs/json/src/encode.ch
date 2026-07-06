@@ -1,12 +1,4 @@
-// Convenience: encode a JsonValue to a string via append_value
-public func encode_json(value : &JsonValue) : std::string {
-    var buffer = std::string()
-    var builder = JsonStringBuilder { ptr : &mut buffer }
-    builder.append_value(value)
-    return buffer
-}
-
-// ===== Encoders =====
+// ===== Encoder Structs =====
 
 public struct JsonEncoder {
     var buffer : *mut std::string
@@ -45,8 +37,6 @@ public struct JsonMapEncoder {
         self.counts.take_last()
     }
 }
-
-
 
 // ===== Helpers =====
 
@@ -136,6 +126,16 @@ public func parse_i64(s : *char) : i64 {
     return result
 }
 
+public func parse_u64(s : *char) : u64 {
+    var i : int = 0
+    var result : u64 = 0
+    while(s[i] != '\0' && s[i] >= '0' && s[i] <= '9') {
+        result = result * 10u64 + (s[i] - '0') as u64
+        i++
+    }
+    return result
+}
+
 public func parse_double(s : *char) : double {
     var i : int = 0
     var negative = false
@@ -183,7 +183,6 @@ public func is_float_str(s : *char) : bool {
     return false
 }
 
-// Helper to copy a JsonValue by variant dispatch
 public func copy_json_value(src : &JsonValue) : JsonValue {
     switch(src) {
         Null() => return JsonValue.Null()
@@ -311,12 +310,6 @@ impl std::Encoder<JsonValue> for JsonEncoder {
     }
 }
 
-func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
-    value.encode(e)
-    // TODO: returning value.encode doesn't satisfy the result, compiler bug
-    return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
-}
-
 impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
     func <K : std::Serializer<JsonValue, JsonEncoder>> encode(&self, value : K) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
@@ -362,4 +355,19 @@ impl std::MapEncoder<JsonValue> for JsonMapEncoder {
         var r2 = value.encode(&encoder2)
         return r2 as std::Result<std::Unit, std::SerializationError>
     }
+}
+
+// Generic encode method — dispatches to Serializer<T, JsonEncoder>
+func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
+    value.encode(e)
+    // TODO: returning value.encode doesn't satisfy the result, compiler bug
+    return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
+}
+
+// Convenience: encode a JsonValue to a string via append_value
+public func encode_json(value : &JsonValue) : std::string {
+    var buffer = std::string()
+    var builder = JsonStringBuilder { ptr : &mut buffer }
+    builder.append_value(value)
+    return buffer
 }

@@ -1,60 +1,96 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Configure CMake",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--preset", "x64-debug"],
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "Build Compiler",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "Compiler", "--parallel", "6"],
-            "problemMatcher": ["$gcc"],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "Build TCCCompiler",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "TCCCompiler", "--parallel", "6"],
-            "problemMatcher": ["$gcc"],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "Build Interpreter",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "Interpreter", "--parallel", "6"],
-            "problemMatcher": ["$gcc"],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        },
-        {
-            "label": "Build ChemicalLsp",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "ChemicalLsp", "--parallel", "6"],
-            "problemMatcher": ["$gcc"],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Configure CMake",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "x64-debug"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+    {
+      "label": "Build Compiler",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "cmake-build-debug",
+        "--config",
+        "Debug",
+        "--target",
+        "Compiler",
+        "--parallel",
+        "6",
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+    {
+      "label": "Build TCCCompiler",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "cmake-build-debug",
+        "--config",
+        "Debug",
+        "--target",
+        "TCCCompiler",
+        "--parallel",
+        "6",
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+    {
+      "label": "Build Interpreter",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "cmake-build-debug",
+        "--config",
+        "Debug",
+        "--target",
+        "Interpreter",
+        "--parallel",
+        "6",
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+    {
+      "label": "Build ChemicalLsp",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "cmake-build-debug",
+        "--config",
+        "Debug",
+        "--target",
+        "ChemicalLsp",
+        "--parallel",
+        "6",
+      ],
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+  ],
 }

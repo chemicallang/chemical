@@ -3,7 +3,7 @@ public namespace core {
 struct Unit {}
 
 enum SerializationErrorKind {
-
+    Generic
 }
 
 struct SerializationError {

@@ -78,58 +78,11 @@ public func json_escape_into(output : &mut std::string, str : *char, len : u64) 
 }
 
 public func write_i64(output : &mut std::string, val : i64) {
-    if(val == 0i64) {
-        output.append('0')
-        return
-    }
-    var buf : [21]char
-    var pos : int = 20
-    var negative = false
-    var remaining : u64
-    if(val < 0i64) {
-        negative = true
-        if(val == -9223372036854775807i64 - 1i64) {
-            remaining = 9223372036854775808u64
-        } else {
-            remaining = (-val) as u64
-        }
-    } else {
-        remaining = val as u64
-    }
-    while(remaining > 0) {
-        buf[pos] = ('0' + (remaining % 10u64)) as char
-        remaining /= 10u64
-        pos--
-    }
-    if(negative) {
-        buf[pos] = '-'
-        pos--
-    }
-    pos++
-    while(pos < 21) {
-        output.append(buf[pos])
-        pos++
-    }
+    output.append_integer(val)
 }
 
 public func write_u64(output : &mut std::string, val : u64) {
-    if(val == 0u64) {
-        output.append('0')
-        return
-    }
-    var buf : [20]char
-    var pos : int = 19
-    var remaining = val
-    while(remaining > 0) {
-        buf[pos] = ('0' + (remaining % 10u64)) as char
-        remaining /= 10u64
-        pos--
-    }
-    pos++
-    while(pos < 20) {
-        output.append(buf[pos])
-        pos++
-    }
+    output.append_uinteger(val)
 }
 
 public func write_double_raw(output : &mut std::string, val : double) {

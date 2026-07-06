@@ -1,17 +1,17 @@
-public namespace core {
+public namespace std {
 
-struct Unit {}
+public struct Unit {}
 
-enum SerializationErrorKind {
+public enum SerializationErrorKind {
     Generic
 }
 
-struct SerializationError {
+public struct SerializationError {
     var kind : SerializationErrorKind
     var message : std::string
 }
 
-interface Encoder<T> {
+public interface Encoder<T> {
 
     func encode_null(&self) : std::Result<Unit, SerializationError>
 
@@ -65,9 +65,9 @@ interface MapEncoder<T> {
 
 }
 
-interface Serializer<T> {
+interface Serializer<T, E : Encoder<T>> {
 
-    func encode(&self, encoder : Encoder<T>) : std::Result<Unit, SerializationError>
+    func encode(&self, encoder : &E) : std::Result<Unit, SerializationError>
 
 }
 

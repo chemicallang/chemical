@@ -395,6 +395,45 @@ func test_encoder_encode_str_of_len(env : &mut TestEnv) {
     }
 }
 
+// ===== Generic Encoder Method Tests =====
+
+@test
+func test_encoder_encode_generic(env : &mut TestEnv) {
+    var output = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
+    var r = encoder.encode<uint>(42u)
+    if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    if(!output.to_view().equals(std::string_view("42"))) {
+        env.error("encoder.encode(42) failed")
+    }
+}
+
+@test
+func test_encoder_encode_generic2(env : &mut TestEnv) {
+    var output = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
+    var r = encoder.encode<float>(3.14f)
+    if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    if(!output.to_view().equals(std::string_view("3.14"))) {
+        env.error("encoder.encode(3.14f) failed")
+    }
+}
+
+@test
+func test_encoder_encode_generic3(env : &mut TestEnv) {
+    var output = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
+    var r = encoder.encode<double>(3.14)
+    if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    if(!output.to_view().equals(std::string_view("3.14"))) {
+        env.error("encoder.encode(3.14) failed")
+    }
+}
+
+
 // ===== Roundtrip Tests =====
 
 @test

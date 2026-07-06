@@ -216,116 +216,122 @@ public func copy_json_value(src : &JsonValue) : JsonValue {
 
 // ===== Encoder Implementation =====
 
-impl core::Encoder<JsonValue> for JsonEncoder {
-    func encode_null(&self) : std::Result<core::Unit, core::SerializationError> {
+impl std::Encoder<JsonValue> for JsonEncoder {
+    func encode_null(&self) : std::Result<std::Unit, std::SerializationError> {
         self.buffer.append_char_ptr("null")
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_bool(&self, v : bool) : std::Result<core::Unit, core::SerializationError> {
+    func encode_bool(&self, v : bool) : std::Result<std::Unit, std::SerializationError> {
         if(v) { self.buffer.append_char_ptr("true") }
         else { self.buffer.append_char_ptr("false") }
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_char(&self, c : char) : std::Result<core::Unit, core::SerializationError> {
+    func encode_char(&self, c : char) : std::Result<std::Unit, std::SerializationError> {
         self.buffer.append('"')
         self.buffer.append(c)
         self.buffer.append('"')
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_u64(&self, i : u64) : std::Result<core::Unit, core::SerializationError> {
+    func encode_u64(&self, i : u64) : std::Result<std::Unit, std::SerializationError> {
         write_u64(&mut *self.buffer, i)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_i64(&self, i : i64) : std::Result<core::Unit, core::SerializationError> {
+    func encode_i64(&self, i : i64) : std::Result<std::Unit, std::SerializationError> {
         write_i64(&mut *self.buffer, i)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_double(&self, d : double) : std::Result<core::Unit, core::SerializationError> {
+    func encode_double(&self, d : double) : std::Result<std::Unit, std::SerializationError> {
         write_double(&mut *self.buffer, d)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_float(&self, f : float) : std::Result<core::Unit, core::SerializationError> {
+    func encode_float(&self, f : float) : std::Result<std::Unit, std::SerializationError> {
         write_double(&mut *self.buffer, f as double)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_str_of_len(&self, c : *char, l : u64) : std::Result<core::Unit, core::SerializationError> {
+    func encode_str_of_len(&self, c : *char, l : u64) : std::Result<std::Unit, std::SerializationError> {
         json_escape_into(&mut *self.buffer, c, l)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_str(&self, c : *char) : std::Result<core::Unit, core::SerializationError> {
+    func encode_str(&self, c : *char) : std::Result<std::Unit, std::SerializationError> {
         var len : u64 = 0
         while(c[len] != '\0') { len++ }
         json_escape_into(&mut *self.buffer, c, len)
-        return std::Result.Ok(core::Unit {})
+        return std::Result.Ok(std::Unit {})
     }
 
-    func encode_bytes(b : *u8, l : u64) : std::Result<core::Unit, core::SerializationError> {
-        return std::Result.Err(core::SerializationError {
-            kind : core::SerializationErrorKind.Generic,
+    func encode_bytes(b : *u8, l : u64) : std::Result<std::Unit, std::SerializationError> {
+        return std::Result.Err(std::SerializationError {
+            kind : std::SerializationErrorKind.Generic,
             message : std::string("bytes not supported for JSON encoder")
         })
     }
 
-    func array(&self) : core::ArrayEncoder<JsonValue> {
+    func array(&self) : std::ArrayEncoder<JsonValue> {
         self.buffer.append('[')
         self.counts.push(0)
         return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func array_of_len(&self, len : u64) : core::ArrayEncoder<JsonValue> {
+    func array_of_len(&self, len : u64) : std::ArrayEncoder<JsonValue> {
         self.buffer.append('[')
         self.counts.push(0)
         return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func object(&self) : core::ObjectEncoder<JsonValue> {
+    func object(&self) : std::ObjectEncoder<JsonValue> {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func object_of_len(&self, len : u64) : core::ObjectEncoder<JsonValue> {
+    func object_of_len(&self, len : u64) : std::ObjectEncoder<JsonValue> {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func map(&self) : core::MapEncoder<JsonValue> {
+    func map(&self) : std::MapEncoder<JsonValue> {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func map_of_len(&self, len : u64) : core::MapEncoder<JsonValue> {
+    func map_of_len(&self, len : u64) : std::MapEncoder<JsonValue> {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
     }
 }
 
-impl core::ArrayEncoder<JsonValue> for JsonArrayEncoder {
-    func <K : core::Serializer<JsonValue>> encode(&self, value : K) : std::Result<core::Unit, core::SerializationError> {
+func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
+    value.encode(e)
+    // TODO: returning value.encode doesn't satisfy the result, compiler bug
+    return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
+}
+
+impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
+    func <K : std::Serializer<JsonValue, JsonEncoder>> encode(&self, value : K) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
         }
         *cnt += 1
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r = value.encode(encoder)
-        return r as std::Result<core::Unit, core::SerializationError>
+        var r = value.encode(&encoder)
+        return r as std::Result<std::Unit, std::SerializationError>
     }
 }
 
-impl core::ObjectEncoder<JsonValue> for JsonObjectEncoder {
-    func <V : core::Serializer<JsonValue>> field(&self, name : *char, value : V) : std::Result<core::Unit, core::SerializationError> {
+impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
+    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : *char, value : V) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
@@ -336,33 +342,24 @@ impl core::ObjectEncoder<JsonValue> for JsonObjectEncoder {
         json_escape_into(&mut *self.buffer, name, len)
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r = value.encode(encoder)
-        return r as std::Result<core::Unit, core::SerializationError>
+        var r = value.encode(&encoder)
+        return r as std::Result<std::Unit, std::SerializationError>
     }
 }
 
-impl core::MapEncoder<JsonValue> for JsonMapEncoder {
-    func <K : core::Serializer<JsonValue>, V : core::Serializer<JsonValue>> encode(&self, key : K, value : V) : std::Result<core::Unit, core::SerializationError> {
+impl std::MapEncoder<JsonValue> for JsonMapEncoder {
+    func <K : std::Serializer<JsonValue, JsonEncoder>, V : std::Serializer<JsonValue, JsonEncoder>> encode(&self, key : K, value : V) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
         }
         *cnt += 1
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r1 = key.encode(encoder)
-        if(!(r1 is std::Result.Ok)) { return r1 as std::Result<core::Unit, core::SerializationError> }
+        var r1 = key.encode(&encoder)
+        if(!(r1 is std::Result.Ok)) { return r1 as std::Result<std::Unit, std::SerializationError> }
         self.buffer.append(':')
         var encoder2 = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r2 = value.encode(encoder2)
-        return r2 as std::Result<core::Unit, core::SerializationError>
+        var r2 = value.encode(&encoder2)
+        return r2 as std::Result<std::Unit, std::SerializationError>
     }
 }
-
-// ===== Serializer for JsonValue =====
-// Note: Implementing core::Serializer<JsonValue> for JsonValue requires
-// accessing individual elements of vector<JsonValue> by value, which is
-// currently blocked by the type system (cannot dereference raw pointer to
-// destructible variant type). The encoder structs work correctly for
-// programmatic JSON building; use encode_json() for JsonValue-to-string.
-
-

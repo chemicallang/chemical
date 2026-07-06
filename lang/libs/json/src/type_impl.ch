@@ -70,6 +70,18 @@ impl std::Serializer<JsonValue, JsonEncoder> for double {
     }
 }
 
+impl std::Serializer<JsonValue, JsonEncoder> for std::string_view {
+    func encode(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
+        return encoder.encode_str_of_len(self.data(), self.size())
+    }
+}
+
+impl std::Serializer<JsonValue, JsonEncoder> for std::string {
+    func encode(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
+        return encoder.encode_str_of_len(self.data(), self.size())
+    }
+}
+
 // public func <T, E : std::Encoder<T>, S : std::Serializer<T, E>> encode(e : E, s : S) : std::Result<std::Unit, std::SerializationError> {
 //     return s.encode(e)
 // }

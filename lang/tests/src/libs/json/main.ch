@@ -433,6 +433,18 @@ func test_encoder_encode_generic3(env : &mut TestEnv) {
     }
 }
 
+@test
+func test_encoder_encode_generic4(env : &mut TestEnv) {
+    var output = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
+    var r = encoder.encode<std::string_view>(std::string_view("hello world"))
+    if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    if(!output.to_view().equals(std::string_view("\"hello world\""))) {
+        env.error("encoder.encode(\"hello world\") failed")
+    }
+}
+
 
 // ===== Roundtrip Tests =====
 

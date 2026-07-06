@@ -7540,9 +7540,16 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             write("union ");
             mangle(&linked);
             return;
-        case ASTNodeKind::GenericTypeParam:
-            visit(linked.known_type());
+        case ASTNodeKind::GenericTypeParam: {
+            const auto t = linked.known_type();
+            if (t == nullptr) {
+                error("generic type parameter not specialized, compiler bug detected", &linked);
+                write("[GENERIC_TYPE_PARAMETER_NOT_SPECIALIZED_COMPILER_BUG]");
+            } else {
+                visit(t);
+            }
             return;
+        }
         case ASTNodeKind::TypealiasStmt: {
             auto alias = aliases.find(&linked);
             if (alias != aliases.end()) {

@@ -821,15 +821,15 @@ void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // finalizing signature of inline instantiations that occurred before link_signature
     for(auto& inst : node->inline_instantiations) {
         node->finalize_signature(allocator, inst.first);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     for(auto& inst : node->inline_instantiations) {
         linker.genericInstantiator.FinalizeSignature(node, inst.first, inst.second);
     }
@@ -868,14 +868,6 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     // finalize the signatures of all instantiations
     // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // now that we have completely finalized the signature of instantiations
-    // we will put all the functions if they are extension functions
-    // they will go into their appropriate structs
-//    if(master_impl->isExtensionFn()) {
-//        for(const auto inst : instantiations) {
-//            inst->put_as_extension_function(linker.allocator, linker);
-//        }
-//    }
 }
 
 void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
@@ -895,8 +887,8 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // since these instantiations were created before link_signature
     // the functions have signature_resolved set to false, we must fix that
@@ -937,8 +929,8 @@ void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // since these instantiations were created before link_signature
     // the functions have signature_resolved set to false, we must fix that
@@ -967,8 +959,8 @@ void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // since these instantiations were created before link_signature
     // the functions have signature_resolved set to false, we must fix that
@@ -997,8 +989,8 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
-    // finalize the siganture of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // since these instantiations were created before link_signature
     // the functions have signature_resolved set to false, we must fix that
@@ -1039,8 +1031,8 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     for(const auto inst : node->instantiations) {
         GenericImplDecl::finalize_signature(allocator, inst);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
+    // finalize the signature of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
     // since these instantiations were created before link_signature
     // the functions have signature_resolved set to false, we must fix that

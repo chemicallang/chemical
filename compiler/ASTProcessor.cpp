@@ -213,27 +213,6 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fi
     return range;
 }
 
-void ASTProcessor::sym_res_before_link_sig_file(
-        Scope& scope,
-        unsigned int fileId,
-        const std::string& abs_path,
-        const SymbolRange& range
-) {
-    // doing stuff
-    BenchmarkResults bm_results;
-    if(options->benchmark_files) {
-        bm_results.benchmark_begin();
-    }
-    resolver->before_link_signature_file(scope, fileId, range);
-    if(options->benchmark_files) {
-        bm_results.benchmark_end();
-        print_benchmarks(std::cout, "SymRes:before_link_sig", abs_path, &bm_results);
-    }
-    if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:before_link_sig");
-    }
-}
-
 void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     BenchmarkResults bm_results;
@@ -380,23 +359,6 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.file_id, file.abs_path);
 
-        // report and clear diagnostics
-        if (resolver->has_errors() && !options->ignore_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
-        }
-        resolver->reset_errors();
-
-    }
-
-    if(errored) return 1;
-
-    // before link the signature of the files
-    for(auto& file_ptr : module->direct_files) {
-
-        auto& file = *file_ptr.result;
-
-        sym_res_before_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;

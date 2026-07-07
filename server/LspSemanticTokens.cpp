@@ -357,21 +357,8 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
     }
 
-    unsigned i = 0;
-    for(const auto cachedUnit : fileUnits) {
-
-        auto& unit = cachedUnit->unit;
-        auto path_str = unit.scope.meta.abs_path;
-
-        auto& priv_sym_range = priv_sym_ranges[i];
-
-        resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
-
-        i++;
-    }
-
     // linking signatures in all files
-    i = 0;
+    unsigned i = 0;
     for(const auto cachedUnit : fileUnits) {
 
         auto& unit = cachedUnit->unit;
@@ -793,16 +780,6 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 auto& unit = cachedUnit->unit;
                 if (last_file->fileId != unit.scope.getFileId()) {
                     priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.meta.file_id, unit.scope.meta.abs_path);
-                }
-                i++;
-            }
-
-            i = 0;
-            for(const auto cachedUnit : modData->fileUnits) {
-                auto& unit = cachedUnit->unit;
-                if (last_file->fileId != unit.scope.getFileId()) {
-                    auto& priv_sym_range = priv_sym_ranges[i];
-                    resolver.before_link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
                 }
                 i++;
             }

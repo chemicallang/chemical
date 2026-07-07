@@ -21,6 +21,7 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/miniaudio" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/miniz" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb/build/remote/github.com/chemicallang/mongodb@win-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/nuklear" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/sokol" vcs="Git" />
@@ -35,6 +36,7 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/chemicallang/mongodb@win-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/timeline/build/remote/github.com/wiqis/accountlib@v1.1" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/tinycc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/totp" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/webview" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/zip" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example@v1.0" vcs="Git" />

@@ -609,7 +609,6 @@ set(COMMON_SOURCES
         ast/values/RawLiteral.h
         compiler/lab/backend/atomics.h
         ast/types/MaybeRuntimeType.h
-        compiler/symres/BeforeLinkSignature.h
         std/except.h
         std/except.cpp
         compiler/lab/LabJob.cpp

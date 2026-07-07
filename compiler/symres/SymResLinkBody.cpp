@@ -1213,12 +1213,12 @@ void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
 
 void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();

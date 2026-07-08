@@ -574,6 +574,8 @@ set(COMMON_SOURCES
         compiler/symres/LinkSignature.h
         compiler/symres/LinkSignature.cpp
         compiler/symres/LinkSignatureAPI.h
+        compiler/symres/GenericInstantiationPass.h
+        compiler/symres/GenericInstantiationPass.cpp
         compiler/symres/SymResLinkBody.h
         compiler/symres/SymResLinkBody.cpp
         compiler/symres/SymResLinkBodyAPI.h

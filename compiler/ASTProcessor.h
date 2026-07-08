@@ -439,6 +439,16 @@ public:
     );
 
     /**
+     * generic instantiation pass on the file (runs after link_signature, before after_link_sig)
+     */
+    void sym_res_generic_instantiation_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path,
+            const SymbolRange& range
+    );
+
+    /**
      * links the signature of the file
      */
     void sym_res_after_link_sig_file(

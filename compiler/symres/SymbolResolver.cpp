@@ -12,6 +12,7 @@
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "DeclareTopLevel.h"
 #include "LinkSignatureAPI.h"
+#include "GenericInstantiationPass.h"
 #include "SymResLinkBodyAPI.h"
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/statements/ChildrenMapNode.h"
@@ -440,6 +441,18 @@ void SymbolResolver::link_signature_file(
     file_scope_end(scope_index);
 }
 
+void SymbolResolver::generic_instantiation_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
+    instContainer.current_file_id = fileId;
+    const auto scope_index = file_scope_start();
+    enable_file_symbols(range);
+    sym_res_generic_instantiation(*this, &scope);
+    file_scope_end(scope_index);
+}
+
 void SymbolResolver::after_link_signature_file(
         Scope& scope,
         unsigned int fileId,
@@ -479,6 +492,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);
     sym_res_signature(*this, &scope);
+    sym_res_generic_instantiation(*this, &scope);
     sym_res_after_signature(*this, &scope);
     sym_res_link_body(*this, &scope);
     file_scope_end(scope_index);

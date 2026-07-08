@@ -91,7 +91,7 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         // generate default functions
         impl->generate_functions(allocator, diagnoser, impl);
 
-    } else if(signature_linked) {
+    } else {
 
         // indexes of containers need not be copied
         // because children are resolved through master implementation

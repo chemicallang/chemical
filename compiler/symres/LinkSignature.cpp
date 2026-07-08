@@ -502,19 +502,7 @@ void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
 }
 
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
-    // save the type into a temporary before visiting children
-    auto loc = type_location;
-    // must be visited first, so child generic types are instantiated and ready
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
-    // we must instantiate generic declarations and link with those
-    // only if we are not present in generic context
-    if(type->referenced != nullptr) {
-        if(linker.generic_context) {
-            type->instantiate_inline(linker.genericInstantiator, loc);
-        } else {
-            type->instantiate(linker.genericInstantiator, loc);
-        }
-    }
 }
 
 void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
@@ -815,24 +803,6 @@ void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     VisitTypealiasStmt(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    auto& allocator = *linker.ast_allocator;
-    // finalizing signature of instantiations that occurred before link_signature
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // finalizing signature of inline instantiations that occurred before link_signature
-    for(auto& inst : node->inline_instantiations) {
-        node->finalize_signature(allocator, inst.first);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    for(auto& inst : node->inline_instantiations) {
-        linker.genericInstantiator.FinalizeSignature(node, inst.first, inst.second);
-    }
 }
 
 void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
@@ -853,21 +823,6 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     // when there's no usage
     node->master_impl->set_has_usage(true);
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing the signature of every function that was instantiated before link_signature
-    auto& allocator = *linker.ast_allocator;;
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    auto resolved_sig = node->master_impl->data.signature_resolved;
-    // since these instantiations were created before link signature
-    // we must set the resolved_signature to true, which is false before link signature
-    for(const auto inst : node->instantiations) {
-        inst->data.signature_resolved = resolved_sig;
-    }
-    // finalize the signatures of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
 }
 
 void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
@@ -881,35 +836,6 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : node->instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-    // now we must generate functions, this is required
-    // because some generic members can be destructible, in that case
-    // a destructor must be generated
-    for(const auto inst : node->instantiations) {
-        // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module allocator
-        inst->generate_functions(*linker.ast_allocator, linker, inst);
-    }
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
@@ -923,23 +849,6 @@ void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : node->instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
 }
 
 void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
@@ -953,23 +862,6 @@ void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : node->instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
 }
 
 void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
@@ -983,35 +875,6 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : node->instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-    // now we must generate functions, this is required
-    // because some generic members can be destructible, in that case
-    // a destructor must be generated
-    for(const auto inst : node->instantiations) {
-        // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
-        inst->generate_functions(*linker.ast_allocator, linker, inst);
-    }
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
@@ -1025,23 +888,6 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : node->instantiations) {
-        GenericImplDecl::finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : node->instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
 }
 
 class TopLevelIfStmtConditionChecker : public RecursiveVisitor<TopLevelIfStmtConditionChecker> {

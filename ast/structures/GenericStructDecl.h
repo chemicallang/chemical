@@ -55,11 +55,6 @@ public:
     unsigned total_bodied_instantiations = 0;
 
     /**
-     * we set this to true, after link_signature call
-     */
-    bool signature_linked = false;
-
-    /**
      * we set this to true, after declare_and_link call
      */
     bool body_linked = false;

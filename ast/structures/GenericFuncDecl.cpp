@@ -128,7 +128,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 //            impl->put_as_extension_function(allocator, diagnoser);
 //        }
 
-    } else if(signature_linked) {
+    } else {
 
         // signature and body both have been linked for master_impl
         // so all we need to do is

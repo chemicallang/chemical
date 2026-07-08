@@ -45,18 +45,14 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 
-    if(signature_linked) {
+    // signature and body both have been linked for master_impl
+    // so all we need to do is
+    finalize_signature(allocator, impl);
 
-        // signature and body both have been linked for master_impl
-        // so all we need to do is
-        finalize_signature(allocator, impl);
-
-        // now finalize using instantiator
-        auto ptr = impl;
-        const auto span = std::span<TypealiasStatement*>(&ptr, 1);
-        instantiator.FinalizeSignature(this, span);
-
-    }
+    // now finalize using instantiator
+    auto ptr = impl;
+    const auto span = std::span<TypealiasStatement*>(&ptr, 1);
+    instantiator.FinalizeSignature(this, span);
 
     return impl;
 

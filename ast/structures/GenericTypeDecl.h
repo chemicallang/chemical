@@ -43,11 +43,6 @@ public:
     unsigned total_bodied_instantiations = 0;
 
     /**
-     * we set this to true, after link_signature call
-     */
-    bool signature_linked = false;
-
-    /**
      * constructor
      */
     GenericTypeDecl(

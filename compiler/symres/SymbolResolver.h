@@ -558,6 +558,15 @@ public:
     );
 
     /**
+     * generic instantiation pass (runs after link signature, before after_link_signature)
+     */
+    void generic_instantiation_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
+
+    /**
      * link the signatures in the file
      */
     void after_link_signature_file(

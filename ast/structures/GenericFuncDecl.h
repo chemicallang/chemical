@@ -36,11 +36,6 @@ public:
     unsigned total_bodied_instantiations = 0;
 
     /**
-     * we set this to true, after link_signature call
-     */
-    bool signature_linked = false;
-
-    /**
      * we set this to true, after declare_and_link call
      */
     bool body_linked = false;
@@ -70,7 +65,6 @@ public:
             parent(),
             encoded_location()
         );
-        gen_func->signature_linked = signature_linked;
         gen_func->body_linked = body_linked;
         return gen_func;
     }
@@ -81,7 +75,6 @@ public:
             parent(),
             encoded_location()
         );
-        gen_func->signature_linked = signature_linked;
         gen_func->body_linked = body_linked;
         return gen_func;
     }

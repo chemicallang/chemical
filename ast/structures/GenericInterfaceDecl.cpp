@@ -85,7 +85,7 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(GenericInstanti
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
-    } else if(signature_linked) {
+    } else {
 
         // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
         // TODO unsure this line is needed

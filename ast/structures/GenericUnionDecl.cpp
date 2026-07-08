@@ -86,7 +86,7 @@ UnionDef* GenericUnionDecl::register_generic_args(GenericInstantiatorAPI& instan
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
-    } else if(signature_linked) {
+    } else {
 
         // indexes of containers need not be copied
         // because children are resolved through master implementation

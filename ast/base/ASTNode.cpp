@@ -294,6 +294,8 @@ MembersContainer* ASTNode::get_master_members_container() {
             return as_gen_interface_decl_unsafe()->master_impl;
         case ASTNodeKind::GenericImplDecl:
             return as_gen_impl_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericTypeDecl:
+            return as_gen_type_decl_unsafe()->master_impl->actual_type->get_master_members_container();
         case ASTNodeKind::TypealiasStmt:
             return as_typealias_unsafe()->actual_type->get_master_members_container();
         default:

@@ -1084,151 +1084,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     if (node->struct_type) {
         visit(node->struct_type);
     }
-    // this code should be moved to type checking pass
-    const auto linked_node = node->interface_type->get_direct_linked_node();
-    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
-        const auto linked = linked_node->as_interface_def_unsafe();
-        if (linked->is_static() && linked->has_implementation()) {
-            linker.error("static interface must have only a single implementation", node->encoded_location());
-        }
-        linked->register_impl(node);
-    } else if (linked_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
-        // generic interface specific code here
-    } else {
-        linker.error("expected type to be an interface", node->encoded_location());
-        return;
-    }
-    // we must NOT add indexes if this implementation is inside a generic container
-    // because this can reference generic parameters (in interface/struct type, function return types)
-    // we must let the instantiation occur which will handle this
-    bool is_generic = false;
-    switch (node->parent()->kind()) {
-        case ASTNodeKind::GenericStructDecl:
-        case ASTNodeKind::GenericUnionDecl:
-        case ASTNodeKind::GenericVariantDecl:
-            is_generic = true;
-            // intentional fall through
-        default:
-            break;
-    }
     LinkMembersContainerNoScope(node);
-    if(!is_generic && node->struct_type) {
-        switch(node->struct_type->kind()) {
-            case BaseTypeKind::IntN:
-            case BaseTypeKind::String:
-            case BaseTypeKind::ExpressiveString:
-            case BaseTypeKind::Double:
-            case BaseTypeKind::Float:
-            case BaseTypeKind::Float128:
-            case BaseTypeKind::LongDouble:
-            case BaseTypeKind::Any:
-            case BaseTypeKind::Void:
-            case BaseTypeKind::NullPtr:
-            case BaseTypeKind::Bool:
-                // we create shallow clones of default implemented functions
-                // create_default_implementations(linker, node, linked);
-                // index all functions (on primitive type)
-                for(const auto func : node->instantiated_functions()) {
-                    linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
-                }
-                // store it in index, so it can be retrieved
-                linker.implsIndex.add_interface(linked_node, node->struct_type, node);
-                break;
-            case BaseTypeKind::Pointer:
-                // we create shallow clones of default implemented functions
-                // create_default_implementations(linker, node, linked);
-                // index all functions (on pointer type)
-                for(const auto func : node->instantiated_functions()) {
-                    if(!linker.child_resolver.index_ptr_child(node->struct_type->as_pointer_type_unsafe(), func->name_view(), func)) {
-                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
-                        break;
-                    }
-                }
-                // store it in index, so it can be retrieved
-                // TODO: currently we cannot index pointer types
-                // because pointer types change (reallocated on every occurrence)
-                break;
-            case BaseTypeKind::Reference:
-                // we create shallow clones of default implemented functions
-                // create_default_implementations(linker, node, linked);
-                // index all functions (on reference type)
-                for(const auto func : node->instantiated_functions()) {
-                    if(!linker.child_resolver.index_ref_child(node->struct_type->as_reference_type_unsafe(), func->name_view(), func)) {
-                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
-                        break;
-                    }
-                }
-                // store it in index, so it can be retrieved
-                // TODO: currently we cannot index reference types
-                // because reference types change (reallocated on every occurrence)
-                break;
-            case BaseTypeKind::Linked: {
-                const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
-                switch(member_node->kind()) {
-                    case ASTNodeKind::StructDecl:
-                    case ASTNodeKind::VariantDecl:
-                    case ASTNodeKind::UnionDecl: {
-                        const auto container = member_node->as_members_container_unsafe();
-                        container->adopt(node);
-                        // store it in index, so it can be retrieved
-                        // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add_interface(linked_node, container, node);
-                        break;
-                    }
-                    default:
-                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
-                        break;
-                }
-                break;
-            }
-            case BaseTypeKind::Generic: {
-                const auto member_node = node->struct_type->as_generic_type_unsafe()->referenced->linked;
-                switch (member_node->kind()) {
-                    case ASTNodeKind::StructDecl:
-                    case ASTNodeKind::VariantDecl:
-                    case ASTNodeKind::UnionDecl: {
-                        const auto container = member_node->as_members_container_unsafe();
-                        container->adopt(node);
-                        // store it in index, so it can be retrieved
-                        // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add_interface(linked_node, container, node);
-                        break;
-                    }
-                    case ASTNodeKind::GenericStructDecl: {
-                        const auto container = member_node->as_gen_struct_def_unsafe();
-                        container->master_impl->adopt(node);
-                        // store it in index, so it can be retrieved
-                        // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add_interface(linked_node, container, node);
-                        break;
-                    }
-                    case ASTNodeKind::GenericVariantDecl:{
-                        const auto container = member_node->as_gen_variant_decl_unsafe();
-                        container->master_impl->adopt(node);
-                        // store it in index, so it can be retrieved
-                        // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add_interface(linked_node, container, node);
-                        break;
-                    }
-                    case ASTNodeKind::GenericUnionDecl:{
-                        const auto container = member_node->as_gen_union_decl_unsafe();
-                        container->master_impl->adopt(node);
-                        // store it in index, so it can be retrieved
-                        // we must store actual container, so it can be used to lookup
-                        linker.implsIndex.add_interface(linked_node, container, node);
-                        break;
-                    }
-                    default:
-                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
-                        break;
-                }
-                break;
-            }
-            default:
-                linker.error("cannot implement unsupported type", node->struct_type.encoded_location());
-                break;
-        }
-    }
     linker.scope_end();
 }
 
@@ -1384,7 +1240,160 @@ void buildInterfaceIndexes(InterfaceDefinition* container) {
     container->built_indexes = true;
 }
 
-void handle_impl_block(SymbolResolver& linker, ImplDefinition* decl) {
+void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
+    // this code should be moved to type checking pass
+    const auto linked_node = node->interface_type->get_direct_linked_node();
+    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
+        const auto linked = linked_node->as_interface_def_unsafe();
+        if (linked->is_static() && linked->has_implementation()) {
+            linker.error("static interface must have only a single implementation", node->encoded_location());
+        }
+        linked->register_impl(node);
+    } else if (linked_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+#ifdef DEBUG
+        if (!linker.generic_context) {
+            linker.error("compiler bug: cannot implement a generic interface outside generic context, type not specialized", node->interface_type.encoded_location());
+            return;
+        }
+#endif
+    } else {
+        linker.error("expected type to be an interface", node->encoded_location());
+        return;
+    }
+    // we must NOT add indexes if this implementation is inside a generic container
+    // because this can reference generic parameters (in interface/struct type, function return types)
+    // we must let the instantiation occur which will handle this
+    // TODO: replace is_generic with generic_context from linker
+    bool is_generic = false;
+    switch (node->parent()->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            is_generic = true;
+            // intentional fall through
+        default:
+            break;
+    }
+    if(!is_generic && node->struct_type) {
+        switch(node->struct_type->kind()) {
+            case BaseTypeKind::IntN:
+            case BaseTypeKind::String:
+            case BaseTypeKind::ExpressiveString:
+            case BaseTypeKind::Double:
+            case BaseTypeKind::Float:
+            case BaseTypeKind::Float128:
+            case BaseTypeKind::LongDouble:
+            case BaseTypeKind::Any:
+            case BaseTypeKind::Void:
+            case BaseTypeKind::NullPtr:
+            case BaseTypeKind::Bool:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
+                // index all functions (on primitive type)
+                for(const auto func : node->instantiated_functions()) {
+                    linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
+                }
+                // store it in index, so it can be retrieved
+                linker.implsIndex.add_interface(linked_node, node->struct_type, node);
+                break;
+            case BaseTypeKind::Pointer:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
+                // index all functions (on pointer type)
+                for(const auto func : node->instantiated_functions()) {
+                    if(!linker.child_resolver.index_ptr_child(node->struct_type->as_pointer_type_unsafe(), func->name_view(), func)) {
+                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
+                        break;
+                    }
+                }
+                // store it in index, so it can be retrieved
+                // TODO: currently we cannot index pointer types
+                // because pointer types change (reallocated on every occurrence)
+                break;
+            case BaseTypeKind::Reference:
+                // we create shallow clones of default implemented functions
+                // create_default_implementations(linker, node, linked);
+                // index all functions (on reference type)
+                for(const auto func : node->instantiated_functions()) {
+                    if(!linker.child_resolver.index_ref_child(node->struct_type->as_reference_type_unsafe(), func->name_view(), func)) {
+                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
+                        break;
+                    }
+                }
+                // store it in index, so it can be retrieved
+                // TODO: currently we cannot index reference types
+                // because reference types change (reallocated on every occurrence)
+                break;
+            case BaseTypeKind::Linked: {
+                const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
+                switch(member_node->kind()) {
+                    case ASTNodeKind::StructDecl:
+                    case ASTNodeKind::VariantDecl:
+                    case ASTNodeKind::UnionDecl: {
+                        const auto container = member_node->as_members_container_unsafe();
+                        container->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add_interface(linked_node, container, node);
+                        break;
+                    }
+                    default:
+                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                        break;
+                }
+                break;
+            }
+            case BaseTypeKind::Generic: {
+                const auto member_node = node->struct_type->as_generic_type_unsafe()->referenced->linked;
+                switch (member_node->kind()) {
+                    case ASTNodeKind::StructDecl:
+                    case ASTNodeKind::VariantDecl:
+                    case ASTNodeKind::UnionDecl: {
+                        const auto container = member_node->as_members_container_unsafe();
+                        container->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add_interface(linked_node, container, node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericStructDecl: {
+                        const auto container = member_node->as_gen_struct_def_unsafe();
+                        container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add_interface(linked_node, container, node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericVariantDecl:{
+                        const auto container = member_node->as_gen_variant_decl_unsafe();
+                        container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add_interface(linked_node, container, node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericUnionDecl:{
+                        const auto container = member_node->as_gen_union_decl_unsafe();
+                        container->master_impl->adopt(node);
+                        // store it in index, so it can be retrieved
+                        // we must store actual container, so it can be used to lookup
+                        linker.implsIndex.add_interface(linked_node, container, node);
+                        break;
+                    }
+                    default:
+                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                        break;
+                }
+                break;
+            }
+            default:
+                linker.error("cannot implement unsupported type", node->struct_type.encoded_location());
+                break;
+        }
+    }
+}
+
+void build_indexes_of_impl(SymbolResolver& linker, ImplDefinition* decl) {
     const auto interfaceNode = decl->interface_type->get_direct_linked_canonical_node();
     if (interfaceNode && interfaceNode->kind() == ASTNodeKind::InterfaceDecl) {
         const auto interface = interfaceNode->as_interface_def_unsafe();
@@ -1428,7 +1437,8 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
                 buildInterfaceIndexes(node->as_interface_def_unsafe());
                 continue;
             case ASTNodeKind::ImplDecl:
-                handle_impl_block(linker, node->as_impl_def_unsafe());
+                index_implementation(linker, node->as_impl_def_unsafe());
+                build_indexes_of_impl(linker, node->as_impl_def_unsafe());
                 continue;
             // for generic containers, we only need to build indexes of the master container
             // because that's where children are resolved from
@@ -1445,7 +1455,7 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
                 buildInterfaceIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::GenericImplDecl:
-                handle_impl_block(linker, node->as_gen_impl_decl_unsafe()->master_impl);
+                build_indexes_of_impl(linker, node->as_gen_impl_decl_unsafe()->master_impl);
                 continue;
             case ASTNodeKind::NamespaceDecl:
                 BuildIndexes(linker, node->as_namespace_unsafe()->nodes);

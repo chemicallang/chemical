@@ -1372,25 +1372,30 @@ void TypeVerifier::VisitLinkedType(LinkedType* type) {
     if (is_generic_public_context) {
         // TODO: errors aren't being reported properly because linked types don't store location at the moment
         const auto errStr = std::string_view("using a non-public type in a public generic declaration is not allowed, please use public / protected");
+        const auto infoStr = std::string_view("non-public declaration is being used in a public generic declaration");
         switch (type->linked->kind()) {
             case ASTNodeKind::GenericStructDecl:
                 if (!is_linkage_public(type->linked->as_gen_struct_def_unsafe()->master_impl->specifier())) {
                     diagnoser.error(type->linked) << errStr;
+                    // diagnoser.info(type->linked) << infoStr;
                 }
                 break;
             case ASTNodeKind::GenericVariantDecl:
                 if (!is_linkage_public(type->linked->as_gen_variant_decl_unsafe()->master_impl->specifier())) {
                     diagnoser.error(type->linked) << errStr;
+                    // diagnoser.info(type->linked) << infoStr;
                 }
                 break;
             case ASTNodeKind::GenericUnionDecl:
                 if (!is_linkage_public(type->linked->as_gen_union_decl_unsafe()->master_impl->specifier())) {
                     diagnoser.error(type->linked) << errStr;
+                    // diagnoser.info(type->linked) << infoStr;
                 }
                 break;
             case ASTNodeKind::GenericInterfaceDecl:
                 if (!is_linkage_public(type->linked->as_gen_interface_decl_unsafe()->master_impl->specifier())) {
                     diagnoser.error(type->linked) << errStr;
+                    // diagnoser.info(type->linked) << infoStr;
                 }
                 break;
             default:

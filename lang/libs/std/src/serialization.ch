@@ -47,25 +47,25 @@ public interface Encoder<T> {
 
 }
 
-interface ArrayEncoder<T> {
+public interface ArrayEncoder<T> {
 
     func <K : Serializer<T>> encode(&self, value : K) : std::Result<Unit, SerializationError>
 
 }
 
-interface ObjectEncoder<T> {
+public interface ObjectEncoder<T> {
 
     func <V : Serializer<T>> field(&self, name : *char, value : V) : std::Result<Unit, SerializationError>
 
 }
 
-interface MapEncoder<T> {
+public interface MapEncoder<T> {
 
     func <K : Serializer<T>, V : Serializer<T>> encode(&self, key : K, value : V) : std::Result<Unit, SerializationError>
 
 }
 
-interface Serializer<T, E : Encoder<T>> {
+public interface Serializer<T, E : Encoder<T>> {
 
     func encode(&self, encoder : &E) : std::Result<Unit, SerializationError>
 
@@ -73,7 +73,7 @@ interface Serializer<T, E : Encoder<T>> {
 
 // Decoder
 
-interface Decoder<T> {
+public interface Decoder<T> {
 
     func decode_null(&self) : std::Result<Unit, SerializationError>
 
@@ -103,7 +103,7 @@ interface Decoder<T> {
 
 }
 
-interface ArrayDecoder<T> {
+public interface ArrayDecoder<T> {
 
     func <K : Deserializer<T>> decode(&self) : std::Result<K, SerializationError>
 
@@ -111,7 +111,7 @@ interface ArrayDecoder<T> {
 
 }
 
-interface ObjectDecoder<T> {
+public interface ObjectDecoder<T> {
 
     func <V : Deserializer<T>> field(&self, name : *char) : std::Result<V, SerializationError>
 
@@ -119,7 +119,7 @@ interface ObjectDecoder<T> {
 
 }
 
-interface MapDecoder<T> {
+public interface MapDecoder<T> {
 
     func remaining(&self) : std::Result<u64, SerializationError>
 
@@ -145,7 +145,7 @@ interface MapDecoder<T> {
 
 }
 
-interface Deserializer<T> {
+public interface Deserializer<T> {
 
     func deserialize(&self, decoder : Decoder<T>) : std::Result<Unit, SerializationError>
 

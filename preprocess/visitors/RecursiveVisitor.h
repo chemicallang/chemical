@@ -305,6 +305,13 @@ public:
         }
     }
 
+    void VisitInterfaceDecl(InterfaceDefinition* def) {
+        VisitVariables(def->variables());
+        for(const auto func : def->evaluated_nodes()) {
+            NonRecursiveVisitor<Derived>::visit(func);
+        }
+    }
+
     void VisitImplDecl(ImplDefinition* def) {
         visit_it(def->interface_type);
         visit_it(def->struct_type);

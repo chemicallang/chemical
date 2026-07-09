@@ -813,7 +813,7 @@ inline bool all_members_type_require(MembersContainer& container, bool(*requirem
 
 bool MembersContainer::all_members_def_constructible() {
     return all_members_type_require(*this, [](BaseType* type, Value* defValue)-> bool {
-        const auto container = type->get_members_container();
+        const auto container = type->get_master_members_container();
         if(container) {
             return container->default_constructor_func() != nullptr;
         } else {
@@ -829,7 +829,7 @@ bool MembersContainer::any_member_has_destructor() {
         if(type->kind() == BaseTypeKind::CapturingFunction) {
             return type->as_capturing_func_type_unsafe()->instance_type->get_destructor() != nullptr;
         } else {
-            return type->get_destructor() != nullptr;
+            return type->get_master_destructor() != nullptr;
         }
     });
 }

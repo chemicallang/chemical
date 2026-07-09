@@ -303,6 +303,11 @@ public:
     MembersContainer* get_members_container();
 
     /**
+     * gets members container, even generic declarations are considered
+     */
+    MembersContainer* get_master_members_container();
+
+    /**
      * get the default constructor for the type, if it exists
      */
     FunctionDeclaration* get_def_constructor();
@@ -311,6 +316,11 @@ public:
      * does this type has a destructor
      */
     FunctionDeclaration* get_destructor();
+
+    /**
+     * gets the destructor, this considers the generic declarations too
+     */
+    FunctionDeclaration* get_master_destructor();
 
     /**
      * is destructor required

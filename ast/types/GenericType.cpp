@@ -25,10 +25,9 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
 
     // create the generic arguments
     const auto typeDecl = linked->as_gen_type_decl_unsafe();
-    // TODO: enable this check for partial instantiation
-    // if (!typeDecl->is_partial_instantiate) {
-    //     return false;
-    // }
+    if (!typeDecl->is_partial_instantiate) {
+        return false;
+    }
 
     // get the diagnoser and allocator
     auto& diagnoser = instantiatorApi.getDiagnoser();

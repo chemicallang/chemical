@@ -270,7 +270,7 @@ MembersContainer* ASTNode::get_members_container() {
         case ASTNodeKind::ImplDecl:
             return (MembersContainer*) this;
         case ASTNodeKind::TypealiasStmt:
-            return ((TypealiasStatement*) this)->actual_type->get_members_container();
+            return as_typealias_unsafe()->actual_type->get_members_container();
         default:
             return nullptr;
     }
@@ -294,11 +294,8 @@ MembersContainer* ASTNode::get_master_members_container() {
             return as_gen_interface_decl_unsafe()->master_impl;
         case ASTNodeKind::GenericImplDecl:
             return as_gen_impl_decl_unsafe()->master_impl;
-        case ASTNodeKind::TypealiasStmt: {
-            const auto stmt = as_typealias_unsafe();
-            const auto node = stmt->actual_type->get_direct_linked_node();
-            return node->get_master_members_container();
-        }
+        case ASTNodeKind::TypealiasStmt:
+            return as_typealias_unsafe()->actual_type->get_master_members_container();
         default:
             return nullptr;
     }

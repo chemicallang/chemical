@@ -502,7 +502,15 @@ void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
 }
 
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
+    // save the type into a temporary before visiting children
+    auto loc = type_location;
+    // must be visited first, so child generic types are instantiated and ready
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
+    // we must instantiate generic declarations and link with those
+    // only if we are not present in generic context
+    if(linker.generic_context) {
+        type->instantiate_inline(linker.genericInstantiator, loc);
+    }
 }
 
 void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
@@ -803,6 +811,7 @@ void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     VisitTypealiasStmt(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
+    node->signature_linked = true;
 }
 
 void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
@@ -836,6 +845,11 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
+    // we must generate functions for master as well
+    // because user can call the constructor of master implementation, which should be available
+    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
+    // similarly for default constructor
+    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
@@ -875,6 +889,11 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     LinkMembersContainerNoScope(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
+    // we must generate functions for master as well
+    // because user can call the constructor of master implementation, which should be available
+    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
+    // similarly for default constructor
+    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {

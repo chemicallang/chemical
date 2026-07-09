@@ -11,6 +11,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 
@@ -289,6 +290,18 @@ void annot_handler_non_dyn(Parser* parser, ASTNode* node, std::vector<Value*>& a
     }
 }
 
+void annot_handler_partial_instantiate(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if (node->kind() == ASTNodeKind::TypealiasStmt) {
+        const auto alias = node->as_typealias_unsafe();
+        const auto gen = alias->generic_parent;
+        if (gen != nullptr) {
+            gen->is_partial_instantiate = true;
+            return;
+        }
+    }
+    parser->error("attribute @partial_instantiate can only be applied to generic type aliases");
+}
+
 void annot_handler_never_destructed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(node->kind() == ASTNodeKind::VarInitStmt) {
         node->as_var_init_unsafe()->set_never_destructed(true);
@@ -335,6 +348,7 @@ void AnnotationController::initialize() {
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
             { "allow_zeroed", { annot_handler_allow_zeroed, "allow_zeroed", AnnotationDefType::Handler } },
             { "non_dyn", { annot_handler_non_dyn, "non_dyn", AnnotationDefType::Handler } },
+            { "partial_instantiate", { annot_handler_partial_instantiate, "partial_instantiate", AnnotationDefType::Handler } },
 
             // single marker annotations
             {"test.before_each", { .policy = SingleMarkerMultiplePolicy::Override, .name = "test.before_each", .type = AnnotationDefType::SingleMarker }},

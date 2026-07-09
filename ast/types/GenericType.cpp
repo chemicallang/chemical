@@ -17,16 +17,23 @@ uint64_t GenericType::byte_size(TargetData& target) {
 }
 
 bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc) {
-    auto& diagnoser = instantiatorApi.getDiagnoser();
+
     const auto linked = referenced->linked;
     if(linked->kind() != ASTNodeKind::GenericTypeDecl) {
-        return true;
+        return false;
     }
-
-    auto& allocator = instantiatorApi.getAllocator();
 
     // create the generic arguments
     const auto typeDecl = linked->as_gen_type_decl_unsafe();
+    // TODO: enable this check for partial instantiation
+    // if (!typeDecl->is_partial_instantiate) {
+    //     return false;
+    // }
+
+    // get the diagnoser and allocator
+    auto& diagnoser = instantiatorApi.getDiagnoser();
+    auto& allocator = instantiatorApi.getAllocator();
+
     std::vector<TypeLoc> generic_args;
 
     // initialize the generic args
@@ -45,11 +52,19 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
     const auto impl = typeDecl->copy_master(allocator);
     impl->attrs.is_inlined = true;
 
-    // finalize signature using type decl
-    GenericTypeDecl::finalize_signature(allocator, impl);
+    if(typeDecl->signature_linked) {
 
-    // finalizes the signature
-    instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);
+        // finalize signature using type decl
+        GenericTypeDecl::finalize_signature(allocator, impl);
+
+        // finalizes the signature
+        instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);
+
+    } else {
+
+        typeDecl->inline_instantiations.emplace_back(impl, std::move(generic_args));
+
+    }
 
     referenced->linked = impl;
     return true;

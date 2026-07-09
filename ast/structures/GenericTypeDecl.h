@@ -43,6 +43,17 @@ public:
     unsigned total_bodied_instantiations = 0;
 
     /**
+     * we set this to true, after link_signature call
+     */
+    bool signature_linked = false;
+
+    /**
+     * when this flag is true, a generic type declaration is partially instantiated even when present
+     * inside generic declaration
+     */
+    bool is_partial_instantiate = false;
+
+    /**
      * constructor
      */
     GenericTypeDecl(

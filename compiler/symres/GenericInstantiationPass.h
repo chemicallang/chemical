@@ -65,12 +65,25 @@ public:
 
     // generic instantiation finalization
     void VisitGenericTypeDecl(GenericTypeDecl* node);
-    void VisitGenericFuncDecl(GenericFuncDecl* node);
-    void VisitGenericStructDecl(GenericStructDecl* node);
-    void VisitGenericUnionDecl(GenericUnionDecl* node);
-    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
-    void VisitGenericVariantDecl(GenericVariantDecl* node);
-    void VisitGenericImplDecl(GenericImplDecl* node);
+
+    inline void VisitGenericFuncDecl(GenericFuncDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
+    inline void VisitGenericStructDecl(GenericStructDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
+    inline void VisitGenericUnionDecl(GenericUnionDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
+    inline void VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
+    inline void VisitGenericVariantDecl(GenericVariantDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
+    inline void VisitGenericImplDecl(GenericImplDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
 
     // visit type signatures but skip bodies
     void VisitFunctionDecl(FunctionDeclaration* node);

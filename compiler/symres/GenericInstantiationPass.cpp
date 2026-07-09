@@ -44,15 +44,10 @@ void GenericInstantiationPass::VisitIfStmt(IfStatement* node) {
 
 void GenericInstantiationPass::VisitGenericTypeDecl(GenericTypeDecl* node) {
     auto& allocator = *linker.ast_allocator;
-    // finalizing signature of instantiations that occurred before link_signature
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
+    // inline instantiations are stored from link signature
     // finalizing signature of inline instantiations that occurred before link_signature
     for (auto& inst : node->inline_instantiations) {
-        node->finalize_signature(allocator, inst.first);
+        GenericTypeDecl::finalize_signature(allocator, inst.first);
     }
     // finalize the signature of all instantiations
     for (auto& inst : node->inline_instantiations) {
@@ -60,136 +55,9 @@ void GenericInstantiationPass::VisitGenericTypeDecl(GenericTypeDecl* node) {
     }
 }
 
-void GenericInstantiationPass::VisitGenericFuncDecl(GenericFuncDecl* node) {
-    // finalizing the signature of every function that was instantiated before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    auto resolved_sig = node->master_impl->data.signature_resolved;
-    // since these instantiations were created before link signature
-    // we must set the resolved_signature to true, which is false before link signature
-    for (const auto inst : node->instantiations) {
-        inst->data.signature_resolved = resolved_sig;
-    }
-    // finalize the signatures of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-}
-
-void GenericInstantiationPass::VisitGenericStructDecl(GenericStructDecl* node) {
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for (const auto inst : node->instantiations) {
-        for (const auto func : inst->master_functions()) {
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-    // now we must generate functions, this is required
-    // because some generic members can be destructible, in that case
-    // a destructor must be generated
-    for (const auto inst : node->instantiations) {
-        inst->generate_functions(*linker.ast_allocator, linker, inst);
-    }
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
-}
-
-void GenericInstantiationPass::VisitGenericUnionDecl(GenericUnionDecl* node) {
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for (const auto inst : node->instantiations) {
-        for (const auto func : inst->master_functions()) {
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-}
-
-void GenericInstantiationPass::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for (const auto inst : node->instantiations) {
-        for (const auto func : inst->master_functions()) {
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-}
-
-void GenericInstantiationPass::VisitGenericVariantDecl(GenericVariantDecl* node) {
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for (const auto inst : node->instantiations) {
-        for (const auto func : inst->master_functions()) {
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-    // now we must generate functions, this is required
-    // because some generic members can be destructible, in that case
-    // a destructor must be generated
-    for (const auto inst : node->instantiations) {
-        inst->generate_functions(*linker.ast_allocator, linker, inst);
-    }
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
-}
-
-void GenericInstantiationPass::VisitGenericImplDecl(GenericImplDecl* node) {
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for (const auto inst : node->instantiations) {
-        GenericImplDecl::finalize_signature(allocator, inst);
-    }
-    // finalize the signature of all instantiations
-    linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for (const auto inst : node->instantiations) {
-        for (const auto func : inst->master_functions()) {
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-}
-
 void GenericInstantiationPass::VisitGenericType(GenericType* type) {
     RecursiveVisitor<GenericInstantiationPass>::VisitGenericType(type);
-    if(linker.generic_context) {
-        type->instantiate_inline(linker.genericInstantiator, type_location);
-    } else {
-        type->instantiate(linker.genericInstantiator, type_location);
-    }
+    type->instantiate(linker.genericInstantiator, type_location);
 }
 
 void GenericInstantiationPass::VisitFunctionDecl(FunctionDeclaration* node) {

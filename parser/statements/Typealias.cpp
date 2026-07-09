@@ -106,7 +106,6 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
                 loc,
                 specifier
         );
-        annotate(alias);
 
 #ifdef LSP_BUILD
         id->linked = alias;
@@ -135,6 +134,9 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
             parent_node = alias;
 
         }
+
+        // annotating takes place after generic parent is known
+        annotate(alias);
 
         if(!consumeToken(TokenType::EqualSym)) {
             unexpected_error("expected '=' after the type tokens");

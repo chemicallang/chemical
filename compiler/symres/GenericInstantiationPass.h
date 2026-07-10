@@ -87,7 +87,6 @@ public:
 
     // visit type signatures but skip bodies
     void VisitFunctionDecl(FunctionDeclaration* node);
-    void VisitVarInitStmt(VarInitStatement* node);
 
 };
 

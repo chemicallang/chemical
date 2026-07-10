@@ -60,9 +60,3 @@ void GenericInstantiationPass::VisitFunctionDecl(FunctionDeclaration* node) {
     }
     visit_it(node->returnType);
 }
-
-void GenericInstantiationPass::VisitVarInitStmt(VarInitStatement* node) {
-    if(node->type) {
-        visit_it(node->type);
-    }
-}

@@ -562,12 +562,17 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
 }
 
 void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
-    // only visit type if given, top level variable values are linked specially
-    // in a pass defined below (after link signature)
     if (node->type == nullptr) {
         if (!node->value) {
             linker.error("a type of a value must be given for global variable", node);
             return;
+        }
+        if(node->is_comptime() && !linker.comptime_context) {
+            linker.comptime_context = true;
+            visit(node->value);
+            linker.comptime_context = false;
+        } else {
+            visit(node->value);
         }
         const auto maybe_type = node->value->getType();
         if (maybe_type != nullptr && maybe_type->isPrimitive(false)) {
@@ -582,6 +587,15 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
             linker.comptime_context = false;
         } else {
             visit(node->type);
+        }
+        if (node->value) {
+            if(node->is_comptime() && !linker.comptime_context) {
+                linker.comptime_context = true;
+                visit(node->value);
+                linker.comptime_context = false;
+            } else {
+                visit(node->value);
+            }
         }
     }
     // array type size determination from array value
@@ -1640,44 +1654,6 @@ void AfterBuildIndexesPass(SymbolResolver& resolver, std::vector<ASTNode*>& node
     }
 }
 
-void LinkGlobalVariableValues(TopLevelLinkSignature& visitor, std::vector<ASTNode*>& nodes) {
-    for (const auto node : nodes) {
-        switch (node->kind()) {
-            case ASTNodeKind::VarInitStmt: {
-                auto& linker = visitor.linker;
-                const auto stmt = node->as_var_init_unsafe();
-                if (stmt->value) {
-                    if(stmt->is_comptime() && !linker.comptime_context) {
-                        linker.comptime_context = true;
-                        visitor.visit(stmt->value);
-                        linker.comptime_context = false;
-                    } else {
-                        visitor.visit(stmt->value);
-                    }
-                }
-                continue;
-            }
-            case ASTNodeKind::NamespaceDecl: {
-                const auto ns = node->as_namespace_unsafe();
-                LinkGlobalVariableValues(visitor, ns->nodes);
-                continue;
-            }
-            case ASTNodeKind::IfStmt:{
-                const auto stmt = node->as_if_stmt_unsafe();
-                if(stmt->computed_scope.has_value()) {
-                    const auto scope = stmt->computed_scope.value();
-                    if(scope) {
-                        LinkGlobalVariableValues(visitor, scope->nodes);
-                    }
-                }
-                continue;
-            }
-            default:
-                continue;
-        }
-    }
-}
-
 void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     auto& nodes = scope->nodes;
     // builds indexes of containers to children inside them can be looked up
@@ -1685,7 +1661,4 @@ void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     // links export statements, these can't be linked during link signature
     // calculate interface bits of generic type parameters
     AfterBuildIndexesPass(resolver, nodes);
-    // links global variable values, which can have dependencies on each other
-    TopLevelLinkSignature visitor(resolver);
-    LinkGlobalVariableValues(visitor, nodes);
 }

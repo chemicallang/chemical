@@ -785,14 +785,33 @@ unsigned BaseType::type_alignment(TargetData& data) {
         case BaseTypeKind::Linked: {
             const auto linked = as_linked_type_unsafe()->linked;
             if(linked) {
-                const auto container = linked->get_members_container();
-                if(container) {
-                    size_t maxAlign = 1;
-                    for(const auto member : container->variables()) {
-                        const auto align = (size_t) member->known_type()->type_alignment(data);
-                        if(align > maxAlign) maxAlign = align;
+                if (linked->kind() == ASTNodeKind::VariantDecl) {
+                    auto maxAlign = alignof(int);
+                    const auto decl = linked->as_variant_def_unsafe();
+                    for (const auto d : decl->variables_container) {
+                        const auto mem = d->as_variant_member_unsafe();
+                        size_t memberAlign = 1;
+                        for (auto& param : mem->values) {
+                            const auto paramAlign = param.second->known_type()->type_alignment(data);
+                            if (paramAlign > memberAlign) {
+                                memberAlign = paramAlign;
+                            }
+                        }
+                        if (memberAlign > maxAlign) {
+                            maxAlign = memberAlign;
+                        }
                     }
                     return (unsigned) maxAlign;
+                } else {
+                    const auto container = linked->get_members_container();
+                    if(container) {
+                        size_t maxAlign = 1;
+                        for(const auto member : container->variables()) {
+                            const auto align = (size_t) member->known_type()->type_alignment(data);
+                            if(align > maxAlign) maxAlign = align;
+                        }
+                        return (unsigned) maxAlign;
+                    }
                 }
             }
             const auto pure = as_linked_type_unsafe()->canonical();

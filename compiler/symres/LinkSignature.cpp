@@ -803,7 +803,6 @@ void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container, Ac
 }
 
 void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
-    linker.declare(param->identifier, param);
     // visit trait and default types to resolve their symbol references
     for(auto& t : param->traits) {
         visit(t);
@@ -811,6 +810,9 @@ void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
     if(param->def_type) {
         visit(param->def_type);
     }
+    // declare the parameter later, so trait types and default types can't link with it
+    // preventing self references
+    linker.declare(param->identifier, param);
 }
 
 void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {

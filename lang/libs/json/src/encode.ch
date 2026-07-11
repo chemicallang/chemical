@@ -318,8 +318,8 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
         }
         *cnt += 1
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r = value.encode(&encoder)
-        return r as std::Result<std::Unit, std::SerializationError>
+        // TODO: returning value.encode doesn't satisfy the result, compiler bug
+        return value.encode(&encoder) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
@@ -335,8 +335,8 @@ impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
         json_escape_into(&mut *self.buffer, name, len)
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r = value.encode(&encoder)
-        return r as std::Result<std::Unit, std::SerializationError>
+        // TODO: returning value.encode doesn't satisfy the result, compiler bug
+        return value.encode(&encoder) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
@@ -352,16 +352,15 @@ impl std::MapEncoder<JsonValue> for JsonMapEncoder {
         if(!(r1 is std::Result.Ok)) { return r1 as std::Result<std::Unit, std::SerializationError> }
         self.buffer.append(':')
         var encoder2 = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r2 = value.encode(&encoder2)
-        return r2 as std::Result<std::Unit, std::SerializationError>
+        // TODO: returning value.encode doesn't satisfy the result, compiler bug
+        return value.encode(&encoder2) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
 // Generic encode method — dispatches to Serializer<T, JsonEncoder>
 func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
-    value.encode(e)
     // TODO: returning value.encode doesn't satisfy the result, compiler bug
-    return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit {})
+    return value.encode(e) as std::Result<std::Unit, std::SerializationError>
 }
 
 // Convenience: encode a JsonValue to a string via append_value

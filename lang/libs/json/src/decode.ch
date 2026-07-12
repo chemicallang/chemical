@@ -207,6 +207,23 @@ impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
 
 }
 
+// placeholder struct that allows dispatching methods to different types
+// based on a generic type
+public struct TypeDecoder<T> { var decoder : &JsonDecoder }
+
+func <T, K : std::Deserializer<T>> decode_it_1(k : &K) : std::Result<T, std::SerializationError> {
+    return k.deserialize() as std::Result<T, std::SerializationError>
+}
+
+func <T, K : std::Deserializer<T>> decode_it_2(t : &TypeDecoder<T>) : std::Result<T, std::SerializationError> {
+    return decode_it_1<T, K>(t as &K)
+}
+
+func <T> (decoder : &JsonDecoder) decode() : std::Result<T, std::SerializationError> {
+    var t = TypeDecoder<T> { decoder : decoder }
+    return decode_it_2<T, TypeDecoder<T>>(&t)
+}
+
 // ===== JsonMapDecoder =====
 
 public struct JsonMapDecoder {

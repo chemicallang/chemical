@@ -14,9 +14,6 @@ func test_array_value_decodes_fine(env : &mut TestEnv) {
 
 @test
 func test_escaped_strings(env : &mut TestEnv) {
-    // Note: / remains / as it's not required to be escaped in JSON emitter,
-    // although it's allowed in input. But since input has \\/ (\ and /)
-    // they should be preserved as \ and / in the output too.
     var input = std::string_view("{\"escapes\": \"\\n\\t\\\"\\\\\\/\\b\\f\\r\"}");
     var output = std::string_view("{\"escapes\":\"\\n\\t\\\"\\\\/\\b\\f\\r\"}");
     test_parsed_json_equals(env, &input, &output)
@@ -24,7 +21,6 @@ func test_escaped_strings(env : &mut TestEnv) {
 
 @test
 func test_unicode_surrogates(env : &mut TestEnv) {
-    // Grinning Face emoji: U+1F600 -> \uD83D\uDE00
     var input = std::string_view("{\"emoji\": \"\\uD83D\\uDE00\"}");
     var output = std::string_view("{\"emoji\":\"\xf0\x9f\x98\x80\"}");
     test_parsed_json_equals(env, &input, &output)
@@ -398,7 +394,19 @@ func test_encoder_encode_str_of_len(env : &mut TestEnv) {
 // ===== Generic Encoder Method Tests =====
 
 @test
-func test_encoder_encode_generic(env : &mut TestEnv) {
+func test_encoder_encode_generic_bool(env : &mut TestEnv) {
+    var output = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
+    var r = encoder.encode<bool>(true)
+    if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    if(!output.to_view().equals(std::string_view("true"))) {
+        env.error("encoder.encode(true) failed")
+    }
+}
+
+@test
+func test_encoder_encode_generic_uint(env : &mut TestEnv) {
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
@@ -410,7 +418,7 @@ func test_encoder_encode_generic(env : &mut TestEnv) {
 }
 
 @test
-func test_encoder_encode_generic2(env : &mut TestEnv) {
+func test_encoder_encode_generic_float(env : &mut TestEnv) {
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
@@ -422,7 +430,7 @@ func test_encoder_encode_generic2(env : &mut TestEnv) {
 }
 
 @test
-func test_encoder_encode_generic3(env : &mut TestEnv) {
+func test_encoder_encode_generic_double(env : &mut TestEnv) {
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
@@ -434,7 +442,7 @@ func test_encoder_encode_generic3(env : &mut TestEnv) {
 }
 
 @test
-func test_encoder_encode_generic4(env : &mut TestEnv) {
+func test_encoder_encode_generic_string_view(env : &mut TestEnv) {
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
@@ -445,6 +453,131 @@ func test_encoder_encode_generic4(env : &mut TestEnv) {
     }
 }
 
+// ===== Direct Decoder Method Tests =====
+
+@test
+func test_decoder_decode_bool(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("true")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_bool()
+    if(!(val is std::Result.Ok)) { env.error("decode_bool error"); return }
+    var Ok(v) = val else unreachable
+    if(!v) { env.error("expected true") }
+}
+
+@test
+func test_decoder_decode_i64(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("42")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_i64()
+    if(!(val is std::Result.Ok)) { env.error("decode_i64 error"); return }
+    var Ok(v) = val else unreachable
+    if(v != 42i64) { env.error("expected 42") }
+}
+
+@test
+func test_decoder_decode_i64_negative(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("-7")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_i64()
+    if(!(val is std::Result.Ok)) { env.error("decode_i64 error"); return }
+    var Ok(v) = val else unreachable
+    if(v != -7i64) { env.error("expected -7") }
+}
+
+@test
+func test_decoder_decode_u64(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("99")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_u64()
+    if(!(val is std::Result.Ok)) { env.error("decode_u64 error"); return }
+    var Ok(v) = val else unreachable
+    if(v != 99u64) { env.error("expected 99") }
+}
+
+@test
+func test_decoder_decode_double(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("3.14")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_double()
+    if(!(val is std::Result.Ok)) { env.error("decode_double error"); return }
+    var Ok(v) = val else unreachable
+    if(v < 3.13 || v > 3.15) { env.error("expected ~3.14") }
+}
+
+@test
+func test_decoder_decode_float(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("2.5")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_float()
+    if(!(val is std::Result.Ok)) { env.error("decode_float error"); return }
+    var Ok(v) = val else unreachable
+    if(v < 2.49f || v > 2.51f) { env.error("expected ~2.5") }
+}
+
+@test
+func test_decoder_decode_char(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("\"A\"")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_char()
+    if(!(val is std::Result.Ok)) { env.error("decode_char error"); return }
+    var Ok(v) = val else unreachable
+    if(v != 'A') { env.error("expected 'A'") }
+}
+
+@test
+func test_decoder_decode_str(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("\"hello\"")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_str()
+    if(!(val is std::Result.Ok)) { env.error("decode_str error"); return }
+    var Ok(v) = val else unreachable
+    if(!v.equals(std::string_view("hello"))) { env.error("expected hello") }
+}
+
+@test
+func test_decoder_decode_null(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("null")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var val = d.decode_null()
+    if(!(val is std::Result.Ok)) { env.error("decode_null error") }
+}
 
 // ===== Roundtrip Tests =====
 

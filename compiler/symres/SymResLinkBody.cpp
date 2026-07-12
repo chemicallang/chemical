@@ -1169,11 +1169,11 @@ void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
 void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
     // symbol resolve the master declaration
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
@@ -1191,12 +1191,12 @@ void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
 void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
@@ -1235,12 +1235,12 @@ void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
 
 void SymResLinkBody::VisitGenericStructDecl(GenericStructDecl* node) {
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
@@ -1257,12 +1257,12 @@ void SymResLinkBody::VisitGenericStructDecl(GenericStructDecl* node) {
 
 void SymResLinkBody::VisitGenericUnionDecl(GenericUnionDecl* node) {
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
@@ -1279,12 +1279,12 @@ void SymResLinkBody::VisitGenericUnionDecl(GenericUnionDecl* node) {
 
 void SymResLinkBody::VisitGenericVariantDecl(GenericVariantDecl* node) {
     linker.scope_start();
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
     visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();

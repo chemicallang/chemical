@@ -570,13 +570,95 @@ func test_decoder_decode_str(env : &mut TestEnv) {
 @test
 func test_decoder_decode_null(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
-    var parser = JsonParser(128, 4096)
+    var parser = JsonParser(128, cc4096)
     var doc = std::string_view("null")
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_null()
     if(!(val is std::Result.Ok)) { env.error("decode_null error") }
+}
+
+// ===== Generic Decoder Method Tests =====
+
+@test
+func test_decoder_decode_generic_bool(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("true")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<bool>()
+    if(!(res is std::Result.Ok)) { env.error("encoder.decode returned error"); return }
+    var Ok(v) = res else unreachable
+    if(v) {
+        env.error("encoder.decode<bool>() failed")
+    }
+}
+
+@test
+func test_decoder_decode_generic_uint(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("42")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<uint>()
+    if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    var Ok(v) = res else unreachable
+    if(v != 42) {
+        env.error("encoder.decode<uint>() failed")
+    }
+}
+
+@test
+func test_decoder_decode_generic_float(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("true")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<float>()
+    if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    var Ok(v) = res else unreachable
+    if(v != 3.14f) {
+        env.error("encoder.decode<float>() failed")
+    }
+}
+
+@test
+func test_decoder_decode_generic_double(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("3.14")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<double>()
+    if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    var Ok(v) = res else unreachable
+    if(v != 3.14) {
+        env.error("encoder.decode<double>() failed")
+    }
+}
+
+@test
+func test_decoder_decode_generic_string_view(env : &mut TestEnv) {
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var doc = std::string_view("\"hello world\"")
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!r.ok) { env.error("parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<std::string_view>()
+    if(!(res is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
+    var Ok(v) = res else unreachable
+    if(!v.equals(std::string_view("hello world"))) {
+        env.error("encoder.decode<std::string_view>() failed")
+    }
 }
 
 // ===== Roundtrip Tests =====

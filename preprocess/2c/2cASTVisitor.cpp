@@ -3143,7 +3143,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                 // assuming its a extendable container
                 const auto for_decl = container->as_extendable_members_container_unsafe();
                 interface_def->active_user = for_decl;
-                for (const auto func: interface_def->instantiated_functions()) {
+                for (const auto func: def->instantiated_functions()) {
                     declare_contained_func(this, func);
                 }
                 interface_def->active_user = nullptr;

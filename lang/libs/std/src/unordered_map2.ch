@@ -314,6 +314,9 @@ public struct unordered_map_iterator<Key, Value> {
     public func valid(&self) : bool {
         return node != null;
     }
+    public func size(&self) : size_t {
+        return map.size()
+    }
 
 };
 

@@ -7,7 +7,7 @@ public enum SerializationErrorKind {
 }
 
 public struct SerializationError {
-    var kind : SerializationErrorKind
+    var kind : SerializationErrorKind = SerializationErrorKind.Generic
     var message : std::string
 }
 
@@ -73,7 +73,7 @@ public interface Serializer<T, E : Encoder<T>> {
 
 // Decoder
 
-public interface Decoder<T> {
+public interface Decoder {
 
     func decode_null(&self) : std::Result<Unit, SerializationError>
 
@@ -89,65 +89,47 @@ public interface Decoder<T> {
 
     func decode_float(&self) : std::Result<float, SerializationError>
 
-    func decode_str_of_len(&self, l : u64) : std::Result<std::string, SerializationError>
+    func decode_str(&self) : std::Result<std::string_view, SerializationError>
 
-    func decode_str(&self) : std::Result<std::string, SerializationError>
+    func decode_bytes(&self) : std::Result<std::span<u8>, SerializationError>
 
-    func decode_bytes(&self) : std::Result<std::vector<u8>, SerializationError>
+    func array(&self) : std::Result<ArrayDecoder, SerializationError>
 
-    func array(&self) : std::Result<ArrayDecoder<T>, SerializationError>
+    func object(&self) : std::Result<ObjectDecoder, SerializationError>
 
-    func object(&self) : std::Result<ObjectDecoder<T>, SerializationError>
-
-    func map(&self) : std::Result<MapDecoder<T>, SerializationError>
+    func map(&self) : std::Result<MapDecoder, SerializationError>
 
 }
 
-public interface ArrayDecoder<T> {
+public interface ArrayDecoder {
 
-    func <K : Deserializer<T>> decode(&self) : std::Result<K, SerializationError>
+    func item_decoder(&mut self) : std::Result<Decoder, SerializationError>
 
-    func remaining(&self) : std::Result<u64, SerializationError>
+    func total(&self) : u64
 
-}
-
-public interface ObjectDecoder<T> {
-
-    func <V : Deserializer<T>> field(&self, name : *char) : std::Result<V, SerializationError>
-
-    func remaining(&self) : std::Result<u64, SerializationError>
+    func remaining(&self) : u64
 
 }
 
-public interface MapDecoder<T> {
+public interface ObjectDecoder {
 
-    func remaining(&self) : std::Result<u64, SerializationError>
+    func item_decoder(&mut self) : std::Result<std::pair<std::string_view, Decoder>, SerializationError>
 
-    func decode_null(&self) : std::Result<Unit, SerializationError>
+    func total(&self) : u64
 
-    func decode_bool(&self) : std::Result<bool, SerializationError>
+}
 
-    func decode_char(&self) : std::Result<char, SerializationError>
+public interface MapDecoder {
 
-    func decode_u64(&self) : std::Result<u64, SerializationError>
+    func item_decoder(&mut self) : std::Result<std::pair<Decoder, Decoder>, SerializationError>
 
-    func decode_i64(&self) : std::Result<i64, SerializationError>
-
-    func decode_float(&self) : std::Result<float, SerializationError>
-
-    func decode_double(&self) : std::Result<double, SerializationError>
-
-    func decode_str(&self) : std::Result<std::string, SerializationError>
-
-    func decode_str_of_len(&self, l : u64) : std::Result<std::string, SerializationError>
-
-    func decode_bytes(&self) : std::Result<std::vector<u8>, SerializationError>
+    func total(&self) : u64
 
 }
 
 public interface Deserializer<T> {
 
-    func deserialize(&self, decoder : Decoder<T>) : std::Result<Unit, SerializationError>
+    func deserialize(&self) : std::Result<T, SerializationError>
 
 }
 

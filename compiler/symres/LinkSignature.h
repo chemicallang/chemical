@@ -30,6 +30,11 @@ public:
     SymbolTable table;
 
     /**
+     * we own a generic instantiator for each file
+     */
+    GenericInstantiatorAPI generic_instantiator;
+
+    /**
      * internal flag to detect comptime context
      */
     bool comptime_context = false;
@@ -52,8 +57,12 @@ public:
      * constructor
      */
     TopLevelLinkSignature(
-        SymbolResolver& linker
-    ) : linker(linker), diagnoser(linker.loc_man) {
+        SymbolResolver& resolver
+    ) : linker(resolver), diagnoser(resolver.loc_man), generic_instantiator(
+        resolver.controller, resolver.binder, resolver.child_resolver,
+        resolver.instContainer, resolver.coreNodes, resolver.implsIndex, resolver.generic_inst_reg_mutex,
+        *resolver.ast_allocator, diagnoser, resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
+    ) {
 
     }
 
@@ -93,6 +102,10 @@ public:
 
     inline ASTAllocator& getModAllocator() {
         return *linker.mod_allocator;
+    }
+
+    inline GenericInstantiatorAPI& getGenericInstantiatorAPI() {
+        return generic_instantiator;
     }
 
     inline ASTNode* tld_find(const chem::string_view& name) {

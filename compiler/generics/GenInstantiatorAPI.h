@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ast_fwd.h"
+#include <mutex>
 #include <span>
 
 class AnnotationController;
@@ -50,6 +51,7 @@ public:
         InstantiationsContainer& container,
         CoreNodes& coreNodes,
         ImplementationsIndex& implsIndex,
+        std::mutex& registration_mutex,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
@@ -60,6 +62,12 @@ public:
      * must not perform a copy
      */
     GenericInstantiatorAPI(const GenericInstantiatorAPI& other) = delete;
+
+    /**
+     * this creates generic instantiator api from the given generic instantiator api
+     * however this doesn't perform a copy, only references are retrieved, symbol table not copied
+     */
+    static GenericInstantiatorAPI newGenericInstantiatorFrom(const GenericInstantiatorAPI& other);
 
     /**
      * get the container
@@ -75,6 +83,11 @@ public:
      * get the diagnoser
      */
     ASTDiagnoser& getDiagnoser();
+
+    /**
+     * get the registration mutex
+     */
+    std::mutex& getRegistrationMutex();
 
     /**
      * this will change the allocator to this

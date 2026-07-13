@@ -33,7 +33,7 @@ SymbolResolver::SymbolResolver(
     ASTAllocator* astAllocator
 ) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
     allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator), controller(controller), coreNodes(coreNodes), implsIndex(implsIndex),
-    genericInstantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
+    genericInstantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, generic_inst_reg_mutex, *astAllocator, *this, global.typeBuilder, global.target_data), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
@@ -412,7 +412,6 @@ SymbolRange SymbolResolver::tld_declare_file(
         unsigned int fileId,
         const std::string& abs_path
 ) {
-    instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
     const auto start = stored_file_symbols.size();
     TopLevelDeclSymDeclare declarer(*this);
@@ -426,7 +425,6 @@ void SymbolResolver::link_signature_file(
         unsigned int fileId,
         const SymbolRange& range
 ) {
-    instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
@@ -441,7 +439,6 @@ void SymbolResolver::generic_instantiation_file(
         unsigned int fileId,
         const SymbolRange& range
 ) {
-    instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     sym_res_generic_instantiation(*this, &scope);
@@ -453,7 +450,6 @@ void SymbolResolver::after_link_signature_file(
         unsigned int fileId,
         const SymbolRange& range
 ) {
-    instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
@@ -468,7 +464,6 @@ void SymbolResolver::link_file(
         unsigned int fileId,
         const SymbolRange& range
 ) {
-    instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
@@ -478,7 +473,6 @@ void SymbolResolver::link_file(
 }
 
 void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
-    instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
     const auto start = stored_file_symbols.size();
     TopLevelDeclSymDeclare declarer(*this);

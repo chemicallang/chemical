@@ -229,7 +229,8 @@ std::pair<int16_t, bool> register_generic_usage(
     auto generic_list_allocated = std::span<BaseType*>(initial, generic_list.size());
 
     // register the instantiation
-    const auto index = container.registerInstantiation(key, generic_list_allocated, instVec);
+    // TODO: registering with file id
+    const auto index = container.registerInstantiation(key, generic_list_allocated, instVec, 0);
     return { (int16_t) index, true };
 
 }

@@ -77,12 +77,19 @@ public:
     /**
      * register generic args
      */
-    StructDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    StructDefinition* register_generic_args(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types
+    );
 
     /**
      * register generic args
      */
-    StructDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
+    StructDefinition* instantiate_type(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types,
+        SourceLocation location
+    );
 
 #ifdef COMPILER_BUILD
 

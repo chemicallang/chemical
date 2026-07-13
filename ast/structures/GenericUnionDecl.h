@@ -76,9 +76,16 @@ public:
     /**
      * register generic args
      */
-    UnionDef* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    UnionDef* register_generic_args(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types
+    );
 
-    UnionDef* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
+    UnionDef* instantiate_type(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types,
+        SourceLocation location
+    );
 
 #ifdef COMPILER_BUILD
 

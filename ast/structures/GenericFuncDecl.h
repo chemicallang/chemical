@@ -79,6 +79,12 @@ public:
         return gen_func;
     }
 
+    FunctionDeclaration* register_generic_args(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& generic_args,
+        SourceLocation location
+    );
+
     /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic

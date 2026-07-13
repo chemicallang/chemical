@@ -40,62 +40,44 @@ void GenericFuncDecl::finalize_body(ASTAllocator& allocator, FunctionDeclaration
 
 }
 
-FunctionDeclaration* GenericFuncDecl::instantiate_call(
+FunctionDeclaration* GenericFuncDecl::register_generic_args(
     GenericInstantiatorAPI& instantiator,
-    FunctionCall* call,
-    BaseType* expected_type
+    std::vector<TypeLoc>& generic_args,
+    SourceLocation location
 ) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
+    auto& reg_mutex = instantiator.getRegistrationMutex();
 
-    std::vector<TypeLoc> generic_args;
+    // locking the mutex to check (and maybe register) for generic instantiation
+    reg_mutex.lock();
 
-    // initialize the generic args
-    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
-    if(!success) {
-        return nullptr;
-    }
-
-    // infer the generic arguments
-    infer_generic_args(allocator, generic_args, generic_params, call, diagnoser, expected_type);
-
-    // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
-    if(!success2) {
-        return nullptr;
-    }
-
-    // canonicalize the generic arguments
-    unsigned i = 0;
-    while(i < generic_args.size()) {
-        auto& type = generic_args[i];
-        if(type) {
-            type = {type->canonical(), type.getLocation()};
-        }
-        i++;
-    }
-
+    // checking
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
 
     // this will only happen, when we probably couldn't infer the generic args
     if(itr.first == -1) {
-        diagnoser.error("couldn't register generic instantiation", call);
+        // unlocking mutex, because we failed to register
+        reg_mutex.unlock();
+        diagnoser.error("couldn't register generic instantiation", location);
         return nullptr;
     }
 
     if(!itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
-
+        // unlocking mutex, because we found an instantiation
+        reg_mutex.unlock();
         // instantiation already exists
         return instantiations[itr.first];
-
     }
 
 #ifdef DEBUG
     if(itr.first != instantiations.size()) {
         // TODO enable this error, currently when a type deduction fails, we expect the type to be specified in argument list
         if(itr.first < instantiations.size()) {
+            // unlocking mutex, because we found an instantiation
+            reg_mutex.unlock();
             return instantiations[itr.first];
         }
         CHEM_THROW_RUNTIME("iteration registered, that is not on the expected index");
@@ -108,6 +90,10 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     impl->generic_instantiation = (int) instantiations.size();
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
+
+    // unlocking the mutex because we registered an instantiation
+    // (other threads would find this from instantiations vector using an index
+    reg_mutex.unlock();
 
     if(body_linked) {
 
@@ -148,6 +134,47 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     }
 
     return impl;
+}
+
+FunctionDeclaration* GenericFuncDecl::instantiate_call(
+    GenericInstantiatorAPI& instantiator,
+    FunctionCall* call,
+    BaseType* expected_type
+) {
+
+    auto& allocator = instantiator.getAllocator();
+    auto& diagnoser = instantiator.getDiagnoser();
+
+    std::vector<TypeLoc> generic_args;
+
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
+    if(!success) {
+        return nullptr;
+    }
+
+    // infer the generic arguments
+    infer_generic_args(allocator, generic_args, generic_params, call, diagnoser, expected_type);
+
+    // check all types have been inferred
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
+    if(!success2) {
+        return nullptr;
+    }
+
+    // canonicalize the generic arguments
+    // TODO: is there a need for this
+    // TODO: if test suite passes without this, delete canonicalization of generic parameters
+    unsigned i = 0;
+    while(i < generic_args.size()) {
+        auto& type = generic_args[i];
+        if(type) {
+            type = {type->canonical(), type.getLocation()};
+        }
+        i++;
+    }
+
+    return register_generic_args(instantiator, generic_args, call->encoded_location());
 
 }
 

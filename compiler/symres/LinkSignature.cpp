@@ -467,7 +467,7 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
         structValue->setType(new (getAstAllocator().allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
         return;
     }
-    if(!structValue->resolve_container(linker.genericInstantiator, !generic_context)) {
+    if(!structValue->resolve_container(getGenericInstantiatorAPI(), !generic_context)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);
@@ -507,7 +507,7 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
     // we must instantiate generic declarations and link with those
     // only if we are not present in generic context
-    type->instantiate_inline(linker.genericInstantiator, loc);
+    type->instantiate_inline(getGenericInstantiatorAPI(), loc);
 
 }
 

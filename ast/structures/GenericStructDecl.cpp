@@ -45,14 +45,23 @@ void GenericStructDecl::finalize_body(ASTAllocator& allocator, StructDefinition*
 
 }
 
-StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
+StructDefinition* GenericStructDecl::register_generic_args(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& generic_args
+) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
+    auto& reg_mutex = instantiator.getRegistrationMutex();
+
+    // locking the mutex to check (and maybe register) for generic instantiation
+    reg_mutex.lock();
 
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
+        // unlocking mutex, because we found an instantiation
+        reg_mutex.unlock();
         // iteration already exists
         return instantiations[itr.first];
     }
@@ -72,6 +81,10 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
     // store the pointer of instantiation
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
+
+    // unlocking the mutex because we registered an instantiation
+    // (other threads would find this from instantiations vector using an index
+    reg_mutex.unlock();
 
     if(body_linked) {
 
@@ -112,7 +125,11 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
 
 }
 
-StructDefinition* GenericStructDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
+StructDefinition* GenericStructDecl::instantiate_type(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& types,
+    SourceLocation location
+) {
 
     auto& diagnoser = instantiator.getDiagnoser();
 

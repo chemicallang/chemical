@@ -56,7 +56,7 @@ public:
      */
     void replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation, TargetData& targetData);
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
 #ifdef COMPILER_BUILD
 
@@ -74,22 +74,22 @@ public:
 
 #endif
 
-    FunctionDeclaration* get_overloaded_func(CoreNodes& coreNodes, ImplementationsIndex& implsIndex);
+    FunctionDeclaration* get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex);
 
     BaseType* get_determined_type(
-        TypeBuilder& typeBuilder,
-        CoreNodes& coreNodes,
-        ImplementationsIndex& implsIndex,
+        const TypeBuilder& typeBuilder,
+        const CoreNodes& coreNodes,
+        const ImplementationsIndex& implsIndex,
         ASTDiagnoser& diagnoser,
-        TargetData& targetData
+        const TargetData& targetData
     );
 
     inline void determine_type(
-        TypeBuilder& typeBuilder,
-        CoreNodes& coreNodes,
-        ImplementationsIndex& implsIndex,
+        const TypeBuilder& typeBuilder,
+        const CoreNodes& coreNodes,
+        const ImplementationsIndex& implsIndex,
         ASTDiagnoser& diagnoser,
-        TargetData& targetData
+        const TargetData& targetData
     ) {
         setType(get_determined_type(typeBuilder, coreNodes, implsIndex, diagnoser, targetData));
     }

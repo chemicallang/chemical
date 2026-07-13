@@ -205,7 +205,7 @@ public:
     /**
      * get byte size of this value
      */
-    virtual uint64_t byte_size(TargetData& data);
+    virtual uint64_t byte_size(const TargetData& data);
 
     /**
      * if this value has a child by this name, it should return a pointer to it

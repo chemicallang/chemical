@@ -279,6 +279,50 @@ public:
     SymbolTable(const SymbolTable& other) = delete;
 
     /**
+     * move constructor — transfers ownership of all internal data
+     */
+    SymbolTable(SymbolTable&& other) noexcept
+        : symbols(std::move(other.symbols))
+        , buckets(std::move(other.buckets))
+        , bucketMask(other.bucketMask)
+        , scopeStack(std::move(other.scopeStack))
+        , bucketSymbolBlocks(std::move(other.bucketSymbolBlocks))
+        , currentBlock(other.currentBlock)
+        , currentBlockOffset(other.currentBlockOffset)
+        , currentBlockCapacity(other.currentBlockCapacity)
+    {
+        other.currentBlock = nullptr;
+        other.currentBlockOffset = 0;
+        other.currentBlockCapacity = 0;
+        other.bucketMask = 0;
+    }
+
+    /**
+     * move assignment — transfers ownership of all internal data
+     */
+    SymbolTable& operator=(SymbolTable&& other) noexcept {
+        if(this != &other) {
+            // free our own pool blocks
+            for (auto block : bucketSymbolBlocks) {
+                ::operator delete(block, std::align_val_t(alignof(BucketSymbol)));
+            }
+            symbols = std::move(other.symbols);
+            buckets = std::move(other.buckets);
+            bucketMask = other.bucketMask;
+            scopeStack = std::move(other.scopeStack);
+            bucketSymbolBlocks = std::move(other.bucketSymbolBlocks);
+            currentBlock = other.currentBlock;
+            currentBlockOffset = other.currentBlockOffset;
+            currentBlockCapacity = other.currentBlockCapacity;
+            other.currentBlock = nullptr;
+            other.currentBlockOffset = 0;
+            other.currentBlockCapacity = 0;
+            other.bucketMask = 0;
+        }
+        return *this;
+    }
+
+    /**
      * @brief Constructs a SymbolTable with a specified initial bucket count.
      *
      * The bucket count is rounded up to the next power of two.
@@ -291,6 +335,20 @@ public:
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
         scopeStack.reserve(64);
+    }
+
+    /**
+     * returns the local symbols count
+     */
+    inline size_t local_symbol_count() const noexcept {
+        return symbols.size();
+    }
+
+    /**
+     * returns local scope count
+     */
+    inline size_t local_scope_count() const noexcept {
+        return scopeStack.size();
     }
 
     /**

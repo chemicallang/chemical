@@ -97,6 +97,17 @@ private:
     SymbolTable table;
 
     /**
+     * returns the main symbol table
+     */
+    inline SymbolTable& tbl() {
+        return table;
+    }
+
+    inline const SymbolTable& tbl() const {
+        return table;
+    }
+
+    /**
      * will try to override this function, notice the '&' in the previous pointer
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
@@ -109,11 +120,11 @@ private:
      * @return true if a new symbol was declared
      */
     inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
-        const auto previous = table.declare_no_shadow_sym(name, (ASTNode*) declaration);
+        const auto previous = tbl().declare_no_shadow_sym(name, (ASTNode*) declaration);
         if(previous == nullptr) {
             return true;
         } else {
-            if(table.is_in_current_scope(previous)) {
+            if(tbl().is_in_current_scope(previous)) {
                 overload_function(name, previous->activeNode, declaration);
                 return false;
             } else {
@@ -121,11 +132,11 @@ private:
                 // symbols with namespace as parents, aren't duplicates, they are hiding members
                 if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
                     // shadow the current symbol
-                    table.declare(name, (ASTNode*) declaration);
+                    tbl().declare(name, (ASTNode*) declaration);
                 } else {
                     // shadow the current symbol
                     dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
-                    table.declare(name, (ASTNode*) declaration);
+                    tbl().declare(name, (ASTNode*) declaration);
                 }
                 return true;
             };
@@ -279,10 +290,10 @@ public:
     UnresolvedDecl* get_unresolved_decl();
 
     /**
-     * get a constant reference to underlying symbol table
+     * get a mutable reference to underlying symbol table
      */
-    inline const SymbolTable& getSymbolTable() {
-        return table;
+    inline SymbolTable& getSymbolTable() {
+        return tbl();
     }
 
     /**
@@ -297,7 +308,7 @@ public:
      * global scope start
      */
     inline void global_scope_start() {
-        table.scope_start(SymResScopeKind::Global);
+        tbl().scope_start(SymResScopeKind::Global);
     }
 
     /**
@@ -308,7 +319,7 @@ public:
      * only in a specific module
      */
     inline unsigned long module_scope_start() {
-        return table.scope_start_index(SymResScopeKind::Module);
+        return tbl().scope_start_index(SymResScopeKind::Module);
     }
 
     /**
@@ -316,7 +327,7 @@ public:
      * symbols are expected to exist in other files
      */
     inline unsigned long file_scope_start() {
-        return table.scope_start_index(SymResScopeKind::File);
+        return tbl().scope_start_index(SymResScopeKind::File);
     }
 
     /**
@@ -324,7 +335,7 @@ public:
      * it would put a scope on current vector
      */
     inline void scope_start() {
-        table.scope_start(SymResScopeKind::Default);
+        tbl().scope_start(SymResScopeKind::Default);
     }
 
     /**
@@ -333,7 +344,7 @@ public:
      * this method also returns an index, call it only when an index is required
      */
     inline unsigned long scope_start_index() {
-        return table.scope_start_index(SymResScopeKind::Default);
+        return tbl().scope_start_index(SymResScopeKind::Default);
     }
 
     /**
@@ -341,7 +352,7 @@ public:
      */
     [[nodiscard]]
     inline const SymbolScope* get_scope_at_index(unsigned long index) const noexcept {
-        return table.get_scope_at_index(index);
+        return tbl().get_scope_at_index(index);
     }
 
     /**
@@ -349,21 +360,21 @@ public:
      */
     [[nodiscard]]
     const std::vector<SymbolEntry>& get_symbols() const noexcept {
-        return table.get_symbols();
+        return tbl().get_symbols();
     }
 
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
     inline void file_scope_end(unsigned long scope_index) {
-        table.drop_all_scopes_from(scope_index);
+        tbl().drop_all_scopes_from(scope_index);
     }
 
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
     inline void module_scope_end(unsigned long scope_index) {
-        table.drop_all_scopes_from(scope_index);
+        tbl().drop_all_scopes_from(scope_index);
     }
 
     /**
@@ -371,28 +382,28 @@ public:
      * it would pop a scope map from the current vector
      */
     inline void scope_end() {
-        table.scope_end();
+        tbl().scope_end();
     }
 
     /**
      * find a symbol on current symbol map
      */
     ASTNode* find(const chem::string_view& name) {
-        return table.resolve(name);
+        return tbl().resolve(name);
     }
 
     /**
      * get the scope stack
      */
     inline const std::vector<SymbolScope>& get_scopes() const noexcept {
-        return table.get_scopes();
+        return tbl().get_scopes();
     }
 
     /**
      * find the bucket associated with the given symbol
      */
     inline const BucketSymbol* find_bucket(const chem::string_view& name) {
-        return table.resolve_bucket(name);
+        return tbl().resolve_bucket(name);
     }
 
     /**
@@ -406,25 +417,13 @@ public:
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
-        return table.get_last_scope_kind() == SymResScopeKind::File;
+        return tbl().get_last_scope_kind() == SymResScopeKind::File;
     }
 
     /**
      * this links the nodes of coreNodes
      */
     void link_core_nodes();
-
-    /**
-     * duplicate symbol error
-     */
-    void dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
-
-    /**
-     * duplicate symbol error
-     */
-    inline void dup_sym_error(std::string& name, ASTNode* previous, ASTNode* new_node) {
-        dup_sym_error(chem::string_view(name.data(), name.size()), previous, new_node);
-    }
 
     /**
      * declare a symbol that will override the previous symbol if exists
@@ -459,7 +458,7 @@ public:
      * declares a symbol for which entry already exists
      */
     inline void declare_entry(const SymbolEntry* entry, long index) {
-        table.declare_entry(entry, index);
+        tbl().declare_entry(entry, index);
     }
 
     /**
@@ -600,8 +599,16 @@ public:
 
     /**
      * enable file symbols for given scope index
+     * this method allows you to redirect to a different table
      */
-    void enable_file_symbols(const SymbolRange& range);
+    void enable_file_symbols(SymbolTable& table, const SymbolRange& range);
+
+    /**
+     * enable file symbols for given scope index
+     */
+    inline void enable_file_symbols(const SymbolRange& range) {
+        enable_file_symbols(tbl(), range);
+    }
 
     /**
      * error for when the value doesn't satisfy the requires type
@@ -612,7 +619,7 @@ public:
      * will clear the symbol resolver, to make it ready for another compilation
      */
     void clear() {
-        table.clear();
+        tbl().clear();
         stored_file_symbols.clear();
         current_func_type = nullptr;
     }

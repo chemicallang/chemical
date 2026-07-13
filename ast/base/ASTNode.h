@@ -276,7 +276,7 @@ public:
      * example: children include struct members, functions, so on...
      * note: if child resolver is given, children added to types using impl will be considered
      */
-    ASTNode *child(ChildResolver* resolver, const chem::string_view &name) noexcept;
+    ASTNode *child(const ChildResolver* resolver, const chem::string_view &name) noexcept;
 
     /**
      * return a child ASTNode* with name
@@ -321,7 +321,7 @@ public:
     /**
      * get the byte size, of this type
      */
-    virtual uint64_t byte_size(TargetData& target);
+    virtual uint64_t byte_size(const TargetData& target);
 
 #ifdef COMPILER_BUILD
 

@@ -36,7 +36,7 @@ public:
         return (PointerType*) Value::getType();
     }
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     AddrOfValue *copy(ASTAllocator& allocator) final {
         return  new (allocator.allocate<AddrOfValue>()) AddrOfValue(

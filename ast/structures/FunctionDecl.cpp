@@ -921,11 +921,11 @@ void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& 
     check_self_other_params(diagnoser, this, def);
 }
 
-bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+bool FunctionDeclaration::put_as_extension_function(ASTDiagnoser& diagnoser) {
     // extension functions declare themselves inside the container
     auto& receiver = *params[0];
     const auto type = receiver.type;
-    const auto pure_receiver = type->pure_type(allocator);
+    const auto pure_receiver = type->canonical();
     const auto receiver_kind = pure_receiver->kind();
     if (receiver_kind != BaseTypeKind::Reference) {
         diagnoser.error("receiver in extension function must always be a reference", receiver.type.encoded_location());

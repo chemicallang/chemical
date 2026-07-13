@@ -290,7 +290,7 @@ int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     return -1;
 }
 
-uint64_t InterfaceDefinition::byte_size(TargetData& target) {
+uint64_t InterfaceDefinition::byte_size(const TargetData& target) {
 #ifdef DEBUG
     CHEM_THROW_RUNTIME("InterfaceDefinition::byte_size interface byte_size called");
 #endif

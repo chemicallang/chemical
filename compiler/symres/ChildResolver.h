@@ -82,7 +82,7 @@ public:
     /**
      * container of
      */
-    static ASTNode* find_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, void* type_ptr, bool is_mutable, const chem::string_view& name) {
+    static ASTNode* find_child(const std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, void* type_ptr, bool is_mutable, const chem::string_view& name) {
         auto key = ChildKey {
                 .name = name,
                 .pointer = type_ptr,
@@ -104,12 +104,12 @@ public:
         return found->second;
     }
 
-    ASTNode* find_primitive_child(BaseType* type, const chem::string_view& name) {
+    ASTNode* find_primitive_child(BaseType* type, const chem::string_view& name) const {
         auto found = primitive_types_children.find(PrimitiveTypeFunctionKey{ .name = name, .type = type });
         return found != primitive_types_children.end() ? found->second : nullptr;
     }
 
-    static ASTNode* find_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name) {
+    static ASTNode* find_child(const std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name) {
         switch(type->kind()) {
             case BaseTypeKind::IntN:
             case BaseTypeKind::String:
@@ -135,11 +135,11 @@ public:
         }
     }
 
-    inline ASTNode* find_child(PointerType* type, const chem::string_view& name) {
+    inline ASTNode* find_child(PointerType* type, const chem::string_view& name) const {
         return find_child(ptr_child_types, type->type, type->is_mutable, name);
     }
 
-    inline ASTNode* find_child(ReferenceType* type, const chem::string_view& name) {
+    inline ASTNode* find_child(ReferenceType* type, const chem::string_view& name) const {
         return find_child(ref_child_types, type->type, type->is_mutable, name);
     }
 

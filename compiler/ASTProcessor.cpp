@@ -329,7 +329,7 @@ static void declareChildren(SymbolResolver& resolver, ModuleDependency& dep, Chi
     }
 }
 
-int ASTProcessor::sym_res_module(LabModule* module) {
+int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     const auto prev_mod_scope = resolver->current_mod_scope;
     resolver->current_mod_scope = &module->module_scope;

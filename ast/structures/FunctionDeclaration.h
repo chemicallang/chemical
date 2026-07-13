@@ -724,7 +724,7 @@ public:
      * extension functions have first parameter which is a reference to the container
      * @return true if succeeded
      */
-    bool put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+    bool put_as_extension_function(ASTDiagnoser& diagnoser);
 
     virtual Value *call(
         InterpretScope *call_scope,

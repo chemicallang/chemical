@@ -41,7 +41,7 @@ public:
 
     bool satisfies(BaseType *type) override;
 
-    uint64_t byte_size(TargetData& target) override {
+    uint64_t byte_size(const TargetData& target) override {
         return instance_type->byte_size(target);
     }
 

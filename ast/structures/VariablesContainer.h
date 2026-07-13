@@ -128,7 +128,7 @@ public:
     /**
      * calculate the total byte size of the variables
      */
-    uint64_t total_byte_size(TargetData& target);
+    uint64_t total_byte_size(const TargetData& target);
 
     /**
      * this will remove all the variables and their indexes
@@ -269,7 +269,7 @@ public:
 
     long direct_child_index(const chem::string_view &varName);
 
-    uint64_t largest_member_byte_size(TargetData& target);
+    uint64_t largest_member_byte_size(const TargetData& target);
 
     /**
      * checks the given node is a direct chil of this container

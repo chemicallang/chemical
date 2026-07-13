@@ -662,7 +662,7 @@ bool Value::isValueRValueInFrontend() {
     }
 }
 
-uint64_t Value::byte_size(TargetData& target) {
+uint64_t Value::byte_size(const TargetData& target) {
 #ifdef DEBUG
     CHEM_THROW_RUNTIME("byte_size called on base Value");
 #else

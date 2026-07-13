@@ -44,7 +44,7 @@ public:
         attrs.deprecated = value;
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         uint64_t total_bytes = 0;
         for(auto& value : values) {
             total_bytes += value.second->byte_size(target);

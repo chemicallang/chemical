@@ -46,11 +46,11 @@ public:
         return false;
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         return value->byte_size(target);
     }
 
-    bool determine_type(TypeBuilder& typeBuilder);
+    bool determine_type(const TypeBuilder& typeBuilder);
 
     DereferenceValue *copy(ASTAllocator& allocator) final;
 

@@ -12,7 +12,7 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/utils/GenericUtils.h"
 
-uint64_t GenericType::byte_size(TargetData& target) {
+uint64_t GenericType::byte_size(const TargetData& target) {
     return referenced->byte_size(target);
 }
 

@@ -570,7 +570,16 @@ func test_decoder_decode_str(env : &mut TestEnv) {
 @test
 func test_decoder_decode_null(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
-    var parser = JsonParser(128, cc4096)
+
+    // ryan (my son), added 'cc' before 4096 here (by smashing keyboard, he is 1.5 years old)
+    // which compiler thought was an unresolved identifier
+    // i'm leaving this comment to note that my son caused the build to break
+    // he also seemed so captivated by the caps lock button, because it has a light on it, when its on
+    // if he ever reads this, look son -> you have played a part in the development of chemical programming language
+    // "cc4096" we'll use this identifier somewhere, like a very unique project name
+    // is this kidlang 😁?
+
+    var parser = JsonParser(128, 4096)
     var doc = std::string_view("null")
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if(!r.ok) { env.error("parse failed"); return }

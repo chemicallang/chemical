@@ -13,7 +13,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/types/ReferenceType.h"
 
-uint64_t LinkedType::byte_size(TargetData& data) {
+uint64_t LinkedType::byte_size(const TargetData& data) {
     return linked->byte_size(data);
 }
 

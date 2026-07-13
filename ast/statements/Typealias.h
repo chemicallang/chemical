@@ -140,7 +140,7 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    inline uint64_t byte_size(TargetData& target) final {
+    inline uint64_t byte_size(const TargetData& target) final {
         return actual_type->byte_size(target);
     }
 

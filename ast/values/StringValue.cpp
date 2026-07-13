@@ -20,6 +20,6 @@ Value *StringValue::index(InterpretScope &scope, int i) {
     return new (scope.allocate<IntNumValue>()) IntNumValue(value[i], scope.global->typeBuilder.getCharType(), encoded_location());
 }
 
-uint64_t StringValue::byte_size(TargetData& target) {
+uint64_t StringValue::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }

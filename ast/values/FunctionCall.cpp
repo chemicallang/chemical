@@ -1088,7 +1088,7 @@ default_case:
 
 #endif
 
-uint64_t FunctionCall::byte_size(TargetData& target) {
+uint64_t FunctionCall::byte_size(const TargetData& target) {
     return getType()->byte_size(target);
 }
 

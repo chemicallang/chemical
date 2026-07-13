@@ -23,7 +23,7 @@ public:
         // do nothing
     }
 
-    uint64_t byte_size(TargetData& target) override {
+    uint64_t byte_size(const TargetData& target) override {
         return 0;
     }
 

@@ -52,7 +52,7 @@ private:
 
     // key → its list of instantiations
     std::unordered_map<void*, DeclInstantiations> instantiations;
-    // fileId → vector of “who to delete” records
+    // fileId → vector of "who to delete" records
     std::unordered_map<unsigned int, std::vector<RegistryEntry>> fileIdRegistry;
 
     // we track current module instantiations

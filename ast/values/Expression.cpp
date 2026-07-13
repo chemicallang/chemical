@@ -80,7 +80,7 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
     }
 }
 
-FunctionDeclaration* Expression::get_overloaded_func(CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
+FunctionDeclaration* Expression::get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto first_canonical = firstValue->getType()->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);
     if(node == nullptr) return nullptr;
@@ -94,7 +94,7 @@ bool isUntypedIntegerLiteral(Value* value, IntNTypeKind k) {
     return value->kind() == ValueKind::IntN;
 }
 
-bool fits_into(IntNumValue* value, IntNType* type, TargetData& targetData) {
+bool fits_into(IntNumValue* value, IntNType* type, const TargetData& targetData) {
     const auto bits = type->num_bits(targetData);
     const auto is_unsigned = type->is_unsigned();
     const auto val = value->get_num_value();
@@ -119,11 +119,11 @@ bool fits_into(IntNumValue* value, IntNType* type, TargetData& targetData) {
 }
 
 BaseType* Expression::get_determined_type(
-    TypeBuilder& typeBuilder,
-    CoreNodes& coreNodes,
-    ImplementationsIndex& implsIndex,
+    const TypeBuilder& typeBuilder,
+    const CoreNodes& coreNodes,
+    const ImplementationsIndex& implsIndex,
     ASTDiagnoser& diagnoser,
-    TargetData& targetData
+    const TargetData& targetData
 ) {
     const auto expr = this;
     auto firstType = expr->firstValue->getType();
@@ -255,7 +255,7 @@ BaseType* Expression::get_determined_type(
     return first;
 }
 
-uint64_t Expression::byte_size(TargetData& target) {
+uint64_t Expression::byte_size(const TargetData& target) {
     return getType()->byte_size(target);
 }
 

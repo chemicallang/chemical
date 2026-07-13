@@ -36,7 +36,7 @@ public:
         return unnamed;
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         return largest_member()->byte_size(target);
     }
 

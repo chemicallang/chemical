@@ -726,7 +726,7 @@ bool BaseType::satisfies(Value* value, bool assignment) {
     return satisfies(val_type->canonical());
 }
 
-unsigned BaseType::type_alignment(TargetData& data) {
+unsigned BaseType::type_alignment(const TargetData& data) {
     switch(kind()) {
         case BaseTypeKind::Struct: {
             const auto st = as_struct_type_unsafe();
@@ -829,7 +829,7 @@ unsigned BaseType::type_alignment(TargetData& data) {
     }
 }
 
-uint64_t BaseType::byte_size(TargetData& data) {
+uint64_t BaseType::byte_size(const TargetData& data) {
     CHEM_THROW_RUNTIME("byte_size called on base type");
     return 0;
 }

@@ -42,7 +42,7 @@ public:
         return attrs.is_named;
     }
 
-    uint64_t byte_size(TargetData& data) final;
+    uint64_t byte_size(const TargetData& data) final;
 
     ASTNode* linked_node() final {
         return linked;

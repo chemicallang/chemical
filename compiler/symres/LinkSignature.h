@@ -2,19 +2,45 @@
 
 #pragma once
 
+#include "SymbolResolver.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
-
-class SymbolResolver;
 
 class TopLevelLinkSignature : public RecursiveVisitor<TopLevelLinkSignature> {
 public:
 
+    /**
+     * the instnace of symbol resolver
+     */
     SymbolResolver& linker;
+
+    /**
+     * the diagnoser is used to store diagnostics
+     */
+    ASTDiagnoser diagnoser;
 
     /**
      * this is set before visiting any type
      */
     SourceLocation type_location = 0;
+
+    /**
+     * per-file local symbol table — holds file-private symbols (generic type params,
+     * using-imports, aliases) that die when this context is destroyed
+     */
+    SymbolTable table;
+
+    /**
+     * internal flag to detect comptime context
+     */
+    bool comptime_context = false;
+    /**
+     * internal flag to detect safe context
+     */
+    bool safe_context = true;
+    /**
+     * internal flag to detect generic context
+     */
+    bool generic_context = false;
 
     /**
      * this requires that all types that are linked
@@ -25,8 +51,58 @@ public:
     /**
      * constructor
      */
-    TopLevelLinkSignature(SymbolResolver& linker) : linker(linker) {
+    TopLevelLinkSignature(
+        SymbolResolver& linker
+    ) : linker(linker), diagnoser(linker.loc_man) {
 
+    }
+
+    // -------------- non const references -------------
+
+
+
+    // -------------- const references ----------------
+
+    inline const ChildResolver* getChildResolver() {
+        return &linker.child_resolver;
+    }
+
+    inline const TypeBuilder& getTypeBuilder() {
+        return linker.comptime_scope.typeBuilder;
+    }
+
+    inline const TargetData& getTargetData() {
+        return linker.comptime_scope.target_data;
+    }
+
+    inline const CoreNodes& getCoreNodes() {
+        return linker.coreNodes;
+    }
+
+    inline const ImplementationsIndex& getImplsIndex() {
+        return linker.implsIndex;
+    }
+
+    inline const CompilerBinder& getCompilerBinder() {
+        return linker.binder;
+    }
+
+    inline ASTAllocator& getAstAllocator() {
+        return *linker.ast_allocator;
+    }
+
+    inline ASTAllocator& getModAllocator() {
+        return *linker.mod_allocator;
+    }
+
+    inline ASTNode* tld_find(const chem::string_view& name) {
+        auto* result = table.resolve(name);
+        if(result) return result;
+        return linker.find(name);
+    }
+
+    inline UnresolvedDecl* get_unresolved_decl() {
+        return linker.get_unresolved_decl();
     }
 
     void link_param(GenericTypeParameter* param);

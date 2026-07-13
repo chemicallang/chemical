@@ -815,7 +815,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module(mod);
+    const auto sym_res_status = processor.sym_res_module(mod, pool);
     if(sym_res_status != 0) {
         std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during symbol resolution in the module " << *mod << std::endl;
         return sym_res_status;
@@ -1124,7 +1124,7 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module(mod);
+    const auto sym_res_status = processor.sym_res_module(mod, pool);
     if(sym_res_status != 0) {
         return 1;
     }
@@ -4806,7 +4806,7 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
         }
 
         // symbol resolve
-        const auto sym_res_status = processor.sym_res_module(mod);
+        const auto sym_res_status = processor.sym_res_module(mod, pool);
         if(sym_res_status != 0) {
             std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during symbol resolution in the module " << *mod << std::endl;
             return sym_res_status;

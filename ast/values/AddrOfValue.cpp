@@ -27,7 +27,7 @@ void AddrOfValue::determine_type() {
     getType()->type = can->kind() == BaseTypeKind::Reference ? can->as_reference_type_unsafe()->type : valueType;
 }
 
-uint64_t AddrOfValue::byte_size(TargetData& target) {
+uint64_t AddrOfValue::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }
 
@@ -183,6 +183,6 @@ void ReferenceOfValue::determine_type() {
     getType()->type = valueType;
 }
 
-uint64_t ReferenceOfValue::byte_size(TargetData& target) {
+uint64_t ReferenceOfValue::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }

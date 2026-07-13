@@ -42,10 +42,9 @@
  */
 static void link_where_clause(TopLevelLinkSignature& signatureLinker, FunctionDeclaration* decl) {
     if (!decl->where_clause) return;
-    auto& linker = signatureLinker.linker;
     for (auto& constraint : decl->where_clause->constraints) {
         // resolve the generic type parameter by name
-        const auto found = linker.find(constraint.param_name);
+        const auto found = signatureLinker.tld_find(constraint.param_name);
         if (found && found->kind() == ASTNodeKind::GenericTypeParam) {
             constraint.param = found->as_generic_type_param_unsafe();
         }
@@ -69,11 +68,11 @@ void SymResLinkSignaturevisitValue(TopLevelLinkSignature* visitor, Value* value)
 }
 
 void SymResLinkSignaturevisitEmbeddedNode(TopLevelLinkSignature* visitor, EmbeddedNode* node) {
-    auto& linker = visitor->linker;
+    auto& table = visitor->table;
     for(const auto child_node : node->chemical_nodes) {
-        linker.scope_start();
+        table.scope_start();
         visitor->visit(child_node);
-        linker.scope_end();
+        table.scope_end();
     }
     for(const auto child_val : node->chemical_values) {
         visitor->visit(child_val);
@@ -81,11 +80,11 @@ void SymResLinkSignaturevisitEmbeddedNode(TopLevelLinkSignature* visitor, Embedd
 }
 
 void SymResLinkSignaturevisitEmbeddedValue(TopLevelLinkSignature* visitor, EmbeddedValue* value) {
-    auto& linker = visitor->linker;
+    auto& table = visitor->table;
     for(const auto child_node : value->chemical_nodes) {
-        linker.scope_start();
+        table.scope_start();
         visitor->visit(child_node);
-        linker.scope_end();
+        table.scope_end();
     }
     for(const auto child_val : value->chemical_values) {
         visitor->visit(child_val);
@@ -98,7 +97,7 @@ void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
 }
 
 void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
-    const auto decl = linker.find(value->value);
+    const auto decl = tld_find(value->value);
     if(decl) {
         value->linked = decl;
         const auto k = decl->known_type();
@@ -108,17 +107,17 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
         // we don't want to force the user to give types, because mostly type can be inferred
         // when type can't be inferred, we generate this error
         if (k == nullptr && decl->kind() == ASTNodeKind::VarInitStmt) {
-            value->linked = (ASTNode*) linker.get_unresolved_decl();
+            value->linked = (ASTNode*) get_unresolved_decl();
             value->setType(value->linked->known_type());
-            linker.error(value) << "couldn't infer type of global variable, please specify type of global variable being accessed";
-            linker.info(decl) << "explicit type not given, however accessed in current module";
+            diagnoser.error(value) << "couldn't infer type of global variable, please specify type of global variable being accessed";
+            diagnoser.info(decl) << "explicit type not given, however accessed in current module";
         } else {
             // to ensure function decl is informed about usage
-            value->process_linked(&linker, nullptr);
+            value->process_linked(&diagnoser, nullptr);
         }
     } else if(value->linked == nullptr) {
-        linker.error(value) << "unresolved variable identifier '" << value->value << "' not found";
-        value->linked = (ASTNode*) linker.get_unresolved_decl();
+        diagnoser.error(value) << "unresolved variable identifier '" << value->value << "' not found";
+        value->linked = (ASTNode*) get_unresolved_decl();
         value->setType(value->linked->known_type());
     }
 }
@@ -128,10 +127,10 @@ ASTNode* get_chain_linked(Value* value) {
     return id ? id->linked : nullptr;
 }
 
-inline void check_type_exported(SymbolResolver& linker, ASTNode* linked, SourceLocation location) {
+inline void check_type_exported(ASTDiagnoser& diagnoser, ASTNode* linked, SourceLocation location) {
     const auto spec = linked->specifier(AccessSpecifier::Public);
     if(!is_linkage_public(spec)) {
-        linker.error("non exported type being used in a public type, please use 'public' or 'protected' to expose it", location);
+        diagnoser.error("non exported type being used in a public type, please use 'public' or 'protected' to expose it", location);
     }
 }
 
@@ -146,18 +145,18 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
             type->linked = linked;
             if(require_exported) check_type_exported(linker, linked, type_location);
         } else {
-            type->linked = (ASTNode*) linker.get_unresolved_decl();
-            linker.error(type_location) << "unresolved type not found";
+            type->linked = (ASTNode*) get_unresolved_decl();
+            diagnoser.error(type_location) << "unresolved type not found";
         }
     } else if(type->is_named()){
         const auto named = (NamedLinkedType*) type;
-        const auto decl = linker.find(named->debug_link_name());
+        const auto decl = tld_find(named->debug_link_name());
         if(decl) {
             type->linked = decl;
             if(require_exported) check_type_exported(linker, decl, type_location);
         } else if(type->linked == nullptr) {
-            linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
-            type->linked = (ASTNode*) linker.get_unresolved_decl();
+            diagnoser.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
+            type->linked = (ASTNode*) get_unresolved_decl();
         }
     }
 }
@@ -182,7 +181,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 
 #ifdef DEBUG
     if(value->values.empty()) {
-        linker.error(value) << "empty access chain detected";
+        diagnoser.error(value) << "empty access chain detected";
         return;
     }
 #endif
@@ -224,24 +223,24 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
             const auto stmt = parent->as_var_init_unsafe();
             const auto stmtType = stmt->known_type();
             if (stmtType == nullptr) {
-                child->linked = (ASTNode*) linker.get_unresolved_decl();
+                child->linked = (ASTNode*) get_unresolved_decl();
                 child->setType(child->linked->known_type());
-                linker.error(value->values[i - 1]) << "couldn't infer type of global variable, please specify type of global variable being accessed";
-                linker.info(parent) << "explicit type not given, however accessed in current module";
+                diagnoser.error(value->values[i - 1]) << "couldn't infer type of global variable, please specify type of global variable being accessed";
+                diagnoser.info(parent) << "explicit type not given, however accessed in current module";
                 i++;
                 continue;
             }
         }
-        const auto child_linked = parent->child(&linker.child_resolver, child->value);
+        const auto child_linked = parent->child(getChildResolver(), child->value);
         if(child_linked) {
             child->linked = child_linked;
             child->setType(child_linked->known_type());
             parent = child_linked;
         } else {
-            child->linked = (ASTNode*) linker.get_unresolved_decl();
+            child->linked = (ASTNode*) get_unresolved_decl();
             child->setType(child->linked->known_type());
-            linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
-            linker.info(parent) << "declaration doesn't contain child by name '" << child->value << "'";
+            diagnoser.error(child) << "unresolved identifier, '" << child->value << "' not found";
+            diagnoser.info(parent) << "declaration doesn't contain child by name '" << child->value << "'";
             parent = child->linked;
         }
         i++;
@@ -256,8 +255,8 @@ void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
     visit(value->parent_val);
     const auto last_linked = value->parent_val->get_chain_last_linked();
     if (last_linked == nullptr) {
-        value->setType(linker.get_unresolved_decl()->known_type());
-        linker.error(value) << "call to unsupported parent value at top level";
+        value->setType(get_unresolved_decl()->known_type());
+        diagnoser.error(value) << "call to unsupported parent value at top level";
         return;
     }
     switch(last_linked->kind()) {
@@ -267,7 +266,7 @@ void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
             if(decl->is_comptime()) {
 
             } else {
-                linker.error(value) << "cannot call a runtime function at top level";
+                diagnoser.error(value) << "cannot call a runtime function at top level";
             }
             return;
         }
@@ -277,42 +276,42 @@ void TopLevelLinkSignature::VisitFunctionCall(FunctionCall* value) {
             return;
         }
         default: {
-            value->setType(linker.get_unresolved_decl()->known_type());
-            linker.error(value) << "call to unsupported parent value at top level";
+            value->setType(get_unresolved_decl()->known_type());
+            diagnoser.error(value) << "call to unsupported parent value at top level";
             return;
         }
     }
 }
 
 void TopLevelLinkSignature::VisitComptimeBlock(ComptimeBlock* node) {
-    if(linker.comptime_context) {
+    if(comptime_context) {
         RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeBlock(node);
     } else {
-        linker.comptime_context = true;
+        comptime_context = true;
         RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeBlock(node);
-        linker.comptime_context = false;
+        comptime_context = false;
     }
 }
 
 void TopLevelLinkSignature::VisitExpression(Expression* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitExpression(value);
     value->determine_type(
-        linker.comptime_scope.typeBuilder,
-        linker.coreNodes,
-        linker.implsIndex,
+        getTypeBuilder(),
+        getCoreNodes(),
+        getImplsIndex(),
         linker,
-        linker.comptime_scope.target_data
+        getTargetData()
     );
-    if(!linker.comptime_context) {
-        linker.error("cannot evaluate expression at runtime outside function body", value);
+    if(!comptime_context) {
+        diagnoser.error("cannot evaluate expression at runtime outside function body", value);
     }
 }
 
 void TopLevelLinkSignature::VisitAddrOfValue(AddrOfValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitAddrOfValue(value);
     value->determine_type();
-    if(!linker.comptime_context) {
-        linker.error("cannot take address of value at runtime outside function body", value);
+    if(!comptime_context) {
+        diagnoser.error("cannot take address of value at runtime outside function body", value);
     }
 }
 
@@ -323,7 +322,7 @@ void TopLevelLinkSignature::VisitReferenceOfValue(ReferenceOfValue* value) {
 
 void TopLevelLinkSignature::VisitArrayValue(ArrayValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitArrayValue(value);
-    value->determine_type(*linker.ast_allocator);
+    value->determine_type(getAstAllocator());
 }
 
 void TopLevelLinkSignature::VisitComptimeValue(ComptimeValue* value) {
@@ -335,61 +334,61 @@ void TopLevelLinkSignature::VisitComptimeValue(ComptimeValue* value) {
 void TopLevelLinkSignature::VisitDereferenceValue(DereferenceValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitDereferenceValue(value);
     // determining the type for this dereference value
-    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    auto& typeBuilder = getTypeBuilder();
     if (!value->determine_type(typeBuilder)) {
-        linker.error("couldn't determine type for de-referencing", value);
+        diagnoser.error("couldn't determine type for de-referencing", value);
     }
-    if(!linker.comptime_context) {
-        linker.error("cannot dereference value at runtime outside function body", value);
+    if(!comptime_context) {
+        diagnoser.error("cannot dereference value at runtime outside function body", value);
     }
 }
 
 void TopLevelLinkSignature::VisitIncDecValue(IncDecValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIncDecValue(value);
-    value->setType(value->determine_type(linker, linker.coreNodes, linker.implsIndex));
-    if(!linker.comptime_context) {
-        linker.error("cannot increment or decrement value at runtime outside function body", value);
+    value->setType(value->determine_type(linker, getCoreNodes(), getImplsIndex()));
+    if(!comptime_context) {
+        diagnoser.error("cannot increment or decrement value at runtime outside function body", value);
     }
 }
 
 void TopLevelLinkSignature::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIndexOperator(value);
     // determining the type for this index operator
-    auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    value->determine_type(typeBuilder, linker.coreNodes, linker.implsIndex, linker);
-    if(!linker.comptime_context) {
-        linker.error("cannot index into a value at runtime outside function body", value);
+    auto& typeBuilder = getTypeBuilder();
+    value->determine_type(typeBuilder, getCoreNodes(), getImplsIndex(), linker);
+    if(!comptime_context) {
+        diagnoser.error("cannot index into a value at runtime outside function body", value);
     }
 }
 
 void TopLevelLinkSignature::TopLevelLinkSignature::VisitIsValue(IsValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIsValue(value);
-    if(!linker.comptime_context) {
-        linker.error("cannot determine at runtime outside function body", value);
+    if(!comptime_context) {
+        diagnoser.error("cannot determine at runtime outside function body", value);
     }
 }
 
 void TopLevelLinkSignature::VisitLambdaFunction(LambdaFunction* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitLambdaFunction(value);
-    if(!linker.comptime_context) {
+    if(!comptime_context) {
         // NOTE: this requires resolving lambda type, for which code should be separate
         // also requires knowing expected type, however values are visited automatically
         // due to nature of recursive visitor, we cannot send expected types
-        linker.error("lambda functions at top level outside function body aren't supported", value);
+        diagnoser.error("lambda functions at top level outside function body aren't supported", value);
     }
 }
 
 void TopLevelLinkSignature::VisitNegativeValue(NegativeValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNegativeValue(value);
     // determine type for negative value
-    value->determine_type(linker.comptime_scope.typeBuilder, linker.coreNodes, linker.implsIndex, linker);
+    value->determine_type(getTypeBuilder(), getCoreNodes(), getImplsIndex(), linker);
 }
 
 void TopLevelLinkSignature::VisitUnsafeValue(UnsafeValue* value) {
-    const auto prev = linker.safe_context;
-    linker.safe_context = false;
+    const auto prev = safe_context;
+    safe_context = false;
     RecursiveVisitor<TopLevelLinkSignature>::VisitUnsafeValue(value);
-    linker.safe_context = prev;
+    safe_context = prev;
     value->setType(value->getValue()->getType());
 }
 
@@ -399,15 +398,15 @@ void TopLevelLinkSignature::VisitNewValue(NewValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNewValue(value);
     // type determined at symbol resolution must be set
     value->ptr_type.type = value->value->getType();
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
 void TopLevelLinkSignature::VisitNewTypedValue(NewTypedValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNewTypedValue(value);
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
@@ -415,26 +414,26 @@ void TopLevelLinkSignature::VisitPlacementNewValue(PlacementNewValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitPlacementNewValue(value);
     // type of the value determined at symbol resolution must be set
     value->ptr_type.type = value->value->getType();
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
 void TopLevelLinkSignature::VisitNotValue(NotValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNotValue(value);
     // determine the type of not value
-    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    value->determine_type(linker, getCoreNodes(), getImplsIndex());
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
 void TopLevelLinkSignature::VisitBitwiseNot(BitwiseNot* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitBitwiseNot(value);
     // determine the type of bitwise not value
-    value->determine_type(linker, linker.coreNodes, linker.implsIndex);
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    value->determine_type(linker, getCoreNodes(), getImplsIndex());
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
@@ -443,13 +442,13 @@ void TopLevelLinkSignature::VisitPatternMatchExpr(PatternMatchExpr* value) {
     // TODO: maybe pattern match expression should be a node
     // currently we emplace a void type
     // as expression is only used as a statement
-    value->setType((BaseType*) linker.comptime_scope.typeBuilder.getVoidType());
+    value->setType((BaseType*) getTypeBuilder().getVoidType());
 }
 
 void TopLevelLinkSignature::VisitBlockValue(BlockValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitBlockValue(value);
-    if(!linker.comptime_context) {
-        linker.error(RUNTIME_EVAL_ERR, value);
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
     }
 }
 
@@ -464,16 +463,16 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
             value->setRefType(temp_loc);
         }
     } else {
-        linker.error("unnamed struct value cannot link without a type", structValue);
-        structValue->setType(new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
+        diagnoser.error("unnamed struct value cannot link without a type", structValue);
+        structValue->setType(new (getAstAllocator().allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
         return;
     }
-    if(!structValue->resolve_container(linker.genericInstantiator, !linker.generic_context)) {
+    if(!structValue->resolve_container(linker.genericInstantiator, !generic_context)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
-        linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
+        diagnoser.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
     }
     auto refTypeKind = structValue->getRefType()->kind();
     if(refTypeKind == BaseTypeKind::Generic) {
@@ -484,20 +483,20 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
 }
 
 void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
-    auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResLinkSignatureNode);
+    auto found = getCompilerBinder().findHook(node->name, CBIFunctionType::SymResLinkSignatureNode);
     if(found) {
         ((EmbeddedNodeSymResLinkSignature) found)(this, node);
     } else {
-        linker.error(node) << "couldn't find link signature method for embedded node with name '" << node->name << "'";
+        diagnoser.error(node) << "couldn't find link signature method for embedded node with name '" << node->name << "'";
     }
 }
 
 void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
-    auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResLinkSignatureValue);
+    auto found = getCompilerBinder().findHook(value->name, CBIFunctionType::SymResLinkSignatureValue);
     if(found) {
         ((EmbeddedValueSymResLinkSignature) found)(this, value);
     } else {
-        linker.error(value) << "couldn't find link signature method for embedded value with name '" << value->name << "'";
+        diagnoser.error(value) << "couldn't find link signature method for embedded value with name '" << value->name << "'";
     }
 }
 
@@ -527,7 +526,7 @@ void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
 
 void TopLevelLinkSignature::VisitUsingStmt(UsingStmt* node) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
-    node->declare_symbols(linker);
+    node->declare_symbols(table, linker);
 }
 
 void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
@@ -537,7 +536,7 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
     if (value->kind() == ValueKind::AccessChain) {
         const auto chain = value->as_access_chain_unsafe();
         if (chain->values.size() != 1 || chain->values.front()->kind() != ValueKind::Identifier) {
-            linker.error(stmt) << "incompatible value given to alias";
+            diagnoser.error(stmt) << "incompatible value given to alias";
             return;
         }
     }
@@ -548,29 +547,29 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
 
     const auto node = value->get_chain_last_linked();
     if (!node) {
-        linker.error(stmt) << "cannot alias incompatible value";
+        diagnoser.error(stmt) << "cannot alias incompatible value";
         return;
     }
     if (stmt->specifier >= node->specifier()) {
-        linker.error(stmt) << "cannot alias a node to a higher specifier";
+        diagnoser.error(stmt) << "cannot alias a node to a higher specifier";
         return;
     }
 
     // declares the node without runtime
-    linker.declare_node(stmt->alias_name, node, stmt->specifier, false);
+    table.declare(stmt->alias_name, node);
 
 }
 
 void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
     if (node->type == nullptr) {
         if (!node->value) {
-            linker.error("a type of a value must be given for global variable", node);
+            diagnoser.error("a type of a value must be given for global variable", node);
             return;
         }
-        if(node->is_comptime() && !linker.comptime_context) {
-            linker.comptime_context = true;
+        if(node->is_comptime() && !comptime_context) {
+            comptime_context = true;
             visit(node->value);
-            linker.comptime_context = false;
+            comptime_context = false;
         } else {
             visit(node->value);
         }
@@ -581,18 +580,18 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
             return;
         }
     } else {
-        if(node->is_comptime() && !linker.comptime_context) {
-            linker.comptime_context = true;
+        if(node->is_comptime() && !comptime_context) {
+            comptime_context = true;
             visit(node->type);
-            linker.comptime_context = false;
+            comptime_context = false;
         } else {
             visit(node->type);
         }
         if (node->value) {
-            if(node->is_comptime() && !linker.comptime_context) {
-                linker.comptime_context = true;
+            if(node->is_comptime() && !comptime_context) {
+                comptime_context = true;
                 visit(node->value);
-                linker.comptime_context = false;
+                comptime_context = false;
             } else {
                 visit(node->value);
             }
@@ -615,12 +614,12 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
 }
 
 void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
-    if(linker.comptime_context) {
+    if(comptime_context) {
         RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
     } else {
-        linker.comptime_context = true;
+        comptime_context = true;
         RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
-        linker.comptime_context = false;
+        comptime_context = false;
     }
     if(stmt->actual_type->kind() == BaseTypeKind::IfType) {
         const auto if_type = stmt->actual_type->as_if_type_unsafe();
@@ -628,21 +627,24 @@ void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
         if(evaluated) {
             stmt->actual_type = evaluated;
         } else {
-            linker.error("couldn't evaluate the if type", stmt->actual_type.encoded_location());
+            diagnoser.error("couldn't evaluate the if type", stmt->actual_type.encoded_location());
             stmt->actual_type = if_type->thenType;
         }
     }
 }
 
 void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
-    auto& linker = sig.linker;
-    linker.scope_start();
+    auto& table = sig.table;
+    table.scope_start();
 
     // visiting the signature of the function
     for(auto param : node->params) {
         if(param->is_implicit()) {
             // implicit parameters are handled there
-            param->link_implicit_param(linker);
+            // TODO: this method exists in sym res link body
+            // we link parameters with 'self' params in link signature, so it should be moved here
+            // second, in link body, no self parameters should exist, and we shouldn't be providing any support for them
+            param->link_implicit_param(sig.linker);
         } else {
             sig.visit(param->type);
         }
@@ -660,9 +662,9 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     node->data.signature_resolved = true;
 
     if(node->isExtensionFn()) {
-        node->put_as_extension_function(linker.allocator, linker);
+        node->put_as_extension_function(sig.diagnoser);
     }
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
@@ -714,7 +716,7 @@ void TopLevelLinkSignature::VisitEnumDecl(EnumDeclaration* node) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitEnumDecl(node);
     auto& underlying_type = node->underlying_type;
     auto& underlying_integer_type = node->underlying_integer_type;
-    const auto pure_underlying = underlying_type->pure_type(*linker.ast_allocator);
+    const auto pure_underlying = underlying_type->canonical();
     const auto k = pure_underlying->kind();
     if(k == BaseTypeKind::IntN) {
         underlying_integer_type = pure_underlying->as_intn_type_unsafe();
@@ -725,8 +727,8 @@ void TopLevelLinkSignature::VisitEnumDecl(EnumDeclaration* node) {
             configure_members_by_inheritance(node, inherited->next_start);
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
-            linker.error("given type is not an enum or integer type", node->encoded_location());
-            underlying_integer_type = linker.comptime_scope.typeBuilder.getIntType();
+            diagnoser.error("given type is not an enum or integer type", node->encoded_location());
+            underlying_integer_type = getTypeBuilder().getIntType();
         }
     }
 }
@@ -752,7 +754,7 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
             const auto type = var->known_type();
             const auto imp_constructor = type->implicit_constructor_for(defValue);
             if (imp_constructor == nullptr && !type->satisfies(defValue, false)) {
-                linker.unsatisfied_type_err(defValue, type);
+                diagnoser.unsatisfied_type_error(defValue, type);
             }
         }
     }
@@ -773,21 +775,21 @@ void TopLevelLinkSignature::LinkMembersContainerNoScopeExposed(MembersContainer*
 }
 
 void TopLevelLinkSignature::LinkVariables(VariablesContainerBase* container) {
-    linker.scope_start();
+    table.scope_start();
     LinkVariablesNoScope(container);
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container) {
-    linker.scope_start();
+    table.scope_start();
     LinkMembersContainerNoScope(container);
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::LinkMembersContainerExposed(MembersContainer* container) {
-    linker.scope_start();
+    table.scope_start();
     LinkMembersContainerNoScopeExposed(container);
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container, AccessSpecifier specifier) {
@@ -812,116 +814,116 @@ void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
     }
     // declare the parameter later, so trait types and default types can't link with it
     // preventing self references
-    linker.declare(param->identifier, param);
+    table.declare(param->identifier, param);
 }
 
 void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     VisitTypealiasStmt(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
     node->signature_linked = true;
 }
 
 void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     auto& generic_params = node->generic_params;
     // symbol resolve the master declaration
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
     // when there's no usage
     node->master_impl->set_has_usage(true);
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
     // we must generate functions for master as well
     // because user can call the constructor of master implementation, which should be available
     // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
     // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
+    node->master_impl->generate_functions(getAstAllocator(), linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
     // we must generate functions for master as well
     // because user can call the constructor of master implementation, which should be available
     // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
     // similarly for default constructor
-    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
+    node->master_impl->generate_functions(getAstAllocator(), linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
-    linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    table.scope_start();
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    linker.generic_context = prev_gen_context;
-    linker.scope_end();
+    generic_context = prev_gen_context;
+    table.scope_end();
 }
 
 class TopLevelIfStmtConditionChecker : public RecursiveVisitor<TopLevelIfStmtConditionChecker> {
@@ -1004,13 +1006,13 @@ bool CheckTopLevelComptimeIfStmtCondition(
 
 void IfStatement::link_conditions(SymbolResolver &linker) {
     TopLevelLinkSignature symRes(linker);
-    auto prev_comptime = linker.comptime_context;
-    linker.comptime_context = true;
+    auto prev_comptime = symRes.comptime_context;
+    symRes.comptime_context = true;
     symRes.visit(condition);
     for (auto& cond: elseIfs) {
         symRes.visit(cond.first);
     }
-    linker.comptime_context = prev_comptime;
+    symRes.comptime_context = prev_comptime;
 }
 
 void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
@@ -1093,14 +1095,14 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 // }
 
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
-    linker.scope_start();
+    table.scope_start();
     // linking interface and struct type
     visit(node->interface_type);
     if (node->struct_type) {
         visit(node->struct_type);
     }
     LinkMembersContainerNoScope(node);
-    linker.scope_end();
+    table.scope_end();
 }
 
 bool is_object_safe(InterfaceDefinition* node) {
@@ -1139,17 +1141,17 @@ void TopLevelLinkSignature::VisitInterfaceDecl(InterfaceDefinition* node) {
 }
 
 void TopLevelLinkSignature::VisitNamespaceDecl(Namespace* node) {
-    linker.scope_start();
+    table.scope_start();
     const auto root = node->root;
     if(root) {
-        root->declare_extended_in_linker(linker);
+        root->declare_extended_in_table(table);
     } else {
-        node->declare_extended_in_linker(linker);
+        node->declare_extended_in_table(table);
     }
     for(const auto child : node->nodes) {
         visit(child);
     }
-    linker.scope_end();
+    table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitScope(Scope* node) {
@@ -1164,7 +1166,7 @@ void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
 }
 
 void TopLevelLinkSignature::VisitStructDecl(StructDefinition* node) {
-    auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& allocator = node->specifier() == AccessSpecifier::Public ? getAstAllocator() : getModAllocator();
     LinkMembersContainer(node, node->specifier());
     node->generate_functions(allocator, linker, node);
 }
@@ -1174,7 +1176,7 @@ void TopLevelLinkSignature::VisitUnionDecl(UnionDef* node) {
 }
 
 void TopLevelLinkSignature::VisitVariantDecl(VariantDefinition* node) {
-    auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& allocator = node->specifier() == AccessSpecifier::Public ? getAstAllocator() : getModAllocator();
     auto& diagnoser = linker;
     LinkMembersContainer(node, node->specifier());
     node->generate_functions(allocator, diagnoser, node);

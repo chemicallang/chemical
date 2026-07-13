@@ -46,7 +46,7 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     void report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 

@@ -58,7 +58,7 @@ public:
         return op;
     }
 
-    void determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
+    void determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

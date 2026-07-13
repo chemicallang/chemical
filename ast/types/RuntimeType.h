@@ -21,7 +21,7 @@ public:
         // do nothing
     }
 
-    uint64_t byte_size(TargetData& data) final {
+    uint64_t byte_size(const TargetData& data) final {
         return underlying->byte_size(data);
     }
 

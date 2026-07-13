@@ -14,7 +14,7 @@
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-uint64_t AccessChain::byte_size(TargetData& target) {
+uint64_t AccessChain::byte_size(const TargetData& target) {
     return values[values.size() - 1]->byte_size(target);
 }
 

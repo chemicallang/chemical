@@ -3,6 +3,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <mutex>
 #include "ast/utils/Operation.h"
 
 class ASTNode;
@@ -47,7 +48,11 @@ public:
 
     std::unordered_map<ImplementationIndexKey, ImplDefinition*, ImplementationIndexKeyHash> map_;
 
+    // mutex for thread-safe registration during parallel passes
+    std::mutex index_mutex;
+
     void add(ASTNode* interface, ASTAny* for_, ImplDefinition* impl) {
+        std::lock_guard<std::mutex> lock(index_mutex);
         map_.emplace(ImplementationIndexKey{ interface, for_ }, impl);
     }
 
@@ -59,7 +64,7 @@ public:
 
     void add_interface(InterfaceDefinition* interface, ASTAny* for_, ImplDefinition* impl);
 
-    ImplDefinition* get(ASTNode* interface, ASTAny* for_) {
+    ImplDefinition* get(ASTNode* interface, ASTAny* for_) const {
         const auto it = map_.find(ImplementationIndexKey{ interface, for_ });
         if(it == map_.end()) return nullptr;
         return it->second;
@@ -73,57 +78,57 @@ public:
         map_.clear();
     }
 
-    FunctionDeclaration* get_expr_op_impl(CoreNodes& coreNodes, MembersContainer* container, Operation op);
+    FunctionDeclaration* get_expr_op_impl(const CoreNodes& coreNodes, MembersContainer* container, Operation op) const;
 
-    FunctionDeclaration* get_ass_op_impl(CoreNodes& coreNodes, MembersContainer* container, Operation op);
+    FunctionDeclaration* get_ass_op_impl(const CoreNodes& coreNodes, MembersContainer* container, Operation op) const;
 
-    FunctionDeclaration* get_inc_dec_op_impl(CoreNodes& coreNodes, MembersContainer* container, bool increment, bool post);
+    FunctionDeclaration* get_inc_dec_op_impl(const CoreNodes& coreNodes, MembersContainer* container, bool increment, bool post) const;
 
-    FunctionDeclaration* get_index_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_index_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_neg_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_neg_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_not_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_not_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_bitnot_op_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_bitnot_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_linear_data_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_linear_size_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_begin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_begin_chunks_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_valid_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_valid_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_current_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_current_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_next_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_next_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_rbegin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_rbegin_chunks_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_previous_chunk_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_previous_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_chunked_total_size_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_chunked_total_size_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_iterable_begin_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_iterable_begin_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_iterable_valid_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_iterable_valid_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_iterable_current_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_iterable_current_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_iterable_next_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_reversible_iterable_rbegin_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_reversible_iterable_previous_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_reversible_iterable_count_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_reversible_iterable_rbegin_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_reversible_iterable_previous_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_reversible_iterable_count_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
-    FunctionDeclaration* get_stream_write_signed_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_unsigned_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_str_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_str_no_len_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_float_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_double_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_char_impl(CoreNodes& coreNodes, MembersContainer* container);
-    FunctionDeclaration* get_stream_write_uchar_impl(CoreNodes& coreNodes, MembersContainer* container);
+    FunctionDeclaration* get_stream_write_signed_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_unsigned_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_str_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_str_no_len_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_float_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_double_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_char_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
+    FunctionDeclaration* get_stream_write_uchar_impl(const CoreNodes& coreNodes, MembersContainer* container) const;
 
 };

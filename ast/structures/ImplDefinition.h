@@ -58,7 +58,7 @@ public:
         return attrs.specifier;
     }
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     ImplDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(

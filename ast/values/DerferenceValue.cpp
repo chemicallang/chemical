@@ -12,7 +12,7 @@
 #include "ast/base/InterpretScope.h"
 #include <iostream>
 
-bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
+bool DereferenceValue::determine_type(const TypeBuilder& typeBuilder) {
     const auto type = value->getType();
     switch(type->kind()) {
         case BaseTypeKind::Pointer:

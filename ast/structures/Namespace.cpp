@@ -2,9 +2,8 @@
 
 #include "Namespace.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
-#include "compiler/symres/DeclareTopLevel.h"
 
-void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id) {
+void Namespace::declare_node(ASTDiagnoser& linker, ASTNode* node, const chem::string_view& node_id) {
     auto found = extended.find(node_id);
     if(found == extended.end()) {
         extended[node_id] = node;
@@ -13,9 +12,9 @@ void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::
     }
 }
 
-void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
+void Namespace::declare_extended_in_table(SymbolTable& table) {
     for(auto& node_pair : extended) {
-        linker.declare_or_shadow(node_pair.first, node_pair.second);
+        table.declare(node_pair.first, node_pair.second);
     }
 }
 

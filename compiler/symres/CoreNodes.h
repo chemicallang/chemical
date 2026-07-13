@@ -122,7 +122,7 @@ public:
     /**
      * get information about operator being overloaded, like function name to use
      */
-    FunctionDeclaration* expr_operator_impl_base(Operation op) {
+    FunctionDeclaration* expr_operator_impl_base(Operation op) const {
         switch(op) {
             case Operation::Addition:
                 return ops.add;
@@ -161,7 +161,7 @@ public:
         }
     }
 
-    FunctionDeclaration* assignment_operator_impl_base(Operation op) {
+    FunctionDeclaration* assignment_operator_impl_base(Operation op) const {
         switch(op) {
             case Operation::Addition:
                 return ops.add_assign;
@@ -188,7 +188,7 @@ public:
         }
     }
 
-    FunctionDeclaration* inc_dec_operator_impl_base(bool increment, bool post) {
+    FunctionDeclaration* inc_dec_operator_impl_base(bool increment, bool post) const {
         return increment ? (post ? ops.inc_post : ops.inc_pre) : (post ? ops.dec_post : ops.dec_pre);
     }
 

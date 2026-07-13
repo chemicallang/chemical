@@ -7,4 +7,4 @@
 class ASTNode;
 class ChildResolver;
 
-ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent);
+ASTNode* provide_child(const ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent);

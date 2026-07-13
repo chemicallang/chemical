@@ -23,7 +23,7 @@ VarInitStatement* declaration(Value* value) {
     }
 }
 
-uint64_t VariableIdentifier::byte_size(TargetData& target) {
+uint64_t VariableIdentifier::byte_size(const TargetData& target) {
     return linked->byte_size(target);
 }
 

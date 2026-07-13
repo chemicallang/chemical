@@ -280,7 +280,7 @@ void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
             // TODO propagate namespace attributes
             // attrs = root->attrs;
             linker.scope_start();
-            root->declare_extended_in_linker(linker);
+            root->declare_extended_in_table(linker.getSymbolTable());
             for (auto& node: ns->nodes) {
                 visit(node);
             }

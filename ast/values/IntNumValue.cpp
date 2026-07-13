@@ -117,7 +117,7 @@ Value* IncDecValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
+BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto type = value->getType();
     // checking if operator is overloaded
     const auto node = type->get_linked_canonical_node(true, false);
@@ -152,6 +152,6 @@ BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNo
     }
 }
 
-uint64_t NullValue::byte_size(TargetData& data) {
+uint64_t NullValue::byte_size(const TargetData& data) {
     return data.is64Bit ? 8 : 4;
 }

@@ -33,7 +33,7 @@ public:
         return new (allocator.allocate<BoolValue>()) BoolValue(value, getType(), encoded_location());
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         return 1;
     }
 

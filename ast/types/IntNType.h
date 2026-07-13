@@ -62,13 +62,13 @@ public:
      * the number of bits, int means int32 which has 32 bits
      */
     [[nodiscard]]
-    unsigned int num_bits(TargetData& target) const noexcept;
+    unsigned int num_bits(const TargetData& target) const noexcept;
 
     /**
      * get the byte size of this type
      */
     [[nodiscard]]
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     /**
      * check if this is a character type
@@ -171,7 +171,7 @@ public:
     /**
      * checks if this type is bigger in terms of bit width, than the given type
      */
-    bool greater_than_in_bits(IntNType* type, TargetData& target) {
+    bool greater_than_in_bits(IntNType* type, const TargetData& target) {
         return num_bits(target) > type->num_bits(target);
     }
 

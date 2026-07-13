@@ -46,7 +46,7 @@ public:
         return get_array_size() == 0;
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         if(has_no_array_size()) {
 #ifdef DEBUG
             CHEM_THROW_RUNTIME("array size not known, byte size required");

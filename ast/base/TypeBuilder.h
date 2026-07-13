@@ -101,38 +101,38 @@ public:
     // -- Chemical Integer Types --
     // -------------------------------
 
-    inline I8Type* getI8Type() noexcept { return &i8Type; }
-    inline I16Type* getI16Type() noexcept { return &i16Type; }
-    inline I32Type* getI32Type() noexcept { return &i32Type; }
-    inline I64Type* getI64Type() noexcept { return &i64Type; }
-    inline Int128Type* getInt128Type() noexcept { return &int128Type; }
+    inline I8Type* getI8Type() const noexcept { return const_cast<I8Type*>(&i8Type); }
+    inline I16Type* getI16Type() const noexcept { return const_cast<I16Type*>(&i16Type); }
+    inline I32Type* getI32Type() const noexcept { return const_cast<I32Type*>(&i32Type); }
+    inline I64Type* getI64Type() const noexcept { return const_cast<I64Type*>(&i64Type); }
+    inline Int128Type* getInt128Type() const noexcept { return const_cast<Int128Type*>(&int128Type); }
 
-    inline U8Type* getU8Type() noexcept { return &u8Type; }
-    inline U16Type* getU16Type() noexcept { return &u16Type; }
-    inline U32Type* getU32Type() noexcept { return &u32Type; }
-    inline U64Type* getU64Type() noexcept { return &u64Type; }
-    inline UInt128Type* getUInt128Type() noexcept { return &uInt128Type; }
+    inline U8Type* getU8Type() const noexcept { return const_cast<U8Type*>(&u8Type); }
+    inline U16Type* getU16Type() const noexcept { return const_cast<U16Type*>(&u16Type); }
+    inline U32Type* getU32Type() const noexcept { return const_cast<U32Type*>(&u32Type); }
+    inline U64Type* getU64Type() const noexcept { return const_cast<U64Type*>(&u64Type); }
+    inline UInt128Type* getUInt128Type() const noexcept { return const_cast<UInt128Type*>(&uInt128Type); }
 
     // -------------------------------
     // -- C Like Integer Types --
     // -------------------------------
 
-    inline CharType* getCharType() noexcept { return &charType; }
-    inline ShortType* getShortType() noexcept { return &shortType; }
-    inline IntType* getIntType() noexcept { return &intType; }
-    inline LongType* getLongType() noexcept { return &longType; }
-    inline LongLongType* getLongLongType() noexcept { return &longLongType; }
+    inline CharType* getCharType() const noexcept { return const_cast<CharType*>(&charType); }
+    inline ShortType* getShortType() const noexcept { return const_cast<ShortType*>(&shortType); }
+    inline IntType* getIntType() const noexcept { return const_cast<IntType*>(&intType); }
+    inline LongType* getLongType() const noexcept { return const_cast<LongType*>(&longType); }
+    inline LongLongType* getLongLongType() const noexcept { return const_cast<LongLongType*>(&longLongType); }
 
-    inline UCharType* getUCharType() noexcept { return &uCharType; }
-    inline UShortType* getUShortType() noexcept { return &uShortType; }
-    inline UIntType* getUIntType() noexcept { return &uIntType; }
-    inline ULongType* getULongType() noexcept { return &uLongType; }
-    inline ULongLongType* getULongLongType() noexcept { return &uLongLongType; }
+    inline UCharType* getUCharType() const noexcept { return const_cast<UCharType*>(&uCharType); }
+    inline UShortType* getUShortType() const noexcept { return const_cast<UShortType*>(&uShortType); }
+    inline UIntType* getUIntType() const noexcept { return const_cast<UIntType*>(&uIntType); }
+    inline ULongType* getULongType() const noexcept { return const_cast<ULongType*>(&uLongType); }
+    inline ULongLongType* getULongLongType() const noexcept { return const_cast<ULongLongType*>(&uLongLongType); }
 
     /**
      * method to get int n type for given bit width and signedness
      */
-    IntNType* getIntNType(unsigned int bitWidth, bool isUnsigned) noexcept {
+    IntNType* getIntNType(unsigned int bitWidth, bool isUnsigned) const noexcept {
         switch(bitWidth) {
             case 8:
                 return isUnsigned ? (IntNType*) getU8Type() : (IntNType*) getI8Type();
@@ -151,7 +151,7 @@ public:
     /**
      * method to get int n type for given int n type kind
      */
-    IntNType* getIntNType(IntNTypeKind kind) noexcept {
+    IntNType* getIntNType(IntNTypeKind kind) const noexcept {
         switch(kind) {
             case IntNTypeKind::Char: return getCharType();
             case IntNTypeKind::Short: return getShortType();
@@ -195,28 +195,28 @@ public:
     /**
      * get BoolType
      */
-    inline BoolType* getBoolType() {
+    inline BoolType* getBoolType() const noexcept {
         return boolType;
     }
 
     /**
      * get DoubleType
      */
-    inline DoubleType* getDoubleType() {
+    inline DoubleType* getDoubleType() const noexcept {
         return doubleType;
     }
 
     /**
      * get Float128Type
      */
-    inline Float128Type* getFloat128Type() {
+    inline Float128Type* getFloat128Type() const noexcept {
         return float128Type;
     }
 
     /**
      * get FloatType
      */
-    inline FloatType* getFloatType() {
+    inline FloatType* getFloatType() const noexcept {
         return floatType;
     }
 
@@ -224,126 +224,126 @@ public:
     /**
      * get LongDoubleType
      */
-    inline LongDoubleType* getLongDoubleType() {
+    inline LongDoubleType* getLongDoubleType() const noexcept {
         return longDoubleType;
     }
 
     /**
      * get StringType
      */
-    inline StringType* getStringType() {
+    inline StringType* getStringType() const noexcept {
         return stringType;
     }
 
     /**
      * get VoidType
      */
-    inline VoidType* getVoidType() {
+    inline VoidType* getVoidType() const noexcept {
         return voidType;
     }
 
     /**
      * get NullPtrType
      */
-    inline NullPtrType* getNullPtrType() {
+    inline NullPtrType* getNullPtrType() const noexcept {
         return nullPtrType;
     }
 
     /**
      * get PointerType
      */
-    inline PointerType* getPtrToVoid() {
+    inline PointerType* getPtrToVoid() const noexcept {
         return ptrToVoid;
     }
 
     /**
      * get PointerType
      */
-    inline PointerType* getPtrToAny() {
+    inline PointerType* getPtrToAny() const noexcept {
         return ptrToAny;
     }
 
     /**
      * get PointerType
      */
-    inline PointerType* getConstPtrToAny() {
+    inline PointerType* getConstPtrToAny() const noexcept {
         return constPtrToAny;
     }
 
     /**
      * get reference to any
      */
-    inline ReferenceType* getRefToVoid() {
+    inline ReferenceType* getRefToVoid() const noexcept {
         return refToVoid;
     }
 
     /**
      * get reference to any
      */
-    inline ReferenceType* getRefToAny() {
+    inline ReferenceType* getRefToAny() const noexcept {
         return refToAny;
     }
 
     /**
      * get ExpressiveStringType
      */
-    inline ExpressiveStringType* getExprStrType() {
+    inline ExpressiveStringType* getExprStrType() const noexcept {
         return expr_str_type;
     }
 
     /**
      * get getRuntimeAnyType
      */
-    inline RuntimeType* getRuntimeAnyType() {
+    inline RuntimeType* getRuntimeAnyType() const noexcept {
         return runtimeAny;
     }
 
     /**
      * get runtimePtrToVoid
      */
-    inline RuntimeType* getRuntimePtrToVoid() {
+    inline RuntimeType* getRuntimePtrToVoid() const noexcept {
         return runtimePtrToVoid;
     }
 
     /**
      * get runtimePtrToVoid
      */
-    inline RuntimeType* getRuntimePtrToAny() {
+    inline RuntimeType* getRuntimePtrToAny() const noexcept {
         return runtimePtrToAny;
     }
 
     /**
      * get runtimePtrToVoid
      */
-    inline RuntimeType* getRuntimeConstPtrToAny() {
+    inline RuntimeType* getRuntimeConstPtrToAny() const noexcept {
         return runtimeConstPtrToAny;
     }
 
     /**
      * get getRuntimeAnyType
      */
-    inline MaybeRuntimeType* getMaybeRuntimeAnyType() {
+    inline MaybeRuntimeType* getMaybeRuntimeAnyType() const noexcept {
         return maybeRuntimeAny;
     }
 
     /**
      * get runtimePtrToVoid
      */
-    inline MaybeRuntimeType* getMaybeRuntimePtrToVoid() {
+    inline MaybeRuntimeType* getMaybeRuntimePtrToVoid() const noexcept {
         return maybeRuntimePtrToVoid;
     }
 
     /**
      * get UnresolvedDecl
      */
-    inline UnresolvedDecl* getUnresolvedDecl() {
+    inline UnresolvedDecl* getUnresolvedDecl() const noexcept {
         return unresolvedDecl;
     }
 
     /**
      * get the null value
      */
-    inline NullValue* getNullValue() {
+    inline NullValue* getNullValue() const noexcept {
         return nullValue;
     }
 

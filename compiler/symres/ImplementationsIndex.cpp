@@ -43,7 +43,7 @@ ImplDefinition* ImplementationsIndex::get_impl(ASTNode* interface, ASTAny* for_)
     }
 }
 
-static FunctionDeclaration* implementation_of(ImplementationsIndex& index, FunctionDeclaration* op_base, ASTAny* for_type) {
+static FunctionDeclaration* implementation_of(const ImplementationsIndex& index, FunctionDeclaration* op_base, ASTAny* for_type) {
     if (op_base == nullptr) {
         return nullptr;
     }
@@ -54,19 +54,19 @@ static FunctionDeclaration* implementation_of(ImplementationsIndex& index, Funct
     return implBlock->implementation_of(op_base);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_expr_op_impl(CoreNodes& coreNodes, MembersContainer* container, Operation op) {
+FunctionDeclaration* ImplementationsIndex::get_expr_op_impl(const CoreNodes& coreNodes, MembersContainer* container, Operation op) const {
     return implementation_of(*this, coreNodes.expr_operator_impl_base(op), (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_ass_op_impl(CoreNodes& coreNodes, MembersContainer* container, Operation op) {
+FunctionDeclaration* ImplementationsIndex::get_ass_op_impl(const CoreNodes& coreNodes, MembersContainer* container, Operation op) const {
     return implementation_of(*this, coreNodes.assignment_operator_impl_base(op), (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_inc_dec_op_impl(CoreNodes& coreNodes, MembersContainer* container, bool increment, bool post) {
+FunctionDeclaration* ImplementationsIndex::get_inc_dec_op_impl(const CoreNodes& coreNodes, MembersContainer* container, bool increment, bool post) const {
     return implementation_of(*this, coreNodes.inc_dec_operator_impl_base(increment, post), (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_index_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_index_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     const auto indexFunc = coreNodes.ops.index;
     if (indexFunc != nullptr) {
         const auto implPresent = get(indexFunc->parent(), container);
@@ -84,110 +84,110 @@ FunctionDeclaration* ImplementationsIndex::get_index_op_impl(CoreNodes& coreNode
     return nullptr;
 }
 
-FunctionDeclaration* ImplementationsIndex::get_neg_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_neg_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.ops.neg, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_not_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_not_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.ops._not, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_bitnot_op_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_bitnot_op_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.ops.bitnot, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_linear_data_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_linear_data_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.linear_data, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_linear_size_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_linear_size_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.linear_size, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_begin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_begin_chunks_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_begin_chunks, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_valid_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_valid_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_valid_chunk, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_current_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_current_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_current_chunk, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_next_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_next_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_next_chunk, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_rbegin_chunks_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_rbegin_chunks_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_rbegin_chunks, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_previous_chunk_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_previous_chunk_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_previous_chunk, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_chunked_total_size_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_chunked_total_size_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.chunked_total_size, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_iterable_begin_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_iterable_begin_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.iterable_begin, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_iterable_valid_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_iterable_valid_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.iterable_valid, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_iterable_current_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_iterable_current_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.iterable_current, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_iterable_next_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_iterable_next_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.iterable_next, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_rbegin_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_rbegin_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.reversible_iterable_rbegin, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_previous_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_previous_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.reversible_iterable_previous, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_count_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_reversible_iterable_count_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.iterable.reversible_iterable_count, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_signed_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_signed_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_signed, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_unsigned_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_unsigned_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_unsigned, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_str_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_str_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_str, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_str_no_len_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_str_no_len_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_str_no_len, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_float_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_float_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_float, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_double_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_double_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_double, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_char_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_char_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_char, (ASTAny*) container);
 }
 
-FunctionDeclaration* ImplementationsIndex::get_stream_write_uchar_impl(CoreNodes& coreNodes, MembersContainer* container) {
+FunctionDeclaration* ImplementationsIndex::get_stream_write_uchar_impl(const CoreNodes& coreNodes, MembersContainer* container) const {
     return implementation_of(*this, coreNodes.stream.stream_write_uchar, (ASTAny*) container);
 }

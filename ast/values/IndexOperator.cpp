@@ -70,7 +70,7 @@ llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<Value*> &ch
 #endif
 
 // TODO: make this function on BaseType
-BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type, bool unwrap_ref = false) {
+BaseType* get_child_type(const TypeBuilder& typeBuilder, BaseType* type, bool unwrap_ref = false) {
     switch(type->kind()) {
         case BaseTypeKind::Array:
             return type->as_array_type_unsafe()->elem_type;
@@ -98,7 +98,7 @@ BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type, bool unwrap_r
     }
 }
 
-void IndexOperator::determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser) {
+void IndexOperator::determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser) {
     auto current_type = parent_val->getType();
     const auto can_node = current_type->get_linked_canonical_node(true, false);
     if(can_node) {

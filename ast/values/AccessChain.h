@@ -88,7 +88,7 @@ public:
 
     bool compile_time_computable() final;
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
 #ifdef COMPILER_BUILD
 

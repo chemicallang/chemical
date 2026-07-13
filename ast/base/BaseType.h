@@ -80,7 +80,7 @@ public:
     /**
      * get the byte size, of this type
      */
-    virtual uint64_t byte_size(TargetData& data);
+    virtual uint64_t byte_size(const TargetData& data);
 
     /**
      * this creates the child type
@@ -92,7 +92,7 @@ public:
     /**
      * get the type alignment
      */
-    unsigned type_alignment(TargetData& data);
+    unsigned type_alignment(const TargetData& data);
 
     /**
      * get known child type

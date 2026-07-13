@@ -46,7 +46,7 @@ public:
         );
     }
 
-    uint64_t byte_size(TargetData& target) final {
+    uint64_t byte_size(const TargetData& target) final {
         return type->byte_size(target);
     }
 

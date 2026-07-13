@@ -28,7 +28,7 @@ public:
 
     }
 
-    uint64_t byte_size(TargetData& target) {
+    uint64_t byte_size(const TargetData& target) {
         return largest_member_byte_size(target);
     }
 

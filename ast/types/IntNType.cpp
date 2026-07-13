@@ -29,7 +29,7 @@ bool BoolType::satisfies(BaseType *type) {
     }
 }
 
-unsigned int IntNType::num_bits(TargetData& target) const noexcept {
+unsigned int IntNType::num_bits(const TargetData& target) const noexcept {
     switch(_kind) {
         case IntNTypeKind::Char:
         case IntNTypeKind::UChar:
@@ -73,7 +73,7 @@ unsigned int IntNType::num_bits(TargetData& target) const noexcept {
     }
 }
 
-uint64_t IntNType::byte_size(TargetData& target) {
+uint64_t IntNType::byte_size(const TargetData& target) {
     switch(_kind) {
         case IntNTypeKind::Char:
         case IntNTypeKind::UChar:

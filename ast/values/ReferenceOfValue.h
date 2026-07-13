@@ -37,7 +37,7 @@ public:
         return (ReferenceType*) Value::getType();
     }
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
 private:
     inline ReferenceOfValue* copy_with(ASTAllocator& allocator, Value* val) {

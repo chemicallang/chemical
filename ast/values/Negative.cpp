@@ -16,13 +16,13 @@
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/lab/LabBuildCompiler.h"
 
-uint64_t NegativeValue::byte_size(TargetData& data) {
+uint64_t NegativeValue::byte_size(const TargetData& data) {
 // TODO check this out
     return value->byte_size(data);
 }
 
 //TODO: make this function on IntNType
-BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
+BaseType* to_signed(const TypeBuilder& typeBuilder, IntNType* type) {
     switch(type->IntNKind()) {
         case IntNTypeKind::UChar:
             return (BaseType*) typeBuilder.getCharType();
@@ -49,7 +49,7 @@ BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
     }
 }
 
-void NegativeValue::determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser) {
+void NegativeValue::determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser) {
     const auto type = getValue()->getType();
     // check if operator is overloaded
     const auto node = type->get_linked_canonical_node(true, false);

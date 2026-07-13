@@ -481,7 +481,7 @@ public:
     /**
      * symbol resolves the module, creating the scope
      */
-    int sym_res_module(LabModule* module);
+    int sym_res_module(LabModule* module, ctpl::thread_pool& pool);
 
     /**
      * this symbol resolves the module, however sequentially, which means

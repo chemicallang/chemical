@@ -342,7 +342,7 @@ chem::string_view ASTNode::get_node_identifier() {
     }
 }
 
-uint64_t ASTNode::byte_size(TargetData& target) {
+uint64_t ASTNode::byte_size(const TargetData& target) {
     auto holdingType = known_type();
     return holdingType->byte_size(target);
 }
@@ -706,10 +706,10 @@ ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
     return found != container->indexes.end() ? found->second : nullptr;
 }
 
-ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
+ASTNode* provide_child(const ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
 
 // exclusive method for linked type
-ASTNode* child_provider_linked_type(ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
+ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
     const auto linked = type->linked;
     if(linked == nullptr) {
         return nullptr;
@@ -722,7 +722,7 @@ ASTNode* child_provider_linked_type(ChildResolver* resolver, LinkedType* type, c
     }
 }
 
-ASTNode* direct_child_provider(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
+ASTNode* direct_child_provider(const ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
     switch(type->kind()) {
         case BaseTypeKind::Linked:
             return child_provider_linked_type(resolver, type->as_linked_type_unsafe(), name, type_parent);
@@ -736,7 +736,7 @@ ASTNode* direct_child_provider(ChildResolver* resolver, BaseType* type, const ch
 // *dyn Phone <--- allowed ? NO (needs a dereference)
 // dyn *Phone <--- allowed ? NO
 // dyn Phone <---- allowed ? YES
-ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
+ASTNode* provide_child(const ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
     switch(type->kind()) {
         case BaseTypeKind::Float:
         case BaseTypeKind::Float128:
@@ -807,7 +807,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
     }
 }
 
-ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent) {
+ASTNode* provide_child(const ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent) {
     switch(parent->kind()) {
         case ValueKind::Identifier: {
             const auto id = parent->as_identifier_unsafe();
@@ -821,7 +821,7 @@ ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::strin
 }
 
 // get inherited or direct child from a members container (like struct gives)
-inline ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
+inline ASTNode* container_child(const ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
     return ::child(decl, name);
      // if (node) {
      //     return node;
@@ -836,7 +836,7 @@ inline ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl,
      // return nullptr;
 }
 
-ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) noexcept {
+ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &name) noexcept {
     switch(kind()) {
         case ASTNodeKind::ChildrenMapNode: {
             const auto n = as_children_map_node_unsafe();

@@ -39,7 +39,7 @@ public:
         setType(newValue->getType());
     }
 
-    BaseType* determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex);
+    BaseType* determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex);
 
     Value* evaluated_value(InterpretScope &scope) override;
 

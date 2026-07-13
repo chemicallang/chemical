@@ -108,10 +108,10 @@ bool ReferenceType::satisfies(Value* value, bool assignment) {
     return val_type != nullptr && satisfies(val_type, value, assignment);
 }
 
-uint64_t PointerType::byte_size(TargetData& target) {
+uint64_t PointerType::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }
 
-uint64_t ReferenceType::byte_size(TargetData& target) {
+uint64_t ReferenceType::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }

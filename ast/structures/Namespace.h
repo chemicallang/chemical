@@ -7,6 +7,9 @@
 #include "ast/base/AccessSpecifier.h"
 #include "std/chem_string_view.h"
 
+class SymbolTable;
+class ASTDiagnoser;
+
 struct NamespaceDeclAttributes {
 
     /**
@@ -126,9 +129,9 @@ public:
         }
     }
 
-    void declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id);
+    void declare_node(ASTDiagnoser& linker, ASTNode* node, const chem::string_view& node_id);
 
-    void declare_extended_in_linker(SymbolResolver& linker);
+    void declare_extended_in_table(SymbolTable& table);
 
 #ifdef COMPILER_BUILD
 

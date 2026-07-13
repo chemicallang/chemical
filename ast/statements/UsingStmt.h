@@ -5,6 +5,8 @@
 #include "ast/base/AnnotableNode.h"
 #include "ast/values/AccessChain.h"
 
+class SymbolTable;
+
 struct UsingStmtAttributes {
 
     /**
@@ -63,7 +65,7 @@ public:
         return attrs.failed_chain_link;
     }
 
-    void declare_symbols(SymbolResolver &linker);
+    void declare_symbols(SymbolTable& table, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

@@ -216,7 +216,7 @@ public:
 
     int vtable_function_index(FunctionDeclaration* decl);
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     inline BaseType* known_type() {
         return &linked_type;

@@ -392,10 +392,10 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
 }
 
-void UsingStmt::declare_symbols(SymbolResolver &linker) {
+void UsingStmt::declare_symbols(SymbolTable& table, ASTDiagnoser& diagnoser) {
     auto linked = chain->get_chain_last_linked();
     if(!linked) {
-        linker.error(this) << "couldn't find symbol '" << chain->representation() << "'";
+        diagnoser.error(this) << "couldn't find symbol '" << chain->representation() << "'";
         return;
     }
     if(is_namespace()) {
@@ -403,14 +403,14 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
         if(ns) {
             for(auto& node_pair : ns->extended) {
                 const auto node = node_pair.second;
-                linker.declare_or_shadow(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
+                table.declare(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
             }
         } else {
-            linker.error("expected value to be a namespace, however it isn't", this);
+            diagnoser.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
         const auto& name_view = linked->get_node_identifier();
-        if (!name_view.empty()) linker.declare_or_shadow(name_view, linked);
+        if (!name_view.empty()) table.declare(name_view, linked);
     }
 }
 
@@ -419,7 +419,7 @@ void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
         // we need to declare symbols once again, because all files in a module link signature
         // and then declare_and_link of all files is called, so after link_signature of each
         // file, symbols are dropped
-        node->declare_symbols(linker);
+        node->declare_symbols(linker.getSymbolTable(), linker);
     }
 }
 
@@ -1435,9 +1435,9 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
 void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     linker.scope_start();
     if(node->root) {
-        node->root->declare_extended_in_linker(linker);
+        node->root->declare_extended_in_table(linker.getSymbolTable());
     } else {
-        node->declare_extended_in_linker(linker);
+        node->declare_extended_in_table(linker.getSymbolTable());
         SymbolResolverShadowDeclarer declarer(linker);
         for(const auto child : node->nodes) {
             declare_node(declarer, child, AccessSpecifier::Private);

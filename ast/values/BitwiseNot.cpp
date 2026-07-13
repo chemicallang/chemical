@@ -27,7 +27,7 @@ Value* BitwiseNot::evaluated_value(InterpretScope &scope) {
     }
 }
 
-void BitwiseNot::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
+void BitwiseNot::determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto type = getValue()->getType();
     const auto node = type->get_linked_canonical_node(true, false);
     if(node) {

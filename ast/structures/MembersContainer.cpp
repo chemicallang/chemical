@@ -290,7 +290,7 @@ void VariablesContainer::ensure_inherited_visibility(ASTDiagnoser& diagnoser, Ac
     }
 }
 
-uint64_t VariablesContainerBase::total_byte_size(TargetData& target) {
+uint64_t VariablesContainerBase::total_byte_size(const TargetData& target) {
     size_t offset = 0;
     size_t maxAlignment = 1;
     for (const auto member : variables()) {
@@ -310,7 +310,7 @@ uint64_t VariablesContainerBase::total_byte_size(TargetData& target) {
     return offset;
 }
 
-uint64_t VariablesContainer::largest_member_byte_size(TargetData& target) {
+uint64_t VariablesContainer::largest_member_byte_size(const TargetData& target) {
     uint64_t size = 0;
     uint64_t previous;
     for (const auto mem: variables()) {

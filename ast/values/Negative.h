@@ -40,7 +40,7 @@ public:
         setType(newValue->getType());
     }
 
-    uint64_t byte_size(TargetData& data) final;
+    uint64_t byte_size(const TargetData& data) final;
 
     bool primitive() final;
 
@@ -62,6 +62,6 @@ public:
 
 #endif
 
-    void determine_type(TypeBuilder& typeBuilder, CoreNodes& coreNodes, ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
+    void determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 
 };

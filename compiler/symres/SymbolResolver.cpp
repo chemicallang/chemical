@@ -156,13 +156,8 @@ void SymbolResolver::link_core_nodes() {
 
 }
 
-void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    error(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
-    warn(previous) << "symbol has a conflict";
-}
-
 bool SymbolResolver::declare_default(const chem::string_view& name, ASTNode* node) {
-    const auto previous = table.declare_no_shadow(name, node);
+    const auto previous = tbl().declare_no_shadow(name, node);
     if(previous == nullptr) {
         return true;
     } else {
@@ -170,10 +165,10 @@ bool SymbolResolver::declare_default(const chem::string_view& name, ASTNode* nod
         // symbols with namespace as parents, aren't duplicates, they are hiding members
         if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
             // shadow the current symbol
-            table.declare(name, node);
+            tbl().declare(name, node);
         } else {
             // shadow the current symbol
-            table.declare(name, node);
+            tbl().declare(name, node);
             dup_sym_error(name, previous, node);
         }
         return false;
@@ -201,7 +196,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
             return false;
         }
         if (func->returnType->satisfies(declaration->returnType) && params_satisfy(func, declaration->params, false)) {
-            table.declare(name, declaration);
+            tbl().declare(name, declaration);
             return true;
         } else {
             dup_sym_error(declaration->name_view(), previous, declaration);
@@ -219,7 +214,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
         }
     } else if(result.new_multi_func_node) {
         // override the previous symbol
-        table.declare(name, result.new_multi_func_node);
+        tbl().declare(name, result.new_multi_func_node);
         return true;
     }
     return false;
@@ -301,7 +296,7 @@ void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* n
 #endif
     // we'll allow it to shadow, since when the scope ends, the previous symbol will become visible
     // we have to see who's calling this method
-    table.declare(name, node);
+    tbl().declare(name, node);
 }
 
 void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *node, unsigned long lambda_scope_start, bool in_lambda_scope) {
@@ -311,23 +306,23 @@ void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *n
         return;
     }
 #endif
-    const auto previous = table.declare_no_shadow_sym(name, node);
+    const auto previous = tbl().declare_no_shadow_sym(name, node);
     if(previous) {
         if(in_lambda_scope && previous->index < lambda_scope_start) {
             // previous symbol outside lambda scope, allow shadowing
-            table.declare(name, node);
+            tbl().declare(name, node);
             return;
         }
         if(previous->activeNode->is_member_or_top_level()) {
             // previous symbol is a top level symbol or a member (function or struct/variant member), allow shadowing
-            table.declare(name, node);
+            tbl().declare(name, node);
             return;
         }
         // error out, symbol now allowed to be shadowed
         error(node) << "symbol with name '" << name << "' already exists";
         warn(previous->activeNode) << "symbol has a conflict";
         // shadow the symbol, why shadow ? so errors consider user's intention to shadow
-        table.declare(name, node);
+        tbl().declare(name, node);
     }
 }
 
@@ -338,12 +333,12 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
         return;
     }
 #endif
-    const auto previous = table.declare_no_shadow(name, node);
+    const auto previous = tbl().declare_no_shadow(name, node);
     if(previous) {
         error(node) << "symbol with name '" << name << "' already exists";
         warn(previous) << "symbol has a conflict";
         // shadow the symbol
-        table.declare(name, node);
+        tbl().declare(name, node);
     }
 }
 
@@ -402,7 +397,7 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
     }
 }
 
-void SymbolResolver::enable_file_symbols(const SymbolRange& range) {
+void SymbolResolver::enable_file_symbols(SymbolTable& table, const SymbolRange& range) {
     if(range.symbol_start == range.symbol_end) return;
     auto sym = stored_file_symbols.data() + range.symbol_start;
     const auto end = stored_file_symbols.data() + range.symbol_end;

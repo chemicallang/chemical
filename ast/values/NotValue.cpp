@@ -57,7 +57,7 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
 
 void verify_bool_ptr_condition(ASTDiagnoser& linker, BaseType* condType, SourceLocation loc);
 
-void NotValue::determine_type(ASTDiagnoser& diagnoser, CoreNodes& coreNodes, ImplementationsIndex& implsIndex) {
+void NotValue::determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto type = getValue()->getType();
     // check if operator is overloaded
     const auto node = type->get_linked_canonical_node(true, false);

@@ -52,7 +52,7 @@ public:
     [[nodiscard]]
     GenericType* copy(ASTAllocator& allocator) final;
 
-    uint64_t byte_size(TargetData& target) override;
+    uint64_t byte_size(const TargetData& target) override;
 
 #ifdef COMPILER_BUILD
 

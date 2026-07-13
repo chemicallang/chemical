@@ -352,7 +352,7 @@ bool VariantDefinition::requires_destructor() {
     return false;
 }
 
-uint64_t VariantDefinition::byte_size(TargetData& target) {
+uint64_t VariantDefinition::byte_size(const TargetData& target) {
     const auto type_size = target.is64Bit ? 4 : 2; // <--- an int type enum is stored inside
     const auto large = largest_member();
     if(!large) return type_size;

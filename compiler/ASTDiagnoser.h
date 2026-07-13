@@ -215,6 +215,23 @@ public:
     }
 
     /**
+     * duplicate symbol error
+     */
+    void dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
+
+    /**
+     * duplicate symbol error
+     */
+    inline void dup_sym_error(std::string& name, ASTNode* previous, ASTNode* new_node) {
+        dup_sym_error(chem::string_view(name.data(), name.size()), previous, new_node);
+    }
+
+    /**
+     * unsatisfied type error can be created
+     */
+    void unsatisfied_type_error(Value* value, BaseType* type);
+
+    /**
      * resets errors
      */
     inline void reset_errors() {

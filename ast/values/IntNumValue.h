@@ -69,7 +69,7 @@ public:
      * get the bytesize for this intn value
      */
     [[nodiscard]]
-    inline uint64_t byte_size(TargetData& data) final { return getType()->byte_size(data); }
+    inline uint64_t byte_size(const TargetData& data) final { return getType()->byte_size(data); }
 
     /**
      * provide the number of bits used by this value

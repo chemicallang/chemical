@@ -35,7 +35,7 @@ public:
         return type;
     }
 
-    uint64_t byte_size(TargetData& target) final;
+    uint64_t byte_size(const TargetData& target) final;
 
     bool satisfies(BaseType *type) final;
 

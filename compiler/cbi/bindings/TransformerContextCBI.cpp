@@ -33,7 +33,7 @@ bool TransformerContextanalyzeTarget(TransformerContext* self) {
     for(const auto target : self->flattened_mods) {
 
         // symbol resolution
-        if (processor->sym_res_module(target) != 0) return false;
+        if (processor->sym_res_module(target, self->compiler->pool) != 0) return false;
 
         // type verification
         if(!processor->type_verify_module_parallel(self->compiler->pool, target)) return false;

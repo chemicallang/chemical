@@ -165,6 +165,11 @@ public:
     ImportPathHandler& path_handler;
 
     /**
+     * generic instantiation registration mutex
+     */
+    std::mutex generic_inst_reg_mutex;
+
+    /**
      * the everything related to annotations handler
      */
     AnnotationController& controller;

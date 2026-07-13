@@ -59,11 +59,6 @@ private:
     std::vector<ASTNode*> current_module_instantiations;
 
 public:
-    /**
-     * this is set by symbol resolver, when linking signature or body of each file
-     * this allows us to know which file generic instantiations are coming from
-     */
-    unsigned int current_file_id = 0;
 
     /**
      * constructor
@@ -94,7 +89,8 @@ public:
     size_t registerInstantiation(
             void*                        key,
             InstantiationType            types,
-            std::vector<void*>&          instVec
+            std::vector<void*>&          instVec,
+            unsigned int current_file_id
     ) {
         // 1) Grab-or-create our DeclInstantiations
         auto [it, inserted] = instantiations.try_emplace(

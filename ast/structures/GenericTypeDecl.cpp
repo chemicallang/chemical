@@ -17,14 +17,23 @@ TypealiasStatement* GenericTypeDecl::copy_master(ASTAllocator& allocator) {
     return impl;
 }
 
-TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
+TypealiasStatement* GenericTypeDecl::register_generic_args(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& generic_args
+) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
+    auto& reg_mutex = instantiator.getRegistrationMutex();
+
+    // locking the mutex to check (and maybe register) for generic instantiation
+    reg_mutex.lock();
 
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
+        // unlocking mutex, because we found an instantiation
+        reg_mutex.unlock();
         // iteration already exists
         return instantiations[itr.first];
     }
@@ -45,6 +54,10 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 
+    // unlocking the mutex because we registered an instantiation
+    // (other threads would find this from instantiations vector using an index
+    reg_mutex.unlock();
+
     // signature and body both have been linked for master_impl
     // so all we need to do is
     finalize_signature(allocator, impl);
@@ -58,7 +71,11 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
 
 }
 
-TypealiasStatement* GenericTypeDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
+TypealiasStatement* GenericTypeDecl::instantiate_type(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& types,
+    SourceLocation location
+) {
 
     auto& diagnoser = instantiator.getDiagnoser();
 

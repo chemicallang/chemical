@@ -76,9 +76,16 @@ public:
     /**
      * register generic args
      */
-    ImplDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    ImplDefinition* register_generic_args(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types
+    );
 
-    ImplDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
+    ImplDefinition* instantiate_type(
+        GenericInstantiatorAPI& instantiator,
+        std::vector<TypeLoc>& types,
+        SourceLocation location
+    );
 
 #ifdef COMPILER_BUILD
 

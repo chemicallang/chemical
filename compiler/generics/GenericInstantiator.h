@@ -5,6 +5,7 @@
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/generics/InstantiationsContainer.h"
+#include <mutex>
 
 class CompilerBinder;
 
@@ -15,6 +16,7 @@ public:
      * annotation controller can be used to access the annotated data
      */
     AnnotationController& controller;
+
     /**
      * instantiations container contains types for each instantiation
      */
@@ -63,6 +65,12 @@ public:
     ImplementationsIndex& implsIndex;
 
     /**
+     * the registration mutex is used to register instantiations sequentially
+     * so they can be used among threads safely
+     */
+    std::mutex& registration_mutex;
+
+    /**
      * this points to the node being instantiated
      * this allows us to check self-referential pointers to generic decls
      */
@@ -100,14 +108,23 @@ public:
         InstantiationsContainer& container,
         CoreNodes& coreNodes,
         ImplementationsIndex& implsIndex,
+        std::mutex& registration_mutex,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
         TargetData& targetData
     ) : controller(controller), child_resolver(child_resolver), binder(binder), container(container),
         allocator_ptr(&allocator), diagnoser(diagnoser), typeBuilder(typeBuilder), targetData(targetData),
-        coreNodes(coreNodes), implsIndex(implsIndex) {
+        coreNodes(coreNodes), implsIndex(implsIndex), registration_mutex(registration_mutex) {
 
+    }
+
+    static inline GenericInstantiator newGenericInstantiatorFrom(const GenericInstantiator& g) {
+        return GenericInstantiator(
+        g.controller, g.binder, g.child_resolver,
+        g.container, g.coreNodes, g.implsIndex, g.registration_mutex,
+        *g.allocator_ptr, g.diagnoser, g.typeBuilder, g.targetData
+        );
     }
 
     inline ASTAllocator& getAllocator() {

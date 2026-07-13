@@ -47,14 +47,23 @@ void GenericVariantDecl::finalize_body(ASTAllocator& allocator, VariantDefinitio
 
 }
 
-VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
+VariantDefinition* GenericVariantDecl::register_generic_args(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& generic_args
+) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
+    auto& reg_mutex = instantiator.getRegistrationMutex();
+
+    // locking the mutex to check (and maybe register) for generic instantiation
+    reg_mutex.lock();
 
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
+        // unlocking mutex, because we found an instantiation
+        reg_mutex.unlock();
         // iteration already exists
         return instantiations[itr.first];
     }
@@ -74,6 +83,10 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
     // store the pointer of instantiation
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
+
+    // unlocking the mutex because we registered an instantiation
+    // (other threads would find this from instantiations vector using an index
+    reg_mutex.unlock();
 
     if(body_linked) {
 
@@ -114,7 +127,11 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
 
 }
 
-VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
+VariantDefinition* GenericVariantDecl::instantiate_type(
+    GenericInstantiatorAPI& instantiator,
+    std::vector<TypeLoc>& types,
+    SourceLocation location
+) {
 
     auto& diagnoser = instantiator.getDiagnoser();
 
@@ -136,7 +153,11 @@ VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& 
 
 }
 
-VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& instantiator, FunctionCall* call, BaseType* expected_type) {
+VariantDefinition* GenericVariantDecl::instantiate_call(
+    GenericInstantiatorAPI& instantiator,
+    FunctionCall* call,
+    BaseType* expected_type
+) {
 
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();

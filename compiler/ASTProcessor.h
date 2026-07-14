@@ -26,6 +26,8 @@
 #include <span>
 #include <mutex>
 
+#include "symres/LinkSignatureAPI.h"
+
 class Parser;
 
 class SymbolResolver;
@@ -431,11 +433,11 @@ public:
     /**
      * links the signature of the file
      */
-    void sym_res_link_sig_file(
-            Scope& scope,
-            unsigned int fileId,
-            const std::string& abs_path,
-            const SymbolRange& range
+    SymResSignatureResult sym_res_link_sig_file(
+        Scope& scope,
+        unsigned int fileId,
+        const std::string& abs_path,
+        const SymbolRange& range
     );
 
     /**
@@ -445,7 +447,8 @@ public:
             Scope& scope,
             unsigned int fileId,
             const std::string& abs_path,
-            const SymbolRange& range
+            const SymbolRange& range,
+            SymResSignatureResult& result
     );
 
     /**

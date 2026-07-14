@@ -11,8 +11,8 @@
 #include "rang.hpp"
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "DeclareTopLevel.h"
+#include "GenericInstantiatorPassAPI.h"
 #include "LinkSignatureAPI.h"
-#include "GenericInstantiationPass.h"
 #include "SymResLinkBodyAPI.h"
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/statements/ChildrenMapNode.h"
@@ -420,9 +420,8 @@ SymbolRange SymbolResolver::tld_declare_file(
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
-void SymbolResolver::link_signature_file(
+SymResSignatureResult SymbolResolver::link_signature_file(
         Scope& scope,
-        unsigned int fileId,
         const SymbolRange& range
 ) {
     // we create a scope_index, this scope is strictly for private entries
@@ -430,18 +429,19 @@ void SymbolResolver::link_signature_file(
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     // symbol resolve the scope
-    sym_res_signature(*this, &scope);
+    auto res = sym_res_signature(*this, &scope);
     file_scope_end(scope_index);
+    return res;
 }
 
 void SymbolResolver::generic_instantiation_file(
         Scope& scope,
-        unsigned int fileId,
-        const SymbolRange& range
+        const SymbolRange& range,
+        SymResSignatureResult& result
 ) {
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
-    sym_res_generic_instantiation(*this, &scope);
+    sym_res_generic_instantiation(*this, &scope, result);
     file_scope_end(scope_index);
 }
 
@@ -480,8 +480,8 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);
-    sym_res_signature(*this, &scope);
-    sym_res_generic_instantiation(*this, &scope);
+    auto sig_res = sym_res_signature(*this, &scope);
+    sym_res_generic_instantiation(*this, &scope, sig_res);
     sym_res_after_signature(*this, &scope);
     sym_res_link_body(*this, &scope);
     file_scope_end(scope_index);

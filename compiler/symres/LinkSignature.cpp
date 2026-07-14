@@ -34,6 +34,7 @@
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
 #include "ast/statements/UnresolvedDecl.h"
+#include "ast/utils/GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/frontend/AnnotationController.h"
 
@@ -91,9 +92,12 @@ void SymResLinkSignaturevisitEmbeddedValue(TopLevelLinkSignature* visitor, Embed
     }
 }
 
-void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
+SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
     visitor.visit(scope);
+    return SymResSignatureResult {
+        .inline_instantiations = std::move(visitor.inline_instantiations)
+    };
 }
 
 void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
@@ -467,7 +471,7 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
         structValue->setType(new (getAstAllocator().allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
         return;
     }
-    if(!structValue->resolve_container(getGenericInstantiatorAPI(), !generic_context)) {
+    if(!structValue->resolve_container(diagnoser)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);
@@ -500,6 +504,49 @@ void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
     }
 }
 
+static bool register_inline_instantiation(TopLevelLinkSignature& visitor, GenericType* type, SourceLocation loc) {
+    const auto linked = type->referenced->linked;
+    if(linked->kind() != ASTNodeKind::GenericTypeDecl) {
+        return false;
+    }
+
+    // create the generic arguments
+    const auto typeDecl = linked->as_gen_type_decl_unsafe();
+    if (!typeDecl->is_partial_instantiate) {
+        return false;
+    }
+
+    auto& diagnoser = visitor.diagnoser;
+    auto& types = type->types;
+    auto& allocator = visitor.getAstAllocator();
+
+    // generic args
+    std::vector<TypeLoc> generic_args;
+
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, typeDecl->generic_params, types);
+    if(!success) {
+        return false;
+    }
+
+    // check all types have been inferred
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, typeDecl->generic_params, loc);
+    if(!success2) {
+        return false;
+    }
+
+    // create a copy
+    const auto impl = typeDecl->copy_master(allocator);
+    impl->attrs.is_inlined = true;
+
+    // add it to inline instantiations
+    visitor.inline_instantiations.emplace_back(impl, std::move(generic_args));
+
+    // attach the impl
+    type->referenced->linked = impl;
+    return true;
+}
+
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     // save the type into a temporary before visiting children
     auto loc = type_location;
@@ -507,8 +554,7 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
     // we must instantiate generic declarations and link with those
     // only if we are not present in generic context
-    type->instantiate_inline(getGenericInstantiatorAPI(), loc);
-
+    register_inline_instantiation(*this, type, loc);
 }
 
 void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
@@ -820,13 +866,10 @@ void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
 void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     VisitTypealiasStmt(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
     node->signature_linked = true;
 }
@@ -835,15 +878,12 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     auto& generic_params = node->generic_params;
     // symbol resolve the master declaration
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
     visit(node->master_impl);
-    generic_context = prev_gen_context;
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
     // when there's no usage
@@ -854,13 +894,10 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
 void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
     // we must generate functions for master as well
     // because user can call the constructor of master implementation, which should be available
@@ -872,39 +909,30 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
 }
 
 void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
     // we must generate functions for master as well
     // because user can call the constructor of master implementation, which should be available
@@ -916,13 +944,10 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
-    const auto prev_gen_context = generic_context;
-    generic_context = true;
     for(const auto param : generic_params) {
         link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
-    generic_context = prev_gen_context;
     table.scope_end();
 }
 

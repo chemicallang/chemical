@@ -213,13 +213,14 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fi
     return range;
 }
 
-void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
+SymResSignatureResult ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId,
+                                                          const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    resolver->link_signature_file(scope, fileId, range);
+    auto result = resolver->link_signature_file(scope, range);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:link_sig", abs_path, &bm_results);
@@ -227,20 +228,22 @@ void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, cons
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_sig");
     }
+    return result;
 }
 
 void ASTProcessor::sym_res_generic_instantiation_file(
         Scope& scope,
         unsigned int fileId,
         const std::string& abs_path,
-        const SymbolRange& range
+        const SymbolRange& range,
+        SymResSignatureResult& result
 ) {
     // doing stuff
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    resolver->generic_instantiation_file(scope, fileId, range);
+    resolver->generic_instantiation_file(scope, range, result);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:gen_inst", abs_path, &bm_results);
@@ -396,7 +399,7 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
         auto& file = *file_ptr.result;
 
-        sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
+        file.sig_result = sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;
@@ -413,7 +416,7 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
         auto& file = *file_ptr.result;
 
-        sym_res_generic_instantiation_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
+        sym_res_generic_instantiation_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range, file.sig_result);
         // report and clear diagnostics
         if (resolver->has_errors() && !options->ignore_errors) {
             if(options->stop_on_file_error) return 1;

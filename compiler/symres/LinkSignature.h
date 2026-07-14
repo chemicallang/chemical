@@ -30,9 +30,9 @@ public:
     SymbolTable table;
 
     /**
-     * we own a generic instantiator for each file
+     * these are passed to the generic instantiator, so it can finalize these, after link signature pass finishes
      */
-    GenericInstantiatorAPI generic_instantiator;
+    std::vector<std::pair<TypealiasStatement*, std::vector<TypeLoc>>> inline_instantiations;
 
     /**
      * internal flag to detect comptime context
@@ -42,29 +42,21 @@ public:
      * internal flag to detect safe context
      */
     bool safe_context = true;
-    /**
-     * internal flag to detect generic context
-     */
-    bool generic_context = false;
 
     /**
      * this requires that all types that are linked
      * with structs, variants, unions, type aliases be public
      */
     bool require_exported = false;
-
     /**
      * constructor
      */
     TopLevelLinkSignature(
         SymbolResolver& resolver
-    ) : linker(resolver), diagnoser(resolver.loc_man), generic_instantiator(
-        resolver.controller, resolver.binder, resolver.child_resolver,
-        resolver.instContainer, resolver.coreNodes, resolver.implsIndex, resolver.generic_inst_reg_mutex,
-        *resolver.ast_allocator, diagnoser, resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
-    ) {
+    ) : linker(resolver), diagnoser(resolver.loc_man) {
 
     }
+
 
     // -------------- non const references -------------
 
@@ -102,10 +94,6 @@ public:
 
     inline ASTAllocator& getModAllocator() {
         return *linker.mod_allocator;
-    }
-
-    inline GenericInstantiatorAPI& getGenericInstantiatorAPI() {
-        return generic_instantiator;
     }
 
     inline ASTNode* tld_find(const chem::string_view& name) {

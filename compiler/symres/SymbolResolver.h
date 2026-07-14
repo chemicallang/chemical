@@ -10,6 +10,7 @@
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/symres/SymbolRange.h"
 #include "ChildResolver.h"
+#include "LinkSignatureAPI.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/CoreNodes.h"
@@ -555,9 +556,8 @@ public:
     /**
      * link the signatures in the file
      */
-    void link_signature_file(
+    SymResSignatureResult link_signature_file(
             Scope& scope,
-            unsigned int fileId,
             const SymbolRange& range
     );
 
@@ -566,8 +566,8 @@ public:
      */
     void generic_instantiation_file(
             Scope& scope,
-            unsigned int fileId,
-            const SymbolRange& range
+            const SymbolRange& range,
+            SymResSignatureResult& result
     );
 
     /**

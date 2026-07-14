@@ -2772,7 +2772,10 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             structValue->setType(exp_type);
         }
     }
-    if(!structValue->resolve_container(linker.genericInstantiator, !linker.generic_context)) {
+    if(!structValue->resolve_container(linker)) {
+        return;
+    }
+    if (!linker.generic_context && !structValue->ensure_specialized_container(linker.genericInstantiator, linker)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);

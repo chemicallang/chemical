@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "ast/base/TypeLoc.h"
+#include <vector>
+#include <utility>
+
 class ASTNode;
 
 class SymbolResolver;
@@ -11,9 +15,18 @@ class Scope;
 class VariablesContainer;
 
 /**
- * link signature of given scope
+ * result can contain things that can be passed to next processor in pipeline
  */
-void sym_res_signature(SymbolResolver& resolver, Scope* scope);
+struct SymResSignatureResult {
+
+    std::vector<std::pair<TypealiasStatement*, std::vector<TypeLoc>>> inline_instantiations;
+
+};
+
+/**
+ * symbol resolve signature and get back a result
+ */
+SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope);
 
 /**
  * must run after link signature

@@ -92,11 +92,14 @@ void SymResLinkSignaturevisitEmbeddedValue(TopLevelLinkSignature* visitor, Embed
     }
 }
 
-SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope) {
+SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope, const SymbolRange& range) {
     TopLevelLinkSignature visitor(resolver);
+    resolver.enable_file_symbols(visitor.table, range);
     visitor.visit(scope);
     return SymResSignatureResult {
-        .inline_instantiations = std::move(visitor.inline_instantiations)
+        .inline_instantiations = std::move(visitor.inline_instantiations),
+        .has_errors = visitor.diagnoser.has_errors(),
+        .diagnostics = std::move(visitor.diagnoser.diagnostics)
     };
 }
 
@@ -147,7 +150,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         const auto linked = get_chain_linked(linked_type->value);
         if(linked) {
             type->linked = linked;
-            if(require_exported) check_type_exported(linker, linked, type_location);
+            if(require_exported) check_type_exported(diagnoser, linked, type_location);
         } else {
             type->linked = (ASTNode*) get_unresolved_decl();
             diagnoser.error(type_location) << "unresolved type not found";
@@ -157,7 +160,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         const auto decl = tld_find(named->debug_link_name());
         if(decl) {
             type->linked = decl;
-            if(require_exported) check_type_exported(linker, decl, type_location);
+            if(require_exported) check_type_exported(diagnoser, decl, type_location);
         } else if(type->linked == nullptr) {
             diagnoser.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
             type->linked = (ASTNode*) get_unresolved_decl();

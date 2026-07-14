@@ -554,32 +554,6 @@ public:
     );
 
     /**
-     * link the signatures in the file
-     */
-    SymResSignatureResult link_signature_file(
-            Scope& scope,
-            const SymbolRange& range
-    );
-
-    /**
-     * generic instantiation pass (runs after link signature, before after_link_signature)
-     */
-    void generic_instantiation_file(
-            Scope& scope,
-            const SymbolRange& range,
-            SymResSignatureResult& result
-    );
-
-    /**
-     * link the signatures in the file
-     */
-    void after_link_signature_file(
-            Scope& scope,
-            unsigned int fileId,
-            const SymbolRange& range
-    );
-
-    /**
      * should be called, after tld_declare_file, if file's top level symbols have already been declared
      */
     void link_file(

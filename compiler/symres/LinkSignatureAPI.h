@@ -3,6 +3,8 @@
 #pragma once
 
 #include "ast/base/TypeLoc.h"
+#include "core/diag/Diagnostic.h"
+#include "compiler/symres/SymbolRange.h"
 #include <vector>
 #include <utility>
 
@@ -21,12 +23,17 @@ struct SymResSignatureResult {
 
     std::vector<std::pair<TypealiasStatement*, std::vector<TypeLoc>>> inline_instantiations;
 
+    bool has_errors;
+
+    std::vector<Diag> diagnostics;
+
 };
 
 /**
  * symbol resolve signature and get back a result
+ * range is used to populate the local table with file-private symbols
  */
-SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope);
+SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope, const SymbolRange& range);
 
 /**
  * must run after link signature

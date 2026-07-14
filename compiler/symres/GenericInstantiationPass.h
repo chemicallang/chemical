@@ -23,6 +23,12 @@ public:
     ASTDiagnoser diagnoser;
 
     /**
+     * per-file local symbol table — holds file-private symbols (generic type params,
+     * using-imports, aliases) that die when this context is destroyed
+     */
+    SymbolTable table;
+
+    /**
      * a generic instantiator allows us to own
      */
     GenericInstantiatorAPI generic_instantiator;
@@ -42,6 +48,12 @@ public:
         *resolver.ast_allocator, diagnoser, resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
     ) {
 
+    }
+
+    inline ASTNode* tld_find(const chem::string_view& name) {
+        auto* result = table.resolve(name);
+        if(result) return result;
+        return linker.find(name);
     }
 
     template<typename T>

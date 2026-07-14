@@ -5,6 +5,7 @@
 #include "ast/base/ASTUnit.h"
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/llvmfwd.h"
+#include "compiler/symres/LinkSignatureAPI.h"
 #include "utils/Benchmark.h"
 #include "core/diag/Diagnostic.h"
 
@@ -30,6 +31,11 @@ struct ASTFileResult : ASTFileMetaData {
      * or already imported files
      */
     std::vector<ASTFileMetaData> imports;
+
+    /**
+     * inline instantiations of this, strong possibility we'll remove this in the future
+     */
+    SymResSignatureResult sig_result;
 
     /**
      * if read error occurred this would contain it

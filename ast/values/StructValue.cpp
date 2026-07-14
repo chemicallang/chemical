@@ -483,11 +483,8 @@ bool StructValue::resolve_container(ASTNode* found) {
 }
 
 bool StructValue::resolve_container(
-        GenericInstantiatorAPI& instantiator,
-        BaseType* containerType,
-        bool specialize_generics
+        ASTDiagnoser& diagnoser, BaseType* containerType
 ) {
-    auto& diagnoser = instantiator.getDiagnoser();
     switch (containerType->kind()) {
         case BaseTypeKind::Struct:
             container = containerType->as_struct_type_unsafe();
@@ -495,6 +492,40 @@ bool StructValue::resolve_container(
         case BaseTypeKind::Union:
             container = containerType->as_union_type_unsafe();
             break;
+        case BaseTypeKind::Generic: {
+            const auto genType = containerType->as_generic_type_unsafe();
+            const auto linked = genType->referenced->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::GenericStructDecl: {
+                    const auto gen_decl = linked->as_gen_struct_def_unsafe();
+                    definition = gen_decl->master_impl;
+                    container = definition;
+                    return true;
+                }
+                case ASTNodeKind::GenericUnionDecl: {
+                    auto gen_args = create_generic_list();
+                    const auto gen_decl = linked->as_gen_union_decl_unsafe();
+                    definition = gen_decl->master_impl;
+                    container = definition;
+                    return true;
+                }
+                case ASTNodeKind::UnionDecl:
+                    definition = linked->as_union_def_unsafe();
+                    container = definition;
+                    return true;
+                case ASTNodeKind::StructDecl:
+                    definition = linked->as_struct_def_unsafe();
+                    container = definition;
+                    return true;
+                case ASTNodeKind::TypealiasStmt:
+                    return resolve_container(diagnoser, linked->as_typealias_unsafe()->actual_type);
+                default: {
+                    diagnoser.error(this) << "unknown generic declaration that can't be instantiated with generic types";
+                    return false;
+                }
+            }
+            return true;
+        }
         default: {
             const auto found = containerType->linked_node();
             if (!found) {
@@ -502,36 +533,6 @@ bool StructValue::resolve_container(
                 return false;
             }
             switch (found->kind()) {
-                case ASTNodeKind::GenericStructDecl: {
-                    auto gen_args = create_generic_list();
-                    const auto gen_decl = found->as_gen_struct_def_unsafe();
-                    if (specialize_generics) {
-                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args, encoded_location());
-                        if(instantiatedType == nullptr) {
-                            return false;
-                        }
-                        definition = instantiatedType;
-                    } else {
-                        definition = gen_decl->master_impl;
-                    }
-                    container = definition;
-                    break;
-                }
-                case ASTNodeKind::GenericUnionDecl: {
-                    auto gen_args = create_generic_list();
-                    const auto gen_decl = found->as_gen_union_decl_unsafe();
-                    if (specialize_generics) {
-                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args, encoded_location());
-                        if(instantiatedType == nullptr) {
-                            return false;
-                        }
-                        definition = instantiatedType;
-                    } else {
-                        definition = gen_decl->master_impl;
-                    }
-                    container = definition;
-                    break;
-                }
                 case ASTNodeKind::UnnamedUnion:
                     if (values.size() > 1) {
                         diagnoser.error("initializing multiple values inside a union is not allowed", this);
@@ -561,7 +562,7 @@ bool StructValue::resolve_container(
                     container = (UnionType*) found;
                     break;
                 case ASTNodeKind::TypealiasStmt:
-                    return resolve_container(instantiator, found->as_typealias_unsafe()->actual_type, specialize_generics);
+                    return resolve_container(diagnoser, found->as_typealias_unsafe()->actual_type);
                 default:
                     diagnoser.error("unknown struct/union being initialized via struct value", this);
                     definition = found->as_extendable_member_container();
@@ -571,6 +572,54 @@ bool StructValue::resolve_container(
         }
     }
     return true;
+}
+
+bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType) {
+    switch (containerType->kind()) {
+        case BaseTypeKind::Generic: {
+            const auto genType = containerType->as_generic_type_unsafe();
+            const auto linked = genType->referenced->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::GenericStructDecl: {
+                    const auto gen_decl = linked->as_gen_struct_def_unsafe();
+                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location());
+                    if(instantiatedType == nullptr) {
+                        return false;
+                    }
+                    definition = instantiatedType;
+                    container = definition;
+                    return true;
+                }
+                case ASTNodeKind::GenericUnionDecl: {
+                    const auto gen_decl = linked->as_gen_union_decl_unsafe();
+                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location());
+                    if(instantiatedType == nullptr) {
+                        return false;
+                    }
+                    definition = instantiatedType;
+                    container = definition;
+                    return true;
+                }
+                case ASTNodeKind::UnionDecl:
+                    definition = linked->as_union_def_unsafe();
+                    container = definition;
+                    break;
+                case ASTNodeKind::StructDecl:
+                    definition = linked->as_struct_def_unsafe();
+                    container = definition;
+                    break;
+                case ASTNodeKind::TypealiasStmt:
+                    return ensure_specialized_container(instantiator, diagnoser, linked->as_typealias_unsafe()->actual_type);
+                default: {
+                    diagnoser.error(this) << "unknown generic declaration that can't be instantiated with generic types";
+                    return false;
+                }
+            }
+            return true;
+        }
+        default:
+            return true;
+    }
 }
 
 ASTNode *StructValue::linked_node() {

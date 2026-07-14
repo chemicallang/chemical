@@ -3,6 +3,7 @@
 #pragma once
 
 #include "preprocess/visitors/RecursiveVisitor.h"
+#include "SymbolResolver.h"
 
 class SymbolResolver;
 
@@ -17,6 +18,16 @@ public:
     SymbolResolver& linker;
 
     /**
+     * the diagnoser used to collect diagnostics
+     */
+    ASTDiagnoser diagnoser;
+
+    /**
+     * a generic instantiator allows us to own
+     */
+    GenericInstantiatorAPI generic_instantiator;
+
+    /**
      * tracks the current type's source location
      */
     SourceLocation type_location;
@@ -24,7 +35,12 @@ public:
     /**
      * constructor
      */
-    explicit GenericInstantiationPass(SymbolResolver& linker) : linker(linker), type_location(0) {
+    explicit GenericInstantiationPass(SymbolResolver& resolver) : linker(resolver), diagnoser(resolver.loc_man),
+        type_location(0), generic_instantiator(
+        resolver.controller, resolver.binder, resolver.child_resolver,
+        resolver.instContainer, resolver.coreNodes, resolver.implsIndex, resolver.generic_inst_reg_mutex,
+        *resolver.ast_allocator, diagnoser, resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
+    ) {
 
     }
 
@@ -63,8 +79,7 @@ public:
     // generic type resolution (instantiation)
     void VisitGenericType(GenericType* type);
 
-    // generic instantiation finalization
-    void VisitGenericTypeDecl(GenericTypeDecl* node);
+    void VisitStructValue(StructValue *val);
 
     inline void VisitGenericFuncDecl(GenericFuncDecl* node) {
         // do nothing, we must not visit generic decl or its instantiations
@@ -84,13 +99,11 @@ public:
     inline void VisitGenericImplDecl(GenericImplDecl* node) {
         // do nothing, we must not visit generic decl or its instantiations
     }
+    inline void VisitGenericTypeDecl(GenericTypeDecl* node) {
+        // do nothing, we must not visit generic decl or its instantiations
+    }
 
     // visit type signatures but skip bodies
     void VisitFunctionDecl(FunctionDeclaration* node);
 
 };
-
-/**
- * run the generic instantiation pass on a scope
- */
-void sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope);

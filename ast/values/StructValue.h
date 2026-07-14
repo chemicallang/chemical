@@ -62,11 +62,9 @@ public:
 
     bool resolve_container(ASTNode* node);
 
-    bool resolve_container(
-            GenericInstantiatorAPI& instantiator,
-            BaseType* containerType,
-            bool specialize_generics
-    );
+    bool resolve_container(ASTDiagnoser& diagnoser, BaseType* containerType);
+
+    bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType);
 
     inline BaseType* getRefType() {
         return Value::getType();
@@ -80,8 +78,12 @@ public:
         return TypeLoc(Value::getType(), encoded_location());
     }
 
-    inline bool resolve_container(GenericInstantiatorAPI& instantiator, bool specialize_generics) {
-        return resolve_container(instantiator, getRefType(), specialize_generics);
+    inline bool resolve_container(ASTDiagnoser& diagnoser) {
+        return resolve_container(diagnoser, getRefType());
+    }
+
+    inline bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser) {
+        return ensure_specialized_container(instantiator, diagnoser, getRefType());
     }
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);

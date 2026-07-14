@@ -13,7 +13,6 @@
 
 GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymResSignatureResult& result, const SymbolRange& range) {
     GenericInstantiationPass visitor(resolver);
-    resolver.enable_file_symbols(visitor.table, range);
     // first we finalize inline instantiations
     // inline instantiations are stored from link signature
     // finalizing signature of inline instantiations that occurred before link_signature

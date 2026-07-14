@@ -27,6 +27,7 @@
 #include "compiler/lab/mod_conv/ModToLabConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
+#include "compiler/symres/GenericInstantiatorPassAPI.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 
 #ifdef COMPILER_BUILD
@@ -220,13 +221,13 @@ SymResSignatureResult ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    auto result = resolver->link_signature_file(scope, range);
+    auto result = sym_res_signature(*resolver, &scope, range);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:link_sig", abs_path, &bm_results);
     }
-    if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_sig");
+    if(!result.diagnostics.empty()) {
+        Diagnoser::print_diagnostics(result.diagnostics, chem::string_view(abs_path), "SymRes:link_sig");
     }
     return result;
 }
@@ -236,20 +237,20 @@ void ASTProcessor::sym_res_generic_instantiation_file(
         unsigned int fileId,
         const std::string& abs_path,
         const SymbolRange& range,
-        SymResSignatureResult& result
+        SymResSignatureResult& sym_res
 ) {
     // doing stuff
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    resolver->generic_instantiation_file(scope, range, result);
+    auto result = sym_res_generic_instantiation(*resolver, &scope, sym_res, range);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:gen_inst", abs_path, &bm_results);
     }
-    if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:gen_inst");
+    if(!result.diagnostics.empty()) {
+        Diagnoser::print_diagnostics(result.diagnostics, chem::string_view(abs_path), "SymRes:gen_inst");
     }
 }
 
@@ -264,7 +265,7 @@ void ASTProcessor::sym_res_after_link_sig_file(
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    resolver->after_link_signature_file(scope, fileId, range);
+    sym_res_after_signature(*resolver, &scope);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:after_link_sig", abs_path, &bm_results);
@@ -332,6 +333,14 @@ static void declareChildren(SymbolResolver& resolver, ModuleDependency& dep, Chi
     }
 }
 
+static SymResSignatureResult link_sig_file_task(SymbolResolver* resolver, ASTFileResult* file) {
+    return sym_res_signature(*resolver, &file->unit.scope.body, file->private_symbol_range);
+}
+
+static GenInstSignatureResult gen_inst_file_task(SymbolResolver* resolver, ASTFileResult* file) {
+    return sym_res_generic_instantiation(*resolver, &file->unit.scope.body, file->sig_result, file->private_symbol_range);
+}
+
 int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     const auto prev_mod_scope = resolver->current_mod_scope;
@@ -393,6 +402,63 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     }
 
     if(errored) return 1;
+
+    // TODO: enable this code, when we rid of bugs in parallel
+    // link the signature of the files in parallel
+//    {
+//        std::vector<std::future<bool>> futures;
+//        futures.reserve(module->direct_files.size());
+//
+//        for(auto& file_ptr : module->direct_files) {
+//            auto& file = *file_ptr.result;
+//            futures.emplace_back(pool.push([this, &file](int id){
+//                auto res = link_sig_file_task(resolver, &file);
+//                if(!res.diagnostics.empty()) {
+//                    std::lock_guard<std::mutex> guard(print_mutex);
+//                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link_sig");
+//                }
+//                auto has_errors = res.has_errors;
+//                file.sig_result = std::move(res);
+//                return has_errors;
+//            }));
+//        }
+//
+//        for(auto& f : futures) {
+//            auto has_errors = f.get();
+//            if(has_errors) {
+//                if(options->stop_on_file_error) return 1;
+//                errored = true;
+//            }
+//        }
+//    }
+//
+//    if(errored) return 1;
+//
+//    // generic instantiation pass in parallel (finalize instantiations created during link signature)
+//    {
+//        std::vector<std::future<bool>> futures;
+//        futures.reserve(module->direct_files.size());
+//
+//        for(auto& file_ptr : module->direct_files) {
+//            auto& file = *file_ptr.result;
+//            futures.emplace_back(pool.push([this, &file](int id){
+//                auto res = gen_inst_file_task(resolver, &file);
+//                if(!res.diagnostics.empty()) {
+//                    std::lock_guard<std::mutex> guard(print_mutex);
+//                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
+//                }
+//                return res.has_errors;
+//            }));
+//        }
+//
+//        for(auto& f : futures) {
+//            auto has_errors = f.get();
+//            if(has_errors) {
+//                if(options->stop_on_file_error) return 1;
+//                errored = true;
+//            }
+//        }
+//    }
 
     // link the signature of the files
     for(auto& file_ptr : module->direct_files) {

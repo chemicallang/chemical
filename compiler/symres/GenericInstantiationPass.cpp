@@ -11,8 +11,9 @@
 #include "ast/types/GenericType.h"
 #include "GenericInstantiatorPassAPI.h"
 
-void sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymResSignatureResult& result) {
+GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymResSignatureResult& result, const SymbolRange& range) {
     GenericInstantiationPass visitor(resolver);
+    resolver.enable_file_symbols(visitor.table, range);
     // first we finalize inline instantiations
     // inline instantiations are stored from link signature
     // finalizing signature of inline instantiations that occurred before link_signature
@@ -26,6 +27,10 @@ void sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymRe
     }
     // now doing the actual
     visitor.visit(scope);
+    return GenInstSignatureResult {
+        .has_errors = visitor.diagnoser.has_errors(),
+        .diagnostics = std::move(visitor.diagnoser.diagnostics)
+    };
 }
 
 void GenericInstantiationPass::VisitScope(Scope* node) {

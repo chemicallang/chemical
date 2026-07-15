@@ -390,17 +390,17 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetAnnotationController", (void*) SymbolResolvergetAnnotationController},
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
-        {"compiler_SymbolResolverdeclare_default", (void*) SymbolResolverdeclare_default},
+        {"compiler_SymbolResolverdeclare_tld_default", (void*) SymbolResolverdeclare_tld_default},
         {"compiler_SymbolResolverdeclare_or_shadow", (void*) SymbolResolverdeclare_or_shadow},
         {"compiler_SymbolResolverscope_start", (void*) SymbolResolverscope_start},
         {"compiler_SymbolResolverscope_end", (void*) SymbolResolverscope_end},
-        {"compiler_SymbolResolverdeclare_exported", (void*) SymbolResolverdeclare_exported},
         {"compiler_SymbolResolvergetJobBuilder", (void*) SymbolResolvergetJobBuilder},
         {"compiler_SymbolResolvergetModBuilder", (void*) SymbolResolvergetModBuilder},
         {"compiler_SymbolResolvergetFileBuilder", (void*) SymbolResolvergetFileBuilder},
 
         // sym res link signature
         {"compiler_SymResLinkSignaturegetSymbolResolver", (void*) SymResLinkSignaturegetSymbolResolver},
+        {"compiler_SymResLinkSignaturegetSymbolTable", (void*) SymResLinkSignaturegetSymbolTable},
         {"compiler_SymResLinkSignaturevisitNode", (void*) SymResLinkSignaturevisitNode},
         {"compiler_SymResLinkSignaturevisitValue", (void*) SymResLinkSignaturevisitValue},
         {"compiler_SymResLinkSignaturevisitEmbeddedNode", (void*) SymResLinkSignaturevisitEmbeddedNode},
@@ -408,10 +408,21 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
 
         // sym res link body
         {"compiler_SymResLinkBodygetSymbolResolver", (void*) SymResLinkBodygetSymbolResolver},
+        {"compiler_SymResLinkBodygetSymbolTable", (void*) SymResLinkBodygetSymbolTable},
         {"compiler_SymResLinkBodyvisitNode", (void*) SymResLinkBodyvisitNode},
         {"compiler_SymResLinkBodyvisitValue", (void*) SymResLinkBodyvisitValue},
         {"compiler_SymResLinkBodyvisitEmbeddedNode", (void*) SymResLinkBodyvisitEmbeddedNode},
         {"compiler_SymResLinkBodyvisitEmbeddedValue", (void*) SymResLinkBodyvisitEmbeddedValue},
+
+        // Symbol Table
+
+        {"compiler_SymbolTabledeclare", (void*) SymbolTabledeclare},
+        {"compiler_SymbolTabledeclare_no_shadow", (void*) SymbolTabledeclare_no_shadow},
+        {"compiler_SymbolTablescope_start", (void*) SymbolTablescope_start},
+        {"compiler_SymbolTablescope_start_index", (void*) SymbolTablescope_start_index},
+        {"compiler_SymbolTablescope_end", (void*) SymbolTablescope_end},
+        {"compiler_SymbolTableresolve", (void*) SymbolTableresolve}
+
 };
 
 const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {

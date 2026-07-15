@@ -158,7 +158,7 @@ public:
     inline const BucketSymbol* tld_resolve_bucket(const chem::string_view& name) {
         auto* result = table.resolve_bucket(name);
         if(result) return result;
-        return linker.find_bucket(name);
+        return linker.getSymbolTable().resolve_bucket(name);
     }
 
     void declare_no_shadow(const chem::string_view& name, ASTNode* node);

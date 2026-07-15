@@ -60,6 +60,10 @@ SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visi
     return &visitor->linker;
 }
 
+SymbolTable* SymResLinkSignaturegetSymbolTable(TopLevelLinkSignature* visitor) {
+    return &visitor->table;
+}
+
 void SymResLinkSignaturevisitNode(TopLevelLinkSignature* visitor, ASTNode* node) {
     visitor->visit(node);
 }

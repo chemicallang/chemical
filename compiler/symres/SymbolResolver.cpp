@@ -156,8 +156,8 @@ void SymbolResolver::link_core_nodes() {
 
 }
 
-bool SymbolResolver::declare_default(const chem::string_view& name, ASTNode* node) {
-    const auto previous = tbl().declare_no_shadow(name, node);
+bool SymbolResolver::declare_tld_default(const chem::string_view& name, ASTNode* node) {
+    const auto previous = getSymbolTable().declare_no_shadow(name, node);
     if(previous == nullptr) {
         return true;
     } else {
@@ -165,10 +165,10 @@ bool SymbolResolver::declare_default(const chem::string_view& name, ASTNode* nod
         // symbols with namespace as parents, aren't duplicates, they are hiding members
         if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
             // shadow the current symbol
-            tbl().declare(name, node);
+            getSymbolTable().declare(name, node);
         } else {
             // shadow the current symbol
-            tbl().declare(name, node);
+            getSymbolTable().declare(name, node);
             dup_sym_error(name, previous, node);
         }
         return false;
@@ -196,7 +196,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
             return false;
         }
         if (func->returnType->satisfies(declaration->returnType) && params_satisfy(func, declaration->params, false)) {
-            tbl().declare(name, declaration);
+            getSymbolTable().declare(name, declaration);
             return true;
         } else {
             dup_sym_error(declaration->name_view(), previous, declaration);
@@ -214,7 +214,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
         }
     } else if(result.new_multi_func_node) {
         // override the previous symbol
-        tbl().declare(name, result.new_multi_func_node);
+        getSymbolTable().declare(name, result.new_multi_func_node);
         return true;
     }
     return false;
@@ -296,34 +296,7 @@ void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* n
 #endif
     // we'll allow it to shadow, since when the scope ends, the previous symbol will become visible
     // we have to see who's calling this method
-    tbl().declare(name, node);
-}
-
-void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *node, unsigned long lambda_scope_start, bool in_lambda_scope) {
-#ifdef DEBUG
-    if(name.empty()) {
-        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
-        return;
-    }
-#endif
-    const auto previous = tbl().declare_no_shadow_sym(name, node);
-    if(previous) {
-        if(in_lambda_scope && previous->index < lambda_scope_start) {
-            // previous symbol outside lambda scope, allow shadowing
-            tbl().declare(name, node);
-            return;
-        }
-        if(previous->activeNode->is_member_or_top_level()) {
-            // previous symbol is a top level symbol or a member (function or struct/variant member), allow shadowing
-            tbl().declare(name, node);
-            return;
-        }
-        // error out, symbol now allowed to be shadowed
-        error(node) << "symbol with name '" << name << "' already exists";
-        warn(previous->activeNode) << "symbol has a conflict";
-        // shadow the symbol, why shadow ? so errors consider user's intention to shadow
-        tbl().declare(name, node);
-    }
+    getSymbolTable().declare(name, node);
 }
 
 void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
@@ -333,12 +306,12 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
         return;
     }
 #endif
-    const auto previous = tbl().declare_no_shadow(name, node);
+    const auto previous = getSymbolTable().declare_no_shadow(name, node);
     if(previous) {
         error(node) << "symbol with name '" << name << "' already exists";
         warn(previous) << "symbol has a conflict";
         // shadow the symbol
-        tbl().declare(name, node);
+        getSymbolTable().declare(name, node);
     }
 }
 
@@ -362,22 +335,17 @@ void SymbolResolver::declare_private_function(const chem::string_view& name, Fun
     stored_file_symbols.emplace_back(name, declaration);
 }
 
-void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
+void SymbolResolver::declare_tld_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
     switch(specifier) {
         case AccessSpecifier::Private:
         case AccessSpecifier::Protected:
             declare_file_disposable(name, node);
             return;
         case AccessSpecifier::Public:
-            declare_exported(name, node);
-            // TODO do we need to check for conflicts in top level runtime symbols
-//            if(has_runtime) {
-//                auto str = node->runtime_name_str();
-//                declare_runtime(chem::string_view(str.data(), str.size()), node);
-//            }
+            declare_tld_default(name, node);
             return;
         case AccessSpecifier::Internal:
-            declare_quietly(name, node);
+            declare_tld_default(name, node);
             return;
     }
 }
@@ -442,7 +410,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     declarer.VisitScope(&scope);
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
-    enable_file_symbols(range);
+    enable_file_symbols(getSymbolTable(), range);
     auto sig_res = sym_res_signature(*this, &scope, range);
     auto gen_inst_res = sym_res_generic_instantiation(*this, &scope, sig_res, range);
     sym_res_after_signature(*this, &scope);
@@ -460,13 +428,9 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
         const auto specifier = restrict_public ? requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier :  requested_specifier;
         auto id = node->get_node_identifier();
         if(!id.empty() && specifier != AccessSpecifier::Private) {
-            declare_node(id, node, specifier, true);
+            declare_tld_node(id, node, specifier, true);
         }
     }
     print_diagnostics(chem::string_view(path), "SymRes");
     diagnostics.clear();
-}
-
-void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {
-    ::unsatisfied_type_err(*this, allocator, value, type);
 }

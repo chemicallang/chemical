@@ -21,8 +21,8 @@ void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, AS
     resolver->declare(*name, node);
 }
 
-void SymbolResolverdeclare_default(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
-    resolver->declare_default(*name, node);
+void SymbolResolverdeclare_tld_default(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
+    resolver->declare_tld_default(*name, node);
 }
 
 void SymbolResolverdeclare_or_shadow(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
@@ -37,12 +37,12 @@ void SymbolResolverscope_end(SymbolResolver* resolver) {
     resolver->scope_end();
 }
 
-void SymbolResolverdeclare_exported(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
-    resolver->declare_exported(*name, node);
-}
-
 SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor) {
     return &visitor->linker;
+}
+
+SymbolTable* SymResLinkBodygetSymbolTable(SymResLinkBody* visitor) {
+    return &visitor->table;
 }
 
 void SymResLinkBodyvisitNode(SymResLinkBody* visitor, ASTNode* node) {
@@ -87,4 +87,32 @@ void SymbolResolvergetModBuilder(ASTBuilder* out_builder, SymbolResolver* resolv
 
 void SymbolResolvergetFileBuilder(ASTBuilder* out_builder, SymbolResolver* resolver) {
     new (out_builder) ASTBuilder { &resolver->allocator, resolver->comptime_scope.typeBuilder };
+}
+
+// -----------------
+// Symbol Table
+// -----------------
+
+void SymbolTabledeclare(SymbolTable* table, chem::string_view* name, ASTNode* node) {
+    table->declare(*name, node);
+}
+
+void SymbolTabledeclare_no_shadow(SymbolTable* table, chem::string_view* name, ASTNode* node) {
+    table->declare_no_shadow(*name, node);
+}
+
+void SymbolTablescope_start(SymbolTable* table) {
+    table->scope_start();
+}
+
+unsigned long SymbolTablescope_start_index(SymbolTable* table) {
+    return table->scope_start_index();
+}
+
+void SymbolTablescope_end(SymbolTable* table) {
+    table->scope_end();
+}
+
+ASTNode* SymbolTableresolve(SymbolTable* table, chem::string_view* name) {
+    return table->resolve(*name);
 }

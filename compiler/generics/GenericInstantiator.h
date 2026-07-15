@@ -6,6 +6,7 @@
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include <mutex>
+#include <unordered_map>
 
 class CompilerBinder;
 
@@ -93,6 +94,14 @@ public:
     SourceLocation type_location = 0;
 
     /**
+     * thread-local map of active generic type parameter -> concrete type.
+     * replaces direct mutation of GenericTypeParam::active_type to avoid
+     * data races when multiple threads finalize different instantiations
+     * of the same generic declaration concurrently.
+     */
+    std::unordered_map<GenericTypeParameter*, BaseType*> active_type_map;
+
+    /**
      * target data
      */
     TargetData& targetData;
@@ -137,7 +146,7 @@ public:
 
     void make_gen_type_concrete(BaseType*& type);
 
-    bool relink_identifier(VariableIdentifier* identifier) const;
+    bool relink_identifier(VariableIdentifier* identifier);
 
     // We want to override visit, what we want is a BaseType*& so we can replace
     // every BaseType*& with the appropriate concrete implementation if it's referencing a generic type

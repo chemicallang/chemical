@@ -277,9 +277,9 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         const auto linked = first_val->as_identifier_unsafe()->linked;
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
-            auto self_param = linker.current_func_type->get_self_param();
+            auto self_param = current_func_type->get_self_param();
             if (!self_param) {
-                //auto decl = linker.current_func_type->as_function();
+                //auto decl = current_func_type->as_function();
                 //if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
                 diagnoser.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
                 //}
@@ -334,7 +334,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
                 // check for validity if accessible or assignable (because moved)
                 check_id(identifier, linker);
             }
-            identifier->process_linked(&linker, linker.current_func_type);
+            identifier->process_linked(&linker, current_func_type);
             return;
         }
     }
@@ -346,7 +346,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
             // check for validity if accessible or assignable (because moved)
             check_id(identifier, linker);
         }
-        identifier->process_linked(&linker, linker.current_func_type);
+        identifier->process_linked(&linker, current_func_type);
         return;
     } else {
         // since we couldn't find a linked declaration, we will
@@ -502,7 +502,7 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
     auto& value = node->value;
     if (value) {
 
-        const auto func_type = linker.current_func_type;
+        const auto func_type = current_func_type;
         visit(value, func_type->returnType ? func_type->returnType : nullptr);
 
         if(func_type->data.signature_resolved && func_type->returnType) {
@@ -1116,8 +1116,8 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
         linker.scope_start();
 
         // save the function type
-        auto prev_func_type = linker.current_func_type;
-        linker.current_func_type = node;
+        auto prev_func_type = current_func_type;
+        current_func_type = node;
 
         // save moved ids and clear so we
         auto prev_moved_ids = moved_identifiers;
@@ -1131,13 +1131,13 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
         }
         if(node->FunctionType::data.signature_resolved) {
             if(node->is_comptime()) {
-                linker.comptime_context = true;
+                comptime_context = true;
             }
             link_seq(*this, node->body.value());
             if(node->returnType->canonical()->kind() != BaseTypeKind::Void) {
                 verify_has_return(linker, node->body.value(), node->encoded_location());
             }
-            linker.comptime_context = false;
+            comptime_context = false;
         }
         linker.scope_end();
 
@@ -1148,7 +1148,7 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
         moved_chains.insert(moved_chains.end(), prev_moved_chains.begin(), prev_moved_chains.end());
 
         // retore the function type
-        linker.current_func_type = prev_func_type;
+        current_func_type = prev_func_type;
     }
 
 }
@@ -1179,13 +1179,13 @@ void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
 void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
     // symbol resolve the master declaration
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing the body of every function that was instantiated before declare_and_link
@@ -1201,14 +1201,14 @@ void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
 void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -1223,14 +1223,14 @@ void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
 
 void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -1245,14 +1245,14 @@ void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
 
 void SymResLinkBody::VisitGenericStructDecl(GenericStructDecl* node) {
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -1267,14 +1267,14 @@ void SymResLinkBody::VisitGenericStructDecl(GenericStructDecl* node) {
 
 void SymResLinkBody::VisitGenericUnionDecl(GenericUnionDecl* node) {
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -1289,14 +1289,14 @@ void SymResLinkBody::VisitGenericUnionDecl(GenericUnionDecl* node) {
 
 void SymResLinkBody::VisitGenericVariantDecl(GenericVariantDecl* node) {
     linker.scope_start();
-    const auto prev_gen_context = linker.generic_context;
-    linker.generic_context = true;
+    const auto prev_gen_context = generic_context;
+    generic_context = true;
     for(const auto param : node->generic_params) {
         visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     visit(node->master_impl);
-    linker.generic_context = prev_gen_context;
+    generic_context = prev_gen_context;
     linker.scope_end();
     node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -1491,10 +1491,10 @@ void SymResLinkBody::VisitUnionDecl(UnionDef* node) {
 }
 
 void SymResLinkBody::VisitUnsafeBlock(UnsafeBlock* node) {
-    auto prev = linker.safe_context;
-    linker.safe_context = false;
+    auto prev = safe_context;
+    safe_context = false;
     link_seq(*this, node->scope);
-    linker.safe_context = prev;
+    safe_context = prev;
 }
 
 void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
@@ -1883,7 +1883,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
 
     // determine constructor being called
     // after this call, parent id should NOT be linked with a struct / generic struct / variant
-    call->link_constructor(resolver.allocator, resolver.genericInstantiator, !resolver.generic_context);
+    call->link_constructor(resolver.allocator, resolver.genericInstantiator, !visitor.generic_context);
 
     // check if variant member is not being called
     // then we must get a function type
@@ -2073,7 +2073,7 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     for(auto& type : gen_type->types) {
         visit(type);
     }
-    if(linker.generic_context) {
+    if(generic_context) {
         gen_type->instantiate_inline(generic_instantiator, type_location);
     } else {
         gen_type->instantiate(generic_instantiator, type_location);
@@ -2250,7 +2250,7 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
 }
 
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
-    if(linker.safe_context) {
+    if(safe_context) {
         diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
     }
     visit(value->getValue());
@@ -2443,8 +2443,8 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     auto& captureList = lambVal->captureList;
 
     // set the current function type
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = lambVal;
+    auto prev_func_type = current_func_type;
+    current_func_type = lambVal;
 
     const auto canonical_exp = expected_type ? expected_type->canonical() : nullptr;
     auto func_type = canonical_exp ? get_func_type_from_exp_type(canonical_exp) : nullptr;
@@ -2553,7 +2553,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     }
 
     // restore the previous function type
-    linker.current_func_type = prev_func_type;
+    current_func_type = prev_func_type;
 
     // now that linking has been performed of the lambda
     // moved ids and chains have been checked
@@ -2572,10 +2572,10 @@ void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
-    const auto prev = linker.safe_context;
-    linker.safe_context = false;
+    const auto prev = safe_context;
+    safe_context = false;
     visit(value->getValue(), expected_type);
-    linker.safe_context = prev;
+    safe_context = prev;
     value->setType(value->getValue()->getType());
 }
 
@@ -2787,12 +2787,12 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     if(!structValue->resolve_container(linker)) {
         return;
     }
-    if (!linker.generic_context && !structValue->ensure_specialized_container(generic_instantiator, linker)) {
+    if (!generic_context && !structValue->ensure_specialized_container(generic_instantiator, linker)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
-        const auto curr_func = linker.current_func_type->as_function();
+        const auto curr_func = current_func_type->as_function();
         if(curr_func == nullptr || !isParentMethodOf(curr_func, structValue)) {
             diagnoser.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
         }

@@ -78,6 +78,17 @@ public:
     }
 };
 
+class SymbolTableShadowDeclarer : public NodeSymbolDeclarer<SymbolTableShadowDeclarer> {
+public:
+    SymbolTable& table;
+    inline SymbolTableShadowDeclarer(SymbolTable& table) : table(table) {
+
+    }
+    inline void declare(const chem::string_view& sym, ASTNode* node) {
+        table.declare(sym, node);
+    }
+};
+
 class SymbolResolverShadowDeclarer : public NodeSymbolDeclarer<SymbolResolverShadowDeclarer> {
 public:
     SymbolResolver& resolver;

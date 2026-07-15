@@ -1051,7 +1051,7 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem:
     return false;
 }
 
-void VariablesContainerBase::take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
+void VariablesContainerBase::take_variables_from_parsed_nodes(SymbolResolver& linker, ASTDiagnoser& diagnoser, std::vector<ASTNode*>& from_nodes) {
     for(const auto node : from_nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructMember:
@@ -1060,7 +1060,7 @@ void VariablesContainerBase::take_variables_from_parsed_nodes(SymbolResolver& li
             case ASTNodeKind::VariantMember:{
                 const auto member = node->as_base_def_member_unsafe();
                 if(!insert_variable(member)) {
-                    linker.error(member) << "couldn't insert because a member with name '" << member->name << "' already exists";
+                    diagnoser.error(member) << "couldn't insert because a member with name '" << member->name << "' already exists";
                 }
                 break;
             }
@@ -1069,29 +1069,7 @@ void VariablesContainerBase::take_variables_from_parsed_nodes(SymbolResolver& li
                 stmt->link_conditions(linker);
                 const auto scope = stmt->get_evaluated_scope_by_linking(linker);
                 if(scope) {
-                    take_variables_from_parsed_nodes(linker, scope->nodes);
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-
-void VariablesContainerBase::declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
-    for(const auto node : nodes) {
-        switch(node->kind()) {
-            case ASTNodeKind::AliasStmt:{
-                TopLevelDeclSymDeclare declarer(linker);
-                declarer.visit(node);
-                break;
-            }
-            case ASTNodeKind::IfStmt: {
-                const auto stmt = node->as_if_stmt_unsafe();
-                const auto scope = stmt->get_evaluated_scope_by_linking(linker);
-                if(scope) {
-                    declare_parsed_nodes(linker, scope->nodes);
+                    take_variables_from_parsed_nodes(linker, diagnoser, scope->nodes);
                 }
                 break;
             }

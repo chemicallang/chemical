@@ -168,12 +168,6 @@ public:
         }
     }
 
-    void declare_inherited_members(SymbolResolver& linker);
-
-    void redeclare_inherited_members(SymbolResolver &linker);
-
-    void redeclare_variables_and_functions(SymbolResolver &linker);
-
     /**
      * this would register the definition to all interfaces inherited
      * directly inherited or indirectly, this definition would be registered

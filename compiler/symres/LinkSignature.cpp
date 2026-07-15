@@ -1189,7 +1189,7 @@ void TopLevelLinkSignature::VisitScope(Scope* node) {
 }
 
 void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
-    node->take_variables_from_parsed_nodes(linker);
+    node->take_variables_from_parsed_nodes(linker, diagnoser);
     LinkVariables(node);
 }
 
@@ -1217,7 +1217,7 @@ void TopLevelLinkSignature::VisitVariantMember(VariantMember* node) {
 }
 
 void TopLevelLinkSignature::VisitUnnamedUnion(UnnamedUnion* node) {
-    node->take_variables_from_parsed_nodes(linker);
+    node->take_variables_from_parsed_nodes(linker, diagnoser);
     LinkVariables(node);
 }
 

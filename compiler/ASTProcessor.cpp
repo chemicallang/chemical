@@ -403,93 +403,60 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     if(errored) return 1;
 
-    // TODO: enable this code, when we rid of bugs in parallel
     // link the signature of the files in parallel
-//    {
-//        std::vector<std::future<bool>> futures;
-//        futures.reserve(module->direct_files.size());
-//
-//        for(auto& file_ptr : module->direct_files) {
-//            auto& file = *file_ptr.result;
-//            futures.emplace_back(pool.push([this, &file](int id){
-//                auto res = link_sig_file_task(resolver, &file);
-//                if(!res.diagnostics.empty()) {
-//                    std::lock_guard<std::mutex> guard(print_mutex);
-//                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link_sig");
-//                }
-//                auto has_errors = res.has_errors;
-//                file.sig_result = std::move(res);
-//                return has_errors;
-//            }));
-//        }
-//
-//        for(auto& f : futures) {
-//            auto has_errors = f.get();
-//            if(has_errors) {
-//                if(options->stop_on_file_error) return 1;
-//                errored = true;
-//            }
-//        }
-//    }
-//
-//    if(errored) return 1;
-//
-//    // generic instantiation pass in parallel (finalize instantiations created during link signature)
-//    {
-//        std::vector<std::future<bool>> futures;
-//        futures.reserve(module->direct_files.size());
-//
-//        for(auto& file_ptr : module->direct_files) {
-//            auto& file = *file_ptr.result;
-//            futures.emplace_back(pool.push([this, &file](int id){
-//                auto res = gen_inst_file_task(resolver, &file);
-//                if(!res.diagnostics.empty()) {
-//                    std::lock_guard<std::mutex> guard(print_mutex);
-//                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
-//                }
-//                return res.has_errors;
-//            }));
-//        }
-//
-//        for(auto& f : futures) {
-//            auto has_errors = f.get();
-//            if(has_errors) {
-//                if(options->stop_on_file_error) return 1;
-//                errored = true;
-//            }
-//        }
-//    }
+    {
+        std::vector<std::future<bool>> futures;
+        futures.reserve(module->direct_files.size());
 
-    // link the signature of the files
-    for(auto& file_ptr : module->direct_files) {
-
-        auto& file = *file_ptr.result;
-
-        file.sig_result = sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
-        // report and clear diagnostics
-        if (resolver->has_errors() && !options->ignore_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
+        for(auto& file_ptr : module->direct_files) {
+            auto& file = *file_ptr.result;
+            futures.emplace_back(pool.push([this, &file](int id){
+                auto res = link_sig_file_task(resolver, &file);
+                if(!res.diagnostics.empty()) {
+                    std::lock_guard<std::mutex> guard(print_mutex);
+                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link_sig");
+                }
+                auto has_errors = res.has_errors;
+                file.sig_result = std::move(res);
+                return has_errors;
+            }));
         }
-        resolver->reset_errors();
 
+        for(auto& f : futures) {
+            auto has_errors = f.get();
+            if(has_errors) {
+                if(options->stop_on_file_error) return 1;
+                errored = true;
+            }
+        }
     }
 
     if(errored) return 1;
 
-    // generic instantiation pass (finalize instantiations created during link signature)
-    for(auto& file_ptr : module->direct_files) {
+    // generic instantiation pass in parallel (finalize instantiations created during link signature)
+    {
+        std::vector<std::future<bool>> futures;
+        futures.reserve(module->direct_files.size());
 
-        auto& file = *file_ptr.result;
-
-        sym_res_generic_instantiation_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range, file.sig_result);
-        // report and clear diagnostics
-        if (resolver->has_errors() && !options->ignore_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
+        for(auto& file_ptr : module->direct_files) {
+            auto& file = *file_ptr.result;
+            futures.emplace_back(pool.push([this, &file](int id){
+                auto res = gen_inst_file_task(resolver, &file);
+                if(!res.diagnostics.empty()) {
+                    std::lock_guard<std::mutex> guard(print_mutex);
+                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
+                }
+                return res.has_errors;
+            }));
         }
-        resolver->reset_errors();
 
+        for(auto& f : futures) {
+            auto has_errors = f.get();
+            if(has_errors) {
+                if(options->stop_on_file_error) return 1;
+                errored = true;
+            }
+        }
     }
 
     if(errored) return 1;

@@ -18,7 +18,14 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
         const auto linked = type->as_linked_type_unsafe()->linked;
         switch(linked->kind()) {
             case ASTNodeKind::GenericTypeParam: {
-                const auto ty = linked->as_generic_type_param_unsafe()->concrete_type();
+                const auto param = linked->as_generic_type_param_unsafe();
+                BaseType* ty = nullptr;
+                auto it = active_type_map.find(param);
+                if(it != active_type_map.end()) {
+                    ty = it->second;
+                } else {
+                    return;
+                }
                 if(ty == nullptr) {
                     return;
                 }
@@ -66,13 +73,23 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     call->determine_type(getAllocator(), diagnoser);
 }
 
-bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
+bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
     const auto id = val->as_identifier_unsafe();
     const auto node = table.resolve(id->value);
     if(node) {
         id->linked = node;
-        id->setType(node->known_type());
-        return true;
+        switch (node->kind()) {
+            case ASTNodeKind::GenericTypeParam: {
+                auto found = active_type_map.find(node->as_generic_type_param_unsafe());
+                if (found == active_type_map.end()) {
+                    return false;
+                }
+                id->setType(found->second);
+            }
+            default:
+                id->setType(node->getType());
+                return true;
+        }
     } else {
         return false;
     }
@@ -462,18 +479,25 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
 }
 
 // suppose user writes T is long <-- we replace T with TypeInsideValue
-void replace_is_value_value(IsValue* container, Value* value, ASTAllocator& allocator) {
+void replace_is_value_value(GenericInstantiator& inst, IsValue* container, Value* value) {
     switch(value->kind()) {
         case ValueKind::Identifier:
             if(value->kind() == ValueKind::Identifier && value->as_identifier_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-                const auto linked_type = value->as_identifier_unsafe()->linked->as_generic_type_param_unsafe()->known_type();
-                const auto replacement = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, value->encoded_location());
+                const auto param = value->as_identifier_unsafe()->linked->as_generic_type_param_unsafe();
+                BaseType* linked_type;
+                auto it = inst.active_type_map.find(param);
+                if(it != inst.active_type_map.end()) {
+                    linked_type = it->second;
+                } else {
+                    return;
+                }
+                const auto replacement = new (inst.getAllocator().allocate<TypeInsideValue>()) TypeInsideValue(linked_type, value->encoded_location());
                 container->value = replacement;
             }
             return;
         case ValueKind::AccessChain:
             if(value->as_access_chain_unsafe()->values.size() == 1) {
-                replace_is_value_value(container, value->as_access_chain_unsafe()->values[0], allocator);
+                replace_is_value_value(inst, container, value->as_access_chain_unsafe()->values[0]);
             }
         default:
             return;
@@ -482,7 +506,7 @@ void replace_is_value_value(IsValue* container, Value* value, ASTAllocator& allo
 }
 
 void GenericInstantiator::VisitIsValue(IsValue* value) {
-    replace_is_value_value(value, value->value, getAllocator());
+    replace_is_value_value(*this, value, value->value);
     RecursiveVisitor<GenericInstantiator>::VisitIsValue(value);
 }
 
@@ -593,6 +617,9 @@ void GenericInstantiator::Clear() {
 }
 
 void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
+    // lock to prevent concurrent modification of the container's internal
+    // hash map / vectors while we read the instantiation types
+    std::lock_guard<std::mutex> lock(registration_mutex);
     auto instantiations = container.getInstantiationTypesFor(gen_decl);
 #ifdef DEBUG
     if(itr >= instantiations.size()) {
@@ -618,7 +645,7 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t it
             default:
                 break;
         }
-        param->set_active_type(t);
+        active_type_map[param] = t;
         i++;
     }
 }
@@ -642,7 +669,7 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
     // activating iteration in params
     unsigned i = 0;
     for(const auto param : decl->generic_params) {
-        param->set_active_type(generic_args[i]);
+        active_type_map[param] = generic_args[i];
         i++;
     }
 
@@ -650,9 +677,8 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
     FinalizeSignature(impl);
 
     // deactivating iteration in parameters
-    // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset the pointers
@@ -675,7 +701,7 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset the pointers
@@ -712,7 +738,7 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDecla
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset the pointers
@@ -751,7 +777,7 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset the pointers
@@ -789,7 +815,7 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -895,7 +921,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -931,7 +957,7 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -997,7 +1023,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1032,7 +1058,7 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1092,7 +1118,7 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1127,7 +1153,7 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1193,7 +1219,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1299,7 +1325,7 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null
@@ -1358,7 +1384,7 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->deactivate_iteration();
+        active_type_map.erase(param);
     }
 
     // reset back the pointers to null

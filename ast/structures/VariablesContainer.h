@@ -170,23 +170,11 @@ public:
     /**
      * this method will automatically take variables from parsed nodes
      */
-    void take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes);
+    void take_variables_from_parsed_nodes(SymbolResolver& linker, ASTDiagnoser& diagnoser, std::vector<ASTNode*>& nodes);
 
-    inline void take_variables_from_parsed_nodes(SymbolResolver& linker) {
+    inline void take_variables_from_parsed_nodes(SymbolResolver& linker, ASTDiagnoser& diagnoser) {
         if(!nodes.empty()) {
-            take_variables_from_parsed_nodes(linker, nodes);
-        }
-    }
-
-    /**
-     * this method will automatically declare nodes from parsed nodes
-     * THIS WILL NOT DECLARE variables, only aliases are declared
-     */
-    void declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes);
-
-    inline void declare_parsed_nodes(SymbolResolver& linker) {
-        if(!nodes.empty()) {
-            declare_parsed_nodes(linker, nodes);
+            take_variables_from_parsed_nodes(linker, diagnoser, nodes);
         }
     }
 

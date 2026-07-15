@@ -609,7 +609,7 @@ public:
     /**
      * start a new scope with kind, get the scope index as well
      */
-    inline unsigned long scope_start_index(SymResScopeKind kind) noexcept {
+    inline unsigned long scope_start_index(SymResScopeKind kind = SymResScopeKind::Default) noexcept {
         auto scope_index = static_cast<unsigned long>(scopeStack.size());
         scopeStack.emplace_back(kind, static_cast<unsigned long>(symbols.size()));
         return scope_index;

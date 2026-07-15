@@ -41,8 +41,19 @@ public:
      */
     FunctionTypeBody* current_func_type = nullptr;
 
+    /**
+     * safe context, when user writes unsafe block, we turn to false inside the block
+     */
     bool safe_context = true;
+
+    /**
+     * similar to unsafe, comptime blocks toggle this
+     */
     bool comptime_context = false;
+
+    /**
+     * generic context, inside generics we toggle this flag
+     */
     bool generic_context = false;
 
     /**
@@ -118,6 +129,14 @@ public:
         return *linker.mod_allocator;
     }
 
+    inline ASTAllocator& getAllocator() {
+        return linker.allocator;
+    }
+
+    inline SymbolResolver& getResolver() {
+        return linker;
+    }
+
     inline const CompilerBinder& getCompilerBinder() const {
         return linker.binder;
     }
@@ -126,20 +145,34 @@ public:
         return linker.get_unresolved_decl();
     }
 
+    inline GlobalInterpretScope& getComptimeScope() {
+        return linker.comptime_scope;
+    }
+
     inline ASTNode* tld_find(const chem::string_view& name) {
         auto* result = table.resolve(name);
         if(result) return result;
         return linker.find(name);
     }
 
+    inline const BucketSymbol* tld_resolve_bucket(const chem::string_view& name) {
+        auto* result = table.resolve_bucket(name);
+        if(result) return result;
+        return linker.find_bucket(name);
+    }
+
+    void declare_no_shadow(const chem::string_view& name, ASTNode* node);
+
+    void declare_local_var(const chem::string_view &name, ASTNode *node);
+
     BaseType* getErroredType();
 
     void LinkMembersContainerNoScope(MembersContainer* container);
 
     void LinkMembersContainer(MembersContainer* container) {
-        linker.scope_start();
+        table.scope_start();
         LinkMembersContainerNoScope(container);
-        linker.scope_end();
+        table.scope_end();
     }
 
     template<typename T>

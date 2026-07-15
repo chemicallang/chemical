@@ -37,6 +37,15 @@ public:
     SourceLocation type_location = 0;
 
     /**
+     * per-file copies of shared resolver state — avoids mutating the shared resolver
+     */
+    FunctionTypeBody* current_func_type = nullptr;
+
+    bool safe_context = true;
+    bool comptime_context = false;
+    bool generic_context = false;
+
+    /**
      * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
      * identifiers are not stored in access chains, so to simplify storage and so to not having to deal with
      * multiple types in the vector, this vector has been created for singular identifiers, why is this simple
@@ -74,7 +83,11 @@ public:
             resolver.generic_inst_reg_mutex,
             *resolver.ast_allocator, diagnoser,
             resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
-        )
+        ),
+        current_func_type(resolver.current_func_type),
+        safe_context(resolver.safe_context),
+        comptime_context(resolver.comptime_context),
+        generic_context(resolver.generic_context)
     {
 
     }

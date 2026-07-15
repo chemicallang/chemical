@@ -428,8 +428,10 @@ void SymbolResolver::link_file(
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
-    enable_file_symbols(range);
-    sym_res_link_body(*this, &nodes_scope);
+    auto result = sym_res_link_body_pass(*this, &nodes_scope, range);
+    if(!result.diagnostics.empty()) {
+        diagnostics = std::move(result.diagnostics);
+    }
     file_scope_end(scope_index);
 }
 
@@ -444,7 +446,10 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     auto sig_res = sym_res_signature(*this, &scope, range);
     auto gen_inst_res = sym_res_generic_instantiation(*this, &scope, sig_res, range);
     sym_res_after_signature(*this, &scope);
-    sym_res_link_body(*this, &scope);
+    auto result = sym_res_link_body_pass(*this, &scope, range);
+    if(!result.diagnostics.empty()) {
+        diagnostics = std::move(result.diagnostics);
+    }
     file_scope_end(scope_index);
 }
 

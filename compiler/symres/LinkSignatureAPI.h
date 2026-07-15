@@ -12,6 +12,8 @@ class ASTNode;
 
 class SymbolResolver;
 
+class SymbolTable;
+
 class Scope;
 
 class VariablesContainer;
@@ -43,6 +45,8 @@ void sym_res_after_signature(SymbolResolver& resolver, Scope* scope);
 class TopLevelLinkSignature;
 
 SymbolResolver* SymResLinkSignaturegetSymbolResolver(TopLevelLinkSignature* visitor);
+
+SymbolTable* SymResLinkSignaturegetSymbolTable(TopLevelLinkSignature* visitor);
 
 void SymResLinkSignaturevisitNode(TopLevelLinkSignature* visitor, ASTNode* node);
 

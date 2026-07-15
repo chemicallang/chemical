@@ -116,15 +116,15 @@ void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
 }
 
 void TopLevelDeclSymDeclare::VisitTypealiasStmt(TypealiasStatement* node) {
-    linker.declare_node(node->name_view(), node, node->specifier(), false);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), false);
 }
 
 void TopLevelDeclSymDeclare::VisitVarInitStmt(VarInitStatement* node) {
-    linker.declare_node(node->id_view(), node, node->specifier(), node);
+    linker.declare_tld_node(node->id_view(), node, node->specifier(), node);
 }
 
 void TopLevelDeclSymDeclare::VisitEnumDecl(EnumDeclaration* node) {
-    linker.declare_node(node->name_view(), node, node->specifier(), false);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), false);
 }
 
 void TopLevelDeclSymDeclare::VisitFunctionDecl(FunctionDeclaration* node) {
@@ -206,7 +206,7 @@ void TopLevelDeclSymDeclare::VisitImplDecl(ImplDefinition* node) {
 
 void TopLevelDeclSymDeclare::VisitInterfaceDecl(InterfaceDefinition* node) {
     node->take_members_from_parsed_nodes(linker);
-    linker.declare_node(node->name_view(), node, node->specifier(), false);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), false);
 }
 
 enum class NamespaceMergeResult {
@@ -293,7 +293,7 @@ void TopLevelDeclSymDeclare::VisitNamespaceDecl(Namespace* ns) {
         }
     }
     // no merge:
-    linker.declare_node(ns->name(), ns, ns->specifier(), false);
+    linker.declare_tld_node(ns->name(), ns, ns->specifier(), false);
     linker.scope_start();
     // declare top level all nodes inside the namespace
     for (auto& node: ns->nodes) {
@@ -316,17 +316,17 @@ void TopLevelDeclSymDeclare::VisitStructDecl(StructDefinition* node) {
     // compile time ifs, so we take out members after linking compile time ifs
     // and put them into their containers (without linking here)
     node->take_members_from_parsed_nodes(linker);
-    linker.declare_node(node->name_view(), node, node->specifier(), true);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), true);
 }
 
 void TopLevelDeclSymDeclare::VisitUnionDecl(UnionDef* node) {
     node->take_members_from_parsed_nodes(linker);
-    linker.declare_node(node->name_view(), node, node->specifier(), true);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), true);
 }
 
 void TopLevelDeclSymDeclare::VisitVariantDecl(VariantDefinition* node) {
     node->take_members_from_parsed_nodes(linker);
-    linker.declare_node(node->name_view(), node, node->specifier(), true);
+    linker.declare_tld_node(node->name_view(), node, node->specifier(), true);
 }
 
 void TopLevelDeclSymDeclare::VisitEmbeddedNode(EmbeddedNode* node) {

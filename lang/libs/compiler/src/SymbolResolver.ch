@@ -13,7 +13,7 @@ public interface SymbolResolver : ASTDiagnoser {
     // declare the symbol with default shadowing
     // symbol shadowed if this present in namespace
     // by default this should be used
-    func declare_default(&self, view : &std::string_view, node : *mut ASTNode)
+    func declare_tld_default(&self, view : &std::string_view, node : *mut ASTNode)
 
     // shadows the symbol if already exists, doesn't cause an error
     func declare_or_shadow(&self, view : &std::string_view, node : *mut ASTNode)
@@ -23,11 +23,6 @@ public interface SymbolResolver : ASTDiagnoser {
     
     // ends the previously started scope, dropping all symbols introduced between
     func scope_end(&self);
-
-    // symbol still won't retain in dependent modules
-    // to retain use make_top_level_embedded_node, which provides cross
-    // module declarer
-    func declare_exported(&self, view : &std::string_view, node : *mut ASTNode)
 
     // use this, if you want allocations to persist across modules
     func getJobBuilder(&self) : ASTBuilder

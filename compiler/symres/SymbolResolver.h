@@ -98,17 +98,6 @@ private:
     SymbolTable table;
 
     /**
-     * returns the main symbol table
-     */
-    inline SymbolTable& tbl() {
-        return table;
-    }
-
-    inline const SymbolTable& tbl() const {
-        return table;
-    }
-
-    /**
      * will try to override this function, notice the '&' in the previous pointer
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
@@ -121,11 +110,11 @@ private:
      * @return true if a new symbol was declared
      */
     inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
-        const auto previous = tbl().declare_no_shadow_sym(name, (ASTNode*) declaration);
+        const auto previous = getSymbolTable().declare_no_shadow_sym(name, (ASTNode*) declaration);
         if(previous == nullptr) {
             return true;
         } else {
-            if(tbl().is_in_current_scope(previous)) {
+            if(getSymbolTable().is_in_current_scope(previous)) {
                 overload_function(name, previous->activeNode, declaration);
                 return false;
             } else {
@@ -133,11 +122,11 @@ private:
                 // symbols with namespace as parents, aren't duplicates, they are hiding members
                 if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
                     // shadow the current symbol
-                    tbl().declare(name, (ASTNode*) declaration);
+                    getSymbolTable().declare(name, (ASTNode*) declaration);
                 } else {
                     // shadow the current symbol
                     dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
-                    tbl().declare(name, (ASTNode*) declaration);
+                    getSymbolTable().declare(name, (ASTNode*) declaration);
                 }
                 return true;
             };
@@ -275,7 +264,7 @@ public:
      * get a mutable reference to underlying symbol table
      */
     inline SymbolTable& getSymbolTable() {
-        return tbl();
+        return table;
     }
 
     /**
@@ -290,7 +279,7 @@ public:
      * global scope start
      */
     inline void global_scope_start() {
-        tbl().scope_start(SymResScopeKind::Global);
+        getSymbolTable().scope_start(SymResScopeKind::Global);
     }
 
     /**
@@ -301,7 +290,7 @@ public:
      * only in a specific module
      */
     inline unsigned long module_scope_start() {
-        return tbl().scope_start_index(SymResScopeKind::Module);
+        return getSymbolTable().scope_start_index(SymResScopeKind::Module);
     }
 
     /**
@@ -309,7 +298,7 @@ public:
      * symbols are expected to exist in other files
      */
     inline unsigned long file_scope_start() {
-        return tbl().scope_start_index(SymResScopeKind::File);
+        return getSymbolTable().scope_start_index(SymResScopeKind::File);
     }
 
     /**
@@ -317,7 +306,7 @@ public:
      * it would put a scope on current vector
      */
     inline void scope_start() {
-        tbl().scope_start(SymResScopeKind::Default);
+        getSymbolTable().scope_start(SymResScopeKind::Default);
     }
 
     /**
@@ -326,37 +315,21 @@ public:
      * this method also returns an index, call it only when an index is required
      */
     inline unsigned long scope_start_index() {
-        return tbl().scope_start_index(SymResScopeKind::Default);
-    }
-
-    /**
-     * get symbol scope at index
-     */
-    [[nodiscard]]
-    inline const SymbolScope* get_scope_at_index(unsigned long index) const noexcept {
-        return tbl().get_scope_at_index(index);
-    }
-
-    /**
-     * get the symbols vector
-     */
-    [[nodiscard]]
-    const std::vector<SymbolEntry>& get_symbols() const noexcept {
-        return tbl().get_symbols();
+        return getSymbolTable().scope_start_index(SymResScopeKind::Default);
     }
 
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
     inline void file_scope_end(unsigned long scope_index) {
-        tbl().drop_all_scopes_from(scope_index);
+        getSymbolTable().drop_all_scopes_from(scope_index);
     }
 
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
     inline void module_scope_end(unsigned long scope_index) {
-        tbl().drop_all_scopes_from(scope_index);
+        getSymbolTable().drop_all_scopes_from(scope_index);
     }
 
     /**
@@ -364,28 +337,14 @@ public:
      * it would pop a scope map from the current vector
      */
     inline void scope_end() {
-        tbl().scope_end();
+        getSymbolTable().scope_end();
     }
 
     /**
      * find a symbol on current symbol map
      */
     ASTNode* find(const chem::string_view& name) {
-        return tbl().resolve(name);
-    }
-
-    /**
-     * get the scope stack
-     */
-    inline const std::vector<SymbolScope>& get_scopes() const noexcept {
-        return tbl().get_scopes();
-    }
-
-    /**
-     * find the bucket associated with the given symbol
-     */
-    inline const BucketSymbol* find_bucket(const chem::string_view& name) {
-        return tbl().resolve_bucket(name);
+        return getSymbolTable().resolve(name);
     }
 
     /**
@@ -393,13 +352,6 @@ public:
      */
     ASTNode* find(std::string& name) {
         return find(chem::string_view(name.data(), name.size()));
-    }
-
-    /**
-     * if the current where the symbols are being declared is a file scope
-     */
-    bool is_current_file_scope() {
-        return tbl().get_last_scope_kind() == SymResScopeKind::File;
     }
 
     /**
@@ -413,11 +365,6 @@ public:
     void declare_or_shadow(const chem::string_view &name, ASTNode* node);
 
     /**
-     * declare a local variable
-     */
-    void declare_local_var(const chem::string_view &name, ASTNode *node, unsigned long lambda_scope_start, bool in_lambda_scope);
-
-    /**
      * declare a symbol
      */
     void declare(const chem::string_view &name, ASTNode *node);
@@ -427,20 +374,13 @@ public:
      * this shadows, if the current symbol is namespaced
      * its best to use as the default function for declaring symbols
      */
-    bool declare_default(const chem::string_view &name, ASTNode *node);
-
-    /**
-     * declares a symbol with default shadowing (shadow if previous symbol is namespaced)
-     */
-    inline bool declare_quietly(const chem::string_view& name, ASTNode* node) {
-        return declare_default(name, node);
-    }
+    bool declare_tld_default(const chem::string_view &name, ASTNode *node);
 
     /**
      * declares a symbol for which entry already exists
      */
     inline void declare_entry(const SymbolEntry* entry, long index) {
-        tbl().declare_entry(entry, index);
+        getSymbolTable().declare_entry(entry, index);
     }
 
     /**
@@ -467,22 +407,15 @@ public:
      * it will declare the node according to the given specifier, private symbols disposed at the end of file
      * internal symbols disposed at the end of module, has_runtime dictates whether it's runtime_name will be declared
      */
-    void declare_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime);
+    void declare_tld_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime);
 
     /**
      * this is the ultimate declare function for a node (except top level functions)
      * it will declare the node according to the given specifier, private symbols disposed at the end of file
      * internal symbols disposed at the end of module, has_runtime dictates whether it's runtime_name will be declared
      */
-    inline void declare_node(std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
-        declare_node(chem::string_view(name.data(), name.size()), node, specifier, has_runtime);
-    }
-
-    /**
-     * declare a exported symbol
-     */
-    inline void declare_exported(const chem::string_view &name, ASTNode *node) {
-        declare_quietly(name, node);
+    inline void declare_tld_node(std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
+        declare_tld_node(chem::string_view(name.data(), name.size()), node, specifier, has_runtime);
     }
 
     /**
@@ -559,22 +492,10 @@ public:
     void enable_file_symbols(SymbolTable& table, const SymbolRange& range);
 
     /**
-     * enable file symbols for given scope index
-     */
-    inline void enable_file_symbols(const SymbolRange& range) {
-        enable_file_symbols(tbl(), range);
-    }
-
-    /**
-     * error for when the value doesn't satisfy the requires type
-     */
-    void unsatisfied_type_err(Value* value, BaseType* type);
-
-    /**
      * will clear the symbol resolver, to make it ready for another compilation
      */
     void clear() {
-        tbl().clear();
+        getSymbolTable().clear();
         stored_file_symbols.clear();
     }
 

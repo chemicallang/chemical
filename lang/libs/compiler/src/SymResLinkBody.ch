@@ -3,6 +3,10 @@ public interface SymResLinkBody {
 
     func getSymbolResolver(&self) : *mut SymbolResolver
 
+    func getSymbolTable(&self) : *mut SymbolTable
+
+    func getAstDiagnoser(&self) : *mut ASTDiagnoser
+
     func visitNode(&self, node : *mut ASTNode);
 
     func visitValue(&self, value : *mut Value)

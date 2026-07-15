@@ -1294,13 +1294,6 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
             linker.error("static interface must have only a single implementation", node->encoded_location());
         }
         linked->register_impl(node);
-    } else if (linked_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
-#ifdef DEBUG
-        if (!linker.generic_context) {
-            linker.error("compiler bug: cannot implement a generic interface outside generic context, type not specialized", node->interface_type.encoded_location());
-            return;
-        }
-#endif
     } else {
         linker.error("expected type to be an interface", node->encoded_location());
         return;

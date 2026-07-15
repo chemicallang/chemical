@@ -83,11 +83,7 @@ public:
             resolver.generic_inst_reg_mutex,
             *resolver.ast_allocator, diagnoser,
             resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
-        ),
-        current_func_type(resolver.current_func_type),
-        safe_context(resolver.safe_context),
-        comptime_context(resolver.comptime_context),
-        generic_context(resolver.generic_context)
+        )
     {
 
     }

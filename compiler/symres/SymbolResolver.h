@@ -238,30 +238,6 @@ public:
     bool is64Bit;
 
     /**
-     * is everything linking inside a safe context
-     */
-    bool safe_context = true;
-
-    /**
-     * is the current context comptime, which means we're inside
-     * a comptime function or a comptime block
-     */
-    bool comptime_context = false;
-
-    /**
-     * this is only enabled during symbol resolution of a generic container (function or struct)
-     * this allows us to postpone creation of types for variables that could be generic, because
-     * generic containers are instantiated by GenericInstantiator, which also takes the responsibility
-     * of doing this
-     */
-    bool generic_context = false;
-
-    /**
-     * current function type, for which code is being linked
-     */
-    FunctionTypeBody* current_func_type = nullptr;
-
-    /**
      * the current module being symbol resolved
      */
     ModuleScope* current_mod_scope = nullptr;
@@ -600,7 +576,6 @@ public:
     void clear() {
         tbl().clear();
         stored_file_symbols.clear();
-        current_func_type = nullptr;
     }
 
 };

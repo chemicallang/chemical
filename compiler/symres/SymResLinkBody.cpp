@@ -248,18 +248,18 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
     }
 }
 
-bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymbolResolver& resolver) {
+bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymResLinkBody& visitor) {
     auto& value = id->value;
-    const auto child = provide_child(&resolver.child_resolver, parent, value, nullptr);
+    const auto child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
     if(child) {
         id->linked = child;
         id->setType(child->known_type());
-        id->process_linked(&resolver, resolver.current_func_type);
+        id->process_linked(&visitor.diagnoser, visitor.current_func_type);
         return true;
     } else {
-        id->linked = resolver.get_unresolved_decl();
+        id->linked = visitor.get_unresolved_decl();
         id->setType(id->linked->known_type());
-        resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
+        visitor.diagnoser.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
         return false;
     }
 }
@@ -296,7 +296,7 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     const auto last = values_size - 1;
     unsigned i = 1;
     while (i < values_size) {
-        find_link_in_parent(values[i]->as_identifier_unsafe(), values[i - 1], linker);
+        find_link_in_parent(values[i]->as_identifier_unsafe(), values[i - 1], *this);
         i++;
     }
 
@@ -1913,9 +1913,9 @@ ending_block:
     return true;
 
 instantiate_block:
-    const auto func_type = resolver.current_func_type;
+    const auto func_type = visitor.current_func_type;
     const auto curr_func = func_type->as_function();
-    if ((curr_func && curr_func->generic_parent != nullptr) || resolver.generic_context) {
+    if ((curr_func && curr_func->generic_parent != nullptr) || visitor.generic_context) {
         // since current function has a generic parent (it is generic), we do not want to instantiate this call here
         // this call will be instantiated by the generic instantiator, even if this calls itself (recursion), instantiator checks that
         // changing back to generic decl, since instantiator needs access to it

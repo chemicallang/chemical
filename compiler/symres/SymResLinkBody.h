@@ -3,11 +3,28 @@
 #pragma once
 
 #include "preprocess/visitors/NonRecursiveVisitor.h"
+#include "SymbolTable.h"
+#include "compiler/generics/GenInstantiatorAPI.h"
 
 class SymResLinkBody : public NonRecursiveVisitor<SymResLinkBody> {
 public:
 
     SymbolResolver& linker;
+
+    /**
+     * own diagnoser — diagnostics collected here instead of on the shared resolver
+     */
+    ASTDiagnoser diagnoser;
+
+    /**
+     * per-file local symbol table — holds file-private symbols
+     */
+    SymbolTable table;
+
+    /**
+     * own generic instantiator
+     */
+    GenericInstantiatorAPI generic_instantiator;
 
     /**
      * expected type used by values to coerce
@@ -49,8 +66,61 @@ public:
     /**
      * constructor
      */
-    SymResLinkBody(SymbolResolver& linker) : linker(linker) {
+    SymResLinkBody(SymbolResolver& resolver) : linker(resolver),
+        diagnoser(resolver.loc_man),
+        generic_instantiator(
+            resolver.controller, resolver.binder, resolver.child_resolver,
+            resolver.instContainer, resolver.coreNodes, resolver.implsIndex,
+            resolver.generic_inst_reg_mutex,
+            *resolver.ast_allocator, diagnoser,
+            resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
+        )
+    {
 
+    }
+
+    // -------------- const accessors for shared state ----------------
+
+    inline const TypeBuilder& getTypeBuilder() const {
+        return linker.comptime_scope.typeBuilder;
+    }
+
+    inline const CoreNodes& getCoreNodes() const {
+        return linker.coreNodes;
+    }
+
+    inline const ImplementationsIndex& getImplsIndex() const {
+        return linker.implsIndex;
+    }
+
+    inline const TargetData& getTargetData() const {
+        return linker.comptime_scope.target_data;
+    }
+
+    inline const ChildResolver* getChildResolver() const {
+        return &linker.child_resolver;
+    }
+
+    inline ASTAllocator& getAstAllocator() {
+        return *linker.ast_allocator;
+    }
+
+    inline ASTAllocator& getModAllocator() {
+        return *linker.mod_allocator;
+    }
+
+    inline const CompilerBinder& getCompilerBinder() const {
+        return linker.binder;
+    }
+
+    inline UnresolvedDecl* get_unresolved_decl() {
+        return linker.get_unresolved_decl();
+    }
+
+    inline ASTNode* tld_find(const chem::string_view& name) {
+        auto* result = table.resolve(name);
+        if(result) return result;
+        return linker.find(name);
     }
 
     BaseType* getErroredType();

@@ -11,6 +11,7 @@
 #include "compiler/symres/SymbolRange.h"
 #include "ChildResolver.h"
 #include "LinkSignatureAPI.h"
+#include "SymResLinkBodyAPI.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/CoreNodes.h"
@@ -454,15 +455,6 @@ public:
             Scope& scope,
             unsigned int fileId,
             const std::string& abs_path
-    );
-
-    /**
-     * should be called, after tld_declare_file, if file's top level symbols have already been declared
-     */
-    void link_file(
-            Scope& scope,
-            unsigned int fileId,
-            const SymbolRange& range
     );
 
     /**

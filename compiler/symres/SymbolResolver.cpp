@@ -388,21 +388,6 @@ SymbolRange SymbolResolver::tld_declare_file(
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
-void SymbolResolver::link_file(
-        Scope& nodes_scope,
-        unsigned int fileId,
-        const SymbolRange& range
-) {
-    // we create a scope_index, this scope is strictly for private entries
-    // when this scope drops, every private symbol and non closed scope will automatically be dropped
-    const auto scope_index = file_scope_start();
-    auto result = sym_res_link_body_pass(*this, &nodes_scope, range);
-    if(!result.diagnostics.empty()) {
-        diagnostics = std::move(result.diagnostics);
-    }
-    file_scope_end(scope_index);
-}
-
 void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     const auto scope_index = file_scope_start();
     const auto start = stored_file_symbols.size();

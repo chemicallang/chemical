@@ -4,6 +4,7 @@
 
 #include <unordered_map>
 #include <mutex>
+#include <shared_mutex>
 #include "ast/utils/Operation.h"
 
 class ASTNode;
@@ -48,11 +49,11 @@ public:
 
     std::unordered_map<ImplementationIndexKey, ImplDefinition*, ImplementationIndexKeyHash> map_;
 
-    // mutex for thread-safe registration during parallel passes
-    std::mutex index_mutex;
+    // reader-writer mutex for thread-safe concurrent reads and exclusive writes
+    mutable std::shared_mutex index_mutex;
 
     void add(ASTNode* interface, ASTAny* for_, ImplDefinition* impl) {
-        std::lock_guard<std::mutex> lock(index_mutex);
+        std::unique_lock lock(index_mutex);
         map_.emplace(ImplementationIndexKey{ interface, for_ }, impl);
     }
 
@@ -65,6 +66,7 @@ public:
     void add_interface(InterfaceDefinition* interface, ASTAny* for_, ImplDefinition* impl);
 
     ImplDefinition* get(ASTNode* interface, ASTAny* for_) const {
+        std::shared_lock lock(index_mutex);
         const auto it = map_.find(ImplementationIndexKey{ interface, for_ });
         if(it == map_.end()) return nullptr;
         return it->second;
@@ -75,6 +77,7 @@ public:
     ImplDefinition* get_impl(InterfaceDefinition* interface, ASTAny* for_);
 
     void clear() {
+        std::unique_lock lock(index_mutex);
         map_.clear();
     }
 

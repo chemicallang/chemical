@@ -550,9 +550,6 @@ void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
 void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
     auto& value = node->value;
     visit(value);
-    node->put_in(getResolver().implicit_args, value, this, [](ProvideStmt* stmt, void* data) {
-        link_seq((*(SymResLinkBody*) data), stmt->body);
-    });
 }
 
 bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseType* expected_type, bool link_implicit_constructor);

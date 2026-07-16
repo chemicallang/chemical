@@ -154,11 +154,6 @@ public:
     std::unordered_map<InterfaceDefinition*, bool> unimplemented_static_interfaces;
 
     /**
-     * implicit arguments are stored on this unordered map
-     */
-    std::unordered_map<chem::string_view, Value*> implicit_args;
-
-    /**
      * top level declarations will be declared by this visitor
      * for example functions and structs, declared so can be used if declared below their usage
      */

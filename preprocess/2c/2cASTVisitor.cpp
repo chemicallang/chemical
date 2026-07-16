@@ -1670,29 +1670,15 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                     }
                 }
             } else {
-                auto found = visitor.implicit_args.find(param->name);
-                if(found != visitor.implicit_args.end()) {
+                const auto between = visitor.current_func_type->implicit_param_for(param->name);
+                if(between) {
                     if(has_value_before) {
                         visitor.write(", ");
                     }
-                    auto type = found->second->getType();
-                    const auto node = type->get_direct_linked_node();
-                    if(node && ASTNode::isStoredStructType(node->kind())) {
-                        visitor.write('&');
-                    }
-                    visitor.visit(found->second);
+                    visitor.write(between->name);
                     has_value_before = true;
                 } else {
-                    const auto between = visitor.current_func_type->implicit_param_for(param->name);
-                    if(between) {
-                        if(has_value_before) {
-                            visitor.write(", ");
-                        }
-                        visitor.write(between->name);
-                        has_value_before = true;
-                    } else {
-                        visitor.error(call) << "couldn't find implicit argument with name '" << param->name << "'";
-                    }
+                    visitor.error(call) << "couldn't find implicit argument with name '" << param->name << "'";
                 }
             }
         } else {
@@ -6095,10 +6081,7 @@ void ToCAstVisitor::VisitStructMember(StructMember *member) {
 }
 
 void ToCAstVisitor::VisitProvideStmt(ProvideStmt *stmt) {
-    stmt->put_in(implicit_args, stmt->value, this, [](ProvideStmt* stmt, void* data) {
-        const auto v = (ToCAstVisitor*) data;
-        v->visit(&stmt->body);
-    });
+    // TODO: provide statement is NOT yet supported
 }
 
 void ToCAstVisitor::VisitComptimeBlock(ComptimeBlock *block) {

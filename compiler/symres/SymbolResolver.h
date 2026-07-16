@@ -216,12 +216,6 @@ public:
     GenericInstantiatorAPI genericInstantiator;
 
     /**
-     * implicit arguments are provided using provide statements
-     * we track these using this unordered map
-     */
-    std::unordered_map<chem::string_view, Value*> implicit_args;
-
-    /**
      * is the codegen for arch 64bit
      */
     bool is64Bit;

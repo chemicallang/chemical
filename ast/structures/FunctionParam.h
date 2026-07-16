@@ -7,6 +7,8 @@
 
 class FunctionType;
 
+class ASTDiagnoser;
+
 struct FunctionParamAttributes {
 
     /**
@@ -103,7 +105,7 @@ public:
     [[nodiscard]]
     FunctionParam *copy(ASTAllocator& allocator) const;
 
-    bool link_implicit_param(SymbolResolver& linker);
+    bool link_implicit_param(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

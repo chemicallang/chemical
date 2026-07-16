@@ -497,18 +497,23 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     for(auto& file_ptr : module->direct_files) {
         auto& file = *file_ptr.result;
-        // pass 1: resolve generic declaration master bodies
-        auto res1 = link_body_generic_decls_task(resolver, &file);
-        if(!res1.diagnostics.empty()) {
-            Diagnoser::print_diagnostics(res1.diagnostics, chem::string_view(file.abs_path), "SymRes:link_generic_decls");
-        }
-        if(res1.has_errors) {
+        futures.emplace_back(pool.push([this, &file](int id){
+            auto res = link_body_generic_decls_task(resolver, &file);
+            if(!res.diagnostics.empty()) {
+                std::lock_guard<std::mutex> guard(print_mutex);
+                Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
+            }
+            return res.has_errors;
+        }));
+    }
+    for(auto& f : futures) {
+        auto has_errors = f.get();
+        if(has_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
-        resolver->reset_errors();
-        if(errored) break;
     }
+    futures.clear();
 
     // pass 2: full link body
     for(auto& file_ptr : module->direct_files) {

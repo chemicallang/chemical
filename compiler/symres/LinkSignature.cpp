@@ -694,10 +694,7 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     for(auto param : node->params) {
         if(param->is_implicit()) {
             // implicit parameters are handled there
-            // TODO: this method exists in sym res link body
-            // we link parameters with 'self' params in link signature, so it should be moved here
-            // second, in link body, no self parameters should exist, and we shouldn't be providing any support for them
-            param->link_implicit_param(sig.linker);
+            param->link_implicit_param(sig.getAstAllocator(), sig.diagnoser);
         } else {
             sig.visit(param->type);
         }

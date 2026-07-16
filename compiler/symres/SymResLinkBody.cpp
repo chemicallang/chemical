@@ -1036,7 +1036,7 @@ void set_implicit_self_linked_to(ASTAllocator& allocator, FunctionParam* param, 
     }
 }
 
-bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
+bool link_self_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser, FunctionParam* param) {
     auto parent_node = param->parent();
     auto parent_kind = parent_node->kind();
     if (parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
@@ -1053,7 +1053,7 @@ bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
                 set_implicit_self_linked_to(param, struct_type);
                 return true;
             } else {
-                linker.error("couldn't get self / other implicit parameter type", param);
+                diagnoser.error("couldn't get self / other implicit parameter type", param);
                 return false;
             }
         }
@@ -1063,7 +1063,7 @@ bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
                 set_implicit_self_linked_to(param, struct_type);
                 return true;
             } else {
-                linker.error("couldn't get self / other implicit parameter type", param);
+                diagnoser.error("couldn't get self / other implicit parameter type", param);
                 return false;
             }
         }
@@ -1075,40 +1075,16 @@ bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::InterfaceDecl:
-            set_implicit_self_linked_to(*linker.ast_allocator, param, parent_node);
+            set_implicit_self_linked_to(allocator, param, parent_node);
             return true;
         default:
-            linker.error("couldn't get self / other implicit parameter type", param);
+            diagnoser.error("couldn't get self / other implicit parameter type", param);
             return false;
     }
 }
 
-bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
-    if(name == "self") { // name and other means pointers to parent node
-        return link_self_type(linker, this);
-    } else {
-        auto found = linker.find(name);
-        if(found) {
-            const auto ptr_type = ((ReferenceType*) type.getType());
-            const auto linked_type = ((LinkedType*) ptr_type->type);
-            const auto found_kind = found->kind();
-            if(found_kind == ASTNodeKind::TypealiasStmt) {
-                const auto retrieved = ((TypealiasStatement*) found)->actual_type;
-                type = { retrieved, type.encoded_location() };
-                const auto direct = retrieved->get_direct_linked_node();
-                if(direct && ASTNode::isStoredStructType(direct->kind())) {
-                    linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
-                    return false;
-                }
-            } else {
-                linked_type->linked = found;
-            }
-        } else {
-            linker.error("couldn't get implicit parameter type", this);
-            return false;
-        }
-        return true;
-    }
+bool FunctionParam::link_implicit_param(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    return link_self_type(allocator, diagnoser, this);
 }
 
 const auto missing_return_err_msg = "missing return for function that has a non void return type";
@@ -2111,7 +2087,7 @@ void SymResLinkBody::VisitDynamicType(DynamicType* type) {
 
 void link_param(SymResLinkBody& symRes, FunctionParam* param) {
     if(param->is_implicit()) {
-        param->link_implicit_param(symRes.getResolver());
+        param->link_implicit_param(symRes.getAstAllocator(), symRes.diagnoser);
     } else {
         if(param->type) {
             symRes.visit(param->type);

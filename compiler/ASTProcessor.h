@@ -27,6 +27,7 @@
 #include <mutex>
 
 #include "symres/LinkSignatureAPI.h"
+#include "symres/SymResLinkBodyAPI.h"
 
 class Parser;
 
@@ -465,11 +466,11 @@ public:
      * this function is used to resolve symbols inside the file, the scope_index is used to enable
      * the file's private symbols
      */
-    void sym_res_link_file(
-            Scope& scope,
-            unsigned int fileId,
-            const std::string& abs_path,
-            const SymbolRange& range
+    SymResLinkBodyResult sym_res_link_file(
+        Scope& scope,
+        unsigned int fileId,
+        const std::string& abs_path,
+        const SymbolRange& range
     );
 
     /**

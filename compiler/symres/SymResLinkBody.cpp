@@ -70,10 +70,121 @@ void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     linker.VisitScope(scope);
 }
 
+void visit_namespace_start(SymResLinkBody& visitor, Namespace* node) {
+    visitor.table.scope_start();
+    if(node->root) {
+        node->root->declare_extended_in_table(visitor.table);
+    } else {
+        node->declare_extended_in_table(visitor.table);
+        SymbolTableShadowDeclarer declarer(visitor.table);
+        for(const auto child : node->nodes) {
+            declare_node(declarer, child, AccessSpecifier::Private);
+        }
+    }
+}
+
+void visit_non_generic_decl_only(SymResLinkBody& visitor, ASTNode* node) {
+    switch (node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericTypeDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericImplDecl:
+            return;
+        case ASTNodeKind::NamespaceDecl: {
+            const auto ns = node->as_namespace_unsafe();
+            visit_namespace_start(visitor, ns);
+            for (const auto child : ns->nodes) {
+                visit_non_generic_decl_only(visitor, child);
+            }
+            visitor.table.scope_end();
+            return;
+        }
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if (node->is_top_level()) {
+                // must not re-evaluate comptime top level if statement
+                // it is evaluated in declare top level
+                if (stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if (scope) {
+                        for (const auto child : scope->nodes) {
+                            visit_non_generic_decl_only(visitor, child);
+                        }
+                    }
+                }
+                return;
+            }
+            return;
+        }
+        default:
+            visitor.visit(node);
+            return;
+    }
+}
+
+void visit_generic_decl_only(SymResLinkBody& visitor, ASTNode* node) {
+    switch (node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericTypeDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericImplDecl:
+            visitor.visit(node);
+            return;
+        case ASTNodeKind::NamespaceDecl: {
+            const auto ns = node->as_namespace_unsafe();
+            visit_namespace_start(visitor, ns);
+            for (const auto child : ns->nodes) {
+                visit_generic_decl_only(visitor, child);
+            }
+            visitor.table.scope_end();
+            return;
+        }
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if (node->is_top_level()) {
+                // must not re-evaluate comptime top level if statement
+                // it is evaluated in declare top level
+                if (stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if (scope) {
+                        for (const auto child : scope->nodes) {
+                            visit_generic_decl_only(visitor, child);
+                        }
+                    }
+                }
+                return;
+            }
+            return;
+        }
+        default:
+            return;
+    }
+}
+
 SymResLinkBodyResult sym_res_link_body_pass(SymbolResolver& resolver, Scope* scope, const SymbolRange& range) {
     SymResLinkBody visitor(resolver);
     resolver.enable_file_symbols(visitor.table, range);
-    visitor.VisitScope(scope);
+    for (const auto node : scope->nodes) {
+        visit_non_generic_decl_only(visitor, node);
+    }
+    return SymResLinkBodyResult {
+        .has_errors = visitor.diagnoser.has_errors(),
+        .diagnostics = std::move(visitor.diagnoser.diagnostics)
+    };
+}
+
+SymResLinkBodyResult sym_res_link_body_generic_decls_pass(SymbolResolver& resolver, Scope* scope, const SymbolRange& range) {
+    SymResLinkBody visitor(resolver);
+    resolver.enable_file_symbols(visitor.table, range);
+    for (const auto node : scope->nodes) {
+        visit_generic_decl_only(visitor, node);
+    }
     return SymResLinkBodyResult {
         .has_errors = visitor.diagnoser.has_errors(),
         .diagnostics = std::move(visitor.diagnoser.diagnostics)
@@ -1481,16 +1592,7 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
 }
 
 void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
-    table.scope_start();
-    if(node->root) {
-        node->root->declare_extended_in_table(table);
-    } else {
-        node->declare_extended_in_table(table);
-        SymbolTableShadowDeclarer declarer(table);
-        for(const auto child : node->nodes) {
-            declare_node(declarer, child, AccessSpecifier::Private);
-        }
-    }
+    visit_namespace_start(*this, node);
     for(const auto child : node->nodes) {
         visit(child);
     }

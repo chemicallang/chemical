@@ -108,12 +108,6 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
-//        // since signature has already been linked, we need to manually put into
-//        // the appropriate struct for which this function is for
-//        if(impl->isExtensionFn()) {
-//            impl->put_as_extension_function(allocator, diagnoser);
-//        }
-
     } else {
 
         // signature and body both have been linked for master_impl
@@ -124,12 +118,6 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
         auto ptr = impl;
         const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
-
-//        // since signature has already been linked, we need to manually put into
-//        // the appropriate struct for which this function is for
-//        if(impl->isExtensionFn()) {
-//            impl->put_as_extension_function(allocator, diagnoser);
-//        }
 
     }
 

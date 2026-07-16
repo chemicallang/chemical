@@ -275,13 +275,13 @@ void ASTProcessor::sym_res_after_link_sig_file(
     }
 }
 
-void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
+SymResLinkBodyResult ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     BenchmarkResults bm_results;
     if(options->benchmark_files) {
         bm_results.benchmark_begin();
     }
-    resolver->link_file(scope, fileId, range);
+    auto result = sym_res_link_body_pass(*resolver, &scope, range);
     if(options->benchmark_files) {
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "SymRes:link", abs_path, &bm_results);
@@ -289,6 +289,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const st
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link");
     }
+    return result;
 }
 
 void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
@@ -339,6 +340,14 @@ static SymResSignatureResult link_sig_file_task(SymbolResolver* resolver, ASTFil
 
 static GenInstSignatureResult gen_inst_file_task(SymbolResolver* resolver, ASTFileResult* file) {
     return sym_res_generic_instantiation(*resolver, &file->unit.scope.body, file->sig_result, file->private_symbol_range);
+}
+
+static SymResLinkBodyResult link_body_generic_decls_task(SymbolResolver* resolver, ASTFileResult* file) {
+    return sym_res_link_body_generic_decls_pass(*resolver, &file->unit.scope.body, file->private_symbol_range);
+}
+
+static SymResLinkBodyResult link_body_task(SymbolResolver* resolver, ASTFileResult* file) {
+    return sym_res_link_body_pass(*resolver, &file->unit.scope.body, file->private_symbol_range);
 }
 
 int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
@@ -401,63 +410,65 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     }
 
+    // clear everything allocated during tld declare
+    file_allocator.clear();
+
     if(errored) return 1;
+
+    std::vector<std::future<bool>> futures;
+    futures.reserve(module->direct_files.size());
 
     // link the signature of the files in parallel
-    {
-        std::vector<std::future<bool>> futures;
-        futures.reserve(module->direct_files.size());
-
-        for(auto& file_ptr : module->direct_files) {
-            auto& file = *file_ptr.result;
-            futures.emplace_back(pool.push([this, &file](int id){
-                auto res = link_sig_file_task(resolver, &file);
-                if(!res.diagnostics.empty()) {
-                    std::lock_guard<std::mutex> guard(print_mutex);
-                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link_sig");
-                }
-                auto has_errors = res.has_errors;
-                file.sig_result = std::move(res);
-                return has_errors;
-            }));
-        }
-
-        for(auto& f : futures) {
-            auto has_errors = f.get();
-            if(has_errors) {
-                if(options->stop_on_file_error) return 1;
-                errored = true;
+    for(auto& file_ptr : module->direct_files) {
+        auto& file = *file_ptr.result;
+        futures.emplace_back(pool.push([this, &file](int id){
+            auto res = link_sig_file_task(resolver, &file);
+            if(!res.diagnostics.empty()) {
+                std::lock_guard<std::mutex> guard(print_mutex);
+                Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link_sig");
             }
+            auto has_errors = res.has_errors;
+            file.sig_result = std::move(res);
+            return has_errors;
+        }));
+    }
+    for(auto& f : futures) {
+        auto has_errors = f.get();
+        if(has_errors) {
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
     }
+    futures.clear();
+
+    // clear everything allocated during link signature pass
+    file_allocator.clear();
 
     if(errored) return 1;
 
-    // generic instantiation pass in parallel (finalize instantiations created during link signature)
-    {
-        std::vector<std::future<bool>> futures;
-        futures.reserve(module->direct_files.size());
-
-        for(auto& file_ptr : module->direct_files) {
-            auto& file = *file_ptr.result;
-            futures.emplace_back(pool.push([this, &file](int id){
-                auto res = gen_inst_file_task(resolver, &file);
-                if(!res.diagnostics.empty()) {
-                    std::lock_guard<std::mutex> guard(print_mutex);
-                    Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
-                }
-                return res.has_errors;
-            }));
-        }
-
-        for(auto& f : futures) {
-            auto has_errors = f.get();
-            if(has_errors) {
-                if(options->stop_on_file_error) return 1;
-                errored = true;
+    // generic instantiation pass in parallel
+    for(auto& file_ptr : module->direct_files) {
+        auto& file = *file_ptr.result;
+        futures.emplace_back(pool.push([this, &file](int id){
+            auto res = gen_inst_file_task(resolver, &file);
+            if(!res.diagnostics.empty()) {
+                std::lock_guard<std::mutex> guard(print_mutex);
+                Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:gen_inst");
             }
+            return res.has_errors;
+        }));
+    }
+    for(auto& f : futures) {
+        auto has_errors = f.get();
+        if(has_errors) {
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
     }
+    futures.clear();
+
+    // clear everything allocated during gen instantiator pass
+    file_allocator.clear();
 
     if(errored) return 1;
 
@@ -476,23 +487,43 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     }
 
+    // clear everything allocated during after link signature
+    file_allocator.clear();
+
     if(errored) return 1;
 
-    // sequentially symbol resolve all the files in the module
+    // Two-pass link body: pass 1 resolves generic declaration master bodies,
+    // pass 2 does full link body (instantiate generics, resolve function bodies).
+
     for(auto& file_ptr : module->direct_files) {
-
         auto& file = *file_ptr.result;
-
-        sym_res_link_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
-        if (resolver->has_errors() && !options->ignore_errors) {
+        // pass 1: resolve generic declaration master bodies
+        auto res1 = link_body_generic_decls_task(resolver, &file);
+        if(!res1.diagnostics.empty()) {
+            Diagnoser::print_diagnostics(res1.diagnostics, chem::string_view(file.abs_path), "SymRes:link_generic_decls");
+        }
+        if(res1.has_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
         resolver->reset_errors();
+        if(errored) break;
+    }
 
-        // clear everything allocated during symbol resolution of current file
+    // pass 2: full link body
+    for(auto& file_ptr : module->direct_files) {
+        auto& file = *file_ptr.result;
+
+        auto res2 = link_body_task(resolver, &file);
+        if(!res2.diagnostics.empty()) {
+            Diagnoser::print_diagnostics(res2.diagnostics, chem::string_view(file.abs_path), "SymRes:link");
+        }
+        if(res2.has_errors) {
+            if(options->stop_on_file_error) return 1;
+            errored = true;
+        }
+        resolver->reset_errors();
         file_allocator.clear();
-
     }
 
     if(errored) return 1;

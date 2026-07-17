@@ -25,6 +25,9 @@ USE_C=false
 DEBUG_FLAG=false
 GDB=false
 RECOMPILE_PLUGINS="-frecompile-plugins"
+BENCHMARK=false
+BENCHMARK_FILES=false
+BENCHMARK_MODULES=false
 
 usage() {
   echo "Usage: $0 [options]"
@@ -44,6 +47,9 @@ usage() {
   echo "  --emit-c                Emit C translation output"
   echo "  --use-c                 Translate to C and compile with embedded Clang (Compiler only)"
   echo "  --cached-plugins        Skip recompiling CBI plugins (default: -frecompile-plugins)"
+  echo "  --bm                    Run compilation benchmark (print times per phase)"
+  echo "  --bm-files              Run per-file compilation benchmark"
+  echo "  --bm-modules            Run per-module compilation benchmark"
   echo "  -g                      Pass -g to the compiler (debug symbols)"
   echo "  --gdb                   Run tests under GDB (implies -g)"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
@@ -72,6 +78,9 @@ while [ $# -gt 0 ]; do
     --use-c) USE_C=true ;;
     --incremental) INCREMENTAL=true ;;
     --cached-plugins) RECOMPILE_PLUGINS="" ;;
+    --bm) BENCHMARK=true ;;
+    --bm-files) BENCHMARK_FILES=true ;;
+    --bm-modules) BENCHMARK_MODULES=true ;;
     -g) DEBUG_FLAG=true ;;
     --gdb) GDB=true; DEBUG_FLAG=true ;;
     -j) JOBS="$2"; shift ;;
@@ -121,6 +130,9 @@ if [ "$TEST_INTERPRET" = true ]; then
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  [ "$BENCHMARK" = true ] && CMD+=("-bm")
+  [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
+  [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
   echo "==> Interpreting tests..."
   if [ "$GDB" = true ]; then
     echo "gdb --args ${CMD[@]}"
@@ -137,6 +149,9 @@ else
   [ "$USE_C" = true ] && CMD+=("--use-c")
   [ "$INCREMENTAL" = true ] && CMD+=("--incremental")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  [ "$BENCHMARK" = true ] && CMD+=("-bm")
+  [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
+  [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
   if [ "$TEST_LIBS" = true ]; then
     CMD+=("--arg-test-libs")
     [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")

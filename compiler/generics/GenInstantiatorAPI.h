@@ -3,10 +3,12 @@
 #pragma once
 
 #include "ast/base/ast_fwd.h"
-#include "compiler/generics/InstantiationsContainer.h"
+#include "ast/structures/BaseGenericDecl.h"
 #include <mutex>
 #include <condition_variable>
 #include <span>
+
+class InstantiationsContainer;
 
 class AnnotationController;
 
@@ -100,31 +102,16 @@ public:
     std::condition_variable& getInstantiationStatusCV();
 
     /**
-     * get the status vector for a specific generic declaration
-     */
-    std::vector<InstantiationStatusEntry>& getInstantiationStatuses(void* key);
-
-    /**
-     * set the status of a specific instantiation
-     */
-    void setInstantiationStatus(void* key, size_t index, InstantiationStatus status);
-
-    /**
      * notify all waiters that an instantiation has been finalized
      */
     void notifyInstantiationFinalized();
 
     /**
-     * check if the given thread is the same thread building the instantiation
-     */
-    bool isBuildingThread(void* key, size_t index, std::thread::id tid);
-
-    /**
-     * wait until the status at [key][index] is no longer Building
+     * wait until the status at decl->instantiation_statuses[index] is no longer Building
      */
     InstantiationStatus waitInstantiationFinalized(
         std::unique_lock<std::mutex>& lock,
-        void* key,
+        BaseGenericDecl* decl,
         size_t index
     );
 

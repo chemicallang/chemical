@@ -51,7 +51,7 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
     auto& reg_mutex = instantiator.getRegistrationMutex();
-    auto& statuses = instantiator.getInstantiationStatuses(this);
+    auto& statuses = instantiation_statuses;
     auto& status_mutex = instantiator.getInstantiationStatusMutex();
     auto& status_cv = instantiator.getInstantiationStatusCV();
 
@@ -77,10 +77,9 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
         // wait for finalization if still building
         {
             std::unique_lock<std::mutex> lock(status_mutex);
-            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building) {
-                if(!instantiator.isBuildingThread(this, idx, std::this_thread::get_id())) {
-                    instantiator.waitInstantiationFinalized(lock, this, idx);
-                }
+            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building
+               && statuses[idx].builder_thread != std::this_thread::get_id()) {
+                instantiator.waitInstantiationFinalized(lock, this, idx);
             }
         }
         // instantiation already exists and finalized

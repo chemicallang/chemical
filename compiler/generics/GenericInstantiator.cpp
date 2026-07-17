@@ -619,7 +619,7 @@ void GenericInstantiator::Clear() {
 void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
     // lock to prevent concurrent modification of the container's internal
     // hash map / vectors while we read the instantiation types
-    std::lock_guard<std::mutex> lock(registration_mutex);
+    std::lock_guard<std::recursive_mutex> lock(registration_mutex);
     auto instantiations = container.getInstantiationTypesFor(gen_decl);
 #ifdef DEBUG
     if(itr >= instantiations.size()) {
@@ -787,6 +787,24 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
 
 }
 
+void handle_new_impl(GenericInstantiator& instantiator, ImplDefinition* node, MembersContainer* adopter) {
+    auto& diagnoser = instantiator.diagnoser;
+    adopter->adopt(node);
+    const auto linked_node = node->interface_type->get_direct_linked_node();
+    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
+        auto& implsIndex = instantiator.implsIndex;
+        const auto linked = linked_node->as_interface_def_unsafe();
+        if (linked->is_static() && linked->has_implementation()) {
+            diagnoser.error("static interface must have only a single implementation", node->encoded_location());
+        }
+        linked->register_impl(node);
+        implsIndex.add_interface(linked, adopter, node);
+    } else {
+        diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
+    }
+}
+
+
 void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefinition* impl, size_t itr) {
 
     // set the pointers to gen decl and impl
@@ -807,9 +825,23 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     }
 
     // visiting functions
-    for(const auto func : impl->master_functions()) {
-        // finalize the signature of functions
-        FinalizeSignature(func);
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                FinalizeSignature(node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                FinalizeSignature(node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                FinalizeNestedImplSignature(def);
+                handle_new_impl(*this, def, impl);
+                continue;
+            }
+            default:
+                visit(node);
+        }
     }
 
     // deactivating iteration in parameters
@@ -822,23 +854,6 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     current_gen = nullptr;
     current_impl_ptr = nullptr;
 
-}
-
-void handle_new_impl(GenericInstantiator& instantiator, ImplDefinition* node, MembersContainer* adopter) {
-    auto& diagnoser = instantiator.diagnoser;
-    adopter->adopt(node);
-    const auto linked_node = node->interface_type->get_direct_linked_node();
-    if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
-        auto& implsIndex = instantiator.implsIndex;
-        const auto linked = linked_node->as_interface_def_unsafe();
-        if (linked->is_static() && linked->has_implementation()) {
-            diagnoser.error("static interface must have only a single implementation", node->encoded_location());
-        }
-        linked->register_impl(node);
-        implsIndex.add_interface(linked, adopter, node);
-    } else {
-        diagnoser.error("expected type to be an interface", node->interface_type.encoded_location());
-    }
 }
 
 void finalize_member_func_body(GenericInstantiator& instantiator, FunctionDeclaration* func) {
@@ -906,8 +921,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                FinalizeNestedImpl(def);
-                handle_new_impl(instantiator, def, impl);
+                FinalizeNestedImplBody(def);
                 continue;
             }
             default:
@@ -949,9 +963,23 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
     }
 
     // visiting functions
-    for(const auto func : impl->master_functions()) {
-        // finalize the signature of functions
-        FinalizeSignature(func);
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                FinalizeSignature(node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                FinalizeSignature(node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            case ASTNodeKind::ImplDecl: {
+                const auto def = node->as_impl_def_unsafe();
+                FinalizeNestedImplSignature(def);
+                handle_new_impl(*this, def, impl);
+                continue;
+            }
+            default:
+                visit(node);
+        }
     }
 
     // deactivating iteration in parameters
@@ -1008,8 +1036,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                FinalizeNestedImpl(def);
-                handle_new_impl(instantiator, def, impl);
+                FinalizeNestedImplBody(def);
                 continue;
             }
             default:
@@ -1204,8 +1231,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
                 break;
             case ASTNodeKind::ImplDecl: {
                 const auto def = node->as_impl_def_unsafe();
-                FinalizeNestedImpl(def);
-                handle_new_impl(instantiator, def, impl);
+                FinalizeNestedImplBody(def);
                 continue;
             }
             default:
@@ -1227,7 +1253,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     current_impl_ptr = nullptr;
 }
 
-void GenericInstantiator::FinalizeNestedImpl(ImplDefinition* impl) {
+void GenericInstantiator::FinalizeNestedImplSignature(ImplDefinition* impl) {
 
     // ----
     // lets do signature first
@@ -1240,15 +1266,24 @@ void GenericInstantiator::FinalizeNestedImpl(ImplDefinition* impl) {
     for(auto& var : impl->variables()) {
         visit(var);
     }
-    // visiting functions
-    for(const auto func : impl->master_functions()) {
-        // finalize the signature of functions
-        FinalizeSignature(func);
+
+    // visiting function bodies (only bodies, because we finalized signature above)
+    for(const auto node : impl->evaluated_nodes()) {
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                FinalizeSignature(node->as_function_unsafe());
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                FinalizeSignature(node->as_gen_func_decl_unsafe()->master_impl);
+                break;
+            default:
+                visit(node);
+        }
     }
 
-    // ------
-    // lets do body now
-    // ------
+}
+
+void GenericInstantiator::FinalizeNestedImplBody(ImplDefinition* impl) {
 
     // create a symbol scope
     table.scope_start();
@@ -1282,12 +1317,6 @@ void GenericInstantiator::FinalizeNestedImpl(ImplDefinition* impl) {
             case ASTNodeKind::GenericFuncDecl:
                 finalize_member_func_body(instantiator, node->as_gen_func_decl_unsafe()->master_impl);
                 break;
-            case ASTNodeKind::ImplDecl: {
-                const auto def = node->as_impl_def_unsafe();
-                FinalizeNestedImpl(def);
-                handle_new_impl(instantiator, def, impl);
-                continue;
-            }
             default:
                 visit(node);
         }
@@ -1492,7 +1521,7 @@ GenericInstantiatorAPI::GenericInstantiatorAPI(
     InstantiationsContainer& container,
     CoreNodes& coreNodes,
     ImplementationsIndex& implsIndex,
-    std::mutex& registration_mutex,
+    std::recursive_mutex& registration_mutex,
     ASTAllocator& astAllocator,
     ASTDiagnoser& diagnoser,
     TypeBuilder& typeBuilder,
@@ -1528,32 +1557,8 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
     return giPtr->diagnoser;
 }
 
-std::mutex& GenericInstantiatorAPI::getRegistrationMutex() {
+std::recursive_mutex& GenericInstantiatorAPI::getRegistrationMutex() {
     return giPtr->registration_mutex;
-}
-
-std::mutex& GenericInstantiatorAPI::getInstantiationStatusMutex() {
-    return giPtr->container.getInstantiationStatusMutex();
-}
-
-std::condition_variable& GenericInstantiatorAPI::getInstantiationStatusCV() {
-    return giPtr->container.getInstantiationStatusCV();
-}
-
-void GenericInstantiatorAPI::notifyInstantiationFinalized() {
-    giPtr->container.getInstantiationStatusCV().notify_all();
-}
-
-InstantiationStatus GenericInstantiatorAPI::waitInstantiationFinalized(
-    std::unique_lock<std::mutex>& lock,
-    BaseGenericDecl* decl,
-    size_t index
-) {
-    auto& statuses = decl->instantiation_statuses;
-    giPtr->container.getInstantiationStatusCV().wait(lock, [&] {
-        return statuses[index].status != InstantiationStatus::Building;
-    });
-    return statuses[index].status;
 }
 
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {

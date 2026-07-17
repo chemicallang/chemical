@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
-#include <condition_variable>
-#include <thread>
 
 #include <cassert>
 
@@ -60,10 +58,6 @@ private:
 
     // we track current module instantiations
     std::vector<ASTNode*> current_module_instantiations;
-
-    // mutex and condvar protecting instantiation status changes across all generic decls
-    std::mutex inst_status_mutex;
-    std::condition_variable inst_status_cv;
 
 public:
 
@@ -224,20 +218,6 @@ public:
      */
     void clear_current_module_instantiations() {
         current_module_instantiations.clear();
-    }
-
-    /**
-     * get the mutex protecting instantiation statuses
-     */
-    std::mutex& getInstantiationStatusMutex() {
-        return inst_status_mutex;
-    }
-
-    /**
-     * get the condvar for instantiation status
-     */
-    std::condition_variable& getInstantiationStatusCV() {
-        return inst_status_cv;
     }
 
     /**

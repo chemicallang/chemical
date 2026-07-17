@@ -381,173 +381,206 @@ No deadlock, no waiting. Both signatures finalize in parallel (on the same threa
 
 Currently, a single `reg_mutex` serializes ALL instantiations of ALL generics. When Thread A is registering `vector<int>` and Thread B tries to register `vector<long>`, Thread B blocks until Thread A finishes signature finalization. But `vector<int>` and `vector<long>` are completely independent — they should be able to proceed in parallel.
 
-### What the Old Condvar Approach Did
+### The Key Insight: What Each Pass Actually Needs
 
-The old approach (removed in recent commits) used per-instantiation status tracking:
+When `register_generic_args` encounters another generic type during its work, the **requirement depends on which phase we're in**:
 
-```cpp
-// On BaseGenericDecl:
-enum class InstantiationStatus : int { Building, Finalized };
-struct InstantiationStatusEntry {
-    InstantiationStatus status;
-    std::thread::id builder_thread;
-};
-std::vector<InstantiationStatusEntry> instantiation_statuses;
+**During signature finalization** (e.g., `vec1<int>` encounters `vec2<T>` in `func check(v : vec2<T>)`):
+- We only need the **pointer** to `vec2<int>` so we can set `linked_ptr` on the `GenericType` node
+- We do NOT need `vec2<int>`'s method signatures, parameter types, or return types
+- We do NOT need `vec2<int>`'s body to be finalized
+- **Only registration is required**
 
-// On InstantiationsContainer:
-std::mutex inst_status_mutex;
-std::condition_variable inst_status_cv;
-```
+**During body finalization** (e.g., `vec1<int>` calls `v.push(42)` where `v : vec2<int>`):
+- We need to know `vec2<int>.push`'s parameter type (is it `int`? `long`? `float`?)
+- We need to resolve method calls, determine concrete types
+- **Signature finalization of `vec2<int>` is required**
 
-The flow was:
+This asymmetry is the key to solving the parallelism problem.
+
+### The Solution: Phase-Aware Synchronization
+
 ```
 register_generic_args:
   1. Lock reg_mutex
   2. Register → (index, is_new)
-  3. If !is_new: check status
-     - If Finalized: unlock, return pointer
-     - If Building: wait on condvar for this specific instantiation
+  3. If !is_new: unlock, return pointer
   4. If is_new:
-     a. Set status = Building
+     a. Set status = Building, builder_thread = current_thread
      b. Shallow copy, push to vector
      c. Unlock reg_mutex
-     d. Finalize signature (NO lock)
+
+     // SIGNATURE FINALIZATION (no reg_mutex held)
+     d. Finalize signature
+        - When encountering generic type → call register_generic_args
+          → only needs registration → no waiting, return pointer
+
+     // Mark signature as finalized
      e. Lock inst_status_mutex
-     f. Set status = Finalized
+     f. Set status = SignatureFinalized
      g. Notify condvar
      h. Unlock inst_status_mutex
+
+     // BODY FINALIZATION (no reg_mutex held)
      i. Finalize body
+        - When encountering generic type → call register_generic_args
+          → needs signature finalized
+          - If status == Building && builder_thread == current_thread:
+              return pointer (no waiting — we're building it ourselves)
+          - If status == Building && builder_thread != current_thread:
+              wait on condvar until SignatureFinalized
+          - If status == SignatureFinalized:
+              return pointer
+
      j. Return impl
 ```
 
-This allowed `vector<int>` and `vector<long>` to be registered in parallel because they had separate status entries.
+### How This Avoids ABBA Deadlock
 
-### Why It Was Removed: ABBA Deadlock
+The ABBA deadlock requires two threads **waiting for each other simultaneously**. This solution avoids it because:
 
-The ABBA deadlock occurred when two threads were building two types that depend on each other:
+1. **Signature finalization never waits**: When encountering a Building type during signature finalization, we just return the pointer. No condvar, no waiting.
+
+2. **Body finalization only waits for signatures, not bodies**: When encountering a Building type during body finalization, we wait for its **signature** to be finalized — not for its body. Since signatures are finalized before bodies (in the same thread), and signature finalization never waits, there's no circular waiting.
+
+3. **Same-thread detection**: If we're building the dependency ourselves (same thread), we don't wait — we know its signature will be finalized soon.
+
+### Trace: Circular Dependencies (Same Thread)
 
 ```
-Thread A: building vec1<int>
-  1. Register vec1<int> (status = Building)
-  2. Finalize signature → encounters vec2<int>
-  3. Finds vec2<int> status = Building (by Thread B)
-  4. Waits on condvar for Thread B
-
-Thread B: building vec2<int>
-  1. Register vec2<int> (status = Building)
-  2. Finalize signature → encounters vec1<int>
-  3. Finds vec1<int> status = Building (by Thread A)
-  4. Waits on condvar for Thread A
-
-→ Deadlock: both threads wait for each other
+Thread A: vec1<int>::register_generic_args()
+  1. Register vec1<int> (new), builder_thread = Thread A
+  2. Unlock reg_mutex
+  3. Finalize signature of vec1<int> (no lock)
+     → encounters vec2<int> → calls vec2<int>::register_generic_args()
+       4. Register vec2<int> (new), builder_thread = Thread A
+       5. Unlock reg_mutex
+       6. Finalize signature of vec2<int> (no lock)
+          → encounters vec1<int> → already registered, returns pointer
+       7. Set vec2<int> status = SignatureFinalized, notify condvar
+       8. Finalize body of vec2<int> (no lock)
+          → encounters vec1<int> → status = Building, builder_thread = Thread A (same thread)
+          → returns pointer (NO WAITING)
+       9. Return vec2<int> impl
+  10. Set vec1<int> status = SignatureFinalized, notify condvar
+  11. Finalize body of vec1<int> (no lock)
+      → encounters vec2<int> → status = SignatureFinalized, returns pointer
+  12. Return vec1<int> impl
 ```
 
-A "nesting depth" counter was tried to skip the wait when already inside `register_generic_args`. This broke `activateIteration` because it reads types from the container expecting them to be fully set up — but the skipped-wait path returned an incomplete instantiation.
+No deadlock. Both types are built by the same thread. During body finalization of `vec2<int>`, `vec1<int>` is Building but by the same thread — no waiting.
 
-### Have the Earlier Issues Been Fixed?
+### Trace: Parallel Instantiations (Different Threads)
 
-**ABBA deadlock**: The recursive mutex approach avoids this by never waiting — when we encounter an already-registered type, we just return the pointer immediately. No condvar needed.
-
-**`activateIteration` reading incomplete data**: The nesting depth approach broke `activateIteration` because it returned pointers before the instantiation was fully set up. But with the recursive mutex approach, `register_generic_usage` is called BEFORE any finalization, so the types are always set in the container when the pointer is returned.
-
-**The key insight**: The ABBA deadlock only happens during **signature finalization** when one type references the other. If we avoid signature finalization in the GenericInstantiationPass (RegisterOnly mode), there's no ABBA deadlock.
-
-### Can We Use Condvar for the GenericInstantiationPass?
-
-**Yes**, but only if we combine it with RegisterOnly mode. Here's why:
-
-In the GenericInstantiationPass, we're only visiting signatures. We call `register_generic_args` which:
-1. Registers the instantiation
-2. Finalizes signature (currently under lock)
-3. Returns the pointer
-
-If we use condvar WITH signature finalization:
 ```
-Thread A: vector<int>
-  1. Register (status = Building)
-  2. Finalize signature → might encounter other generics
-  3. If encounters vector<long> (Building by Thread B) → waits
+Thread A: processing file1, encounters std::vector<int>
+  1. Register std::vector<int> (new), builder_thread = Thread A
+  2. Unlock reg_mutex
+  3. Finalize signature (no lock)
 
-Thread B: vector<long>
-  1. Register (status = Building)
-  2. Finalize signature → might encounter other generics
-  3. If encounters vector<int> (Building by Thread A) → waits
+Thread B: processing file2, encounters std::vector<long>
+  4. Register std::vector<long> (new), builder_thread = Thread B
+  5. Unlock reg_mutex  ← CAN PROCEED (Thread A unlocked at step 2)
+  6. Finalize signature (no lock)  ← IN PARALLEL with Thread A
 
-→ ABBA deadlock possible if cross-references exist
+Thread A: std::vector<int> signature encounters std::vector<long>
+  7. Calls register_generic_args for std::vector<long>
+     → already registered by Thread B, returns pointer (no waiting)
+
+Thread B: std::vector<long> signature encounters std::vector<int>
+  8. Calls register_generic_args for std::vector<int>
+     → already registered by Thread A, returns pointer (no waiting)
+
+Thread A: signature done → set SignatureFinalized → body finalization
+Thread B: signature done → set SignatureFinalized → body finalization
+  → Both body finalizations happen in parallel
+  → If they encounter each other, signatures are already finalized → no waiting
 ```
 
-If we use condvar WITHOUT signature finalization (RegisterOnly):
+`std::vector<int>` doesn't block `std::vector<long>`. They proceed in parallel.
+
+### Trace: Cross-Thread Body Finalization
+
 ```
-Thread A: vector<int>
-  1. Register (status = Building)
-  2. Unlock immediately (no signature finalization)
-  3. Return pointer
+Thread A: body finalization of std::vector<int>
+  → encounters std::vector<long>
+  → status = SignatureFinalized (Thread B already finished signature)
+  → returns pointer (no waiting)
 
-Thread B: vector<long>
-  1. Register (status = Building) — CAN PROCEED (Thread A unlocked)
-  2. Unlock immediately
-  3. Return pointer
-
-→ Both proceed in parallel, no deadlock possible
+Thread B: body finalization of std::vector<long>
+  → encounters std::vector<int>
+  → status = SignatureFinalized (Thread A already finished signature)
+  → returns pointer (no waiting)
 ```
 
-The RegisterOnly mode eliminates the ABBA deadlock because we never encounter other generics during "signature finalization" (we don't do it).
+Even if Thread B is slower and still in signature finalization when Thread A starts body finalization:
 
-### The Remaining Question
+```
+Thread A: body finalization of std::vector<int>
+  → encounters std::vector<long>
+  → status = Building, builder_thread = Thread B (different thread)
+  → waits on condvar for std::vector<long>
 
-If we use RegisterOnly mode, do we even need the condvar? With RegisterOnly:
-- Thread A registers `vector<int`, unlocks immediately, returns pointer
-- Thread B registers `vector<long>`, unlocks immediately, returns pointer
-- Both happen in parallel without any waiting
+Thread B: signature finalization of std::vector<long> completes
+  → set status = SignatureFinalized
+  → notify condvar
+  → Thread A wakes up, continues
 
-The condvar is only needed when we want to **wait** for an in-progress instantiation to finalize. But with RegisterOnly, we never wait — we just return the pointer.
+Thread B: body finalization of std::vector<long>
+  → encounters std::vector<int>
+  → status = SignatureFinalized (Thread A already finished signature)
+  → returns pointer (no waiting)
+```
 
-So the condvar is unnecessary for the GenericInstantiationPass if we use RegisterOnly mode.
+No ABBA deadlock. Thread A waits for Thread B's **signature** (not body). Thread B doesn't wait for Thread A because Thread A's signature is already finalized.
 
-### What About the Link Body Pass?
+### Why This Is Better Than the Old Condvar Approach
 
-The link body pass DOES need signature finalization (it resolves method calls, determines types). So it must use Full mode (hold lock through signature finalization).
+The old approach had two problems:
 
-Could we use condvar for the link body pass to allow different instantiations to proceed in parallel?
+1. **ABBA deadlock**: Thread A building `vec1<int>` waited for Thread B building `vec2<int>`, which waited for Thread A. Both waited for each other's **body** finalization.
 
-**Problem**: The link body pass encounters other generics during signature finalization. If we use condvar, ABBA deadlock is possible.
+2. **`activateIteration` reading incomplete data**: The nesting depth approach returned pointers before the instantiation was fully set up.
 
-**Solution**: Use the recursive mutex approach (current solution). When encountering an already-registered type, return the pointer immediately (no waiting). The signature finalization happens under the lock, but different instantiations are serialized.
+This solution avoids both:
 
-This is the trade-off: the link body pass serializes different instantiations, but the GenericInstantiationPass can parallelize them (with RegisterOnly mode).
+1. **No ABBA deadlock**: Signature finalization never waits. Body finalization only waits for signatures (not bodies). Since signatures are finalized before bodies, there's no circular waiting.
 
-### Summary: Can We Make Progress?
+2. **`activateIteration` is safe**: `register_generic_usage` is called BEFORE any finalization, so the types are always set in the container when the pointer is returned. The `activateIteration` method reads types from the container, which are set during registration.
 
-| Pass | Current | Optimization | Condvar Needed? |
-|------|---------|--------------|-----------------|
-| GenericInstantiationPass | Serial (single mutex) | RegisterOnly mode | No |
-| Link body pass (pass 2) | Serial (single mutex) | Recursive mutex (current) | No |
-| Link body pass (pass 1) | Serial (single mutex) | Recursive mutex (current) | No |
+### Data Structures Needed
 
-**The GenericInstantiationPass** can be parallelized with RegisterOnly mode (unlock after registration, before signature finalization). No condvar needed.
+```cpp
+// On BaseGenericDecl:
+enum class InstantiationStatus : int { Building, SignatureFinalized };
+struct InstantiationStatusEntry {
+    InstantiationStatus status;
+    std::thread::id builder_thread;
+    std::condition_variable cv;
+};
+std::vector<InstantiationStatusEntry> instantiation_statuses;
 
-**The link body pass** serializes different instantiations because it needs signature finalization under the lock. The recursive mutex handles circular dependencies. No condvar needed.
+// On InstantiationsContainer:
+std::mutex inst_status_mutex;  // protects status changes
+```
 
-**Are we clear to make progress?** Yes. The RegisterOnly mode for the GenericInstantiationPass is the simplest and safest approach. No condvar, no status tracking, no ABBA deadlock.
+### Concurrency Guarantees
 
-### Implementation Considerations
+| Phase | Mutex Held? | What It Waits For |
+|-------|-------------|-------------------|
+| Registration | `reg_mutex` | Nothing (serialized) |
+| Signature finalization | None | Nothing (never waits) |
+| Mark SignatureFinalized | `inst_status_mutex` | Nothing (brief lock) |
+| Body finalization | None | Dependency's signature (via condvar) |
+| Same-thread dependency | None | Nothing (skip wait) |
 
-1. **API change**: `register_generic_args` needs a mode parameter or a separate method
-2. **All 7 Generic*Decl types**: GenericStructDecl, GenericFuncDecl, GenericUnionDecl, GenericInterfaceDecl, GenericVariantDecl, GenericImplDecl, GenericTypeDecl all need the mode parameter
-3. **GenericInstantiationPass**: Pass `RegisterOnly` mode through `GenericInstantiatorAPI`
-4. **Link body pass**: Continue using `Full` mode (hold lock through signature finalization)
-5. **Testing**: Verify that signature finalization in `RegisterOnly` mode doesn't break anything when the same type is later encountered in `Full` mode
+### Summary
 
-### Concurrency Guarantees (RegisterOnly vs Full)
-
-| Operation | Mode | Mutex Held? | Thread Safety |
-|-----------|------|-------------|---------------|
-| Registration | Both | `reg_mutex` | Serialized |
-| Signature finalization | RegisterOnly | None | Parallel (different instantiations) |
-| Signature finalization | Full | `reg_mutex` | Serialized (part of registration) |
-| Body finalization | Both | None | Parallel |
-| Reuse of existing pointer | Both | None | Safe — no waiting, immediate return |
-| Cross-thread encounter | Both | None | Safe — finds existing registration, returns pointer |
+| Approach | ABBA Deadlock? | Parallelism | Complexity |
+|----------|---------------|-------------|------------|
+| Single mutex (current) | No | Serial (all generics) | Low |
+| Old condvar (removed) | Yes | Parallel | Medium |
+| **Phase-aware condvar (proposed)** | **No** | **Parallel (independent generics)** | **Medium** |
 
 ### Why Not Just `std::mutex`?
 

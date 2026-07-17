@@ -5,7 +5,6 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "std/except.h"
-#include <thread>
 
 void GenericInterfaceDecl::finalize_signature(ASTAllocator& allocator, InterfaceDefinition* inst) {
 
@@ -54,9 +53,6 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
     auto& reg_mutex = instantiator.getRegistrationMutex();
-    auto& statuses = instantiation_statuses;
-    auto& status_mutex = instantiator.getInstantiationStatusMutex();
-    auto& status_cv = instantiator.getInstantiationStatusCV();
 
     // locking the mutex to check (and maybe register) for generic instantiation
     reg_mutex.lock();
@@ -64,21 +60,10 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
         const auto idx = itr.first;
-        // unlock registration mutex
         reg_mutex.unlock();
-
-        // wait for finalization if still building
-        {
-            std::unique_lock<std::mutex> lock(status_mutex);
-            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building
-               && statuses[idx].builder_thread != std::this_thread::get_id()) {
-                instantiator.waitInstantiationFinalized(lock, this, idx);
-            }
-        }
         return instantiations[idx];
     }
 
-    // we will do a complete instantiation right now
     const auto impl = master_impl->shallow_copy(allocator);
 
     if(itr.first != instantiations.size()) {
@@ -87,58 +72,25 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
 #endif
     }
 
-    const auto inst_idx = itr.first;
-
-    // mark status as Building before unlocking registration mutex
-    statuses.push_back({InstantiationStatus::Building, std::this_thread::get_id()});
-
-    // must set this variables, otherwise finalization won't be able to get which concrete implementation to use
     impl->generic_parent = this;
     impl->generic_instantiation = itr.first;
-    // store the pointer of instantiation
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 
-    // unlocking the mutex because we registered an instantiation
-    // (other threads would find this from instantiations vector using an index
+    // finalize signature while holding the lock
+    finalize_signature(allocator, impl);
+    auto ptr = impl;
+    const auto span = std::span<InterfaceDefinition*>(&ptr, 1);
+    instantiator.FinalizeSignature(this, span);
+
+    // unlock after signature is finalized
     reg_mutex.unlock();
 
+    // body finalization proceeds without the lock
     if(body_linked) {
-
-        // signature and body both have been linked for master_impl
-        // so all we need to do is
-        finalize_signature(allocator, impl);
         finalize_body(allocator, impl);
-
-        // now finalize using instantiator
-        auto ptr = impl;
-        const auto span = std::span<InterfaceDefinition*>(&ptr, 1);
-        instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
-
-    } else {
-
-        // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
-        // TODO unsure this line is needed
-        // impl->extension_functions = master_impl->extension_functions;
-
-        // signature and body both have been linked for master_impl
-        // so all we need to do is
-        finalize_signature(allocator, impl);
-
-        // now finalize using instantiator
-        auto ptr = impl;
-        const auto span = std::span<InterfaceDefinition*>(&ptr, 1);
-        instantiator.FinalizeSignature(this, span);
-
     }
-
-    // mark as finalized and wake any waiters
-    {
-        std::lock_guard<std::mutex> lock(status_mutex);
-        statuses[inst_idx].status = InstantiationStatus::Finalized;
-    }
-    status_cv.notify_all();
 
     return impl;
 

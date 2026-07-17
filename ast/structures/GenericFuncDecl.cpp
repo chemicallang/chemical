@@ -13,7 +13,6 @@
 #include "ast/values/FunctionCall.h"
 #include "compiler/ASTDiagnoser.h"
 #include "std/except.h"
-#include <thread>
 
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
@@ -51,9 +50,6 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
     auto& reg_mutex = instantiator.getRegistrationMutex();
-    auto& statuses = instantiation_statuses;
-    auto& status_mutex = instantiator.getInstantiationStatusMutex();
-    auto& status_cv = instantiator.getInstantiationStatusCV();
 
     // locking the mutex to check (and maybe register) for generic instantiation
     reg_mutex.lock();
@@ -69,83 +65,48 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
         return nullptr;
     }
 
-    if(!itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
+    if(!itr.second) { // existing instantiation — reuse the pointer
         const auto idx = itr.first;
-        // unlock registration mutex
         reg_mutex.unlock();
-
-        // wait for finalization if still building
-        {
-            std::unique_lock<std::mutex> lock(status_mutex);
-            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building
-               && statuses[idx].builder_thread != std::this_thread::get_id()) {
-                instantiator.waitInstantiationFinalized(lock, this, idx);
-            }
-        }
-        // instantiation already exists and finalized
         return instantiations[idx];
     }
 
-#ifdef DEBUG
     if(itr.first != instantiations.size()) {
         // TODO enable this error, currently when a type deduction fails, we expect the type to be specified in argument list
         if(itr.first < instantiations.size()) {
-            // unlocking mutex, because we found an instantiation
             reg_mutex.unlock();
             return instantiations[itr.first];
         }
         CHEM_THROW_RUNTIME("iteration registered, that is not on the expected index");
     }
-#endif
-
-    const auto inst_idx = itr.first;
 
     const auto impl = master_impl->shallow_copy(allocator);
-
-    // mark status as Building before unlocking registration mutex
-    statuses.push_back({InstantiationStatus::Building, std::this_thread::get_id()});
 
     impl->generic_parent = this;
     impl->generic_instantiation = (int) instantiations.size();
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 
-    // unlocking the mutex because we registered an instantiation
-    // (other threads would find this from instantiations vector using an index
+    // finalize signature while holding the lock so that
+    // any thread encountering this instantiation gets a fully signed type
+    if(body_linked) {
+        finalize_signature(allocator, impl);
+    } else {
+        finalize_signature(allocator, impl);
+    }
+
+    auto ptr = impl;
+    const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
+    instantiator.FinalizeSignature(this, span);
+
+    // unlock after signature is finalized
     reg_mutex.unlock();
 
+    // body finalization proceeds without the lock
     if(body_linked) {
-
-        // signature and body both have been linked for master_impl
-        // so all we need to do is
-        finalize_signature(allocator, impl);
         finalize_body(allocator, impl);
-
-        // now finalize using instantiator
-        auto ptr = impl;
-        const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
-        instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
-
-    } else {
-
-        // signature and body both have been linked for master_impl
-        // so all we need to do is
-        finalize_signature(allocator, impl);
-
-        // now finalize using instantiator
-        auto ptr = impl;
-        const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
-        instantiator.FinalizeSignature(this, span);
-
     }
-
-    // mark as finalized and wake any waiters
-    {
-        std::lock_guard<std::mutex> lock(status_mutex);
-        statuses[inst_idx].status = InstantiationStatus::Finalized;
-    }
-    status_cv.notify_all();
 
     return impl;
 }

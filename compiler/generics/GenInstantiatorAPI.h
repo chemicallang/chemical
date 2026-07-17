@@ -3,9 +3,7 @@
 #pragma once
 
 #include "ast/base/ast_fwd.h"
-#include "ast/structures/BaseGenericDecl.h"
 #include <mutex>
-#include <condition_variable>
 #include <span>
 
 class InstantiationsContainer;
@@ -53,7 +51,7 @@ public:
         InstantiationsContainer& container,
         CoreNodes& coreNodes,
         ImplementationsIndex& implsIndex,
-        std::mutex& registration_mutex,
+        std::recursive_mutex& registration_mutex,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
@@ -89,31 +87,7 @@ public:
     /**
      * get the registration mutex
      */
-    std::mutex& getRegistrationMutex();
-
-    /**
-     * get the mutex protecting instantiation statuses
-     */
-    std::mutex& getInstantiationStatusMutex();
-
-    /**
-     * get the condvar for instantiation status
-     */
-    std::condition_variable& getInstantiationStatusCV();
-
-    /**
-     * notify all waiters that an instantiation has been finalized
-     */
-    void notifyInstantiationFinalized();
-
-    /**
-     * wait until the status at decl->instantiation_statuses[index] is no longer Building
-     */
-    InstantiationStatus waitInstantiationFinalized(
-        std::unique_lock<std::mutex>& lock,
-        BaseGenericDecl* decl,
-        size_t index
-    );
+    std::recursive_mutex& getRegistrationMutex();
 
     /**
      * this will change the allocator to this

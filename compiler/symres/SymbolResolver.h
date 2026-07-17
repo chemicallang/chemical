@@ -156,9 +156,10 @@ public:
     ImportPathHandler& path_handler;
 
     /**
-     * generic instantiation registration mutex
+     * generic instantiation registration mutex (recursive: signature finalization
+     * may recursively register new generic types encountered in signatures)
      */
-    std::mutex generic_inst_reg_mutex;
+    std::recursive_mutex generic_inst_reg_mutex;
 
     /**
      * the everything related to annotations handler

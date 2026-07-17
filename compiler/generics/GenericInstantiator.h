@@ -66,10 +66,11 @@ public:
     ImplementationsIndex& implsIndex;
 
     /**
-     * the registration mutex is used to register instantiations sequentially
-     * so they can be used among threads safely
+     * the registration mutex (recursive) is used to register instantiations
+     * and finalize signatures atomically, so they can be used among threads safely.
+     * recursive because signature finalization may recursively register new generic types.
      */
-    std::mutex& registration_mutex;
+    std::recursive_mutex& registration_mutex;
 
     /**
      * this points to the node being instantiated
@@ -117,7 +118,7 @@ public:
         InstantiationsContainer& container,
         CoreNodes& coreNodes,
         ImplementationsIndex& implsIndex,
-        std::mutex& registration_mutex,
+        std::recursive_mutex& registration_mutex,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder,
@@ -293,7 +294,9 @@ public:
 
     void FinalizeBody(GenericVariantDecl* gen_decl, VariantDefinition* decl, size_t itr);
 
-    void FinalizeNestedImpl(ImplDefinition* def);
+    void FinalizeNestedImplSignature(ImplDefinition* def);
+
+    void FinalizeNestedImplBody(ImplDefinition* def);
 
     void FinalizeSignature(GenericImplDecl* gen_decl, ImplDefinition* decl, size_t itr);
 

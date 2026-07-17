@@ -515,21 +515,29 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     }
     futures.clear();
 
-    // pass 2: full link body
+    // pass 2: full link body (parallel)
     for(auto& file_ptr : module->direct_files) {
         auto& file = *file_ptr.result;
-
-        auto res2 = link_body_task(resolver, &file);
-        if(!res2.diagnostics.empty()) {
-            Diagnoser::print_diagnostics(res2.diagnostics, chem::string_view(file.abs_path), "SymRes:link");
-        }
-        if(res2.has_errors) {
+        futures.emplace_back(pool.push([this, &file](int id){
+            auto res = link_body_task(resolver, &file);
+            if(!res.diagnostics.empty()) {
+                std::lock_guard<std::mutex> guard(print_mutex);
+                Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(file.abs_path), "SymRes:link");
+            }
+            return res.has_errors;
+        }));
+    }
+    for(auto& f : futures) {
+        auto has_errors = f.get();
+        if(has_errors) {
             if(options->stop_on_file_error) return 1;
             errored = true;
         }
-        resolver->reset_errors();
-        file_allocator.clear();
     }
+    futures.clear();
+
+    // clear everything allocated during pass 2
+    file_allocator.clear();
 
     if(errored) return 1;
 

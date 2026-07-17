@@ -3,7 +3,9 @@
 #pragma once
 
 #include "ast/base/ast_fwd.h"
+#include "compiler/generics/InstantiationsContainer.h"
 #include <mutex>
+#include <condition_variable>
 #include <span>
 
 class AnnotationController;
@@ -11,8 +13,6 @@ class AnnotationController;
 class CompilerBinder;
 
 class GenericInstantiator;
-
-class InstantiationsContainer;
 
 class TypeBuilder;
 
@@ -88,6 +88,45 @@ public:
      * get the registration mutex
      */
     std::mutex& getRegistrationMutex();
+
+    /**
+     * get the mutex protecting instantiation statuses
+     */
+    std::mutex& getInstantiationStatusMutex();
+
+    /**
+     * get the condvar for instantiation status
+     */
+    std::condition_variable& getInstantiationStatusCV();
+
+    /**
+     * get the status vector for a specific generic declaration
+     */
+    std::vector<InstantiationStatusEntry>& getInstantiationStatuses(void* key);
+
+    /**
+     * set the status of a specific instantiation
+     */
+    void setInstantiationStatus(void* key, size_t index, InstantiationStatus status);
+
+    /**
+     * notify all waiters that an instantiation has been finalized
+     */
+    void notifyInstantiationFinalized();
+
+    /**
+     * check if the given thread is the same thread building the instantiation
+     */
+    bool isBuildingThread(void* key, size_t index, std::thread::id tid);
+
+    /**
+     * wait until the status at [key][index] is no longer Building
+     */
+    InstantiationStatus waitInstantiationFinalized(
+        std::unique_lock<std::mutex>& lock,
+        void* key,
+        size_t index
+    );
 
     /**
      * this will change the allocator to this

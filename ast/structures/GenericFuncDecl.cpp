@@ -13,6 +13,7 @@
 #include "ast/values/FunctionCall.h"
 #include "compiler/ASTDiagnoser.h"
 #include "std/except.h"
+#include <thread>
 
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
@@ -50,6 +51,9 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
     auto& reg_mutex = instantiator.getRegistrationMutex();
+    auto& statuses = instantiator.getInstantiationStatuses(this);
+    auto& status_mutex = instantiator.getInstantiationStatusMutex();
+    auto& status_cv = instantiator.getInstantiationStatusCV();
 
     // locking the mutex to check (and maybe register) for generic instantiation
     reg_mutex.lock();
@@ -66,10 +70,21 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
     }
 
     if(!itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
-        // unlocking mutex, because we found an instantiation
+        const auto idx = itr.first;
+        // unlock registration mutex
         reg_mutex.unlock();
-        // instantiation already exists
-        return instantiations[itr.first];
+
+        // wait for finalization if still building
+        {
+            std::unique_lock<std::mutex> lock(status_mutex);
+            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building) {
+                if(!instantiator.isBuildingThread(this, idx, std::this_thread::get_id())) {
+                    instantiator.waitInstantiationFinalized(lock, this, idx);
+                }
+            }
+        }
+        // instantiation already exists and finalized
+        return instantiations[idx];
     }
 
 #ifdef DEBUG
@@ -84,7 +99,12 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
     }
 #endif
 
+    const auto inst_idx = itr.first;
+
     const auto impl = master_impl->shallow_copy(allocator);
+
+    // mark status as Building before unlocking registration mutex
+    statuses.push_back({InstantiationStatus::Building, std::this_thread::get_id()});
 
     impl->generic_parent = this;
     impl->generic_instantiation = (int) instantiations.size();
@@ -120,6 +140,13 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
         instantiator.FinalizeSignature(this, span);
 
     }
+
+    // mark as finalized and wake any waiters
+    {
+        std::lock_guard<std::mutex> lock(status_mutex);
+        statuses[inst_idx].status = InstantiationStatus::Finalized;
+    }
+    status_cv.notify_all();
 
     return impl;
 }

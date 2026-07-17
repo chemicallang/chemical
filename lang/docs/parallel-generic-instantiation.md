@@ -245,15 +245,182 @@ The first pass (`link_body_generic_decls`) only needs registrations, not full fi
 - The extra work is bounded by the number of registrations
 - The benefit is correctness: signatures are always complete when returned
 
-### Concurrency Guarantees
+## The GenericInstantiationPass Optimization Opportunity
 
-| Operation | Mutex Held? | Thread Safety |
-|-----------|-------------|---------------|
-| Registration | `reg_mutex` | Serialized |
-| Signature finalization | `reg_mutex` | Serialized (part of registration) |
-| Body finalization | None | Parallel |
-| Reuse of existing pointer | None | Safe — no waiting, immediate return |
-| Cross-thread encounter | None | Safe — finds existing registration, returns pointer |
+### What GenericInstantiationPass Does
+
+The `GenericInstantiationPass` (`compiler/symres/GenericInstantiationPass.cpp`) runs after `link_signature` and before `link_body`. It:
+
+1. Visits `GenericType` nodes in **signatures only** (not bodies)
+2. Calls `type->instantiate(generic_instantiator, type_location)` which calls `register_generic_args`
+3. `register_generic_args` locks mutex → registers → **finalizes signature** (under lock) → unlocks → finalizes body
+
+The key observation: **the GenericInstantiationPass only needs the pointer** to attach to the `GenericType` node. It doesn't need the instantiated type's signature to be finalized.
+
+### Why Signature Finalization Is Unnecessary Here
+
+When the GenericInstantiationPass encounters `func check(v : vec2<int>)`:
+
+1. It needs to know that `vec2<int>` exists → **registration needed**
+2. It needs to set `linked_ptr = vec2<int> impl` on the `GenericType` node → **pointer needed**
+3. It does NOT need to know what methods `vec2<int>` has, what their parameter types are, or what they return → **signature finalization NOT needed**
+
+Signature finalization replaces generic type parameters with concrete types in the instantiated type's own fields, methods, etc. This is only needed when:
+- The **link body pass** resolves method calls (e.g., `v.push(42)` needs to know `push`'s parameter type)
+- Another type references this type's methods in its body
+
+In the GenericInstantiationPass, we're only visiting signatures. We never traverse into the instantiated type's methods.
+
+### The Serialization Problem
+
+Currently, `register_generic_args` holds the mutex through signature finalization:
+
+```
+Thread A: processing file1, encounters std::vector<int>
+  1. Lock reg_mutex
+  2. Register std::vector<int> (new)
+  3. Finalize signature of std::vector<int>  ← HOLDING LOCK (~ms)
+  4. Unlock reg_mutex
+
+Thread B: processing file2, encounters std::vector<long>
+  1. Lock reg_mutex  ← BLOCKS until Thread A finishes signature finalization
+  2. Register std::vector<long> (new)
+  3. Finalize signature of std::vector<long>
+  4. Unlock reg_mutex
+```
+
+Thread B blocks for the entire duration of Thread A's signature finalization, even though `std::vector<int>` and `std::vector<long>` are completely independent instantiations.
+
+### Potential Solution: Unlock Before Signature Finalization
+
+Add a mode/flag to `register_generic_args` that controls whether to hold the lock through signature finalization:
+
+```
+register_generic_args(mode = RegisterOnly):  ← used by GenericInstantiationPass
+  1. Lock reg_mutex
+  2. register_generic_usage → (index, is_new)
+  3. If !is_new: unlock, return existing pointer
+  4. If is_new:
+     a. Shallow copy master_impl
+     b. Push to instantiations vector
+     c. Unlock reg_mutex  ← IMMEDIATELY after registration
+     d. Finalize signature (NO lock)
+     e. Finalize body (NO lock)
+     f. Return impl
+
+register_generic_args(mode = Full):  ← used by link body pass
+  1. Lock reg_mutex
+  2. register_generic_usage → (index, is_new)
+  3. If !is_new: unlock, return existing pointer
+  4. If is_new:
+     a. Shallow copy master_impl
+     b. Push to instantiations vector
+     c. Finalize signature (STILL HOLDING LOCK)
+     d. Unlock reg_mutex
+     e. Finalize body (NO lock)
+     f. Return impl
+```
+
+With this approach:
+
+```
+Thread A: processing file1, encounters std::vector<int>
+  1. Lock reg_mutex
+  2. Register std::vector<int> (new)
+  3. Unlock reg_mutex  ← IMMEDIATELY
+  4. Finalize signature of std::vector<int> (NO lock)
+
+Thread B: processing file2, encounters std::vector<long>
+  1. Lock reg_mutex  ← CAN PROCEED IMMEDIATELY (Thread A unlocked)
+  2. Register std::vector<long> (new)
+  3. Unlock reg_mutex  ← IMMEDIATELY
+  4. Finalize signature of std::vector<long> (NO lock)
+
+→ Both signature finalizations happen in parallel!
+```
+
+### Safety Analysis for RegisterOnly Mode
+
+**Question**: When Thread A unlocks after registration and Thread B registers a different instantiation, Thread B might encounter Thread A's instantiation during signature finalization. The signature isn't finalized yet. Is this safe?
+
+**Answer**: YES, for the GenericInstantiationPass:
+
+1. We only need the **type pointer** — the struct definition is valid (allocated during registration)
+2. We set `linked_ptr` on `GenericType` nodes — simple pointer assignment
+3. We don't call methods on the type or walk its members at this point
+4. The signature will be finalized later (in the link body pass or when `register_generic_args` is called with `Full` mode)
+
+**But**: In the link body pass, we DO need finalized signatures. So the link body pass must use `Full` mode.
+
+### Interaction with Circular Dependencies
+
+The recursive mutex still handles circular dependencies within a single thread:
+
+```
+Thread A: vec1<int>::register_generic_args(RegisterOnly)
+  1. Lock reg_mutex (count=1)
+  2. Register vec1<int> (new)
+  3. Unlock reg_mutex (count=0)
+  4. Finalize signature of vec1<int> (NO lock)
+     → encounters vec2<int> → calls vec2<int>::register_generic_args(RegisterOnly)
+       5. Lock reg_mutex (count=1)
+       6. Register vec2<int> (new)
+       7. Unlock reg_mutex (count=0)
+       8. Finalize signature of vec2<int> (NO lock)
+          → encounters vec1<int> → already registered, returns pointer
+       9. Return vec2<int> impl
+     → vec1<int> signature continues with vec2<int> pointer
+  10. Return vec1<int> impl
+```
+
+No deadlock, no waiting. Both signatures finalize in parallel (on the same thread, sequentially, but without holding the lock).
+
+### What About the Old Condvar Approach?
+
+The old approach used a condvar to wait for in-progress instantiations to finalize:
+
+```
+Thread A: building vec1<int>
+  1. Register vec1<int> (status = Building)
+  2. Finalize signature → encounters vec2<int>
+  3. Finds vec2<int> status = Building (by Thread B)
+  4. Waits on condvar for Thread B
+
+Thread B: building vec2<int>
+  1. Register vec2<int> (status = Building)
+  2. Finalize signature → encounters vec1<int>
+  3. Finds vec1<int> status = Building (by Thread A)
+  4. Waits on condvar for Thread A
+
+→ Deadlock: both threads wait for each other
+```
+
+**Have the problems been solved?** The ABBA deadlock was caused by waiting for a specific instantiation to finalize. With the new `RegisterOnly` approach, we never wait — we just return the pointer immediately. The condvar is unnecessary.
+
+**Are we clear to make progress?** Yes. The `RegisterOnly` mode is simpler and safer than the condvar approach:
+- No waiting, no condvar, no status tracking
+- Just unlock after registration, finalize signature without lock
+- Circular dependencies handled naturally (recursive mutex, same thread)
+- Cross-thread encounters just return the pointer (no waiting)
+
+### Implementation Considerations
+
+1. **API change**: `register_generic_args` needs a mode parameter or a separate method
+2. **All 7 Generic*Decl types**: GenericStructDecl, GenericFuncDecl, GenericUnionDecl, GenericInterfaceDecl, GenericVariantDecl, GenericImplDecl, GenericTypeDecl all need the mode parameter
+3. **GenericInstantiationPass**: Pass `RegisterOnly` mode through `GenericInstantiatorAPI`
+4. **Link body pass**: Continue using `Full` mode (hold lock through signature finalization)
+5. **Testing**: Verify that signature finalization in `RegisterOnly` mode doesn't break anything when the same type is later encountered in `Full` mode
+
+### Concurrency Guarantees (RegisterOnly vs Full)
+
+| Operation | Mode | Mutex Held? | Thread Safety |
+|-----------|------|-------------|---------------|
+| Registration | Both | `reg_mutex` | Serialized |
+| Signature finalization | RegisterOnly | None | Parallel (different instantiations) |
+| Signature finalization | Full | `reg_mutex` | Serialized (part of registration) |
+| Body finalization | Both | None | Parallel |
+| Reuse of existing pointer | Both | None | Safe — no waiting, immediate return |
+| Cross-thread encounter | Both | None | Safe — finds existing registration, returns pointer |
 
 ### Why Not Just `std::mutex`?
 

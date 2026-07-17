@@ -5,11 +5,24 @@
 #include <span>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #include <cassert>
 
 class BaseType;
 class ASTNode;
+
+enum class InstantiationStatus {
+    Building,
+    Finalized
+};
+
+struct InstantiationStatusEntry {
+    InstantiationStatus status;
+    std::thread::id builder_thread;
+};
 
 /**
  * each type inside this span is written for a generic instantiation
@@ -57,6 +70,14 @@ private:
 
     // we track current module instantiations
     std::vector<ASTNode*> current_module_instantiations;
+
+    // per-generic-decl instantiation status vector (keyed by generic decl pointer)
+    // indexed by instantiation position within that decl's instantiations vector
+    std::unordered_map<void*, std::vector<InstantiationStatusEntry>> instantiation_statuses;
+
+    // mutex and condvar protecting instantiation_statuses
+    std::mutex inst_status_mutex;
+    std::condition_variable inst_status_cv;
 
 public:
 
@@ -220,11 +241,71 @@ public:
     }
 
     /**
+     * get the status vector for a specific generic declaration
+     */
+    std::vector<InstantiationStatusEntry>& getInstantiationStatuses(void* key) {
+        return instantiation_statuses[key];
+    }
+
+    /**
+     * get the mutex protecting instantiation statuses
+     */
+    std::mutex& getInstantiationStatusMutex() {
+        return inst_status_mutex;
+    }
+
+    /**
+     * get the condvar for instantiation status
+     */
+    std::condition_variable& getInstantiationStatusCV() {
+        return inst_status_cv;
+    }
+
+    /**
+     * set the status of a specific instantiation (must hold inst_status_mutex)
+     */
+    void setInstantiationStatus(void* key, size_t index, InstantiationStatus status) {
+        instantiation_statuses[key][index].status = status;
+    }
+
+    /**
+     * notify all waiters that an instantiation has been finalized
+     */
+    void notifyInstantiationFinalized() {
+        inst_status_cv.notify_all();
+    }
+
+    /**
+     * check if the given thread is the same thread that is building the instantiation at [key][index]
+     */
+    bool isBuildingThread(void* key, size_t index, std::thread::id tid) {
+        return instantiation_statuses[key][index].builder_thread == tid;
+    }
+
+    /**
+     * wait until the status at [key][index] is no longer Building.
+     * the caller must already hold inst_status_mutex (passed as a unique_lock).
+     * returns the final status after waking.
+     */
+    InstantiationStatus waitInstantiationFinalized(
+        std::unique_lock<std::mutex>& lock,
+        void* key,
+        size_t index
+    ) {
+        auto& statuses = instantiation_statuses[key];
+        inst_status_cv.wait(lock, [&] {
+            return statuses[index].status != InstantiationStatus::Building;
+        });
+        return statuses[index].status;
+    }
+
+    /**
      * instantiations container can be cleared to be reused
      */
     void clear() {
         instantiations.clear();
         fileIdRegistry.clear();
+        instantiation_statuses.clear();
     }
 
 };

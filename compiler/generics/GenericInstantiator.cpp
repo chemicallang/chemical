@@ -1532,6 +1532,38 @@ std::mutex& GenericInstantiatorAPI::getRegistrationMutex() {
     return giPtr->registration_mutex;
 }
 
+std::mutex& GenericInstantiatorAPI::getInstantiationStatusMutex() {
+    return giPtr->container.getInstantiationStatusMutex();
+}
+
+std::condition_variable& GenericInstantiatorAPI::getInstantiationStatusCV() {
+    return giPtr->container.getInstantiationStatusCV();
+}
+
+std::vector<InstantiationStatusEntry>& GenericInstantiatorAPI::getInstantiationStatuses(void* key) {
+    return giPtr->container.getInstantiationStatuses(key);
+}
+
+void GenericInstantiatorAPI::setInstantiationStatus(void* key, size_t index, InstantiationStatus status) {
+    giPtr->container.setInstantiationStatus(key, index, status);
+}
+
+void GenericInstantiatorAPI::notifyInstantiationFinalized() {
+    giPtr->container.notifyInstantiationFinalized();
+}
+
+InstantiationStatus GenericInstantiatorAPI::waitInstantiationFinalized(
+    std::unique_lock<std::mutex>& lock,
+    void* key,
+    size_t index
+) {
+    return giPtr->container.waitInstantiationFinalized(lock, key, index);
+}
+
+bool GenericInstantiatorAPI::isBuildingThread(void* key, size_t index, std::thread::id tid) {
+    return giPtr->container.isBuildingThread(key, index, tid);
+}
+
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
     giPtr->setAllocator(allocator);
 }

@@ -5,6 +5,7 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "std/except.h"
+#include <thread>
 
 void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition* inst) {
 
@@ -53,6 +54,9 @@ ImplDefinition* GenericImplDecl::register_generic_args(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
     auto& reg_mutex = instantiator.getRegistrationMutex();
+    auto& statuses = instantiator.getInstantiationStatuses(this);
+    auto& status_mutex = instantiator.getInstantiationStatusMutex();
+    auto& status_cv = instantiator.getInstantiationStatusCV();
 
     // locking the mutex to check (and maybe register) for generic instantiation
     reg_mutex.lock();
@@ -60,10 +64,20 @@ ImplDefinition* GenericImplDecl::register_generic_args(
     // checking
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
-        // unlocking mutex, because we found an instantiation
+        const auto idx = itr.first;
+        // unlock registration mutex
         reg_mutex.unlock();
-        // iteration already exists
-        return instantiations[itr.first];
+
+        // wait for finalization if still building
+        {
+            std::unique_lock<std::mutex> lock(status_mutex);
+            if(idx < statuses.size() && statuses[idx].status == InstantiationStatus::Building) {
+                if(!instantiator.isBuildingThread(this, idx, std::this_thread::get_id())) {
+                    instantiator.waitInstantiationFinalized(lock, this, idx);
+                }
+            }
+        }
+        return instantiations[idx];
     }
 
     // we will do a complete instantiation right now
@@ -74,6 +88,11 @@ ImplDefinition* GenericImplDecl::register_generic_args(
         CHEM_THROW_RUNTIME("not the index we expected");
 #endif
     }
+
+    const auto inst_idx = itr.first;
+
+    // mark status as Building before unlocking registration mutex
+    statuses.push_back({InstantiationStatus::Building, std::this_thread::get_id()});
 
     // must set this variables, otherwise finalization won't be able to get which concrete implementation to use
     impl->generic_parent = this;
@@ -115,6 +134,13 @@ ImplDefinition* GenericImplDecl::register_generic_args(
         instantiator.FinalizeSignature(this, span);
 
     }
+
+    // mark as finalized and wake any waiters
+    {
+        std::lock_guard<std::mutex> lock(status_mutex);
+        statuses[inst_idx].status = InstantiationStatus::Finalized;
+    }
+    status_cv.notify_all();
 
     return impl;
 

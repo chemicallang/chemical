@@ -64,7 +64,7 @@ public:
 
     bool resolve_container(ASTDiagnoser& diagnoser, BaseType* containerType);
 
-    bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType);
+    bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType, InstantiationRequirement requirement = InstantiationRequirement::SignatureFinalization);
 
     inline BaseType* getRefType() {
         return Value::getType();
@@ -82,8 +82,8 @@ public:
         return resolve_container(diagnoser, getRefType());
     }
 
-    inline bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser) {
-        return ensure_specialized_container(instantiator, diagnoser, getRefType());
+    inline bool ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, InstantiationRequirement requirement = InstantiationRequirement::SignatureFinalization) {
+        return ensure_specialized_container(instantiator, diagnoser, getRefType(), requirement);
     }
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);

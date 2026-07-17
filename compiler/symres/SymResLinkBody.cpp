@@ -2018,7 +2018,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
 
     // determine constructor being called
     // after this call, parent id should NOT be linked with a struct / generic struct / variant
-    call->link_constructor(visitor.getAllocator(), visitor.generic_instantiator, !visitor.generic_context);
+    call->link_constructor(visitor.getAllocator(), visitor.generic_instantiator, !visitor.generic_context, InstantiationRequirement::SignatureFinalization);
 
     // check if variant member is not being called
     // then we must get a function type
@@ -2065,7 +2065,7 @@ instantiate_block:
         return true;
     }
     if(gen_decl) {
-        auto new_link = gen_decl->instantiate_call(visitor.generic_instantiator, call, expected_type);
+        auto new_link = gen_decl->instantiate_call(visitor.generic_instantiator, call, expected_type, InstantiationRequirement::SignatureFinalization);
         // instantiate call can return null, when the inferred types aren found to be not specialized
         if (!new_link) {
             parent_id->linked = gen_decl;
@@ -2095,7 +2095,7 @@ instantiate_block:
         call->report_concrete_types(visitor.getAstAllocator(), visitor.diagnoser);
 
     } else if(gen_var_decl) {
-        auto new_link = gen_var_decl->instantiate_call(visitor.generic_instantiator, call, expected_type);
+        auto new_link = gen_var_decl->instantiate_call(visitor.generic_instantiator, call, expected_type, InstantiationRequirement::SignatureFinalization);
         if(!new_link) {
             // no re-linkage required, because it's already linked with master implementation
             return true;
@@ -2211,7 +2211,7 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     if(generic_context) {
         gen_type->instantiate_inline(generic_instantiator, type_location);
     } else {
-        gen_type->instantiate(generic_instantiator, type_location);
+        gen_type->instantiate(generic_instantiator, type_location, InstantiationRequirement::SignatureFinalization);
     }
 }
 
@@ -2921,7 +2921,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     if(!structValue->resolve_container(diagnoser)) {
         return;
     }
-    if (!generic_context && !structValue->ensure_specialized_container(generic_instantiator, diagnoser)) {
+    if (!generic_context && !structValue->ensure_specialized_container(generic_instantiator, diagnoser, InstantiationRequirement::SignatureFinalization)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(diagnoser);

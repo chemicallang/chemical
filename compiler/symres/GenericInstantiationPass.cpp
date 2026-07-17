@@ -20,7 +20,7 @@ GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, S
     for (auto& inst : result.inline_instantiations) {
         GenericTypeDecl::finalize_signature(allocator, inst.first);
     }
-    // finalize the signature of all instantiations
+    // finalize the signature of all instantiations (registration only — this pass visits signatures, not bodies)
     for (auto& inst : result.inline_instantiations) {
         visitor.generic_instantiator.FinalizeSignature(inst.first->generic_parent, inst.first, inst.second);
     }
@@ -55,12 +55,14 @@ void GenericInstantiationPass::VisitIfStmt(IfStatement* node) {
 
 void GenericInstantiationPass::VisitStructValue(StructValue *val) {
     RecursiveVisitor<GenericInstantiationPass>::VisitStructValue(val);
-    val->ensure_specialized_container(generic_instantiator, diagnoser);
+    // this pass only needs registration — it visits signatures, not bodies
+    val->ensure_specialized_container(generic_instantiator, diagnoser, InstantiationRequirement::Registration);
 }
 
 void GenericInstantiationPass::VisitGenericType(GenericType* type) {
     RecursiveVisitor<GenericInstantiationPass>::VisitGenericType(type);
-    type->instantiate(generic_instantiator, type_location);
+    // this pass only needs registration — it visits signatures, not bodies
+    type->instantiate(generic_instantiator, type_location, InstantiationRequirement::Registration);
 }
 
 void GenericInstantiationPass::VisitFunctionDecl(FunctionDeclaration* node) {

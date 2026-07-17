@@ -46,7 +46,8 @@ void GenericInterfaceDecl::finalize_body(ASTAllocator& allocator, InterfaceDefin
 
 InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
     GenericInstantiatorAPI& instantiator,
-    std::vector<TypeLoc>& generic_args
+    std::vector<TypeLoc>& generic_args,
+    InstantiationRequirement requirement
 ) {
 
     auto& container = instantiator.getContainer();
@@ -61,6 +62,10 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
     if(!itr.second) {
         const auto idx = itr.first;
         reg_mutex.unlock();
+        // during body finalization, wait for the dependency's signature to be finalized
+        if(requirement == InstantiationRequirement::SignatureFinalization) {
+            instantiator.waitSignatureFinalized(this, idx);
+        }
         return instantiations[idx];
     }
 
@@ -77,14 +82,24 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 
-    // finalize signature while holding the lock
+    // set status to Building before unlocking
+    const auto inst_idx = itr.first;
+    {
+        std::lock_guard<std::mutex> status_lock(container.getInstantiationStatusMutex());
+        instantiation_statuses.push_back({ InstantiationStatus::Registered, std::this_thread::get_id() });
+    }
+
+    // unlock reg_mutex immediately — signature finalization only needs registration
+    reg_mutex.unlock();
+
+    // finalize signature without holding the lock
     finalize_signature(allocator, impl);
     auto ptr = impl;
     const auto span = std::span<InterfaceDefinition*>(&ptr, 1);
     instantiator.FinalizeSignature(this, span);
 
-    // unlock after signature is finalized
-    reg_mutex.unlock();
+    // mark signature as finalized and notify waiters
+    instantiator.notifySignatureFinalized(this, inst_idx);
 
     // body finalization proceeds without the lock
     if(body_linked) {
@@ -99,7 +114,8 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(
 InterfaceDefinition* GenericInterfaceDecl::instantiate_type(
     GenericInstantiatorAPI& instantiator,
     std::vector<TypeLoc>& types,
-    SourceLocation location
+    SourceLocation location,
+    InstantiationRequirement requirement
 ) {
 
     auto& diagnoser = instantiator.getDiagnoser();
@@ -118,7 +134,7 @@ InterfaceDefinition* GenericInterfaceDecl::instantiate_type(
         return nullptr;
     }
 
-    return register_generic_args(instantiator, generic_args);
+    return register_generic_args(instantiator, generic_args, requirement);
 
 
 }

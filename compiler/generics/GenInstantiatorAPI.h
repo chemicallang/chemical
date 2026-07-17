@@ -3,7 +3,9 @@
 #pragma once
 
 #include "ast/base/ast_fwd.h"
+#include "ast/structures/BaseGenericDecl.h"
 #include <mutex>
+#include <condition_variable>
 #include <span>
 
 class InstantiationsContainer;
@@ -27,12 +29,13 @@ private:
      * then set the owns to false, so it doesn't delete itself
      */
     bool owns = true;
-public:
 
     /**
      * the actual pointer
      */
     GenericInstantiator* giPtr;
+
+public:
 
     /**
      * view constructor, the pointer won't be freed
@@ -88,6 +91,32 @@ public:
      * get the registration mutex
      */
     std::recursive_mutex& getRegistrationMutex();
+
+    /**
+     * get the mutex protecting instantiation statuses
+     */
+    std::mutex& getInstantiationStatusMutex();
+
+    /**
+     * get the single condition variable for instantiation status waits
+     */
+    std::condition_variable& getInstantiationCv();
+
+    /**
+     * wait until the signature at decl->instantiation_statuses[index] is finalized
+     */
+    void waitSignatureFinalized(
+        BaseGenericDecl* decl,
+        size_t index
+    );
+
+    /**
+     * mark the signature as finalized and notify waiters
+     */
+    void notifySignatureFinalized(
+        BaseGenericDecl* decl,
+        size_t index
+    );
 
     /**
      * this will change the allocator to this

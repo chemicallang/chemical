@@ -82,7 +82,8 @@ public:
     FunctionDeclaration* register_generic_args(
         GenericInstantiatorAPI& instantiator,
         std::vector<TypeLoc>& generic_args,
-        SourceLocation location
+        SourceLocation location,
+        InstantiationRequirement requirement
     );
 
     /**
@@ -93,7 +94,8 @@ public:
     FunctionDeclaration* instantiate_call(
             GenericInstantiatorAPI& instantiator,
             FunctionCall* call,
-            BaseType* expected_type
+            BaseType* expected_type,
+            InstantiationRequirement requirement
     );
 
 #ifdef COMPILER_BUILD

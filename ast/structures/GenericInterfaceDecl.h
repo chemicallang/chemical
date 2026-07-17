@@ -78,7 +78,8 @@ public:
      */
     InterfaceDefinition* register_generic_args(
         GenericInstantiatorAPI& instantiator,
-        std::vector<TypeLoc>& types
+        std::vector<TypeLoc>& types,
+        InstantiationRequirement requirement
     );
 
     /**
@@ -87,7 +88,8 @@ public:
     InterfaceDefinition* instantiate_type(
         GenericInstantiatorAPI& instantiator,
         std::vector<TypeLoc>& types,
-        SourceLocation location
+        SourceLocation location,
+        InstantiationRequirement requirement
     );
 
 #ifdef COMPILER_BUILD

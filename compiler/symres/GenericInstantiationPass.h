@@ -41,7 +41,8 @@ public:
         resolver.instContainer, resolver.coreNodes, resolver.implsIndex, resolver.generic_inst_reg_mutex,
         *resolver.ast_allocator, diagnoser, resolver.comptime_scope.typeBuilder, resolver.comptime_scope.target_data
     ) {
-
+        // this pass only needs registration — it visits signatures, not bodies
+        // so it doesn't need signature/body finalization of the instantiations it creates
     }
 
     template<typename T>

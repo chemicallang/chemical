@@ -7,6 +7,7 @@
 #include "compiler/generics/InstantiationsContainer.h"
 #include <mutex>
 #include <unordered_map>
+#include <optional>
 
 class CompilerBinder;
 
@@ -103,6 +104,16 @@ public:
     std::unordered_map<GenericTypeParameter*, BaseType*> active_type_map;
 
     /**
+     * requirement is set by the public apis to require, what is required of nested generic types
+     * in debug mode we use optional which causes failures if not set explicitly
+     */
+#ifdef DEBUG
+    std::optional<InstantiationRequirement> _requirement = std::nullopt;
+#else
+    InstantiationRequirement _requirement = InstantiationRequirement::Registration;
+#endif
+
+    /**
      * target data
      */
     TargetData& targetData;
@@ -143,6 +154,25 @@ public:
 
     inline void setAllocator(ASTAllocator& allocator) {
         allocator_ptr = &allocator;
+    }
+
+    inline InstantiationRequirement getRequirement() {
+#ifdef DEBUG
+        // this would fail, if we explicitly don't set requirement
+        return _requirement.value();
+#else
+        return _requirement;
+#endif
+    }
+
+    inline void setRequirement(InstantiationRequirement req) {
+        _requirement = req;
+    }
+
+    inline void debug_unsetRequirement() {
+#ifdef DEBUG
+        _requirement = std::nullopt;
+#endif
     }
 
     void make_gen_type_concrete(BaseType*& type);
@@ -262,6 +292,16 @@ public:
 
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 
+    /**
+     * wait until the signature at decl->instantiation_statuses[index] is finalized
+     */
+    void waitSignatureFinalized(BaseGenericDecl* decl, size_t index);
+
+    /**
+     * mark the signature as finalized and notify waiters
+     */
+    void notifySignatureFinalized(BaseGenericDecl* decl, size_t index);
+
     void FinalizeSignature(TypealiasStatement* decl);
 
     void FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args);
@@ -332,6 +372,5 @@ public:
     void FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
 
     void FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
-
 
 };

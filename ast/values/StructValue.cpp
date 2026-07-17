@@ -574,7 +574,7 @@ bool StructValue::resolve_container(
     return true;
 }
 
-bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType) {
+bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantiator, ASTDiagnoser& diagnoser, BaseType* containerType, InstantiationRequirement requirement) {
     switch (containerType->kind()) {
         case BaseTypeKind::Generic: {
             const auto genType = containerType->as_generic_type_unsafe();
@@ -582,7 +582,7 @@ bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantia
             switch (linked->kind()) {
                 case ASTNodeKind::GenericStructDecl: {
                     const auto gen_decl = linked->as_gen_struct_def_unsafe();
-                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location());
+                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location(), requirement);
                     if(instantiatedType == nullptr) {
                         return false;
                     }
@@ -592,7 +592,7 @@ bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantia
                 }
                 case ASTNodeKind::GenericUnionDecl: {
                     const auto gen_decl = linked->as_gen_union_decl_unsafe();
-                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location());
+                    const auto instantiatedType = gen_decl->instantiate_type(instantiator, genType->types, encoded_location(), requirement);
                     if(instantiatedType == nullptr) {
                         return false;
                     }
@@ -609,7 +609,7 @@ bool StructValue::ensure_specialized_container(GenericInstantiatorAPI& instantia
                     container = definition;
                     break;
                 case ASTNodeKind::TypealiasStmt:
-                    return ensure_specialized_container(instantiator, diagnoser, linked->as_typealias_unsafe()->actual_type);
+                    return ensure_specialized_container(instantiator, diagnoser, linked->as_typealias_unsafe()->actual_type, requirement);
                 default: {
                     diagnoser.error(this) << "unknown generic declaration that can't be instantiated with generic types";
                     return false;

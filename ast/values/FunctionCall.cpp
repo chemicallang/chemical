@@ -1281,7 +1281,7 @@ void constructor_not_found_err(Diag& diag, ExtendableMembersContainerNode* paren
     }
 }
 
-void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call, bool specialize_generic) {
+void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call, bool specialize_generic, InstantiationRequirement requirement) {
     if(!parent_id->linked) return;
     const auto linked_kind = parent_id->linked->kind();
     switch(linked_kind) {
@@ -1300,7 +1300,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         case ASTNodeKind::GenericStructDecl:{
             const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
             if(!specialize_generic) return;
-            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location());
+            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location(), requirement);
             if(parent_struct == nullptr) return;
             auto constructorFunc = parent_struct->constructor_func(call->values);
             if(constructorFunc) {
@@ -1314,7 +1314,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         case ASTNodeKind::GenericVariantDecl: {
             const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
             if(!specialize_generic) return;
-            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location());
+            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location(), requirement);
             if(parent_struct == nullptr) return;
             auto constructorFunc = parent_struct->constructor_func(call->values);
             if(constructorFunc) {
@@ -1333,21 +1333,21 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
 
 // the returned generic iteration is the previous iteration of the struct of which constructor we linked with
 // when this method is called, it automatically register the generic arguments with the struct constructor getting the new iteration and setting it active
-void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic) {
+void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic, InstantiationRequirement requirement) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
     const auto parent_kind = parent_val->val_kind();
     switch(parent_kind) {
         case ValueKind::Identifier:{
             const auto parent_id = parent_val->as_identifier_unsafe();
-            link_constructor_id(parent_id, allocator, genApi, this, specialize_generic);
+            link_constructor_id(parent_id, allocator, genApi, this, specialize_generic, requirement);
             return;
         }
         case ValueKind::AccessChain:{
             const auto parent_chain = parent_val->as_access_chain_unsafe();
             const auto last = parent_chain->values.back()->as_identifier();
             if(last) {
-                link_constructor_id(last, allocator, genApi, this, specialize_generic);
+                link_constructor_id(last, allocator, genApi, this, specialize_generic, requirement);
                 // if the type has been updated, we should update of chain as well
                 parent_chain->setType(last->getType());
                 return;
@@ -1380,7 +1380,7 @@ void setParentType(Value* parent_val, BaseType* type) {
     }
 }
 
-bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type) {
+bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type, InstantiationRequirement requirement) {
     // relinking generic decl
     const auto parent_id = get_parent_id(parent_val);
     if(!parent_id) return true;
@@ -1389,7 +1389,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
     switch(linked->kind()) {
         case ASTNodeKind::GenericFuncDecl:{
             const auto gen_decl = linked->as_gen_func_decl_unsafe();
-            auto new_link = gen_decl->instantiate_call(genApi, this, expected_type);
+            auto new_link = gen_decl->instantiate_call(genApi, this, expected_type, requirement);
             if(!new_link) {
                 return false;
             }
@@ -1401,7 +1401,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
             const auto mem = linked->as_variant_member_unsafe();
             const auto mem_gen = mem->parent()->generic_parent;
             if(mem_gen != nullptr) {
-                const auto new_link = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type);
+                const auto new_link = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type, requirement);
                 if(!new_link) {
                     return false;
                 }
@@ -1418,7 +1418,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         }
         case ASTNodeKind::GenericStructDecl: {
             const auto gen_struct = linked->as_gen_struct_def_unsafe();
-            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location());
+            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location(), requirement);
             if(parent_struct == nullptr) return false;
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {
@@ -1432,7 +1432,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         }
         case ASTNodeKind::GenericVariantDecl: {
             const auto gen_struct = linked->as_gen_variant_decl_unsafe();
-            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location());
+            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location(), requirement);
             if(parent_struct == nullptr) return false;
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {

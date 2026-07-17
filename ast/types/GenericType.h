@@ -10,6 +10,8 @@
 class ASTDiagnoser;
 class GenericInstantiatorAPI;
 
+#include "ast/structures/BaseGenericDecl.h"
+
 class GenericType : public BaseType {
 public:
 
@@ -41,7 +43,7 @@ public:
      * should only be called if referenced type and subtypes were resolved successfully
      * @return true if instantiated, false if error occurred
      */
-    bool instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc);
+    bool instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc, InstantiationRequirement requirement = InstantiationRequirement::SignatureFinalization);
 
     ASTNode *linked_node() final;
 

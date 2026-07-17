@@ -62,11 +62,11 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(
-        controller, binder, child_resolver, container, coreNodes, implsIndex, registration_mutex, getAllocator(), diagnoser, typeBuilder, targetData
-    );
+    auto instantiator = newGenericInstantiatorFrom(*this);
     GenericInstantiatorAPI genApi(&instantiator);
-    if(!call->instantiate_gen_call(genApi, nullptr)) {
+    // function calls in generic bodies need signature finalization of dependencies
+    // (e.g., variant constructors, generic function calls)
+    if(!call->instantiate_gen_call(genApi, nullptr, getRequirement())) {
         diagnoser.error("couldn't instantiate call", call);
     }
     // this determines the type for the function call
@@ -244,10 +244,11 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(controller, binder, child_resolver, container, coreNodes, implsIndex, registration_mutex, getAllocator(), diagnoser, typeBuilder, targetData);
+        auto instantiator = newGenericInstantiatorFrom(*this);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(diagnoser);
-        val->ensure_specialized_container(genApi, diagnoser);
+        // struct values in generic bodies need signature finalization of the specialized container
+        val->ensure_specialized_container(genApi, diagnoser, getRequirement());
     }
 }
 
@@ -395,7 +396,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             if(alias->attrs.is_inlined) {
                 auto instantiator = newGenericInstantiatorFrom(*this);
                 GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+                // nested generic types encountered during instantiation need signature finalization
+                linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             }
             visit(type->referenced);
             return;
@@ -411,7 +413,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             auto instantiator = newGenericInstantiatorFrom(*this);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+            // nested generic types encountered during instantiation need signature finalization
+            linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
         case ASTNodeKind::GenericUnionDecl: {
@@ -425,7 +428,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             auto instantiator = newGenericInstantiatorFrom(*this);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+            // nested generic types encountered during instantiation need signature finalization
+            linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
         case ASTNodeKind::GenericInterfaceDecl:{
@@ -439,7 +443,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             auto instantiator = newGenericInstantiatorFrom(*this);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+            // nested generic types encountered during instantiation need signature finalization
+            linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
         case ASTNodeKind::GenericVariantDecl:{
@@ -454,7 +459,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             auto instantiator = newGenericInstantiatorFrom(*this);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+            // nested generic types encountered during instantiation need signature finalization
+            linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
         case ASTNodeKind::GenericTypeDecl: {
@@ -468,7 +474,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             auto instantiator = newGenericInstantiatorFrom(*this);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
+            // nested generic types encountered during instantiation need signature finalization
+            linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
         default:
@@ -614,6 +621,7 @@ static bool embedded_traverse(void* data, ASTAny* item) {
 
 void GenericInstantiator::Clear() {
     table.clear();
+    active_type_map.clear();
 }
 
 void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
@@ -648,6 +656,26 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t it
         active_type_map[param] = t;
         i++;
     }
+}
+
+void GenericInstantiator::waitSignatureFinalized(BaseGenericDecl* decl, size_t index) {
+    auto& status_mutex = container.getInstantiationStatusMutex();
+    auto& cv = container.getInstantiationCv();
+    std::unique_lock<std::mutex> lock(status_mutex);
+    auto& entry = decl->instantiation_statuses[index];
+    cv.wait(lock, [&entry]() {
+        return entry.status == InstantiationStatus::SignatureFinalized;
+    });
+}
+
+void GenericInstantiator::notifySignatureFinalized(BaseGenericDecl* decl, size_t index) {
+    auto& status_mutex = container.getInstantiationStatusMutex();
+    auto& cv = container.getInstantiationCv();
+    {
+        std::lock_guard<std::mutex> lock(status_mutex);
+        decl->instantiation_statuses[index].status = InstantiationStatus::SignatureFinalized;
+    }
+    cv.notify_all();
 }
 
 void GenericInstantiator::FinalizeSignature(TypealiasStatement* impl) {
@@ -1561,62 +1589,122 @@ std::recursive_mutex& GenericInstantiatorAPI::getRegistrationMutex() {
     return giPtr->registration_mutex;
 }
 
+std::mutex& GenericInstantiatorAPI::getInstantiationStatusMutex() {
+    return giPtr->container.getInstantiationStatusMutex();
+}
+
+std::condition_variable& GenericInstantiatorAPI::getInstantiationCv() {
+    return giPtr->container.getInstantiationCv();
+}
+
+void GenericInstantiatorAPI::waitSignatureFinalized(BaseGenericDecl* decl, size_t index) {
+    giPtr->waitSignatureFinalized(decl, index);
+}
+
+void GenericInstantiatorAPI::notifySignatureFinalized(BaseGenericDecl* decl, size_t index) {
+    giPtr->notifySignatureFinalized(decl, index);
+}
+
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
     giPtr->setAllocator(allocator);
 }
 
+// API Functions
+
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args) {
-    giPtr->FinalizeSignature(decl, impl, generic_args);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, impl, generic_args);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations) {
-    giPtr->FinalizeSignature(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, instantiations);
+    g.debug_unsetRequirement();
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations) {
-    giPtr->FinalizeBody(decl, instantiations);
+    auto& g = *giPtr;
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, instantiations);
+    g.debug_unsetRequirement();
 }

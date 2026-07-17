@@ -78,7 +78,8 @@ public:
      */
     VariantDefinition* register_generic_args(
         GenericInstantiatorAPI& instantiator,
-        std::vector<TypeLoc>& types
+        std::vector<TypeLoc>& types,
+        InstantiationRequirement requirement
     );
 
     /**
@@ -87,7 +88,8 @@ public:
     VariantDefinition* instantiate_type(
         GenericInstantiatorAPI& instantiator,
         std::vector<TypeLoc>& types,
-        SourceLocation location
+        SourceLocation location,
+        InstantiationRequirement requirement
     );
 
     /**
@@ -98,7 +100,8 @@ public:
     VariantDefinition* instantiate_call(
         GenericInstantiatorAPI& instantiator,
         FunctionCall* call,
-        BaseType* expected_type
+        BaseType* expected_type,
+        InstantiationRequirement requirement
     );
 
 #ifdef COMPILER_BUILD

@@ -16,6 +16,8 @@ class ASTDiagnoser;
 
 class GenericInstantiatorAPI;
 
+#include "ast/structures/BaseGenericDecl.h"
+
 class FunctionCall : public Value {
 public:
 
@@ -81,9 +83,9 @@ public:
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic);
+    void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic, InstantiationRequirement requirement);
 
-    bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type);
+    bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type, InstantiationRequirement requirement);
 
     bool primitive() final;
 

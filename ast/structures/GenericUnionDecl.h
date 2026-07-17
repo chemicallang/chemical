@@ -78,13 +78,15 @@ public:
      */
     UnionDef* register_generic_args(
         GenericInstantiatorAPI& instantiator,
-        std::vector<TypeLoc>& types
+        std::vector<TypeLoc>& types,
+        InstantiationRequirement requirement
     );
 
     UnionDef* instantiate_type(
         GenericInstantiatorAPI& instantiator,
         std::vector<TypeLoc>& types,
-        SourceLocation location
+        SourceLocation location,
+        InstantiationRequirement requirement
     );
 
 #ifdef COMPILER_BUILD

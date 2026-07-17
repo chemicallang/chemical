@@ -552,7 +552,7 @@ This solution avoids both:
 
 ```cpp
 // On BaseGenericDecl:
-enum class InstantiationStatus : int { Building, SignatureFinalized };
+enum class InstantiationStatus { Building, SignatureFinalized };
 struct InstantiationStatusEntry {
     InstantiationStatus status;
     std::thread::id builder_thread;

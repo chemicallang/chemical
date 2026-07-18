@@ -17,6 +17,7 @@ RUN_TESTS=true
 BUILD_TARGET=true
 TEST_LIBS=false
 TEST_INTERPRET=false
+TEST_NEGATIVE=false
 MODE="debug_quick"
 NO_CACHE="--no-cache"
 INCREMENTAL=false
@@ -36,6 +37,7 @@ usage() {
   echo "  --tcc                   Use TCCCompiler (TinyCC backend)"
   echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
+  echo "  --negative              Run negative (safety) tests only"
   echo "  --libs                  Include library tests (passes --arg-test-libs)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -68,6 +70,7 @@ while [ $# -gt 0 ]; do
       COMPILER_BIN="$BUILD_DIR/Compiler"
       ;;
     --interpret) TEST_INTERPRET=true ;;
+    --negative) TEST_NEGATIVE=true ;;
     --libs) TEST_LIBS=true ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -124,7 +127,24 @@ else
 fi
 
 # Build the test command
-if [ "$TEST_INTERPRET" = true ]; then
+if [ "$TEST_NEGATIVE" = true ]; then
+  NEG_OUT="$TEST_OUT_DIR/negative-tests-tcc.exe"
+  CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$NEG_OUT" --mode "$MODE" --arg-negative)
+  [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
+  [ "$EMIT_C" = true ] && CMD+=("--emit-c")
+  [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  echo "==> Building negative tests..."
+  echo "${CMD[@]}"
+  "${CMD[@]}"
+  if [ "$RUN_TESTS" = true ]; then
+    if [ ! -f "$NEG_OUT" ]; then
+      echo "Error: Negative test executable not found at $NEG_OUT"
+      exit 1
+    fi
+    echo "==> Running negative tests..."
+    "$NEG_OUT"
+  fi
+elif [ "$TEST_INTERPRET" = true ]; then
   # Interpretation mode: run the compiler which interprets main() directly
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" --mode "$MODE" --arg-interpret)
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")

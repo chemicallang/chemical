@@ -1389,6 +1389,29 @@ public:
     }
 };
 
+class InterpretGetCompilerPath : public FunctionDeclaration {
+public:
+
+    explicit InterpretGetCompilerPath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "get_compiler_path",
+            {cache.getStringType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(!call_scope->global->build_compiler) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call_scope->global->typeBuilder.getStringType(), call->encoded_location());
+        }
+        auto& exe_path = call_scope->global->build_compiler->options->exe_path;
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(exe_path.data(), exe_path.size()), call_scope->global->typeBuilder.getStringType(), call->encoded_location());
+    }
+};
+
 class InterpretGetCurrentFilePath : public FunctionDeclaration {
 public:
 
@@ -2822,6 +2845,7 @@ public:
     InterpretGetCallerCharacterNo get_caller_char_no;
     InterpretGetTarget get_target_fn;
     InterpretGetBuildDir get_build_dir;
+    InterpretGetCompilerPath get_compiler_path;
     InterpretGetCurrentFilePath get_current_file_path;
     InterpretGetLocFilePath get_loc_file_path;
     InterpretGetModuleScope get_module_scope;
@@ -2861,7 +2885,7 @@ public:
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         retStructPtr(cache, this), verFn(cache, this),         isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this), isRuntimeFn(cache, this), isComptimeFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
-        get_target_fn(cache, this), get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
+        get_target_fn(cache, this), get_build_dir(cache, this), get_compiler_path(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
@@ -2877,7 +2901,7 @@ public:
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &retStructPtr, &verFn,
             &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
-            &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
+            &get_caller_char_no, &get_target_fn, &get_build_dir, &get_compiler_path, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
             &expr_str_blk_val, &exprPrintFn, &exprPrintlnFn,

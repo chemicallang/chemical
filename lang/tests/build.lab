@@ -313,7 +313,9 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         var cstd_module = cstdMod.build(ctx, neg_job)
         var std_module = stdMod.build(ctx, neg_job)
         var fs_module = fsMod.build(ctx, neg_job)
-        const neg_deps = [ core_module, cstd_module, std_module, fs_module ]
+        var test_module = testMod.build(ctx, neg_job)
+        var test_env_module = testEnvMod.build(ctx, neg_job)
+        const neg_deps = [ core_module, cstd_module, std_module, fs_module, test_module, test_env_module ]
         const neg_path = lab::rel_path_to("negative")
         const neg_mod = ctx.directory_app_module(std::string_view(""), std::string_view("negative_tests"), std::string_view(&neg_path), neg_deps)
         ctx.add_module(neg_job, neg_mod)

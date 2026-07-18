@@ -5,32 +5,41 @@
 > A thorough analysis of Chemical's current safety posture, missing safety features,
 > implementation gaps, and **AI-friendly, low-effort additions**.
 >
-> **Key theme:** What can be implemented quickly by AI, behind flags, with minimal
-> performance impact, enabling per-module opt-in.
+> **Key theme:** What can be implemented quickly and reliably by **AI code generators**,
+> behind flags, with minimal performance impact, enabling **per-module opt-in**.
+> All changes must preserve user convenience and not break existing code.
+>
+> **Critical insight:** Our test suite tests "things that should PASS" (positive tests).
+> We have almost NO "things that should FAIL" tests (negative/compiler-diagnostic tests).
+> This document defines a framework for both.
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Current Safety Features (Accurate)](#current-safety-features-accurate)
-3. [Features That Already Exist](#features-that-already-exist)
-4. [Where Clause & Interface System — Current State](#where-clause--interface-system--current-state)
-5. [AI Implementation Methodology](#ai-implementation-methodology)
-6. [Feature 1: Enable safe_context Enforcement](#feature-1-enable-safe_context-enforcement)
-7. [Feature 2: Enable @unsafe Function Propagation](#feature-2-enable-unsafe-function-propagation)
-8. [Feature 3: Extern C Call Safety Check](#feature-3-extern-c-call-safety-check)
-9. [Feature 4: Std Library Checked Arithmetic](#feature-4-std-library-checked-arithmetic)
-10. [Feature 5: More InterfaceBits & Auto-Derive](#feature-5-more-interfacebits--auto-derive)
-11. [Feature 6: Container Constraint Enforcement](#feature-6-container-constraint-enforcement)
-12. [Feature 7: Bounds Checking (--bounds-check)](#feature-7-bounds-checking---bounds-check)
-13. [Feature 8: Nullable/NonNull Pointer Types](#feature-8-nullablenonnull-pointer-types)
-14. [Feature 9: Overflow Checking (--overflow-check)](#feature-9-overflow-checking---overflow-check)
-15. [Feature 10: Lifetime Escape Analysis (Basic)](#feature-10-lifetime-escape-analysis-basic)
-16. [Feature 11: Full safe Flag Architecture](#feature-11-full-safe-flag-architecture)
-17. [Feature Flag Architecture Summary](#feature-flag-architecture-summary)
-18. [Safety Infrastructure Reference](#safety-infrastructure-reference)
-19. [Comparison with Other Languages](#comparison-with-other-languages)
+2. [AI Suitability Ratings: How to Read This Document](#ai-suitability-ratings-how-to-read-this-document)
+3. [Current Safety Features (Accurate)](#current-safety-features-accurate)
+4. [Features That Already Exist](#features-that-already-exist)
+5. [Testing Strategy: Two-Tier Framework](#testing-strategy-two-tier-framework)
+6. [Per-Module Safety Configuration](#per-module-safety-configuration)
+7. [User Convenience & Migration Path](#user-convenience--migration-path)
+8. [AI Implementation Methodology](#ai-implementation-methodology)
+9. [Feature Catalog](#feature-catalog)
+   - [F1: Enable safe_context Enforcement](#f1-enable-safe_context-enforcement) **★ AI-ready**
+   - [F2: Enable @unsafe Function Propagation](#f2-enable-unsafe-function-propagation) **★ AI-ready**
+   - [F3: Extern C Call Safety Check](#f3-extern-c-call-safety-check) **★ AI-ready**
+   - [F4: Std Library Checked Arithmetic](#f4-std-library-checked-arithmetic) **★ AI-ready**
+   - [F5: More InterfaceBits & Auto-Derive](#f5-more-interfacebits--auto-derive) **★ AI-ready**
+   - [F6: Container Constraint Enforcement](#f6-container-constraint-enforcement) **☆ AI-moderate**
+   - [F7: Bounds Checking (--bounds-check)](#f7-bounds-checking---bounds-check) **☆ AI-moderate**
+   - [F8: Nullable/NonNull Pointer Types](#f8-nullablenonnull-pointer-types) **☆ AI-moderate**
+   - [F9: Overflow Checking (--overflow-check)](#f9-overflow-checking---overflow-check) **☆ AI-moderate**
+   - [F10: Lifetime Escape Analysis (Basic)](#f10-lifetime-escape-analysis-basic) **☆ AI-hard**
+   - [F11: Full --safe Flag Architecture](#f11-full---safe-flag-architecture) **★ AI-ready**
+10. [Feature Flag Architecture Summary](#feature-flag-architecture-summary)
+11. [Safety Infrastructure Reference](#safety-infrastructure-reference)
+12. [Comparison with Other Languages](#comparison-with-other-languages)
 
 ---
 
@@ -41,16 +50,84 @@ and C-level performance. It occupies a design space between C and Rust.
 
 **Key insight:** The compiler's safety infrastructure is surprisingly complete at the
 **tracking** level — what's missing is **enforcement**. This makes many safety features
-"finishing touches" rather than ground-up builds.
+"finishing touches" rather than ground-up builds — perfect for AI implementation.
 
-**For AI implementation:** Each feature below is broken into **tiny, atomic sub-steps**
-that can be independently implemented, tested, and verified. Each step includes:
-- Exact files and line numbers to modify
-- What the compiler does currently (the "before" state)
-- What it should do after (the "after" state)
-- A specific test case in `.ch` Chemical source code that validates the change
-- How to verify correctness (the compilation command and expected output)
-- Common pitfalls and how to constrain the AI
+### The AI Opportunity
+
+The best features for AI implementation share these properties:
+
+| Property | Why It Matters for AI |
+|----------|----------------------|
+| **Small change surface** (≤20 lines) | AI can produce correct code when scope is narrow |
+| **Existing pattern to follow** | AI can copy the `diagnoser.warn()` → `diagnoser.error()` pattern |
+| **Clear "before/after" state** | AI can search for exact code and replace it |
+| **Self-contained test** | AI can write a `.ch` file, compile it, and check exit code |
+| **No dependency on other steps** | Each step is independently verifiable |
+| **Feature flag defaults to OFF** | If AI produces incorrect code, existing tests still pass |
+
+### The Testing Gap
+
+Every existing test in `lang/tests/` is a **positive test** — code that should compile and
+run correctly. We have almost zero **negative tests** — code that should FAIL to compile
+with specific diagnostic messages. This is a critical gap because:
+
+1. Safety features are about REJECTING bad code, not accepting good code
+2. Without negative tests, a regression that makes the compiler ACCEPT unsafe code
+   will NOT be caught
+3. The "things that should fail" tests must be **shell-based integration tests**
+   that invoke the compiler CLI and check stderr, not Chemical source tests
+   (you can't write "this should fail to compile" in a language that needs to compile)
+
+**Solution:** A separate test runner (`lang/tests/safety/run_safety_tests.sh`) that
+invokes the compiler with `.ch` test files and checks:
+- Exit code (0 for positive tests, non-zero for negative tests)
+- Stderr content (must contain expected diagnostic message for negative tests)
+- Stdout content (must contain "Test N [name] succeeded" for positive tests)
+
+---
+
+## AI Suitability Ratings: How to Read This Document
+
+Each feature in the catalog gets an **AI-suitability rating**:
+
+### ★ AI-ready
+
+**What it means:** An AI can implement this feature in **1-2 prompts** with low risk.
+
+**Properties:**
+- ≤50 lines of C++/Chemical code change total
+- Follows an existing pattern (copy-paste-modify)
+- No new data structures or algorithms needed
+- Testable by compiling a `.ch` file and checking exit code
+- Feature flag defaults to OFF — zero risk of breaking existing code
+
+**Examples:** Adding `diagnoser.error()` calls, defining new interfaces, adding flag plumbing.
+
+### ☆ AI-moderate
+
+**What it means:** An AI can implement this but needs **3-5 prompts** with intermediate
+verification.
+
+**Properties:**
+- 50-200 lines of change across 3-5 files
+- Requires understanding existing data flow (e.g., how GEP works in LLVM)
+- May need new LLVM IR generation or codegen patterns
+- Testable but requires more setup (runtime executable, not just compile check)
+
+**Examples:** LLVM codegen changes, container constraint enforcement.
+
+### △ AI-hard
+
+**What it means:** Needs human guidance or multi-step verification. AI can assist
+with sub-steps but should not implement the whole feature autonomously.
+
+**Properties:**
+- >200 lines across many files
+- New analysis passes or data structures needed
+- Subtle correctness requirements (e.g., soundness of lifetime analysis)
+- Risk of false positives (rejecting valid code) or false negatives (accepting invalid code)
+
+**Examples:** Borrow checker, full lifetime analysis, alias analysis.
 
 ---
 
@@ -120,16 +197,441 @@ InterfaceBits current_bits;     // computed from constraints
 
 ---
 
-## Where Clause & Interface System — Current State
+## Testing Strategy: Two-Tier Framework
 
-### What Works
+### The Core Problem
+
+Currently, ALL tests in `lang/tests/` are **positive tests** — they verify that code
+which SHOULD compile DOES compile and produces correct results.
+
+**Missing:** Tests that verify code which SHOULD NOT compile is REJECTED with the
+correct diagnostic message. Without these, safety features cannot be reliably tested.
+
+### Proposed Solution: Shell-Based Negative Test Runner
+
+Safety tests live in a **separate directory** (`lang/tests/safety/`) that is NOT part
+of the main `build.lab` test suite. They are run by a shell script.
+
+**Directory structure:**
 ```
-Parser → WhereClause AST → LinkSignature links types → calculate_where_clause_bits() sets bit
+lang/tests/safety/
+├── run_safety_tests.sh        # The test runner (bash)
+├── positive/                  # Code that SHOULD compile and run
+│   ├── deref_in_unsafe.ch     # Should compile with --safe
+│   ├── extern_in_unsafe.ch    # Should compile with --safe
+│   ├── safe_by_default.ch     # Should compile WITHOUT --safe
+│   └── expected_output/       # Expected stdout for positive tests
+│       └── deref_in_unsafe.txt
+├── negative/                  # Code that SHOULD FAIL compilation
+│   ├── deref_in_safe.ch       # Should error with --safe: pointer deref
+│   ├── extern_call_no_unsafe.ch  # Should error with --safe: extern call
+│   ├── unsafe_fn_call.ch      # Should error with --safe: calling @unsafe fn
+│   └── expected_errors/       # Expected stderr snippets (grep patterns)
+│       ├── deref_in_safe.txt
+│       ├── extern_call_no_unsafe.txt
+│       └── unsafe_fn_call.txt
+├── runtime/                   # Code that SHOULD trap at runtime
+│   ├── oob_test.ch            # Should trap with --bounds-check
+│   ├── overflow_test.ch       # Should trap with --overflow-check
+│   └── expected_behavior/     # Description of expected runtime behavior
+│       └── oob_test.txt       # "exits with SIGILL or calls abort()"
+└── config/
+    └── test_list.txt          # Master list: which tests to run with which flags
 ```
-### What's Missing
-1. Only `COPY_BIT` defined — need `DESTRUCTIBLE_BIT`, `DEFAULT_BIT`, `TRIVIALLY_RELOCATABLE_BIT`
-2. No auto-derivation — types must manually `impl Copy for MyType`
-3. Container constraints not enforced — `vector<T>` doesn't require `T : TriviallyRelocatable`
+
+### How the Test Runner Works
+
+```bash
+#!/bin/bash
+# lang/tests/safety/run_safety_tests.sh
+# Runs safety tests without affecting the main test suite
+
+set -e
+
+COMPILER="${1:-cmake-build-debug/TCCCompiler}"
+SAFETY_DIR="$(cd "$(dirname "$0")" && pwd)"
+PASSED=0
+FAILED=0
+
+run_positive() {
+    local test_file="$1"
+    local flags="$2"
+    local expected_output="$3"
+    
+    echo "=== POSITIVE: $test_file (flags: $flags) ==="
+    local output
+    output=$("$COMPILER" "$SAFETY_DIR/positive/$test_file" -o /dev/null \
+        --mode debug_complete $flags 2>&1)
+    local exit_code=$?
+    
+    if [ $exit_code -ne 0 ]; then
+        echo "  FAIL: Expected compilation to succeed, got exit code $exit_code"
+        echo "  Output: $output"
+        FAILED=$((FAILED + 1))
+        return 1
+    fi
+    
+    # Optional: check stdout for expected test results
+    if [ -n "$expected_output" ] && [ -f "$SAFETY_DIR/positive/expected_output/$expected_output" ]; then
+        if ! echo "$output" | grep -q -f "$SAFETY_DIR/positive/expected_output/$expected_output"; then
+            echo "  FAIL: Expected output not found"
+            FAILED=$((FAILED + 1))
+            return 1
+        fi
+    fi
+    
+    echo "  PASS"
+    PASSED=$((PASSED + 1))
+}
+
+run_negative() {
+    local test_file="$1"
+    local flags="$2"
+    local expected_error_pattern="$3"
+    
+    echo "=== NEGATIVE: $test_file (flags: $flags) ==="
+    local output
+    output=$("$COMPILER" "$SAFETY_DIR/negative/$test_file" -o /dev/null \
+        --mode debug_complete $flags 2>&1 || true)
+    local exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        echo "  FAIL: Expected compilation to FAIL, but it succeeded"
+        echo "  Output: $output"
+        FAILED=$((FAILED + 1))
+        return 1
+    fi
+    
+    # Check that the expected error message is in stderr
+    if ! echo "$output" | grep -qi "$expected_error_pattern"; then
+        echo "  FAIL: Expected error pattern '$expected_error_pattern' not found"
+        echo "  Output: $output"
+        FAILED=$((FAILED + 1))
+        return 1
+    fi
+    
+    echo "  PASS"
+    PASSED=$((PASSED + 1))
+}
+
+run_runtime_trap() {
+    local test_file="$1"
+    local compiler_flags="$2"
+    local link_flags="$3"
+    
+    echo "=== RUNTIME: $test_file (flags: $compiler_flags) ==="
+    local exe="/tmp/safety_test_$$"
+    
+    "$COMPILER" "$SAFETY_DIR/runtime/$test_file" -o "$exe" \
+        --mode debug_complete $compiler_flags $link_flags 2>&1 || {
+        echo "  FAIL: Compilation failed (expected runtime test)"
+        FAILED=$((FAILED + 1))
+        return 1
+    }
+    
+    # Run and expect non-zero exit (trap/signal)
+    local exit_code=0
+    "$exe" 2>&1 || exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        echo "  FAIL: Expected runtime trap but program exited normally"
+        FAILED=$((FAILED + 1))
+        return 1
+    fi
+    
+    if [ $exit_code -ge 128 ]; then
+        local signal=$((exit_code - 128))
+        echo "  PASS: Program trapped with signal $signal"
+    else
+        echo "  PASS: Program exited with code $exit_code (expected failure)"
+    fi
+    PASSED=$((PASSED + 1))
+    rm -f "$exe"
+}
+
+# --- Test Cases ---
+
+# F1: safe_context enforcement
+run_negative "deref_in_safe.ch" "--safe" "de-referencing.*not allowed"
+run_positive "deref_in_unsafe.ch" "--safe" ""
+
+# F2: @unsafe function propagation
+run_negative "unsafe_fn_call.ch" "--safe" "unsafe function"
+
+# F3: Extern C call check
+run_negative "extern_call_no_unsafe.ch" "--safe" "extern.*unsafe"
+
+# F7: Bounds checking runtime
+run_runtime_trap "oob_test.ch" "--bounds-check" ""
+
+# Regressions: existing tests must still pass
+echo "=== REGRESSION CHECK ==="
+cd "$SAFETY_DIR/../.."
+./scripts/test.sh --tcc 2>&1 | tail -5
+cd "$SAFETY_DIR"
+
+echo ""
+echo "========================"
+echo "Results: $PASSED passed, $FAILED failed"
+exit $FAILED
+```
+
+### How to Add a New Safety Test
+
+**Positive test** (code that should compile):
+```bash
+# 1. Create the .ch file in positive/
+cat > lang/tests/safety/positive/my_feature_ok.ch << 'EOF'
+func main() {
+    unsafe {
+        var x = 42
+        var p = &raw x
+        return *p  // OK: in unsafe block
+    }
+}
+EOF
+
+# 2. Register in run_safety_tests.sh:
+#    run_positive "my_feature_ok.ch" "--safe" ""
+```
+
+**Negative test** (code that should fail):
+```bash
+# 1. Create the .ch file in negative/
+cat > lang/tests/safety/negative/my_feature_bad.ch << 'EOF'
+func main() {
+    var p = &raw x  # ERROR: taking address of undefined variable
+    return *p       # Should error: deref in safe context
+}
+EOF
+
+# 2. Create expected error pattern file
+echo "de-referencing" > lang/tests/safety/negative/expected_errors/my_feature_bad.txt
+
+# 3. Register in run_safety_tests.sh:
+#    run_negative "my_feature_bad.ch" "--safe" "$(cat negative/expected_errors/my_feature_bad.txt)"
+```
+
+### How Negative Tests Validate AI Changes
+
+For AI-implemented safety checks, the validation loop is:
+
+```bash
+# 1. Build the modified compiler
+./scripts/build.sh --tcc
+
+# 2. Run ONLY the negative tests (fast, ~2 seconds)
+bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler 2>&1 | grep -E "PASS|FAIL"
+
+# 3. Run the main test suite to check for regressions
+./scripts/test.sh --tcc --no-build
+
+# 4. If both pass, the change is correct
+```
+
+**This is the key insight:** AI changes can be validated in SECONDS by running
+only the relevant negative tests, without waiting for the full test suite.
+
+---
+
+## Per-Module Safety Configuration
+
+### The Goal
+
+Allow modules to opt in to safety checks gradually, without affecting their dependencies
+or dependents. A library compiled without `--safe` should work seamlessly with an
+application compiled with `--safe`.
+
+### Phase 1: Global Flags (Simplest — AI-ready)
+
+For the first implementation phase, safety flags are **global command-line flags**:
+
+```bash
+# Compile everything with safety enforcement
+cmake-build-debug/TCCCompiler my_app.mod -o my_app.exe --safe
+
+# Compile with warnings only (good for migration)
+cmake-build-debug/TCCCompiler my_app.mod -o my_app.exe --safe=warn
+
+# Compile with bounds checking
+cmake-build-debug/TCCCompiler my_app.mod -o my_app.exe --safe --bounds-check
+```
+
+**How it works:** The `--safe` flag is parsed in `CompilerMain.cpp` and stored in
+`LabBuildCompilerOptions.safe_mode`. It's propagated to:
+- `SymResLinkBody.safe_mode` — for symbol resolution phase checks
+- `TypeVerify.safe_mode` — for type verification phase checks
+- `CodegenEmitterOptions.safe_mode` — for LLVM codegen checks
+
+**Files to modify (AI-ready, ~5 files, ~30 lines):**
+1. `core/main/CompilerMain.cpp` — parse `--safe` flag
+2. `compiler/lab/LabBuildCompilerOptions.h` — add `SafeMode safe_mode = SafeMode::Off`
+3. `compiler/symres/SymResLinkBody.h` — add `SafeMode safe_mode` field
+4. `compiler/typeverify/TypeVerify.h` — add `SafeMode safe_mode` field
+5. `compiler/CodegenEmitterOptions.h` — add `SafeMode safe_mode` field
+
+### Phase 2: Per-Module Flags (Extended — AI-moderate)
+
+For the second phase, allow `chemical.mod` files to declare safety requirements:
+
+```
+// my_lib/chemical.mod
+module my_lib
+
+source "src"
+
+import "std"
+
+// Module-level safety flags
+safe = true
+bounds-check = true
+overflow-check = true
+```
+
+**How it works:**
+
+1. `ModuleFileData` gets new fields:
+   ```cpp
+   // In compiler/processor/ModuleFileData.h
+   bool safe_mode_set = false;  // Was safe explicitly set?
+   SafeMode safe_mode = SafeMode::Off;
+   bool bounds_check = false;
+   bool overflow_check = false;
+   ```
+
+2. The `.mod` file parser (`server/mod_file/Importer.cpp` or new parser) handles:
+   ```
+   safe = true     → safe_mode = SafeMode::Enforce
+   safe = warn     → safe_mode = SafeMode::Warn
+   bounds-check = true → bounds_check = true
+   ```
+
+3. `ModToLabConverter.cpp` generates `build.lab` code that calls new module APIs:
+   ```chemical
+   mod.set_safe_mode(SafeMode::Enforce)
+   mod.set_bounds_check(true)
+   ```
+
+4. During compilation, `process_module_tcc()` reads these flags and passes them
+   to the appropriate compilation phases.
+
+**Validation:**
+
+```bash
+# Test that a module with safe=true rejects unsafe code
+cat > /tmp/safe_mod/chemical.mod << 'EOF'
+application safe_mod
+source "src"
+safe = true
+EOF
+
+cat > /tmp/safe_mod/src/main.ch << 'EOF'
+func main() {
+    var x = 42
+    var p = &raw x
+    return *p  // Should error: safe module
+}
+EOF
+
+cmake-build-debug/TCCCompiler /tmp/safe_mod/chemical.mod -o /tmp/safe_mod.exe
+# EXPECTED: compile error about dereference in safe context
+```
+
+### Phase 3: Mixed Safety Levels (Advanced)
+
+Different modules can have different safety levels. A safe application can depend on
+an unsafe library — the library's code is compiled without safety checks, but the
+application's calls to the library go through `unsafe` boundaries:
+
+```
+// app/chemical.mod
+application my_app
+source "src"
+import "../unsafe_lib"  // This lib is compiled without --safe
+safe = true             // But this app has --safe
+```
+
+When calling functions from the unsafe library, the call site must be in an `unsafe {}`
+block because the compiler can't guarantee the external library's safety.
+
+**This is a significant design effort and is △ AI-hard.** Phase 1 and 2 are sufficient
+for most use cases.
+
+---
+
+## User Convenience & Migration Path
+
+### Design Principle: Safety Must Not Hurt Ergonomics
+
+Users will reject safety features if they make common tasks painful. Every safety check
+must be:
+
+1. **Opt-in at the module level** — existing projects continue to work without changes
+2. **Gradual** — users can fix violations one module at a time
+3. **Transparent** — error messages must clearly explain what's wrong and how to fix it
+4. **Pragmatic** — some operations are "safe enough" and shouldn't require `unsafe`
+
+### Migration Workflow
+
+**Step 1: Audit with warnings**
+```bash
+cmake-build-debug/TCCCompiler my_app.mod -o my_app.exe --safe=warn
+```
+All safety violations are reported as warnings. The project still compiles.
+Users can see what needs to be fixed.
+
+**Step 2: Fix violations**
+```chemical
+// Before:
+func init_buffer() {
+    var buf = malloc(1024)  // Warning: malloc requires unsafe
+    // ...
+}
+
+// After:
+func init_buffer() {
+    unsafe {
+        var buf = malloc(1024)  // OK: explicitly unsafe
+    }
+    // ...
+}
+```
+
+**Step 3: Enable enforcement**
+```bash
+cmake-build-debug/TCCCompiler my_app.mod -o my_app.exe --safe
+```
+All violations are now errors. Any unfixed issues block compilation.
+
+**Step 4: Lock it in (Phase 2+)**
+```toml
+# chemical.mod
+safe = true
+```
+The module requires safety. CI will reject unsafe code.
+
+### What Stays Convenient
+
+| Operation | Safe Mode Behavior | Why It's Convenient |
+|-----------|-------------------|---------------------|
+| `arr[i]` on a static array | Always allowed (bounds-check is separate flag) | Array access is the most common operation |
+| `a + b` on integers | Always allowed (overflow-check is separate flag) | Arithmetic is fundamental |
+| `str.length()` / `vec.size()` | Always allowed | Property access has no safety implications |
+| `*ptr` inside `unsafe { }` | Always allowed | Explicit unsafe block |
+| Calling a regular function | Always allowed | Most functions are safe |
+| `var x = y` (move semantics) | Already enforced | Existing behavior |
+| Pattern matching | Always allowed | Control flow is safe |
+
+### What Requires `unsafe` (in --safe mode)
+
+| Operation | Why Unsafe |
+|-----------|-----------|
+| `*ptr` (pointer dereference) | Memory safety violation if pointer is invalid |
+| `malloc()` / `free()` / `dealloc` | Manual memory management |
+| `ptr + n` / `ptr - n` | Pointer arithmetic can overflow or go out of bounds |
+| `as *mut T` casts (from non-pointer) | Creating a pointer from arbitrary data |
+| Calling `@unsafe` functions | Explicit opt-in to unsafe behavior |
+| Calling extern C functions | FFI bypasses all guarantees |
 
 ---
 
@@ -150,70 +652,93 @@ Every major safety feature is broken into **5-15 atomic sub-steps**. Each step:
 
 | Constraint | How to Enforce |
 |------------|---------------|
-| **Never modify existing tests** | AI must only add new tests, never change existing `.ch` files in `lang/tests/` |
+| **Never modify existing tests** | AI must only add new test files, never modify `.ch` files in `lang/tests/` |
 | **Use only `diagnoser.error()` not raw `std::cerr`** | The compiler's diagnostic system must be used for user-facing errors |
 | **Never remove `#include`** | AI may add includes but never remove them |
 | **Always compile before testing** | `./scripts/build.sh --tcc` before running tests |
-| **Test both pass and fail cases** | For each safety check, test both: the code that should compile AND the code that should error |
-| **Feature flag defaults to OFF** | New safety features must default to disabled (warnings, not errors) |
+| **Feature flag defaults to OFF** | New safety features must default to disabled |
 | **Compilation must not regress** | Run `./scripts/test.sh --tcc` before and after; same pass count |
 | **One file per change** | Each sub-step should modify at most 2-3 files |
 
-### General Test Structure
+### Verification Checklist for Every Step
 
-```chemical
-// lang/tests/safety/test_feature_X.ch
-func test_safe_deref_blocked() {
-    test("safe context blocks dereference", () => {
-        // This should be a compile-time error with --safe
-        // We test it at comptime so the interpreter catches it
-        var x = 42
-        var p = &raw x
-        // *p should error in safe context but not in unsafe
-        return true
-    })
-}
+Before marking a step complete, the AI must:
+
+- [ ] Build the compiler (`./scripts/build.sh --tcc`)
+- [ ] Run the positive test (code that should compile → exit 0)
+- [ ] Run the negative test (code that should NOT compile → exit non-zero + expected error in stderr)
+- [ ] Run the full test suite to check for regressions (`./scripts/test.sh --tcc --no-build`)
+- [ ] Verify that without any flag (--safe not passed), behavior is unchanged
+
+### The AI Prompt Template
+
+When asking an AI to implement a sub-step, use this template:
+
+```
+I need to [DO SPECIFIC THING] in the Chemical compiler.
+
+## Before state
+In file [FILE] at line [LINE_NUMBER]:
+```cpp
+[EXACT_EXISTING_CODE]
 ```
 
-### Verification Commands
+## After state
+Change it to:
+```cpp
+[EXACT_NEW_CODE]
+```
 
+## Files to modify
+- `[FILE_1]` — add/modify [DESCRIPTION]
+- `[FILE_2]` — add/modify [DESCRIPTION]
+
+## Validation
 ```bash
-# Step 1: Build the compiler with changes
+# Build
 ./scripts/build.sh --tcc
 
-# Step 2: Compile a test file that should PASS
-cmake-build-debug/TCCCompiler lang/tests/safety/pass_test.ch -o /dev/null --mode debug_complete 2>&1
-# Expected: exits 0, no errors
+# Positive test: [DESCRIPTION — should succeed]
+cmake-build-debug/TCCCompiler [TEST_FILE] -o /dev/null --mode debug_complete [FLAGS]
+# Expected: exit 0
 
-# Step 3: Compile a test file that should FAIL (with --safe flag)
-cmake-build-debug/TCCCompiler lang/tests/safety/fail_test.ch -o /dev/null --mode debug_complete --safe 2>&1
-# Expected: exits non-zero, specific error message
+# Negative test: [DESCRIPTION — should fail]
+cmake-build-debug/TCCCompiler [TEST_FILE] -o /dev/null --mode debug_complete [FLAGS]
+# Expected: exit non-zero, stderr contains "[EXPECTED_ERROR_TEXT]"
 
-# Step 4: Run full test suite to check for regressions
-./scripts/test.sh --tcc
+# Regression check
+./scripts/test.sh --tcc --no-build
+```
+
+## Constraints
+- Do NOT modify any existing test files
+- Default value must be OFF
+- Use diagnoser, not std::cerr
 ```
 
 ---
 
-## Feature 1: Enable safe_context Enforcement
+## Feature Catalog
 
-### Overview
-The `safe_context` flag is already tracked in `SymResLinkBody`. When set, unsafe operations
-should produce errors (or at least warnings). Currently, only `VisitDereferenceValue` produces
-a **warning**. We need to:
+---
+
+### F1: Enable safe_context Enforcement ★ AI-ready
+
+**AI-suitability: ★ AI-ready** — 7 sub-steps, each ≤10 lines, follows existing patterns.
+
+**Overview:** The `safe_context` flag is already tracked in `SymResLinkBody`. When set,
+unsafe operations should produce errors (or at least warnings). Currently, only
+`VisitDereferenceValue` produces a **warning**. We need to:
 1. Promote the deref warning to error (behind `--safe` flag)
 2. Add checks for other unsafe operations in `SymResLinkBody`
 
-### Dependencies
-- Step 1 must be done first (defines the `--safe` flag infrastructure)
-- Steps 2-6 are independent and can be done in any order
-- Step 7 is optional and can be done last
+#### Sub-Step 1.1: Add --safe flag to LabBuildCompilerOptions
 
-### Sub-Step 1.1: Add --safe flag to LabBuildCompilerOptions
+**AI scope:** ~5 lines in 1 file.
 
 **Before:** `LabBuildCompilerOptions` has no safety flag.
 
-**After:** Add `SafeMode` enum and `safe_mode` field:
+**After:** Add `SafeMode` enum and `safe_mode` field.
 
 ```cpp
 // In compiler/lab/LabBuildCompilerOptions.h
@@ -229,57 +754,42 @@ SafeMode safe_mode = SafeMode::Off;
 ```
 
 **Validation:**
-- Build the compiler and confirm `--safe` flag is recognized (even if it does nothing yet):
 ```bash
 ./scripts/build.sh --tcc
-cmake-build-debug/TCCCompiler --help 2>&1 | grep -i safe
-# Should show --safe flag description
+# Should compile without errors
 ```
 
 **AI constraints:**
 - Default must be `Off` — no existing code breaks
-- Use the same pattern as existing flags like `is_testing_env` or `sanitizers`
+- Use the same pattern as existing flags like `is_testing_env`
 
 ---
 
-### Sub-Step 1.2: Pass safe_mode through to SymResLinkBody
+#### Sub-Step 1.2: Create SafeMode.h and wire SafeMode through
 
-**Before:** `SymResLinkBody` has no access to the safe mode setting.
-
-**After:** Add `SafeMode` field to `SymResLinkBody` and set it during construction.
-
-```cpp
-// In compiler/symres/SymResLinkBody.h
-// Add member:
-SafeMode safe_mode = SafeMode::Off;
-
-// Modify constructor to accept the mode:
-SymResLinkBody(SymbolResolver& resolver, SafeMode safe_mode = SafeMode::Off)
-    : linker(resolver), diagnoser(resolver.loc_man), safe_mode(safe_mode), ...
-```
+**AI scope:** ~15 lines across 3 files.
 
 **Files to modify:**
-- `compiler/symres/SymResLinkBody.h` — add field, update constructor
-- `compiler/symres/SymResLinkBody.cpp` — update constructor calls if any
-- `compiler/lab/LabBuildCompiler.cpp` — pass `options->safe_mode` when creating `SymResLinkBody`
+- `compiler/SafeMode.h` — new file with the enum
+- `compiler/symres/SymResLinkBody.h` — add `SafeMode safe_mode = SafeMode::Off` field
+- `compiler/symres/SymResLinkBody.cpp` — update constructor call if needed
+- `compiler/typeverify/TypeVerify.h` — add `SafeMode safe_mode = SafeMode::Off` field
+- `compiler/typeverify/TypeVerify.cpp` — initialize from options
 
 **Validation:**
-- Build passes. No behavior change yet.
 ```bash
 ./scripts/build.sh --tcc
+# No behavior change yet
 ```
-
-**AI constraints:**
-- `SafeMode::Off` default ensures zero behavior change for existing code
-- Search for ALL `SymResLinkBody(` constructor calls in the codebase and update them
 
 ---
 
-### Sub-Step 1.3: Promote Deref Warning to Error with --safe
+#### Sub-Step 1.3: Promote Deref Warning to Error with --safe
+
+**AI scope:** ~10 lines in 1 file. **This is the simplest and most impactful single change.**
 
 **Before:**
 ```cpp
-// SymResLinkBody.cpp line ~2388
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(safe_context) {
         diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
@@ -291,7 +801,7 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
 **After:**
 ```cpp
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
-    if(safe_context) {
+    if(safe_context && safe_mode != SafeMode::Off) {
         switch(safe_mode) {
             case SafeMode::Enforce:
                 diagnoser.error("de-referencing a pointer outside unsafe block is not allowed", value);
@@ -299,69 +809,55 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
             case SafeMode::Warn:
                 diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
                 break;
-            default:
-                break;  // Off: no diagnostic
+            default: break;
         }
     }
-    ...
+    ...visit children...
 }
 ```
 
 **Validation:**
 ```bash
-# Build the compiler
-./scripts/build.sh --tcc
-
-# Create test file: lang/tests/safety/deref_safe.ch
-cat > lang/tests/safety/deref_safe.ch << 'EOF'
-func test_deref_safe() {
+# Positive test: no flag → no diagnostic
+cat > /tmp/deref_ok.ch << 'EOF'
+func main() {
     var x = 42
     var p = &raw x
-    // This dereference should warn with --safe=warn and error with --safe
-    // NOTE: in default mode (no flag), nothing happens
     return *p
 }
 EOF
+cmake-build-debug/TCCCompiler /tmp/deref_ok.ch -o /dev/null --mode debug_complete
+# EXPECTED: exit 0, no warning
 
-# Test 1: Default mode — no diagnostic
-cmake-build-debug/TCCCompiler lang/tests/safety/deref_safe.ch -o /dev/null --mode debug_complete 2>&1
-# EXPECTED: exits 0, no warnings
+# Negative test: --safe → error
+cmake-build-debug/TCCCompiler /tmp/deref_ok.ch -o /dev/null --mode debug_complete --safe 2>&1
+# EXPECTED: exit non-zero, stderr contains "de-referencing"
 
-# Test 2: --safe=warn — should warn
-cmake-build-debug/TCCCompiler lang/tests/safety/deref_safe.ch -o /dev/null --mode debug_complete --safe=warn 2>&1
-# EXPECTED: exits 0, but produces warning
-
-# Test 3: --safe — should error
-cmake-build-debug/TCCCompiler lang/tests/safety/deref_safe.ch -o /dev/null --mode debug_complete --safe 2>&1 | grep -i "de-referencing"
-# EXPECTED: exits non-zero, error message about dereferencing
-
-# Test 4: unsafe block — no diagnostic regardless of flag
-cat > lang/tests/safety/deref_unsafe.ch << 'EOF'
-func test_deref_unsafe() {
-    var x = 42
-    var p = &raw x
+# Positive test: unsafe block → no error even with --safe
+cat > /tmp/deref_unsafe.ch << 'EOF'
+func main() {
     unsafe {
+        var x = 42
+        var p = &raw x
         return *p
     }
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/deref_unsafe.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: exits 0, no errors/warnings
+cmake-build-debug/TCCCompiler /tmp/deref_unsafe.ch -o /dev/null --mode debug_complete --safe
+# EXPECTED: exit 0
 ```
 
-**AI constraints:**
-- Copy the existing `diagnoser.warn()` pattern — don't invent new error APIs
-- The `safe_context` toggle already works in `VisitUnsafeBlock` — just use it
-- Test both safe and unsafe contexts
+**This is the single highest-impact change for the effort.** It's ~10 lines and
+immediately makes `--safe` useful.
 
 ---
 
-### Sub-Step 1.4: Check DeallocStmt in safe_context
+#### Sub-Step 1.4: Check DeallocStmt in safe_context
 
-**Before:** `VisitDeallocStmt` has no safety check.
+**AI scope:** ~5 lines in 1 file.
 
+**Before:**
 ```cpp
-// SymResLinkBody.cpp ~line 1355
 void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
     visit(node->ptr);
 }
@@ -370,125 +866,91 @@ void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
 **After:**
 ```cpp
 void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
-    if(safe_context) {
-        check_safe_context("deallocating memory requires an unsafe block", node);
+    if(safe_context && safe_mode != SafeMode::Off) {
+        // Same switch pattern as Sub-Step 1.3
+        check_safe("deallocating memory requires an unsafe block", node);
     }
     visit(node->ptr);
 }
 ```
 
-Where `check_safe_context` is a helper:
-```cpp
-void SymResLinkBody::check_safe_context(const char* message, ASTNode* node) {
-    switch(safe_mode) {
-        case SafeMode::Enforce: diagnoser.error(message, node); break;
-        case SafeMode::Warn:    diagnoser.warn(message, node);  break;
-        default: break;
-    }
-}
-```
-
 **Validation:**
 ```bash
-cat > lang/tests/safety/dealloc_safe.ch << 'EOF'
-func test_dealloc() {
+cat > /tmp/dealloc_test.ch << 'EOF'
+func main() {
     var p = malloc(100) as *mut int
-    dealloc p  // Should error in safe mode
+    dealloc p  // Should error in --safe mode
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/dealloc_safe.ch -o /dev/null --mode debug_complete --safe 2>&1
+cmake-build-debug/TCCCompiler /tmp/dealloc_test.ch -o /dev/null --mode debug_complete --safe 2>&1
 # EXPECTED: error about dealloc requiring unsafe block
 ```
 
 ---
 
-### Sub-Step 1.5: Check Malloc/Free Calls in safe_context
+#### Sub-Step 1.5: Check Pointer Arithmetic in safe_context
 
-**Before:** Any function can call `malloc`/`free` without `unsafe`.
+**AI scope:** ~10 lines in 1 file.
 
-**After:** In `VisitFunctionCall`, check if the callee is an extern function like `malloc`.
+**Before:** Pointer arithmetic (`ptr + n`, `ptr++`) is unrestricted.
 
-Look for extern functions that are memory management functions. The simplest approach
-is to check if the function has `@extern` or is a C standard library function.
-
-**Implementation:**
+**After:** In the expression visitor or arithmetic visitor, check if operands are pointers:
 
 ```cpp
-// In SymResLinkBody::VisitFunctionCall, after resolving the callee:
-if(safe_context && safe_mode != SafeMode::Off) {
-    const auto callee = /* get the linked function declaration */;
-    if(callee && callee->is_extern_fn()) {
-        check_safe_context(
-            "calling extern C function requires an unsafe block",
-            call
-        );
+// In SymResLinkBody, during expression visiting:
+auto check_ptr_arith = [&](Value* val, BaseType* type) {
+    if(safe_context && safe_mode != SafeMode::Off && type && type->is_pointer()) {
+        check_safe("pointer arithmetic requires an unsafe block", val);
     }
-}
+};
+// Call this when visiting binary ops involving pointers
 ```
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/extern_call.ch << 'EOF'
-func test_extern_call() {
-    // printf is extern, requires unsafe in safe mode
-    printf("hello\n")
+cat > /tmp/ptr_arith.ch << 'EOF'
+func main() {
+    var arr : [3]int = [1, 2, 3]
+    var p = &raw arr[0]
+    p = p + 1  // Should error in --safe mode
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/extern_call.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: warning/error about calling extern C function
+cmake-build-debug/TCCCompiler /tmp/ptr_arith.ch -o /dev/null --mode debug_complete --safe 2>&1
+# EXPECTED: error about pointer arithmetic
 ```
 
 ---
 
-### Sub-Step 1.6: Check Pointer Arithmetic in safe_context
+#### Sub-Step 1.6: Check Cast to Ptr in safe_context
 
-**Before:** Pointer arithmetic is unrestricted.
+**AI scope:** ~5 lines in 1 file.
 
-**After:** In `VisitExpression` or the arithmetic visitor, check if the operation
-involves pointer types and requires `unsafe`.
+**After:** In `VisitCastedValue`, if the target type is a pointer, require unsafe:
 
-**Implementation:**
 ```cpp
-// In SymResLinkBody, when visiting an arithmetic operation:
-void SymResLinkBody::check_pointer_arith(Value* value, BaseType* type) {
-    if(safe_context && type && type->is_pointer()) {
-        check_safe_context("pointer arithmetic requires an unsafe block", value);
-    }
+// In SymResLinkBody::VisitCastedValue:
+if(safe_context && safe_mode != SafeMode::Off && target_type->is_pointer()) {
+    check_safe("casting to pointer type requires an unsafe block", value);
 }
 ```
 
 ---
 
-### Sub-Step 1.7: Check Cast to Ptr in safe_context
+### F2: Enable @unsafe Function Propagation ★ AI-ready
 
-**Before:** `as *mut T` casts are unrestricted.
+**AI-suitability: ★ AI-ready** — uncommenting and fixing existing code.
 
-**After:** In `VisitCastedValue`, check if the target type is a pointer.
+**Overview:** `FunctionDeclaration::is_unsafe()` exists. `@unsafe` annotation is parsed
+and stored. But calling an `@unsafe` function from safe code is **not enforced**.
+The check in `TypeVerify.cpp` is commented out.
 
----
+#### Sub-Step 2.1: Uncomment the @unsafe Check in TypeVerify
 
-### Validation Complete for Feature 1
+**AI scope:** ~10 lines in 1 file.
 
-After all sub-steps, run:
-```bash
-./scripts/build.sh --tcc
-./scripts/test.sh --tcc
-# All existing tests must pass (no regressions)
-```
-
----
-
-## Feature 2: Enable @unsafe Function Propagation
-
-### Overview
-`FunctionDeclaration::is_unsafe()` exists. `@unsafe` annotation is parsed and stored.
-But calling an `@unsafe` function from safe code is **not enforced**. The check in
-`TypeVerify.cpp` is commented out.
-
-### Sub-Step 2.1: Uncomment the @unsafe Check in TypeVerify
-
-**Before** (TypeVerify.cpp ~line 455):
+**Before:**
 ```cpp
+// TypeVerify.cpp line ~455
 // if(func_decl->is_unsafe() && resolver.safe_context) {
 //     ...error...
 // }
@@ -496,90 +958,64 @@ But calling an `@unsafe` function from safe code is **not enforced**. The check 
 
 **After:**
 ```cpp
-if(func_decl->is_unsafe() && verifier.is_unsafe) {
-    // Already in unsafe context — allowed
-} else if(func_decl->is_unsafe() && !verifier.is_safe_mode_off()) {
+if(func_decl->is_unsafe() && !verifier.is_unsafe && verifier.safe_mode != SafeMode::Off) {
     switch(verifier.safe_mode) {
         case SafeMode::Enforce:
-            verifier.diagnoser.error(
-                "calling @unsafe function requires an unsafe block",
-                call
-            );
+            verifier.diagnoser.error("calling @unsafe function requires an unsafe block", call);
             break;
         case SafeMode::Warn:
-            verifier.diagnoser.warn(
-                "calling @unsafe function from safe context",
-                call
-            );
+            verifier.diagnoser.warn("calling @unsafe function from safe context", call);
             break;
         default: break;
     }
 }
 ```
 
-Wait, looking at the actual code more carefully. The `is_unsafe` in TypeVerify is a boolean flag
-that's toggled by unsafe blocks. So the check should be:
-
-```cpp
-// If the function is @unsafe AND we're NOT already in an unsafe block
-if(func_decl->is_unsafe() && !verifier.is_unsafe) {
-    if(verifier.safe_mode == SafeMode::Enforce) {
-        verifier.diagnoser.error(...);
-    } else if(verifier.safe_mode == SafeMode::Warn) {
-        verifier.diagnoser.warn(...);
-    }
-}
-```
-
-**Files to modify:**
-- `compiler/typeverify/TypeVerify.cpp` — uncomment and fix the check
-- `compiler/typeverify/TypeVerify.h` — may need to add `safe_mode` field
-
 **Validation:**
 ```bash
-# Create an @unsafe function and call it from safe code
-cat > lang/tests/safety/unsafe_fn.ch << 'EOF'
+cat > /tmp/unsafe_fn.ch << 'EOF'
 @unsafe
 func unsafe_thing() : int {
     return 42
 }
 
-func safe_fn() : int {
+func main() : int {
     return unsafe_thing()  // Should error in --safe mode
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/unsafe_fn.ch -o /dev/null --mode debug_complete --safe 2>&1
+cmake-build-debug/TCCCompiler /tmp/unsafe_fn.ch -o /dev/null --mode debug_complete --safe 2>&1
 # EXPECTED: error about calling @unsafe function
 
-# Now test that wrapping in unsafe block fixes it
-cat > lang/tests/safety/unsafe_fn_ok.ch << 'EOF'
+# Negative test: wrapping in unsafe block should fix it
+cat > /tmp/unsafe_fn_ok.ch << 'EOF'
 @unsafe
 func unsafe_thing() : int {
     return 42
 }
 
-func safe_fn() : int {
+func main() : int {
     unsafe {
         return unsafe_thing()  // OK: in unsafe block
     }
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/unsafe_fn_ok.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: no error
+cmake-build-debug/TCCCompiler /tmp/unsafe_fn_ok.ch -o /dev/null --mode debug_complete --safe
+# EXPECTED: exit 0
 ```
+
+**Files to modify:**
+- `compiler/typeverify/TypeVerify.cpp` — uncomment and fix the check
+- `compiler/typeverify/TypeVerify.h` — add `safe_mode` field if not done in F1
 
 ---
 
-## Feature 3: Extern C Call Safety Check
+### F3: Extern C Call Safety Check ★ AI-ready
 
-### Overview
-Extern C functions bypass all safety guarantees. Calling them should require `unsafe`.
+**AI-suitability: ★ AI-ready** — small helper + one visitor check.
 
-### Sub-Step 3.1: Add is_extern_fn() Helper
+#### Sub-Step 3.1: Add is_extern_fn() Helper
 
-**Before:** No easy way to check if a function is an extern C declaration.
-
-**After:** Add a helper method to `FunctionDeclaration`:
+**AI scope:** ~3 lines in 1 file.
 
 ```cpp
 // In ast/structures/FunctionDeclaration.h
@@ -591,28 +1027,24 @@ inline bool is_extern_fn() const {
 **Validation:**
 ```bash
 ./scripts/build.sh --tcc
-# Just verify it compiles
 ```
 
 ---
 
-### Sub-Step 3.2: Check Extern Calls in VisitFunctionCall
+#### Sub-Step 3.2: Check Extern Calls in VisitFunctionCall
 
-**Before:** `VisitFunctionCall` in `SymResLinkBody` doesn't check extern status.
+**AI scope:** ~10 lines in 1 file.
 
-**After:** After resolving the function, check if it's extern and we're in safe context.
+**After:** In `SymResLinkBody::VisitFunctionCall`, after resolving the callee:
 
 ```cpp
-// Near the end of SymResLinkBody::VisitFunctionCall, add:
 if(safe_context && safe_mode != SafeMode::Off) {
+    // Get linked function declaration from the callee
     const auto callee = call->parent_val->get_chain_last_linked();
     if(callee && callee->kind() == ASTNodeKind::FunctionDecl) {
         const auto decl = callee->as_function_unsafe();
         if(decl->is_extern_fn()) {
-            check_safe_context(
-                "calling extern C function requires unsafe block",
-                call
-            );
+            check_safe("calling extern C function requires an unsafe block", call);
         }
     }
 }
@@ -620,42 +1052,28 @@ if(safe_context && safe_mode != SafeMode::Off) {
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/extern_call.ch << 'EOF'
-func test_extern() {
-    printf("hello world\n")  // extern C function -> error in safe mode
+cat > /tmp/extern_call.ch << 'EOF'
+func main() {
+    printf("hello\n")  // extern C function → error in safe mode
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/extern_call.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: warning/error about extern C call
-
-# Test that unsafe block silences it:
-cat > lang/tests/safety/extern_call_ok.ch << 'EOF'
-func test_extern() {
-    unsafe {
-        printf("hello world\n")
-    }
-}
-EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/extern_call_ok.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: no error
+cmake-build-debug/TCCCompiler /tmp/extern_call.ch -o /dev/null --mode debug_complete --safe 2>&1
+# EXPECTED: error about extern C call
 ```
 
 ---
 
-## Feature 4: Std Library Checked Arithmetic
+### F4: Std Library Checked Arithmetic ★ AI-ready
 
-### Overview
-Integer overflow is UB in Chemical (same as C/C++). Provide opt-in checked/saturating/wrapping
-arithmetic through the standard library.
+**AI-suitability: ★ AI-ready** — Chemical source code only (no C++ changes).
 
-### Sub-Step 4.1: Define Checked Arithmetic Interfaces
+#### Sub-Step 4.1: Define Checked Arithmetic Interfaces
 
-**Before:** No checked arithmetic interfaces exist.
+**AI scope:** ~15 lines in 1 Chemical source file.
 
 **After:** Add to `lang/libs/core/ops.ch`:
 
 ```chemical
-// Checked arithmetic
 public interface CheckedAdd<Rhs = Self> {
     func checked_add(&self, rhs : Rhs) : Option<Self>
 }
@@ -678,52 +1096,74 @@ public interface SaturatingSub<Rhs = Self> {
 ```
 
 **Validation:**
-- Just check that the module compiles:
 ```bash
 ./scripts/build.sh --tcc
+# Must compile without errors
 ```
 
 ---
 
-### Sub-Step 4.2: Implement CheckedAdd for Integer Types
+#### Sub-Step 4.2: Implement CheckedAdd, CheckedSub, CheckedMul for Integer Types
 
-**After:** Add implementations in `lang/libs/std/src/ops_impl.ch` or similar:
+**AI scope:** ~40 lines in 1 Chemical source file (repetitive, perfect for AI).
+
+**After:** Implement in `lang/libs/std/src/ops_impl.ch` or a new file:
 
 ```chemical
 impl CheckedAdd for i32 {
     func checked_add(&self, rhs : i32) : Option<i32> {
-        // At runtime, use LLVM with.overflow intrinsics when --overflow-check is set
-        // For basic version: just do the operation (wrapping UB semantics)
-        const result = *self + rhs
-        // TODO: LLVM codegen should emit overflow check with flag
+        var result = *self + rhs
+        // In comptime: check for overflow
+        // At runtime with --overflow-check: LLVM handles it
+        // Basic implementation: just wrap (same as regular add)
         return Option::Some(result)
     }
 }
+
+impl CheckedSub for i32 {
+    func checked_sub(&self, rhs : i32) : Option<i32> {
+        var result = *self - rhs
+        return Option::Some(result)
+    }
+}
+
+// ... same for i8, i16, i64, u8, u16, u32, u64, int, uint, long, ulong
 ```
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/checked_add.ch << 'EOF'
-func test_checked_add() {
+cat > /tmp/checked_arith.ch << 'EOF'
+func main() {
     var a : i32 = 100
     var b : i32 = 50
     match a.checked_add(b) {
         Option::Some(val) => {
-            test("checked_add works", () => val == 150)
+            printf("checked_add: %d\n", val)
         }
         Option::None => {
-            test("checked_add overflow", () => false)
+            printf("checked_add overflow!\n")
         }
     }
 }
 EOF
+cmake-build-debug/TCCCompiler /tmp/checked_arith.ch -o /dev/null --mode debug_complete
+# EXPECTED: exit 0
 ```
+
+**Note:** The `Option` return type is currently best-effort until LLVM with.overflow
+intrinsics are wired up in codegen (see F9). The Chemical-level interface is still
+valuable for API consistency.
 
 ---
 
-## Feature 5: More InterfaceBits & Auto-Derive
+### F5: More InterfaceBits & Auto-Derive ★ AI-ready
 
-### Sub-Step 5.1: Add New Bit Constants to InterfaceBits.h
+**AI-suitability: ★ AI-ready** — adding constants, defining interfaces, auto-derivation
+logic follows existing patterns.
+
+#### Sub-Step 5.1: Add New Bit Constants to InterfaceBits.h
+
+**AI scope:** ~10 lines in 1 file.
 
 **Before:**
 ```cpp
@@ -739,76 +1179,42 @@ static constexpr BitsType TRIVIALLY_RELOCATABLE_BIT = BitsType(1) << 3;
 static constexpr BitsType CLONE_BIT                 = BitsType(1) << 4;
 ```
 
-Also add convenience methods:
-```cpp
-static InterfaceBits copy() { return InterfaceBits(COPY_BIT); }
-static InterfaceBits destructible() { return InterfaceBits(DESTRUCTIBLE_BIT); }
-static InterfaceBits default_constructible() { return InterfaceBits(DEFAULT_CONSTRUCTIBLE_BIT); }
-static InterfaceBits trivially_relocatable() { return InterfaceBits(TRIVIALLY_RELOCATABLE_BIT); }
-static InterfaceBits clone() { return InterfaceBits(CLONE_BIT); }
-```
-
-**Validation:**
-```bash
-./scripts/build.sh --tcc
-# Must compile without errors
-```
-
 ---
 
-### Sub-Step 5.2: Define Corresponding Interfaces in Chemical Source
+#### Sub-Step 5.2: Define Corresponding Interfaces in Chemical Source
 
-**Before:** Only `Copy` interface exists in `lang/libs/core/interfaces.ch`.
+**AI scope:** ~5 lines in 1 Chemical source file.
 
-**After:** Add new marker interfaces:
 ```chemical
 // lang/libs/core/interfaces.ch
-public interface Copy {}
-
 public interface Destructible {}
-
-@non_dyn
 public interface TriviallyRelocatable {}
-
 public interface DefaultConstructible {}
 ```
 
-**Validation:**
-```bash
-./scripts/build.sh --tcc
-```
-
 ---
 
-### Sub-Step 5.3: Register New Interfaces in CoreNodes
+#### Sub-Step 5.3: Register New Interfaces in CoreNodes
 
-**Before:** `CoreNodes` only has `copy_interface`.
+**AI scope:** ~5 lines in 1 file.
 
-**After:**
 ```cpp
 // compiler/symres/CoreNodes.h
-InterfaceDefinition* copy_interface = nullptr;
 InterfaceDefinition* destructible_interface = nullptr;
 InterfaceDefinition* default_constructible_interface = nullptr;
 InterfaceDefinition* trivially_relocatable_interface = nullptr;
-```
-
-**Validation:**
-```bash
-./scripts/build.sh --tcc
+InterfaceDefinition* copy_interface = nullptr;  // already exists
 ```
 
 ---
 
-### Sub-Step 5.4: Auto-Set Destructible Bit During Struct Processing
+#### Sub-Step 5.4: Auto-Set Destructible Bit During Struct Processing
 
-**Before:** Interface bits are only set from explicit `where` clause constraints.
+**AI scope:** ~5 lines in 1 file.
 
-**After:** In `SymResLinkBody::LinkMembersContainerNoScope` or during type analysis,
-auto-set the `DESTRUCTIBLE_BIT` on the struct's interface bits:
+**After:** In `SymResLinkBody::LinkMembersContainerNoScope` or similar:
 
 ```cpp
-// In the struct processing code, after creating the struct:
 auto bits = container->interface_bits;
 if(container->has_destructor()) {
     bits.set(InterfaceBits::DESTRUCTIBLE_BIT);
@@ -818,31 +1224,28 @@ container->interface_bits = bits;
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/auto_destructible_bit.ch << 'EOF'
-// Test that a struct with @delete auto-gets Destructible bit
+cat > /tmp/auto_dtor_bit.ch << 'EOF'
 struct HasDtor {
     var x : int
     @delete func delete(&mut self) {}
 }
 
-// This function requires T : Destructible
 func <T> take_destructible(val : T) where T : Destructible {}
 
-func test_auto_bit() {
+func main() {
     var h = HasDtor { x: 42 }
-    take_destructible(h)  // Should compile: HasDtor auto-implements Destructible
+    take_destructible(h)  // Should compile: auto-Destructible
 }
 EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/auto_destructible_bit.ch -o /dev/null --mode debug_complete 2>&1
-# EXPECTED: compiles without error
+cmake-build-debug/TCCCompiler /tmp/auto_dtor_bit.ch -o /dev/null --mode debug_complete
+# EXPECTED: exit 0
 ```
 
 ---
 
-### Sub-Step 5.5: Auto-Set DefaultConstructible Bit
+#### Sub-Step 5.5: Auto-Set DefaultConstructible Bit
 
-**After:** In struct processing, if a struct has no `@constructor` annotation and all
-fields are zeroable/defaultable, set `DEFAULT_CONSTRUCTIBLE_BIT`:
+**AI scope:** ~5 lines in 1 file.
 
 ```cpp
 if(!container->has_constructor() && container->is_zeroable()) {
@@ -852,76 +1255,94 @@ if(!container->has_constructor() && container->is_zeroable()) {
 
 ---
 
-### Sub-Step 5.6: Auto-Set TriviallyRelocatable Bit
+#### Sub-Step 5.6: Auto-Set TriviallyRelocatable Bit
 
-**After:** A struct is trivially relocatable if:
-- Has no destructor AND
-- Has no self-referencing pointers AND
-- All members are trivially relocatable
+**AI scope:** ~10 lines in 1 file.
 
 ```cpp
-if(!container->has_destructor() && fields_are_trivially_relocatable(container)) {
+auto is_trivially_relocatable = [](MembersContainer* c) -> bool {
+    if(c->has_destructor()) return false;
+    // Check all fields are trivially relocatable
+    for(auto& member : c->members) {
+        auto type = member->known_type();
+        if(type && type->is_struct()) {
+            auto inner = type->get_struct_def();
+            if(inner && inner->has_destructor()) return false;
+        }
+    }
+    return true;
+};
+
+if(is_trivially_relocatable(container)) {
     bits.set(InterfaceBits::TRIVIALLY_RELOCATABLE_BIT);
 }
 ```
 
 ---
 
-## Feature 6: Container Constraint Enforcement
+### F6: Container Constraint Enforcement ☆ AI-moderate
 
-### Sub-Step 6.1: Add where T : Default to vector::resize()
+**AI-suitability: ☆ AI-moderate** — requires understanding the existing `Copy` interface
+and where clause system. Chemical source changes only, no C++ changes.
 
-**Before:**
-```chemical
-func resize(&mut self, new_size : size_t) {
-    // Uses zeroed<T>() for new elements — dangerous for non-zeroable types
-}
-```
+#### Sub-Step 6.1: Add where T : Copy to vector::get()
+
+**AI scope:** ~1 line change in 1 Chemical source file.
+
+**Note:** This already exists! `func get(&self, index : size_t) : T where T : Copy`
+
+#### Sub-Step 6.2: Add where constraints to vector::push(), vector::resize()
+
+**AI scope:** ~5 lines across 1-2 Chemical source files.
 
 **After:**
 ```chemical
-func resize(&mut self, new_size : size_t) where T : Default {
-    // Now requires T to implement Default interface
+// In lang/libs/std/src/vector.ch
+func push(&mut self, value : T) where T : Copy {
+    // current implementation uses memcpy internally
+    memcpy(&raw mut data_ptr[self.size], &raw value, sizeof(T))
+    intrinsics::forget(value)
+}
+
+func resize(&mut self, new_size : size_t) where T : DefaultConstructible {
+    // Uses zeroed<T>() for new elements — requires DefaultConstructible
 }
 ```
 
 **Validation:**
 ```bash
-# Test that vector<int> (which has Default) can still resize
-# Test that vector<NoDefaultStruct> gets a compile error on resize
+cat > /tmp/vector_constraints.ch << 'EOF'
+struct NoCopy {
+    var x : int
+    // NOT Copy — this struct should not be pushable
+}
+
+func main() {
+    var v : std::vector<int>
+    v.push(42)  // OK: int is Copy
+    
+    // var v2 : std::vector<NoCopy>
+    // v2.push(NoCopy { x: 1 })  // Should error: NoCopy is not Copy
+}
+EOF
+cmake-build-debug/TCCCompiler /tmp/vector_constraints.ch -o /dev/null --mode debug_complete
+# EXPECTED: exit 0 (the commented-out test is not compiled)
 ```
 
 ---
 
-### Sub-Step 6.2: Add where T : Copy to vector::push()
+### F7: Bounds Checking (--bounds-check) ☆ AI-moderate
 
-**Before:**
-```chemical
-func push(&mut self, value : T) {
-    memcpy(&raw mut data_ptr[s], &raw value, sizeof(T))
-    intrinsics::forget(value)
-}
-```
+**AI-suitability: ☆ AI-moderate** — requires understanding LLVM IR generation and GEP.
+The test requires running a compiled executable, not just compiling.
+
+#### Sub-Step 7.1: Add --bounds-check Flag
+
+**AI scope:** ~3 lines across 2 files.
 
 **After:**
-```chemical
-func push(&mut self, value : T) where T : Copy {
-    // Only allows trivially copyable types
-}
-```
-
-**Note:** This is more aggressive. For destructible types, you need a different push
-method that properly moves (destructs old + copies). Consider keeping a separate
-`push_move` for movable types.
-
----
-
-## Feature 7: Bounds Checking (--bounds-check)
-
-### Sub-Step 7.1: Add --bounds-check Flag
-
-**After:** Add to `CodegenEmitterOptions.h`:
 ```cpp
+// compiler/CodegenEmitterOptions.h
 bool bounds_check = false;
 ```
 
@@ -932,71 +1353,70 @@ bool bounds_check = false;
 
 ---
 
-### Sub-Step 7.2: Pass Bounds Check Flag to LLVM Codegen
+#### Sub-Step 7.2: Pass Bounds Check Flag to LLVM Codegen
 
-**After:** In the LLVM codegen for `IndexOperator::llvm_value()` and
-`IndexOperator::llvm_pointer()`, insert bounds checks before the GEP:
+**AI scope:** ~30 lines in 1 file (LLVM.cpp).
+
+**After:** In `IndexOperator::llvm_value()` and `IndexOperator::llvm_pointer()`,
+insert bounds checks before GEP:
 
 ```cpp
-// Pseudo-code for IndexOperator::llvm_value()
-if(gen.bounds_check) {
-    auto index = /* LLVM value for the index */;
-    auto size = /* LLVM value for the array size */;
-    auto in_bounds = gen.builder->CreateICmpULT(index, size);
+if(gen.bounds_check && gen.out_mode != OutputMode::ReleaseFast) {
+    auto idx = /* index value */;
+    auto size = /* array size value */;
+    auto in_bounds = gen.builder->CreateICmpULT(idx, size);
     
-    // Create trap block
-    auto trap_block = llvm::BasicBlock::Create(...);
-    auto cont_block = llvm::BasicBlock::Create(...);
-    gen.builder->CreateCondBr(in_bounds, cont_block, trap_block);
+    auto trap_bb = llvm::BasicBlock::Create(*gen.context, "oob_trap", gen.current_func);
+    auto cont_bb = llvm::BasicBlock::Create(*gen.context, "oob_cont", gen.current_func);
     
-    // In trap block: call llvm.trap()
-    gen.builder->SetInsertPoint(trap_block);
-    gen.builder->CreateCall(/* llvm.trap intrinsic */);
+    gen.builder->CreateCondBr(in_bounds, cont_bb, trap_bb);
+    
+    gen.builder->SetInsertPoint(trap_bb);
+    gen.builder->CreateCall(gen.intrinsic(llvm::Intrinsic::trap));
     gen.builder->CreateUnreachable();
     
-    // Continue in cont_block
-    gen.builder->SetInsertPoint(cont_block);
+    gen.builder->SetInsertPoint(cont_bb);
 }
 ```
 
 **Validation:**
 ```bash
-# Create a test that indexes out of bounds
-cat > lang/tests/safety/oob_test.ch << 'EOF'
-func test_oob() {
+cat > /tmp/oob_test.ch << 'EOF'
+func main() {
     var arr : [3]int = [1, 2, 3]
-    var val = arr[10]  // Out of bounds — should trap with --bounds-check
+    var val = arr[10]  // Out of bounds
 }
 EOF
 
-# Without flag: UB (might segfault, might return garbage)
-cmake-build-debug/Compiler lang/tests/safety/oob_test.ch -o lang/tests/safety/oob_test.exe --mode debug_complete
-./lang/tests/safety/oob_test.exe
-# EXPECTED: undefined behavior (might crash, might not)
+# Without flag: UB (might crash, might not)
+cmake-build-debug/Compiler /tmp/oob_test.ch -o /tmp/oob_test.exe --mode debug_complete
+/tmp/oob_test.exe ; echo "exit: $?"
+# EXPECTED: undefined behavior (might work, might crash)
 
 # With flag: should trap
-cmake-build-debug/Compiler lang/tests/safety/oob_test.ch -o lang/tests/safety/oob_test.exe --mode debug_complete --bounds-check
-./lang/tests/safety/oob_test.exe
-# EXPECTED: traps with SIGILL or calls abort()
+cmake-build-debug/Compiler /tmp/oob_test.ch -o /tmp/oob_test.exe --mode debug_complete --bounds-check
+/tmp/oob_test.exe ; echo "exit: $?"
+# EXPECTED: traps (exit code > 128 means signal)
 ```
 
 **AI constraints:**
-- Only add checks in `Debug` mode (check `gen.out_mode`)
-- Use `CreateCondBr` + `CreateCall` to `@llvm.trap` — don't use assertions or `abort()`
-- Must not change the `inbounds` GEP flag — keep `inbounds = true` even with bounds check
-- The bounds check is an ADDITIONAL check, NOT a replacement for `inbounds`
+- Only add checks in non-release modes (check `gen.out_mode`)
+- Use `@llvm.trap` intrinsic — don't use `assert()` or `abort()`
+- Keep `inbounds = true` on GEP even with bounds check
 
 ---
 
-## Feature 8: Nullable/NonNull Pointer Types
+### F8: Nullable/NonNull Pointer Types ☆ AI-moderate
 
-### Sub-Step 8.1: Create NonNull<T> Wrapper
+**AI-suitability: ☆ AI-moderate** — Chemical source only, no C++ changes.
+Requires understanding `Option<T>` pattern.
 
-**After:** Create `lang/libs/std/src/ptr.ch`:
+#### Sub-Step 8.1: Create NonNull<T> Wrapper in std
+
+**AI scope:** ~30 lines in 1 Chemical source file.
 
 ```chemical
-public namespace std {
-
+// lang/libs/std/src/ptr.ch (new file)
 public struct NonNull<T> {
     var ptr : *mut T
 
@@ -1008,148 +1428,129 @@ public struct NonNull<T> {
         return Option::None()
     }
 
-    // Safe: verified non-null at construction
     func get(&self) -> &mut T {
-        return &mut *ptr
+        return &mut *ptr  // Safe: verified non-null at construction
     }
 
     func get_ptr(&self) -> *mut T {
         return ptr
     }
 }
-
-}
 ```
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/nonnull_test.ch << 'EOF'
-import std
-
-func test_nonnull() {
+cat > /tmp/nonnull_test.ch << 'EOF'
+func main() {
     var x = 42
     match std::NonNull::make(&raw mut x) {
         Option::Some(ref nn) => {
-            test("NonNull holds correct value", () => *nn.get() == 42)
+            printf("value: %d\n", *nn.get())
         }
         Option::None => {
-            test("NonNull creation failed", () => false)
-        }
-    }
-    
-    // Null pointer should fail
-    var null_ptr : *mut int = null
-    match std::NonNull::make(null_ptr) {
-        Option::Some(ref nn) => {
-            test("NonNull should not accept null", () => false)
-        }
-        Option::None => {
-            test("NonNull rejected null", () => true)
+            printf("unexpected null\n")
         }
     }
 }
 EOF
+cmake-build-debug/TCCCompiler /tmp/nonnull_test.ch -o /dev/null --mode debug_complete
+# EXPECTED: exit 0
 ```
 
 ---
 
-## Feature 9: Overflow Checking (--overflow-check)
+### F9: Overflow Checking (--overflow-check) ☆ AI-moderate
 
-### Sub-Step 9.1: Add --overflow-check Flag
+**AI-suitability: ☆ AI-moderate** — uses LLVM `*_with_overflow` intrinsics.
+Requires understanding LLVM IR.
 
-**After:** Add to `CodegenEmitterOptions.h`:
+#### Sub-Step 9.1: Add --overflow-check Flag
+
+**AI scope:** ~3 lines across 2 files.
+
 ```cpp
+// compiler/CodegenEmitterOptions.h
 bool overflow_check = false;
 ```
 
 ---
 
-### Sub-Step 9.2: Use LLVM WithOverflow Intrinsics
+#### Sub-Step 9.2: Use LLVM WithOverflow Intrinsics for +, -, *
 
-**After:** In the LLVM backend's `operate()` function (for `+`, `-`, `*` on integers),
-use the `*_with_overflow` LLVM intrinsic when `overflow_check` is enabled:
+**AI scope:** ~40 lines in 1 file (LLVM.cpp).
+
+**After:** In the LLVM backend's binary operation codegen:
 
 ```cpp
-// In compiler/backend/LLVM.cpp, in the binary operation codegen:
-if(gen.overflow_check && is_arithmetic(op) && is_integer(type)) {
+if(gen.overflow_check && is_arithmetic_operator(op) && is_integer_type(type)) {
     llvm::Intrinsic::ID intrinsic_id;
     switch(op) {
-        case Operation::Addition: intrinsic_id = llvm::Intrinsic::sadd_with_overflow; break;
-        case Operation::Subtraction: intrinsic_id = llvm::Intrinsic::ssub_with_overflow; break;
+        case Operation::Addition:       intrinsic_id = llvm::Intrinsic::sadd_with_overflow; break;
+        case Operation::Subtraction:    intrinsic_id = llvm::Intrinsic::ssub_with_overflow; break;
         case Operation::Multiplication: intrinsic_id = llvm::Intrinsic::smul_with_overflow; break;
         default: goto normal_path;
     }
+    
     auto result = gen.builder->CreateBinaryIntrinsic(intrinsic_id, lhs, rhs);
     auto value = gen.builder->CreateExtractValue(result, 0);
     auto overflow = gen.builder->CreateExtractValue(result, 1);
     
-    // Branch: if overflow, trap
-    auto trap_block = llvm::BasicBlock::Create(...);
-    auto cont_block = llvm::BasicBlock::Create(...);
-    gen.builder->CreateCondBr(overflow, trap_block, cont_block);
+    auto trap_bb = llvm::BasicBlock::Create(*gen.context, "overflow_trap", gen.current_func);
+    auto cont_bb = llvm::BasicBlock::Create(*gen.context, "overflow_cont", gen.current_func);
     
-    gen.builder->SetInsertPoint(trap_block);
-    gen.builder->CreateCall(/* llvm.trap */);
+    gen.builder->CreateCondBr(overflow, trap_bb, cont_bb);
+    
+    gen.builder->SetInsertPoint(trap_bb);
+    gen.builder->CreateCall(gen.get_intrinsic(llvm::Intrinsic::trap));
     gen.builder->CreateUnreachable();
     
-    gen.builder->SetInsertPoint(cont_block);
+    gen.builder->SetInsertPoint(cont_bb);
     return value;
 }
 normal_path:
-// Existing codegen...
+    // ... existing code ...
 ```
 
 **Validation:**
 ```bash
-cat > lang/tests/safety/overflow_test.ch << 'EOF'
-func test_overflow() {
+cat > /tmp/overflow_test.ch << 'EOF'
+func main() {
     var max_i32 = 2147483647
     var result = max_i32 + 1  // Should trap with --overflow-check
 }
 EOF
 
-cmake-build-debug/Compiler lang/tests/safety/overflow_test.ch -o lang/tests/safety/overflow_test.exe --mode debug_complete --overflow-check
-./lang/tests/safety/overflow_test.exe
-# EXPECTED: traps with SIGILL (calls llvm.trap on overflow)
+cmake-build-debug/Compiler /tmp/overflow_test.ch -o /tmp/overflow_test.exe \
+    --mode debug_complete --overflow-check
+/tmp/overflow_test.exe ; echo "exit: $?"
+# EXPECTED: traps (exit code > 128)
 ```
 
 ---
 
-## Feature 10: Lifetime Escape Analysis (Basic)
+### F10: Lifetime Escape Analysis (Basic) △ AI-hard
 
-### Sub-Step 10.1: Track Scope Depth in SymResLinkBody
+**AI-suitability: △ AI-hard** — requires new analysis pass, risk of false positives.
+**Phase 1 (basic scope tracking) is AI-moderate**, Phase 2+ is AI-hard.
 
-**Before:** No scope depth tracking.
+#### Sub-Step 10.1: Track Scope Depth (AI-moderate)
 
-**After:** Add a scope depth counter:
+**AI scope:** ~10 lines in 1 file.
 
 ```cpp
 // In SymResLinkBody.h
 int scope_depth = 0;
 ```
 
-Increment on scope entry, decrement on scope exit:
-```cpp
-// In table.scope_start() — track depth
-void SymResLinkBody::VisitBlockScope(BlockScope* node) {
-    table.scope_start();
-    scope_depth++;
-    for (const auto child: node->nodes) {
-        visit(child);
-    }
-    table.scope_end();
-    scope_depth--;
-}
-```
+Increment/decrement around block scope visiting.
 
 ---
 
-### Sub-Step 10.2: Track Reference Bindings
+#### Sub-Step 10.2: Track Reference Bindings (AI-moderate)
 
-**After:** When a reference is assigned to a local variable, record its scope depth:
+**AI scope:** ~15 lines in 2 files.
 
 ```cpp
-// In SymResLinkBody.h
 struct RefBinding {
     VariableIdentifier* var;
     int scope_depth;  // depth at which the referent was created
@@ -1157,83 +1558,35 @@ struct RefBinding {
 std::vector<RefBinding> ref_bindings;
 ```
 
-When visiting a `VarInitStatement` where the type is a reference (`&T`), record it:
-```cpp
-// In VisitVarInitStmt, after resolving:
-if(node->known_type()->is_reference() && safe_mode != SafeMode::Off) {
-    ref_bindings.push_back({node, scope_depth});
-}
-```
-
 ---
 
-### Sub-Step 10.3: Check Return of Reference to Local
+#### Sub-Step 10.3: Check Return of Reference to Local (△ AI-hard)
 
-**After:** In `VisitReturnStmt`, if the returned value is a reference, check that
-it doesn't refer to a local variable:
+**AI scope:** ~20 lines in 1 file, but correctness is subtle.
 
 ```cpp
-// In VisitReturnStmt:
 if(node->value && node->value->getType()->is_reference()) {
-    // Check if the reference refers to a local variable
-    auto ref_id = /* extract the identifier being referenced */;
     for(auto& binding : ref_bindings) {
-        if(binding.var->linked == ref_id && binding.scope_depth >= scope_depth) {
-            // The referent is at the same or deeper scope — it will be destroyed!
+        if(binding.scope_depth >= scope_depth) {
+            // Local variable being returned as reference
             if(safe_mode == SafeMode::Enforce) {
                 diagnoser.error("returning reference to local variable", node);
-            } else if(safe_mode == SafeMode::Warn) {
-                diagnoser.warn("returning reference to local variable", node);
             }
         }
     }
 }
 ```
 
-**Validation:**
-```bash
-cat > lang/tests/safety/lifetime_test.ch << 'EOF'
-func dangling() : &int {
-    var x = 42
-    return &x  // Should error with --safe: returning ref to local
-}
-
-func valid() : &int {
-    var x = 42
-    // If x was passed in or is static, this is OK
-    // This depends on the specific implementation
-}
-EOF
-cmake-build-debug/TCCCompiler lang/tests/safety/lifetime_test.ch -o /dev/null --mode debug_complete --safe 2>&1
-# EXPECTED: error about returning reference to local variable
-```
-
 ---
 
-### Sub-Step 10.4: Check Struct Field Holding Reference to Local
+### F11: Full --safe Flag Architecture ★ AI-ready
 
-**After:** When a struct with a reference field is constructed, check that the
-referent outlives the struct:
+**AI-suitability: ★ AI-ready** — this is the plumbing that makes all other features work.
+
+#### Sub-Step 11.1: Define SafeMode Enum
 
 ```cpp
-// In VisitStructValue:
-if(struct_type has reference fields) {
-    for each reference field {
-        if(the referent is a local at shallower depth) {
-            error("struct holds reference to local variable");
-        }
-    }
-}
-```
-
----
-
-## Feature 11: Full --safe Flag Architecture
-
-### Sub-Step 11.1: Define SafeMode Enum
-
-Create `compiler/SafeMode.h`:
-```cpp
+// compiler/SafeMode.h
 #pragma once
 #include <cstdint>
 
@@ -1246,140 +1599,30 @@ enum class SafeMode : uint8_t {
 
 ---
 
-### Sub-Step 11.2: Wire --safe Through CLI
+#### Sub-Step 11.2: Wire --safe Through CLI
 
-In `core/main/CompilerMain.cpp`, parse `--safe`:
+In `core/main/CompilerMain.cpp`, add to the CLI parsing:
+
 ```cpp
-// In the argument parser:
-else if(arg == "--safe" || arg == "--safe=enforce") {
-    compiler_opts.safe_mode = SafeMode::Enforce;
-} else if(arg == "--safe=warn") {
-    compiler_opts.safe_mode = SafeMode::Warn;
-}
-```
-
----
-
-### Sub-Step 11.3: Wire --safe Through Build Pipeline
-
-Pass `safe_mode` from `LabBuildCompilerOptions` → `CodegenEmitterOptions` → codegen.
-
----
-
-## Implementing a Full Feature: End-to-End Walkthrough
-
-Below is a complete walkthrough of implementing **Feature 1.3 (Promote Deref Warning)** as an example of the methodology.
-
-### Step-by-step AI Prompt
-
-**Prompt for AI:**
-
-```
-I need to modify the Chemical compiler to promote the dereference warning to
-an error when the --safe flag is enabled. Here's exactly what to do:
-
-1. Read `compiler/symres/SymResLinkBody.h` — find the `safe_context` member
-2. Read `compiler/symres/SymResLinkBody.cpp` — find `VisitDereferenceValue` around line 2388
-3. The current code is:
-   ```
-   void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
-       if(safe_context) {
-           diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
-       }
-       ...
-   }
-   ```
-4. Change it to:
-   ```
-   void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
-       if(safe_context) {
-           switch(safe_mode) {
-               case SafeMode::Enforce:
-                   diagnoser.error("...", value);
-                   break;
-               case SafeMode::Warn:
-                   diagnoser.warn("...", value);
-                   break;
-               default:
-                   break;
-           }
-       }
-       ...
-   }
-   ```
-5. Add the `SafeMode` enum to a new file `compiler/SafeMode.h`
-6. Add `safe_mode` field to SymResLinkBody.h
-7. Update the SymResLinkBody constructor
-
-CONSTRAINTS:
-- Do NOT modify any test files
-- Do NOT remove any #include directives
-- The SafeMode::Off default must be used when no flag is given
-```
-
-### Validation Script
-
-```bash
-#!/bin/bash
-# validate_feature_1_3.sh
-set -e
-
-echo "=== Building compiler ==="
-./scripts/build.sh --tcc
-
-echo "=== Test 1: Safe code without flag (no diagnostic) ==="
-cat > /tmp/test_deref.ch << 'EOF'
-func main() {
-    var x = 42
-    var p = &raw x
-    return *p
-}
-EOF
-OUTPUT=$(cmake-build-debug/TCCCompiler /tmp/test_deref.ch -o /dev/null --mode debug_complete 2>&1)
-if echo "$OUTPUT" | grep -qi "de-referencing"; then
-    echo "FAIL: Got diagnostic without flag"
-    exit 1
-fi
-echo "PASS"
-
-echo "=== Test 2: Safe code with --safe=warn (warning) ==="
-OUTPUT=$(cmake-build-debug/TCCCompiler /tmp/test_deref.ch -o /dev/null --mode debug_complete --safe=warn 2>&1) || true
-if ! echo "$OUTPUT" | grep -qi "de-referencing"; then
-    echo "FAIL: Expected warning with --safe=warn"
-    exit 1
-fi
-echo "PASS"
-
-echo "=== Test 3: Safe code with --safe (error) ==="
-OUTPUT=$(cmake-build-debug/TCCCompiler /tmp/test_deref.ch -o /dev/null --mode debug_complete --safe 2>&1) || true
-if ! echo "$OUTPUT" | grep -qi "de-referencing.*not allowed"; then
-    echo "FAIL: Expected error with --safe"
-    exit 1
-fi
-echo "PASS"
-
-echo "=== Test 4: Unsafe block silences diagnostic ==="
-cat > /tmp/test_deref_unsafe.ch << 'EOF'
-func main() {
-    var x = 42
-    var p = &raw x
-    unsafe {
-        return *p
+// In the prepare_options lambda:
+auto& safe_opt = options.option_new("safe");
+if(safe_opt.has_value()) {
+    auto val = safe_opt.value();
+    if(val == "warn") {
+        opts->safe_mode = SafeMode::Warn;
+    } else {
+        opts->safe_mode = SafeMode::Enforce;
     }
+} else if(options.has_value("safe")) {
+    opts->safe_mode = SafeMode::Enforce;
 }
-EOF
-OUTPUT=$(cmake-build-debug/TCCCompiler /tmp/test_deref_unsafe.ch -o /dev/null --mode debug_complete --safe 2>&1)
-if echo "$OUTPUT" | grep -qi "de-referencing"; then
-    echo "FAIL: Got diagnostic in unsafe block"
-    exit 1
-fi
-echo "PASS"
+```
 
-echo "=== Test 5: Existing tests still pass ==="
-./scripts/test.sh --tcc 2>&1
-echo "PASS"
-
-echo "=== All tests passed! ==="
+**Validation:**
+```bash
+./scripts/build.sh --tcc
+cmake-build-debug/TCCCompiler --help 2>&1 | grep -i safe
+# Should show --safe flag description
 ```
 
 ---
@@ -1387,18 +1630,15 @@ echo "=== All tests passed! ==="
 ## Feature Flag Architecture Summary
 
 ```
-Flag                    | Scope          | Effect
-------------------------|----------------|-------------------------------------------
---safe                  | Module/Global  | Enables all safety checks as errors
---safe=warn             | Module/Global  | Enables all safety checks as warnings only
---bounds-check          | Module/Global  | Inserts array bounds checks (debug mode)
---overflow-check        | Module/Global  | Inserts overflow checks (debug mode)
---check-null            | Module/Global  | Inserts null checks before deref
---enforce-unsafe        | Module/Global  | @unsafe function boundaries enforced
---enforce-extern-safe   | Module/Global  | Extern C calls require unsafe block
+Flag                    | Scope          | Phase | Effect
+------------------------|----------------|-------|-------------------------------------------
+--safe                  | Global/Module  | 1     | All safety checks as errors
+--safe=warn             | Global/Module  | 1     | All safety checks as warnings only
+--bounds-check          | Global/Module  | 1     | Inserts array bounds checks (debug mode)
+--overflow-check        | Global/Module  | 1     | Inserts overflow checks (debug mode)
 ```
 
-**In `chemical.mod`:**
+**In `chemical.mod` (Phase 2):**
 ```toml
 [module]
 safe = true
@@ -1410,7 +1650,8 @@ overflow-check = true
 1. Start with `--safe=warn` — see all safety violations as warnings
 2. Fix violations or add `unsafe { }` blocks where appropriate
 3. Switch to `--safe` — violations become errors
-4. Enable stricter checks one by one
+4. Per-module: add `safe = true` to `chemical.mod` for locked-down modules
+5. Enable stricter checks one by one (`--bounds-check`, `--overflow-check`)
 
 ---
 
@@ -1420,7 +1661,7 @@ overflow-check = true
 
 | Feature | Primary File | Secondary Files |
 |---------|-------------|-----------------|
-| safe_context | `SymResLinkBody.cpp` | `SymResLinkBody.h` |
+| safe_context enforcement | `SymResLinkBody.cpp` | `SymResLinkBody.h` |
 | @unsafe enforcement | `TypeVerify.cpp` | `TypeVerify.h` |
 | Extern C check | `SymResLinkBody.cpp` | `FunctionDeclaration.h` |
 | InterfaceBits | `InterfaceBits.h` | `CoreNodes.h`, `LinkSignature.cpp` |
@@ -1457,6 +1698,24 @@ diagnoser.error(node) << message;        // Stream-style error
 diagnoser.warn(node) << message;         // Stream-style warning
 ```
 
+### CLI Argument Pattern (Existing)
+
+The existing CLI parsing in `CompilerMain.cpp` uses `CmdOptions` with a `CmdOption` array.
+Each flag has a long name, optional short alias, and a type (`NoValue`, `SingleValue`,
+`MultiValued`, `SubCommand`).
+
+For new flags:
+```cpp
+// Declaration:
+CmdOption("safe", CmdOptionType::SingleValue),  // --safe=warn or --safe
+CmdOption("bounds-check", CmdOptionType::NoValue),  // --bounds-check
+
+// Parsing:
+auto& safe_opt = options.option_new("safe");
+if(safe_opt.has_value()) { /* use safe_opt.value() */ }
+else if(options.has_value("safe")) { /* flag was passed without value */ }
+```
+
 ---
 
 ## Comparison with Other Languages
@@ -1475,8 +1734,42 @@ diagnoser.warn(node) << message;         // Stream-style warning
 | Integer overflow safety | ❌ UB | ✅ Debug check | ✅ Wrapping | ❌ |
 | Reference lifetimes | ❌ Missing | ✅ Borrow checker | ❌ | ❌ |
 | Feature flags for safety | ❌ Missing | ❌ | ✅ `-Doverflow` | ❌ |
+| **Flag-controlled safety** | **⚠️ Missing** | ❌ | **✅** | ❌ |
+
+**Chemical's unique opportunity:** Moving from "tracked but not enforced" to
+"tracked and enforced" with a flag is MUCH easier than building from scratch.
+Most safety infrastructure exists — it just needs the "enforcement" layer.
 
 ---
 
-*Document updated from comprehensive codebase analysis.
-Last updated: July 18, 2026.*
+## Implementation Priority Matrix
+
+| Feature | AI Difficulty | Lines of Code | User Impact | Risk | Priority |
+|---------|--------------|---------------|-------------|------|----------|
+| F1.3 Deref → Error with --safe | Very Easy | 10 | High | Very Low | **P0** |
+| F11 --safe flag plumbing | Very Easy | 20 | High | Low | **P0** |
+| F3 Extern C checks | Very Easy | 15 | Medium | Very Low | **P1** |
+| F2 @unsafe enforcement | Easy | 10 | Medium | Low | **P1** |
+| F5 InterfaceBits extension | Easy | 30 | Medium | Low | **P2** |
+| F4 Checked arithmetic (lib) | Easy | 50 | Medium | Low | **P2** |
+| F6 Container constraints | Easy | 10 | Medium | Low | **P2** |
+| F7 Bounds checking (LLVM) | Moderate | 40 | High | Medium | **P3** |
+| F9 Overflow checking (LLVM) | Moderate | 50 | High | Medium | **P3** |
+| F8 NonNull<T> wrapper | Moderate | 30 | Low | Low | **P3** |
+| F10 Lifetime analysis | Hard | 100+ | High | High | **P4** |
+
+**Immediate next steps (P0):**
+1. Create `compiler/SafeMode.h` — 1 file, 5 lines
+2. Add `safe_mode` to `LabBuildCompilerOptions.h` — 1 file, 3 lines
+3. Parse `--safe` in `CompilerMain.cpp` — 1 file, 10 lines
+4. Pass `safe_mode` to `SymResLinkBody` — 2 files, 5 lines
+5. Promote deref warning to error — 1 file, 10 lines
+6. Create `lang/tests/safety/run_safety_tests.sh` — 1 file, 80 lines
+7. Create first negative test — 1 file, 10 lines
+
+**Total for P0: ~7 files, ~120 lines, ~2 hours of AI time.**
+
+---
+
+*Document updated from comprehensive codebase analysis.*
+*Last updated: July 18, 2026.*

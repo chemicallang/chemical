@@ -52,6 +52,7 @@ func run_executable_tests() {
     test_conversions();
     test_thread_pool()
     test_time_types();
+    test_allocator();
 
 }
 

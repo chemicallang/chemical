@@ -149,6 +149,97 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 
 **`intrinsics::expr_print` vs `intrinsics::println`:** The old `print`/`println` are variadic (`any...`), printing each argument space-separated. The new `expr_print`/`expr_println` take a single `%expressive_string` argument, enabling backtick template strings with `${}` interpolation.
 
+## Skills
+
+The following skills are available in `.agents/skills/`. An AI agent should load the relevant skill(s) before working on a particular subsystem. Skills provide comprehensive, up-to-date documentation of codebase internals.
+
+### Core Language & Syntax
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Language Syntax | `.agents/skills/chemical_source/SKILL.md` | Chemical language syntax: types, structs, functions, variants, generics, annotations, lambdas, standard library API (`std::string`, `std::vector`, `std::unordered_map`, `std::ordered_map`, `Option`, `Result`) |
+| chemical.mod | `.agents/skills/chemical_mod/SKILL.md` | Module declaration syntax: package types, source paths, imports, conditional deps, remote imports, version pinning, link libraries, C file linking |
+
+### Compiler Internals
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Symbol Resolution | `.agents/skills/symres/SKILL.md` | The full symres pipeline: `TopLevelDeclSymDeclare`, `TopLevelLinkSignature`, `GenericInstantiationPass`, `SymResLinkBody`, `SymbolTable`, `ImplementationsIndex`, `CoreNodes`, move semantics tracking, parallelization per-file |
+| Generic Instantiation | `.agents/skills/generics/SKILL.md` | Monomorphization pipeline: `GenericInstantiator`, `InstantiationsContainer`, thread-safe registration with mutex + condition_variable, `FinalizeSignature`/`FinalizeBody`, `GenericInstantiationPass`, `InstantiationRequirement` |
+| Parser Internals | `.agents/skills/parser_internals/SKILL.md` | Recursive descent parser: per-construct parsers, expression precedence climbing, type parsing, statement dispatch, `@annotation` system, error recovery, AST allocator |
+| Type Verification | `.agents/skills/type_verification/SKILL.md` | Type checking pass: `TypeVerifier` visitor, return type checking, variable/assignment types, expression operator validation, implicit conversions, `unsatisfied_type_err` |
+| Diagnostics | `.agents/skills/diagnostics/SKILL.md` | Error reporting system: `ASTDiagnoser`, `Diag` structure, severity levels, `SourceLocation` encoding, per-phase collection, parallel-safe merging, `ASTDiag.h` helpers |
+| Performance | `.agents/skills/performance/SKILL.md` | Optimization patterns: arena allocation (`ASTAllocator`), SSO strings (`chem::string`), parallelization (file-level, generic instantiation), caching strategies, memory optimization, profiling tips |
+
+### Backends
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| LLVM Backend | `.agents/skills/llvm_backend/SKILL.md` | LLVM IR codegen: `LLVMBackendContext`, type lowering, struct assignment (temp+destruct+memcpy), function lowering, control flow, `dso_local` gotcha, PHI nodes, debug info, parallelization |
+| C Codegen (2c) | `.agents/skills/c_codegen/SKILL.md` | C translation: `ToCAstVisitor`, struct/function/variant translation, sret compound expression pattern, method chains, name generation, break/continue as goto, `BufferedWriter` |
+
+### Build System & Plugins
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Build System (Lab) | `.agents/skills/build_system/SKILL.md` | Lab build system: `LabBuildCompiler` lifecycle, JIT compilation via TinyCC, job types (Compilation/Interpretation/CBIPlugin/Transformer), plugin compilation, caching, dependency management, parallelization |
+| Macro Codegen | `.agents/skills/macro_code_gen/SKILL.md` | How `#html`, `#preact`, `#react`, `#solid`, `#universal` macros generate code — server-side function generation, JS bundle emission |
+| Compiler Bindings (CBI) | `.agents/skills/compiler_bindings/SKILL.md` | How CBI works: TinyCC binding, build process, compiler API exposure, LSP integration, lifecycle |
+| Compiler Plugin API | `.agents/skills/cbi_plugin_api/SKILL.md` | Plugin development: `CompilerBinder`, `ASTBuilder` API, macro registration, individual plugin structure (html_cbi, css_cbi, etc.), debugging, testing |
+
+### Web & Components
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Universal Components | `.agents/skills/universal/SKILL.md` | Universal component pipeline: SSR + hydration, runtime behavior, prop serialization, subscriber mutation bugs, debugging generated HTML/CSS/JS |
+| Designing Web Apps | `.agents/skills/design_web_app/SKILL.md` | Web app design in Chemical: static pages, `#html`/`#css`/`#js` macros, `#universal` components, `page` library, server + client rendering |
+
+### Compiler API (for plugin development)
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Compiler API | `.agents/skills/compiler_api/SKILL.md` | Compiler API bindings in `lang/libs/compiler/`: ASTBuilder, Lexer, Parser, SymbolResolver, SourceProvider, BatchAllocator |
+| Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | AST interpreter: `InterpretScope`, move semantics (`move_clear_source`), temp struct destruction, pointer bounds, function calls, debugging interpretation tests |
+
+### How to load a skill
+
+Use the `skill` tool with the skill name (the directory name):
+
+```
+skill {
+  name: "symres"            # loads .agents/skills/symres/SKILL.md
+}
+```
+
+The skill name is the directory name under `.agents/skills/`. For example:
+- `name: "symres"` → loads `.agents/skills/symres/SKILL.md`
+- `name: "build_system"` → loads `.agents/skills/build_system/SKILL.md`
+- `name: "universal"` → loads `.agents/skills/universal/SKILL.md`
+
+### Which skill to load?
+
+| Task | Load these skills |
+|------|-------------------|
+| Writing Chemical code | `chemical_source` |
+| Setting up a module (`chemical.mod`) | `chemical_mod` |
+| Building/testing the compiler | `building` |
+| **Understanding symbol resolution or fixing symres bugs** | **`symres`**, `generics` |
+| **Debugging LLVM IR output** | **`llvm_backend`** |
+| **Debugging C translation issues** | **`c_codegen`** |
+| **Understanding parallel compilation / making compiler faster** | **`performance`** |
+| **Writing a compiler plugin** | **`cbi_plugin_api`**, `compiler_api`, `compiler_bindings` |
+| **Fixing generic instantiation issues** | **`generics`**, `symres` |
+| **Debugging parser errors** | **`parser_internals`** |
+| **Understanding type checking** | **`type_verification`** |
+| **Debugging error messages / improving diagnostics** | **`diagnostics`** |
+| **Understanding the build pipeline / parallelizing builds** | **`build_system`** |
+| **Working on web apps** | `design_web_app`, `universal` |
+| **Working on interpreter/comptime tests** | `interpreter` |
+| **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
+| **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
+
+Skills in **bold** are the new comprehensive skills. Load them for maximum context.
+
 ## Architecture
 
 | Path | Purpose |

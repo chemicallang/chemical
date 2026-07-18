@@ -199,7 +199,8 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Skill | Location | Description |
 |-------|----------|-------------|
 | Compiler API | `.agents/skills/compiler_api/SKILL.md` | Compiler API bindings in `lang/libs/compiler/`: ASTBuilder, Lexer, Parser, SymbolResolver, SourceProvider, BatchAllocator |
-| Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | AST interpreter: `InterpretScope`, move semantics (`move_clear_source`), temp struct destruction, pointer bounds, function calls, debugging interpretation tests |
+| Intrinsics & Reflection | `.agents/skills/intrinsics_compiler_reflection/SKILL.md` | Compiler intrinsics: all `intrinsics::*` functions, interpreter-friendly std types (`InterpretVector`), reflection APIs for module/type/function metadata, how to add new intrinsics |
+| Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | AST interpreter: `InterpretScope`, move semantics (`move_clear_source`), temp struct destruction, pointer bounds, function calls, debugging interpretation tests, interpreter-friendly std data structures |
 
 ### How to load a skill
 

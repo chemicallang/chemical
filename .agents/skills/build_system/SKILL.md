@@ -1,328 +1,468 @@
 ---
 name: Build System (LabBuildCompiler)
-description: Comprehensive guide to the Lab build system — how build.lab and chemical.mod files drive compilation, jobs, plugins, caching, and dependency management.
+description: Comprehensive deep-dive into the Chemical build pipeline — how chemical.mod is converted to build.lab, how build scripts are JIT-compiled via TinyCC, how jobs are created and executed, and how ASTProcessor orchestrates the parallel compilation passes.
 ---
 
 # Build System (LabBuildCompiler)
 
-The Lab build system is the entry point for the Chemical compiler. It reads `build.lab` or `chemical.mod` files, creates compilation jobs, manages dependencies, coordinates compiler plugins, and orchestrates the entire compilation pipeline.
+The Lab build system is the entry point and orchestration layer of the Chemical compiler. It reads `build.lab` or `chemical.mod` files, creates compilation jobs, manages dependencies, coordinates compiler plugins, and drives the entire multi-pass compilation pipeline.
 
-## Architecture Overview
+## Full Pipeline Overview
 
-### CLI Entry Point
-
-The compiler entry is in `core/main/CompilerMain.cpp`:
-
-```cpp
-// Simplified flow:
-1. Parse CLI arguments → LabBuildCompilerOptions
-2. Create LabBuildCompiler instance
-3. Load the input file (build.lab or chemical.mod)
-4. JIT-compile build.lab via TinyCC
-5. Execute the build script → creates LabJob objects
-6. Execute each job:
-   a. Parse source files
-   b. Symbol resolution
-   c. Type verification
-   d. Codegen (LLVM, C, or both)
-   e. Link
+```
+User Input
+    │
+    ├── chemical.mod → [ModToLabConverter] → build.lab (C code string)
+    │
+    └── build.lab → [2c backend] → C code → [TinyCC JIT] → executable build script
+                        │
+                        ▼
+              LabBuildCompiler::execute_job()
+                        │
+                        ▼
+              ┌─────────────────────────────────┐
+              │         Job Execution            │
+              │                                  │
+              │  1. Parse all source files        │
+              │     (lexer → parser → AST)        │
+              │     Parallel per file             │
+              │                                  │
+              │  2. Symbol Resolution             │
+              │     (6 parallel passes)           │
+              │     See ASTProcessor section      │
+              │                                  │
+              │  3. Type Verification             │
+              │     Parallel per file             │
+              │                                  │
+              │  4. C Translation (2c)            │
+              │     Forward decl → Type aliases   │
+              │     → Declare → Implement         │
+              │                                  │
+              │  5. Backend Codegen               │
+              │     LLVM.cpp or TinyCC            │
+              │                                  │
+              │  6. Link                         │
+              │     Produce executable/library    │
+              └─────────────────────────────────┘
 ```
 
-### Key Files
+## Phase 1: Input Loading
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `compiler/lab/LabBuildCompiler.h` | ~200 | Core build compiler class |
-| `compiler/lab/LabBuildCompiler.cpp` | ~5000+ | Full build system implementation |
-| `compiler/lab/LabBuildContext.h/.cpp` | ~300 | Module and resource management |
-| `compiler/lab/LabJob.h` | ~150 | Job class — represents a compilation task |
-| `compiler/lab/LabJob.cpp` | ~100 | Job implementation |
-| `compiler/lab/LabJobType.h` | ~30 | Job type enum |
-| `compiler/lab/LabModule.h` | ~50 | Module representation |
-| `compiler/lab/LabModuleType.h` | ~20 | Module type enum |
-| `compiler/lab/BackendContext.h` | ~80 | Abstract backend interface |
-| `compiler/lab/LabBuildCompilerOptions.h` | ~80 | Compiler options |
-| `compiler/lab/Utils.h` | ~50 | Build system utilities |
-| `compiler/lab/mod_conv/ModToLabConverter.h/.cpp` | ~300 | chemical.mod → build.lab converter |
-| `compiler/lab/timestamp/Timestamp.h/.cpp` | ~100 | Timestamp-based caching |
-| `compiler/lab/import_model/` | Various | Remote import, dependency, version resolution |
-| `compiler/lab/transformer/TransformerContext.h` | ~50 | Transformer context for build plugins |
+### chemical.mod → build.lab (ModToLabConverter)
 
-## LabBuildCompiler Lifecycle
+The `ModToLabConverter` (in `compiler/lab/mod_conv/ModToLabConverter.cpp`) translates a concise `.mod` file into a full `.lab` build script.
 
-### 1. Initialization
+**Input example (chemical.mod):**
+```chmod
+application my_app
 
-```cpp
-LabBuildCompiler::LabBuildCompiler(const LabBuildCompilerOptions& opts) {
-    // 1. Set up ASTAllocator, type builder, target data
-    // 2. Create TinyCC instance for JIT compilation
-    // 3. Initialize ImportPathHandler
-    // 4. Set up CompilerBinder for CBI functions
+source "src"
+import "../lib_mod"
+import "github.com/owner/repo" version "1.0.0"
+link "mylib"
+link c "helper.c"
+```
+
+**Output (generated build.lab):**
+```chemical
+import lab;
+import std;
+
+import "../lib_mod/build.lab" as __mod_0_stmt;
+
+public func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {
+    var __curr_lab_path = lab::get_my_path();
+    const __chx_already_exists = ctx.get_cached(__chx_job, &__curr_lab_path);
+    if(__chx_already_exists != null) { return __chx_already_exists; }
+
+    const deps : []ModuleDependency = [
+        ModuleDependency { module: __mod_0_stmt.build(ctx, __chx_job), info: null },
+    ];
+
+    const mod = ctx.new_package(ModuleType.Directory, PackageKind.Application,
+        "", "my_app",
+        std::span<ModuleDependency>(deps, 1));
+    ctx.set_cached(__chx_job, &__curr_lab_path, mod);
+
+    // Remote imports
+    ctx.fetch_mod_dependency(__chx_job, mod, ImportRepo {
+        from: "github.com/owner/repo",
+        version: "1.0.0",
+    });
+
+    // Source paths
+    mod.add_source("src");
+
+    // Link statements
+    mod.add_link_path("./my_libs");
+    mod.add_link("mylib");
+    mod.add_link_c("helper.c");
+
+    return mod;
 }
 ```
 
-### 2. Loading Input
+**Key conversion logic in `convertToBuildLab()`:**
+
+1. **Imports for dependencies**: Each `import` statement in `.mod` becomes a `build.lab` import with a unique identifier like `__mod_N_stmt`
+2. **Dependency list**: Each import generates a `ModuleDependency` entry calling the imported module's `build()` function
+3. **Module creation**: `ctx.new_package()` with the correct `ModuleType` and `PackageKind`
+4. **Remote imports**: `ctx.fetch_mod_dependency()` with `ImportRepo` struct
+5. **Source paths**: `mod.add_source(path)` for each source directory
+6. **Link statements**: `mod.add_link_path()`, `mod.add_link()`, `mod.add_link_c()` for each link directive
+7. **Conditional imports**: `if(windows)` generates an `if(__chx_job.getTarget().windows)` block
+8. **Symbol info**: For `import Foo from "..."` style, generates `DependencySymbolInfo` with alias and symbol list
+
+### build.lab → JIT-compiled executable
+
+The build script itself is Chemical code that must be compiled and executed:
+
+1. **Lex, Parse**: The build.lab is lexed and parsed like any Chemical file
+2. **C Translation (2c)**: The parsed AST is translated to C code via the 2c backend
+3. **TinyCC JIT**: The generated C is compiled in-memory using TinyCC
+4. **Symbols exposed**: LabBuildCompiler exposes CBI functions to the build script:
+   - `ctx.new_package()` — create a module
+   - `ctx.set_cached()` — cache the module
+   - `mod.add_source()` — add source files
+   - `mod.add_link()` — add link libraries
+   - `ctx.fetch_mod_dependency()` — handle remote imports
+   - etc.
+
+The compiled build script is executed by calling its `build()` function, which returns a `Module*` containing all the module's metadata.
+
+## Phase 2: Job Creation
+
+After the build script executes, `LabBuildCompiler` has a tree of `LabModule` objects representing the dependency graph. Each `LabModule` has:
 
 ```cpp
-// For chemical.mod → convert to build.lab first:
-ModToLabConverter::convert(modPath);
-// This translates the concise .mod format into a full .lab build script
-
-// For build.lab → JIT compile directly:
-LoadBuildLabFile(jobPath, labBuildCompilerOptions);
+struct LabModule {
+    chem::string name;                    // Module name
+    chem::string scope_name;              // Scope name (namespace)
+    LabModuleType type;                   // Directory, Files, ObjFile, CFile, CPPFile
+    PackageKind package_kind;             // Application or Library
+    std::vector<ModuleDependency> dependencies;  // Dependencies
+    std::vector<chem::string> paths;      // Source paths or file paths
+    ModuleScope module_scope;             // Scope for symbol resolution
+    std::vector<ASTFileMetaData> direct_files;  // Files belonging to this module
+};
 ```
 
-### 3. JIT Compilation with TinyCC
+`LabBuildCompiler::execute_job()` iterates jobs and processes each module's files through the full pipeline.
 
-The build script is translated to C (via the 2c backend), then compiled in memory using TinyCC:
+## Phase 3: ASTProcessor — The Compilation Orchestrator
+
+`ASTProcessor` (in `compiler/ASTProcessor.h/.cpp`) is the core orchestrator that drives the compilation of each module. It owns the resolver, binder, allocators, and manages all passes.
+
+### Key Components in ASTProcessor
+
+| Member | Type | Purpose |
+|--------|------|---------|
+| `resolver` | `SymbolResolver*` | Symbol resolution |
+| `loc_man` | `LocationManager&` | Source location management |
+| `controller` | `AnnotationController&` | Annotation handling |
+| `binder` | `CompilerBinder&` | CBI function binding |
+| `path_handler` | `ImportPathHandler&` | Import resolution |
+| `container` | `InstantiationsContainer&` | Generic instantiation tracking |
+| `file_allocator` | `ASTAllocator` | Per-file arena allocator |
+| `mod_allocator` | `ASTAllocator` | Per-module arena allocator |
+| `job_allocator` | `ASTAllocator` | Per-job arena allocator |
+| `mod_storage` | `ModuleStorage&` | Module storage and lookup |
+| `cache` | `std::unordered_map<unsigned, ASTFileResult*>` | File result cache |
+| `import_mutex` | `std::mutex` | Thread safety for imports |
+| `print_mutex` | `std::mutex` | Thread safety for printing |
+
+### The 6 Symbol Resolution Passes
+
+`ASTProcessor::sym_res_module()` runs **6 passes** in sequence:
+
+#### Pass 1: Top-Level Declaration (Serial)
 
 ```cpp
-void LabBuildCompiler::compile_build_lab(const chem::string& cCode) {
-    // 1. Pass C code to TinyCC
-    tcc.compile_string(cCode);
-    
-    // 2. Add necessary symbols for the build script API
-    tcc.add_symbol("create_job", (void*)&create_job_cbi);
-    tcc.add_symbol("add_dependency", (void*)&add_dependency_cbi);
-    // ... many more symbols
-    
-    // 3. Relocate (JIT finish)
-    tcc.relocate();
+for(auto& file_ptr : module->direct_files) {
+    file.private_symbol_range = sym_res_tld_declare_file(
+        file.unit.scope.body, file.file_id, file.abs_path);
 }
 ```
 
-### 4. Job Creation
+- **What**: Declares all top-level symbols (functions, structs, variants, namespaces, impls)
+- **Why serial**: Declarations must happen in order to avoid race conditions on the shared symbol table
+- **Output**: `SymbolRange` indicating start/end indices of file-private symbols
+- **Allocator cleared**: `file_allocator.clear()` after pass
 
-The executed build script calls CBI (Compiler Binding Interface) functions to create jobs:
+#### Pass 2: Link Signatures (Parallel per file)
 
 ```cpp
-// CBI function called from build.lab:
-void create_job_cbi(const char* name, int jobType, void* config) {
-    // 1. Create a LabJob object
-    auto job = new LabJob(name, static_cast<LabJobType>(jobType));
-    
-    // 2. Add it to the build compiler's job list
-    build_compiler->jobs.push_back(job);
-    
-    // 3. Return a handle for further configuration
+// Parallel using thread pool
+for(auto& file_ptr : module->direct_files) {
+    futures.emplace_back(pool.push([this, &file](int id){
+        auto res = link_sig_file_task(resolver, &file);
+        // merge diagnostics with mutex
+        return has_errors;
+    }));
 }
 ```
 
-### 5. Job Execution
+- **What**: Resolves all type signatures (function parameter types, return types, struct member types, variant member types, type aliases) — does NOT enter function bodies
+- **Why parallel**: Each file has its own per-file SymbolTable and diagnoser
+- **Key detail**: Uses `sym_res_signature()` which creates a per-file `TopLevelLinkSignature` with its own `SymbolTable` for file-private symbols (generic type params, using-imports, aliases)
+- **Output**: `SymResSignatureResult` with inline instantiations collected
+- **Allocator cleared**: `file_allocator.clear()` after pass
 
-Each job goes through the full compilation pipeline:
+#### Pass 3: Generic Instantiation (Parallel per file)
 
+```cpp
+for(auto& file_ptr : module->direct_files) {
+    futures.emplace_back(pool.push([this, &file](int id){
+        auto res = gen_inst_file_task(resolver, &file);
+        return res.has_errors;
+    }));
+}
 ```
-LabJob → Parse sources → Symbol Resolution → Type Verify → Codegen → Link
-               ↓               ↓                  ↓           ↓        ↓
-         Parser.cpp      SymResLinkBody     TypeVerify.cpp  LLVM.cpp  Linker
+
+- **What**: Finalizes inline generic instantiations discovered during link signatures
+- **Key function**: `sym_res_generic_instantiation()` in `GenericInstantiationPass.cpp`
+  1. Calls `GenericTypeDecl::finalize_signature()` for each inline instantiation
+  2. Calls `GenericInstantiator::FinalizeSignature()` to resolve generic type parameters
+  3. Visits the scope to trigger nested generic instantiations
+- **Why separate**: Generic types discovered during link signatures need to be instantiated BEFORE body resolution so that bodies can reference concrete types
+- **Registration only**: This pass requires only `InstantiationRequirement::Registration` — not full body finalization
+- **Allocator cleared**: `file_allocator.clear()` after pass
+
+#### Pass 4: After Link Signature (Serial)
+
+```cpp
+for(auto& file_ptr : module->direct_files) {
+    sym_res_after_link_sig_file(file.unit.scope.body, file.file_id,
+        file.abs_path, file.private_symbol_range);
+}
 ```
 
-## Job Types
+- **What**: Calls `sym_res_after_signature()` — handles tasks that must happen after all signatures are linked but before bodies
+- **Why serial**: May modify shared resolver state
+- **Allocator cleared**: `file_allocator.clear()` after pass
 
-| Job Type | Purpose |
-|----------|---------|
-| `LabJobType::Compilation` | Standard compilation — produces an executable or library |
-| `LabJobType::Interpretation` | AST interpretation only — no codegen (for --arg-interpret) |
-| `LabJobType::CBIPlugin` | Compiler plugin (macro processor) registration |
-| `LabJobType::Transformer` | AST transformer for code generation |
+#### Pass 5: Link Body — Generic Decls (Parallel per file)
+
+```cpp
+for(auto& file_ptr : module->direct_files) {
+    futures.emplace_back(pool.push([this, &file](int id){
+        auto res = link_body_generic_decls_task(resolver, &file);
+        return res.has_errors;
+    }));
+}
+```
+
+- **What**: Resolves the master bodies of generic declarations
+- **Why separate**: Generic master bodies need to be resolved before instantiation-specific bodies
+- **Function**: `sym_res_link_body_generic_decls_pass()`
+
+#### Pass 6: Link Body — Full (Parallel per file)
+
+```cpp
+for(auto& file_ptr : module->direct_files) {
+    futures.emplace_back(pool.push([this, &file](int id){
+        auto res = link_body_task(resolver, &file);
+        return res.has_errors;
+    }));
+}
+```
+
+- **What**: The main body resolution pass. Resolves ALL remaining symbols in function bodies:
+  - Variable references and identifiers
+  - Function calls
+  - Expressions and operators
+  - Type references in expressions
+  - Access chains (`a.b.c()`)
+  - Move semantics tracking
+  - Operator overload resolution
+  - Pattern matching
+  - Lambdas and closures
+  - Comptime blocks
+- **Function**: `sym_res_link_body_pass()` which creates a per-file `SymResLinkBody` with its own `SymbolTable`, `GenericInstantiatorAPI`, and `ASTDiagnoser`
+- **Allocator cleared**: `file_allocator.clear()` after pass
+
+### The Sequential Path
+
+`ASTProcessor::sym_res_module_seq()` is an alternative path that processes files **sequentially** (one file at a time, all passes together). This is used for the build.lab itself (small, not worth parallel overhead). It calls `declare_and_link_file()` which runs all passes in order for a single file.
+
+### Type Verification (Parallel per file)
+
+After symbol resolution, `ASTProcessor::type_verify_module_parallel()` runs type verification:
+
+```cpp
+for(auto& fileData : module->direct_files) {
+    futures.emplace_back(pool.push([this, &fileData](int id){
+        return type_verify_file_task(this, fileData.result);
+    }));
+}
+```
+
+Each file gets its own `ASTDiagnoser`. Results are merged after all files complete.
+
+### C Translation
+
+After type verification, `ASTProcessor::declare_module()` and `ASTProcessor::implement_module()` handle the 2c backend translation:
+
+```cpp
+// Phase 1: Forward declarations
+for(auto& file_ptr : module->direct_files) {
+    c_visitor.fwd_declare(unit.scope.body.nodes);
+}
+
+// Phase 2: Type aliases
+for(auto& file_ptr : module->direct_files) {
+    c_visitor.declare_type_aliases(unit.scope.body.nodes);
+}
+
+// Phase 3: Declare (prototypes only — no bodies)
+for(auto& file_ptr : module->direct_files) {
+    c_visitor.declare_before_translation(unit.scope.body.nodes);
+}
+
+// Phase 4: Implement (function bodies)
+for(auto& file_ptr : module->direct_files) {
+    c_visitor.translate_after_declaration(unit.scope.body.nodes);
+    c_visitor.file_level_reset();  // Clear per-file state
+}
+```
+
+Generic instantiations are translated between the module files:
+```cpp
+c_visitor.fwd_declare(container.get_current_module_instantiations());
+c_visitor.declare_before_translation(container.get_current_module_instantiations());
+c_visitor.translate_after_declaration(container.get_current_module_instantiations());
+container.clear_current_module_instantiations();
+```
+
+## File Import and Caching
+
+### ASTFileResult Cache
+
+The `cache` map in ASTProcessor stores parsed file results:
+```cpp
+std::unordered_map<unsigned, ASTFileResult*> cache;
+```
+
+When a file is first imported, it's:
+1. Lexed and parsed into an `ASTFileResult`
+2. Cached by file ID for reuse
+3. Import statements in the file trigger recursive imports
+4. Import resolution is handled by `figure_out_direct_imports()`
+
+### Recursive Import Pattern
+
+`import_chemical_file_recursive()` handles recursive imports:
+1. Lex and parse the current file
+2. Print diagnostics
+3. Call `figure_out_direct_imports()` to find local file imports
+4. Recursively import those files via thread pool
+5. Uses `ConcurrentParsingState` to track completion (atomic task counter)
+
+### Debug Feature: File Shuffling
+
+In DEBUG builds, files within a directory are **shuffled** before compilation:
+
+```cpp
+#ifdef DEBUG
+    shuffle_files(filePaths);
+#endif
+```
+
+This randomly reorders files to expose compilation order bugs. A seed is printed so failures can be reproduced:
+```
+File order seed: 12345678 (set FILE_ORDER_SEED to reproduce)
+```
+
+## Job Types in LabBuildCompiler
 
 ### Compilation Job
 
-```cpp
-struct LabJob {
-    chem::string name;                    // Job name
-    LabJobType type;                      // Job type
-    std::vector<LabModule*> modules;      // Modules to compile
-    std::vector<LabJob*> dependencies;    // Dependencies
-    chem::string outputPath;              // Output path
-    bool isExecutable;                    // Produce executable vs library
-    // ... backend selection, optimization level, etc.
-};
-```
+Standard compilation — produces executable or library:
+1. Parse sources
+2. Symbol resolve (via ASTProcessor)
+3. Type verify
+4. C translation (2c)
+5. Backend codegen (LLVM or TinyCC)
+6. Link
 
 ### Interpretation Job
 
-When `--arg-interpret` is passed, the build system creates an `LabJobType::Interpretation` job instead of a compilation job:
-
+When `--arg-interpret` is passed:
 ```cpp
-void do_interpretation_job(LabJob* job) {
-    // 1. Parse modules (interpret/ + common/)
+int LabBuildCompiler::do_interpretation_job(LabJob* job) {
+    // 1. Parse interpret/ + common/ modules
     // 2. Symbol resolve
     // 3. Type verify
-    // 4. Initialize global vars (VarInitStmt)
-    // 5. Find and call main() via the AST interpreter
+    // 4. Initialize module-level VarInitStmt on global scope
+    // 5. Find main() and call it via AST interpreter
+    // No codegen, no linking
 }
 ```
 
-## Plugin System
+### CBI Plugin Job
 
-### How Plugins Work
-
-1. **Registration**: Build script calls `register_plugin("name")` which creates a `LabJobType::CBIPlugin` job
-2. **Compilation**: The plugin's Chemical source is compiled via TinyCC JIT
-3. **Hooks**: The plugin exports functions with specific names that the compiler calls:
-   - `process_macro(macro_name, args)` — handles `#macro_name` annotations
-   - `process_lex_token(token)` — custom lexing
-   - `provide_semantic_tokens()` — for LSP
-
-### Plugin Compilation
-
+Compiles a compiler plugin:
 ```cpp
-void LabBuildCompiler::compile_plugin(LabJob* pluginJob) {
-    // 1. Compile the plugin's Chemical source to C (2c backend)
-    // 2. JIT-compile the C with TinyCC
-    // 3. Add plugin symbols to the compiler binder
-    // 4. Initialize the plugin (call its init function)
-    
-    auto cCode = generateCForPlugin(pluginJob);
-    tcc.compile_string(cCode);
-    tcc.add_symbol("plugin_init", pluginJob->initFunc);
-    tcc.relocate();
-    
-    // Now the plugin's process_macro can be called during compilation
-    binder.registerPlugin(pluginJob->name, pluginJob);
+int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& dependencies) {
+    // 1. Parse plugin source
+    // 2. Symbol resolve
+    // 3. Type verify
+    // 4. C translation
+    // 5. TinyCC JIT compile
+    // 6. Register plugin in CompilerBinder
 }
 ```
 
-### Built-in Plugin Libraries
+## Thread Safety Architecture
 
-Located in `lang/libs/`:
+### What's Serial
+- Top-level declaration (Pass 1)
+- After-link-signature (Pass 4)
+- Module scope start/end
+- Main function no_mangle marking
 
-| Plugin | Purpose |
-|--------|---------|
-| `html_cbi` | `#html` macro — HTML-style JSX generation |
-| `css_cbi` | `#css` macro — CSS generation |
-| `js_cbi` | `#js` macro — JavaScript generation |
-| `universal_cbi` | `#universal` component — SSR + hydration |
-| `react_cbi` | `#react` component — React-style JSX |
-| `preact_cbi` | `#preact` component — Preact-style JSX |
-| `solid_cbi` | `#solid` component — SolidJS-style JSX |
-| `md_cbi` | Markdown processing |
+### What's Parallel
+- File importing (lex + parse)
+- Link signatures (Pass 2)
+- Generic instantiation (Pass 3)
+- Generic decl body linking (Pass 5)
+- Full body linking (Pass 6)
+- Type verification
 
-## Caching System
+### Synchronization Points
+- **`print_mutex`**: Guards diagnostic output — each parallel task acquires it before printing
+- **`import_mutex`**: Guards the file cache during recursive imports
+- **`generic_inst_reg_mutex`**: Guards generic instantiation registration maps (recursive mutex)
+- **`implsIndex.index_mutex`**: A `std::shared_mutex` — shared_lock for reads, unique_lock for writes
 
-### Timestamp-Based Cache
-
+### Allocator Strategy
 ```cpp
-struct Timestamp {
-    std::filesystem::file_time_type lastModified;
-    size_t fileSize;
-    // ...
-};
+file_allocator.clear();  // Called after each pass — frees temporary AST nodes
+mod_allocator;            // Lifetime = module compilation
+job_allocator;            // Lifetime = entire job
+ast_allocator;            // Lifetime = entire compilation session
 ```
 
-The cache works at multiple levels:
+## Key Files Reference
 
-1. **Object file cache**: `--cache` flag enables reuse of previously compiled objects
-2. **Plugin cache**: `--cached-plugins` skips recompilation of unchanged CBI plugins
-3. **Module cache**: Compiled modules are cached based on their dependency hash
+| File | Lines | Role |
+|------|-------|------|
+| `compiler/lab/LabBuildCompiler.cpp` | ~5000+ | Full build system: job creation, execution, link, interpretation, plugin compilation |
+| `compiler/lab/LabBuildCompiler.h` | ~200 | Core build compiler class declaration |
+| `compiler/ASTProcessor.cpp` | ~1500 | The pass orchestration: sym_res_module, type_verify_module, declare/implement module |
+| `compiler/ASTProcessor.h` | ~200 | ASTProcessor class declaration |
+| `compiler/lab/mod_conv/ModToLabConverter.cpp` | ~300 | chemical.mod → build.lab conversion |
+| `compiler/lab/mod_conv/ModToLabConverter.h` | ~50 | ModToLabConverter header |
+| `compiler/lab/LabJob.cpp` | ~100 | Job implementation |
+| `compiler/lab/LabBuildContext.cpp` | ~300 | Module and resource management |
+| `compiler/lab/LabBuildContext.h` | ~200 | LabBuildContext header |
+| `compiler/lab/LabModule.h` | ~50 | Module structure |
+| `compiler/lab/ModuleStorage.h` | ~50 | Module storage and lookup |
 
-### Cache Invalidation
+## Related Skills
 
-A module's cache is invalidated when:
-- Any source file in the module has changed (timestamp)
-- Any dependency module has been recompiled
-- Compiler flags that affect codegen have changed
-- Plugin versions have changed
-
-## Dependency Management
-
-### ImportPathHandler
-
-The `ImportPathHandler` resolves module imports:
-
-1. **Local imports**: `import "../lib_mod"` — resolves to file path
-2. **Remote imports**: `import "github.com/owner/repo"` — downloads via git
-3. **Version pinning**: `version "1.0.0"` — resolves semantic versions
-4. **Orphan branches**: `orphan branch "branch"` — specific git branches
-5. **Subdirectories**: `subdir "subdirectory"` — monorepo support
-6. **Conditional imports**: `if windows` — platform-specific
-
-### Conflict Resolution
-
-When two modules depend on different versions of the same library:
-
-```cpp
-// In ImportPathHandler:
-// Parse both versions as semantic versions
-// If one is newer → keep newer, discard older
-// If equal → keep one
-// If incompatible → error
-```
-
-## Parallelization Strategies
-
-### Current Parallelization
-
-1. **Per-file symres**: Files within a module are symbol-resolved in parallel
-2. **Generic instantiation**: Multiple instantiations can be finalized independently (with mutex for registration)
-
-### Future Opportunities
-
-1. **Per-module compilation**: Independent modules can be compiled in parallel
-2. **Per-job execution**: Jobs with no dependency chain can run concurrently
-3. **Plugin compilation**: Plugins can be compiled ahead of time, in parallel
-4. **Caching lookups**: Cache checks are independent per module
-
-## Key CBI Functions
-
-These functions are exposed to `build.lab` scripts:
-
-| CBI Function | Purpose |
-|--------------|---------|
-| `create_job(name, type)` | Create a new compilation job |
-| `add_source(job, path)` | Add a source file to a job |
-| `add_dependency(job, dep)` | Add a dependency between jobs |
-| `set_output(job, path)` | Set output path |
-| `register_plugin(name, init)` | Register a compiler plugin |
-| `add_link_library(job, lib)` | Add a link-time library |
-| `add_link_path(job, path)` | Add a link search path |
-| `set_job_option(job, key, value)` | Set job-specific options |
-
-## Debugging the Build System
-
-### Common Issues
-
-| Issue | Cause | Debug |
-|-------|-------|-------|
-| `TinyCC compilation error` | The generated C for build.lab has syntax errors | Use `--emit-c` to inspect generated C |
-| `Symbol not found in build.lab` | Missing CBI function export | Check `tcc_add_symbol` calls |
-| `Module not found` | ImportPathHandler couldn't resolve path | Check module search paths |
-| `Plugin not found` | Plugin source path is wrong | Check plugin registration |
-| `Cache invalidation wrong` | Timestamp comparison incorrect | Add `--no-cache` to force recompilation |
-| `Linker error` | Missing symbols at link time | Check `add_link_library` calls |
-
-### Verbose Output
-
-Use `-v` flag for verbose output showing each build step:
-
-```bash
-cmake-build-debug/TCCCompiler "lang/tests/build.lab" -o tests.exe -v
-```
-
-### Plugin Debug Mode
-
-```bash
---plugin-mode debug_complete  # Compile plugins in debug mode for full stack traces
-```
-
-## Extending the Build System
-
-### Adding a New Job Type
-
-1. Add to `LabJobType.h` enum
-2. Add handling in `LabBuildCompiler::execute_job()`
-3. Add CBI function for creation if needed
-
-### Adding a New Compiler Flag
-
-1. Add to `LabBuildCompilerOptions.h`
-2. Parse in `CompilerMain.cpp` or `clang_driver.cpp`
-3. Use in appropriate pipeline phase
-
-### Adding a New Backend
-
-1. Implement the `BackendContext` interface
-2. Implement codegen visitor(s) matching the backend's output
-3. Register the backend in `LabBuildCompiler::create_backend()`
+- **Symbol Resolution** (`.agents/skills/symres/SKILL.md`) — Detailed symres pipeline
+- **Generic Instantiation** (`.agents/skills/generics/SKILL.md`) — Generic monomorphization
+- **C Codegen** (`.agents/skills/c_codegen/SKILL.md`) — 2c translation backend
+- **Performance** (`.agents/skills/performance/SKILL.md`) — Optimization and parallelization patterns
+- **Compiler Bindings** (`.agents/skills/compiler_bindings/SKILL.md`) — CBI and TinyCC integration

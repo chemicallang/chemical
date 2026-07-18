@@ -303,9 +303,136 @@ Each library test module has its own `build.lab` in `lang/tests/libs/<name>/`.
    ./scripts/test.sh --tcc --libs
    ```
 
+### Option D: Negative Tests (Compiler Failure Verification)
+
+Negative tests verify the compiler correctly rejects invalid code. They work by spawning
+the compiler binary via `popen`, compiling a `.ch` source file, and checking the exit code
+and stderr for expected error substrings. This is the Chemical source equivalent of the
+C++ tests in `core/tests/NegativeLifetimeTests.cpp`.
+
+#### Structure
+
+```
+lang/tests/negative/
+├── src/
+│   └── main.ch              # Test runner — invokes compiler via popen
+```
+
+No `chemical.mod` is needed in the negative test package — the test runner lives in the
+main test module and is built as a separate executable.
+
+#### Build system wiring
+
+The negative test executable is built separately and gated behind `--arg-negative`:
+
+```chemical
+// In lang/tests/build.lab — inside the build() function:
+if(ctx.has_arg("negative")) {
+    const neg_job = ctx.build_exe("chemical-negative-tests")
+    ctx.add_module(neg_job, core_module)
+    ctx.add_module(neg_job, cstd_module)
+    ctx.add_module(neg_job, std_module)
+    ctx.add_module(neg_job, fs_module)
+    ctx.add_module(neg_job, neg_tests_mod)
+    ctx.define(neg_job, &definition)
+    return neg_job
+}
+```
+
+The negative test source module is declared as:
+```chemical
+const neg_tests_mod = LabModuleSource {
+    name: "negative_tests",
+    source_dir: "lang/tests/negative/src"
+}
+```
+
+#### Running
+
+```bash
+./scripts/test.sh --tcc --negative        # Build + run negative tests
+./scripts/test.sh --tcc --negative --no-build  # Skip rebuild
+```
+
+The `--negative` flag in `scripts/test.sh` translates to `--arg-negative` and uses a
+separate output path (`lang/tests/build/negative-tests-tcc.exe`) to avoid overwriting
+the main test executable.
+
+#### How the test runner works
+
+The runner in `lang/tests/negative/src/main.ch` does:
+
+1. Creates a temp directory under `/tmp/chemical_neg_tests/`
+2. For each test case, writes a `chemical.mod` and `test.ch` with intentionally invalid code
+3. Invokes the compiler via `popen(cmd, "r")` and captures stderr
+4. Checks the exit code (non-zero for expected errors) and stderr for expected error substrings
+5. Cleans up the temp directory
+
+#### Key API used in the test runner
+
+| API | Source | Notes |
+|-----|--------|-------|
+| `intrinsics::get_compiler_path()` | Compiler intrinsic | Returns `*char` — path to the compiler binary |
+| `popen(cmd, "r")` | C stdlib (`cstd`) | Opens a pipe to a command; returns `*mut FILE` |
+| `pclose(pipe)` | C stdlib | Closes pipe, returns exit status |
+| `fgets(buf, size, pipe)` | C stdlib | Reads a line from a pipe |
+| `sprintf(buf, fmt, ...)` | C stdlib | Format string into a buffer |
+| `mkdir(path, mode)` | C stdlib | Create a directory |
+| `fwrite`, `fopen`, `fclose` | C stdlib | File I/O for writing temp files |
+
+#### Important pointer gotcha in the test runner
+
+Array indexing `arr[i]` produces a **reference** (`&char`), not a raw pointer (`*char`).
+To pass array elements to C functions expecting `*char` or `*mut char`, use `&raw` or `&raw mut`:
+
+```chemical
+var cmd : char[2048]
+sprintf(&raw mut cmd[0], "%s \"%s\"", compiler, mod_path)  // ✅ *mut char
+var pipe = popen(&raw cmd[0], "r")                         // ✅ *char (read-only)
+
+// WRONG — produces &char, not *char:
+// sprintf(&cmd[0], ...)   // TypeCheck error: &char does not satisfy *mut char
+// popen(&cmd[0], ...)     // TypeCheck error: &char does not satisfy *char
+```
+
+#### Writing a new negative test
+
+1. Add a new `var ch_N = "..."` string literal containing the invalid Chemical source
+2. Call `run_single_negative_test()` with the source and expected error info:
+   - `expect_error: true` — test passes when compiler exits non-zero and stderr contains expected text
+   - `expect_error: false` — test passes when compiler exits zero (compiles successfully)
+   - `expected_sub` — substring to search for in stderr (empty string `""` means any error is fine)
+3. Wrap in `test("name", ...)` call
+
+#### Example
+
+```chemical
+var ch_new = "struct Foo {\n    func broken(&self) : ??? {\n    }\n}\n"
+test("broken_return_type_errors",
+    run_single_negative_test("/tmp/chemical_neg_tests", "broken_return_type",
+        mod, ch_new, true, "TypeCheck"))
+```
+
 ## Writing Tests for Compiler Failure
 
-Tests that verify the compiler correctly rejects invalid code:
+There are two approaches to testing that the compiler correctly rejects invalid code:
+
+### Approach 1: Negative Tests (Preferred)
+
+Use the negative test infrastructure described in **Option D** above. These tests
+spawn the compiler binary, compile a `.ch` file with intentionally invalid code, and
+check that the expected errors appear. Run with:
+
+```bash
+./scripts/test.sh --tcc --negative
+```
+
+This is the Chemical-source equivalent of the C++ tests in `core/tests/NegativeLifetimeTests.cpp`.
+See **Option D** for the full API reference and patterns.
+
+### Approach 2: Comptime Intrinsics (Limited)
+
+For simpler cases, you can use comptime intrinsics:
 
 ```chemical
 // Pattern: test that a specific code causes a compile error

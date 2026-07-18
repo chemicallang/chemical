@@ -292,6 +292,13 @@ class CompilerBinder {
 ./scripts/test.sh --tcc --libs                  # Test all plugins
 ```
 
+## Related Skills
+
+- **Intrinsics & Compiler Reflection** (`.agents/skills/intrinsics_compiler_reflection/SKILL.md`) — Compiler intrinsics that plugins can use for compile-time evaluation, reflection, and metadata access
+- **Build System** (`.agents/skills/build_system/SKILL.md`) — How plugins are compiled, loaded, and integrated into the build pipeline
+- **Macro Codegen** (`.agents/skills/macro_code_gen/SKILL.md`) — Examples of how existing plugins (html_cbi, universal_cbi) use the CBI API
+- **Compiler API** (`.agents/skills/compiler_api/SKILL.md`) — Compiler API bindings for AST construction, lexing, parsing
+
 ## Performance Considerations
 
 1. **TinyCC JIT**: Fast compilation but slower generated code — acceptable for build-time plugins

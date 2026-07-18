@@ -162,4 +162,7 @@ public func run_common_tests() {
     test_failing_code()
     test_variant_pattern_matching();
 
+    // Parallel generic instantiation tests
+    test_generic_instantiation();
+
 }

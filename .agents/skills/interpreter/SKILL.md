@@ -348,6 +348,172 @@ Tests use `comptime if(intrinsics::is_interpretation())` to branch between `expr
 - **Destructor bodies**: Must be valid Chemical code the interpreter can evaluate. Empty destructors `{}` work fine.
 - **Vector `.get(i)` vs `.get_ptr(i)`**: Never use `.get(i)` for types with destructors — it bitwise-copies, causing double-free. Always use `.get_ptr(i)`.
 
+## Interpreter-Friendly Standard Library Data Structures
+
+The interpreter provides its own implementations of certain standard library types so they can be used during comptime/interpretation mode. These are defined as intrinsics in `ast/utils/GlobalFunctions.cpp`.
+
+### InterpretVector (Interpreter-Friendly `std::vector<T>`)
+
+Located in the `InterpretVector` namespace in `GlobalFunctions.cpp`. This provides a full interpreter-friendly `std::vector<T>` replacement.
+
+#### How it works
+
+```cpp
+namespace InterpretVector {
+    // The "type" — a StructDefinition that looks like std::vector<T>
+    class InterpretVectorNode : public StructDefinition {
+        GenericTypeParameter typeParam;       // The T in vector<T>
+        InterpretVectorConstructor constructorFn;
+        InterpretVectorSize sizeFn;
+        InterpretVectorGet getFn;
+        InterpretVectorPush pushFn;
+        InterpretVectorRemove removeFn;
+    };
+
+    // The "value" — holds actual data in a C++ vector<Value*>
+    class InterpretVectorVal : public StructValue {
+        std::vector<Value*> values;  // The actual elements
+    };
+}
+```
+
+**Construction flow:**
+1. User writes `var v = std::vector<int>()`
+2. Parser resolves to a `FunctionCall` with generic arg `int`
+3. During symres, the call is linked to `InterpretVectorConstructor::call()`
+4. A new `InterpretVectorVal` is created with an empty `values` vector
+5. The type parameter `T` is stored in `InterpretVectorNode::typeParam`
+
+**Method dispatch flow:**
+1. `v.push(42)` → resolved as a method call on `InterpretVectorVal`
+2. The method is found in `InterpretVectorNode`'s child functions
+3. `InterpretVectorPush::call()` is invoked with `parent_val = the InterpretVectorVal instance`
+4. The argument value is copied (`scope_value`) and appended to the internal `values` vector
+
+**Supported operations:**
+| Method | Implementation |
+|--------|----------------|
+| `vector<T>()` | Creates empty InterpretVectorVal |
+| `.size()` | Returns `values.size()` as IntNumValue |
+| `.get(index)` | Returns `values[index]->scope_value(call_scope)` (a COPY, not a reference) |
+| `.push(value)` | `values.push_back(value->scope_value(call_scope))` |
+| `.remove(index)` | `values.erase(values.begin() + index)` |
+
+**Current limitations (future work needed):**
+1. **`.get()` returns a copy, not a reference** — marked with `TODO interpret vector get should return a reference to T`
+   - This means `v.get(0) = 42` won't modify the vector
+   - A proper implementation would return a `PointerValue` into the vector's storage
+2. **No `operator[]` support** — `v[0]` doesn't work in interpreter mode
+3. **No iteration support** — `for(x in v)` doesn't work in interpreter mode without an `Iterable` impl
+4. **No capacity management** — `reserve()`, `capacity()` not implemented
+5. **No `get_ptr()` support** — returns a pointer to element (needed for modification)
+
+### Interpreter-Friendly `std::string` (NOT yet implemented)
+
+The runtime `std::string` (defined in `std/chem_string.h`) is NOT directly available in the interpreter. The interpreter uses `StringValue` for string values, which stores a `chem::string_view`.
+
+**Current string operations in interpreter:**
+- String literals (`"hello"`) → `StringValue`
+- String concatenation via expressive strings (backtick templates): `` `hello ${name}` ``
+- `intrinsics::size(str)` → returns string length
+
+**Missing (future work needed):**
+- `string.append(c)` — append character
+- `string.append_view(v)` — append string_view
+- `string.append_string(other)` — append another string
+- `string.copy()` — explicit copy
+- `string.to_view()` — convert to string_view
+- `string.get(i)` — get character at index
+
+To support these, create intrinsic function declarations similar to `InterpretVectorPush` that manipulate the `StringValue`'s internal `chem::string_view` data.
+
+### Interpreter-Friendly `std::unordered_map<K, V>` (NOT yet implemented)
+
+This would follow the same pattern as `InterpretVector`:
+
+```cpp
+class InterpretUnorderedMapNode : public StructDefinition {
+    GenericTypeParameter keyType;   // K
+    GenericTypeParameter valueType; // V
+    // Constructor, insert, get, contains, erase, size
+};
+
+class InterpretUnorderedMapVal : public StructValue {
+    std::unordered_map<Value*, Value*> data;  // Map storage
+};
+```
+
+**Required methods:**
+- `unordered_map<K, V>()` — constructor with two generic type params
+- `.insert(key, value)` — insert key-value pair
+- `.get_ptr(key)` → return pointer to value or null
+- `.contains(key)` → bool
+- `.erase(key)` → remove entry
+- `.size()` → number of entries
+- `.clear()` → remove all entries
+
+### Interpreter-Friendly `std::string_view` (NOT yet implemented)
+
+A lightweight view intrinsic that wraps a `chem::string_view`:
+- `.size()` → length
+- `.get(i)` → character at index
+- Implicit construction from `*char` and `string`
+
+### Interpreter-Friendly `std::span<T>` (NOT yet implemented)
+
+A bounded view intrinsic:
+- Constructor from array/pointer + length
+- `.size()` → length
+- `.get(i)` → element at index
+- `.data()` → pointer to start
+
+### Adding Interpreter-Friendly Support for a New Type
+
+1. **Create the struct definition class** (e.g., `InterpretUnorderedMapNode` extending `StructDefinition`)
+   - Add generic type parameters for the type's template args
+   - Add child function declarations for each method
+
+2. **Create the value class** (e.g., `InterpretUnorderedMapVal` extending `StructValue`)
+   - Add C++ data member for the actual storage (e.g., `std::unordered_map<...>`)
+   - Override any needed methods
+
+3. **Create method intrinsic classes** (extending `FunctionDeclaration` for each method)
+   - Add `self` parameter if it's a method
+   - Implement `call()` to manipulate the value's data
+
+4. **Register in the type system** — add to the type builder or global functions so the compiler recognizes the type name
+
+5. **Add tests** — both interpretation (`--arg-interpret`) and compiled tests
+
+## Future Goals for Interpreter
+
+### 1. Full Standard Library Support
+Make the following `std` types work in interpreter mode:
+- `std::string` — append, append_view, get, size, copy
+- `std::string_view` — lightweight view operations
+- `std::unordered_map<K, V>` — insert, get_ptr, contains, erase
+- `std::span<T>` — bounded view
+- `std::vector<T>` — complete with references from get(), operator[], iteration
+
+### 2. Compiler Reflection Enhancements
+- Field enumeration at compile time
+- Automatic JSON serializer/deserializer generation
+- `intrinsics::get_members<T>()` — returns list of struct members
+- `intrinsics::get_interfaces<T>()` — returns list of implemented interfaces
+
+### 3. Automatic Generic Impl Instantiation
+- When user calls `myType.method()`, if `method` comes from a generic impl declaration, automatically instantiate it
+- Deprecate nested `impl` blocks
+
+### 4. Remaining Interpretation Test Fixes
+The 16 remaining test failures (as of last fix session):
+- Tests 757-760: Array element destruction
+- Tests 798-799, 822: Method chain dispatch through temporaries
+- Tests 811-812: Self-referencing assignment destructor
+- Tests 722-723, 800: Generic dispatch move semantics
+- Tests 629, 831, 838: Misc edge cases
+- Test 784: Variant destruct
+
 ## Code Map
 
 ### Key Files for Interpreter Development
@@ -358,6 +524,7 @@ Tests use `comptime if(intrinsics::is_interpretation())` to branch between `expr
 | `ast/base/InterpretScope.h` | Scope class, value management, `move_clear_source()` |
 | `ast/base/InterpretScope.cpp` | Value operations, destroy_values, move_clear_source implementation |
 | `ast/base/GlobalInterpretScope.h` | Global interpreter state |
+| `ast/utils/GlobalFunctions.cpp` | All intrinsics AND interpreter-friendly std types (InterpretVector, etc.) |
 | `ast/values/StructValue.cpp` | Struct initialization, `initialized_value()`, move semantics |
 | `ast/values/FunctionCall.cpp` | Function call evaluation, variant constructor, move semantics |
 | `ast/structures/FunctionDecl.cpp` | Function call dispatch, argument handling, return values |
@@ -397,3 +564,8 @@ StructValue* initialized_value(InterpretScope& scope);
 3. **Fix failures**: Add debug output, trace the issue, implement fix in C++
 4. **Verify both modes**: `./scripts/test.sh --tcc --interpret --no-build && ./scripts/test.sh --tcc --no-build`
 5. **Run full test suite** to check for regressions: `./scripts/test.sh --tcc`
+
+## Related Skills
+
+- **Intrinsics & Compiler Reflection** (`.agents/skills/intrinsics_compiler_reflection/SKILL.md`) — All intrinsic functions, reflection APIs, how to add new intrinsics
+- **Build System** (`.agents/skills/build_system/SKILL.md`) — How interpretation jobs work in the build pipeline

@@ -765,9 +765,8 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
             evaluated_func_calls[call] = nullptr;
             return evaluated_func_calls[call];
         }
-        auto eval = ret;
-        evaluated_func_calls[call] = eval;
-        return eval;
+        evaluated_func_calls[call] = ret;
+        return evaluated_func_calls[call];
     }
 }
 

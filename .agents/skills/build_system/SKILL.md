@@ -645,6 +645,280 @@ See the [Testing Guide](./.agents/skills/testing/SKILL.md) for how `lang/tests/b
 
 The test wiring uses `ctx.build_interpretation()`, `ctx.build_exe()`, `set_environment_testing()`, `has_arg()`, and `define()` to configure the build environment.
 
+## CLI Arguments — How They Connect to the Build Pipeline
+
+### Entry Point: `compiler_main()`
+
+**File:** `core/main/CompilerMain.cpp`
+
+The CLI entry point is the single `compiler_main(int argc, char* argv[])` function declared in `core/main/CompilerMain.h`. It parses all command-line options and routes them to the appropriate subsystem.
+
+### Option Parsing Infrastructure
+
+**File:** `utils/CmdUtils.h`, `utils/CmdUtils.cpp`
+
+```cpp
+struct CmdOption {
+    std::string_view name;           // Long name (e.g., "verbose")
+    std::string_view short_name;     // Short alias (e.g., "v")
+    CmdOptionType type;              // NoValue, SingleValue, MultiValued, SubCommand
+};
+
+class CmdOptions {
+    std::vector<CmdOption> options;  // Registered options
+    std::vector<std::string_view> arguments;  // Positional arguments
+    
+    void register_options(CmdOption* data, size_t count);
+    void parse_cmd_options(int argc, char* argv[], int start_index);
+    
+    // Access parsed values:
+    bool has_value(const std::string_view& name, const std::string_view& alt = "");
+    std::optional<std::string_view> option_new(const std::string_view& name, const std::string_view& alt = "");
+    CmdOptionValue& cmd_opt(const std::string_view& name);  // For subcommands / multi-values
+};
+```
+
+### Full Option Reference
+
+Options are registered in `CompilerMain.cpp` as a `CmdOption[]` array:
+
+| CLI Flag | Alias | Type | Effect |
+|----------|-------|------|--------|
+| `--include` | — | MultiValued | Add include path or file (`.ch` = source, else = header) |
+| `--build-dir` | — | SingleValue | Set build output directory |
+| `--library` | `-l` | MultiValued | Link a system library |
+| `configure` | — | SubCommand | Run OS configuration (sets `CHEMICAL_HOME`, PATH) |
+| `--cc` | — | SubCommand | Forward remaining args to Clang |
+| `--run` | — | SubCommand | Run a build.lab or chemical.mod file (`chemical run file.mod`) |
+| `--linker` | — | SubCommand | Forward to system linker |
+| `--ar` | — | SubCommand | Forward to LLVM ar |
+| `--dlltool` | — | SubCommand | Forward to LLVM dlltool |
+| `--ranlib` | — | SubCommand | Forward to LLVM ranlib |
+| `--lib` | — | SubCommand | Forward to LLVM lib |
+| `--tcc-jit` | — | SubCommand | Forward to TinyCC JIT runner |
+| `--mode` | `-m` | SingleValue | Output mode: `debug`, `debug_quick`, `debug_complete`, `release`, `release_fast`, `release_small` |
+| `--plugin-mode` | `-pm` | SingleValue | Plugin compilation mode (same values as `--mode`) |
+| `--version` | — | NoValue | Print version and exit |
+| `--help` | — | NoValue | Print help message |
+| `--verbose` | `-v` | NoValue | Verbose output |
+| `--verbose-link` | `-vl` | NoValue | Verbose linker output |
+| `--output` | `-o` | SingleValue | Output file path |
+| `--out-ll <path>` | — | SingleValue | Emit LLVM IR to path |
+| `--out-bc <path>` | — | SingleValue | Emit LLVM bitcode to path |
+| `--out-obj <path>` | — | SingleValue | Emit object file to path |
+| `--out-asm <path>` | — | SingleValue | Emit assembly to path |
+| `--out-bin <path>` | — | SingleValue | Emit binary executable to path |
+| `--out-ll-all` | — | NoValue | Emit LLVM IR for ALL modules |
+| `--out-asm-all` | — | NoValue | Emit assembly for ALL modules |
+| `--emit-c` | `--emit-c` | NoValue | Keep generated C files |
+| `--minify-c` | `--minify-c` | NoValue | Minify generated C output |
+| `--incremental` | `--incremental` | NoValue | Per-file C translation (not merged) |
+| `--keepc` | `--keepc` | NoValue | Keep C files after compilation |
+| `--ignore-extension` | — | NoValue | Output file extension is NOT used to determine output type |
+| `--jobs` | `-j` | SingleValue | Thread count for parallel compilation |
+| `--job-type` | `-jt` | SingleValue | Force job type: `exe`, `jit-exe`, `lib`, `2c`, `2ch`, `inter`, `proc` |
+| `--target` | `-t` | SingleValue | Target triple (default: host triple) |
+| `--lto` | — | NoValue | Enable Link Time Optimization |
+| `--assertions` | — | NoValue | Enable IR assertions for codegen validation |
+| `--debug-ir` | — | NoValue | Don't crash on potentially bad IR |
+| `--benchmark` | `-bm` | NoValue | Benchmark lexing/parsing/compilation |
+| `--benchmark-files` | `-bm-files` | NoValue | Per-file benchmark breakdown |
+| `--benchmark-modules` | `-bm-modules` | NoValue | Per-module benchmark breakdown |
+| `--test` | `--test` | NoValue | Set `is_testing_env` flag |
+| `--no-cache` | — | NoValue | Disable module caching (default in CLI mode) |
+| `--no-cbi` | — | NoValue | Ignore CBI annotations in translation |
+| `--frecompile-plugins` | `--frecompile-plugins` | NoValue | Force recompilation of all CBI plugins |
+| `--sanitize` | `-fsanitize` | SingleValue | Enable sanitizers: `address`, `memory`, `thread`, `undefined`, `leak`, `hwaddress`, `dataflow` (comma-separated) |
+| `--tsan` | — | NoValue | Enable ThreadSanitizer |
+| `--no-pie` | `--no-pie` | NoValue | Disable position-independent executable |
+| `--jit` | `--jit` | NoValue | JIT compilation mode (TinyCC) |
+| `--use-tcc` | `--use-tcc` | NoValue | Use TinyCC backend (C translation + libtcc) |
+| `--use-c` | `--use-c` | NoValue | Translate to C + compile with embedded Clang |
+| `--use-lld` | `--use-lld` | NoValue | Use LLD for linking |
+| `--use-bc` | `--use-bitcode` | NoValue | Use bitcode format for module objects |
+| `--resources` | `--res` | SingleValue | Override resources directory path |
+| `--mod` | — | MultiValued | Specify module files |
+| `--cbi-m` | `--cbi-m` | MultiValued | CBI module names |
+| `--download` | `--download` | NoValue | Download-only (don't build) |
+| `--check` | `--check` | NoValue | Check-only (don't build) |
+| `--run-negative-tests` | — | NoValue | Run negative lifetime tests (DEBUG-only) |
+| `--ignore-errors` | `--ignore-errors` | NoValue | Continue despite errors |
+| `-g` | — | NoValue | Emit debug info |
+| `-c` | — | NoValue | Compile to object files only (no link) |
+| `--fno-unwind-tables` | — | NoValue | Disable unwind tables (cleaner IR) |
+| `--fno-asynchronous-unwind-tables` | — | NoValue | Disable async unwind tables |
+| `--arg-<name>` | `-arg-<name>` | String | Pass arbitrary args to build.lab scripts (e.g., `--arg-interpret`) |
+| `--cpp-like` | — | NoValue | C translation output similar to C++ |
+| `--res <dir>` | `-res <dir>` | SingleValue | Resources directory |
+
+### How CLI Args Flow Through the Pipeline
+
+```
+CLI (argc, argv)
+    │
+    ▼
+CmdOptions::parse_cmd_options()
+    │
+    ├── SubCommand Detected?
+    │   ├── "configure" → configure_exe()
+    │   ├── "cc" → chemical_clang_main2()
+    │   ├── "ar"/"ranlib"/"lib"/"dlltool" → llvm_ar_main2()
+    │   ├── "run" → LabBuildCompiler::run_invocation()
+    │   ├── "tcc-jit" → LabBuildCompiler::tcc_run_invocation()
+    │   └── "linker" → forward to system linker
+    │
+    ├── No Input?
+    │   └── print_usage(), exit 1
+    │
+    ├── Input is .lab or .mod file?
+    │   ├── .mod → build via LabBuildCompiler::build_mod_file()
+    │   ├── .lab → build via LabBuildCompiler::build_lab_file()
+    │   └── .mod → .lab → convert via ModToLabConverter
+    │
+    └── Input is .ch file(s)?
+        └── Single-file compilation path:
+            1. Create LabModule, LabJob, LabBuildCompilerOptions
+            2. prepare_options() fills options from parsed CLI
+            3. Handle output file extension → set module type:
+               .o → obj output, .s → asm, .ll → llvm ir, .bc → bitcode
+            4. compiler.do_job_allocating(&job)
+```
+
+### The `prepare_options()` Lambda
+
+In `CompilerMain.cpp`, the `prepare_options` lambda maps CLI flags to `LabBuildCompilerOptions`:
+
+```cpp
+auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
+    opts->benchmark = options.has_value("benchmark", "bm");
+    opts->verbose = verbose;
+    opts->verbose_link = options.has_value("verbose-link", "vl");
+    opts->minify_c = options.has_value("minify-c");
+    opts->emit_c = options.has_value("emit-c", "emit-c");
+    opts->debug_info = options.has_value("", "g");
+    opts->use_c = options.has_value("use-c", "use-c");
+    opts->use_tcc = options.has_value("use-tcc", "use-tcc");
+    opts->use_lld = options.has_value("use-lld", "use-lld");
+    opts->is_testing_env = options.has_value("test");
+    opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
+    opts->is_caching_enabled = !options.has_value("no-cache");
+    opts->force_recompile_plugins = options.has_value("frecompile-plugins");
+    opts->debug_ir = options.has_value("debug-ir");
+    opts->def_lto_on = options.has_value("lto");
+    opts->def_assertions_on = options.has_value("assertions");
+    opts->fno_unwind_tables = options.has_value("", "fno-unwind-tables");
+    opts->no_pie = options.has_value("no-pie", "no-pie");
+    opts->def_plugin_mode = parsed_plugin_mode;
+
+    // Sanitizers — parsed from --sanitize=addr,undef format
+    opts->sanitizers = parse_sanitizers(options.option_new("sanitize", "fsanitize"));
+};
+```
+
+### `LabBuildCompilerOptions` Structure
+
+**File:** `compiler/lab/LabBuildCompilerOptions.h`
+
+```cpp
+struct LabBuildCompilerOptions {
+    chem::string chemical_exe_path;   // Path to the compiler binary
+    chem::string target_triple;        // Target architecture triple
+    chem::string build_dir;            // Build output directory
+    chem::string resources_path;       // Resources directory
+    
+    bool is64Bit = false;
+    bool verbose = false;
+    bool verbose_link = false;
+    bool benchmark = false;
+    bool benchmark_files = false;
+    bool benchmark_modules = false;
+    bool minify_c = false;
+    bool emit_c = false;
+    bool translate_to_single_file = true;
+    bool debug_info = true;
+    bool use_c = false;                // Translate to C + compile
+    bool use_tcc = false;              // Use TinyCC backend
+    bool use_lld = false;              // Use LLD linker
+    bool debug_ir = false;
+    bool fno_unwind_tables = false;
+    bool fno_asynchronous_unwind_tables = false;
+    bool no_pie = false;
+    bool out_ll_all = false;
+    bool out_asm_all = false;
+    bool use_mod_obj_format = true;    // .o vs .bc format
+    bool is_testing_env = false;
+    bool ignore_errors = false;
+    bool is_caching_enabled = true;
+    bool force_recompile_plugins = false;
+    bool def_lto_on = false;
+    bool def_assertions_on = false;
+    bool prefer_tcc = false;
+    bool make_executable = false;
+    
+    OutputMode out_mode = OutputMode::Debug;
+    OutputMode def_out_mode = OutputMode::Debug;
+    OutputMode def_plugin_mode = OutputMode::Debug;
+    
+    int sanitizers = 0;               // Bitmask of SanitizerType
+    int thread_count = 0;              // Parallel thread count
+};
+```
+
+### Build Args Passthrough to build.lab
+
+When running a `.lab` file, CLI `--arg-*` flags are forwarded to `LabBuildContext.build_args`:
+
+```cpp
+for(auto& opt : options.options) {
+    if(opt.first.starts_with("arg-")) {
+        context.build_args[opt.first.data() + 4] = opt.second;
+    }
+}
+```
+
+The build.lab script then checks these via `ctx.has_arg()` and `ctx.get_arg()`.
+
+### Output Extension Routing
+
+The compiler determines what type of compilation to do based on the **output file extension**:
+
+| Extension | Behavior |
+|-----------|----------|
+| `.exe` (or `--out-bin`) | Link into an executable |
+| `.o` | Compile to object file only (set as `module.object_path`) |
+| `.ll` | Compile to LLVM IR only (set as `module.llvm_ir_path`) |
+| `.bc` | Compile to LLVM bitcode only (set as `module.bitcode_path`) |
+| `.s` | Compile to assembly only (set as `module.asm_path`) |
+| `.c` | Translate to C (set `job.type = ToCTranslation`) |
+| `.ch` | Translate to Chemical (set `job.type = ToChemicalTranslation`) |
+| `-c` flag | Processing only (compile to object, no link) |
+| None / default | `a.exe` (Win) or `a` (Unix) — compile and link |
+
+### Entry Point Decision Flow (Simplified)
+
+```
+compiler_main(argc, argv)
+    │
+    ├── if "-cc1" → chemical_clang_main()
+    ├── if configure → configure_exe()
+    ├── if version → print version
+    ├── if help → print_help()
+    ├── if run → LabBuildCompiler::run_invocation()
+    ├── if cc → chemical_clang_main2()
+    ├── if ar/dlltool/ranlib/lib → llvm_ar_main2()
+    ├── if tcc-jit → LabBuildCompiler::tcc_run_invocation()
+    │
+    └── else (normal compilation)
+        ├── Parse options → LabBuildCompilerOptions
+        ├── Input = .mod file?
+        │   ├── → output.c? → translate to C (job type = ToCTranslation)
+        │   └── → default → build_mod_file()
+        ├── Input = .lab file?
+        │   └── → build_lab_file()
+        └── Input = .ch/.c/.o files?
+            └── → Single-file compilation via do_job_allocating()
+```
+
 ## Related Skills
 
 - **Symbol Resolution** (`.agents/skills/symres/SKILL.md`) — Detailed symres pipeline

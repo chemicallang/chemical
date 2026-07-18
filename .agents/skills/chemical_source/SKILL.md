@@ -1114,6 +1114,40 @@ The same applies to `erase(key)`, `get_ptr(key)`, `find(key, &mut out)`.
 
 Only use explicit `&` when the parameter type is a raw pointer (`*Key` or `*mut Key`).
 
+### 1b. `&arr[0]` gives a reference, not a pointer — use `&raw` for raw pointers
+
+Array indexing `arr[i]` produces a **reference** to the element (`&T`), not a raw pointer (`*T`).
+To get a raw pointer for passing to C functions, use `&raw` or `&raw mut`:
+
+```chemical
+var buf : char[2048]
+
+// WRONG — produces &char, not *char:
+// popen(&buf[0], "r")           // TypeCheck error: &char does not satisfy *char
+// sprintf(&buf[0], "%s", arg)   // TypeCheck error: &char does not satisfy *mut char
+
+// CORRECT — use &raw for raw pointers:
+var pipe = popen(&raw buf[0], "r")          // *char (immutable)
+sprintf(&raw mut buf[0], "%s", arg)         // *mut char (mutable)
+```
+
+This applies to all C interop (`sprintf`, `popen`, `fgets`, `fwrite`, `fopen`, etc.) and any
+function expecting `*char` or `*mut char`.
+
+### 1c. String literals are `*char` (immutable), arrays need `&raw mut` for `*mut char`
+
+String literals (e.g., `"hello"`) have type `*char` and can be passed directly to functions
+expecting `*char`. However, `char` arrays are mutable local variables and require `&raw mut`
+to get `*mut char`:
+
+```chemical
+@extern public func sprintf(buf : *mut char, fmt : *char, ...) : int
+
+var s = "hello"              // *char — pass directly
+var buf : char[64]
+sprintf(&raw mut buf[0], "%s", s)  // buf needs &raw mut for *mut char
+```
+
 ### 2. Multi-line expressions break inside lambdas
 
 The parser errors on expressions spanning multiple lines inside a lambda body:

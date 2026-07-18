@@ -43,6 +43,7 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ./scripts/test.sh --tcc            # Build TCCCompiler, compile & run tests
 ./scripts/test.sh --llvm           # Build Compiler (LLVM), compile & run tests
 ./scripts/test.sh --tcc --libs     # Include library tests (html, css, js, etc.)
+./scripts/test.sh --tcc --negative # Negative tests (compiler failure verification)
 ./scripts/test.sh --tcc --no-run   # Compile only, don't run
 ./scripts/test.sh --tcc --no-build # Use existing compiler binary
 ./scripts/test.sh --tcc --mode debug_complete  # Override compilation mode
@@ -125,6 +126,7 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - `lang/tests/interpret/` — interpretation-specific module (`interpret_tests`): imports `common_tests`, calls `run_common_tests()` then `print_test_stats()`. Entry point for `--arg-interpret`.
 - `lang/tests/src/tests.ch` — compiled executable entry: `main()` calls `run_executable_tests()` then `test_runner()`.
 - `lang/tests/src/test.ch` — deprecated; consolidated into `common/src/test.ch`.
+- `lang/tests/negative/src/main.ch` — **Negative tests**: invokes the compiler via `popen`, compiles `.ch` files with invalid code, checks exit code and stderr for expected errors. Entry point for `--arg-negative`. Uses `intrinsics::get_compiler_path()`.
 - **Inline tests**: manually listed in `tests.ch` via `test(name, () => bool)`.
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
 - Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `libs/`, `nodes/`, `stdlib/`.

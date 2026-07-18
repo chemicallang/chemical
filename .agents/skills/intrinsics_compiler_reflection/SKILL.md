@@ -124,6 +124,7 @@ public:
 | `intrinsics::get_module_name()` | `InterpretGetModuleName` | Returns the module name |
 | `intrinsics::get_module_dir()` | `InterpretGetModuleDir` | Returns the directory path of the enclosing module |
 | `intrinsics::get_build_dir()` | `InterpretGetBuildDir` | Returns the build output directory |
+| `intrinsics::get_compiler_path()` | `InterpretGetCompilerPath` | Returns the path of the compiler binary (`*char`) |
 | `intrinsics::get_target()` | `InterpretGetTarget` | Returns the target triple string (e.g., "x86_64-linux-gnu") |
 | `intrinsics::version()` | `InterpretCompilerVersion` | Returns the compiler version string |
 
@@ -131,6 +132,7 @@ public:
 - Module information is retrieved via `call_scope->global->current_func_type->get_parent()` → `get_mod_scope()`
 - Target triple is from `build_compiler->current_job->target_triple`
 - `get_module_dir()` accesses `scope->container->paths[0]`
+- `get_compiler_path()` reads `build_compiler->options->exe_path` (the `LabBuildCompilerOptions` field)
 
 ### 6. Function Reflection
 

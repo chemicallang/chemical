@@ -459,6 +459,192 @@ ast_allocator;            // Lifetime = entire compilation session
 | `compiler/lab/LabModule.h` | ~50 | Module structure |
 | `compiler/lab/ModuleStorage.h` | ~50 | Module storage and lookup |
 
+## The build.lab API (Lab Module)
+
+The `lab` module (`lang/libs/lab/src/lab.ch`) exposes the build system API to `build.lab` scripts. Every `build.lab` file imports this module and calls its API to define modules, dependencies, and jobs.
+
+### Key Interfaces
+
+#### `BuildContext` Interface
+
+The primary interface for build scripts. Available as `ctx` in the `build()` function:
+
+```chemical
+@compiler.interface
+public interface BuildContext {
+    // Module creation
+    func new_package(&self, type : ModuleType, package_kind : PackageKind,
+        scope_name : &std::string_view, name : &std::string_view,
+        dependencies : std::span<ModuleDependency>) : *mut Module
+
+    // Caching
+    func get_cached(&self, job : *LabJob, path : &std::string_view) : *mut Module
+    func set_cached(&self, job : *LabJob, path : &std::string_view, module : *mut Module)
+
+    // Module management
+    func add_path(&self, module : *mut Module, path : &std::string_view)
+    func add_dependency(&self, job : *mut LabJob, module : *mut Module, info : *mut DependencySymbolInfo)
+    func add_module(&self, job : *mut LabJob, module : *mut Module)
+    func put_job_before(&self, newJob : *mut LabJob, existingJob : *mut LabJob)
+
+    // Linking
+    func link_system_lib(&self, job : *mut LabJob, name : &std::string_view, module : *mut Module = null)
+    func add_lib_search_path(&self, job : *mut LabJob, path : &std::string_view, module : *mut Module = null)
+    func add_object(&self, job : *LabJob, path : &std::string_view)
+
+    // Job creation (returns new LabJob*)
+    func build_exe(&self, name : &std::string_view) : *mut LabJob
+    func run_jit_exe(&self, name : &std::string_view) : *mut LabJob
+    func build_dynamic_lib(&self, name : &std::string_view) : *mut LabJob
+    func build_interpretation(&self, name : &std::string_view) : *mut LabJob
+    func build_cbi(&self, name : &std::string_view) : *mut LabJobCBI
+    func translate_to_c(&self, name : &std::string_view, output_path : &std::string_view) : *mut LabJob
+    func translate_to_chemical(&self, module : *mut Module, output_path : &std::string_view) : *mut LabJob
+
+    // Remote imports
+    func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module,
+        dep : &ImportRepo, strategy : ConflictResolutionStrategy = ...) : bool
+    func fetch_job_dependency(&self, job : *mut LabJob,
+        dep : &ImportRepo, strategy : ConflictResolutionStrategy = ...) : bool
+
+    // CLI argument handling
+    func has_arg(&self, name : &std::string_view) : bool
+    func get_arg(&self, name : &std::string_view) : std::string_view
+    func define(&self, job : *LabJob, name : &std::string_view) : bool
+    func undefine(&self, job : *LabJob, name : &std::string_view) : bool
+
+    // Testing
+    func set_environment_testing(&self, job : *mut LabJob, value : bool)
+
+    // Compiler interfaces (for CBI plugins)
+    func add_compiler_interface(&self, module : *mut Module, interface : &std::string_view) : bool
+    func contains_cbi(&self, key : &std::string_view) : bool
+    func index_cbi_fn(&self, job : *mut LabJobCBI, key : &std::string_view,
+        fn_name : &std::string_view, fn_type : CBIFunctionType) : bool
+
+    // Tool invocation
+    func build_path(&self) : std::string_view
+    func invoke_ar(&self, string_arr : std::span<std::string_view>) : int
+    func invoke_ranlib(&self, string_arr : std::span<std::string_view>) : int
+}
+```
+
+#### `LabJob` Interface
+
+Represents a compilation job:
+```chemical
+public interface LabJob {
+    func getType(&self) : LabJobType
+    func getName(&self) : std::string_view
+    func getAbsPath(&self) : std::string_view
+    func getBuildDir(&self) : std::string_view
+    func getStatus(&self) : LabJobStatus
+    func getTargetTriple(&self) : std::string_view
+    func getMode(&self) : OutputMode
+    func getTarget(&self) : &TargetData
+    func setAbsPath(&self, path : std::string_view)
+}
+```
+
+#### `Module` Interface
+
+Represents a compiled module:
+```chemical
+public interface Module {
+    func getType(&self) : ModuleType
+    func getScopeName(&self) : std::string_view
+    func getName(&self) : std::string_view
+    func getBitcodePath(&self) : std::string_view
+    func setBitcodePath(&self, path : &std::string_view)
+    func getObjectPath(&self) : std::string_view
+    func setObjectPath(&self, path : &std::string_view)
+    // ... etc
+}
+```
+
+### Key Enums
+
+```chemical
+public enum ModuleType { File, CFile, CPPFile, ObjFile, Directory }
+public enum PackageKind { Library, Application }
+public enum LabJobType {
+    Executable, JITExecutable, Library, ToCTranslation,
+    ToChemicalTranslation, ProcessingOnly, CBI, Interpretation
+}
+public enum LabJobStatus { Pending, Launched, Success, Failure }
+public enum OutputMode : int {
+    Debug, DebugQuick, DebugComplete,
+    ReleaseFast, ReleaseSmall, ReleaseSafe
+}
+```
+
+### Common Patterns in build.lab
+
+#### Pattern 1: Standard Executable
+```chemical
+import lab
+
+func build(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_job = ctx.build_exe("my_app")
+    const deps = [/* dependency modules */]
+    const mod = ctx.directory_app_module("", "main", "src", deps)
+    ctx.add_module(exe_job, mod)
+    return exe_job
+}
+```
+
+#### Pattern 2: Remote Dependency
+```chemical
+ctx.fetch_mod_dependency(job, mod, ImportRepo{
+    from : "github.com/owner/repo",
+    version : "v1.0",
+    location : intrinsics::get_raw_location()
+})
+```
+
+#### Pattern 3: CBI Plugin
+```chemical
+const cbi_name = std::string_view("my_plugin")
+const cbi_job = ctx.build_cbi(&cbi_name)
+ctx.add_module(cbi_job, my_plugin_mod)
+```
+
+#### Pattern 4: Conditional Build
+```chemical
+if(ctx.has_arg("interpret")) {
+    const interp_job = ctx.build_interpretation("my-interp")
+    // ... add modules
+    return interp_job
+}
+```
+
+#### Pattern 5: Build Path Helpers (in `lab` namespace)
+```chemical
+// Path to the current build.lab's directory
+lab::curr_dir()
+
+// Absolute path relative to current build.lab
+lab::rel_path_to("src")
+
+// Build directory paths
+ctx.build_job_dir_path("job_name")
+ctx.build_mod_file_path("job", "scope", "mod", "file")
+ctx.build_llvm_ir_path("job", "scope", "mod")
+
+// Common helpers
+const mod = ctx.directory_app_module("", "main", lab::rel_path_to("src"), deps)
+```
+
+### How Tests Are Wired (lang/tests/build.lab Example)
+
+See the [Testing Guide](./.agents/skills/testing/SKILL.md) for how `lang/tests/build.lab` wires:
+- Interpretation tests (`--arg-interpret`)
+- Compiled tests (default)
+- Library tests (`--arg-test-libs`)
+- Individual library tests (`--arg-test-html`, `--arg-test-css`, etc.)
+
+The test wiring uses `ctx.build_interpretation()`, `ctx.build_exe()`, `set_environment_testing()`, `has_arg()`, and `define()` to configure the build environment.
+
 ## Related Skills
 
 - **Symbol Resolution** (`.agents/skills/symres/SKILL.md`) — Detailed symres pipeline
@@ -466,3 +652,4 @@ ast_allocator;            // Lifetime = entire compilation session
 - **C Codegen** (`.agents/skills/c_codegen/SKILL.md`) — 2c translation backend
 - **Performance** (`.agents/skills/performance/SKILL.md`) — Optimization and parallelization patterns
 - **Compiler Bindings** (`.agents/skills/compiler_bindings/SKILL.md`) — CBI and TinyCC integration
+- **Testing Guide** (`.agents/skills/testing/SKILL.md`) — How tests are wired and executed

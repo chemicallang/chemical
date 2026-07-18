@@ -283,21 +283,155 @@ Located in `preprocess/ImportPathHandler.h/.cpp`, this component:
 
 After resolving, it provides the path to the module's `chemical.mod` or `build.lab`, which the Lab build system uses to load the module.
 
-## CoreNodes
+## CoreNodes — How Core Interfaces are Bound
 
-Located in `compiler/symres/CoreNodes.h`, this provides all the core interfaces needed for operator overloading and built-in functionality:
+Located in `compiler/symres/CoreNodes.h`, this provides all the core interfaces needed for operator overloading and built-in functionality. These are linked at runtime during `SymbolResolver::link_core_nodes()` (defined in `compiler/symres/SymbolResolver.cpp`).
 
-- `core::ops::Add`, `Sub`, `Mul`, `Div`, `Mod` — arithmetic
-- `core::ops::BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr` — bitwise
-- `core::ops::Neg`, `Not`, `BitNot` — unary
-- `core::ops::Index` — index operator
-- `core::iterable::Iterable`, `ReversibleIterable` — for-in loops
-- `core::iterable::ChunkedIterable`, `ReversibleChunkedIterable` — chunked iteration
-- `core::ops::AssignAdd`, `AssignSub`, etc. — compound assignment
-- `core::ops::Inc`, `Dec` — increment/decrement
-- `core::serialization::StreamWrite` — serialization
+### The Binding Mechanism
 
-These are linked during `link_core_nodes()` which is called before any user code is symbol-resolved.
+`link_core_nodes()` is called after a module completes symbol resolution, but only if the module name is `"core"` (checked in `ASTProcessor::sym_res_module()`). It looks up interfaces by name in the symbol table and stores function pointers in the `CoreNodes` struct:
+
+```cpp
+void SymbolResolver::link_core_nodes() {
+    // Step 1: Find the Copy marker interface
+    const auto copyNode = find("Copy");
+    if(copyNode && copyNode->kind() == ASTNodeKind::InterfaceDecl) {
+        coreNodes.copy_interface = copyNode->as_interface_def_unsafe();
+        coreNodes.copy_interface->interface_bits.set(InterfaceBits::COPY_BIT);
+    }
+
+    // Step 2: Find the core namespace
+    const auto coreNode = find("core");
+    if(!coreNode || coreNode->kind() != ASTNodeKind::NamespaceDecl) return;
+
+    // Step 3: Find core::ops, core::iterable, core::stream
+    const auto opsNode = coreNode->child("ops");
+    const auto iterableNode = coreNode->child("iterable");
+    const auto streamNode = coreNode->child("stream");
+
+    // Step 4: Bind each interface method using func_of_interface()
+    coreNodes.ops.add = func_of_interface(opsNode, "Add", "add");
+    coreNodes.ops.sub = func_of_interface(opsNode, "Sub", "sub");
+    // ... etc for all operators
+}
+```
+
+The `func_of_interface()` helper resolves an interface method:
+
+```cpp
+static FunctionDeclaration* func_of_interface(
+    ASTNode* container,        // The namespace containing interfaces
+    const chem::string_view& interface,  // Interface name, e.g. "Add"
+    const chem::string_view& method      // Method name, e.g. "add"
+) {
+    const auto found = container->child(interface);
+    if(!found) return nullptr;
+    const auto child = found->child(method);
+    if(!child || child->kind() != ASTNodeKind::FunctionDecl) return nullptr;
+    return child->as_function_unsafe();
+}
+```
+
+### The `CoreNodes` Struct Hierarchy
+
+```
+CoreNodes
+├── copy_interface — The `Copy` interface (marker for trivially copyable types)
+├── CoreNodesOps — Operator overload functions
+│   ├── Arithmetic: add, sub, mul, div, rem
+│   ├── Bitwise: bit_and, bit_or, bit_xor, shl, shr
+│   ├── Unary: neg, not, bitnot
+│   ├── Compound assignment: add_assign, sub_assign, mul_assign, div_assign, rem_assign
+│   │                bit_and_assign, bit_or_assign, bit_xor_assign, shl_assign, shr_assign
+│   ├── Comparison: eq, ne (from PartialEq)
+│   │               gt, lt, gte, lte (from Ord)
+│   ├── Inc/Dec: inc_pre, inc_post, dec_pre, dec_post (from Increment/Decrement)
+│   └── Index: index, index_mut (from Index/IndexMut)
+├── CoreNodesIterable — Iteration interface functions
+│   ├── LinearIterable: linear_data, linear_size
+│   ├── ChunkedIterable: begin_chunks, valid_chunk, current_chunk, next_chunk
+│   │                    rbegin_chunks, previous_chunk, total_size
+│   ├── Iterable: begin, valid, current, next
+│   └── ReversibleIterable: rbegin, previous, count
+└── CoreNodesStream — Serialization interface functions
+    └── Stream: writeSigned, writeUnsigned, writeStr, writeStrNoLen,
+                writeFloat, writeDouble, writeChar, writeUChar
+```
+
+### How `Copy` Interface Works
+
+The `Copy` interface is a special marker interface. When a struct implements `core::ops::Copy`, the compiler marks it with `InterfaceBits::COPY_BIT`. This bit is checked during move semantics:
+
+```cpp
+// If a type implements Copy, it can be duplicated without move semantics
+// If it doesn't implement Copy and has a destructor, moves are enforced
+```
+
+### How Operator Overloads Use CoreNodes
+
+During SymResLinkBody (Phase 4), when an expression like `a + b` is encountered:
+
+```cpp
+// In SymResLinkBody expression handling:
+// 1. Get the type of 'a'
+// 2. Get the MembersContainer for that type
+// 3. Look up the impl for core::ops::Add for that type:
+FunctionDeclaration* add_impl = implsIndex.get_expr_op_impl(coreNodes, container, Operation::Add);
+// 4. If found, rewrite the Expression to a FunctionCall to add_impl
+// 5. If not found, report error: "operator + not supported for type X"
+```
+
+The `ImplementationsIndex` provides methods like:
+- `get_expr_op_impl(coreNodes, container, op)` — for binary operators
+- `get_ass_op_impl(coreNodes, container, op)` — for compound assignment operators
+- `get_inc_dec_op_impl(coreNodes, container, increment, post)` — for ++/--
+- `get_index_op_impl(coreNodes, container)` — for [] operator
+- `get_neg_op_impl(coreNodes, container)` — for unary -
+- `get_iterable_begin_impl(coreNodes, container)` — for for-in iteration
+
+### Complete Interface List
+
+| Interface | Namespace | Method | Operator/Syntax |
+|-----------|-----------|--------|-----------------|
+| `Add` | `core::ops` | `add` | `a + b` |
+| `Sub` | `core::ops` | `sub` | `a - b` |
+| `Mul` | `core::ops` | `mul` | `a * b` |
+| `Div` | `core::ops` | `div` | `a / b` |
+| `Rem` | `core::ops` | `rem` | `a % b` |
+| `Neg` | `core::ops` | `neg` | `-a` |
+| `Not` | `core::ops` | `not` | `!a` |
+| `BitNot` | `core::ops` | `bitnot` | `~a` |
+| `BitAnd` | `core::ops` | `bitand` | `a & b` |
+| `BitOr` | `core::ops` | `bitor` | `a | b` |
+| `BitXor` | `core::ops` | `bitxor` | `a ^ b` |
+| `Shl` | `core::ops` | `shl` | `a << b` |
+| `Shr` | `core::ops` | `shr` | `a >> b` |
+| `PartialEq` | `core::ops` | `eq`, `ne` | `a == b`, `a != b` |
+| `Ord` | `core::ops` | `gt`, `lt`, `gte`, `lte` | `a > b`, `a < b`, etc. |
+| `Increment` | `core::ops` | `inc_pre`, `inc_post` | `++a`, `a++` |
+| `Decrement` | `core::ops` | `dec_pre`, `dec_post` | `--a`, `a--` |
+| `Index` | `core::ops` | `index` | `a[b]` (read) |
+| `IndexMut` | `core::ops` | `index` | `a[b] = val` (write) |
+| `AddAssign` | `core::ops` | `add_assign` | `a += b` |
+| `SubAssign` | `core::ops` | `sub_assign` | `a -= b` |
+| `MulAssign` | `core::ops` | `mul_assign` | `a *= b` |
+| `DivAssign` | `core::ops` | `div_assign` | `a /= b` |
+| `RemAssign` | `core::ops` | `rem_assign` | `a %= b` |
+| `BitAndAssign` | `core::ops` | `bitand_assign` | `a &= b` |
+| `BitOrAssign` | `core::ops` | `bitor_assign` | `a |= b` |
+| `BitXorAssign` | `core::ops` | `bitxor_assign` | `a ^= b` |
+| `ShlAssign` | `core::ops` | `shl_assign` | `a <<= b` |
+| `ShrAssign` | `core::ops` | `shr_assign` | `a >>= b` |
+| `Iterable` | `core::iterable` | `begin`, `valid`, `current`, `next` | `for x in container` |
+| `ReversibleIterable` | `core::iterable` | `rbegin`, `previous`, `count` | `for x in container reversed` |
+| `Linear` | `core::iterable` | `data`, `size` | Direct data access |
+| `Chunked` | `core::iterable` | `begin_chunks`, `valid_chunk`, etc. | Chunked iteration |
+| `Copy` | top-level | (marker interface) | Move semantics exception |
+| `Stream` | `core::stream` | `writeSigned`, `writeUnsigned`, etc. | Serialization |
+
+### Why `link_core_nodes()` is Called Per-Core-Module
+
+CoreNodes are bound only when the compiler processes the `core` module (checked in `ASTProcessor::sym_res_module()`). This is because the core interfaces are defined in Chemical source code in `lang/libs/core/`. The binding happens AFTER symbol resolution of the core module is complete, so all interfaces are visible in the symbol table.
 
 ## Common Issues and Debugging
 

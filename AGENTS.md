@@ -170,6 +170,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Type Verification | `.agents/skills/type_verification/SKILL.md` | Type checking pass: `TypeVerifier` visitor, return type checking, variable/assignment types, expression operator validation, implicit conversions, `unsatisfied_type_err` |
 | Diagnostics | `.agents/skills/diagnostics/SKILL.md` | Error reporting system: `ASTDiagnoser`, `Diag` structure, severity levels, `SourceLocation` encoding, per-phase collection, parallel-safe merging, `ASTDiag.h` helpers |
 | Performance | `.agents/skills/performance/SKILL.md` | Optimization patterns: arena allocation (`ASTAllocator`), SSO strings (`chem::string`), parallelization (file-level, generic instantiation), caching strategies, memory optimization, profiling tips |
+| Testing Guide | `.agents/skills/testing/SKILL.md` | Test infrastructure: manual `test()` calls vs `@test` annotation dispatch, `test_env` library, `lang/tests/build.lab` wiring, inline/compiled/interpret/library tests, writing tests for compiler failures |
 
 ### Backends
 
@@ -236,6 +237,7 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Understanding the build pipeline / parallelizing builds** | **`build_system`** |
 | **Working on web apps** | `design_web_app`, `universal` |
 | **Working on interpreter/comptime tests** | `interpreter` |
+| **Writing and organizing tests** | **`testing`** |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
 

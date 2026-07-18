@@ -7,10 +7,12 @@ public func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *
 @no_mangle
 public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
     const resolver = visitor.getSymbolResolver();
+    const table = visitor.getSymbolTable();
+    const diagnoser = visitor.getAstDiagnoser()
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsComponentDecl;
 
-    root.htmlPageNode = resolver.find(std::string_view("HtmlPage"));
+    root.htmlPageNode = resolver.resolve(std::string_view("HtmlPage"));
     if(root.htmlPageNode == null) {
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
@@ -34,8 +36,8 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
 
     // resolution of required types and functions for code generation
     root.support.pageNode = param ;
-    resolve_page_children(resolver, &mut root.support, root.support.pageNode, loc);
-    sym_res_support(resolver, &mut root.support, loc);
+    resolve_page_children(resolver, &mut root.support, diagnoser, root.support.pageNode, loc);
+    sym_res_support(resolver, &mut root.support, diagnoser, loc);
 
     // the second param for the function, attrs : SsrAttributeList
     const attrListNodeType = builder.make_linked_type(std::string_view("SsrAttributeList"), root.support.ssrAttributeListNode, loc);
@@ -54,24 +56,24 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     root.signature.functionNode = funcDecl;
 
     // start a scope to store symbols
-    resolver.scope_start();
+    table.scope_start();
 
     // declare the page param
-    resolver.declare_or_shadow(std::string_view("page"), param)
+    table.declare(std::string_view("page"), param)
 
     // visit the body
     visitor.visitEmbeddedNode(node)
 
     // resolve components
-    sym_res_components(&mut root.components, resolver)
+    sym_res_components(&mut root.components, resolver, visitor.getAstDiagnoser())
 
     // end the scope
-    resolver.scope_end();
+    table.scope_end();
 
 }
 
 @no_mangle
 public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare_default(&comp.signature.name, node);
+    resolver.declare_tld_default(&comp.signature.name, node);
 }

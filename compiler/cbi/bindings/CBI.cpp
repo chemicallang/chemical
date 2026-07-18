@@ -388,7 +388,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolvergetAnnotationController", (void*) SymbolResolvergetAnnotationController},
-        {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
+        {"compiler_SymbolResolverresolve", (void*) SymbolResolverresolve},
         {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
         {"compiler_SymbolResolverdeclare_tld_default", (void*) SymbolResolverdeclare_tld_default},
         {"compiler_SymbolResolverdeclare_or_shadow", (void*) SymbolResolverdeclare_or_shadow},
@@ -408,6 +408,7 @@ const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
 
         // sym res link body
         {"compiler_SymResLinkBodygetSymbolResolver", (void*) SymResLinkBodygetSymbolResolver},
+        {"compiler_SymResLinkBodygetAstDiagnoser", (void*) SymResLinkBodygetAstDiagnoser},
         {"compiler_SymResLinkBodygetSymbolTable", (void*) SymResLinkBodygetSymbolTable},
         {"compiler_SymResLinkBodyvisitNode", (void*) SymResLinkBodyvisitNode},
         {"compiler_SymResLinkBodyvisitValue", (void*) SymResLinkBodyvisitValue},

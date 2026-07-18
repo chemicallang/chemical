@@ -712,6 +712,10 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     node->data.signature_resolved = true;
 
     if(node->isExtensionFn()) {
+        // Lock the shared registration mutex to prevent data races on
+        // the container's extension_functions vector when multiple files
+        // register extension functions on the same struct in parallel.
+        std::lock_guard<std::recursive_mutex> lock(sig.linker.generic_inst_reg_mutex);
         node->put_as_extension_function(sig.diagnoser);
     }
     table.scope_end();

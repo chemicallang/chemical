@@ -4,7 +4,7 @@ public func js_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNod
     const resolver = visitor.getSymbolResolver();
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsRoot;
-    sym_res_root(root, resolver, loc)
+    sym_res_root(root, visitor, loc)
 }
 
 @no_mangle
@@ -38,7 +38,7 @@ public func js_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedV
     const resolver = visitor.getSymbolResolver();
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut JsRoot;
-    sym_res_root(root, resolver, loc)
+    sym_res_root(root, visitor, loc)
     return true;
 }
 

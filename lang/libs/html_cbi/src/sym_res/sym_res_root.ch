@@ -1,36 +1,39 @@
 func sym_res_root(
     root : *mut HtmlRoot,
-    resolver : *mut SymbolResolver,
+    visitor : *mut SymResLinkBody,
     loc : ubigint
 ) : bool {
 
-    const ssrAttrLinkedNode = resolver.find("SsrAttribute");
+    const resolver = visitor.getSymbolResolver()
+    const diagnoser = visitor.getAstDiagnoser()
+
+    const ssrAttrLinkedNode = resolver.resolve("SsrAttribute");
     if(ssrAttrLinkedNode == null) {
-        resolver.error("couldn't find 'SsrAttribute' node", loc);
+        diagnoser.error("couldn't find 'SsrAttribute' node", loc);
         return false;
     }
 
-    const ssrTextLinkedNode = resolver.find("SsrText");
+    const ssrTextLinkedNode = resolver.resolve("SsrText");
     if(ssrTextLinkedNode == null) {
-        resolver.error("couldn't find 'SsrText' node", loc);
+        diagnoser.error("couldn't find 'SsrText' node", loc);
         return false;
     }
 
-    const ssrAttributeValueNode = resolver.find("SsrAttributeValue");
+    const ssrAttributeValueNode = resolver.resolve("SsrAttributeValue");
     if(ssrAttributeValueNode == null) {
-        resolver.error("couldn't find 'SsrAttributeValue' node", loc);
+        diagnoser.error("couldn't find 'SsrAttributeValue' node", loc);
         return false;
     }
 
-    const multipleAttributeValueNode = resolver.find("MultipleAttributeValues");
+    const multipleAttributeValueNode = resolver.resolve("MultipleAttributeValues");
     if(multipleAttributeValueNode == null) {
-        resolver.error("couldn't find 'MultipleAttributeValues' node", loc);
+        diagnoser.error("couldn't find 'MultipleAttributeValues' node", loc);
         return false;
     }
 
-    const ssrAttributeListNode = resolver.find("SsrAttributeList");
+    const ssrAttributeListNode = resolver.resolve("SsrAttributeList");
     if(ssrAttributeListNode == null) {
-        resolver.error("couldn't find 'SsrAttributeList' node", loc);
+        diagnoser.error("couldn't find 'SsrAttributeList' node", loc);
         return false;
     }
 
@@ -41,51 +44,52 @@ func sym_res_root(
     support.multipleAttributeValueNode = multipleAttributeValueNode
     support.ssrAttributeListNode = ssrAttributeListNode
 
-    const page = resolver.find("page");
+    // since its a local variable, we must first go through symbol table
+    const page = visitor.resolve("page");
     if(page == null) {
-        resolver.error("couldn't find page variable", loc);
+        diagnoser.error("couldn't find page variable", loc);
         return false;
     }
 
     const appendHtmlCharFn = page.child("append_html_char")
     if(appendHtmlCharFn == null) {
-        resolver.error("'append_html_char' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_char' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlCharPtrFn = page.child("append_html_char_ptr")
     if(appendHtmlCharPtrFn == null) {
-        resolver.error("'append_html_char_ptr' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_char_ptr' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlFn = page.child("append_html");
     if(appendHtmlFn == null) {
-        resolver.error("'append_html' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlIntFn = page.child("append_html_integer");
     if(appendHtmlIntFn == null) {
-        resolver.error("'append_html_integer' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_integer' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlUIntFn = page.child("append_html_uinteger");
     if(appendHtmlUIntFn == null) {
-        resolver.error("'append_html_uinteger' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_uinteger' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlFloatFn = page.child("append_html_float");
     if(appendHtmlFloatFn == null) {
-        resolver.error("'append_html_float' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_float' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHtmlDoubleFn = page.child("append_html_double");
     if(appendHtmlDoubleFn == null) {
-        resolver.error("'append_html_double' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_html_double' function is required on 'page' for html to work", loc);
         return false;
     }
 
@@ -100,51 +104,51 @@ func sym_res_root(
 
     const getHtmlSizeFn = page.child("get_html_size");
     if(getHtmlSizeFn == null) {
-        resolver.error("'get_html_size' function is required on 'page' for html to work", loc);
+        diagnoser.error("'get_html_size' function is required on 'page' for html to work", loc);
         return false;
     }
     const truncateHtmlFn = page.child("truncate_html");
     if(truncateHtmlFn == null) {
-        resolver.error("'truncate_html' function is required on 'page' for html to work", loc);
+        diagnoser.error("'truncate_html' function is required on 'page' for html to work", loc);
         return false;
     }
     const pageHtmlNode = page.child("pageHtml");
     if(pageHtmlNode == null) {
-        resolver.error("'pageHtml' member is required on 'page' for html to work", loc);
+        diagnoser.error("'pageHtml' member is required on 'page' for html to work", loc);
         return false;
     }
     support.getHtmlSizeFn = getHtmlSizeFn;
     support.truncateHtmlFn = truncateHtmlFn;
     support.pageHtmlNode = pageHtmlNode;
 
-    const stdNamespace = resolver.find("std")
+    const stdNamespace = resolver.resolve("std")
     if(stdNamespace == null) {
-        resolver.error("couldn't find 'std' namespace", loc);
+        diagnoser.error("couldn't find 'std' namespace", loc);
         return false;
     }
     const stringNode = stdNamespace.child("string")
     if(stringNode == null) {
-        resolver.error("couldn't find 'std::string' node", loc);
+        diagnoser.error("couldn't find 'std::string' node", loc);
         return false;
     }
     const stringNodeMake = stringNode.child("empty_str");
     if(stringNodeMake == null) {
-        resolver.error("couldn't find 'std::string::empty_str'", loc);
+        diagnoser.error("couldn't find 'std::string::empty_str'", loc);
         return false;
     }
     const appendWithLenFn = stringNode.child("append_with_len")
     if(appendWithLenFn == null) {
-        resolver.error("'append_with_len' function is required on 'std::string'", loc);
+        diagnoser.error("'append_with_len' function is required on 'std::string'", loc);
         return false;
     }
     const dataFn = stringNode.child("data")
     if(dataFn == null) {
-        resolver.error("'data' function is required on 'std::string'", loc);
+        diagnoser.error("'data' function is required on 'std::string'", loc);
         return false;
     }
     const sizeFn = stringNode.child("size")
     if(sizeFn == null) {
-        resolver.error("'size' function is required on 'std::string'", loc);
+        diagnoser.error("'size' function is required on 'std::string'", loc);
         return false;
     }
 
@@ -155,43 +159,43 @@ func sym_res_root(
 
     const appendHeadCharFn = page.child("append_head_char")
     if(appendHeadCharFn == null) {
-        resolver.error("'append_head_char' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_char' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadCharPtrFn = page.child("append_head_char_ptr")
     if(appendHeadCharPtrFn == null) {
-        resolver.error("'append_head_char_ptr' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_char_ptr' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadFn = page.child("append_head");
     if(appendHeadFn == null) {
-        resolver.error("'append_head' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadIntFn = page.child("append_head_integer");
     if(appendHeadIntFn == null) {
-        resolver.error("'append_head_integer' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_integer' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadUIntFn = page.child("append_head_uinteger");
     if(appendHeadUIntFn == null) {
-        resolver.error("'append_head_uinteger' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_uinteger' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadFloatFn = page.child("append_head_float");
     if(appendHeadFloatFn == null) {
-        resolver.error("'append_head_float' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_float' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendHeadDoubleFn = page.child("append_head_double");
     if(appendHeadDoubleFn == null) {
-        resolver.error("'append_head_double' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_head_double' function is required on 'page' for html to work", loc);
         return false;
     }
 
@@ -205,43 +209,43 @@ func sym_res_root(
 
     const appendJsCharFn = page.child("append_js_char")
     if(appendJsCharFn == null) {
-        resolver.error("'append_js_char' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_char' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsCharPtrFn = page.child("append_js_char_ptr")
     if(appendJsCharPtrFn == null) {
-        resolver.error("'append_js_char_ptr' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_char_ptr' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsFn = page.child("append_js");
     if(appendJsFn == null) {
-        resolver.error("'append_js' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsIntFn = page.child("append_js_integer");
     if(appendJsIntFn == null) {
-        resolver.error("'append_js_integer' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_integer' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsUIntFn = page.child("append_js_uinteger");
     if(appendJsUIntFn == null) {
-        resolver.error("'append_js_uinteger' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_uinteger' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsFloatFn = page.child("append_js_float");
     if(appendJsFloatFn == null) {
-        resolver.error("'append_js_float' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_float' function is required on 'page' for html to work", loc);
         return false;
     }
 
     const appendJsDoubleFn = page.child("append_js_double");
     if(appendJsDoubleFn == null) {
-        resolver.error("'append_js_double' function is required on 'page' for html to work", loc);
+        diagnoser.error("'append_js_double' function is required on 'page' for html to work", loc);
         return false;
     }
 
@@ -255,22 +259,22 @@ func sym_res_root(
 
     const requireComponentFn = page.child("require_component")
     if(requireComponentFn == null) {
-        resolver.error("'require_component' function is required on 'page' for html components to work", loc);
+        diagnoser.error("'require_component' function is required on 'page' for html components to work", loc);
         return false;
     }
 
     const setComponentHashFn = page.child("set_component_hash")
     if(setComponentHashFn == null) {
-        resolver.error("'set_component_hash' function is required on 'page' for html components to work", loc);
+        diagnoser.error("'set_component_hash' function is required on 'page' for html components to work", loc);
         return false;
     }
 
     support.requireComponentFn = requireComponentFn
     support.setComponentHashFn = setComponentHashFn;
 
-    const renderJsAttrs = resolver.find("renderJsAttrs")
+    const renderJsAttrs = resolver.resolve("renderJsAttrs")
     if(renderJsAttrs == null) {
-        resolver.error("'renderJsAttrs' function is required for universal hydration to work", loc);
+        diagnoser.error("'renderJsAttrs' function is required for universal hydration to work", loc);
         return false;
     }
     support.renderJsAttrs = renderJsAttrs;
@@ -278,21 +282,21 @@ func sym_res_root(
     for (var i : uint = 0; i < root.components.size(); i += 1) {
         var element = root.components.get(i);
         
-        const compNode = resolver.find(&element.name);
+        const compNode = resolver.resolve(&element.name);
         if (compNode == null) {
-            resolver.error("component not found", element.loc);
+            diagnoser.error("component not found", element.loc);
             return false;
         }
 
         if (compNode.getKind() != ASTNodeKind.EmbeddedNode) {
-            resolver.error("symbol is not a valid component", element.loc);
+            diagnoser.error("symbol is not a valid component", element.loc);
             return false;
         }
 
         const controller = resolver.getAnnotationController();
 
         if(!controller.isMarked(compNode, "component")) {
-            resolver.error("symbol is not a component", element.loc);
+            diagnoser.error("symbol is not a component", element.loc);
             return false;
         }
 
@@ -312,7 +316,7 @@ func sym_res_root(
                     }
                 }
                 if (!found) {
-                     resolver.error("missing required component argument", element.loc);
+                     diagnoser.error("missing required component argument", element.loc);
                      return false;
                 }
             }

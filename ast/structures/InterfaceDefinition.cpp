@@ -291,9 +291,9 @@ int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
 }
 
 uint64_t InterfaceDefinition::byte_size(const TargetData& target) {
-#ifdef DEBUG
-    CHEM_THROW_RUNTIME("InterfaceDefinition::byte_size interface byte_size called");
-#endif
-    return 0;
+    // a single pointer
+    // this is required, because well user can write types like std::Result<ArrayDecoder, SerializationError>
+    // here, ArrayDecoder is an interface, so we (pretend to) store it as a pointer
+    return target.is64Bit ? 8 : 4;
 }
 

@@ -314,3 +314,4 @@ The `lang/compiled/` directory is in `.gitignore`, so nothing there will be comm
 
 - **Build System** (`.agents/skills/build_system/SKILL.md`) — Detailed internals of the Lab build system, job execution, plugin compilation, caching, dependency management
 - **Performance** (`.agents/skills/performance/SKILL.md`) — Compiler optimization patterns, parallelization strategies, arena allocation
+- **Testing Guide** (`.agents/skills/testing/SKILL.md`) — Test infrastructure, writing tests, how tests are wired in `lang/tests/build.lab`

@@ -303,6 +303,24 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
     }
 
     const definition = std::string_view("CHECK_DEF")
+
+    const negative_arg = std::string_view("negative");
+    if(ctx.has_arg(&negative_arg)) {
+        const neg_name = std::string_view("chemical-negative-tests");
+        const neg_job = ctx.build_exe(&neg_name)
+        ctx.set_environment_testing(neg_job, true)
+        var core_module = coreMod.build(ctx, neg_job)
+        var cstd_module = cstdMod.build(ctx, neg_job)
+        var std_module = stdMod.build(ctx, neg_job)
+        var fs_module = fsMod.build(ctx, neg_job)
+        const neg_deps = [ core_module, cstd_module, std_module, fs_module ]
+        const neg_path = lab::rel_path_to("negative")
+        const neg_mod = ctx.directory_app_module(std::string_view(""), std::string_view("negative_tests"), std::string_view(&neg_path), neg_deps)
+        ctx.add_module(neg_job, neg_mod)
+        ctx.define(neg_job, &definition);
+        return neg_job;
+    }
+
     const interpret_arg = std::string_view("interpret");
     if(ctx.has_arg(&interpret_arg)) {
         // Build the interpretation module with common_tests as dependency

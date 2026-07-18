@@ -3,7 +3,7 @@ public interface SymbolResolver : ASTDiagnoser {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
-    func find(&self, view : &std::string_view) : *mut ASTNode;
+    func resolve(&self, view : &std::string_view) : *mut ASTNode;
 
     // this function is very direct, doesn't cause shadowing
     // it will cause an error, even if the current symbol is namespaced

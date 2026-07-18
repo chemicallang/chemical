@@ -10,6 +10,8 @@ class Value;
 
 class SymbolResolver;
 
+class ASTDiagnoser;
+
 class SymResLinkBody;
 class TopLevelLinkSignature;
 class SymbolTable;
@@ -29,7 +31,7 @@ extern "C" {
 
     AnnotationController* SymbolResolvergetAnnotationController(SymbolResolver* resolver);
 
-    ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name);
+    ASTNode* SymbolResolverresolve(SymbolResolver* resolver, chem::string_view* name);
 
     void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
 
@@ -50,6 +52,8 @@ extern "C" {
     // SymResLinkBody
 
     SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor);
+
+    ASTDiagnoser* SymResLinkBodygetAstDiagnoser(SymResLinkBody* visitor);
 
     SymbolTable* SymResLinkBodygetSymbolTable(SymResLinkBody* visitor);
 

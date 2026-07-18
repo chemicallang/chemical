@@ -13,7 +13,7 @@ AnnotationController* SymbolResolvergetAnnotationController(SymbolResolver* reso
     return &resolver->controller;
 }
 
-ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name) {
+ASTNode* SymbolResolverresolve(SymbolResolver* resolver, chem::string_view* name) {
     return resolver->find(*name);
 }
 
@@ -39,6 +39,10 @@ void SymbolResolverscope_end(SymbolResolver* resolver) {
 
 SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor) {
     return &visitor->linker;
+}
+
+ASTDiagnoser* SymResLinkBodygetAstDiagnoser(SymResLinkBody* visitor) {
+    return &visitor->diagnoser;
 }
 
 SymbolTable* SymResLinkBodygetSymbolTable(SymResLinkBody* visitor) {

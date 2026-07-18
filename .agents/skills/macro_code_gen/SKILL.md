@@ -77,4 +77,4 @@ universal lib also generates in both bundles, HTML that is server side rendered 
 that would hydrate the emitted html.
 universal components are fast and they render everywhere, they work in react, preact and solid components. They work in `#html` too.
 
-For more information on universal components, you should get the universal components skill present in this repo.
+For more information on universal components, load the `universal` skill. For developing new compiler plugins or understanding the plugin API, load the `cbi_plugin_api` skill.

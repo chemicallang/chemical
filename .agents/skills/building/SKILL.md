@@ -309,3 +309,8 @@ The `lang/compiled/` directory is in `.gitignore`, so nothing there will be comm
 > ⚠️ **Always rebuild the compiler** (`./scripts/build.sh --tcc` or `--llvm`) after
 > changing `.cpp`/`.h` files. The previously built binary is used otherwise and
 > your changes won't be reflected.
+
+## Related Skills
+
+- **Build System** (`.agents/skills/build_system/SKILL.md`) — Detailed internals of the Lab build system, job execution, plugin compilation, caching, dependency management
+- **Performance** (`.agents/skills/performance/SKILL.md`) — Compiler optimization patterns, parallelization strategies, arena allocation

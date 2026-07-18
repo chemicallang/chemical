@@ -30,3 +30,9 @@ These include (some important bindings)
 - SymbolResolver
 
 to name a few.
+
+## Related Skills
+
+- **CBI Plugin API** (`.agents/skills/cbi_plugin_api/SKILL.md`) — How to use the compiler API bindings in a plugin, ASTBuilder patterns, registration
+- **Macro Codegen** (`.agents/skills/macro_code_gen/SKILL.md`) — How the macro plugins (html_cbi, universal_cbi, etc.) use the compiler API for code generation
+- **Parser Internals** (`.agents/skills/parser_internals/SKILL.md`) — How the parser creates AST nodes that the compiler API works with

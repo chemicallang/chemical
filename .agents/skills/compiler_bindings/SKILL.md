@@ -74,6 +74,12 @@ This lifecycle takes into account all the processes mentioned above. This is ver
 - Compiler plugins parse their code, usually convert to our AST and ask our compiler to compile it
 - Compiler generates assets (executables, dynamic libs, whatever user asked)
 
+## Related Skills
+
+- **Compiler Plugin API** (`.agents/skills/cbi_plugin_api/SKILL.md`) — How to develop compiler plugins: ASTBuilder API, macro registration, plugin structure, debugging
+- **Build System (LabBuildCompiler)** (`.agents/skills/build_system/SKILL.md`) — How plugins are compiled and loaded during the build process
+- **Performance** (`.agents/skills/performance/SKILL.md`) — Optimization patterns, parallel compilation of plugins
+
 ## Future
 
 In the Future, We may use LLVM ORC JIT instead of Tiny CC, but the binding system will remain the same.

@@ -1,5 +1,6 @@
 using namespace std;
 using namespace net;
+using namespace http;
 
 @test
 func test_http_get(env : &mut TestEnv) {
@@ -14,7 +15,7 @@ func test_http_get(env : &mut TestEnv) {
     var thread = srv.serve_async(8081u);
     std.concurrent.sleep_ms(100u);
 
-    var client = net::Client();
+    var client = http::Client();
     var res_result = client.get("http://127.0.0.1:8081/hello");
     
     if(res_result is Result.Err) {
@@ -59,7 +60,7 @@ func test_http_post(env : &mut TestEnv) {
     var thread = srv.serve_async(8082u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var res_result = client.post("http://127.0.0.1:8082/echo", "hello echo", "text/plain");
     
     if(res_result is Result.Err) {
@@ -92,7 +93,7 @@ func test_http_404(env : &mut TestEnv) {
     var thread = srv.serve_async(8083u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var res_result = client.get("http://127.0.0.1:8083/notfound");
     
     if(res_result is Result.Err) {
@@ -131,7 +132,7 @@ func test_http_headers(env : &mut TestEnv) {
     var thread = srv.serve_async(8084u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var u_opt = http::URL::parse("http://127.0.0.1:8084/headers");
     var Some(u) = u_opt else unreachable;
     var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
@@ -176,7 +177,7 @@ func test_http_put_delete(env : &mut TestEnv) {
     var thread = srv.serve_async(8085u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     
     var res1 = client.put("http://127.0.0.1:8085/update", "data", "text/plain");
     if(res1 is Result.Err) {
@@ -229,7 +230,7 @@ func test_http_query_params_builder(env : &mut TestEnv) {
     var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
     rb.query("q", "hello-world");
     
-    var client = net::Client();
+    var client = http::Client();
     var res_result = client.request(&rb);
     
     if(res_result is Result.Err) {
@@ -271,7 +272,7 @@ func test_http_large_body(env : &mut TestEnv) {
     var large_data = std::string();
     for(var i=0u; i<10000u; i++) { large_data.append('A'); }
     
-    var client = net::Client();
+    var client = http::Client();
     var res_result = client.post("http://127.0.0.1:8087/large", large_data.to_view(), "text/plain");
     
     if(res_result is Result.Err) {
@@ -308,7 +309,7 @@ func test_http_patch_head(env : &mut TestEnv) {
     var thread = srv.serve_async(8088u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     
     var res_patch = client.patch("http://127.0.0.1:8088/patch", "data", "application/json");
     if(res_patch is Result.Ok) {
@@ -337,14 +338,14 @@ func test_http_patch_head(env : &mut TestEnv) {
 
 @test
 func test_invalid_url(env : &mut TestEnv) {
-    var client = net::Client();
+    var client = http::Client();
     var res = client.get(std::string_view("not-a-url"));
     if(res is Result.Ok) { env.error("Should fail for invalid URL"); }
 }
 
 @test
 func test_connection_refused(env : &mut TestEnv) {
-    var client = net::Client();
+    var client = http::Client();
     var res = client.get(std::string_view("http://127.0.0.1:59999/nonexistent"));
     if(res is Result.Ok) { env.error("Should fail when connection refused"); }
 }
@@ -363,7 +364,7 @@ func test_server_shutdown_during_request(env : &mut TestEnv) {
     var thread = srv.serve_async(8089u);
     std.concurrent.sleep_ms(50u);
     
-    var client = net::Client();
+    var client = http::Client();
     // Start request
     var res = client.get(std::string_view("http://127.0.0.1:8089/slow"));
     // Server shutdown during request - result depends on timing
@@ -394,7 +395,7 @@ func test_concurrent_requests(env : &mut TestEnv) {
     var thread = srv.serve_async(8090u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     // Make 20 sequential requests
     var success_count = 0u;
     for(var i=0u; i<20u; i++) {
@@ -421,7 +422,7 @@ func test_empty_body_response(env : &mut TestEnv) {
     var thread = srv.serve_async(8091u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var res = client.get(std::string_view("http://127.0.0.1:8091/empty"));
     
     if(res is Result.Err) { env.error("Request failed"); }
@@ -462,7 +463,7 @@ func test_multiple_headers(env : &mut TestEnv) {
     var thread = srv.serve_async(8092u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8092/multi-headers"));
     var Some(u) = u_opt else unreachable;
     var rb = http::RequestBuilder("GET", std::replace(&mut u, http::URL()));
@@ -535,7 +536,7 @@ func test_query_param_encoding(env : &mut TestEnv) {
     var thread = srv.serve_async(8093u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     // URL encode the query param value to send literal %20
     var u_opt = http::URL::parse(std::string_view("http://127.0.0.1:8093/encoded"));
     var Some(u) = u_opt else unreachable;
@@ -580,7 +581,7 @@ func test_router_static_routes(env : &mut TestEnv) {
     var thread = srv.serve_async(8094u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     
     var r1 = client.get(std::string_view("http://127.0.0.1:8094/users"));
     if(r1 is Result.Ok) {
@@ -623,7 +624,7 @@ func test_router_param_routes(env : &mut TestEnv) {
     var thread = srv.serve_async(8095u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var res = client.get(std::string_view("http://127.0.0.1:8095/users/123"));
     
     if(res is Result.Err) { env.error("Request failed"); }
@@ -657,7 +658,7 @@ func test_response_status_codes(env : &mut TestEnv) {
     var thread = srv.serve_async(8096u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     
     var r1 = client.get(std::string_view("http://127.0.0.1:8096/ok"));
     if(r1 is Result.Ok) {
@@ -704,7 +705,7 @@ func test_binary_body(env : &mut TestEnv) {
     binary_data.append(0xFE as char);
     binary_data.append(0x01 as char);
     
-    var client = net::Client();
+    var client = http::Client();
     var res = client.post(std::string_view("http://127.0.0.1:8097/binary"), binary_data.to_view(), "application/octet-stream");
     
     if(res is Result.Err) { env.error("Binary request failed"); }
@@ -737,7 +738,7 @@ func test_special_characters_in_body(env : &mut TestEnv) {
     // Test special characters that can break HTTP parsing
     // Avoid \0 because std::string treats it as null terminator
     var special = std::string::make_no_len("hello\r\nworld\ttab");
-    var client = net::Client();
+    var client = http::Client();
     var res = client.post(std::string_view("http://127.0.0.1:8098/special"), special.to_view(), "text/plain");
     
     if(res is Result.Err) { env.error("Special chars request failed"); }
@@ -769,7 +770,7 @@ func test_reuse_client_for_multiple_requests(env : &mut TestEnv) {
     std.concurrent.sleep_ms(100u);
     
     // Reuse same client instance
-    var client = net::Client();
+    var client = http::Client();
     var failures = 0u;
     
     if(client.get(std::string_view("http://127.0.0.1:8099/a")) is Result.Err) { failures = failures + 1u; }
@@ -795,7 +796,7 @@ func test_high_concurrency_stress(env : &mut TestEnv) {
     var thread = srv.serve_async(8100u);
     std.concurrent.sleep_ms(100u);
     
-    var client = net::Client();
+    var client = http::Client();
     var success = 0u;
     var fail = 0u;
     
@@ -840,7 +841,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
     
     var t1 = std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
-        var client = net::Client();
+        var client = http::Client();
         for(var i=0u; i<10u; i++) {
             var res = client.get(std::string_view("http://127.0.0.1:8101/echo/1"));
             if(res is Result.Ok) {
@@ -854,7 +855,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
     
     var t2 = std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
-        var client = net::Client();
+        var client = http::Client();
         for(var i=0u; i<10u; i++) {
             var res = client.get(std::string_view("http://127.0.0.1:8101/echo/2"));
             if(res is Result.Ok) {
@@ -868,7 +869,7 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
     
     var t3 = std.concurrent.spawn(||(arg : *void) => {
         var cap = arg as *mut TestCaptured2345
-        var client = net::Client();
+        var client = http::Client();
         for(var i=0u; i<10u; i++) {
             var res = client.get(std::string_view("http://127.0.0.1:8101/echo/3"));
             if(res is Result.Ok) {

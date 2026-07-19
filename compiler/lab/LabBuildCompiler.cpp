@@ -64,6 +64,7 @@
 #include <thread>
 #include <chrono>
 #include "compiler/lab/transformer/TransformerContext.h"
+#include "compiler/ModuleOptionRegistry.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -2437,6 +2438,60 @@ inline static void error_out(LocationManager& loc_man, SourceLocation loc, const
     std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << message << " at " << loc_man.formatLocation(loc) << std::endl;
 }
 
+/**
+ * Applies parsed ModFileOption values to a LabModuleOptions struct.
+ * Uses a switch on a FNV-1a hash of the key for fast dispatch, with
+ * a full string comparison as a safety check against hash collisions.
+ */
+static void apply_module_options(LabModuleOptions& opts, const std::vector<ModFileOption>& options) {
+    for (auto& opt : options) {
+        auto& key = opt.key;
+        auto& val = opt.value;
+
+        constexpr auto hasher = std::hash<chem::string_view>();
+        switch (hasher(key)) {
+            case hasher("safety"):
+                if (key == "safety" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.safety = val.bool_val;
+                }
+                break;
+            case hasher("checks.bounds"):
+                if (key == "checks.bounds" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.checks.bounds = val.bool_val;
+                }
+                break;
+            case hasher("checks.overflow"):
+                if (key == "checks.overflow" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.checks.overflow = val.bool_val;
+                }
+                break;
+            case hasher("checks.null"):
+                if (key == "checks.null" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.checks.null = val.bool_val;
+                }
+                break;
+            case hasher("safe_mode"):
+                if (key == "safe_mode" && val.kind == ModOptionValueKind::String) {
+                    opts.safe_mode = val.str_val;
+                }
+                break;
+            case hasher("stack_protector"):
+                if (key == "stack_protector" && val.kind == ModOptionValueKind::String) {
+                    opts.stack_protector = val.str_val;
+                }
+                break;
+            case hasher("optimization_level"):
+                if (key == "optimization_level" && val.kind == ModOptionValueKind::Integer) {
+                    opts.optimization_level = static_cast<int>(val.int_val);
+                }
+                break;
+            default:
+                // Unknown keys are already rejected by the parser, so this is unreachable
+                break;
+        }
+    }
+}
+
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
         const std::string_view& modFilePathView,
@@ -2568,6 +2623,11 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     if (verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
+
+    // --- Apply module options ---
+    // Parsed options have already been validated by the parser against
+    // the global option registry. Apply them to the LabModuleOptions struct.
+    apply_module_options(module->options, modFileData.options);
 
     // its very important we separate the process of determining dependencies
     // and then calling create_module_for_dependency

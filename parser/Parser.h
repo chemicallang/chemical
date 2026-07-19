@@ -210,6 +210,14 @@ public:
     bool parseShipStmt(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * parses an option statement in a .mod file.
+     * The syntax is: option <key> = <value> ;
+     * where key can be dotted (e.g. "checks.bounds") and value is a typed literal
+     * (boolean, integer, or string). Validates against the global option registry.
+     */
+    bool parseOptionStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */

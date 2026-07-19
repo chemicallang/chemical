@@ -152,6 +152,7 @@ set(COMMON_SOURCES
         parser/statements/VarInitialization.cpp
         parser/statements/VarInitialization.cpp
         parser/statements/LexStatement.cpp
+        parser/statements/OptionStmt.cpp
         parser/statements/LexType.cpp
         stream/StreamPosition.h
         parser/utils/LexValue.cpp
@@ -548,6 +549,9 @@ set(COMMON_SOURCES
         compiler/cbi/model/CBIFunctionIndex.h
         compiler/lab/mod_conv/ModToLabConverter.h
         compiler/lab/mod_conv/ModToLabConverter.cpp
+        compiler/ModuleOptionRegistry.h
+        compiler/ModuleOptionRegistry.cpp
+        compiler/lab/LabModuleOptions.h
         compiler/lab/LabGetMethodInjection.h
         preprocess/StringViewHashEqual.h
         core/main/CompilerMain.h

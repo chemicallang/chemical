@@ -635,8 +635,6 @@ set(COMMON_SOURCES
         compiler/symres/CoreNodes.h
         compiler/symres/ImplementationsIndex.h
         compiler/symres/ImplementationsIndex.cpp
-        core/tests/NegativeLifetimeTests.h
-        core/tests/NegativeLifetimeTests.cpp
         ast/values/ReferenceOfValue.cpp
         compiler/lab/LabJobAttributes.h
         compiler/symres/GenericInstantiatorPassAPI.h

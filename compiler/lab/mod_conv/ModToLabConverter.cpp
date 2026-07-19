@@ -335,6 +335,32 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
 
+    // --- Module Options ---
+    // Cache mod.getOptions() in a local variable to avoid repeating the call.
+    if(!data.options.empty()) {
+        output << "\tvar __mod_opts = mod.getOptions();\n";
+        for(auto& opt : data.options) {
+            output << "\t__mod_opts." << opt.key << " = ";
+            switch(opt.value.kind) {
+                case ModOptionValueKind::Boolean:
+                    output << (opt.value.bool_val ? "true" : "false");
+                    break;
+                case ModOptionValueKind::Integer:
+                    output << opt.value.int_val;
+                    break;
+                case ModOptionValueKind::Float:
+                    output << opt.value.float_val;
+                    break;
+                case ModOptionValueKind::String:
+                    output << "std::string_view(\"" << opt.value.str_val << "\")";
+                    break;
+                default:
+                    break;
+            }
+            output << ";\n";
+        }
+    }
+
     if(!data.compiler_interfaces.empty()) {
         // writing each compiler interface
         for(const auto interface : data.compiler_interfaces) {

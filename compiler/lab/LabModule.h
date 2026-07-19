@@ -12,6 +12,7 @@
 #include <optional>
 #include "import_model/ModuleDependency.h"
 #include "PackageKind.h"
+#include "LabModuleOptions.h"
 
 struct LabModule {
 
@@ -84,6 +85,13 @@ struct LabModule {
      * module and compiler's api (cool, isn't it)
      */
     std::vector<std::span<const std::pair<chem::string_view, void*>>> compiler_interfaces;
+
+    /**
+     * Module options parsed from chemical.mod / set via build.lab.
+     * WARNING: The C++ struct LabModuleOptions mirrors the Chemical struct
+     * ModuleOptions in lang/libs/lab/src/lab.ch. Keep them in sync.
+     */
+    LabModuleOptions options;
 
     /**
      * these files are calculated before compilation to see which direct files

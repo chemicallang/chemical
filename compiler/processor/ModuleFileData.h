@@ -10,6 +10,7 @@
 #include <string>
 #include "ast/utils/IffyConditional.h"
 #include "compiler/lab/PackageKind.h"
+#include "compiler/ModuleOptionRegistry.h"
 
 typedef IffyBase ModFileIfBase;
 typedef IffyCondId ModFileIfId;
@@ -131,6 +132,13 @@ public:
     std::vector<chem::string_view> compiler_interfaces;
 
     /**
+     * module options parsed from `option <key> = <value>` statements.
+     * Each option has been validated against the global option registry.
+     * This is consumed by both the modconv and direct-import paths.
+     */
+    std::vector<ModFileOption> options;
+
+    /**
      * this is not empty if a ready error occurred
      */
     std::string read_error;
@@ -163,6 +171,7 @@ public:
         include_dirs.clear();
         c_files.clear();
         compiler_interfaces.clear();
+        options.clear();
         read_error.clear();
         diagnostics.clear();
     }

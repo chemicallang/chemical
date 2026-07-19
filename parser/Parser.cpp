@@ -152,6 +152,12 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             goto loop_break;
                         }
                         break;
+                    case hash_fn("option"):
+                        if(!parseOptionStmt(allocator, data)) {
+                            error("couldn't parse an option statement");
+                            goto loop_break;
+                        }
+                        break;
                     case hash_fn("include"): {
                         token++;
                         data.include_dirs.emplace_back();

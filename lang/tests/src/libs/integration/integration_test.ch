@@ -20,7 +20,6 @@ func test_sha256_then_hex_hello(env : &mut TestEnv) {
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
     var Ok(len) = r else unreachable;
     // SHA-256("Hello") hex-encoded
-    var expected = "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969";
     if(!(len == 64 && hex_buf[0] == '1' && hex_buf[1] == '8' && hex_buf[62] == '6' && hex_buf[63] == '9')) {
         env.error("SHA-256(Hello) hex mismatch");
     }

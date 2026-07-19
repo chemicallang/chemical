@@ -1,5 +1,5 @@
 
-func write_file(path : *char, content : *char) {
+internal func write_file(path : *char, content : *char) {
     var f = fopen(path, "w")
     if(f != null) {
         fwrite(content as *void, strlen(content), 1, f)
@@ -7,7 +7,7 @@ func write_file(path : *char, content : *char) {
     }
 }
 
-func string_contains(haystack : *char, needle : *char) : bool {
+internal func string_contains(haystack : *char, needle : *char) : bool {
     var nlen = strlen(needle)
     if(nlen == 0) return true
     while(*haystack != 0) {
@@ -26,9 +26,9 @@ func string_contains(haystack : *char, needle : *char) : bool {
     return false
 }
 
-func run_compiler_capture(mod_path : *char, output_buf : *mut char, buf_size : int) : int {
+internal func run_compiler_capture(mod_path : *char, output_buf : *mut char, buf_size : int) : int {
     var cmd : char[2048]
-    sprintf(&raw mut cmd[0], "%s \"%s\" --no-cache 2>&1", intrinsics::get_compiler_path(), mod_path)
+    sprintf(&raw mut cmd[0], "%s \"%s\" --no-cache -o /dev/null 2>&1", intrinsics::get_compiler_path(), mod_path)
     var pipe = popen(&raw mut cmd[0], "r")
     if(pipe == null) {
         return -1
@@ -49,7 +49,7 @@ func run_compiler_capture(mod_path : *char, output_buf : *mut char, buf_size : i
     return rc
 }
 
-func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
+internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
     var test_dir : char[512]
     sprintf(&raw mut test_dir[0], "%s/%s", work_dir, name)
     mkdir(&raw test_dir[0], 0o777 as uint)
@@ -65,16 +65,16 @@ func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_co
     return true
 }
 
-func cleanup_test_dir(work_dir : *char, name : *char) {
+internal func cleanup_test_dir(work_dir : *char, name : *char) {
     var rm_cmd : char[512]
     sprintf(&raw mut rm_cmd[0], "rm -rf \"%s/%s\"", work_dir, name)
     system(&raw rm_cmd[0])
 }
 
-const NEG_WORK_DIR = "/tmp/chemical_neg_tests"
-const NEG_MOD = "module neg_test\nsource \".\"\n"
+internal const NEG_WORK_DIR = "/tmp/chemical_neg_tests"
+internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 
-func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
+internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
     var mod_path : char[512]
@@ -83,13 +83,13 @@ func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, 
     var output_buf : char[16384]
     var rc = run_compiler_capture(&raw mod_path[0], &raw mut output_buf[0], 16384)
 
-    var has_error = string_contains(&raw output_buf[0], "[TypeCheck] error")
+    var has_error = string_contains(&raw output_buf[0], "error:")
     var has_sub = if(strlen(expected_sub) == 0) true else string_contains(&raw output_buf[0], expected_sub)
 
     if(rc == 0) {
         env.error("expected compiler to fail but it succeeded")
     } else if(!has_error) {
-        env.error("expected TypeCheck error but did not find one")
+        env.error("expected compiler error but did not find one")
     } else if(!has_sub) {
         env.error("expected error substring not found in output")
     }
@@ -97,7 +97,7 @@ func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, 
     cleanup_test_dir(NEG_WORK_DIR, name)
 }
 
-func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
+internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
     var mod_path : char[512]

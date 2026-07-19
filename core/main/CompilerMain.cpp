@@ -18,9 +18,6 @@
 #include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
 #include "integration/libtcc/LibTccInteg.h"
-#ifdef DEBUG
-#include "core/tests/NegativeLifetimeTests.h"
-#endif
 #include "utils/Version.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "compiler/SanitizerOptions.h"
@@ -591,12 +588,6 @@ int compiler_main(int argc, char *argv[]) {
         print_help();
         return 0;
     }
-
-#ifdef DEBUG
-    if(options.has_value("run-negative-tests")) {
-        return run_negative_lifetime_tests();
-    }
-#endif
 
     // get run subcommand
     auto& run_cmd_opt = options.cmd_opt("run");

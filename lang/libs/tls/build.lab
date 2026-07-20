@@ -1,0 +1,29 @@
+import lab
+import std
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@net/build.lab" as netMod
+import "@crypto/build.lab" as cryptoMod
+import "@encoding/build.lab" as encodingMod
+
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    var curr_file_path = lab::get_my_path();
+    const cached = ctx.get_cached(user_job, &curr_file_path);
+    if(cached != null) {
+        return cached;
+    }
+
+    var cstd_module = cstdMod.build(ctx, user_job)
+    var std_module = stdMod.build(ctx, user_job)
+    var net_module = netMod.build(ctx, user_job)
+    var crypto_module = cryptoMod.build(ctx, user_job)
+    var encoding_module = encodingMod.build(ctx, user_job)
+
+    var deps : []*mut Module = [ cstd_module, std_module, net_module, crypto_module, encoding_module ]
+    var srcPath = lab::rel_path_to("src")
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 5));
+
+    ctx.set_cached(user_job, &curr_file_path, module)
+    return module;
+}

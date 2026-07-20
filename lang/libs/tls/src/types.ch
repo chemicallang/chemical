@@ -510,6 +510,10 @@ public namespace tls {
         // Negotiated values from handshake
         var negotiated_ciphersuite : u16
 
+        // Alert handling
+        var last_alert_level : u8
+        var last_alert_desc : u8
+
         // Early data
         var early_data_status : u8
 
@@ -570,6 +574,8 @@ public namespace tls {
         ssl.transport_socket = 0
         ssl.transport_connected = false
         ssl.negotiated_ciphersuite = 0
+        ssl.last_alert_level = 0
+        ssl.last_alert_desc = 0
         ssl.early_data_status = 0
     }
 

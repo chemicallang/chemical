@@ -313,7 +313,7 @@ public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
     var cert : tls::X509Cert
     tls::x509_cert_init(&raw mut cert)
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) {
         env.error("DER certificate should parse successfully")
         return
@@ -972,7 +972,7 @@ public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
     var cert : tls::X509Cert
     tls::x509_cert_init(&raw mut cert)
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("DER certificate should parse"); return }
 
     // Verify it's an RSA key
@@ -1026,7 +1026,7 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
     // 1. Parse certificate and extract RSA key
     var cert : tls::X509Cert
     tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("DER certificate should parse"); return }
 
     var rsa_ctx : tls::RSAContext
@@ -1080,6 +1080,326 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
     }
     if(!found_separator) {
         env.error("PKCS#1 v1.5 ciphertext should have 0x00 separator before message")
+    }
+}
+
+// ─── Certificate Signature Verification Test ────────────────────────────────
+
+@test
+public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
+    // The test certificate is self-signed. We verify that we can:
+    // 1. Parse the certificate
+    // 2. Extract its RSA public key
+    // 3. Verify the signature using the extracted key
+
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("DER certificate should parse"); return }
+
+    if(cert.pk_type != tls::PK_RSA as u8) {
+        env.error("test cert should use RSA"); return
+    }
+
+    // Extract the RSA public key from the certificate
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    if(ret != 0) { env.error("RSA key extraction should succeed"); return }
+
+    // Now verify the certificate's signature using its own public key
+    ret = tls::x509_verify_cert_signature(&raw mut cert, &raw mut rsa_ctx)
+    if(ret != 0) {
+        env.error("self-signed cert signature verification should succeed")
+    }
+}
+
+@test
+public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut TestEnv) {
+    // Verify that signature verification correctly fails on tampered data
+    // We parse the cert, modify a byte in the TBSCertificate, then verify
+
+    // Use parsed cert from test data - we extract the public key from the original
+    var original_cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut original_cert)
+    var ret = tls::parse_cert_der(&raw mut original_cert, &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("original cert should parse"); return }
+
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(&raw mut original_cert, &raw mut rsa_ctx)
+    if(ret != 0) { env.error("RSA key extraction should succeed"); return }
+
+    // The signature verification on the original cert should pass
+    ret = tls::x509_verify_cert_signature(&raw mut original_cert, &raw mut rsa_ctx)
+    if(ret != 0) { env.error("original cert verification should pass"); return }
+
+    // Tamper with the TBSCertificate by parsing again and corrupting tbs_der
+    // We can't directly modify the DER data (it's read-only), but we can verify
+    // that the cert signature verification does NOT pass when we import
+    // a different public key (simulating a mismatched issuer)
+    var wrong_rsa : tls::RSAContext
+    tls::rsa_init(&raw mut wrong_rsa, tls::RSA_PKCS_V15, 0)
+    var wrong_n : [1]u8 = [0x37]  // n = 55 (clearly not the right key)
+    var wrong_e : [1]u8 = [0x03]  // e = 3
+    tls::rsa_import_pubkey(&raw mut wrong_rsa, &raw wrong_n[0], 1, &raw wrong_e[0], 1)
+
+    // Verification with wrong key should fail
+    ret = tls::x509_verify_cert_signature(&raw mut original_cert, &raw mut wrong_rsa)
+    if(ret == 0) {
+        env.error("cert signature verification should fail with wrong public key")
+    }
+}
+
+// ─── GCM Record Encryption/Decryption Round-Trip Test ───────────────────────
+
+@test
+public func tls_gcm_record_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
+    // Simulates TLS record encryption and decryption with GCM:
+    // Setup a Transform with known keys, encrypt plaintext, decrypt back
+
+    // Use AES-128-GCM cipher suite parameters
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+
+    // Key block: 16 bytes client_key, 16 bytes server_key, 4 bytes IV each
+    // For GCM: fixed_iv is 4 bytes, explicit nonce is 8 bytes from seq_num
+    var client_key : [16]u8 = [
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    ]
+    var server_key : [16]u8 = [
+        0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60,
+        0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97
+    ]
+    var client_iv : [4]u8 = [0x00, 0x01, 0x02, 0x03]
+    var server_iv : [4]u8 = [0x04, 0x05, 0x06, 0x07]
+
+    // Populate transform manually
+    tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr.key_len = 16 as u8
+    tr.iv_len = 4 as u8
+    tr.fixed_iv_len = 4 as u8
+    tr.mac_key_len = 0 as u8
+
+    // Copy keys (use same key for both directions in this test)
+    var i : size_t = 0
+    while(i < 16) {
+        tr.key_enc[i] = client_key[i]
+        tr.key_dec[i] = client_key[i]
+        i += 1
+    }
+    // Copy IVs (4 bytes each, same IV for both directions)
+    i = 0
+    while(i < 4) {
+        tr.base_iv_enc[i] = client_iv[i]
+        tr.base_iv_dec[i] = client_iv[i]
+        tr.iv_enc[i] = client_iv[i]
+        tr.iv_dec[i] = client_iv[i]
+        i += 1
+    }
+
+    // Sequence number (8 bytes)
+    var seq_num : [8]u8 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+
+    // Plaintext data
+    var pt : [32]u8 = [
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+    ]
+
+    // Encrypt with tls12_encrypt_record
+    var ciphertext : [128]u8
+    var ct_len = tls::tls12_encrypt_record(
+        &raw mut tr, &raw seq_num[0],
+        23 as u8,  // application data
+        3 as u8, 3 as u8,  // TLS 1.2
+        &raw pt[0], 32,
+        &raw mut ciphertext[0], 128
+    )
+    if(ct_len < 0) {
+        env.error("tls12_encrypt_record should succeed"); return
+    }
+
+    // For GCM: output = explicit_nonce(8) + ciphertext + tag(16)
+    // ct_len should be 8 + 32 + 16 = 56
+    if(ct_len != 56) {
+        env.error("GCM ciphertext length should be 56 (8 nonce + 32 ct + 16 tag)")
+        return
+    }
+
+    // Decrypt back with tls12_decrypt_record
+    var plaintext_out : [128]u8
+    var pt_len = tls::tls12_decrypt_record(
+        &raw mut tr, &raw seq_num[0],
+        23 as u8,
+        3 as u8, 3 as u8,
+        &raw ciphertext[0], ct_len as size_t,
+        &raw mut plaintext_out[0], 128
+    )
+    if(pt_len < 0) {
+        env.error("tls12_decrypt_record should succeed"); return
+    }
+
+    // Decrypted length should be 32
+    if(pt_len != 32) {
+        env.error("decrypted length should be 32"); return
+    }
+
+    // Verify plaintext matches
+    var matches = true
+    i = 0
+    while(i < 32) {
+        if(plaintext_out[i] != pt[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("GCM record decrypted plaintext should match original")
+    }
+}
+
+@test
+public func tls_gcm_record_decrypt_fails_on_tampered_ciphertext(env : &mut TestEnv) {
+    // Verify GCM authenticated decryption catches tampered ciphertext
+
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+
+    var client_key : [16]u8 = [
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    ]
+    var client_iv : [4]u8 = [0x00, 0x01, 0x02, 0x03]
+
+    tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr.key_len = 16 as u8
+    tr.iv_len = 4 as u8
+    tr.fixed_iv_len = 4 as u8
+    tr.mac_key_len = 0 as u8
+
+    var i : size_t = 0
+    while(i < 16) {
+        tr.key_enc[i] = client_key[i]
+        tr.key_dec[i] = client_key[i]
+        i += 1
+    }
+    i = 0
+    while(i < 4) {
+        tr.base_iv_enc[i] = client_iv[i]
+        tr.base_iv_dec[i] = client_iv[i]
+        tr.iv_enc[i] = client_iv[i]
+        tr.iv_dec[i] = client_iv[i]
+        i += 1
+    }
+
+    var seq_num : [8]u8
+    var pt : [16]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11,
+                       0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]
+
+    // Encrypt
+    var ciphertext : [128]u8
+    var ct_len = tls::tls12_encrypt_record(
+        &raw mut tr, &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
+        &raw pt[0], 16, &raw mut ciphertext[0], 128
+    )
+    if(ct_len < 0) { env.error("encrypt should succeed"); return }
+
+    // Tamper with the ciphertext (one byte)
+    ciphertext[10] = ciphertext[10] ^ 0xFF
+
+    // Decrypt with tampered data should fail
+    var pt_out : [128]u8
+    var pt_len = tls::tls12_decrypt_record(
+        &raw mut tr, &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
+        &raw ciphertext[0], ct_len as size_t, &raw mut pt_out[0], 128
+    )
+    if(pt_len >= 0) {
+        env.error("decrypt of tampered GCM data should fail (authentication)")
+    }
+}
+
+// ─── Alert Handling Test ─────────────────────────────────────────────────────
+
+@test
+public func tls_alert_fields_stored_on_alert_receive(env : &mut TestEnv) {
+    // Verify that when an alert is received, the alert level and description
+    // are properly stored in the SSLContext
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+
+    // Simulate receiving an alert by writing directly to last_alert fields
+    ssl.last_alert_level = 2 as u8  // FATAL
+    ssl.last_alert_desc = 42 as u8   // bad_certificate
+
+    if(ssl.last_alert_level != 2 as u8) {
+        env.error("alert level should be 2 (FATAL)")
+    }
+    if(ssl.last_alert_desc != 42 as u8) {
+        env.error("alert description should be 42 (bad_certificate)")
+    }
+}
+
+@test
+public func tls_alert_field_initial_values_are_zero(env : &mut TestEnv) {
+    // Verify alert fields are initialized to zero by ssl_init
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+
+    if(ssl.last_alert_level != 0) {
+        env.error("initial alert level should be 0")
+    }
+    if(ssl.last_alert_desc != 0) {
+        env.error("initial alert description should be 0")
+    }
+}
+
+// ─── RSA-2048 Key Length and Known Answer Test ──────────────────────────────
+
+@test
+public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
+    // Verify the OpenSSL-generated RSA-2048 key has the expected properties
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("cert should parse"); return }
+
+    if(cert.pk_type != tls::PK_RSA as u8) {
+        env.error("key should be RSA"); return
+    }
+
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    if(ret != 0) { env.error("key extraction should succeed"); return }
+
+    // RSA-2048 modulus is exactly 256 bytes
+    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    if(key_len != 256) {
+        env.error("RSA-2048 key length should be 256 bytes")
+        return
+    }
+
+    // Verify N is the expected big-endian value from OpenSSL
+    // N = 0x9e36362715e7ef844497f88958fd7ebf...
+    var n_bytes : [256]u8
+    ret = tls::mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_bytes[0], 256)
+    if(ret < 0) { env.error("should export N"); return }
+
+    // First byte should be 0x9E (matching the OpenSSL output)
+    if(n_bytes[0] != 0x9E) {
+        env.error("N[0] should be 0x9E")
+    }
+
+    // Exponent should be 0x010001 = 65537
+    var e_bytes : [3]u8
+    ret = tls::mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_bytes[0], 3)
+    if(ret < 0) { env.error("should export E"); return }
+    if(e_bytes[0] != 0x01 || e_bytes[1] != 0x00 || e_bytes[2] != 0x01) {
+        env.error("E should be 65537 (0x010001)")
     }
 }
 

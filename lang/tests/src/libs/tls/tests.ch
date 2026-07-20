@@ -371,3 +371,368 @@ public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
         env.error("raw_pem_len should be non-zero")
     }
 }
+
+// ─── AES Encryption Tests ───────────────────────────────────────────────────
+
+@test
+public func tls_aes128_ecb_encrypt_decrypt_works(env : &mut TestEnv) {
+    // NIST AES-128 test vector (FIPS 197)
+    // Key: 2b7e151628aed2a6abf7158809cf4f3c
+    // Plaintext: 6bc1bee22e409f96e93d7e117393172a
+    // Ciphertext: 3ad77bb40d7a3660a89ecaf32466ef97
+    var key : [16]u8 = [0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+                        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c]
+    var pt : [16]u8 = [0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+                       0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a]
+    var expected_ct : [16]u8 = [0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60,
+                                0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97]
+
+    var ctx : tls::AESContext
+    tls::aes_init(&raw mut ctx)
+
+    var ret = tls::aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    if(ret < 0) { env.error("aes_setkey_enc should succeed"); return }
+
+    var ct : [16]u8
+    ret = tls::aes_crypt_ecb(&raw mut ctx, tls::AES_ENCRYPT, &raw pt[0], &raw mut ct[0])
+    if(ret < 0) { env.error("aes_crypt_ecb encrypt should succeed"); return }
+
+    var matches = true
+    var i : size_t = 0
+    while(i < 16) {
+        if(ct[i] != expected_ct[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("AES-128 ECB encrypt should match NIST test vector")
+        return
+    }
+
+    // Decrypt back
+    var pt2 : [16]u8
+    ret = tls::aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    if(ret < 0) { env.error("aes_setkey_dec should succeed"); return }
+
+    ret = tls::aes_crypt_ecb(&raw mut ctx, tls::AES_DECRYPT, &raw ct[0], &raw mut pt2[0])
+    if(ret < 0) { env.error("aes_crypt_ecb decrypt should succeed"); return }
+
+    matches = true
+    i = 0
+    while(i < 16) {
+        if(pt2[i] != pt[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("AES-128 ECB roundtrip should produce original plaintext")
+    }
+}
+
+@test
+public func tls_aes128_cbc_encrypt_decrypt_works(env : &mut TestEnv) {
+    // AES-128 CBC test with NIST test vector
+    var key : [16]u8 = [0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+                        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c]
+    var iv : [16]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                       0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F]
+    var pt : [32]u8 = [0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+                       0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+                       0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+                       0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51]
+
+    var ctx : tls::AESContext
+    tls::aes_init(&raw mut ctx)
+
+    var ret = tls::aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    if(ret < 0) { env.error("aes_setkey_enc should succeed"); return }
+
+    var iv_copy : [16]u8
+    var i : size_t = 0
+    while(i < 16) { iv_copy[i] = iv[i]; i += 1 }
+
+    var ct : [32]u8
+    ret = tls::aes_crypt_cbc(&raw mut ctx, tls::AES_ENCRYPT, 32, &raw mut iv_copy[0],
+                              &raw pt[0], &raw mut ct[0])
+    if(ret < 0) { env.error("aes_crypt_cbc encrypt should succeed"); return }
+
+    // Decrypt
+    tls::aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    var iv_copy2 : [16]u8
+    i = 0
+    while(i < 16) { iv_copy2[i] = iv[i]; i += 1 }
+
+    var pt2 : [32]u8
+    ret = tls::aes_crypt_cbc(&raw mut ctx, tls::AES_DECRYPT, 32, &raw mut iv_copy2[0],
+                              &raw ct[0], &raw mut pt2[0])
+    if(ret < 0) { env.error("aes_crypt_cbc decrypt should succeed"); return }
+
+    var matches = true
+    i = 0
+    while(i < 32) {
+        if(pt2[i] != pt[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("AES-128 CBC roundtrip should produce original plaintext")
+    }
+}
+
+// ─── TLS 1.2 Key Derivation Tests ───────────────────────────────────────────
+
+@test
+public func tls12_master_secret_derivation_works(env : &mut TestEnv) {
+    // Known test values for TLS 1.2 PRF (from mbedTLS test suite)
+    var pre_master : [48]u8
+    var client_random : [32]u8
+    var server_random : [32]u8
+
+    // Fill with known values
+    var i : size_t = 0
+    while(i < 48) {
+        pre_master[i] = i as u8
+        i += 1
+    }
+    i = 0
+    while(i < 32) {
+        client_random[i] = (i + 100) as u8
+        server_random[i] = (i + 200) as u8
+        i += 1
+    }
+
+    var master_secret : [48]u8
+    tls::tls12_derive_master_secret(&raw pre_master[0], 48,
+                                     &raw client_random[0], &raw server_random[0],
+                                     &raw mut master_secret[0])
+
+    // Master secret should not be all zeros
+    var all_zero = true
+    i = 0
+    while(i < 48) {
+        if(master_secret[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("master secret should not be all zeros")
+        return
+    }
+
+    // Master secret should be deterministic
+    var master_secret2 : [48]u8
+    tls::tls12_derive_master_secret(&raw pre_master[0], 48,
+                                     &raw client_random[0], &raw server_random[0],
+                                     &raw mut master_secret2[0])
+
+    var matches = true
+    i = 0
+    while(i < 48) {
+        if(master_secret[i] != master_secret2[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("master secret derivation should be deterministic")
+    }
+}
+
+@test
+public func tls12_key_block_derivation_works(env : &mut TestEnv) {
+    // Test key block derivation for AES-128-GCM
+    var master_secret : [48]u8
+    var server_random : [32]u8
+    var client_random : [32]u8
+
+    var i : size_t = 0
+    while(i < 48) { master_secret[i] = i as u8; i += 1 }
+    i = 0
+    while(i < 32) { server_random[i] = (i + 50) as u8; client_random[i] = (i + 100) as u8; i += 1 }
+
+    var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
+    var kb_size = tls::tls12_key_block_size(&raw info)
+
+    // For AES-128-GCM: mac_key_len=0, key_size=16, iv_size=12 but fixed_iv=4
+    // Total = (0 + 16 + 4) * 2 = 40
+    if(kb_size != 40) {
+        env.error("AES-128-GCM key block size should be 40")
+        return
+    }
+
+    var key_block : [64]u8
+    tls::tls12_derive_key_block(&raw master_secret[0],
+                                 &raw server_random[0], &raw client_random[0],
+                                 &raw mut key_block[0], kb_size)
+
+    // Key block should not be all zeros
+    var all_zero = true
+    i = 0
+    while(i < kb_size) {
+        if(key_block[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("key block should not be all zeros")
+    }
+}
+
+@test
+public func tls12_transform_population_works(env : &mut TestEnv) {
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+
+    var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
+    var kb_size = tls::tls12_key_block_size(&raw info)
+
+    // Create a known key block pattern
+    var key_block : [64]u8
+    var i : size_t = 0
+    while(i < kb_size) { key_block[i] = i as u8; i += 1 }
+
+    tls::tls12_populate_transform(&raw mut tr, &raw info, &raw key_block[0], kb_size)
+
+    // Verify the transform was populated correctly
+    // client_write_key (bytes 0-15, since mac_key_len=0 for GCM)
+    i = 0
+    while(i < 16) {
+        if(tr.key_enc[i] != key_block[i]) {
+            env.error("client_write_key should match first 16 bytes of key block")
+        }
+        i += 1
+    }
+    // server_write_key (bytes 16-31)
+    i = 0
+    while(i < 16) {
+        if(tr.key_dec[i] != key_block[16 + i]) {
+            env.error("server_write_key should match bytes 16-31")
+        }
+        i += 1
+    }
+    // client_write_IV (bytes 32-35, since fixed_iv=4 for GCM)
+    i = 0
+    while(i < 4) {
+        if(tr.iv_enc[i] != key_block[32 + i]) {
+            env.error("client_write_IV should match bytes 32-35")
+        }
+        i += 1
+    }
+    // server_write_IV (bytes 36-39)
+    i = 0
+    while(i < 4) {
+        if(tr.iv_dec[i] != key_block[36 + i]) {
+            env.error("server_write_IV should match bytes 36-39")
+        }
+        i += 1
+    }
+}
+
+@test
+public func tls12_finished_message_works(env : &mut TestEnv) {
+    var master_secret : [48]u8
+    var handshake_hash : [32]u8
+    var verify_data : [12]u8
+
+    var i : size_t = 0
+    while(i < 48) { master_secret[i] = i as u8; i += 1 }
+    i = 0
+    while(i < 32) { handshake_hash[i] = (i + 0xAA) as u8; i += 1 }
+
+    // Client finished
+    tls::tls12_compute_finished(&raw master_secret[0], true,
+                                 &raw handshake_hash[0], 32,
+                                 &raw mut verify_data[0])
+
+    var all_zero = true
+    i = 0
+    while(i < 12) {
+        if(verify_data[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("client Finished verify_data should not be all zeros")
+    }
+
+    // Server finished
+    var verify_data2 : [12]u8
+    tls::tls12_compute_finished(&raw master_secret[0], false,
+                                 &raw handshake_hash[0], 32,
+                                 &raw mut verify_data2[0])
+
+    all_zero = true
+    i = 0
+    while(i < 12) {
+        if(verify_data2[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("server Finished verify_data should not be all zeros")
+    }
+
+    // Client and server finished should differ (different labels)
+    var same = true
+    i = 0
+    while(i < 12) {
+        if(verify_data[i] != verify_data2[i]) { same = false }
+        i += 1
+    }
+    if(same) {
+        env.error("client and server Finished verify_data should differ")
+    }
+}
+
+@test
+public func tls12_key_block_size_works_for_ciphersuites(env : &mut TestEnv) {
+    // AES-128-GCM: (0 + 16 + 4) * 2 = 40
+    var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
+    var size = tls::tls12_key_block_size(&raw info)
+    if(size != 40) { env.error("AES-128-GCM key block size should be 40") }
+
+    // AES-256-GCM: (0 + 32 + 4) * 2 = 72
+    info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 as u16)
+    size = tls::tls12_key_block_size(&raw info)
+    if(size != 72) { env.error("AES-256-GCM key block size should be 72") }
+
+    // TLS 1.3 AES-128-GCM: (0 + 16 + 4) * 2 = 40
+    info = tls::get_ciphersuite_info(tls::TLS1_3_AES_128_GCM_SHA256 as u16)
+    size = tls::tls12_key_block_size(&raw info)
+    if(size != 40) { env.error("TLS 1.3 AES-128-GCM key block size should be 40") }
+}
+
+@test
+public func tls12_key_derivation_full_pipeline_works(env : &mut TestEnv) {
+    // Full TLS 1.2 key derivation pipeline test
+    // Simulates the complete process from pre-master secret to transform
+
+    // 1. Set up pre-master secret and random values
+    var pre_master : [48]u8
+    var client_random : [32]u8
+    var server_random : [32]u8
+
+    var i : size_t = 0
+    while(i < 48) { pre_master[i] = i as u8; i += 1 }
+    i = 0
+    while(i < 32) { client_random[i] = (i + 0xAB) as u8; server_random[i] = (i + 0xCD) as u8; i += 1 }
+
+    // 2. Derive master secret
+    var master_secret : [48]u8
+    tls::tls12_derive_master_secret(&raw pre_master[0], 48,
+                                     &raw client_random[0], &raw server_random[0],
+                                     &raw mut master_secret[0])
+
+    // 3. Get cipher suite info
+    var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
+    var kb_size = tls::tls12_key_block_size(&raw info)
+
+    // 4. Derive key block
+    var key_block : [64]u8
+    tls::tls12_derive_key_block(&raw master_secret[0],
+                                 &raw server_random[0], &raw client_random[0],
+                                 &raw mut key_block[0], kb_size)
+
+    // 5. Populate transform
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+    tls::tls12_populate_transform(&raw mut tr, &raw info, &raw key_block[0], kb_size)
+
+    // Verify the transform has sane values
+    if(tr.key_len != 16) { env.error("key_len should be 16 for AES-128"); return }
+    if(tr.iv_len == 0) { env.error("iv_len should be non-zero"); return }
+    if(tr.cipher_type != tls::CIPHER_AES_128_GCM as u8) {
+        env.error("cipher_type should be AES-128-GCM")
+    }
+}

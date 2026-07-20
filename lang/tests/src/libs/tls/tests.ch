@@ -306,3 +306,40 @@ public func tls_error_codes_distinct_works(env : &mut TestEnv) {
         env.error("error codes should be distinct")
     }
 }
+
+@test
+public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    if(ret != 0) {
+        env.error("DER certificate should parse successfully")
+        return
+    }
+
+    // Verify version is 3 (v3 certificate with [0] EXPLICIT tag)
+    if(cert.version != 3) {
+        env.error("certificate version should be 3")
+    }
+
+    // Verify subject contains "test.example.com"
+    var cn = string()
+    tls::cert_get_cn(&raw mut cert, &raw mut cn)
+    if(cn.size() == 0) {
+        env.error("CN should not be empty for parsed cert")
+    }
+
+    // Verify public key type was detected
+    if(cert.pk_type == tls::PK_NONE as u8) {
+        env.error("public key type should be detected")
+    }
+
+    // Verify valid_from and valid_to are populated
+    if(cert.valid_from[0] == 0) {
+        env.error("valid_from should be populated")
+    }
+    if(cert.valid_to[0] == 0) {
+        env.error("valid_to should be populated")
+    }
+}

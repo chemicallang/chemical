@@ -528,20 +528,17 @@ public namespace tls {
         var ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
 
-        // Allocate handshake params if needed
-        var hs_params : HandshakeParams
+        // Allocate handshake params on the heap (outlives this function call)
         if(ssl.handshake == null) {
-            handshake_params_init(&raw mut hs_params)
-            ssl.handshake = &raw mut hs_params
+            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            handshake_params_init(hs_mem)
+            ssl.handshake = hs_mem
         }
 
         // Copy client random to handshake params (bytes 0-31)
         var i : size_t = 0
         while(i < 32) {
-            // Client random is stored starting at ch_buf[2] (skip 2 bytes of version)
-            if(ssl.handshake != null) {
-                ssl.handshake.randbytes[i] = ch_buf[2 + i]
-            }
+            ssl.handshake.randbytes[i] = ch_buf[2 + i]
             i += 1
         }
 
@@ -740,10 +737,16 @@ public namespace tls {
         return send_alert(ssl, SSL_ALERT_LEVEL_WARNING as u8, SSL_ALERT_MSG_CLOSE_NOTIFY as u8)
     }
 
-    // Free SSL context resources (closes socket)
+    // Free SSL context resources (closes socket, frees handshake params)
     public func ssl_free(ssl : *mut SSLContext) {
-        // Destructor handles socket cleanup
-        // Clear any pending sensitive data
+        if(ssl.handshake != null) {
+            unsafe { dealloc ssl.handshake }
+            ssl.handshake = null
+        }
+        if(ssl.transport_connected) {
+            net::close_socket(ssl.transport_socket)
+            ssl.transport_connected = false
+        }
     }
 
     // ============================================================================

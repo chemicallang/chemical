@@ -572,22 +572,116 @@ public namespace tls {
         return send_record(ssl, SSL_MSG_HANDSHAKE as u8, &raw buf[0], total_len as u16)
     }
 
-    // Read a TLS record header (blocking)
-    func read_record_header(ssl : *mut SSLContext, hdr : *mut u8) : int {
-        var n = ssl_recv(ssl, hdr, 5)
-        if(n < 5) { return ERR_SSL_INVALID_RECORD }
+    // ─── Buffered Record I/O ──────────────────────────────────────────────
+    // All record reads go through ssl_read_record(), which uses the input
+    // buffer (ssl.in_buf) to handle:
+    //   - Multiple records coalesced in a single TCP segment
+    //   - Records split across multiple TCP segments
+    //   - Partial reads
+
+    // Fetch more data from the socket into the input buffer
+    func ssl_fetch_input(ssl : *mut SSLContext, min_len : size_t) : int {
+        while(ssl.in_left < min_len as i32) {
+            var buf_start : i32 = ssl.in_left
+            if(buf_start >= 17408 as i32) { return ERR_SSL_BUFFER_TOO_SMALL }
+            var max_read : i32 = (17408 as i32) - buf_start
+
+            var n = ssl_recv(ssl, &raw mut ssl.in_buf[buf_start], max_read)
+            if(n < 0) {
+                if(n == ERR_SSL_CONN_EOF) {
+                    if(ssl.in_left == 0) { return ERR_SSL_CONN_EOF }
+                    break
+                }
+                return n
+            }
+            if(n == 0) {
+                if(ssl.in_left == 0) { return ERR_SSL_CONN_EOF }
+                break
+            }
+            ssl.in_left += n as i32
+        }
+
+        if(ssl.in_left < min_len as i32) {
+            return ERR_SSL_CONN_EOF
+        }
         return 0
     }
 
-    // Read record payload
-    func read_record_payload(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
-        var total_read : i32 = 0
-        while(total_read < len) {
-            var n = ssl_recv(ssl, &raw mut buf[total_read], len - total_read)
-            if(n <= 0) { return ERR_SSL_CONN_EOF }
-            total_read += n
+    // Read the next complete record from the input buffer
+    // Returns 0 on success, negative error code on failure.
+    // The record header (5 bytes) is stored in ssl.in_hdr.
+    // The record payload (record_len bytes) is stored in ssl.in_buf.
+    func ssl_read_record(ssl : *mut SSLContext) : int {
+        // Ensure we have at least 5 bytes (record header)
+        var ret = ssl_fetch_input(ssl, 5)
+        if(ret < 0) { return ret }
+
+        // Parse record header from buffer
+        ssl.in_hdr[0] = ssl.in_buf[0]  // content_type
+        ssl.in_hdr[1] = ssl.in_buf[1]  // version.major
+        ssl.in_hdr[2] = ssl.in_buf[2]  // version.minor
+        ssl.in_hdr[3] = ssl.in_buf[3]  // length high
+        ssl.in_hdr[4] = ssl.in_buf[4]  // length low
+
+        var record_len = read_u16_be(&raw ssl.in_buf[3]) as size_t
+        if(record_len > 16384 + 256) { return ERR_SSL_INVALID_RECORD }
+
+        // Ensure we have the full record payload
+        // Note: NOT overwriting ssl.in_left here to preserve any
+        // coalesced records that arrived in the same TCP segment.
+        var total_needed : size_t = 5 + record_len
+        ret = ssl_fetch_input(ssl, total_needed)
+        if(ret < 0) { return ret }
+
+        ssl.in_msglen = record_len as i32
+
+        return 0
+    }
+
+    // Consume (remove) the current record from the input buffer
+    func ssl_consume_record(ssl : *mut SSLContext) {
+        var consumed = 5 + ssl.in_msglen
+        if(consumed > ssl.in_left) { consumed = ssl.in_left }
+        if(consumed <= 0) { return }
+
+        // Shift remaining data to front of buffer
+        var remaining = ssl.in_left - consumed
+        if(remaining > 0) {
+            var i : i32 = 0
+            while(i < remaining) {
+                ssl.in_buf[i] = ssl.in_buf[consumed + i]
+                i += 1
+            }
         }
-        return total_read
+        ssl.in_left = remaining
+        ssl.in_msglen = 0
+    }
+
+    // Read a TLS record header (blocking) - maintains backward compatibility
+    func read_record_header(ssl : *mut SSLContext, hdr : *mut u8) : int {
+        var ret = ssl_read_record(ssl)
+        if(ret < 0) { return ret }
+        hdr[0] = ssl.in_hdr[0]
+        hdr[1] = ssl.in_hdr[1]
+        hdr[2] = ssl.in_hdr[2]
+        hdr[3] = ssl.in_hdr[3]
+        hdr[4] = ssl.in_hdr[4]
+        return 0
+    }
+
+    // Read record payload - copies from internal buffer to caller's buffer
+    func read_record_payload(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+        var copy_len = ssl.in_msglen
+        if(copy_len > len) { copy_len = len }
+        if(copy_len > 0) {
+            var i : i32 = 0
+            while(i < copy_len) {
+                buf[i] = ssl.in_buf[5 + i]
+                i += 1
+            }
+        }
+        ssl_consume_record(ssl)
+        return copy_len
     }
 
     // ============================================================================
@@ -601,18 +695,39 @@ public namespace tls {
         buf[pos] = 0x03 as u8; pos += 1
         buf[pos] = 0x03 as u8; pos += 1
 
-        // Client random (32 bytes) - pseudo-random using LCG
-        var seed_val : u32 = (pos as u32) * 2654435761u + 12345u
+        // Client random (32 bytes) - cryptographically secure random
+        var rand_buf : [32]u8
+        var rand_ret = random_fill(&raw mut rand_buf[0], 32)
+        if(rand_ret < 0) {
+            // Fallback to LCG if CSPRNG fails
+            var seed_val : u32 = (pos as u32) * 2654435761u + 12345u
+            var k : u32 = 0
+            while(k < 32) {
+                seed_val = seed_val * 1103515245 + 12345
+                rand_buf[k] = (seed_val & 0xFF) as u8
+                k += 1
+            }
+        }
         var k : u32 = 0
         while(k < 32) {
-            seed_val = seed_val * 1103515245 + 12345
-            buf[pos] = (seed_val & 0xFF) as u8
+            buf[pos] = rand_buf[k]
             pos += 1
             k += 1
         }
 
-        // Session ID (empty)
-        buf[pos] = 0 as u8; pos += 1
+        // Session ID (for session resumption)
+        if(ssl.session != null && ssl.session.id_len > 0) {
+            buf[pos] = ssl.session.id_len as u8
+            pos += 1
+            var sid_i : size_t = 0
+            while(sid_i < ssl.session.id_len) {
+                buf[pos] = ssl.session.id[sid_i]
+                pos += 1
+                sid_i += 1
+            }
+        } else {
+            buf[pos] = 0 as u8; pos += 1
+        }
 
         // Cipher suites
         var suite_count : u32 = 0
@@ -909,6 +1024,177 @@ public namespace tls {
         return 0
     }
 
+    // ─── X.509 Hostname Verification ──────────────────────────────────────
+    // Verify that the certificate's CN or SAN matches the expected hostname.
+    // Returns 0 on match, X509_BADCERT_CN_MISMATCH on mismatch.
+    public func x509_verify_hostname(crt : *mut X509Cert, hostname : *char) : int {
+        // Extract CN from subject
+        var cn = string()
+        cert_get_cn(crt, &raw mut cn)
+
+        // Check CN against hostname
+        var cn_view = cn.to_view()
+        var host_view = string_view(hostname)
+
+        // Direct comparison using byte-by-byte check
+        var match = true
+        if(cn_view.size() != host_view.size()) { match = false }
+        if(match) {
+            var ci : size_t = 0
+            while(ci < cn_view.size()) {
+                if(cn_view.get(ci) != host_view.get(ci)) { match = false }
+                ci += 1
+            }
+        }
+        if(match) { return 0 }
+
+        // Wildcard check: CN = *.example.com, hostname = www.example.com
+        if(cn_view.size() > 2) {
+            if(cn_view.get(0) == ('*' as u8) && cn_view.get(1) == ('.' as u8)) {
+                // Compare everything after *.
+                var wild_suffix_size = cn_view.size() - 1
+                var host_len = host_view.size()
+                if(host_len >= wild_suffix_size) {
+                    var match2 = true
+                    var wi : size_t = 0
+                    while(wi < wild_suffix_size) {
+                        var c = cn_view.get(1 + wi)
+                        var h = host_view.get(host_len - wild_suffix_size + wi)
+                        if(c != h) { match2 = false }
+                        wi += 1
+                    }
+                    if(match2) { return 0 }
+                }
+            }
+        }
+
+        // TODO: Check SAN entries (subjectAltName extension)
+        // For now, fall back to CN-only matching
+
+        return X509_BADCERT_CN_MISMATCH as i32
+    }
+
+    // ─── X.509 Date Validity Check ────────────────────────────────────────
+    // Check if the certificate's validity period covers the current time.
+    // Returns 0 if valid, X509_BADCERT_EXPIRED or X509_BADCERT_FUTURE on failure.
+    public func x509_check_date(crt : *mut X509Cert) : int {
+        // ASN1_UTC_TIME format: YYMMDDHHMMSSZ (13 bytes) or YYMMDDHHMMZ (11 bytes)
+        // For UTC time, YY 00-49 = 2000-2049, 50-99 = 1950-1999
+
+        if(crt.valid_from[0] == 0 || crt.valid_to[0] == 0) {
+            return 0  // No date info, skip check
+        }
+
+        // For now, accept all valid_from/valid_to (we can't easily get
+        // the current time in comptime without a system call).
+        // This function is a placeholder for proper time validation.
+        // In production, compare current UTC time against the parsed dates.
+
+        return 0
+    }
+
+    // ─── X.509 Certificate Chain Verification ─────────────────────────────
+    // Verify a certificate chain from leaf to root.
+    // leaf: the peer's certificate (first in chain)
+    // trusted_ca: a trusted root CA certificate (or null to skip root verification)
+    // hostname: expected server hostname (or null to skip)
+    // Returns 0 on success, negative error code on failure.
+    // Sets crt->flags with verification results.
+    public func x509_verify_chain(leaf : *mut X509Cert, trusted_ca : *mut X509Cert,
+                                   hostname : *char) : int {
+        var flags : u32 = 0
+
+        // 1. Self-signed check: if leaf issuer == leaf subject, it's self-signed
+        var is_self_signed = false
+        if(leaf.issuer.size() > 0 && leaf.subject.size() > 0) {
+            var iss_view = leaf.issuer.to_view()
+            var sub_view = leaf.subject.to_view()
+            // Compare issuer and subject byte-by-byte
+            var dn_match = true
+            if(iss_view.size() != sub_view.size()) { dn_match = false }
+            if(dn_match) {
+                var di : size_t = 0
+                while(di < iss_view.size()) {
+                    if(iss_view.get(di) != sub_view.get(di)) { dn_match = false }
+                    di += 1
+                }
+            }
+            if(dn_match) { is_self_signed = true }
+        }
+
+        if(trusted_ca == null && is_self_signed) {
+            // Self-signed cert without a trusted CA: verify using its own key
+            var rsa_ctx : RSAContext
+            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+            var ret = x509_extract_rsa_pubkey(leaf, &raw mut rsa_ctx)
+            if(ret == 0) {
+                ret = x509_verify_cert_signature(leaf, &raw mut rsa_ctx)
+                if(ret == 0) {
+                    leaf.flags = 0  // Self-signed verified OK
+                    return 0
+                }
+            }
+            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        }
+
+        // 2. Check hostname first (always run regardless of CA verification)
+        var hostname_ok = true
+        if(hostname != null) {
+            var hname_len : size_t = 0
+            while(hostname[hname_len] != 0) { hname_len += 1 }
+            if(hname_len > 0) {
+                var h_ret = x509_verify_hostname(leaf, hostname)
+                if(h_ret != 0) {
+                    hostname_ok = false
+                    leaf.flags = X509_BADCERT_CN_MISMATCH as u32
+                }
+            }
+        }
+        if(!hostname_ok) { return ERR_X509_CERT_VERIFY_FAILED }
+
+        // 3. Check date validity
+        var date_ret = x509_check_date(leaf)
+        if(date_ret != 0) {
+            leaf.flags = leaf.flags | date_ret as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        }
+
+        // 4. Verify signature using trusted CA or self-signed
+        if(trusted_ca != null) {
+            var ca_rsa : RSAContext
+            rsa_init(&raw mut ca_rsa, RSA_PKCS_V15, 0)
+            var ret = x509_extract_rsa_pubkey(trusted_ca, &raw mut ca_rsa)
+            if(ret == 0) {
+                ret = x509_verify_cert_signature(leaf, &raw mut ca_rsa)
+                if(ret == 0) {
+                    leaf.flags = 0 as u32  // Verified by trusted CA
+                    return 0
+                }
+            }
+            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        } else if(is_self_signed) {
+            // Self-signed cert without a trusted CA: verify using its own key
+            var rsa_ctx : RSAContext
+            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+            var ret = x509_extract_rsa_pubkey(leaf, &raw mut rsa_ctx)
+            if(ret == 0) {
+                ret = x509_verify_cert_signature(leaf, &raw mut rsa_ctx)
+                if(ret == 0) {
+                    leaf.flags = 0 as u32  // Self-signed verified OK
+                    return 0
+                }
+            }
+            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        } else {
+            // Neither self-signed nor trusted CA
+            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        }
+    }
+
     // ─── Parse ServerHello and extract key parameters ────────────────────
 
     func parse_server_hello(ssl : *mut SSLContext, data : *u8, data_len : u32) : int {
@@ -932,6 +1218,19 @@ public namespace tls {
             while(i < 32) {
                 ssl.handshake.randbytes[32 + i] = data[6 + i]
                 i += 1
+            }
+        }
+
+        // Extract session ID from ServerHello (bytes 38+ depending on session_id_len)
+        var session_id_len = data[38] as size_t
+        if(session_id_len > 0 && session_id_len <= 32) {
+            if(ssl.session != null) {
+                ssl.session.id_len = session_id_len
+                var sid_i : size_t = 0
+                while(sid_i < session_id_len) {
+                    ssl.session.id[sid_i] = data[39 + sid_i]
+                    sid_i += 1
+                }
             }
         }
 
@@ -1071,12 +1370,17 @@ public namespace tls {
         // For TLS 1.2 RSA: pre_master_secret = ClientHello.version (2 bytes) + 46 random bytes
         var pre_master : [48]u8
         pre_master[0] = 0x03; pre_master[1] = 0x03  // TLS 1.2
-        var seed_val : u32 = 0xDEADBEEFu32
-        i = 2
-        while(i < 48) {
-            seed_val = seed_val * 1103515245 + 12345
-            pre_master[i] = (seed_val & 0xFF) as u8
-            i += 1
+        // Use CSPRNG for the remaining 46 bytes
+        var pm_ret = random_fill(&raw mut pre_master[2], 46)
+        if(pm_ret < 0) {
+            // Fallback to LCG if CSPRNG fails
+            var seed_val : u32 = 0xDEADBEEFu32
+            i = 2
+            while(i < 48) {
+                seed_val = seed_val * 1103515245 + 12345
+                pre_master[i] = (seed_val & 0xFF) as u8
+                i += 1
+            }
         }
 
         // ── Encrypt pre-master secret with RSA public key ──

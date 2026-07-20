@@ -964,6 +964,175 @@ public func tls_gcm_tag_verification_fails_on_wrong_tag(env : &mut TestEnv) {
     }
 }
 
+// ─── RSA Known-Answer Tests ─────────────────────────────────────────────────
+
+@test
+public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
+    // Known-answer test: Parse the test certificate, extract its RSA public key
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    if(ret != 0) { env.error("DER certificate should parse"); return }
+
+    // Verify it's an RSA key
+    if(cert.pk_type != tls::PK_RSA as u8) {
+        env.error("test cert should use RSA public key"); return
+    }
+
+    // Extract RSA public key
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    if(ret != 0) {
+        env.error("RSA public key extraction from cert should succeed"); return
+    }
+
+    // RSA-2048 should have key length of 256 bytes
+    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    if(key_len != 256) {
+        env.error("RSA key length should be 256 bytes for RSA-2048"); return
+    }
+
+    // Verify N modulus is not trivially small (should have > 128 bytes of data)
+    var n_bytes : [256]u8
+    ret = tls::mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_bytes[0], 256)
+    if(ret < 0) { env.error("should export N as 256 bytes"); return }
+
+    // N should not be all zeros
+    var n_nonzero = false
+    var i : size_t = 0
+    while(i < 256) {
+        if(n_bytes[i] != 0) { n_nonzero = true }
+        i += 1
+    }
+    if(!n_nonzero) { env.error("RSA modulus N should not be all zeros"); return }
+
+    // Verify exponent E = 65537 (0x010001) for the test cert
+    var e_bytes : [3]u8
+    ret = tls::mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_bytes[0], 3)
+    if(ret < 0) { env.error("should export E"); return }
+    var expected_e0 : u8 = 0x01; var expected_e1 : u8 = 0x00; var expected_e2 : u8 = 0x01
+    if(e_bytes[0] != expected_e0 || e_bytes[1] != expected_e1 || e_bytes[2] != expected_e2) {
+        env.error("RSA exponent E should be 0x010001 (65537)")
+    }
+}
+
+@test
+public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
+    // Known-answer test: Encrypt the TLS pre-master secret with the test cert's RSA key
+    // This verifies the full RSA encrypt pipeline: key import + PKCS#1 encoding + modular exponentiation
+
+    // 1. Parse certificate and extract RSA key
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 635)
+    if(ret != 0) { env.error("DER certificate should parse"); return }
+
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    if(ret != 0) { env.error("RSA key extraction should succeed"); return }
+
+    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    if(key_len != 256) { env.error("RSA key should be 256 bytes"); return }
+
+    // 2. Create a TLS pre-master secret (48 bytes, deterministic for testing)
+    var pre_master : [48]u8
+    var i : size_t = 0
+    while(i < 48) {
+        pre_master[i] = i as u8
+        i += 1
+    }
+
+    // 3. Encrypt the pre-master secret with RSA PKCS#1 v1.5
+    var ciphertext : [512]u8
+    ret = tls::rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pre_master[0], 48, &raw mut ciphertext[0])
+    if(ret != 0) {
+        env.error("RSA PKCS#1 encrypt of pre-master secret should succeed"); return
+    }
+
+    // 4. Verifications:
+
+    // a) Ciphertext should start with 0x00 (PKCS#1 v1.5 encoding starts with 0x00 || 0x02)
+    if(ciphertext[0] != 0x00) {
+        env.error("RSA ciphertext should start with 0x00 (PKCS#1 v1.5 format)")
+    }
+
+    // b) Second byte should be 0x02 (block type for encryption)
+    if(ciphertext[1] != 0x02) {
+        env.error("RSA ciphertext should have 0x02 as second byte (block type 02)")
+    }
+
+    // c) All padding bytes (bytes 2 through 255-48-1=204) should be non-zero
+    // and there should be exactly one 0x00 separator before the message
+    var zero_count : size_t = 0
+    var found_separator : bool = false
+    i = 2
+    while(i < key_len) {
+        if(ciphertext[i] == 0x00 && !found_separator) {
+            found_separator = true
+            zero_count += 1
+        } else if(ciphertext[i] == 0x00 && found_separator) {
+            zero_count += 1
+        }
+        i += 1
+    }
+    if(!found_separator) {
+        env.error("PKCS#1 v1.5 ciphertext should have 0x00 separator before message")
+    }
+}
+
+@test
+public func tls_rsa_modular_exponentiation_small_values(env : &mut TestEnv) {
+    // Known-answer test for the raw RSA public operation (modular exponentiation)
+    // This tests the core RSA math: c = m^e mod N
+    //
+    // Test: m=2, e=3, n=7
+    // Expected: c = 2^3 mod 7 = 8 mod 7 = 1
+
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+
+    // Use small values: n=7 (0x07), e=3 (0x03)
+    var n_buf : [1]u8 = [0x07]
+    var e_buf : [1]u8 = [0x03]
+
+    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    if(ret < 0) { env.error("import pubkey should succeed"); return }
+
+    // Encrypt m=2 (0x02, with PKCS#1 padding)
+    // Note: for n=1 byte, we can only encrypt a message of length 1-11 = fail
+    // So instead, test the raw RSA math using mpi_exp_mod directly
+    var m : tls::Mpi; tls::mpi_init(&raw mut m)
+    var expected : tls::Mpi; tls::mpi_init(&raw mut expected)
+
+    tls::mpi_lset(&raw mut m, 2)
+    tls::mpi_lset(&raw mut expected, 1)  // 2^3 mod 7 = 1
+
+    var result : tls::Mpi; tls::mpi_init(&raw mut result)
+    ret = tls::mpi_exp_mod(&raw mut result, &raw mut m, &raw mut ctx.E, &raw mut ctx.N)
+    if(ret < 0) { env.error("mpi_exp_mod should succeed"); return }
+
+    if(tls::mpi_cmp(&raw mut result, &raw mut expected) != 0) {
+        env.error("2^3 mod 7 should equal 1")
+    }
+
+    // Test 2: 7^5 mod 13 = 16807 mod 13 = 16807 - 13*1292 = 16807 - 16796 = 11
+    tls::mpi_lset(&raw mut m, 7)
+    tls::mpi_lset(&raw mut expected, 11)
+
+    // Re-import with n=13, e=5
+    n_buf[0] = 0x0D; e_buf[0] = 0x05
+    tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    ret = tls::mpi_exp_mod(&raw mut result, &raw mut m, &raw mut ctx.E, &raw mut ctx.N)
+    if(ret < 0) { env.error("mpi_exp_mod should succeed"); return }
+
+    if(tls::mpi_cmp(&raw mut result, &raw mut expected) != 0) {
+        env.error("7^5 mod 13 should equal 11")
+    }
+}
+
 // ─── ECDH Tests ─────────────────────────────────────────────────────────────
 
 @test

@@ -507,6 +507,9 @@ public namespace tls {
         var transport_socket : net::Socket
         var transport_connected : bool
 
+        // Negotiated values from handshake
+        var negotiated_ciphersuite : u16
+
         // Early data
         var early_data_status : u8
 
@@ -566,6 +569,7 @@ public namespace tls {
         ssl.handshake_hash_len = 0
         ssl.transport_socket = 0
         ssl.transport_connected = false
+        ssl.negotiated_ciphersuite = 0
         ssl.early_data_status = 0
     }
 

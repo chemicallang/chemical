@@ -129,8 +129,8 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - `lang/tests/negative/src/main.ch` — **Negative tests**: invokes the compiler via `popen`, compiles `.ch` files with invalid code, checks exit code and stderr for expected errors. Entry point for `--arg-negative`. Uses `intrinsics::get_compiler_path()`.
 - **Inline tests**: manually listed in `tests.ch` via `test(name, () => bool)`.
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
-- Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `libs/`, `nodes/`, `stdlib/`.
-- Lib tests in `lang/tests/libs/*/src/`.
+- Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `compiler_plugins/`, `nodes/`, `stdlib/`.
+- Lib tests in `lang/tests/compiler_plugins/*/src/`.
 
 ### Interpretation Mode Details
 
@@ -448,7 +448,7 @@ public func my_test(env : &mut TestEnv) {
 
 ### Test File Location
 
-Library tests go in `lang/tests/src/libs/<name>/tests.ch`, **not** `lang/tests/libs/`. The `lang/tests/src/` module is the compiled test executable's source tree.
+Library tests go in `lang/tests/src/libs/<name>/tests.ch`, **not** `lang/tests/compiler_plugins/`. The `lang/tests/src/` module is the compiled test executable's source tree.
 
 ### Building Libraries for Testing
 

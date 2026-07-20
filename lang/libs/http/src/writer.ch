@@ -9,6 +9,7 @@ public namespace http {
         var status: uint;
         var sent_headers: bool;
         var is_head: bool;
+        var tls_ctx: *mut tls::SSLContext // TLS context for secure writes (null = plain socket)
 
         @constructor func constructor(s: net::Socket, method : &std::string) {
             return ResponseWriter {
@@ -16,7 +17,8 @@ public namespace http {
                 headers = HeaderMap()
                 status = 200u;
                 sent_headers = false;
-                is_head = method.equals_view("HEAD")
+                is_head = method.equals_view("HEAD"),
+                tls_ctx = null
             }
         }
 
@@ -30,6 +32,14 @@ public namespace http {
             set_header_view("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
             set_header_view("Access-Control-Allow-Headers", "Content-Type, Authorization")
             set_header_view("Access-Control-Allow-Credentials", "true")
+        }
+
+        func send_data(&mut self, data : *char, len : int) {
+            if(self.tls_ctx != null) {
+                tls::ssl_write(self.tls_ctx, data as *u8, len)
+            } else {
+                net::send_all(self.sock, data, len)
+            }
         }
 
         func send_headers(&mut self, content_len: usize) {
@@ -62,21 +72,21 @@ public namespace http {
 
             out.append_view(std::string_view("Connection: close\r\n\r\n"));
 
-            net::send_all(sock, out.data(), out.size() as int);
+            send_data(out.data(), out.size() as int);
             sent_headers = true;
         }
 
         func write_string(&mut self, s: &std::string) {
             send_headers(s.size());
             if (!is_head) {
-                net::send_all(sock, s.data(), s.size() as int);
+                send_data(s.data(), s.size() as int);
             }
         }
 
         func write_view(&mut self, v : &std::string_view) {
             send_headers(v.size());
             if (!is_head) {
-                net::send_all(sock, v.data(), v.size() as int);
+                send_data(v.data(), v.size() as int);
             }
         }
 

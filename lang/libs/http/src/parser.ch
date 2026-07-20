@@ -166,9 +166,19 @@ public namespace http {
         return std::Option.Some<Request>(req);
     }
 
-    // Incremental response reader
-    public func read_response_incremental(s: net::Socket, buf: &mut net::Buffer, timeout_secs: long, max_header_bytes: usize) : std::Option<Response> {
-        net::set_recv_timeout(s, timeout_secs, 0);
+    // Helper to recv from socket or TLS context
+    func http_recv(s: net::Socket, tls_ctx: *mut tls::SSLContext, buf: *mut u8, cap: usize) : int {
+        if(tls_ctx != null) {
+            return tls::ssl_read(tls_ctx, buf, cap as i32)
+        }
+        return net::recv_all(s, buf, cap)
+    }
+
+    // Incremental response reader (with optional TLS support)
+    public func read_response_incremental(s: net::Socket, buf: &mut net::Buffer, timeout_secs: long, max_header_bytes: usize, tls_ctx: *mut tls::SSLContext = null) : std::Option<Response> {
+        if(s != 0) {
+            net::set_recv_timeout(s, timeout_secs, 0);
+        }
         loop {
             var i = 0u; var found = false; var crlfpos = 0u;
             while(i + 3 < buf.len()) {
@@ -195,12 +205,15 @@ public namespace http {
                         if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                     }
                     res.body = Body.make_body(s, buf as *mut net::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
+                    if(tls_ctx != null) {
+                        res.body.tls_ctx = tls_ctx
+                    }
                     return std::Option.Some<Response>(std::replace(&mut res, Response()));
                 } else { return std::Option.None<Response>() }
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
             var tmp : [DEFAULT_READ_BUF]u8;
-            var n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF);
+            var n = http_recv(s, tls_ctx, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Response>() }
             buf.append_bytes(&raw mut tmp[0], n as usize);
         }

@@ -112,6 +112,7 @@ public namespace http {
         var cur_chunk_left: usize;           // bytes left in current chunk when chunked==true
         var seen_total: usize;               // how many body bytes have been delivered to user (enforce max_body)
         var owns_buf: bool;                  // whether this Body owns the buf pointer (must free it)
+        var tls_ctx: *mut tls::SSLContext     // TLS context for secure reads (null = plain socket)
 
         @make
         func empty_make() {
@@ -125,12 +126,19 @@ public namespace http {
                 closed = false
                 cur_chunk_left = 0u
                 seen_total = 0u
-                owns_buf = false
+                owns_buf = false,
+                tls_ctx = null
             }
         }
 
         @delete
         func destruct(&self) {
+            // Free TLS context before buffer (TLS may use the buffer internally)
+            if(self.tls_ctx != null) {
+                tls::ssl_close_notify(self.tls_ctx)
+                tls::ssl_free(self.tls_ctx)
+                unsafe { dealloc self.tls_ctx }
+            }
             if(self.owns_buf && self.buf != null) {
                 delete self.buf;
             }
@@ -156,13 +164,17 @@ public namespace http {
                 closed: false,
                 cur_chunk_left: 0u,
                 seen_total: 0u,
-                owns_buf: owns
+                owns_buf: owns,
+                tls_ctx: null
             };
         }
     }
 
     // low-level recv helper that honors timeout and returns <=0 on error/timeout
     func body_recv(b:*mut Body, dst:*mut u8, cap: usize) : int {
+        if(b.tls_ctx != null) {
+            return tls::ssl_read(b.tls_ctx, dst, cap as i32);
+        }
         // set timeout on socket
         net::set_recv_timeout(b.sock, b.timeout_secs, 0);
         return net::recv_all(b.sock, dst, cap);

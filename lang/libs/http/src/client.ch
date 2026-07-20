@@ -177,25 +177,89 @@ public namespace http {
         }
 
         public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> {
-            var s = net::dial(req_builder.url.host.data(), req_builder.url.port);
-            if(s == 0u || (s as longlong) < 0) {
-                return std::Result.Err<Response, std::string>(std::string::make_no_len("failed to connect"));
+            var is_https = req_builder.url.scheme.equals_with_len("https", 5)
+            var s: net::Socket = 0
+            var tls_ctx: *mut tls::SSLContext = null
+
+            // Establish connection (plain or TLS)
+            if(is_https) {
+                // For HTTPS: heap-allocate TLS context using malloc + ssl_init.
+                // The context is freed by the Body destructor (ssl_free + dealloc).
+                var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+                tls::ssl_init(ssl_ptr)
+
+                // Create config with auto-loaded CA
+                var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+                var ca = tls::load_system_ca_bundle()
+                if(ca != null) {
+                    tls::ssl_set_ca_chain(&raw mut config, ca)
+                }
+                tls::ssl_set_config(ssl_ptr, &raw mut config)
+
+                // Set hostname for SNI extension and certificate verification
+                tls::ssl_set_hostname(ssl_ptr, req_builder.url.host.data())
+
+                // Connect and handshake
+                var ret = tls::tls_connect(ssl_ptr,
+                                            req_builder.url.host.data(),
+                                            req_builder.url.port)
+                if(ret < 0) {
+                    tls::ssl_free(ssl_ptr)
+                    unsafe { dealloc ssl_ptr }
+                    return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS handshake failed"))
+                }
+
+                // Verify the server's certificate matches the requested hostname
+                if(ssl_ptr.peer_cert != null) {
+                    var hostname_nul = std::string(req_builder.url.host.data(), req_builder.url.host.size())
+                    hostname_nul.append('\0')
+                    var hret = tls::x509_verify_hostname(ssl_ptr.peer_cert,
+                                                          hostname_nul.data())
+                    if(hret != 0) {
+                        tls::ssl_free(ssl_ptr)
+                        unsafe { dealloc ssl_ptr }
+                        return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS hostname mismatch"))
+                    }
+                }
+                tls_ctx = ssl_ptr
+            } else {
+                s = net::dial(req_builder.url.host.data(), req_builder.url.port)
+                if(s == 0u || (s as longlong) < 0) {
+                    return std::Result.Err<Response, std::string>(std::string::make_no_len("failed to connect"))
+                }
             }
 
-            var req_data = req_builder.build();
-            net::send_all(s, req_data.data(), req_data.size() as int);
+            // Send request
+            var req_data = req_builder.build()
+            if(is_https) {
+                tls::ssl_write(tls_ctx, req_data.data() as *u8, req_data.size() as i32)
+            } else {
+                net::send_all(s, req_data.data(), req_data.size() as int)
+            }
 
-            var buf_ptr = new net::Buffer();
-            var res_opt = read_response_incremental(s, &mut *buf_ptr, req_builder.timeout_secs, self.max_response_header_bytes);
+            // Read response headers (Body.tls_ctx is set inside read_response_incremental)
+            var buf_ptr = new net::Buffer()
+            var res_opt = read_response_incremental(s, &mut *buf_ptr, req_builder.timeout_secs,
+                                                      self.max_response_header_bytes,
+                                                      tls_ctx)
             if(res_opt is std::Option.None) {
-                delete buf_ptr;
-                net::close_socket(s);
-                return std::Result.Err<Response, std::string>(std::string::make_no_len("failed to read response"));
+                if(is_https) {
+                    // tls_ctx is heap-allocated via malloc; free with ssl_free + dealloc
+                    tls::ssl_free(tls_ctx)
+                    unsafe { dealloc tls_ctx }
+                } else {
+                    net::close_socket(s)
+                }
+                delete buf_ptr
+                return std::Result.Err<Response, std::string>(std::string::make_no_len("failed to read response"))
             }
 
-            var res = res_opt.take();
-            res.body.owns_buf = true;
-            return std::Result.Ok<Response, std::string>(res);
+            var res = res_opt.take()
+
+            // For HTTPS: Body.tls_ctx is set, and Body destructor will free the TLS context
+            // For plain HTTP: mark buf as owned by Body so it gets freed
+            res.body.owns_buf = true
+            return std::Result.Ok<Response, std::string>(res)
         }
 
         public func get(&self, url_str: &std::string_view) : std::Result<Response, std::string> {

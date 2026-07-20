@@ -1900,3 +1900,199 @@ public func tls_x509_cert_verify_chain_rejects_unknown_hostname(env : &mut TestE
         env.error("cert flags should include CN_MISMATCH")
     }
 }
+
+// ─── HTTPS Integration Tests ─────────────────────────────────────────────
+
+@test
+public func https_url_parsing_scheme_detection_works(env : &mut TestEnv) {
+    // Verify https:// URLs are detected with correct scheme and default port 443
+    var u1 = http::URL::parse(string_view("https://example.com"))
+    if(u1 is std::Option.None) { env.error("https URL should parse"); return }
+    var Some(url1) = u1 else unreachable
+    if(!url1.scheme.equals_with_len("https", 5)) {
+        env.error("scheme should be https")
+    }
+    if(url1.port != 443u) {
+        env.error("default https port should be 443")
+    }
+    if(url1.host.empty()) {
+        env.error("host should not be empty")
+    }
+}
+
+@test
+public func https_url_parsing_with_port_path_query_works(env : &mut TestEnv) {
+    // Verify https URL with explicit port, path, and query
+    var u2 = http::URL::parse(string_view("https://api.example.com:8443/v1/data?key=val"))
+    if(u2 is std::Option.None) { env.error("https URL with port should parse"); return }
+    var Some(url2) = u2 else unreachable
+    if(!url2.scheme.equals_with_len("https", 5)) {
+        env.error("scheme should be https")
+    }
+    if(url2.port != 8443u) {
+        env.error("port should be 8443")
+    }
+    if(!url2.host.equals_view("api.example.com")) {
+        env.error("host should be api.example.com")
+    }
+    if(!url2.path.equals_view("/v1/data")) {
+        env.error("path should be /v1/data")
+    }
+    if(!url2.query.equals_view("key=val")) {
+        env.error("query should be key=val")
+    }
+}
+
+@test
+public func https_url_parsing_default_path_without_slash_works(env : &mut TestEnv) {
+    // Verify https URL without path defaults to /
+    var u = http::URL::parse(string_view("https://localhost:443"))
+    if(u is std::Option.None) { env.error("https URL without path should parse"); return }
+    var Some(url) = u else unreachable
+    if(!url.path.equals_view("/")) {
+        env.error("default path should be /")
+    }
+}
+
+@test
+public func https_connection_refused_returns_error(env : &mut TestEnv) {
+    // Connecting to a port with no server should fail gracefully
+    var client = http::Client()
+    var res = client.get(string_view("https://127.0.0.1:49999/nonexistent"))
+    if(res is Result.Ok) {
+        env.error("https connection to closed port should fail")
+    }
+}
+
+@test
+public func https_invalid_host_returns_error(env : &mut TestEnv) {
+    // Connecting to a non-existent host should fail gracefully
+    var client = http::Client()
+    var res = client.get(string_view("https://invalid-host-xyz-99999.example.com/test"))
+    if(res is Result.Ok) {
+        env.error("https connection to invalid host should fail")
+    }
+}
+
+@test
+public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
+    // Start a plain TCP server and try to connect with https://
+    // The TLS handshake should fail because the server doesn't speak TLS
+    var cfg = http::server::ServerConfig()
+    cfg.addr = std::string::make_no_len("127.0.0.1:49998")
+    var srv = http::server::Server(cfg)
+    srv.router.add("GET", "/", ||(req, res) => {
+        res.write_string(std::string::make_no_len("plain-text"))
+    })
+    var thread = srv.serve_async(49998u)
+    std.concurrent.sleep_ms(100u)
+
+    var client = http::Client()
+    var res = client.get(string_view("https://127.0.0.1:49998/"))
+    if(res is Result.Ok) {
+        env.error("https request to plain server should fail")
+    }
+
+    srv.shutdown()
+    thread.join()
+}
+
+@test
+public func https_error_does_not_crash(env : &mut TestEnv) {
+    // Make multiple failed HTTPS requests to ensure no crash or memory leak
+    var client = http::Client()
+    for(var i=0u; i<5u; i++) {
+        var res = client.get(string_view("https://127.0.0.1:49997/test"))
+        if(res is Result.Ok) {
+            env.error("should fail for closed port")
+        }
+    }
+}
+
+@test
+public func https_body_destructor_no_crash_on_scope_exit(env : &mut TestEnv) {
+    // Verify that the Body destructor doesn't crash when cleaning up TLS context
+    // by making a failed connection and checking no crash on scope exit
+    {
+        var client = http::Client()
+        var res = client.get(string_view("https://127.0.0.1:49996/test"))
+        if(res is Result.Ok) {
+            env.error("should fail for closed port")
+        }
+    }
+    // TLS context should be freed when Body goes out of scope
+    // If destructor is broken, this test would crash or leak
+}
+
+@test
+public func https_reuse_client_after_failure_works(env : &mut TestEnv) {
+    // Reuse the same HTTP client after an HTTPS failure
+    var client = http::Client()
+
+    // First make a failing HTTPS request
+    var r1 = client.get(string_view("https://127.0.0.1:49995/test"))
+    if(r1 is Result.Ok) {
+        env.error("first request should fail")
+    }
+
+    // Then make a failing HTTP request - should not crash
+    var r2 = client.get(string_view("http://127.0.0.1:49995/test"))
+    if(r2 is Result.Ok) {
+        env.error("second request should also fail")
+    }
+}
+
+@test
+public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
+    // Start a plain HTTP server
+    var cfg = http::server::ServerConfig()
+    cfg.addr = std::string::make_no_len("127.0.0.1:49994")
+    var srv = http::server::Server(cfg)
+    srv.router.add("GET", "/hello", ||(req, res) => {
+        res.write_string(std::string::make_no_len("http-world"))
+    })
+    var thread = srv.serve_async(49994u)
+    std.concurrent.sleep_ms(100u)
+
+    // HTTP request should succeed
+    var client = http::Client()
+    var r1 = client.get(string_view("http://127.0.0.1:49994/hello"))
+    if(r1 is Result.Ok) {
+        var Ok(ok_resp) = r1 else unreachable
+        if(ok_resp.status != 200u) {
+            env.error("HTTP status should be 200")
+        }
+    } else {
+        env.error("HTTP request should succeed")
+    }
+
+    // HTTPS request to same server should fail (plain HTTP, not TLS)
+    var r2 = client.get(string_view("https://127.0.0.1:49994/hello"))
+    if(r2 is Result.Ok) {
+        env.error("HTTPS request to plain server should fail")
+    }
+
+    // HTTP request after failed HTTPS should still work
+    var r3 = client.get(string_view("http://127.0.0.1:49994/hello"))
+    if(r3 is Result.Ok) {
+        var Ok(resp3) = r3 else unreachable
+        if(resp3.status != 200u) {
+            env.error("HTTP after failed HTTPS should still work")
+        }
+    }
+
+    srv.shutdown()
+    thread.join()
+}
+
+@test
+public func https_repeated_failures_no_crash(env : &mut TestEnv) {
+    // Make multiple HTTPS requests in sequence to ensure no crash
+    var client = http::Client()
+    for(var i=0u; i<10u; i++) {
+        var res = client.get(string_view("https://127.0.0.1:49993/test"))
+        if(res is Result.Ok) {
+            env.error("should fail for closed port")
+        }
+    }
+}

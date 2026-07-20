@@ -1,0 +1,235 @@
+// ---------------------------------------------------------------------------
+// Windows webview using Edge WebView2 (COM)
+// ---------------------------------------------------------------------------
+// Uses Windows COM APIs to host the Edge/Chromium webview.
+
+public namespace webview {
+
+using std::string;
+
+// Windows types
+@extern public type HRESULT = i32
+@extern public type DWORD = u32
+@extern public type BOOL = i32
+@extern public type LPCWSTR = *char
+@extern public type LPCSTR = *char
+@extern public type LPVOID = *mut void
+@extern public type BSTR = *mut u16
+@extern public type UINT = u32
+@extern public type LONG = i32
+
+// GUID struct
+public struct GUID {
+    var Data1 : u32
+    var Data2 : u16
+    var Data3 : u16
+    var Data4 : [8]u8
+}
+
+// IUnknown interface
+@no_init @extern public struct IUnknownVtbl {}
+
+// ICoreWebView2 interface (simplified)
+@no_init @extern public struct ICoreWebView2 {}
+
+// COM apartment type
+const COINIT_APARTMENTTHREADED = 0x2
+
+// WebView2 COM class IDs (Edge WebView2)
+const CLSID_CoreWebView2Creator : GUID = GUID {
+    Data1 : 0xEC2183B6,
+    Data2 : 0xF5E3,
+    Data3 : 0x4E72,
+    Data4 : [0x9A, 0x10, 0x5D, 0xF8, 0x9D, 0x30, 0x29, 0x1B]
+}
+
+// Win32 API declarations
+@extern @stdcall @dllimport public func CoInitializeEx(pvReserved : LPVOID, dwCoInit : DWORD) : HRESULT
+@extern @stdcall @dllimport public func CoUninitialize()
+@extern @stdcall @dllimport public func CoCreateInstance(rclsid : *GUID, pUnkOuter : LPVOID, dwClsContext : DWORD, riid : *GUID, ppv : *mut LPVOID) : HRESULT
+
+// Multi-byte to wide char conversion
+@extern @stdcall @dllimport public func MultiByteToWideChar(CodePage : UINT, dwFlags : DWORD, lpMultiByteStr : LPCSTR, cbMultiByte : int, lpWideCharStr : *mut u16, cchWideChar : int) : int
+
+// MessageBox
+@extern @stdcall @dllimport public func MessageBoxA(hWnd : LPVOID, lpText : LPCSTR, lpCaption : LPCSTR, uType : UINT) : int
+
+// CreateWindowExA
+@extern @stdcall @dllimport public func CreateWindowExA(dwExStyle : DWORD, lpClassName : LPCSTR, lpWindowName : LPCSTR, dwStyle : DWORD, x : int, y : int, nWidth : int, nHeight : int, hWndParent : LPVOID, hMenu : LPVOID, hInstance : LPVOID, lpParam : LPVOID) : LPVOID
+@extern @stdcall @dllimport public func DestroyWindow(hWnd : LPVOID) : BOOL
+@extern @stdcall @dllimport public func ShowWindow(hWnd : LPVOID, nCmdShow : int) : BOOL
+@extern @stdcall @dllimport public func UpdateWindow(hWnd : LPVOID) : BOOL
+@extern @stdcall @dllimport public func SetWindowTextA(hWnd : LPVOID, lpString : LPCSTR) : BOOL
+@extern @stdcall @dllimport public func SetWindowPos(hWnd : LPVOID, hWndInsertAfter : LPVOID, X : int, Y : int, cx : int, cy : int, uFlags : UINT) : BOOL
+
+const SW_SHOWDEFAULT = 10
+const SW_SHOW = 5
+const SW_HIDE = 0
+const WS_OVERLAPPEDWINDOW = 0x00CF0000
+const WS_VISIBLE = 0x10000000
+const WS_CHILD = 0x40000000
+
+// WebView2 types
+public struct ICoreWebView2EnvironmentOptions {
+    var AdditionalBrowserArguments : LPCWSTR
+    var AllowSingleSignOnUsingOSPrimaryAccount : BOOL
+}
+
+@no_init @extern public struct ICoreWebView2Environment {}
+@no_init @extern public struct ICoreWebView2Controller {}
+@no_init @extern public struct ICoreWebView2Settings {}
+
+public type webview2_navigation_completed_handler = (handler : *mut void, args : *mut void, error_code : HRESULT) => HRESULT
+public type webview2_web_message_received_handler = (handler : *mut void, args : *mut void) => HRESULT
+
+// ---------------------------------------------------------------------------
+// WebView struct (Windows)
+// ---------------------------------------------------------------------------
+
+@direct_init
+public struct WebView {
+    var window : LPVOID
+    var web_view_controller : LPVOID
+    var web_view : LPVOID
+    var environment : LPVOID
+    var title : string
+    var width : int
+    var height : int
+    var visible : bool
+    var initialized : bool
+
+    @make
+    func make() : WebView {
+        return WebView {
+            window : null,
+            web_view_controller : null,
+            web_view : null,
+            environment : null,
+            title : string("Chemical WebView"),
+            width : 800,
+            height : 600,
+            visible : false,
+            initialized : false
+        }
+    }
+}
+
+func to_wide(str : *char, out : *mut u16, out_len : int) : int {
+    var len : int = 0
+    while(str[len] != '\0' as char) { len += 1 }
+    return MultiByteToWideChar(65001, 0, str, len, out, out_len)
+}
+
+public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+    // Initialize COM
+    var hr = CoInitializeEx(null, COINIT_APARTMENTTHREADED)
+    if(hr < 0) {
+        return std.Result.Err(WebViewError.InitFailed(string("CoInitializeEx failed")))
+    }
+
+    // Create window
+    var wide_title : [256]u16
+    to_wide(wv.title.c_str(), &raw mut wide_title[0], 256)
+
+    wv.window = CreateWindowExA(
+        0,
+        "ChemicalWebView\0" as *char,
+        wv.title.c_str(),
+        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        0, 0, wv.width, wv.height,
+        null, null, null, null
+    )
+
+    if(wv.window == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("CreateWindowExA failed")))
+    }
+
+    // Note: Full WebView2 initialization requires COM interfaces that are complex
+    // to declare in Chemical. This creates the window and shows it.
+    // For full WebView2 integration, use a C helper file.
+    wv.visible = true
+    wv.initialized = true
+
+    return std.Result.Ok(std::Unit{})
+}
+
+public func webview_destroy(wv : *mut WebView) {
+    if(wv.web_view_controller != null) {
+        // Release controller
+    }
+    if(wv.window != null) {
+        DestroyWindow(wv.window)
+        wv.window = null
+    }
+    CoUninitialize()
+    wv.initialized = false
+}
+
+public func webview_load_url(wv : *mut WebView, url : *char) {
+    if(wv.web_view == null) { return }
+    // Navigate: web_view->Navigate(url)
+    // Requires ICoreWebView2 COM method call
+}
+
+public func webview_load_html(wv : *mut WebView, html : *char) {
+    if(wv.web_view == null) { return }
+    // NavigateToString: web_view->NavigateToString(html)
+}
+
+public func webview_evaluate_js(wv : *mut WebView, script : *char) {
+    if(wv.web_view == null) { return }
+    // ExecuteScript: web_view->ExecuteScript(script, nullptr)
+}
+
+public func webview_title(wv : *mut WebView) : string {
+    return wv.title
+}
+
+public func webview_set_title(wv : *mut WebView, title : *char) {
+    wv.title = string{}
+    wv.title.append_char_ptr(title)
+    if(wv.window != null) {
+        SetWindowTextA(wv.window, title)
+    }
+}
+
+public func webview_set_size(wv : *mut WebView, width : int, height : int) {
+    wv.width = width
+    wv.height = height
+    if(wv.window != null) {
+        SetWindowPos(wv.window, null, 0, 0, width, height, 0x0002) // SWP_NOMOVE
+    }
+}
+
+public func webview_show(wv : *mut WebView) {
+    if(wv.window != null) {
+        ShowWindow(wv.window, SW_SHOW)
+        UpdateWindow(wv.window)
+        wv.visible = true
+    }
+}
+
+public func webview_hide(wv : *mut WebView) {
+    if(wv.window != null) {
+        ShowWindow(wv.window, SW_HIDE)
+        wv.visible = false
+    }
+}
+
+public func webview_run(wv : *mut WebView) {
+    // Windows message loop
+    // MSG msg
+    // while(GetMessage(&msg, null, 0, 0)) {
+    //     TranslateMessage(&msg)
+    //     DispatchMessage(&msg)
+    // }
+}
+
+public func webview_stop(wv : *mut WebView) {
+    if(wv.window != null) {
+        DestroyWindow(wv.window)
+        wv.window = null
+    }
+}
+
+} // end namespace webview

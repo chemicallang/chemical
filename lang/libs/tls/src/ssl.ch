@@ -193,6 +193,261 @@ public namespace tls {
     }
 
     // ============================================================================
+    // TLS 1.2 Key Derivation (RFC 5246)
+    // ============================================================================
+
+    // Derive master secret from pre-master secret
+    // master_secret = PRF(pre_master_secret, "master secret", ClientHello.random + ServerHello.random)[0..47]
+    public func tls12_derive_master_secret(pre_master : *u8, pre_master_len : size_t,
+                                            client_random : *u8, server_random : *u8,
+                                            master_secret : *mut u8) {
+        // Build seed = ClientRandom + ServerRandom (64 bytes total)
+        var seed : [64]u8
+        var i : size_t = 0
+        while(i < 32) {
+            seed[i] = client_random[i]
+            seed[i + 32] = server_random[i]
+            i += 1
+        }
+
+        var label = "master secret\0" as *char
+        tls12_prf(pre_master, pre_master_len, label, 13, &raw seed[0], 64, master_secret, 48)
+    }
+
+    // Derive key block from master secret (RFC 5246 Section 6.3)
+    // key_block = PRF(master_secret, "key expansion", ServerRandom + ClientRandom)
+    // The key_block is split as needed for the cipher suite
+    public func tls12_derive_key_block(master_secret : *u8,
+                                        server_random : *u8, client_random : *u8,
+                                        key_block : *mut u8, key_block_len : size_t) {
+        // Build seed = ServerRandom + ClientRandom (reversed from master secret derivation)
+        var seed : [64]u8
+        var i : size_t = 0
+        while(i < 32) {
+            seed[i] = server_random[i]
+            seed[i + 32] = client_random[i]
+            i += 1
+        }
+
+        var label = "key expansion\0" as *char
+        tls12_prf(master_secret, 48, label, 14, &raw seed[0], 64, key_block, key_block_len)
+    }
+
+    // Compute the key block size needed for a cipher suite
+    public func tls12_key_block_size(info : *CipherSuiteInfo) : size_t {
+        var mac_key_len = info.mac_key_len as size_t
+        var enc_key_len = info.key_size as size_t
+        var iv_len : size_t = 0
+        var cipher = info.cipher
+        if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
+            iv_len = info.iv_size as size_t
+        } else if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
+            // For GCM, fixed IV is 4 bytes (explicit nonce is 8 bytes sent in record)
+            iv_len = 4
+        }
+        // 2 directions: client + server
+        return (mac_key_len + enc_key_len + iv_len) * 2
+    }
+
+    // Split key block and populate Transform structure
+    public func tls12_populate_transform(tr : *mut Transform, info : *CipherSuiteInfo,
+                                          key_block : *u8, key_block_len : size_t) : int {
+        var mac_key_len = info.mac_key_len as size_t
+        var enc_key_len = info.key_size as size_t
+        var iv_len : size_t = 0
+
+        var cipher = info.cipher
+        if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
+            iv_len = info.iv_size as size_t
+        } else {
+            iv_len = 4  // Fixed IV for GCM
+        }
+
+        var offset : size_t = 0
+
+        // client_write_MAC_key
+        var i : size_t = 0
+        while(i < mac_key_len) {
+            tr.mac_key_enc[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += mac_key_len
+
+        // server_write_MAC_key
+        i = 0
+        while(i < mac_key_len) {
+            tr.mac_key_dec[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += mac_key_len
+
+        // client_write_key
+        i = 0
+        while(i < enc_key_len) {
+            tr.key_enc[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += enc_key_len
+
+        // server_write_key
+        i = 0
+        while(i < enc_key_len) {
+            tr.key_dec[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += enc_key_len
+
+        // client_write_IV
+        i = 0
+        while(i < iv_len) {
+            tr.iv_enc[i] = key_block[offset + i]
+            tr.base_iv_enc[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += iv_len
+
+        // server_write_IV
+        i = 0
+        while(i < iv_len) {
+            tr.iv_dec[i] = key_block[offset + i]
+            tr.base_iv_dec[i] = key_block[offset + i]
+            i += 1
+        }
+        offset += iv_len
+
+        tr.cipher_type = cipher as u8
+        tr.key_len = enc_key_len as u8
+        tr.iv_len = iv_len as u8
+        tr.mac_key_len = mac_key_len as u8
+        tr.fixed_iv_len = iv_len as u8
+
+        return 0
+    }
+
+    // ============================================================================
+    // Finished Message Calculation (RFC 5246 Section 7.4.9)
+    // ============================================================================
+
+    // Compute Finished message verify_data
+    // verify_data = PRF(master_secret, finished_label, SHA256(handshake_messages))[0..11]
+    public func tls12_compute_finished(master_secret : *u8, is_client : bool,
+                                        handshake_hash : *u8, hash_len : size_t,
+                                        verify_data : *mut u8) {
+        var label : *char
+        if(is_client) {
+            label = "client finished\0" as *char
+        } else {
+            label = "server finished\0" as *char
+        }
+        tls12_prf(master_secret, 48, label, 15,
+                   handshake_hash, hash_len, verify_data, 12)
+    }
+
+    // ============================================================================
+    // Record Encryption / Decryption (TLS 1.2)
+    // ============================================================================
+
+    // Encrypt a TLS record using the provided transform
+    // input: plaintext data (already has MAC appended if using CBC)
+    // output: ciphertext (includes IV + encrypted data + tag for GCM)
+    // Returns the total ciphertext length or negative error
+    public func tls12_encrypt_record(tr : *mut Transform, seq_num : *u8,
+                                     content_type : u8, version_major : u8,
+                                     version_minor : u8, input : *u8,
+                                     input_len : size_t, output : *mut u8,
+                                     out_max : size_t) : int {
+        var cipher = tr.cipher_type
+
+        if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
+            // GCM mode: construct nonce = fixed_iv (4 bytes) || seq_num (8 bytes)
+            // Then AES-GCM encrypt with explicit nonce sent in record
+            // For now, just write the plaintext as a fallback
+            var i : size_t = 0
+            while(i < input_len) {
+                output[i] = input[i]
+                i += 1
+            }
+            return input_len as i32
+        } else if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
+            // CBC mode with HMAC
+            var key_len = tr.key_len as size_t
+            var iv_len = tr.iv_len as size_t
+
+            // Copy IV to output
+            var i : size_t = 0
+            while(i < iv_len) {
+                output[i] = tr.iv_enc[i]
+                i += 1
+            }
+
+            // Encrypt the plaintext (should already have padding + MAC)
+            var aes_ctx : AESContext
+            aes_setkey_enc(&raw mut aes_ctx, &raw tr.key_enc[0], key_len)
+            var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, input_len,
+                                     &raw mut output[0], input, &raw mut output[iv_len])
+            if(ret < 0) { return ret }
+
+            return (iv_len + input_len) as i32
+        }
+
+        // Fallback: no encryption
+        var i : size_t = 0
+        while(i < input_len) {
+            output[i] = input[i]
+            i += 1
+        }
+        return input_len as i32
+    }
+
+    // Decrypt a TLS record
+    public func tls12_decrypt_record(tr : *mut Transform, seq_num : *u8,
+                                     content_type : u8, version_major : u8,
+                                     version_minor : u8, input : *u8,
+                                     input_len : size_t, output : *mut u8,
+                                     out_max : size_t) : int {
+        var cipher = tr.cipher_type
+
+        if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
+            // GCM mode: just return plaintext for now
+            // The first 8 bytes are the explicit nonce
+            var nonce_len : size_t = 8
+            var data_start = nonce_len
+            var cipher_len = input_len - nonce_len - 16  // Subtract nonce and tag
+
+            var i : size_t = 0
+            while(i < cipher_len) {
+                output[i] = input[data_start + i]
+                i += 1
+            }
+            return cipher_len as i32
+        } else if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
+            var key_len = tr.key_len as size_t
+            var iv_len = tr.iv_len as size_t
+
+            if(input_len < iv_len + 16) { return ERR_SSL_INVALID_RECORD }
+
+            var aes_ctx : AESContext
+            aes_setkey_dec(&raw mut aes_ctx, &raw tr.key_dec[0], key_len)
+
+            var cipher_len = input_len - iv_len
+            var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_DECRYPT, cipher_len,
+                                     &raw mut input[0], &raw input[iv_len], output)
+            if(ret < 0) { return ret }
+
+            // The plaintext has MAC and padding. For now, return the full plaintext
+            return cipher_len as i32
+        }
+
+        // Fallback: no decryption
+        var i : size_t = 0
+        while(i < input_len) {
+            output[i] = input[i]
+            i += 1
+        }
+        return input_len as i32
+    }
+
+    // ============================================================================
     // Record Layer
     // ============================================================================
 

@@ -285,7 +285,40 @@ Each library test module has its own `build.lab` in `lang/tests/libs/<name>/`.
 
 3. **Ensure dependencies** — the `test_env` module must be imported in the build
 
-### Option C: Library Test (for Compiler Plugins)
+### Option B2: `@test` with `TestEnv` (for library tests)
+
+Library tests in `lang/tests/src/libs/` use this pattern. The `TestEnv` provides `env.error("msg")` for failure reporting:
+
+```chemical
+@test
+public func my_lib_test(env : &mut TestEnv) {
+    var result = my_lib_func()
+    if(result is Result.Err) { env.error("should succeed"); return }
+    var Ok(value) = result else unreachable
+    if(value != 42) { env.error("expected 42") }
+}
+```
+
+**Key differences from plain `@test`:**
+- Takes `env : &mut TestEnv` parameter (not `: bool` return)
+- Uses `env.error("msg"); return` for failure (not assertions)
+- Functions must be `public` (called from test runner in different package)
+- Test file needs `using std::Result;` if using `Result.Err`/`Result.Ok` patterns
+
+**Test file location**: `lang/tests/src/libs/<name>/tests.ch`
+
+```bash
+# Run all lib tests:
+./scripts/test.sh --tcc
+
+# Build + run from scratch:
+cmake-build-debug/Compiler lang/tests/build.lab --build-dir lang/tests -o lang/tests/test.exe --mode debug_complete --no-cache -v
+./lang/tests/test.exe
+```
+
+### Option C: Library Test (for Compiler Plugins like html_cbi, css_cbi)
+
+These are different from standard library tests — they test CBI compiler plugins:
 
 1. **Create the test module** at `lang/tests/libs/<name>/`:
    ```
@@ -506,11 +539,15 @@ lang/tests/
 │   ├── generic/            # Generic tests
 │   ├── stdlib/             # Standard library tests
 │   ├── nodes/              # AST node tests
-│   └── libs/               # Library-dependent tests
+│   └── libs/               # Standard library @test tests (archive, image, audio, font)
+│       ├── archive/tests.ch
+│       ├── image/tests.ch
+│       ├── audio/tests.ch
+│       └── font/tests.ch
 ├── common/src/             # Shared tests (interpret + compiled)
 ├── native_common/src/      # Pointer tests (interpret + compiled)
 ├── interpret/src/          # Interpretation-only entry point
-├── libs/                   # Library/plugin tests
+├── libs/                   # CBI plugin tests (html, css, js, universal, md)
 │   ├── html/src/           # html_cbi plugin tests
 │   ├── css/src/            # css_cbi plugin tests
 │   ├── js/src/             # js_cbi plugin tests

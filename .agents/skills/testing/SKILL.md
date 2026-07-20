@@ -307,6 +307,70 @@ public func my_lib_test(env : &mut TestEnv) {
 
 **Test file location**: `lang/tests/src/libs/<name>/tests.ch`
 
+#### HTTPS Error Path & Integration Test Patterns
+
+For testing HTTP-TLS integration (`http::Client` with `https://` URLs), follow these patterns:
+
+**URL parsing tests** (no network needed):
+```chemical
+@test
+public func https_url_parsing_works(env : &mut TestEnv) {
+    var u = http::URL::parse(string_view("https://example.com"))
+    if(u is std::Option.None) { env.error("should parse"); return }
+    var Some(url) = u else unreachable
+    if(!url.scheme.equals_with_len("https", 5)) { env.error("scheme should be https") }
+    if(url.port != 443u) { env.error("default https port should be 443") }
+}
+```
+
+**Error path tests** (connection refused / invalid host):
+```chemical
+@test
+public func https_connection_refused_returns_error(env : &mut TestEnv) {
+    var client = http::Client()
+    var res = client.get(string_view("https://127.0.0.1:49999/nonexistent"))
+    if(res is Result.Ok) {
+        env.error("https connection to closed port should fail")
+    }
+}
+```
+
+**Server lifecycle pattern** (start server, make requests, clean up):
+```chemical
+@test
+public func https_server_test_pattern(env : &mut TestEnv) {
+    // 1. Configure server
+    var cfg = http::server::ServerConfig()
+    cfg.addr = std::string::make_no_len("127.0.0.1:49998")
+    var srv = http::server::Server(cfg)
+    
+    // 2. Add routes
+    srv.router.add("GET", "/", ||(req, res) => {
+        res.write_string(std::string::make_no_len("response"))
+    })
+    
+    // 3. Start async and wait for startup
+    var thread = srv.serve_async(49998u)
+    std.concurrent.sleep_ms(100u)
+    
+    // 4. Make client requests
+    var client = http::Client()
+    var res = client.get(string_view("http://127.0.0.1:49998/"))
+    // ... verify response ...
+    
+    // 5. Clean up
+    srv.shutdown()
+    thread.join()
+}
+```
+
+**Key conventions:**
+- When writing tests in `lang/tests/src/libs/tls/tests.ch` (no `using namespace http;`), fully qualify: `http::server::Server`, `http::URL`, `http::Client`
+- When writing tests in `lang/tests/src/libs/net/net_test.ch` (has `using namespace http;`), `server::Server` works directly
+- Use high port numbers (49xxx range) to avoid conflicts with other tests
+- Keep test names prefixed with the feature area (e.g., `https_` for HTTPS tests)
+- Always call `srv.shutdown()` + `thread.join()` in that order for clean server teardown
+
 ```bash
 # Run all lib tests:
 ./scripts/test.sh --tcc
@@ -481,6 +545,30 @@ func test_type_error() {
 
 For testing compile-time errors from the C++ side, add diagnostics checks in the compilation pipeline and verify `has_errors()` returns true.
 
+### Debugging Test Crashes with GDB Backtraces
+
+When a test crashes with `RUNTIME ERROR: invalid memory access`, use `-bt` or `-bt-full` flags to get a stack trace:
+
+```bash
+# Basic backtrace (bt full)
+./scripts/test.sh --tcc --bt
+
+# Full backtrace with registers, disassembly, locals, args
+./scripts/test.sh --tcc --bt-full
+
+# For interpretation tests:
+./scripts/test.sh --tcc --interpret --bt
+```
+
+The `-bt` flag wraps the test executable (or compiler in interpretation mode) with:
+```bash
+gdb -batch -ex "run" -ex "bt full" --args <program>
+```
+
+The `-bt-full` flag adds thread info, registers, instruction disassembly at `$pc`, and local/arg variable values.
+
+> Both flags imply `-g` automatically. Works in all modes (compiled, interpret, negative).
+
 ## Running Tests
 
 ### Interpretation Tests
@@ -503,6 +591,7 @@ For testing compile-time errors from the C++ side, add diagnostics checks in the
 ```bash
 ./scripts/test.sh --tcc --libs                   # All library tests
 ```
+
 
 ### Individual Library Tests
 

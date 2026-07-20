@@ -4,7 +4,6 @@ using std::string;
 
 @test
 public func tls_ciphersuite_lookup_works(env : &mut TestEnv) {
-    // Test cipher suite info lookup for known suites
     var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
     if(info.id != tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16) {
         env.error("ciphersuite lookup should find ECDHE-RSA-AES128-GCM-SHA256")
@@ -135,5 +134,175 @@ public func tls_tls12_prf_deterministic_works(env : &mut TestEnv) {
     }
     if(!match) {
         env.error("PRF should be deterministic")
+    }
+}
+
+// ─── New Tests ──────────────────────────────────────────────────────────────
+
+@test
+public func tls_tls13_hkdf_expand_label_works(env : &mut TestEnv) {
+    var secret : [16]u8 = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                           0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
+    var label = "test label\0" as *char
+    var context : [4]u8 = [0xAA, 0xBB, 0xCC, 0xDD]
+    var output : [32]u8
+
+    tls::tls13_derive_secret(&raw secret[0], 16, label, 10,
+                              &raw context[0], 4, &raw mut output[0], 32)
+
+    var all_zero = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(output[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("HKDF expand label should not produce all zeros")
+    }
+}
+
+@test
+public func tls_prf_empty_input_works(env : &mut TestEnv) {
+    // Test PRF with empty inputs - should not crash
+    var secret : [1]u8 = [0x00]
+    var label = "\0" as *char
+    var seed : [1]u8 = [0x00]
+    var output : [16]u8
+
+    tls::tls12_prf(&raw secret[0], 1, label, 0, &raw seed[0], 1, &raw mut output[0], 16)
+
+    var all_zero = true
+    var i : size_t = 0
+    while(i < 16) {
+        if(output[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("PRF with minimal inputs should still produce output")
+    }
+}
+
+@test
+public func tls_pem_cert_init_and_free_works(env : &mut TestEnv) {
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    if(cert.version != 0) {
+        env.error("init should set version to 0")
+    }
+    if(cert.subject.size() != 0) {
+        env.error("init should set subject to empty")
+    }
+}
+
+@test
+public func tls_der_cert_minimal_validation_works(env : &mut TestEnv) {
+    // A minimal valid DER certificate starts with SEQUENCE tag
+    // We test that too-short input returns INVALID_FORMAT
+    var too_short : [3]u8 = [0x30, 0x01, 0x00]
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw too_short[0], 3)
+    if(ret != tls::ERR_X509_INVALID_FORMAT) {
+        env.error("too-short DER should return INVALID_FORMAT")
+    }
+}
+
+@test
+public func tls_der_cert_non_sequence_returns_error(env : &mut TestEnv) {
+    // DER must start with SEQUENCE (0x30)
+    var not_seq : [10]u8 = [0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var ret = tls::parse_cert_der(&raw mut cert, &raw not_seq[0], 10)
+    if(ret != tls::ERR_X509_INVALID_FORMAT) {
+        env.error("non-SEQUENCE DER should return INVALID_FORMAT")
+    }
+}
+
+@test
+public func tls_pem_invalid_marker_returns_error(env : &mut TestEnv) {
+    var invalid_pem : [10]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    // Invalid PEM without BEGIN marker should fall through to DER parsing
+    var ret = tls::parse_cert_pem(&raw mut cert, &raw invalid_pem[0], 10)
+    // Should return an error since the data is not valid DER
+    if(ret == 0) {
+        env.error("invalid PEM/DER should not return success")
+    }
+}
+
+@test
+public func tls_x509_cert_get_cn_empty_subject_works(env : &mut TestEnv) {
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    var cn = string()
+    tls::cert_get_cn(&raw mut cert, &raw mut cn)
+
+    // With empty subject, CN should be empty
+    if(cn.size() != 0) {
+        env.error("CN should be empty for empty subject")
+    }
+}
+
+@test
+public func tls_x509_cert_init_consistent(env : &mut TestEnv) {
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+
+    // Verify multiple fields have correct defaults
+    if(cert.pk_type != tls::PK_NONE as u8) { env.error("pk_type should be NONE") }
+    if(cert.ext_is_ca) { env.error("is_ca should be false") }
+    if(cert.ext_max_pathlen != -1) { env.error("max_pathlen should be -1") }
+    if(cert.serial != null) { env.error("serial should be null") }
+    if(cert.next != null) { env.error("next should be null") }
+}
+
+@test
+public func tls_ssl_state_variant_works(env : &mut TestEnv) {
+    var state = tls::SSLState.HELLO_REQUEST()
+    if(!(state is tls::SSLState.HELLO_REQUEST)) {
+        env.error("state should be HELLO_REQUEST variant")
+    }
+
+    state = tls::SSLState.CLIENT_HELLO()
+    if(!(state is tls::SSLState.CLIENT_HELLO)) {
+        env.error("state should be CLIENT_HELLO variant")
+    }
+
+    state = tls::SSLState.HANDSHAKE_OVER()
+    if(!(state is tls::SSLState.HANDSHAKE_OVER)) {
+        env.error("state should be HANDSHAKE_OVER variant")
+    }
+}
+
+@test
+public func tls_preferred_ciphersuite_order_works(env : &mut TestEnv) {
+    var first = tls::get_preferred_ciphersuite(0)
+    var second = tls::get_preferred_ciphersuite(1)
+
+    if(first == 0) {
+        env.error("first preferred ciphersuite should not be zero")
+    }
+    if(second == 0) {
+        env.error("second preferred ciphersuite should not be zero")
+    }
+    if(first == second) {
+        env.error("first and second ciphersuites should differ")
+    }
+}
+
+@test
+public func tls_error_codes_distinct_works(env : &mut TestEnv) {
+    if(tls::ERR_SSL_BAD_INPUT_DATA == tls::ERR_SSL_INTERNAL_ERROR) {
+        env.error("error codes should be distinct")
+    }
+    if(tls::ERR_SSL_CONN_EOF == tls::ERR_SSL_DECODE_ERROR) {
+        env.error("error codes should be distinct")
     }
 }

@@ -115,21 +115,26 @@ fi
 run_under_gdb_batch() {
   local mode="$1"
   shift
+  # Tests run in child processes via IPC (test_runner forks @test functions),
+  # so we need follow-fork-mode child to catch crashes in the actual test process.
+  # Use || true to prevent set -e from aborting on gdb's non-zero exit (program crashed).
   if [ "$mode" = "bt" ]; then
     gdb -batch \
+      -ex "set follow-fork-mode child" \
       -ex "run" \
       -ex "bt full" \
-      --args "$@"
+      --args "$@" || true
   elif [ "$mode" = "bt-full" ]; then
     gdb -batch \
       -ex "set pagination off" \
+      -ex "set follow-fork-mode child" \
       -ex "run" \
       -ex "thread apply all bt full" \
       -ex "info registers" \
       -ex "x/16i \$pc" \
       -ex "info locals" \
       -ex "info args" \
-      --args "$@"
+      --args "$@" || true
   fi
 }
 
@@ -230,7 +235,12 @@ else
   fi
   echo "==> Compiling tests..."
   echo "${CMD[@]}"
-  "${CMD[@]}"
+  if [ "$BT_MODE" != "none" ]; then
+    # Crash happens in the COMPILER BINARY during compilation, not the test executable
+    run_under_gdb_batch "$BT_MODE" "${CMD[@]}"
+  else
+    "${CMD[@]}"
+  fi
 
   if [ "$RUN_TESTS" = true ]; then
     if [ ! -f "$TEST_OUT" ]; then

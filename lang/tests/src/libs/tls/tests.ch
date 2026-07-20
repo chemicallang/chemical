@@ -1,6 +1,7 @@
 using std::Result;
 using std::vector;
 using std::string;
+using std::string_view;
 
 @test
 public func tls_ciphersuite_lookup_works(env : &mut TestEnv) {
@@ -323,23 +324,50 @@ public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
         env.error("certificate version should be 3")
     }
 
-    // Verify subject contains "test.example.com"
+    // Verify subject CN is "test.example.com"
     var cn = string()
     tls::cert_get_cn(&raw mut cert, &raw mut cn)
     if(cn.size() == 0) {
         env.error("CN should not be empty for parsed cert")
     }
 
-    // Verify public key type was detected
-    if(cert.pk_type == tls::PK_NONE as u8) {
-        env.error("public key type should be detected")
+    // Check that CN contains "test.example.com"
+    var cn_view = cn.to_view()
+    var expected_cn = string_view("test.example.com")
+    if(!cn_view.contains(&expected_cn)) {
+        env.error("CN should contain test.example.com")
     }
 
-    // Verify valid_from and valid_to are populated
+    // Verify issuer is not empty
+    if(cert.issuer.size() == 0) {
+        env.error("issuer should be parsed")
+    }
+
+    // Verify issuer contains "CA"
+    var issuer_view = cert.issuer.to_view()
+    var expected_iss = string_view("CA")
+    if(!issuer_view.contains(&expected_iss)) {
+        env.error("issuer should contain CA")
+    }
+
+    // Verify public key type was detected (RSA or EC, not NONE)
+    if(cert.pk_type == tls::PK_NONE as u8) {
+        env.error("public key type should be detected (not NONE)")
+    }
+
+    // Verify valid_from and valid_to contain UTCTime date strings
     if(cert.valid_from[0] == 0) {
         env.error("valid_from should be populated")
     }
     if(cert.valid_to[0] == 0) {
         env.error("valid_to should be populated")
+    }
+
+    // Verify raw_pem points to the data
+    if(cert.raw_pem == null) {
+        env.error("raw_pem should point to parsed data")
+    }
+    if(cert.raw_pem_len == 0) {
+        env.error("raw_pem_len should be non-zero")
     }
 }

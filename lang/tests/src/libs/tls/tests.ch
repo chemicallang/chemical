@@ -736,3 +736,299 @@ public func tls12_key_derivation_full_pipeline_works(env : &mut TestEnv) {
         env.error("cipher_type should be AES-128-GCM")
     }
 }
+
+// ─── Big Number (Mpi) Tests ─────────────────────────────────────────────────
+
+@test
+public func tls_bignum_mpi_lset_and_cmp_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+
+    tls::mpi_lset(&raw mut a, 42)
+    if(tls::mpi_cmp_int(&raw mut a, 42) != 0) { env.error("a should be 42"); return }
+
+    tls::mpi_lset(&raw mut b, -7)
+    if(tls::mpi_cmp_int(&raw mut b, -7) != 0) { env.error("b should be -7"); return }
+
+    if(tls::mpi_cmp(&raw mut a, &raw mut b) <= 0) { env.error("42 > -7"); return }
+}
+
+@test
+public func tls_bignum_add_sub_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+    var c : tls::Mpi; tls::mpi_init(&raw mut c)
+
+    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
+
+    tls::mpi_add(&raw mut c, &raw mut a, &raw mut b)
+    if(tls::mpi_cmp_int(&raw mut c, 300) != 0) { env.error("100 + 200 should be 300"); return }
+
+    tls::mpi_sub(&raw mut c, &raw mut a, &raw mut b)
+    if(tls::mpi_cmp_int(&raw mut c, -100) != 0) { env.error("100 - 200 should be -100"); return }
+}
+
+@test
+public func tls_bignum_mul_and_bitlen_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+    var c : tls::Mpi; tls::mpi_init(&raw mut c)
+
+    tls::mpi_lset(&raw mut a, 0x10000); tls::mpi_lset(&raw mut b, 0x20000)
+    tls::mpi_mul(&raw mut c, &raw mut a, &raw mut b)
+    if(tls::mpi_cmp_int(&raw mut c, 0x200000000) != 0) {
+        env.error("0x10000 * 0x20000 should be 0x200000000")
+    }
+
+    if(tls::mpi_bitlen(&raw mut a) != 17) { env.error("bitlen of 0x10000 should be 17") }
+}
+
+@test
+public func tls_bignum_div_mod_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+    var q : tls::Mpi; tls::mpi_init(&raw mut q)
+    var r : tls::Mpi; tls::mpi_init(&raw mut r)
+
+    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 7)
+
+    tls::mpi_div(&raw mut q, &raw mut r, &raw mut a, &raw mut b)
+    if(tls::mpi_cmp_int(&raw mut q, 14) != 0) { env.error("100/7 should be 14"); return }
+    if(tls::mpi_cmp_int(&raw mut r, 2) != 0) { env.error("100%7 should be 2"); return }
+}
+
+@test
+public func tls_bignum_read_write_binary_works(env : &mut TestEnv) {
+    var m : tls::Mpi; tls::mpi_init(&raw mut m)
+    var buf : [8]u8 = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+
+    var ret = tls::mpi_read_binary(&raw mut m, &raw buf[0], 8)
+    if(ret < 0) { env.error("read_binary should succeed"); return }
+
+    var out : [8]u8
+    ret = tls::mpi_write_binary(&raw mut m, &raw mut out[0], 8)
+    if(ret < 0) { env.error("write_binary should succeed"); return }
+
+    var i : size_t = 0
+    while(i < 8) {
+        if(buf[i] != out[i]) { env.error("bytes should roundtrip"); return }
+        i += 1
+    }
+}
+
+@test
+public func tls_bignum_mod_inv_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var n : tls::Mpi; tls::mpi_init(&raw mut n)
+    var inv : tls::Mpi; tls::mpi_init(&raw mut inv)
+
+    tls::mpi_lset(&raw mut a, 3); tls::mpi_lset(&raw mut n, 7)
+    var ret = tls::mpi_mod_inv(&raw mut inv, &raw mut a, &raw mut n)
+    if(ret < 0) { env.error("mod_inv of 3 mod 7 should succeed"); return }
+
+    // 3 * 5 = 15 = 1 mod 7, so inv should be 5
+    if(tls::mpi_cmp_int(&raw mut inv, 5) != 0) {
+        env.error("3^-1 mod 7 should be 5")
+    }
+}
+
+@test
+public func tls_bignum_exp_mod_works(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var e : tls::Mpi; tls::mpi_init(&raw mut e)
+    var n : tls::Mpi; tls::mpi_init(&raw mut n)
+    var res : tls::Mpi; tls::mpi_init(&raw mut res)
+
+    tls::mpi_lset(&raw mut a, 4); tls::mpi_lset(&raw mut e, 3); tls::mpi_lset(&raw mut n, 10)
+    var ret = tls::mpi_exp_mod(&raw mut res, &raw mut a, &raw mut e, &raw mut n)
+    if(ret < 0) { env.error("exp_mod 4^3 mod 10 should succeed"); return }
+    if(tls::mpi_cmp_int(&raw mut res, 4) != 0) { env.error("4^3 mod 10 should be 4"); return }
+
+    // 7^4 mod 13 = 2401 mod 13 = 9
+    tls::mpi_lset(&raw mut a, 7); tls::mpi_lset(&raw mut e, 4); tls::mpi_lset(&raw mut n, 13)
+    ret = tls::mpi_exp_mod(&raw mut res, &raw mut a, &raw mut e, &raw mut n)
+    if(ret < 0) { env.error("exp_mod 7^4 mod 13 should succeed"); return }
+    if(tls::mpi_cmp_int(&raw mut res, 9) != 0) { env.error("7^4 mod 13 should be 9"); return }
+}
+
+// ─── RSA Tests ──────────────────────────────────────────────────────────────
+
+@test
+public func tls_rsa_init_and_import_works(env : &mut TestEnv) {
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+
+    // Import a small RSA public key for testing
+    var n_buf : [4]u8 = [0x00, 0x00, 0x00, 0x55]  // n = 85 = 5 * 17
+    var e_buf : [1]u8 = [0x05]  // e = 5
+
+    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 4, &raw e_buf[0], 1)
+    if(ret < 0) { env.error("import pubkey should succeed"); return }
+
+    if(tls::rsa_get_len(&raw mut ctx) != 4) { env.error("key length should be 4"); return }
+}
+
+@test
+public func tls_rsa_pkcs1_encrypt_works(env : &mut TestEnv) {
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+
+    // Small RSA key for testing (n=55, e=3)
+    var n_buf : [1]u8 = [0x37]  // n = 55
+    var e_buf : [1]u8 = [0x03]  // e = 3
+
+    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    if(ret < 0) { env.error("import pubkey should succeed"); return }
+
+    var msg : [2]u8 = [0x01, 0x02]
+    var ct : [64]u8
+
+    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw msg[0], 2, &raw mut ct[0])
+    if(ret < 0) { env.error("RSA PKCS#1 encrypt should succeed"); return }
+
+    // ct[0] should be non-zero (successfully encrypted)
+    if(ct[0] == 0) { env.error("ciphertext should be non-zero") }
+}
+
+// ─── GCM Tests ──────────────────────────────────────────────────────────────
+
+@test
+public func tls_gcm_init_encrypt_decrypt_works(env : &mut TestEnv) {
+    var key : [16]u8 = [0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+                        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c]
+    var iv : [12]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                       0x08, 0x09, 0x0A, 0x0B]
+    var pt : [16]u8 = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                       0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00]
+
+    var ctx : tls::GCMContext
+    var ret = tls::gcm_init(&raw mut ctx, &raw key[0], 16)
+    if(ret < 0) { env.error("gcm_init should succeed"); return }
+
+    var ct : [16]u8
+    var tag : [16]u8
+    ret = tls::gcm_crypt_and_tag(&raw mut ctx, &raw iv[0], 12, null, 0,
+                                  &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
+    if(ret < 0) { env.error("gcm_crypt_and_tag should succeed"); return }
+
+    // Ciphertext should differ from plaintext
+    var same = true
+    var i : size_t = 0
+    while(i < 16) {
+        if(ct[i] != pt[i]) { same = false }
+        i += 1
+    }
+    if(same) { env.error("ciphertext should differ from plaintext"); return }
+
+    // Decrypt and verify
+    var pt2 : [16]u8
+    ret = tls::gcm_auth_decrypt(&raw mut ctx, &raw iv[0], 12, null, 0,
+                                 &raw ct[0], 16, &raw tag[0], 16,
+                                 &raw mut pt2[0])
+    if(ret < 0) { env.error("gcm_auth_decrypt should succeed"); return }
+
+    // Plaintext should match
+    var matches = true
+    i = 0
+    while(i < 16) {
+        if(pt2[i] != pt[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) { env.error("decrypted plaintext should match original") }
+}
+
+@test
+public func tls_gcm_tag_verification_fails_on_wrong_tag(env : &mut TestEnv) {
+    var key : [16]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F]
+    var iv : [12]u8
+    var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
+
+    var ctx : tls::GCMContext
+    tls::gcm_init(&raw mut ctx, &raw key[0], 16)
+
+    var ct : [8]u8
+    var tag : [16]u8
+    tls::gcm_crypt_and_tag(&raw mut ctx, &raw iv[0], 12, null, 0,
+                            &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
+
+    // Corrupt the tag
+    tag[0] = tag[0] ^ 0xFF
+
+    var pt2 : [8]u8
+    var ret = tls::gcm_auth_decrypt(&raw mut ctx, &raw iv[0], 12, null, 0,
+                                     &raw ct[0], 8, &raw tag[0], 16,
+                                     &raw mut pt2[0])
+    if(ret == 0) {
+        env.error("decrypt with wrong tag should fail")
+    }
+}
+
+// ─── ECDH Tests ─────────────────────────────────────────────────────────────
+
+@test
+public func tls_ecdh_generate_keypair_works(env : &mut TestEnv) {
+    var ctx : tls::ECDHContext
+    tls::ecdh_init(&raw mut ctx)
+
+    var priv : [32]u8
+    var pub : [65]u8
+
+    var ret = tls::ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    if(ret < 0) { env.error("ecdh_generate_keypair should succeed"); return }
+
+    // Private key should not be all zeros
+    var all_zero = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(priv[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) { env.error("private key should not be all zeros"); return }
+
+    // Public key should start with 0x04 (uncompressed)
+    if(pub[0] != 0x04) { env.error("public key should start with 0x04"); return }
+
+    // Public key X and Y should not be all zeros
+    all_zero = true
+    i = 1
+    while(i < 65) {
+        if(pub[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) { env.error("public key should not be all zeros") }
+}
+
+@test
+public func tls_ecdh_shared_secret_works(env : &mut TestEnv) {
+    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
+    var bob : tls::ECDHContext; tls::ecdh_init(&raw mut bob)
+
+    var alice_priv : [32]u8; var alice_pub : [65]u8
+    var bob_priv : [32]u8; var bob_pub : [65]u8
+
+    var ret = tls::ecdh_generate_keypair(&raw mut alice, &raw mut alice_priv[0], 32, &raw mut alice_pub[0], 65)
+    if(ret < 0) { env.error("alice keygen should succeed"); return }
+
+    ret = tls::ecdh_generate_keypair(&raw mut bob, &raw mut bob_priv[0], 32, &raw mut bob_pub[0], 65)
+    if(ret < 0) { env.error("bob keygen should succeed"); return }
+
+    var alice_shared : [32]u8
+    ret = tls::ecdh_compute_shared(&raw mut alice, &raw bob_pub[0], 65, &raw mut alice_shared[0], 32)
+    if(ret < 0) { env.error("alice shared secret should succeed"); return }
+
+    var bob_shared : [32]u8
+    ret = tls::ecdh_compute_shared(&raw mut bob, &raw alice_pub[0], 65, &raw mut bob_shared[0], 32)
+    if(ret < 0) { env.error("bob shared secret should succeed"); return }
+
+    // Both shared secrets should be identical (ECDH property)
+    var matches = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(alice_shared[i] != bob_shared[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("Alice and Bob shared secrets should match (ECDH property)")
+    }
+}

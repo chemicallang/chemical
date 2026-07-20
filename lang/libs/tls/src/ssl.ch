@@ -359,15 +359,48 @@ public namespace tls {
         var cipher = tr.cipher_type
 
         if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
-            // GCM mode: construct nonce = fixed_iv (4 bytes) || seq_num (8 bytes)
-            // Then AES-GCM encrypt with explicit nonce sent in record
-            // For now, just write the plaintext as a fallback
+            // GCM mode: nonce = base_iv (4 bytes) || explicit_nonce (8 bytes from seq_num)
+            // TLS 1.2: explicit_nonce is sent in the record, total output = nonce(8) + ct + tag(16)
+            var iv_len = tr.fixed_iv_len as size_t
+            var key_len = tr.key_len as size_t
+
+            // Construct 12-byte GCM nonce: fixed_iv (4 bytes from transform) + seq_num (8 bytes)
+            var nonce : [12]u8
             var i : size_t = 0
-            while(i < input_len) {
-                output[i] = input[i]
+            while(i < iv_len) {
+                nonce[i] = tr.base_iv_enc[i]
                 i += 1
             }
-            return input_len as i32
+            while(i < 12) {
+                nonce[i] = seq_num[i - iv_len]
+                i += 1
+            }
+
+            // Copy explicit nonce = sequence number (8 bytes, MSB-first)
+            i = 0
+            while(i < 8) {
+                output[i] = seq_num[i]
+                i += 1
+            }
+
+            // Output layout: explicit_nonce(8) || ciphertext || auth_tag(16)
+            var ct_out = output + 8
+            var tag_out = output + 8 + input_len
+
+            // Initialize GCM context
+            var gcm_ctx : GCMContext
+            var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], key_len)
+            if(ret < 0) { return ret }
+
+            // Encrypt with nonce as 12-byte IV, no AAD
+            ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
+                                     &raw nonce[0], 12,
+                                     null, 0,
+                                     input, input_len,
+                                     ct_out, tag_out)
+            if(ret < 0) { return ret }
+
+            return (8 + input_len + 16) as i32
         } else if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
             // CBC mode with HMAC
             var key_len = tr.key_len as size_t
@@ -408,18 +441,45 @@ public namespace tls {
         var cipher = tr.cipher_type
 
         if(cipher == CIPHER_AES_128_GCM || cipher == CIPHER_AES_256_GCM) {
-            // GCM mode: just return plaintext for now
-            // The first 8 bytes are the explicit nonce
-            var nonce_len : size_t = 8
-            var data_start = nonce_len
-            var cipher_len = input_len - nonce_len - 16  // Subtract nonce and tag
+            // GCM mode: input = explicit_nonce(8) || ciphertext || auth_tag(16)
+            if(input_len < 8 + 16) { return ERR_SSL_INVALID_RECORD }
 
+            var explicit_nonce_len : size_t = 8
+            var tag_len : size_t = 16
+            var ct_len = input_len - explicit_nonce_len - tag_len
+
+            var iv_len = tr.fixed_iv_len as size_t
+            var key_len = tr.key_len as size_t
+
+            // Construct 12-byte GCM nonce: fixed_iv + explicit_nonce
+            var nonce : [12]u8
             var i : size_t = 0
-            while(i < cipher_len) {
-                output[i] = input[data_start + i]
+            while(i < iv_len) {
+                nonce[i] = tr.base_iv_dec[i]
                 i += 1
             }
-            return cipher_len as i32
+            while(i < 12) {
+                nonce[i] = input[i - iv_len]
+                i += 1
+            }
+
+            // Initialize GCM context
+            var gcm_ctx : GCMContext
+            var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], key_len)
+            if(ret < 0) { return ret }
+
+            // Authenticated decrypt
+            var ct_start = input + explicit_nonce_len
+            var tag_start = input + explicit_nonce_len + ct_len
+            ret = gcm_auth_decrypt(&raw mut gcm_ctx,
+                                    &raw nonce[0], 12,
+                                    null, 0,
+                                    ct_start, ct_len,
+                                    tag_start, tag_len,
+                                    output)
+            if(ret < 0) { return ret }
+
+            return ct_len as i32
         } else if(cipher == CIPHER_AES_128_CBC || cipher == CIPHER_AES_256_CBC) {
             var key_len = tr.key_len as size_t
             var iv_len = tr.iv_len as size_t
@@ -489,7 +549,6 @@ public namespace tls {
     }
 
     // Send a handshake message
-    // TODO: actually encrypt the handshake when transforms are active
     func send_handshake_msg(ssl : *mut SSLContext, msg_type : u8,
                             data : *u8, data_len : u32) : int {
         var hs_header : [4]u8
@@ -724,6 +783,8 @@ public namespace tls {
                 var alert_data : [2]u8
                 var n2 = read_record_payload(ssl, &raw mut alert_data[0], 2)
                 if(n2 < 0) { return ERR_SSL_FATAL_ALERT_MESSAGE }
+                ssl.last_alert_level = alert_data[0]
+                ssl.last_alert_desc = alert_data[1]
                 return ERR_SSL_FATAL_ALERT_MESSAGE
             }
             return ERR_SSL_UNEXPECTED_MESSAGE
@@ -820,6 +881,30 @@ public namespace tls {
         // Import into RSA context
         ret = rsa_import_pubkey(rsa, n_data, n_data_len, e_data, e_data_len)
         if(ret < 0) { return ret }
+
+        return 0
+    }
+
+    // ─── Verify X.509 Certificate RSA Signature ──────────────────────────
+    // Verifies the certificate's signature using the issuer's RSA public key.
+    // crt: the certificate to verify
+    // issuer_rsa: issuer RSA context with N and E already imported
+    // Returns 0 on success, negative error code on failure
+    public func x509_verify_cert_signature(crt : *mut X509Cert,
+                                            issuer_rsa : *mut RSAContext) : int {
+        if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
+        if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
+
+        // Compute SHA-256 hash of the TBSCertificate DER using init/update/final
+        var hash : [32]u8
+        var sha_ctx : crypto::Sha256Context
+        crypto::sha256_init(&raw mut sha_ctx)
+        crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+        crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+
+        // Verify using RSA PKCS#1 v1.5 signature verification
+        var ret = rsa_pkcs1_verify(issuer_rsa, &raw hash[0], 32, crt.sig, crt.sig_len)
+        if(ret < 0) { return ERR_X509_SIG_MISMATCH }
 
         return 0
     }
@@ -1093,7 +1178,34 @@ public namespace tls {
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
         ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
-        // We don't verify the server's Finished yet (would need separate hash context)
+        if(ret < 0) { return ret }
+
+        // Verify server's Finished
+        if(hs_type == SSL_HS_FINISHED as u8) {
+            // Compute expected server verify_data using same transcript hash
+            // The server's Finished uses the SAME handshake messages hash as the client's,
+            // but with label "server finished" instead of "client finished"
+            var expected_server_finished : [12]u8
+            tls12_compute_finished(&raw master_secret[0], false,
+                                    &raw hs_hash[0], 32,
+                                    &raw mut expected_server_finished[0])
+
+            // Compare against received server Finished
+            var verify_match = true
+            i = 0
+            while(i < 12) {
+                if(hs_buf[4 + i] != expected_server_finished[i]) { verify_match = false }
+                i += 1
+            }
+            if(!verify_match) {
+                send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
+                return ERR_SSL_HANDSHAKE_FAILURE
+            }
+        } else {
+            // Unexpected message instead of server Finished
+            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_UNEXPECTED_MESSAGE as u8)
+            return ERR_SSL_UNEXPECTED_MESSAGE
+        }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
 

@@ -104,6 +104,8 @@ public namespace tls {
         var ext_max_pathlen : i32
         var san_count : u16
         var san_entries : *mut u8
+        var tbs_der : *mut u8        // TBSCertificate DER (for signature verification)
+        var tbs_der_len : size_t
         var next : *mut X509Cert
         var prev : *mut X509Cert
         var flags : u32
@@ -154,6 +156,8 @@ public namespace tls {
         crt.sig_len = 0
         crt.sig_alg = null
         crt.sig_alg_len = 0
+        crt.tbs_der = null
+        crt.tbs_der_len = 0
         crt.ext_key_usage = 0
         crt.ext_is_ca = false
         crt.ext_max_pathlen = -1
@@ -467,11 +471,17 @@ public namespace tls {
         if(cert_end > der_len) { return ERR_X509_INVALID_FORMAT }
 
         // --- TBSCertificate SEQUENCE ---
+        // Save TBSCertificate position for signature verification
+        var tbs_start = pos
         var tbs_tag : u8 = 0
         var tbs_len : size_t = 0
         ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut tbs_tag, &raw mut tbs_len)
         if(ret < 0) { return ret }
         if(tbs_tag != (ASN1_CONSTRUCTED | ASN1_SEQUENCE)) { return ERR_X509_INVALID_FORMAT }
+
+        // Save TBSCertificate DER (from SEQUENCE tag start to end of content)
+        crt.tbs_der = (der_data + tbs_start) as *mut u8
+        crt.tbs_der_len = (pos + tbs_len) as size_t - tbs_start
 
         var tbs_end = pos + tbs_len
 

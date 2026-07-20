@@ -53,7 +53,13 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ./scripts/test.sh --tcc --use-c    # Translate to C + compile with embedded Clang
 ./scripts/test.sh --tcc -g         # Debug symbols
 ./scripts/test.sh --tcc -o my_tests -j 8  # Custom output + parallel jobs
+./scripts/test.sh --tcc -bt      # Run under GDB -batch, print backtrace on crash
+./scripts/test.sh --tcc -bt-full # Full GDB backtrace with registers, disasm, locals
 ```
+
+> 🐛 **`-bt` / `-bt-full`**: Wraps the test in `gdb -batch` mode. On crash, prints backtrace.
+> `-bt` gives `bt full`; `-bt-full` adds thread info, registers, `x/16i $pc`, locals, and args.
+> Implies `-g`. Works in compiled, interpret, and negative modes.
 
 Internal defaults: `--no-cache`, `-frecompile-plugins`. Pass `--cache`/`--cached-plugins` to opt out.
 
@@ -242,6 +248,8 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Writing and organizing tests** | **`testing`** |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
+| **Implementing TLS/HTTPS** | `chemical_source`, `testing`, `building` |
+| **Integrating TLS with HTTP** | `chemical_source`, `testing` |
 
 Skills in **bold** are the new comprehensive skills. Load them for maximum context.
 
@@ -275,6 +283,61 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 - `#macro` and `#universal` are CBI plugins compiled by TinyCC at build time.
 - AST uses `ASTAllocator` arena — batch-allocated, no per-node `delete`.
 - CLI entry is `LabBuildCompiler` → translates `chemical.mod` → JIT-compiles `build.lab` (TinyCC) → `LabJob` objects → parse → symres → typecheck → codegen → link.
+
+## TLS / HTTP Integration Patterns
+
+### TLS Library (`lang/libs/tls/`)
+
+The TLS library is a port of mbedTLS to Chemical. Key APIs:
+- `tls::ssl_init(ssl_ptr)` — initialize an SSLContext (must be called after allocation)
+- `tls::ssl_config_init(endpoint_type)` — create SSLConfig (returns by value)
+- `tls::ssl_set_config(ssl_ptr, &raw mut config)` — attach config to context
+- `tls::ssl_set_hostname(ssl_ptr, hostname)` — set SNI hostname (call before handshake)
+- `tls::tls_connect(ssl_ptr, host, port)` — dial + handshake in one call
+- `tls::ssl_handshake(ssl_ptr)` — perform TLS handshake
+- `tls::ssl_read(ssl_ptr, buf, len)` / `tls::ssl_write(ssl_ptr, data, len)` — encrypted I/O
+- `tls::ssl_close_notify(ssl_ptr)` — send polite TLS close_notify alert
+- `tls::ssl_free(ssl_ptr)` — free handshake params + close socket (sets transport_connected=false)
+- `tls::x509_verify_hostname(cert, hostname)` — verify hostname against cert CN
+- `tls::load_system_ca_bundle()` — load system CA certs from /etc/ssl/certs/
+
+### Memory Management
+
+For structs **without** a `@constructor` (like `SSLContext`), use `malloc` + `ssl_init`:
+```chemical
+var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+tls::ssl_init(ssl_ptr)
+```
+
+Cleanup requires calling `ssl_free` (frees handshake + closes socket) then `unsafe { dealloc }`:
+```chemical
+tls::ssl_close_notify(ssl_ptr)    // Polite TLS shutdown
+tls::ssl_free(ssl_ptr)           // Free resources + close socket
+unsafe { dealloc ssl_ptr }        // Free memory
+```
+
+> ⚠️ Never mix `new`/`delete` with `malloc`/`unsafe { dealloc }`. `delete` calls the `@delete` destructor which also closes the socket — calling `delete` after `ssl_free` would double-close (though `ssl_free` sets `transport_connected=false` as a safeguard).
+
+### Adding HTTPS Support to HTTP
+
+To make an HTTP library support `https://`, follow this pattern:
+
+1. **Add `tls_ctx: *mut tls::SSLContext` field** to `Body` and `ResponseWriter` structs (default `null` for plain HTTP)
+2. **Dispatch I/O**: In `body_recv`, check `tls_ctx != null` → call `tls::ssl_read` else `net::recv_all`. In writer, use a `send_data` helper that calls `tls::ssl_write` or `net::send_all`.
+3. **Parser**: Add an optional `tls_ctx: *mut tls::SSLContext = null` parameter to response reader; pass it to the Body.
+4. **Client**: In `request()`, detect `https://` scheme → malloc + ssl_init → set_hostname → tls_connect → verify hostname → ssl_write → read with tls_ctx. Body destructor handles cleanup (close_notify → ssl_free → dealloc).
+5. **Error paths**: On failure, `ssl_free + unsafe { dealloc }` for TLS, `close_socket` for plain.
+
+### Namespace Access
+
+Without `using namespace http;`, you must fully qualify nested namespaces:
+```chemical
+var srv = http::server::Server(cfg)          // NOT server::Server
+var u = http::URL::parse(url_str)            // NOT URL::parse
+var client = http::Client()                  // NOT Client
+```
+
+With `using namespace http;` (as in `net_test.ch`), unqualified names work.
 
 ## LLVM Backend Gotchas
 

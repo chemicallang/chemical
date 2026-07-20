@@ -84,7 +84,17 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 
 # Skip compiler rebuild, use existing binary
 ./scripts/test.sh --tcc --no-build
+
+# Run tests under GDB batch mode to capture backtrace on crash:
+./scripts/test.sh --tcc --bt          # gdb -batch, print bt full
+./scripts/test.sh --tcc --bt-full     # gdb -batch with full bt, registers, disasm
 ```
+
+> 🐛 **`-bt` / `-bt-full`**: These flags wrap the test executable in `gdb -batch` mode.
+> On crash, they print a backtrace (and optionally registers, disassembly, locals).
+> Implies `-g` automatically. Works for both compiled and interpretation modes.
+> - `-bt` → `gdb -batch -ex "run" -ex "bt full" --args <program>`
+> - `-bt-full` → `gdb -batch -ex "run" -ex "thread apply all bt full" -ex "info registers" -ex "x/16i $pc" -ex "info locals" -ex "info args" --args <program>`
 
 > ⚠️ **`--no-build` warning**: This flag **skips rebuilding the C++ compiler binary**.
 > Any changes to `.cpp`/`.h` files **will NOT be reflected** — the previously built

@@ -25,6 +25,7 @@ EMIT_C=false
 USE_C=false
 DEBUG_FLAG=false
 GDB=false
+BT_MODE="none"
 RECOMPILE_PLUGINS="-frecompile-plugins"
 BENCHMARK=false
 BENCHMARK_FILES=false
@@ -55,7 +56,9 @@ usage() {
   echo "  --bm-files              Run per-file compilation benchmark"
   echo "  --bm-modules            Run per-module compilation benchmark"
   echo "  -g                      Pass -g to the compiler (debug symbols)"
-  echo "  --gdb                   Run tests under GDB (implies -g)"
+  echo "  --gdb                   Run tests under interactive GDB (implies -g)"
+  echo "  -bt, --bt               Run tests under GDB -batch, print backtrace on crash (implies -g)"
+  echo "  -bt-full, --bt-full     Run tests under GDB -batch with full bt, registers, disasm (implies -g)"
   echo "  -v                      Pass -v to the compiler (verbose output)"
   echo "  --print-command         Print the compiler command without running it"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
@@ -90,6 +93,8 @@ while [ $# -gt 0 ]; do
     --bm-modules) BENCHMARK_MODULES=true ;;
     -g) DEBUG_FLAG=true ;;
     --gdb) GDB=true; DEBUG_FLAG=true ;;
+    -bt|--bt) BT_MODE="bt"; DEBUG_FLAG=true ;;
+    -bt-full|--bt-full) BT_MODE="bt-full"; DEBUG_FLAG=true ;;
     -v) VERBOSE=true ;;
     --print-command) PRINT_CMD=true ;;
     -j) JOBS="$2"; shift ;;
@@ -103,6 +108,30 @@ if [ -z "$TARGET" ]; then
   echo "Error: Specify --tcc or --llvm"
   usage
 fi
+
+# ----------------------------------------------------------
+# GDB backtrace helpers
+# ----------------------------------------------------------
+run_under_gdb_batch() {
+  local mode="$1"
+  shift
+  if [ "$mode" = "bt" ]; then
+    gdb -batch \
+      -ex "run" \
+      -ex "bt full" \
+      --args "$@"
+  elif [ "$mode" = "bt-full" ]; then
+    gdb -batch \
+      -ex "set pagination off" \
+      -ex "run" \
+      -ex "thread apply all bt full" \
+      -ex "info registers" \
+      -ex "x/16i \$pc" \
+      -ex "info locals" \
+      -ex "info args" \
+      --args "$@"
+  fi
+}
 
 # Append .exe on Windows
 case "$(uname -s)" in
@@ -173,6 +202,8 @@ elif [ "$TEST_INTERPRET" = true ]; then
   if [ "$GDB" = true ]; then
     echo "gdb --args ${CMD[@]}"
     gdb --args "${CMD[@]}"
+  elif [ "$BT_MODE" != "none" ]; then
+    run_under_gdb_batch "$BT_MODE" "${CMD[@]}"
   else
     echo "${CMD[@]}"
     "${CMD[@]}"
@@ -209,6 +240,8 @@ else
     echo "==> Running tests..."
     if [ "$GDB" = true ]; then
       gdb "$TEST_OUT"
+    elif [ "$BT_MODE" != "none" ]; then
+      run_under_gdb_batch "$BT_MODE" "$TEST_OUT"
     else
       "$TEST_OUT"
     fi

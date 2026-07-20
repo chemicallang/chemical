@@ -1074,23 +1074,115 @@ public namespace tls {
         return X509_BADCERT_CN_MISMATCH as i32
     }
 
+    // ─── ASN1_TIME Parser ──────────────────────────────────────────────────
+    // Parse ASN1_UTC_TIME (YYMMDDHHMMSSZ, 13 bytes) or ASN1_GENERALIZED_TIME
+    // (YYYYMMDDHHMMSSZ, 15 bytes) into date components.
+    // Returns 0 on success, ERR_X509_INVALID_DATE on failure.
+    func parse_asn1_time(time_str : *u8, max_len : size_t,
+                          year : *mut int, month : *mut int, day : *mut int,
+                          hour : *mut int, minute : *mut int,
+                          second : *mut int) : int {
+        var len : size_t = 0
+        while(len < max_len && time_str[len] != 0) { len += 1 }
+
+        if(len == 13) {
+            // UTCTime: YYMMDDHHMMSSZ
+            var yy = (time_str[0] as int - 48) * 10 + (time_str[1] as int - 48)
+            if(yy < 50) { *year = 2000 + yy } else { *year = 1900 + yy }
+            *month = (time_str[2] as int - 48) * 10 + (time_str[3] as int - 48)
+            *day = (time_str[4] as int - 48) * 10 + (time_str[5] as int - 48)
+            *hour = (time_str[6] as int - 48) * 10 + (time_str[7] as int - 48)
+            *minute = (time_str[8] as int - 48) * 10 + (time_str[9] as int - 48)
+            *second = (time_str[10] as int - 48) * 10 + (time_str[11] as int - 48)
+            return 0
+        } else if(len == 11) {
+            // UTCTime without seconds: YYMMDDHHMMZ
+            var yy = (time_str[0] as int - 48) * 10 + (time_str[1] as int - 48)
+            if(yy < 50) { *year = 2000 + yy } else { *year = 1900 + yy }
+            *month = (time_str[2] as int - 48) * 10 + (time_str[3] as int - 48)
+            *day = (time_str[4] as int - 48) * 10 + (time_str[5] as int - 48)
+            *hour = (time_str[6] as int - 48) * 10 + (time_str[7] as int - 48)
+            *minute = (time_str[8] as int - 48) * 10 + (time_str[9] as int - 48)
+            *second = 0
+            return 0
+        } else if(len == 15) {
+            // GeneralizedTime: YYYYMMDDHHMMSSZ
+            *year = (time_str[0] as int - 48) * 1000 + (time_str[1] as int - 48) * 100 +
+                     (time_str[2] as int - 48) * 10 + (time_str[3] as int - 48)
+            *month = (time_str[4] as int - 48) * 10 + (time_str[5] as int - 48)
+            *day = (time_str[6] as int - 48) * 10 + (time_str[7] as int - 48)
+            *hour = (time_str[8] as int - 48) * 10 + (time_str[9] as int - 48)
+            *minute = (time_str[10] as int - 48) * 10 + (time_str[11] as int - 48)
+            *second = (time_str[12] as int - 48) * 10 + (time_str[13] as int - 48)
+            return 0
+        }
+
+        return ERR_X509_INVALID_DATE
+    }
+
     // ─── X.509 Date Validity Check ────────────────────────────────────────
     // Check if the certificate's validity period covers the current time.
     // Returns 0 if valid, X509_BADCERT_EXPIRED or X509_BADCERT_FUTURE on failure.
     public func x509_check_date(crt : *mut X509Cert) : int {
-        // ASN1_UTC_TIME format: YYMMDDHHMMSSZ (13 bytes) or YYMMDDHHMMZ (11 bytes)
-        // For UTC time, YY 00-49 = 2000-2049, 50-99 = 1950-1999
-
         if(crt.valid_from[0] == 0 || crt.valid_to[0] == 0) {
             return 0  // No date info, skip check
         }
 
-        // For now, accept all valid_from/valid_to (we can't easily get
-        // the current time in comptime without a system call).
-        // This function is a placeholder for proper time validation.
-        // In production, compare current UTC time against the parsed dates.
+        // Parse notBefore
+        var from_year : int = 0; var from_month : int = 0; var from_day : int = 0
+        var from_hour : int = 0; var from_min : int = 0; var from_sec : int = 0
+        var ret = parse_asn1_time(&raw crt.valid_from[0], 15,
+                                   &raw mut from_year, &raw mut from_month,
+                                   &raw mut from_day, &raw mut from_hour,
+                                   &raw mut from_min, &raw mut from_sec)
+        if(ret < 0) { return 0 }
 
-        return 0
+        // Parse notAfter
+        var to_year : int = 0; var to_month : int = 0; var to_day : int = 0
+        var to_hour : int = 0; var to_min : int = 0; var to_sec : int = 0
+        ret = parse_asn1_time(&raw crt.valid_to[0], 15,
+                               &raw mut to_year, &raw mut to_month,
+                               &raw mut to_day, &raw mut to_hour,
+                               &raw mut to_min, &raw mut to_sec)
+        if(ret < 0) { return 0 }
+
+        // Get current UTC time
+        var now : time_t = 0
+        time(&raw mut now)
+
+        // Decompose current UTC time into components
+        var now_tm : tm
+        var gm_ret = gmtime_r(&raw now, &raw mut now_tm)
+        if(gm_ret == null) { return 0 }
+
+        var now_year = now_tm.year + 1900
+        var now_month = now_tm.mon + 1
+        var now_day = now_tm.mday
+        var now_hour = now_tm.hour
+        var now_min = now_tm.min
+        var now_sec = now_tm.sec
+
+        // Compare current time to notBefore (cert not yet valid -> FUTURE)
+        if(now_year < from_year) { return X509_BADCERT_FUTURE }
+        if(now_year == from_year && now_month < from_month) { return X509_BADCERT_FUTURE }
+        if(now_year == from_year && now_month == from_month && now_day < from_day) { return X509_BADCERT_FUTURE }
+        if(now_year == from_year && now_month == from_month && now_day == from_day) {
+            var now_seconds = now_hour * 3600 + now_min * 60 + now_sec
+            var from_seconds = from_hour * 3600 + from_min * 60 + from_sec
+            if(now_seconds < from_seconds) { return X509_BADCERT_FUTURE }
+        }
+
+        // Compare current time to notAfter (cert expired -> EXPIRED)
+        if(now_year > to_year) { return X509_BADCERT_EXPIRED }
+        if(now_year == to_year && now_month > to_month) { return X509_BADCERT_EXPIRED }
+        if(now_year == to_year && now_month == to_month && now_day > to_day) { return X509_BADCERT_EXPIRED }
+        if(now_year == to_year && now_month == to_month && now_day == to_day) {
+            var now_seconds = now_hour * 3600 + now_min * 60 + now_sec
+            var to_seconds = to_hour * 3600 + to_min * 60 + to_sec
+            if(now_seconds > to_seconds) { return X509_BADCERT_EXPIRED }
+        }
+
+        return 0  // Certificate is valid
     }
 
     // ─── X.509 Certificate Chain Verification ─────────────────────────────
@@ -1334,6 +1426,15 @@ public namespace tls {
                         if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
                             has_rsa_key = true
                             ssl.peer_cert = &raw mut cert
+                            // Run certificate chain verification if CA chain is configured
+                            if(ssl.conf != null && ssl.conf.ca_chain != null) {
+                                var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
+                                                                    ssl.hostname)
+                                if(chain_ret != 0) {
+                                    // Cert verification failed - we still proceed for now
+                                    // but the flags field will indicate the failure reason
+                                }
+                            }
                         }
                     }
                 }
@@ -1550,6 +1651,50 @@ public namespace tls {
     }
 
     // ============================================================================
+    // ─── CA Trust Store ───────────────────────────────────────────────────
+    // Load a PEM-encoded certificate from a file on disk.
+    // Returns a pointer to a heap-allocated X509Cert on success,
+    // or null on failure. Caller is responsible for freeing.
+    public func x509_crt_load_pem_file(path : *char) : *mut X509Cert {
+        var mode = "rb\0" as *char
+        var f = fopen(path, mode)
+        if(f == null) { return null }
+
+        // Read the entire file into a buffer (up to 16KB)
+        var buf : [16384]u8
+        var total_read : size_t = 0
+        while(total_read < 16384) {
+            var n = fread(&raw mut buf[total_read], 1 as size_t, 16384 - total_read, f)
+            if(n <= 0) { break }
+            total_read += n
+        }
+        fclose(f)
+
+        if(total_read == 0) { return null }
+
+        // Allocate and parse the certificate
+        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
+        if(cert_mem == null) { return null }
+
+        x509_cert_init(cert_mem)
+        var ret = parse_cert_pem(cert_mem, &raw buf[0], total_read)
+        if(ret < 0) {
+            // Try DER parsing
+            ret = parse_cert_der(cert_mem, &raw buf[0], total_read)
+            if(ret < 0) {
+                unsafe { dealloc cert_mem }
+                return null
+            }
+        }
+
+        return cert_mem
+    }
+
+    // Set the trusted CA chain for certificate verification
+    public func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
+        conf.ca_chain = ca
+    }
+
     // Public API - Client Connection
     // ============================================================================
 

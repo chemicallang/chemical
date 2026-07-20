@@ -151,6 +151,15 @@ func neg_temp_no_return_lifetime_succeeds(env : &mut TestEnv) {
     expect_compile_success(env, "temp_no_return_lifetime_succeeds", ch)
 }
 
+@test
+func neg_lambda_param_unresolved_child_prints_error(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Lambda parameter type can't be inferred and accessing a child on it
+    // should print a proper error, not crash with SIGSEGV.
+    var ch = "func main() {\n    var cb = ||(x) => {\n        x.some_nonexistent_field\n    }\n}\n"
+    expect_compile_error(env, "lambda_param_unresolved_child", ch, "unresolved")
+}
+
 public func main(argc : int, argv : **char) {
     test_runner(argc, argv)
 }

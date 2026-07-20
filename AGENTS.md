@@ -297,6 +297,169 @@ Fixes considered: `@reflat` annotation to skip destruct+memcpy, `@move` hook for
 
 LLVM requires `UndefValue` for uninitialized phis in certain lowering patterns. Check `IRBuilder::CreatePHI` usage in `LLVM.cpp` when adding new PHI-based constructs.
 
+## Chemical Library Development Gotchas
+
+These patterns were discovered while implementing 5 pure-Chemical libraries (archive, image, font, audio, webview).
+
+### Struct Initialization Rules
+
+Chemical has three struct annotation combinations that affect initialization:
+
+| Annotations | `T{}` works? | `T.make()` works? | `T{field: val}` works? |
+|---|---|---|---|
+| `@direct_init` only | Yes (all fields required) | No | Yes (all fields required) |
+| `@make` only | **No** | Yes | **No** |
+| `@direct_init` + `@make` | Yes (all fields required) | Yes | Yes (all fields required) |
+| Neither | Yes (all fields required) | No | Yes (all fields required) |
+
+**Critical**: A struct with `@make` but **without** `@direct_init` **cannot** use `{}` syntax at all. The compiler errors with "struct has a constructor, use @direct_init to allow direct initialization". You must use `T.make()` instead.
+
+Example:
+```chemical
+// types.ch
+@make
+public struct RGBA8 {
+    var r : u8; var g : u8; var b : u8; var a : u8
+    @make func make(r_ : u8, g_ : u8, b_ : u8, a_ : u8 = 255) : RGBA8 { ... }
+}
+
+// test.ch — WRONG: RGBA8{} doesn't work without @direct_init
+// var px = RGBA8{}          // ERROR: struct has a constructor
+// var px = RGBA8{r: 0}      // ERROR: struct has a constructor
+
+// CORRECT:
+var px = RGBA8.make(0, 0, 0, 255)   // Uses @make constructor
+```
+
+### vector Standalone Init
+
+`vector<T>{}` aggregate init only works **inside** `@direct_init` struct init context. Standalone `var x = vector<T>{}` fails. Use the constructor instead:
+
+```chemical
+// WRONG (outside struct init):
+// var file_data = vector<u8>{}
+
+// CORRECT:
+var file_data = vector<u8>()
+```
+
+### `.data()` Returns Immutable Pointer
+
+`vector<T>.data()` returns `*T` (immutable). To write through the pointer, cast to `*mut T`:
+
+```chemical
+var sptr = vec.data() as *mut i16
+sptr[0] = 10000
+sptr[1] = -10000
+```
+
+### `.size()` Not `.length()`
+
+`string` and `vector` use `.size()` — there is no `.length()` method.
+
+### Float Literals
+
+`0.5` is `double` in Chemical. For `float` parameters, use `0.5f`:
+
+```chemical
+public func audio_volume(audio : *mut Audio, factor : float) { ... }
+audio_volume(&raw mut a, 0.5f)   // WRONG: 0.5 is double
+audio_volume(&raw mut a, 0.5)    // TypeCheck error: double does not satisfy float
+```
+
+### `if` Expressions Not Inline
+
+Chemical does **not** support `if` as an expression inline in function arguments. Extract to a variable:
+
+```chemical
+// WRONG:
+// var max_samples = if(a > b) { a } else { b }
+
+// CORRECT:
+var max_samples : size_t
+if(a > b) { max_samples = a } else { max_samples = b }
+```
+
+### `if` Requires `else`
+
+Every `if` block requires an `else` block. No bare `if` without `else`.
+
+### Variant-Captured Strings: `append_string(&msg)`
+
+When capturing a string from a variant pattern, pass it by reference to `append_string`:
+
+```chemical
+switch(self) {
+    InvalidFormat(msg) => {
+        var s = string("Error: ")
+        s.append_string(&msg)    // NOT append_string(msg)
+        return s
+    }
+}
+```
+
+### `using` Declarations in Test Files
+
+Test files at global scope need `using` declarations to access standard library types:
+
+```chemical
+using std::Result;    // For Result.Err / Result.Ok patterns
+using std::string;    // For string() constructor
+using std::vector;    // For vector<T>() constructor
+```
+
+### Internal Functions Not Accessible Across Packages
+
+Functions without `public` (internal by default) cannot be called from test modules in other packages. Mark test-relevant helper functions `public`:
+
+```chemical
+// archive/src/endian.ch — WRONG: internal, can't be called from tests
+// func read_u16_le(data : *u8, offset : size_t) : u16 { ... }
+
+// CORRECT:
+public func read_u16_le(data : *u8, offset : size_t) : u16 { ... }
+```
+
+### `memcpy` With Pointer Variables
+
+When a variable is already `*mut T`, **never** use `&raw mut var` with `memcpy`. `&raw mut var` takes the address of the pointer variable itself (on the stack), not what it points to. Writing `sizeof(T)` bytes there corrupts the stack:
+
+```chemical
+func zip_find_entry(output : *mut ArchiveEntry, ...) {
+    // WRONG — &raw mut output is *mut (*mut ArchiveEntry), stack corruption!
+    // memcpy(&raw mut output, &raw entry, sizeof(ArchiveEntry))
+
+    // CORRECT — output is already *mut ArchiveEntry:
+    memcpy(output, &raw entry, sizeof(ArchiveEntry))
+}
+```
+
+### Result Pattern in @test Functions
+
+```chemical
+@test
+public func my_test(env : &mut TestEnv) {
+    var result = some_func()
+    if(result is Result.Err) { env.error("should succeed"); return }
+    var Ok(value) = result else unreachable
+    // Now use value safely
+}
+```
+
+### Test File Location
+
+Library tests go in `lang/tests/src/libs/<name>/tests.ch`, **not** `lang/tests/libs/`. The `lang/tests/src/` module is the compiled test executable's source tree.
+
+### Building Libraries for Testing
+
+```bash
+# Compile-check a library:
+cmake-build-debug/TCCCompiler lang/libs/<name>/chemical.mod -v -bm-modules
+
+# Run all tests (including lib tests):
+./scripts/test.sh --tcc
+```
+
 ## C Codegen Gotchas
 
 ### Struct-returning function expression pattern

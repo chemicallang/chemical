@@ -29,6 +29,8 @@ RECOMPILE_PLUGINS="-frecompile-plugins"
 BENCHMARK=false
 BENCHMARK_FILES=false
 BENCHMARK_MODULES=false
+VERBOSE=false
+PRINT_CMD=false
 
 usage() {
   echo "Usage: $0 [options]"
@@ -54,6 +56,8 @@ usage() {
   echo "  --bm-modules            Run per-module compilation benchmark"
   echo "  -g                      Pass -g to the compiler (debug symbols)"
   echo "  --gdb                   Run tests under GDB (implies -g)"
+  echo "  -v                      Pass -v to the compiler (verbose output)"
+  echo "  --print-command         Print the compiler command without running it"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
   echo "  --help, -h              Show this help"
   exit 1
@@ -86,6 +90,8 @@ while [ $# -gt 0 ]; do
     --bm-modules) BENCHMARK_MODULES=true ;;
     -g) DEBUG_FLAG=true ;;
     --gdb) GDB=true; DEBUG_FLAG=true ;;
+    -v) VERBOSE=true ;;
+    --print-command) PRINT_CMD=true ;;
     -j) JOBS="$2"; shift ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -133,6 +139,11 @@ if [ "$TEST_NEGATIVE" = true ]; then
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  [ "$VERBOSE" = true ] && CMD+=("-v")
+  if [ "$PRINT_CMD" = true ]; then
+    echo "${CMD[@]}"
+    exit 0
+  fi
   echo "==> Building negative tests..."
   echo "${CMD[@]}"
   "${CMD[@]}"
@@ -153,6 +164,11 @@ elif [ "$TEST_INTERPRET" = true ]; then
   [ "$BENCHMARK" = true ] && CMD+=("-bm")
   [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
   [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
+  [ "$VERBOSE" = true ] && CMD+=("-v")
+  if [ "$PRINT_CMD" = true ]; then
+    echo "${CMD[@]}"
+    exit 0
+  fi
   echo "==> Interpreting tests..."
   if [ "$GDB" = true ]; then
     echo "gdb --args ${CMD[@]}"
@@ -172,11 +188,15 @@ else
   [ "$BENCHMARK" = true ] && CMD+=("-bm")
   [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
   [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
+  [ "$VERBOSE" = true ] && CMD+=("-v")
   if [ "$TEST_LIBS" = true ]; then
     CMD+=("--arg-test-libs")
     [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
   fi
-
+  if [ "$PRINT_CMD" = true ]; then
+    echo "${CMD[@]}"
+    exit 0
+  fi
   echo "==> Compiling tests..."
   echo "${CMD[@]}"
   "${CMD[@]}"

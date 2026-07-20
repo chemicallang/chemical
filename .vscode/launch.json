@@ -5,7 +5,7 @@
       "name": "Run Tests Fast",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/Compiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/Compiler",
       "args": [
         "lang/tests/build.lab",
         "-arg-minimal",
@@ -28,7 +28,7 @@
       "name": "Run Tests",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/Compiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/Compiler",
       "args": [
         "lang/tests/build.lab",
         "-arg-minimal",
@@ -52,7 +52,7 @@
       "name": "Run Tests TCC FAST",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler",
       "args": [
         "lang/tests/build.lab",
         "-arg-minimal",
@@ -87,7 +87,7 @@
       "name": "Run Tests TCC",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler",
       "args": [
         "lang/tests/build.lab",
         "-arg-minimal",
@@ -123,7 +123,7 @@
       "name": "Run Temp TCC",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/TCCCompiler",
       "args": [
         "lang/compiled/temp.ch",
         "-o",
@@ -160,11 +160,11 @@
       "name": "Run Temp",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/cmake-build-debug/Compiler.exe",
+      "program": "${workspaceFolder}/cmake-build-debug/Compiler",
       "args": [
         "lang/compiled/temp.ch",
         "-o",
-        "lang/compiled/temp.exe",
+        "lang/compiled/temp",
         "-v",
         "-bm",
         "--mode",

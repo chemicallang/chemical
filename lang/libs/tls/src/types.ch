@@ -458,13 +458,13 @@ public namespace tls {
         var state : SSLState         // Handshake state machine
 
         // I/O buffers
-        var in_buf : [1024]u8       // Input buffer (16384 + 1024 for overhead)
+        var in_buf : [17408]u8       // Input buffer (16384 + 1024 for overhead)
         var in_msglen : i32
         var in_left : i32
         var in_hdr : [5]u8           // Current record header
         var in_offt : i32
 
-        var out_buf : [1024]u8      // Output buffer
+        var out_buf : [17408]u8      // Output buffer
         var out_msglen : i32
         var out_left : i32
 

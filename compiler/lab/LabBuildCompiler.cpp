@@ -2725,6 +2725,9 @@ TCCState* LabBuildCompiler::built_lab_file(
         lab_processor.import_chemical_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
     }
 
+    // print the importing build.lab file results
+    ASTProcessor::print_results(labFileResult, chem::string_view(path_view), options->benchmark_files);
+
     // probably an error during parsing
     if(!labFileResult.continue_processing) {
         if(verbose) {

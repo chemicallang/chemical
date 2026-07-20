@@ -31,8 +31,8 @@ lang/tests/
 │   ├── core/                  # Core language tests
 │   ├── generic/               # Generic instantiation tests
 │   ├── stdlib/                # Standard library tests
-│   └── libs/                  # Tests that depend on specific libraries
-├── libs/                      # Library-specific tests (html, css, js, universal, md)
+│   └── compiler_plugins/      # Tests that depend on specific libraries
+├── compiler_plugins/          # Library-specific tests (html, css, js, universal, md)
 │   ├── html/
 │   ├── css/
 │   ├── js/
@@ -248,7 +248,7 @@ func test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *mut 
 }
 ```
 
-Each library test module has its own `build.lab` in `lang/tests/libs/<name>/`.
+Each library test module has its own `build.lab` in `lang/tests/compiler_plugins/<name>/`.
 
 ## Adding a New Test
 
@@ -320,9 +320,9 @@ cmake-build-debug/Compiler lang/tests/build.lab --build-dir lang/tests -o lang/t
 
 These are different from standard library tests — they test CBI compiler plugins:
 
-1. **Create the test module** at `lang/tests/libs/<name>/`:
+1. **Create the test module** at `lang/tests/compiler_plugins/<name>/`:
    ```
-   lang/tests/libs/<name>/
+   lang/tests/compiler_plugins/<name>/
    ├── chemical.mod
    ├── build.lab            # Calls testLibsRunner's test infrastructure
    └── src/
@@ -547,7 +547,7 @@ lang/tests/
 ├── common/src/             # Shared tests (interpret + compiled)
 ├── native_common/src/      # Pointer tests (interpret + compiled)
 ├── interpret/src/          # Interpretation-only entry point
-├── libs/                   # CBI plugin tests (html, css, js, universal, md)
+├── compiler_plugins/       # CBI plugin tests (html, css, js, universal, md)
 │   ├── html/src/           # html_cbi plugin tests
 │   ├── css/src/            # css_cbi plugin tests
 │   ├── js/src/             # js_cbi plugin tests

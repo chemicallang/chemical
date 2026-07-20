@@ -2,6 +2,7 @@ using std::Result;
 using std::vector;
 using std::string;
 using std::string_view;
+using namespace http;
 
 @test
 public func tls_ciphersuite_lookup_works(env : &mut TestEnv) {
@@ -1906,7 +1907,7 @@ public func tls_x509_cert_verify_chain_rejects_unknown_hostname(env : &mut TestE
 @test
 public func https_url_parsing_scheme_detection_works(env : &mut TestEnv) {
     // Verify https:// URLs are detected with correct scheme and default port 443
-    var u1 = http::URL::parse(string_view("https://example.com"))
+    var u1 = URL::parse(string_view("https://example.com"))
     if(u1 is std::Option.None) { env.error("https URL should parse"); return }
     var Some(url1) = u1 else unreachable
     if(!url1.scheme.equals_with_len("https", 5)) {
@@ -1923,7 +1924,7 @@ public func https_url_parsing_scheme_detection_works(env : &mut TestEnv) {
 @test
 public func https_url_parsing_with_port_path_query_works(env : &mut TestEnv) {
     // Verify https URL with explicit port, path, and query
-    var u2 = http::URL::parse(string_view("https://api.example.com:8443/v1/data?key=val"))
+    var u2 = URL::parse(string_view("https://api.example.com:8443/v1/data?key=val"))
     if(u2 is std::Option.None) { env.error("https URL with port should parse"); return }
     var Some(url2) = u2 else unreachable
     if(!url2.scheme.equals_with_len("https", 5)) {
@@ -1946,7 +1947,7 @@ public func https_url_parsing_with_port_path_query_works(env : &mut TestEnv) {
 @test
 public func https_url_parsing_default_path_without_slash_works(env : &mut TestEnv) {
     // Verify https URL without path defaults to /
-    var u = http::URL::parse(string_view("https://localhost:443"))
+    var u = URL::parse(string_view("https://localhost:443"))
     if(u is std::Option.None) { env.error("https URL without path should parse"); return }
     var Some(url) = u else unreachable
     if(!url.path.equals_view("/")) {
@@ -1978,9 +1979,9 @@ public func https_invalid_host_returns_error(env : &mut TestEnv) {
 public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
     // Start a plain TCP server and try to connect with https://
     // The TLS handshake should fail because the server doesn't speak TLS
-    var cfg = http::server::ServerConfig()
+    var cfg = server::ServerConfig()
     cfg.addr = std::string::make_no_len("127.0.0.1:49998")
-    var srv = http::server::Server(cfg)
+    var srv = server::Server(cfg)
     srv.router.add("GET", "/", ||(req, res) => {
         res.write_string(std::string::make_no_len("plain-text"))
     })
@@ -2045,9 +2046,9 @@ public func https_reuse_client_after_failure_works(env : &mut TestEnv) {
 @test
 public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
     // Start a plain HTTP server
-    var cfg = http::server::ServerConfig()
+    var cfg = server::ServerConfig()
     cfg.addr = std::string::make_no_len("127.0.0.1:49994")
-    var srv = http::server::Server(cfg)
+    var srv = server::Server(cfg)
     srv.router.add("GET", "/hello", ||(req, res) => {
         res.write_string(std::string::make_no_len("http-world"))
     })

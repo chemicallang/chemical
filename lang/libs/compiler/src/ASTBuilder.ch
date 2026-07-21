@@ -4,7 +4,6 @@ public struct FuncDeclAttributesCBI {
     var specifier : AccessSpecifier;
     var is_comptime : bool;
     var is_compiler_decl : bool;
-    var multi_func_index : u8;
     var inline_strategy : int;
     var is_extern : bool;
     var is_cpp_mangle : bool;

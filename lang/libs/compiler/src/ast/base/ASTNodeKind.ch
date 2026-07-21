@@ -33,7 +33,6 @@ public enum ASTNodeKind {
     EnumDecl,
     EnumMember,
     FunctionDecl,
-    MultiFunctionNode,
     ImplDecl,
     InterfaceDecl,
     StructDecl,

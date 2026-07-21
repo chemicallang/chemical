@@ -118,7 +118,7 @@ public namespace http {
         if(q_pos != -1) {
             req.path = full_path.substring(0u, q_pos as usize);
             var qs = full_path.substring((q_pos as usize) + 1u, full_path.size());
-            req.query = QueryMap(qs.to_view());
+            req.query = QueryMap.make_from_qs(qs.to_view());
         } else {
             req.path = full_path;
             req.query = QueryMap();

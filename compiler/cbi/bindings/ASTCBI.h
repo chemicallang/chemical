@@ -15,7 +15,6 @@ extern "C" {
         int32_t specifier;
         bool is_comptime;
         bool is_compiler_decl;
-        uint8_t multi_func_index;
         int32_t inline_strategy;
         bool is_extern;
         bool is_cpp_mangle;

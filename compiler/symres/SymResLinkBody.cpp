@@ -1660,15 +1660,6 @@ void SymResLinkBody::VisitValueNode(ValueNode* node) {
     visit(node->value);
 }
 
-void SymResLinkBody::VisitMultiFunctionNode(MultiFunctionNode* node) {
-
-    // link all the functions
-    for(const auto func : node->functions) {
-        visit(func);
-    }
-
-}
-
 void SymResLinkBody::VisitValueWrapper(ValueWrapperNode* node) {
     visit(node->value);
 }
@@ -2004,7 +1995,6 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
 
-    call->relink_multi_func(visitor.getAllocator(), &visitor.diagnoser);
     const auto gen_args_linked = link_call_gen_args(visitor, call);
 
     // link the values, based on which constructor is determined

@@ -149,9 +149,6 @@ public:
     inline void VisitGenericImplDecl(GenericImplDecl* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    inline void VisitMultiFunctionNode(MultiFunctionNode* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
     inline void VisitImplDecl(ImplDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -640,9 +637,6 @@ public:
             case ASTNodeKind::GenericImplDecl:
                 static_cast<Derived*>(this)->VisitGenericImplDecl((GenericImplDecl*) node);
                 return;
-            case ASTNodeKind::MultiFunctionNode:
-                static_cast<Derived*>(this)->VisitMultiFunctionNode((MultiFunctionNode*) node);
-                return;
             case ASTNodeKind::ImplDecl:
                 static_cast<Derived*>(this)->VisitImplDecl((ImplDefinition*) node);
                 return;
@@ -1068,9 +1062,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(FunctionDeclaration* node) {
         static_cast<Derived*>(this)->VisitFunctionDecl(node);
-    }
-    inline void VisitByPtrTypeNoNullCheck(MultiFunctionNode* node) {
-        static_cast<Derived*>(this)->VisitMultiFunctionNode(node);
     }
     inline void VisitByPtrTypeNoNullCheck(ImplDefinition* node) {
         static_cast<Derived*>(this)->VisitImplDecl(node);

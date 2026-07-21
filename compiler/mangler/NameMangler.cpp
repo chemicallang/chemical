@@ -66,10 +66,6 @@ void NameMangler::mangle_no_parent(BufferedWriter& stream, ASTNode* node) {
         case ASTNodeKind::FunctionDecl: {
             const auto decl = node->as_function_unsafe();
             stream << decl->name_view();
-            if (decl->multi_func_index() != 0) {
-                stream << "__cmf_";
-                stream << decl->multi_func_index();
-            }
             if (decl->generic_instantiation != -1) {
                 stream << "__cfg_";
                 stream << decl->generic_instantiation;

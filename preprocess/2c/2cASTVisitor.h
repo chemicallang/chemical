@@ -661,9 +661,6 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 
-    // TODO handle multi function node
-    void VisitMultiFunctionNode(MultiFunctionNode* node) {}
-
     void VisitImplDecl(ImplDefinition* node);
 
     void VisitInterfaceDecl(InterfaceDefinition* node);

@@ -5,7 +5,6 @@
 #include <ranges>
 #include "compiler/SymbolResolver.h"
 #include "StructMember.h"
-#include "MultiFunctionNode.h"
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
 #include "ast/structures/VariantMember.h"
@@ -434,7 +433,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 take_members_from_parsed_nodes(linker, node->as_unsafe_block_unsafe()->scope.nodes);
                 break;
             case ASTNodeKind::FunctionDecl:
-                insert_multi_func(*linker.ast_allocator, node->as_function_unsafe());
+                insert_func(node->as_function_unsafe());
                 break;
             case ASTNodeKind::GenericFuncDecl:
                 // TODO multi function node doesn't support generic functions
@@ -891,24 +890,6 @@ FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& alloc
         return nullptr;
     }
     return create_destructor(allocator, returnNode, is_extern);
-}
-
-bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl) {
-    auto found = indexes.find(decl->name_view());
-    if(found == indexes.end()) {
-        insert_func(decl);
-    } else {
-        auto result = handle_name_overload_function(astAllocator, found->second, decl);
-        if(result.specifier_mismatch || !result.duplicates.empty()) {
-            // TODO handle errors for duplicates and specifier mismatch
-            return false;
-        } else if(result.new_multi_func_node) {
-            // TODO -1 is being stored as index
-            indexes[decl->name_view()] = result.new_multi_func_node;
-        }
-        evaluated_container.emplace_back(decl);
-    }
-    return true;
 }
 
 BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {

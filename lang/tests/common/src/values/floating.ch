@@ -61,5 +61,16 @@ func test_floating_expr() {
         var c = b as int
         return c == -4
     })
+    // f32 and f64 type aliases
+    test("f32 type alias works as float", () => {
+        var a : f32 = 5.5f
+        var b : float = 5.5f
+        return a == b;
+    })
+    test("f64 type alias works as double", () => {
+        var a : f64 = 5.5
+        var b : double = 5.5
+        return a == b;
+    })
     // TODO test when float is passed to var arg function, it's converted to a double first
 }

@@ -2658,3 +2658,61 @@ public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ECDSA Tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_ecdsa_init_and_import_works(env : &mut TestEnv) {
+    var ctx : tls::ECDSAContext
+    tls::ecdsa_init(&raw mut ctx)
+    if(ctx.is_init) {
+        env.error("ecdsa should not be init after init")
+    }
+
+    // Use RFC 5903 test vector public key
+    var pub_key : [65]u8
+    pub_key[0] = 0x04 as u8
+    pub_key[1] = 0xD1 as u8; pub_key[2] = 0x5B as u8; pub_key[3] = 0x20 as u8
+    pub_key[4] = 0x6D as u8; pub_key[5] = 0x54 as u8; pub_key[6] = 0xE4 as u8
+    pub_key[7] = 0x9B as u8; pub_key[8] = 0xD1 as u8; pub_key[9] = 0xCD as u8
+    pub_key[33] = 0x43 as u8; pub_key[34] = 0xD8 as u8; pub_key[35] = 0x7F as u8
+    pub_key[64] = 0x21 as u8
+
+    var ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
+    if(ret < 0) {
+        env.error("ecdsa_import_pubkey should succeed")
+        return
+    }
+}
+
+@test
+public func tls_ecdsa_import_bad_key_fails(env : &mut TestEnv) {
+    var ctx : tls::ECDSAContext
+    tls::ecdsa_init(&raw mut ctx)
+
+    var short_key : [32]u8
+    var ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw short_key[0], 32, tls::TLS_GROUP_SECP256R1 as u16)
+    if(ret == 0) { env.error("should reject short key") }
+
+    var bad_key : [65]u8
+    var i : size_t = 0
+    while(i < 65) { bad_key[i] = 0x00; i += 1 }
+    ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw bad_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
+    if(ret == 0) { env.error("should reject non-uncompressed key") }
+}
+
+@test
+public func tls_ecdsa_uninitialized_rejects_verify(env : &mut TestEnv) {
+    var ctx : tls::ECDSAContext
+    tls::ecdsa_init(&raw mut ctx)
+
+    var hash : [32]u8
+    var sig : [71]u8
+
+    var ret = tls::ecdsa_verify(&raw mut ctx, &raw hash[0], 32, &raw sig[0], 71)
+    if(ret == 0) {
+        env.error("uninitialized ECDSA should reject verify")
+    }
+}
+

@@ -1767,6 +1767,58 @@ public namespace tls {
         return 0
     }
 
+    // ─── Extract ECDSA Public Key from Parsed Certificate ───────────────
+    // Parse SubjectPublicKeyInfo to extract ECDSA uncompressed public key.
+    public func x509_extract_ecdsa_pubkey(crt : *mut X509Cert, ecdsa : *mut ECDSAContext) : int {
+        if(crt.pk_type != PK_ECKEY as u8) { return ERR_SSL_PK_TYPE_MISMATCH }
+        if(crt.pk_raw == null || crt.pk_raw_len == 0) { return ERR_X509_INVALID_FORMAT }
+
+        var data = crt.pk_raw
+        var len = crt.pk_raw_len
+        var pos : size_t = 0
+
+        // Parse AlgorithmIdentifier SEQUENCE
+        var seq_tag : u8 = 0; var seq_len : size_t = 0
+        var ret = asn1_get_tag(data, len, &raw mut pos, &raw mut seq_tag, &raw mut seq_len)
+        if(ret < 0) { return ret }
+        if(seq_tag != (ASN1_CONSTRUCTED | ASN1_SEQUENCE)) { return ERR_X509_INVALID_ALG }
+        pos += seq_len
+
+        // Parse BIT STRING (contains the raw public key)
+        var bit_tag : u8 = 0; var bit_len : size_t = 0
+        ret = asn1_get_tag(data, len, &raw mut pos, &raw mut bit_tag, &raw mut bit_len)
+        if(ret < 0) { return ret }
+        if(bit_tag != ASN1_BIT_STRING) { return ERR_X509_INVALID_FORMAT }
+
+        // Skip unused bits byte
+        if(pos >= len) { return ERR_X509_INVALID_FORMAT }
+        pos += 1
+        bit_len -= 1
+
+        if(bit_len < 65) { return ERR_X509_INVALID_FORMAT }
+        if(data[pos] != 0x04) { return ERR_X509_INVALID_FORMAT }
+
+        return ecdsa_import_pubkey(ecdsa, &raw data[pos], bit_len, TLS_GROUP_SECP256R1 as u16)
+    }
+
+    // ─── Verify X.509 Certificate ECDSA Signature ───────────────────────
+    public func x509_verify_cert_ecdsa_signature(crt : *mut X509Cert,
+                                                  issuer_ecdsa : *mut ECDSAContext) : int {
+        if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
+        if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
+
+        // Compute SHA-256 hash of TBSCertificate
+        var hash : [32]u8
+        var sha_ctx : crypto::Sha256Context
+        crypto::sha256_init(&raw mut sha_ctx)
+        crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+        crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+
+        var ret = ecdsa_verify(issuer_ecdsa, &raw hash[0], 32, crt.sig, crt.sig_len)
+        if(ret < 0) { return ERR_X509_SIG_MISMATCH }
+        return 0
+    }
+
     // ─── Verify X.509 Certificate RSA Signature ──────────────────────────
     // Verifies the certificate's signature using the issuer's RSA public key.
     // crt: the certificate to verify
@@ -2038,15 +2090,40 @@ public namespace tls {
         return 0  // Certificate is valid
     }
 
+    // ─── Helper: verify cert signature with appropriate key type ──────────
+    func x509_verify_sig_with_issuer(cert : *mut X509Cert, issuer : *mut X509Cert) : int {
+        if(issuer.pk_type == PK_RSA as u8) {
+            var rsa_ctx : RSAContext
+            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+            var ret = x509_extract_rsa_pubkey(issuer, &raw mut rsa_ctx)
+            if(ret == 0) {
+                ret = x509_verify_cert_signature(cert, &raw mut rsa_ctx)
+                return ret
+            }
+            return ERR_X509_CERT_VERIFY_FAILED
+        } else if(issuer.pk_type == PK_ECKEY as u8) {
+            var ecdsa_ctx : ECDSAContext
+            ecdsa_init(&raw mut ecdsa_ctx)
+            var ret = x509_extract_ecdsa_pubkey(issuer, &raw mut ecdsa_ctx)
+            if(ret == 0) {
+                ret = x509_verify_cert_ecdsa_signature(cert, &raw mut ecdsa_ctx)
+                return ret
+            }
+            return ERR_X509_CERT_VERIFY_FAILED
+        }
+        return ERR_X509_CERT_VERIFY_FAILED
+    }
+
     // ─── X.509 Certificate Chain Verification ─────────────────────────────
     // Verify a certificate chain from leaf to root.
+    // Supports both RSA and ECDSA certificates.
     // leaf: the peer's certificate (first in chain)
     // trusted_ca: a trusted root CA certificate (or null to skip root verification)
     // hostname: expected server hostname (or null to skip)
     // Returns 0 on success, negative error code on failure.
     // Sets crt->flags with verification results.
     public func x509_verify_chain(leaf : *mut X509Cert, trusted_ca : *mut X509Cert,
-                                   hostname : *char) : int {
+                                    hostname : *char) : int {
         var flags : u32 = 0
 
         // 1. Self-signed check: if leaf issuer == leaf subject, it's self-signed
@@ -2068,16 +2145,9 @@ public namespace tls {
         }
 
         if(trusted_ca == null && is_self_signed) {
-            // Self-signed cert without a trusted CA: verify using its own key
-            var rsa_ctx : RSAContext
-            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-            var ret = x509_extract_rsa_pubkey(leaf, &raw mut rsa_ctx)
-            if(ret == 0) {
-                ret = x509_verify_cert_signature(leaf, &raw mut rsa_ctx)
-                if(ret == 0) {
-                    leaf.flags = 0  // Self-signed verified OK
-                    return 0
-                }
+            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
+                leaf.flags = 0
+                return 0
             }
             leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
@@ -2107,34 +2177,20 @@ public namespace tls {
 
         // 4. Verify signature using trusted CA or self-signed
         if(trusted_ca != null) {
-            var ca_rsa : RSAContext
-            rsa_init(&raw mut ca_rsa, RSA_PKCS_V15, 0)
-            var ret = x509_extract_rsa_pubkey(trusted_ca, &raw mut ca_rsa)
-            if(ret == 0) {
-                ret = x509_verify_cert_signature(leaf, &raw mut ca_rsa)
-                if(ret == 0) {
-                    leaf.flags = 0 as u32  // Verified by trusted CA
-                    return 0
-                }
+            if(x509_verify_sig_with_issuer(leaf, trusted_ca) == 0) {
+                leaf.flags = 0 as u32
+                return 0
             }
             leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
         } else if(is_self_signed) {
-            // Self-signed cert without a trusted CA: verify using its own key
-            var rsa_ctx : RSAContext
-            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-            var ret = x509_extract_rsa_pubkey(leaf, &raw mut rsa_ctx)
-            if(ret == 0) {
-                ret = x509_verify_cert_signature(leaf, &raw mut rsa_ctx)
-                if(ret == 0) {
-                    leaf.flags = 0 as u32  // Self-signed verified OK
-                    return 0
-                }
+            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
+                leaf.flags = 0 as u32
+                return 0
             }
             leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
         } else {
-            // Neither self-signed nor trusted CA
             leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
         }
@@ -2553,6 +2609,88 @@ public namespace tls {
 
             if(msg_type == SSL_HS_SERVER_HELLO as u8) {
                 got_server_hello = true
+            } else if(msg_type == SSL_HS_HELLO_RETRY_REQUEST as u8) {
+                // HelloRetryRequest: server requested a different key_share group
+                // Parse HRR extensions to find the requested group
+                var hrr_pos : size_t = 4  // skip hs_type(1) + length(3)
+                // version (2 bytes) — should be 0x0303 (TLS 1.2 compat)
+                hrr_pos += 2
+                // session_id_echo — matches the original session ID from CH
+                var hrr_sid_len = hs_buf[hrr_pos] as size_t; hrr_pos += 1 + hrr_sid_len
+                // cipher_suite — same as original
+                hrr_pos += 2
+                // compression_method
+                hrr_pos += 1
+                // extensions
+                if(hrr_pos + 2 <= 4 + hs_body_len as size_t + 4) {
+                    var hrr_ext_len = read_u16_be(&raw hs_buf[hrr_pos]) as size_t; hrr_pos += 2
+                    var hrr_ext_end = hrr_pos + hrr_ext_len
+                    var requested_group : u16 = TLS_GROUP_SECP256R1 as u16
+                    var found_group = false
+
+                    while(hrr_pos + 4 <= hrr_ext_end) {
+                        var hrr_ext_type = read_u16_be(&raw hs_buf[hrr_pos]); hrr_pos += 2
+                        var hrr_ext_data_len = read_u16_be(&raw hs_buf[hrr_pos]) as size_t; hrr_pos += 2
+                        if(hrr_ext_type == TLS_EXT_SUPPORTED_VERSIONS as u16) {
+                            // HRR includes supported_versions extension
+                        } else if(hrr_ext_type == TLS_EXT_KEY_SHARE as u16 && hrr_ext_data_len >= 2) {
+                            requested_group = read_u16_be(&raw hs_buf[hrr_pos])
+                            found_group = true
+                        } else if(hrr_ext_type == TLS_EXT_COOKIE as u16) {
+                            // Cookie extension — we'd need to store and echo it
+                        }
+                        hrr_pos += hrr_ext_data_len
+                    }
+
+                    if(found_group) {
+                        // Generate new ECDHE keypair for the requested group
+                        var new_ecdh : ECDHContext
+                        ecdh_init(&raw mut new_ecdh)
+                        var new_priv : [32]u8
+                        var new_pub : [65]u8
+                        var kg_ret = ecdh_generate_keypair(&raw mut new_ecdh,
+                                                           &raw mut new_priv[0], 32,
+                                                           &raw mut new_pub[0], 65)
+                        if(kg_ret < 0) { return kg_ret }
+
+                        // Update handshake params with new ECDHE public key
+                        if(ssl.handshake.ecdhe_public != null) {
+                            unsafe { dealloc ssl.handshake.ecdhe_public }
+                        }
+                        var new_pub_mem = malloc(65) as *mut u8
+                        if(new_pub_mem == null) { return ERR_SSL_INTERNAL_ERROR }
+                        var npi : size_t = 0
+                        while(npi < 65) { new_pub_mem[npi] = new_pub[npi]; npi += 1 }
+                        ssl.handshake.ecdhe_curve = requested_group
+                        ssl.handshake.ecdhe_public = new_pub_mem
+                        ssl.handshake.ecdhe_public_len = 65
+
+                        // Copy private key for later shared secret computation
+                        // We reuse the existing ecdh_ctx variable scope for this
+                        mpi_read_binary(&raw mut ecdh_ctx.priv_key, &raw new_priv[0], 32)
+                        ecdh_ctx.is_init = true
+                    }
+
+                    // Re-send ClientHello with updated key_share
+                    var ch2_buf : [2048]u8
+                    var ch2_len = build_client_hello(ssl, &raw mut ch2_buf[0], 2048)
+                    if(ch2_len < 0) { return ch2_len }
+
+                    // Hash the new ClientHello into transcript (the hash includes BOTH CHs)
+                    // Actually per RFC 8446, the transcript for the second CH includes:
+                    // Hash(CH1) + "HRR message" + "CH2 message"
+                    var ch2_hdr : [4]u8
+                    ch2_hdr[0] = SSL_HS_CLIENT_HELLO as u8
+                    write_u24(ch2_len as u32, &raw mut ch2_hdr[1])
+                    crypto::sha256_update(&raw mut transcript, &raw ch2_hdr[0], 4)
+                    crypto::sha256_update(&raw mut transcript, &raw ch2_buf[0], ch2_len as size_t)
+
+                    ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch2_buf[0], ch2_len as u32)
+                    if(ret < 0) { return ret }
+
+                    // Continue loop — read ServerHello next
+                    continue
+                }
             }
         }
 
@@ -2633,6 +2771,8 @@ public namespace tls {
         var server_finished_verified = false
         var server_rsa_ctx : RSAContext
         var has_server_rsa : bool = false
+        var server_ecdsa_ctx : ECDSAContext
+        var has_server_ecdsa : bool = false
         // Saved transcript hash before CertificateVerify (for signature verification)
         var cv_transcript_copy : crypto::Sha256Context
         var cv_saved : bool = false
@@ -2734,11 +2874,19 @@ public namespace tls {
                                 var x509_cert : X509Cert
                                 x509_cert_init(&raw mut x509_cert)
                                 var parse_ret = parse_cert_der(&raw mut x509_cert, cert_der, cert_data_len)
-                                if(parse_ret == 0 && x509_cert.pk_type == PK_RSA as u8) {
-                                    rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
-                                    var ext_ret = x509_extract_rsa_pubkey(&raw mut x509_cert, &raw mut server_rsa_ctx)
-                                    if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
-                                        has_server_rsa = true
+                                if(parse_ret == 0) {
+                                    if(x509_cert.pk_type == PK_RSA as u8) {
+                                        rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
+                                        var ext_ret = x509_extract_rsa_pubkey(&raw mut x509_cert, &raw mut server_rsa_ctx)
+                                        if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
+                                            has_server_rsa = true
+                                        }
+                                    } else if(x509_cert.pk_type == PK_ECKEY as u8) {
+                                        ecdsa_init(&raw mut server_ecdsa_ctx)
+                                        var ext_ret = x509_extract_ecdsa_pubkey(&raw mut x509_cert, &raw mut server_ecdsa_ctx)
+                                        if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
+                                            has_server_ecdsa = true
+                                        }
                                     }
                                 }
                             }
@@ -2754,7 +2902,8 @@ public namespace tls {
                 }
 
                 // Verify the CertificateVerify signature
-                if(has_server_rsa && msg_body_len2 >= 6) {
+                var has_key = has_server_rsa || has_server_ecdsa
+                if(has_key && msg_body_len2 >= 6) {
                     var sig_alg = read_u16_be(&raw msg_buf[4]) as u16
                     var sig_len = read_u16_be(&raw msg_buf[6]) as size_t
                     if(sig_len <= msg_body_len2 - 2 - 2) {
@@ -2799,20 +2948,23 @@ public namespace tls {
                         crypto::sha256_update(&raw mut sig_hash_ctx, &raw signed_content[0], sc_pos)
                         crypto::sha256_final(&raw mut sig_hash_ctx, &raw mut signed_hash[0])
 
-                        // Verify: rsa_pkcs1_verify with SHA-256 digest
-                        if(sig_alg == TLS1_3_SIG_RSA_PKCS1_SHA256) {
-                            var verify_ret = rsa_pkcs1_verify(&raw mut server_rsa_ctx,
-                                                              &raw signed_hash[0], 32,
-                                                              sig_data, sig_len)
-                            if(verify_ret != 0) {
-                                var alert_data : [2]u8
-                                alert_data[0] = SSL_ALERT_LEVEL_FATAL as u8
-                                alert_data[1] = SSL_ALERT_MSG_BAD_CERT as u8
-                                return ERR_SSL_CERT_VERIFY_FAILED
-                            }
+                        // Verify based on signature algorithm
+                        var verify_ret : int = 0
+                        if(sig_alg == TLS1_3_SIG_RSA_PKCS1_SHA256 && has_server_rsa) {
+                            verify_ret = rsa_pkcs1_verify(&raw mut server_rsa_ctx,
+                                                          &raw signed_hash[0], 32,
+                                                          sig_data, sig_len)
+                        } else if(sig_alg == TLS1_3_SIG_ECDSA_SECP256R1_SHA256 && has_server_ecdsa) {
+                            verify_ret = ecdsa_verify(&raw mut server_ecdsa_ctx,
+                                                      &raw signed_hash[0], 32,
+                                                      sig_data, sig_len)
                         }
-                        // If we don't recognize the signature algorithm, still allow
-                        // the handshake to proceed but log the gap.
+                        // If we don't recognize the signature algorithm, allow pass
+                        // (verification will be skipped)
+
+                        if(verify_ret != 0) {
+                            return ERR_SSL_CERT_VERIFY_FAILED
+                        }
                     }
                 }
 
@@ -3291,8 +3443,281 @@ public namespace tls {
         ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw hs_buf[0])
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw hs_buf[0], 12)
         if(ret < 0) { return ret }
+        ssl.state = SSLState.HANDSHAKE_OVER()
+
+        return 0
+    }
+
+    // ============================================================================
+    // Server Handshake - TLS 1.3
+    // ============================================================================
+
+    func do_tls13_server_handshake(ssl : *mut SSLContext) : int {
+        ensure_init()
+
+        // Ensure handshake params
+        if(ssl.handshake == null) {
+            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            handshake_params_init(hs_mem)
+            ssl.handshake = hs_mem
+        }
+
+        // ── Read ClientHello ───────────────────────────────────────────
+        ssl.state = SSLState.CLIENT_HELLO()
+        var ret : int = 0
+        var hs_type : u8 = 0
+        var hs_len : u32 = 0
+        var hs_buf : [8192]u8
+
+        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                                  &raw mut hs_buf[0], 8192)
+        if(ret < 0) { return ret }
+        if(hs_type != SSL_HS_CLIENT_HELLO as u8) {
+            return ERR_SSL_UNEXPECTED_MESSAGE
+        }
+
+        // Transcript hash context
+        var transcript : crypto::Sha256Context
+        crypto::sha256_init(&raw mut transcript)
+
+        // Hash ClientHello into transcript
+        var ch_hdr : [4]u8
+        ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
+        write_u24(hs_len, &raw mut ch_hdr[1])
+        crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
+        crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], hs_len)
+
+        // Parse ClientHello to find client's key_share
+        var client_public_key : [65]u8
+        var found_key_share = false
+        var ch_pos : size_t = 4  // skip type + length
+
+        // Skip version (2) + random (32) + session_id
+        ch_pos += 34 as size_t
+        var sid_len = hs_buf[ch_pos] as size_t; ch_pos += 1 + sid_len
+        // Skip ciphersuites
+        var cs_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2 + cs_len
+        // Skip compression
+        var cm_count = hs_buf[ch_pos] as size_t; ch_pos += 1 + cm_count
+        // Parse extensions
+        if(ch_pos + 2 <= hs_len as size_t + 4) {
+            var ext_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
+            var ext_end = ch_pos + ext_len
+            while(ch_pos + 4 <= ext_end) {
+                var ext_type = read_u16_be(&raw hs_buf[ch_pos]); ch_pos += 2
+                var ext_data_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
+                if(ext_type == TLS_EXT_KEY_SHARE as u16 && ext_data_len >= 4) {
+                    var ks_group = read_u16_be(&raw hs_buf[ch_pos + 2])
+                    var ks_key_len = read_u16_be(&raw hs_buf[ch_pos + 4]) as size_t
+                    if(ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
+                        var ki : size_t = 0
+                        while(ki < 65) {
+                            client_public_key[ki] = hs_buf[ch_pos + 6 + ki]
+                            ki += 1
+                        }
+                        found_key_share = true
+                    }
+                }
+                ch_pos += ext_data_len
+            }
+        }
+
+        if(!found_key_share) {
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
+
+        // ── Generate server ECDHE keypair ──────────────────────────────
+        var ecdh_ctx : ECDHContext
+        ecdh_init(&raw mut ecdh_ctx)
+        var server_priv : [32]u8
+        var server_pub : [65]u8
+        ret = ecdh_generate_keypair(&raw mut ecdh_ctx,
+                                    &raw mut server_priv[0], 32,
+                                    &raw mut server_pub[0], 65)
+        if(ret < 0) { return ret }
+
+        // ── Compute ECDHE shared secret ───────────────────────────────
+        var shared_secret : [32]u8
+        ret = ecdh_compute_shared(&raw mut ecdh_ctx,
+                                  &raw client_public_key[0], 65,
+                                  &raw mut shared_secret[0], 32)
+        if(ret < 0) { return ret }
+
+        // ── Build ServerHello ──────────────────────────────────────────
+        ssl.state = SSLState.SERVER_HELLO()
+        ssl.major_ver = 0x03
+        ssl.minor_ver = 0x03
+
+        // Pick cipher suite
+        ssl.negotiated_ciphersuite = TLS1_3_AES_128_GCM_SHA256 as u16
+
+        var sh_buf : [1024]u8
+        var sh_pos : size_t = 0
+        // version
+        sh_buf[sh_pos] = 0x03 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 0x03 as u8; sh_pos += 1
+        // Random (32 bytes)
+        random_fill(&raw mut sh_buf[sh_pos], 32); sh_pos += 32
+        // Session ID (echo client's)
+        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
+        // Cipher suite
+        sh_buf[sh_pos] = ((ssl.negotiated_ciphersuite >> 8) & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = (ssl.negotiated_ciphersuite & 0xFF) as u8; sh_pos += 1
+        // Compression
+        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
+        // Extensions
+        var sh_ext_start = sh_pos
+        sh_pos += 2  // extension length placeholder
+        // key_share extension
+        sh_buf[sh_pos] = ((TLS_EXT_KEY_SHARE >> 8) & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = (TLS_EXT_KEY_SHARE & 0xFF) as u8; sh_pos += 1
+        var ks_ext_len_pos = sh_pos; sh_pos += 2
+        sh_buf[sh_pos] = ((TLS_GROUP_SECP256R1 >> 8) & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = (TLS_GROUP_SECP256R1 & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 65 as u8; sh_pos += 1
+        var kpi : size_t = 0
+        while(kpi < 65) { sh_buf[sh_pos + kpi] = server_pub[kpi]; kpi += 1 }
+        sh_pos += 65
+        var ks_ext_len = 2 + 2 + 65
+        sh_buf[ks_ext_len_pos] = ((ks_ext_len >> 8) & 0xFF) as u8
+        sh_buf[ks_ext_len_pos + 1] = (ks_ext_len & 0xFF) as u8
+        // supported_versions extension
+        sh_buf[sh_pos] = ((TLS_EXT_SUPPORTED_VERSIONS >> 8) & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = (TLS_EXT_SUPPORTED_VERSIONS & 0xFF) as u8; sh_pos += 1
+        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 4 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 0x03 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 0x04 as u8; sh_pos += 1  // TLS 1.3
+        // Extension length
+        var sh_ext_total = sh_pos - sh_ext_start - 2
+        sh_buf[sh_ext_start] = ((sh_ext_total >> 8) & 0xFF) as u8
+        sh_buf[sh_ext_start + 1] = (sh_ext_total & 0xFF) as u8
+        var sh_len = sh_pos
+
+        // Hash ServerHello into transcript
+        var sh_hdr : [4]u8
+        sh_hdr[0] = SSL_HS_SERVER_HELLO as u8
+        write_u24(sh_len as u32, &raw mut sh_hdr[1])
+        crypto::sha256_update(&raw mut transcript, &raw sh_hdr[0], 4)
+        crypto::sha256_update(&raw mut transcript, &raw sh_buf[0], sh_len)
+
+        // Send ServerHello
+        ret = send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
+        if(ret < 0) { return ret }
+
+        // ── Derive handshake traffic keys ────────────────────────────
+        // Compute Transcript-Hash(ClientHello...ServerHello)
+        var ch_sh_copy = transcript
+        var ch_sh_hash : [32]u8
+        crypto::sha256_final(&raw mut ch_sh_copy, &raw mut ch_sh_hash[0])
+
+        ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
+                                           &raw ch_sh_hash[0])
+        if(ret < 0) { return ret }
+
+        // ── Send encrypted server messages ───────────────────────────
+        // EncryptedExtensions
+        ssl.state = SSLState.ENCRYPTED_EXTENSIONS()
+        var ee_buf : [256]u8
+        ee_buf[0] = SSL_HS_ENCRYPTED_EXTENSIONS as u8
+        write_u24(2, &raw mut ee_buf[1])  // body length (just empty extensions: 00 00)
+        ee_buf[4] = 0 as u8; ee_buf[5] = 0 as u8  // empty extensions
+
+        crypto::sha256_update(&raw mut transcript, &raw ee_buf[0], 6)
+
+        ret = send_handshake_msg(ssl, SSL_HS_ENCRYPTED_EXTENSIONS as u8, &raw ee_buf[4], 2)
+        if(ret < 0) { return ret }
+
+        // Certificate (skip if no cert configured)
+        if(ssl.conf.own_cert != null) {
+            ssl.state = SSLState.SERVER_CERTIFICATE()
+            var cert_data = ssl.conf.own_cert
+            var der_len = cert_data.raw_pem_len
+            if(der_len > 0 && der_len < 4000) {
+                var cert_buf : [4096]u8
+                cert_buf[0] = SSL_HS_CERTIFICATE as u8
+                var cert_body_pos : size_t = 4
+                // certificate_request_context (0)
+                cert_buf[cert_body_pos] = 0 as u8; cert_body_pos += 1
+                // certificate_list length placeholder
+                var cl_len_pos = cert_body_pos; cert_body_pos += 3
+                // cert_data length
+                cert_buf[cert_body_pos] = ((der_len >> 16) & 0xFF) as u8; cert_body_pos += 1
+                cert_buf[cert_body_pos] = ((der_len >> 8) & 0xFF) as u8; cert_body_pos += 1
+                cert_buf[cert_body_pos] = (der_len & 0xFF) as u8; cert_body_pos += 1
+                var cdi : size_t = 0
+                while(cdi < der_len) {
+                    cert_buf[cert_body_pos + cdi] = cert_data.raw_pem[cdi]
+                    cdi += 1
+                }
+                cert_body_pos += der_len
+                // Empty extensions for cert entry
+                cert_buf[cert_body_pos] = 0 as u8; cert_body_pos += 1
+                cert_buf[cert_body_pos] = 0 as u8; cert_body_pos += 1
+                // Fill cert_list length
+                var cl_len = cert_body_pos - 4 - 1 - 3  // total - header - ctx - length_field
+                cert_buf[cl_len_pos] = ((cl_len >> 16) & 0xFF) as u8
+                cert_buf[cl_len_pos + 1] = ((cl_len >> 8) & 0xFF) as u8
+                cert_buf[cl_len_pos + 2] = (cl_len & 0xFF) as u8
+                // Fill handshake header length
+                write_u24(cert_body_pos - 4, &raw mut cert_buf[1])
+
+                crypto::sha256_update(&raw mut transcript, &raw cert_buf[0], cert_body_pos)
+
+                ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[4], cert_body_pos - 4)
+                if(ret < 0) { return ret }
+            }
+        }
+
+        // CertificateVerify — skipped (requires server private key with ECDSA/RSA)
+
+        // Finished
+        ssl.state = SSLState.SERVER_FINISHED()
+        var finished_key : [32]u8
+        var fin_key_label = "finished\0" as *char
+        var empty_c : [1]u8 = [0]
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], 32,
+                                fin_key_label, 8,
+                                &raw empty_c[0], 0,
+                                &raw mut finished_key[0], 32)
+
+        var full_hash_before_fin : [32]u8
+        var fin_copy = transcript
+        crypto::sha256_final(&raw mut fin_copy, &raw mut full_hash_before_fin[0])
+        var server_verify : [32]u8
+        crypto::hmac_sha256(&raw finished_key[0], 32, &raw full_hash_before_fin[0], 32,
+                            &raw mut server_verify[0])
+
+        // Build Finished
+        var fin_buf : [16]u8
+        fin_buf[0] = SSL_HS_FINISHED as u8
+        write_u24(12, &raw mut fin_buf[1])
+        var fi : size_t = 0
+        while(fi < 12) { fin_buf[4 + fi] = server_verify[fi]; fi += 1 }
+
+        crypto::sha256_update(&raw mut transcript, &raw fin_buf[0], 16)
+
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], 12)
+        if(ret < 0) { return ret }
+
+        // ── Derive application traffic keys ────────────────────────
+        var full_hash : [32]u8
+        crypto::sha256_final(&raw mut transcript, &raw mut full_hash[0])
+        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
+        if(ret < 0) { return ret }
+
+        // ── Read client Finished ────────────────────────────────────
+        ssl.state = SSLState.CLIENT_FINISHED()
+        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                                  &raw mut hs_buf[0], 8192)
+        if(ret < 0) { return ret }
+        if(hs_type != SSL_HS_FINISHED as u8) {
+            return ERR_SSL_UNEXPECTED_MESSAGE
+        }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
+
         return 0
     }
 
@@ -3302,7 +3727,11 @@ public namespace tls {
         ensure_init()
 
         if(ssl.conf.endpoint == SSL_IS_SERVER) {
-            return do_tls12_server_handshake(ssl)
+            if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
+                return do_tls13_server_handshake(ssl)
+            } else {
+                return do_tls12_server_handshake(ssl)
+            }
         }
 
         if(ssl.tls_version >= SSL_VERSION_TLS1_3) {

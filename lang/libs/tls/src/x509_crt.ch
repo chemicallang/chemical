@@ -612,6 +612,63 @@ public namespace tls {
         }
 
         // --- Parse outer signatureAlgorithm (at Certificate level) ---
+        // --- Parse Extensions (if present) ---
+        // After SubjectPublicKeyInfo, there may be an optional [3] EXPLICIT extensions
+        if(pos < tbs_end) {
+            if(der_data[pos] == 0xA3) {
+                var ext_tag : u8 = 0
+                var ext_len : size_t = 0
+                ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut ext_tag, &raw mut ext_len)
+                if(ret == 0 && ext_tag == 0xA3) {
+                    var ext_seq_tag : u8 = 0
+                    var ext_seq_len : size_t = 0
+                    ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut ext_seq_tag, &raw mut ext_seq_len)
+                    if(ret == 0 && ext_seq_tag == (ASN1_CONSTRUCTED | ASN1_SEQUENCE)) {
+                        var ext_content_end = pos + ext_seq_len
+                        while(pos + 4 <= ext_content_end) {
+                            var ext_seq2_tag : u8 = 0
+                            var ext_seq2_len : size_t = 0
+                            ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut ext_seq2_tag, &raw mut ext_seq2_len)
+                            if(ret < 0 || pos + ext_seq2_len > ext_content_end) { break }
+                            var ext_item_end = pos + ext_seq2_len
+                            // Read OID
+                            var ext_oid_t : u8 = 0
+                            var ext_oid_l : size_t = 0
+                            ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut ext_oid_t, &raw mut ext_oid_l)
+                            if(ret < 0) { break }
+                            if(ext_oid_t != ASN1_OID) { pos = ext_item_end; continue }
+                            // Check for SAN OID: 2.5.29.17 = 55 1D 11
+                            var san_oid : [3]u8 = [0x55, 0x1D, 0x11]
+                            var is_san = oid_matches(der_data + pos, ext_oid_l, &raw san_oid[0], 3)
+                            pos += ext_oid_l
+                            // Skip optional critical BOOLEAN
+                            if(pos < ext_item_end && der_data[pos] == ASN1_BOOLEAN) {
+                                pos += 3
+                            }
+                            // Read OCTET_STRING value
+                            var val_t : u8 = 0
+                            var val_l : size_t = 0
+                            ret = asn1_get_tag(der_data, der_len, &raw mut pos, &raw mut val_t, &raw mut val_l)
+                            if(is_san && ret == 0 && val_t == ASN1_OCTET_STRING && val_l > 0 && val_l < 2048) {
+                                var san_mem = malloc(val_l) as *mut u8
+                                if(san_mem != null) {
+                                    var si : size_t = 0
+                                    while(si < val_l) {
+                                        san_mem[si] = der_data[pos + si]
+                                        si += 1
+                                    }
+                                    crt.san_entries = san_mem
+                                    crt.san_count = val_l as u16
+                                }
+                            }
+                            pos = ext_item_end
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Parse outer signatureAlgorithm (at Certificate level) ---
         pos = tbs_end
         if(pos < cert_end) {
             var outer_sig_tag : u8 = 0

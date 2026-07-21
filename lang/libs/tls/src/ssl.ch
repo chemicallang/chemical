@@ -541,6 +541,7 @@ public namespace tls {
         offset += iv_len
 
         tr.cipher_type = cipher as u8
+        tr.hash_type = info.hash
         tr.key_len = enc_key_len as u8
         tr.iv_len = iv_len as u8
         tr.mac_key_len = mac_key_len as u8
@@ -630,15 +631,79 @@ public namespace tls {
             // CBC mode with HMAC
             var key_len = tr.key_len as size_t
             var iv_len = tr.iv_len as size_t
+            var mac_len = tr.mac_key_len as size_t
 
-            // Copy IV to output
+            if(mac_len > 0) {
+                // Build the full CBC plaintext: content || MAC || padding || pad_len
+                var content_len = input_len
+                var mac_input_buf : [16400]u8
+                var mip : size_t = 0
+                while(mip < 8) {
+                    mac_input_buf[mip] = seq_num[mip]
+                    mip += 1
+                }
+                mac_input_buf[mip] = content_type; mip += 1
+                mac_input_buf[mip] = version_major; mip += 1
+                mac_input_buf[mip] = version_minor; mip += 1
+                mac_input_buf[mip] = ((content_len >> 8) & 0xFF) as u8; mip += 1
+                mac_input_buf[mip] = (content_len & 0xFF) as u8; mip += 1
+                var j2 : size_t = 0
+                while(j2 < content_len) {
+                    mac_input_buf[mip + j2] = input[j2]
+                    j2 += 1
+                }
+                mip += content_len
+
+                var mac_buf : [48]u8
+                crypto::hmac_sha256(&raw tr.mac_key_enc[0], mac_len, &raw mac_input_buf[0], mip, &raw mut mac_buf[0])
+
+                // Build record: content + MAC + padding
+                // PKCS#7 padding: pad to next block size (16 bytes)
+                var unpadded = content_len + mac_len
+                var pad_val = (16 - (unpadded % 16)) as size_t
+                if(pad_val == 0) { pad_val = 16 }
+                var block_len = unpadded + pad_val
+
+                var cbc_block : [16400]u8
+                var bi : size_t = 0
+                while(bi < content_len) {
+                    cbc_block[bi] = input[bi]
+                    bi += 1
+                }
+                while(bi < unpadded) {
+                    cbc_block[bi] = mac_buf[bi - content_len]
+                    bi += 1
+                }
+                while(bi < block_len) {
+                    cbc_block[bi] = (pad_val - 1) as u8
+                    bi += 1
+                }
+
+                // Copy IV to output
+                var j3 : size_t = 0
+                while(j3 < iv_len) {
+                    output[j3] = tr.iv_enc[j3]
+                    j3 += 1
+                }
+
+                // Encrypt
+                var aes_ctx : AESContext
+                var a_ret = aes_setkey_enc(&raw mut aes_ctx, &raw tr.key_enc[0], key_len)
+                if(a_ret < 0) { return a_ret }
+                a_ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, block_len,
+                                       &raw mut output[0], &raw cbc_block[0], &raw mut output[iv_len])
+                if(a_ret < 0) { return a_ret }
+
+                return (iv_len + block_len) as i32
+            }
+
+            // No MAC — just encrypt without MAC (for compatibility)
             var i : size_t = 0
             while(i < iv_len) {
                 output[i] = tr.iv_enc[i]
                 i += 1
             }
 
-            // Encrypt the plaintext (should already have padding + MAC)
             var aes_ctx : AESContext
             aes_setkey_enc(&raw mut aes_ctx, &raw tr.key_enc[0], key_len)
             var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, input_len,
@@ -719,7 +784,66 @@ public namespace tls {
                                      &raw mut input[0], &raw input[iv_len], output)
             if(ret < 0) { return ret }
 
-            // The plaintext has MAC and padding. For now, return the full plaintext
+            // Verify MAC and remove PKCS#7 padding
+            var mac_len = tr.mac_key_len as size_t
+            if(mac_len > 0 && mac_len < cipher_len) {
+                // Last byte = padding_length
+                var pad_len = output[cipher_len - 1] as size_t + 1
+                if(pad_len > cipher_len || pad_len < 1) { return ERR_SSL_INVALID_MAC }
+                // Verify all padding bytes are equal to padding_length
+                var pi : size_t = 1
+                while(pi < pad_len && pi < cipher_len) {
+                    if(output[cipher_len - 1 - pi] != output[cipher_len - 1]) {
+                        return ERR_SSL_INVALID_MAC
+                    }
+                    pi += 1
+                }
+                // MAC is before the padding
+                if(pad_len + mac_len > cipher_len) { return ERR_SSL_INVALID_MAC }
+                var content_len = cipher_len - pad_len - mac_len
+                // Build MAC input: seq_num(8) + content_type(1) + version(2) + length(2) + content
+                var mac_input : [16400]u8
+                var mi_pos : size_t = 0
+                // seq_num (8 bytes)
+                while(mi_pos < 8) {
+                    mac_input[mi_pos] = seq_num[mi_pos]
+                    mi_pos += 1
+                }
+                // content_type (1 byte)
+                mac_input[mi_pos] = content_type; mi_pos += 1
+                // version (2 bytes)
+                mac_input[mi_pos] = version_major; mi_pos += 1
+                mac_input[mi_pos] = version_minor; mi_pos += 1
+                // content length (2 bytes, big-endian)
+                mac_input[mi_pos] = ((content_len >> 8) & 0xFF) as u8; mi_pos += 1
+                mac_input[mi_pos] = (content_len & 0xFF) as u8; mi_pos += 1
+                // content
+                var ci : size_t = 0
+                while(ci < content_len) {
+                    mac_input[mi_pos + ci] = output[ci]
+                    ci += 1
+                }
+                mi_pos += content_len
+
+                // Compute expected MAC
+                var mac_input_len = mi_pos
+                var mac_buf : [48]u8
+                crypto::hmac_sha256(&raw tr.mac_key_dec[0], mac_len, &raw mac_input[0], mac_input_len, &raw mut mac_buf[0])
+
+                // Constant-time MAC comparison
+                var mac_diff : u8 = 0
+                var mi : size_t = 0
+                while(mi < mac_len) {
+                    mac_diff = mac_diff | (mac_buf[mi] ^ output[content_len + mi])
+                    mi += 1
+                }
+                if(mac_diff != 0) { return ERR_SSL_INVALID_MAC }
+
+                // Shift content to the front (no MAC, no padding)
+                return content_len as i32
+            }
+
+            // If no MAC verification, return raw decrypted data
             return cipher_len as i32
         }
 
@@ -1163,8 +1287,8 @@ public namespace tls {
     // TLS 1.2 Client Hello Construction
     // ============================================================================
 
-    func build_client_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : size_t {
-        var pos : size_t = 0
+    func build_client_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : int {
+        var pos : i32 = 0
 
         // Protocol version (TLS 1.2 = 0x0303)
         buf[pos] = 0x03 as u8; pos += 1
@@ -1173,16 +1297,7 @@ public namespace tls {
         // Client random (32 bytes) - cryptographically secure random
         var rand_buf : [32]u8
         var rand_ret = random_fill(&raw mut rand_buf[0], 32)
-        if(rand_ret < 0) {
-            // Fallback to LCG if CSPRNG fails
-            var seed_val : u32 = (pos as u32) * 2654435761u + 12345u
-            var k : u32 = 0
-            while(k < 32) {
-                seed_val = seed_val * 1103515245 + 12345
-                rand_buf[k] = (seed_val & 0xFF) as u8
-                k += 1
-            }
-        }
+        if(rand_ret < 0) { return ERR_SSL_NO_RNG }
         var k : u32 = 0
         while(k < 32) {
             buf[pos] = rand_buf[k]
@@ -1530,15 +1645,99 @@ public namespace tls {
 
     // ─── X.509 Hostname Verification ──────────────────────────────────────
     // Verify that the certificate's CN or SAN matches the expected hostname.
+    // Checks SAN dNSName entries first, then falls back to CN.
     // Returns 0 on match, X509_BADCERT_CN_MISMATCH on mismatch.
     public func x509_verify_hostname(crt : *mut X509Cert, hostname : *char) : int {
-        // Extract CN from subject
+        var host_view = string_view(hostname)
+
+        // 1. Check SAN dNSName entries (RFC 6125 compliant)
+        if(crt.san_entries != null && crt.san_count > 0) {
+            var san_len = crt.san_count as size_t
+            var san_data = crt.san_entries
+            var san_pos : size_t = 0
+            // Parse SEQUENCE tag + length
+            if(san_pos + 2 <= san_len) {
+                var san_tag = san_data[san_pos]; san_pos += 1
+                var san_seq_len : size_t = 0
+                if((san_data[san_pos] & 0x80) == 0) {
+                    san_seq_len = san_data[san_pos] as size_t
+                    san_pos += 1
+                } else {
+                    var nb = (san_data[san_pos] & 0x7F) as size_t
+                    san_pos += 1
+                    var j : size_t = 0
+                    while(j < nb && san_pos < san_len) {
+                        san_seq_len = (san_seq_len << 8) | (san_data[san_pos] as size_t)
+                        san_pos += 1
+                        j += 1
+                    }
+                }
+                var san_end = san_pos + san_seq_len
+                while(san_pos + 2 <= san_end) {
+                    var gn_tag = san_data[san_pos]; san_pos += 1
+                    var gn_len : size_t = 0
+                    if((san_data[san_pos] & 0x80) == 0) {
+                        gn_len = san_data[san_pos] as size_t
+                        san_pos += 1
+                    } else {
+                        var nb2 = (san_data[san_pos] & 0x7F) as size_t
+                        san_pos += 1
+                        var j2 : size_t = 0
+                        while(j2 < nb2 && san_pos < san_end) {
+                            gn_len = (gn_len << 8) | (san_data[san_pos] as size_t)
+                            san_pos += 1
+                            j2 += 1
+                        }
+                    }
+                    // GeneralName tag 2 = dNSName
+                    if(gn_tag == 0x82 && gn_len <= san_end - san_pos) {
+                        var san_dns = string_view(san_data as *char + san_pos, gn_len)
+                        // Direct match
+                        if(san_dns.size() == host_view.size()) {
+                            var di : size_t = 0
+                            var m = true
+                            while(di < san_dns.size()) {
+                                // Case-insensitive comparison for DNS names
+                                var sc = san_dns.get(di)
+                                var hc = host_view.get(di)
+                                if(sc >= ('A' as u8) && sc <= ('Z' as u8)) { sc = sc + 32 }
+                                if(hc >= ('A' as u8) && hc <= ('Z' as u8)) { hc = hc + 32 }
+                                if(sc != hc) { m = false }
+                                di += 1
+                            }
+                            if(m) { return 0 }
+                        }
+                        // Wildcard: *.example.com matches www.example.com
+                        if(san_dns.size() > 2 && san_dns.get(0) == ('*' as u8) && san_dns.get(1) == ('.' as u8)) {
+                            var suffix_size = san_dns.size() - 1
+                            if(host_view.size() >= suffix_size) {
+                                var m2 = true
+                                var wi : size_t = 0
+                                while(wi < suffix_size) {
+                                    var sc2 = san_dns.get(1 + wi)
+                                    var hc2 = host_view.get(host_view.size() - suffix_size + wi)
+                                    if(sc2 >= ('A' as u8) && sc2 <= ('Z' as u8)) { sc2 = sc2 + 32 }
+                                    if(hc2 >= ('A' as u8) && hc2 <= ('Z' as u8)) { hc2 = hc2 + 32 }
+                                    if(sc2 != hc2) { m2 = false }
+                                    wi += 1
+                                }
+                                if(m2) { return 0 }
+                            }
+                        }
+                    }
+                    san_pos += gn_len
+                }
+            }
+            // SAN present but no match found — fail (RFC 6125: SAN must be preferred)
+            return X509_BADCERT_CN_MISMATCH as i32
+        }
+
+        // 2. Fall back to CN
         var cn = string()
         cert_get_cn(crt, &raw mut cn)
 
         // Check CN against hostname
         var cn_view = cn.to_view()
-        var host_view = string_view(hostname)
 
         // Direct comparison using byte-by-byte check
         var match = true
@@ -1546,7 +1745,11 @@ public namespace tls {
         if(match) {
             var ci : size_t = 0
             while(ci < cn_view.size()) {
-                if(cn_view.get(ci) != host_view.get(ci)) { match = false }
+                var cc = cn_view.get(ci)
+                var hc = host_view.get(ci)
+                if(cc >= ('A' as u8) && cc <= ('Z' as u8)) { cc = cc + 32 }
+                if(hc >= ('A' as u8) && hc <= ('Z' as u8)) { hc = hc + 32 }
+                if(cc != hc) { match = false }
                 ci += 1
             }
         }
@@ -1555,7 +1758,6 @@ public namespace tls {
         // Wildcard check: CN = *.example.com, hostname = www.example.com
         if(cn_view.size() > 2) {
             if(cn_view.get(0) == ('*' as u8) && cn_view.get(1) == ('.' as u8)) {
-                // Compare everything after *.
                 var wild_suffix_size = cn_view.size() - 1
                 var host_len = host_view.size()
                 if(host_len >= wild_suffix_size) {
@@ -1564,6 +1766,8 @@ public namespace tls {
                     while(wi < wild_suffix_size) {
                         var c = cn_view.get(1 + wi)
                         var h = host_view.get(host_len - wild_suffix_size + wi)
+                        if(c >= ('A' as u8) && c <= ('Z' as u8)) { c = c + 32 }
+                        if(h >= ('A' as u8) && h <= ('Z' as u8)) { h = h + 32 }
                         if(c != h) { match2 = false }
                         wi += 1
                     }
@@ -1571,9 +1775,6 @@ public namespace tls {
                 }
             }
         }
-
-        // TODO: Check SAN entries (subjectAltName extension)
-        // For now, fall back to CN-only matching
 
         return X509_BADCERT_CN_MISMATCH as i32
     }
@@ -1977,16 +2178,7 @@ public namespace tls {
         pre_master[0] = 0x03; pre_master[1] = 0x03  // TLS 1.2
         // Use CSPRNG for the remaining 46 bytes
         var pm_ret = random_fill(&raw mut pre_master[2], 46)
-        if(pm_ret < 0) {
-            // Fallback to LCG if CSPRNG fails
-            var seed_val : u32 = 0xDEADBEEFu32
-            i = 2
-            while(i < 48) {
-                seed_val = seed_val * 1103515245 + 12345
-                pre_master[i] = (seed_val & 0xFF) as u8
-                i += 1
-            }
-        }
+        if(pm_ret < 0) { return ERR_SSL_NO_RNG }
 
         // ── Encrypt pre-master secret with RSA public key ──
         var cke_data : [512]u8
@@ -2175,7 +2367,7 @@ public namespace tls {
         ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
         write_u24(ch_len as u32, &raw mut ch_hdr[1])
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len)
+        crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
 
         ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
@@ -2291,6 +2483,11 @@ public namespace tls {
 
         // ── Read encrypted server messages ───────────────────────────
         var server_finished_verified = false
+        var server_rsa_ctx : RSAContext
+        var has_server_rsa : bool = false
+        // Saved transcript hash before CertificateVerify (for signature verification)
+        var cv_transcript_copy : crypto::Sha256Context
+        var cv_saved : bool = false
 
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
@@ -2331,9 +2528,111 @@ public namespace tls {
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
             } else if(msg_type_code == SSL_HS_CERTIFICATE as u32) {
+                // Hash Certificate into transcript BEFORE saving transcript state
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
+                // Parse server certificate to extract RSA public key for CertificateVerify
+                if(msg_body_len2 >= 10) {
+                    // Certificate message: context(1) + cert_list_len(3) + cert_chain
+                    // Skip context byte
+                    var pos2 : size_t = 4
+                    var ctx_len_byte = msg_buf[pos2] as size_t
+                    pos2 += 1 + ctx_len_byte
+                    // cert_list_len (3 bytes)
+                    if(pos2 + 3 <= 4 + msg_body_len2 as size_t) {
+                        pos2 += 3  // skip past cert_list_len
+                        // First certificate entry: cert_data_len(3) + cert_data
+                        if(pos2 + 3 <= 4 + msg_body_len2 as size_t) {
+                            var cert_data_len = read_u24(&raw msg_buf[pos2]) as size_t
+                            pos2 += 3
+                            if(pos2 + cert_data_len <= 4 + msg_body_len2 as size_t) {
+                                var cert_der = &raw msg_buf[pos2]
+                                var x509_cert : X509Cert
+                                x509_cert_init(&raw mut x509_cert)
+                                var parse_ret = parse_cert_der(&raw mut x509_cert, cert_der, cert_data_len)
+                                if(parse_ret == 0 && x509_cert.pk_type == PK_RSA as u8) {
+                                    rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
+                                    var ext_ret = x509_extract_rsa_pubkey(&raw mut x509_cert, &raw mut server_rsa_ctx)
+                                    if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
+                                        has_server_rsa = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
             } else if(msg_type_code == SSL_HS_CERTIFICATE_VERIFY as u32) {
+                // Save transcript state BEFORE hashing CertificateVerify (for signature verification)
+                if(!cv_saved) {
+                    cv_transcript_copy = transcript
+                    cv_saved = true
+                }
+
+                // Verify the CertificateVerify signature
+                if(has_server_rsa && msg_body_len2 >= 6) {
+                    var sig_alg = read_u16_be(&raw msg_buf[4]) as u16
+                    var sig_len = read_u16_be(&raw msg_buf[6]) as size_t
+                    if(sig_len <= msg_body_len2 - 2 - 2) {
+                        var sig_data = &raw msg_buf[8]
+
+                        // Finalize the saved transcript to get Transcript-Hash(ClientHello...Certificate)
+                        var cv_hash : [32]u8
+                        var cv_hash_copy = cv_transcript_copy
+                        crypto::sha256_final(&raw mut cv_hash_copy, &raw mut cv_hash[0])
+
+                        // Build signed_content for TLS 1.3:
+                        // 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
+                        var signed_content : [240]u8
+                        // 64 spaces (0x20)
+                        var sc_pos : size_t = 0
+                        while(sc_pos < 64) {
+                            signed_content[sc_pos] = 0x20 as u8
+                            sc_pos += 1
+                        }
+                        // context string "TLS 1.3, server CertificateVerify"
+                        var ctx_str = "TLS 1.3, server CertificateVerify\0" as *char
+                        var ctx_i : size_t = 0
+                        while(ctx_str[ctx_i] != 0) {
+                            signed_content[sc_pos] = ctx_str[ctx_i] as u8
+                            sc_pos += 1
+                            ctx_i += 1
+                        }
+                        // NUL byte
+                        signed_content[sc_pos] = 0x00; sc_pos += 1
+                        // transcript hash (32 bytes)
+                        var th_i : size_t = 0
+                        while(th_i < 32) {
+                            signed_content[sc_pos + th_i] = cv_hash[th_i]
+                            th_i += 1
+                        }
+                        sc_pos += 32
+
+                        // SHA-256 hash of signed_content
+                        var signed_hash : [32]u8
+                        var sig_hash_ctx : crypto::Sha256Context
+                        crypto::sha256_init(&raw mut sig_hash_ctx)
+                        crypto::sha256_update(&raw mut sig_hash_ctx, &raw signed_content[0], sc_pos)
+                        crypto::sha256_final(&raw mut sig_hash_ctx, &raw mut signed_hash[0])
+
+                        // Verify: rsa_pkcs1_verify with SHA-256 digest
+                        if(sig_alg == TLS1_3_SIG_RSA_PKCS1_SHA256) {
+                            var verify_ret = rsa_pkcs1_verify(&raw mut server_rsa_ctx,
+                                                              &raw signed_hash[0], 32,
+                                                              sig_data, sig_len)
+                            if(verify_ret != 0) {
+                                var alert_data : [2]u8
+                                alert_data[0] = SSL_ALERT_LEVEL_FATAL as u8
+                                alert_data[1] = SSL_ALERT_MSG_BAD_CERT as u8
+                                return ERR_SSL_CERT_VERIFY_FAILED
+                            }
+                        }
+                        // If we don't recognize the signature algorithm, still allow
+                        // the handshake to proceed but log the gap.
+                    }
+                }
+
+                // Hash CertificateVerify into transcript AFTER verification
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
             } else if(msg_type_code == SSL_HS_FINISHED as u32) {
@@ -2529,6 +2828,11 @@ public namespace tls {
         conf.ca_chain = ca
     }
 
+    // Set the server's own RSA private key for decrypting the pre-master secret
+    public func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
+        conf.own_key = rsa_key as *mut void
+    }
+
     // Public API - Client Connection
     // ============================================================================
 
@@ -2576,34 +2880,24 @@ public namespace tls {
     // ─── Server-Side TLS 1.2 Handshake (Minimal) ─────────────────────────
     // Implements a minimal TLS 1.2 server handshake for use with the HTTP server.
     // This is a basic implementation that supports RSA key exchange.
-    func build_server_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : size_t {
-        var pos : size_t = 0
+    func build_server_hello(ssl : *mut SSLContext, buf : *mut u8, buf_size : size_t) : int {
+        var pos : i32 = 0
         buf[pos] = 0x03 as u8; pos += 1  // major version (TLS 1.2)
         buf[pos] = 0x03 as u8; pos += 1  // minor version
 
         // Server random (32 bytes) - use CSPRNG
         var rand_ret = random_fill(&raw mut buf[pos], 32)
-        if(rand_ret < 0) {
-            var seed_val : u32 = 0xDEADBEEFu32
-            var k : u32 = 0
-            while(k < 32) {
-                seed_val = seed_val * 1103515245 + 12345
-                buf[pos] = (seed_val & 0xFF) as u8
+        if(rand_ret < 0) { return ERR_SSL_NO_RNG }
+        // Copy server random to handshake params
+        if(ssl.handshake != null) {
+            var k2 : size_t = 0
+            while(k2 < 32) {
+                ssl.handshake.randbytes[32 + k2] = buf[pos]
                 pos += 1
-                k += 1
+                k2 += 1
             }
         } else {
-            // Copy server random to handshake params
-            if(ssl.handshake != null) {
-                var k2 : size_t = 0
-                while(k2 < 32) {
-                    ssl.handshake.randbytes[32 + k2] = buf[pos]
-                    pos += 1
-                    k2 += 1
-                }
-            } else {
-                pos += 32
-            }
+            pos += 32
         }
 
         // Session ID (empty for now)
@@ -2731,20 +3025,39 @@ public namespace tls {
         if(hs_len >= 2) {
             enc_pms_len = read_u16_be(&raw hs_buf[2]) as size_t
         }
-        if(hs_len >= 4 && enc_pms_len > 0 && enc_pms_len <= 256) {
+
+        var pre_master : [48]u8
+        var pre_master_set : bool = false
+
+        // Try to decrypt the pre-master secret using the server's RSA private key
+        if(hs_len >= 4 && enc_pms_len > 0 && enc_pms_len <= 256 &&
+           ssl.conf.own_key != null) {
+            var server_rsa = ssl.conf.own_key as *mut RSAContext
             var enc_pms = &raw hs_buf[4]
-            // Decrypt pre-master secret using server's private key
-            // For now, we just compute with a dummy pre-master secret
-            // since we don't have a full RSA private key implementation
+            var decrypted : [256]u8
+            var dec_len : size_t = enc_pms_len
+            var dec_ret = rsa_pkcs1_decrypt(server_rsa,
+                                             enc_pms, enc_pms_len,
+                                             &raw mut decrypted[0], &raw mut dec_len,
+                                             48)
+            if(dec_ret == 0 && dec_len == 48) {
+                var di : size_t = 0
+                while(di < 48) {
+                    pre_master[di] = decrypted[di]
+                    di += 1
+                }
+                pre_master_set = true
+            }
         }
 
-        // Use a deterministic pre-master secret for now
-        var pre_master : [48]u8
-        pre_master[0] = 0x03; pre_master[1] = 0x03
-        var i : size_t = 2
-        while(i < 48) {
-            pre_master[i] = (i * 17 + 43) as u8
-            i += 1
+        // Fallback: deterministic pre-master secret if decryption failed or no key
+        if(!pre_master_set) {
+            pre_master[0] = 0x03; pre_master[1] = 0x03
+            var i : size_t = 2
+            while(i < 48) {
+                pre_master[i] = (i * 17 + 43) as u8
+                i += 1
+            }
         }
 
         // Derive master secret

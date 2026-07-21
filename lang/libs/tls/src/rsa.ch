@@ -154,7 +154,7 @@ public namespace tls {
     // ─── RSA Public Operation ────────────────────────────────────────────
 
     // RSAVP1: c = m^e mod N
-    func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
+    public func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
         var M : Mpi; mpi_init(&raw mut M)
         var C : Mpi; mpi_init(&raw mut C)
 
@@ -193,6 +193,45 @@ public namespace tls {
 
     // ─── PKCS#1 v1.5 Signature Verification ─────────────────────────────
 
+    // DigestInfo prefixes for known hash algorithms
+    // SHA-256: 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20 (19 bytes)
+    // SHA-384: 30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30 (19 bytes)
+    // SHA-512: 30 51 30 0d 06 09 60 86 48 01 65 03 04 02 03 05 00 04 40 (19 bytes)
+
+    // Select the DigestInfo prefix and expected hash length based on digest_len
+    func rsa_get_digest_info(digest_len : size_t, prefix : *mut u8, prefix_len : *mut size_t) {
+        if(digest_len == 32) {
+            var p : [19]u8 = [
+                0x30, 0x31, 0x30, 0x0D, 0x06, 0x09,
+                0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+                0x05, 0x00, 0x04, 0x20
+            ]
+            var i : size_t = 0
+            while(i < 19) { prefix[i] = p[i]; i += 1 }
+            *prefix_len = 19
+        } else if(digest_len == 48) {
+            var p : [19]u8 = [
+                0x30, 0x41, 0x30, 0x0D, 0x06, 0x09,
+                0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
+                0x05, 0x00, 0x04, 0x30
+            ]
+            var i : size_t = 0
+            while(i < 19) { prefix[i] = p[i]; i += 1 }
+            *prefix_len = 19
+        } else if(digest_len == 64) {
+            var p : [19]u8 = [
+                0x30, 0x51, 0x30, 0x0D, 0x06, 0x09,
+                0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+                0x05, 0x00, 0x04, 0x40
+            ]
+            var i : size_t = 0
+            while(i < 19) { prefix[i] = p[i]; i += 1 }
+            *prefix_len = 19
+        } else {
+            *prefix_len = 0
+        }
+    }
+
     // RSASSA-PKCS1-V1_5-VERIFY: verify signature on digest
     // digest: hash value, hash_len: length of digest (e.g., 32 for SHA-256)
     // sig: signature to verify, sig_len: length of signature (must equal key size)
@@ -216,52 +255,43 @@ public namespace tls {
         ret = mpi_write_binary(&raw mut em, &raw mut em_buf[0], sig_len)
         if(ret < 0) { return ret }
 
-        // Check PKCS#1 v1.5 DigestInfo structure
-        // DER encoding: SEQUENCE { SEQUENCE { OID, NULL }, OCTET_STRING { digest } }
-        // For SHA-256, the DigestInfo prefix is:
-        // 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20
-        // This is 19 bytes, followed by the 32-byte hash = 51 bytes total for RSA-2048
+        // Check PKCS#1 v1.5 block type (0x01 for signature)
+        if(em_buf[0] != 0x00) { return ERR_RSA_VERIFY_FAILED }
+        if(em_buf[1] != 0x01) { return ERR_RSA_VERIFY_FAILED }
 
-        // Simplified check: just verify the basic structure
-        // Full DER parsing is complex, so we check for known SHA-256 pattern
-        if(sig_len == 256) {
-            // RSA-2048 signature check for SHA-256
-            var sha256_prefix : [19]u8 = [
-                0x30, 0x31, 0x30, 0x0D, 0x06, 0x09,
-                0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
-                0x05, 0x00, 0x04, 0x20
-            ]
-            // The first byte should be 0x00 (PKCS#1 block type 01 for signatures)
-            if(em_buf[0] != 0x00) { return ERR_RSA_VERIFY_FAILED }
-            if(em_buf[1] != 0x01) { return ERR_RSA_VERIFY_FAILED }
+        // Find the separator 0x00 after the 0xFF... padding
+        var sep_pos : size_t = 2
+        while(sep_pos < sig_len) {
+            if(em_buf[sep_pos] == 0x00) { break }
+            sep_pos += 1
+        }
 
-            // Find the separator 0x00 after the 0xFF... padding
-            var sep_pos : size_t = 2
-            while(sep_pos < sig_len) {
-                if(em_buf[sep_pos] == 0x00) { break }
-                sep_pos += 1
-            }
-            if(sep_pos + 19 + digest_len > sig_len) { return ERR_RSA_VERIFY_FAILED }
+        // Get the DigestInfo prefix for this hash algorithm
+        var prefix : [19]u8
+        var prefix_len : size_t = 0
+        rsa_get_digest_info(digest_len, &raw mut prefix[0], &raw mut prefix_len)
+
+        if(prefix_len > 0) {
+            if(sep_pos + 1 + prefix_len + digest_len > sig_len) { return ERR_RSA_VERIFY_FAILED }
 
             // Check DigestInfo prefix
             var i : size_t = 0
-            while(i < 19) {
-                if(em_buf[sep_pos + 1 + i] != sha256_prefix[i]) { return ERR_RSA_VERIFY_FAILED }
+            while(i < prefix_len) {
+                if(em_buf[sep_pos + 1 + i] != prefix[i]) { return ERR_RSA_VERIFY_FAILED }
                 i += 1
             }
 
             // Check digest matches
             i = 0
             while(i < digest_len) {
-                if(em_buf[sep_pos + 1 + 19 + i] != digest[i]) { return ERR_RSA_VERIFY_FAILED }
+                if(em_buf[sep_pos + 1 + prefix_len + i] != digest[i]) { return ERR_RSA_VERIFY_FAILED }
                 i += 1
             }
 
             return 0
         }
 
-        // Generic fallback: just check basic PKCS#1 v1.5 signature format
-        if(em_buf[0] != 0x00 || em_buf[1] != 0x01) { return ERR_RSA_VERIFY_FAILED }
+        // Unknown digest length: check basic PKCS#1 v1.5 signature format only
         return 0
     }
 
@@ -298,6 +328,20 @@ public namespace tls {
 
         ret = pkcs1_v15_decode(&raw buf[0], ctx.len, output, output_len, expected_max_len)
         return ret
+    }
+
+    // ─── RSA Private Key Import ────────────────────────────────────────
+
+    // Import RSA private key from modulus N and private exponent D
+    public func rsa_import_privkey(ctx : *mut RSAContext,
+                                    n_buf : *u8, n_len : size_t,
+                                    d_buf : *u8, d_len : size_t) : int {
+        var ret = mpi_read_binary(&raw mut ctx.N, n_buf, n_len)
+        if(ret < 0) { return ret }
+        ret = mpi_read_binary(&raw mut ctx.D, d_buf, d_len)
+        if(ret < 0) { return ret }
+        ctx.len = n_len
+        return 0
     }
 
     // ─── RSA Key Generation (simplified, for testing) ────────────────────

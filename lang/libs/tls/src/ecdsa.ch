@@ -171,6 +171,15 @@ public namespace tls {
             return ERR_ECDSA_VERIFY_FAILED
         }
 
+        // Enforce low-S (BIP-62): s <= n/2
+        var half_n : Mpi; mpi_init(&raw mut half_n)
+        mpi_copy(&raw mut half_n, &raw mut n)
+        ret = mpi_shift_r(&raw mut half_n, 1)
+        if(ret < 0) { return ret }
+        if(mpi_cmp(&raw mut s, &raw mut half_n) > 0) {
+            return ERR_ECDSA_VERIFY_FAILED
+        }
+
         // e = HASH(message), truncated to bitlen(n)
         var n_bitlen = mpi_bitlen(&raw mut n)
         var e : Mpi; mpi_init(&raw mut e)

@@ -96,10 +96,7 @@ public namespace tls {
         while(i < ps_len) {
             var pad_byte : u8 = 0
             var rng_ret = random_fill(&raw mut pad_byte, 1)
-            if(rng_ret < 0) {
-                // Fallback LCG if CSPRNG unavailable
-                pad_byte = ((i as u8) * 37 + 73) as u8
-            }
+            if(rng_ret < 0) { return rng_ret }
             if(pad_byte == 0) { pad_byte = 0xAB }
             em[2 + i] = pad_byte
             i += 1
@@ -291,8 +288,8 @@ public namespace tls {
             return 0
         }
 
-        // Unknown digest length: check basic PKCS#1 v1.5 signature format only
-        return 0
+        // Unknown digest length: reject
+        return ERR_RSA_VERIFY_FAILED
     }
 
     // ─── RSA Private Operation (for server-side, simpler variant) ───────

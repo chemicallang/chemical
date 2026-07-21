@@ -837,13 +837,8 @@ public namespace tls {
             return (iv_len + input_len) as i32
         }
 
-        // Fallback: no encryption
-        var i : size_t = 0
-        while(i < input_len) {
-            output[i] = input[i]
-            i += 1
-        }
-        return input_len as i32
+        // Unknown cipher — should never be reached with proper negotiation
+        return ERR_SSL_INTERNAL_ERROR
     }
 
     // Decrypt a TLS record
@@ -971,13 +966,7 @@ public namespace tls {
             return cipher_len as i32
         }
 
-        // Fallback: no decryption
-        var i : size_t = 0
-        while(i < input_len) {
-            output[i] = input[i]
-            i += 1
-        }
-        return input_len as i32
+        return ERR_SSL_INTERNAL_ERROR
     }
 
     // ============================================================================
@@ -2788,6 +2777,12 @@ public namespace tls {
         // cipher_suite (2 bytes)
         ssl.negotiated_ciphersuite = read_u16_be(&raw hs_buf[sh_pos]); sh_pos += 2
 
+        // Verify we support the hash algorithm: only SHA-256 is currently implemented
+        var cs_info = get_ciphersuite_info(ssl.negotiated_ciphersuite)
+        if(cs_info.hash != HASH_SHA256 as u8 && cs_info.hash != HASH_NONE as u8) {
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
+
         // compression_method (1 byte)
         sh_pos += 1
 
@@ -2966,6 +2961,14 @@ public namespace tls {
                                         var ext_ret = x509_extract_ecdsa_pubkey(&raw mut x509_cert, &raw mut server_ecdsa_ctx)
                                         if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
                                             has_server_ecdsa = true
+                                        }
+                                    }
+                                    if(has_server_rsa || has_server_ecdsa) {
+                                        // Verify the certificate chain
+                                        var ca = ssl.conf.ca_chain
+                                        var chain_ret = x509_verify_chain(&raw mut x509_cert, ca, ssl.hostname)
+                                        if(chain_ret != 0) {
+                                            return ERR_SSL_CERT_VERIFY_FAILED
                                         }
                                     }
                                 }
@@ -3477,14 +3480,9 @@ public namespace tls {
             }
         }
 
-        // Fallback: deterministic pre-master secret if decryption failed or no key
+        // Require RSA decryption of pre-master secret
         if(!pre_master_set) {
-            pre_master[0] = 0x03; pre_master[1] = 0x03
-            var i : size_t = 2
-            while(i < 48) {
-                pre_master[i] = (i * 17 + 43) as u8
-                i += 1
-            }
+            return ERR_SSL_PRIVATE_KEY_REQUIRED
         }
 
         // Derive master secret
@@ -3509,6 +3507,18 @@ public namespace tls {
         // Verify client Finished message
         var expected_client_finished : [12]u8
         tls12_compute_finished(&raw master_secret[0], true, &raw hs_hash[0], 32, &raw mut expected_client_finished[0])
+
+        // Compare received client Finished against expected
+        var fin_match = true
+        var fi : size_t = 0
+        while(fi < 12) {
+            if(hs_buf[4 + fi] != expected_client_finished[fi]) { fin_match = false }
+            fi += 1
+        }
+        if(!fin_match) {
+            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
 
         // 8. Send ChangeCipherSpec
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()

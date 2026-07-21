@@ -42,7 +42,7 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ```bash
 ./scripts/test.sh --tcc            # Build TCCCompiler, compile & run tests
 ./scripts/test.sh --llvm           # Build Compiler (LLVM), compile & run tests
-./scripts/test.sh --tcc --libs     # Include library tests (html, css, js, etc.)
+./scripts/test.sh --tcc --plugins     # Include library tests (html, css, js, etc.)
 ./scripts/test.sh --tcc --negative # Negative tests (compiler failure verification)
 ./scripts/test.sh --tcc --no-run   # Compile only, don't run
 ./scripts/test.sh --tcc --no-build # Use existing compiler binary
@@ -95,7 +95,7 @@ The `--arg-interpret` flag causes `build.lab` to create a `LabJobType::Interpret
 ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete
 
 # Lib tests CI:
-./chemical lang/tests/build.lab -arg-test-libs -bm -v --assertions --mode debug_complete --no-cache
+./chemical lang/tests/build.lab -arg-test-plugins -bm -v --assertions --mode debug_complete --no-cache
 
 # Add `--emit-c` to inspect the C translation output:
 ./scripts/test.sh --tcc --emit-c

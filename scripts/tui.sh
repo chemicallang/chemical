@@ -89,7 +89,7 @@ def build_sections():
     return [
         Section("Test", "scripts/test.sh", [
             ChoiceWidget("backend", "Backend", [("--tcc", "--tcc"), ("--llvm", "--llvm")], default=0),
-            BoolWidget("libs", "--libs", "--libs"),
+            BoolWidget("plugins", "--plugins", "--plugins"),
             BoolWidget("no_run", "--no-run", "--no-run"),
             BoolWidget("no_build", "--no-build", "--no-build"),
             BoolWidget("emit_c", "--emit-c", "--emit-c"),

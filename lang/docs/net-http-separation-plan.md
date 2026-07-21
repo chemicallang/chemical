@@ -409,7 +409,7 @@ import "@http/build.lab" as httpMod
 - [ ] `./scripts/build.sh --tcc` compiles cleanly
 - [ ] `./scripts/build.sh --llvm` compiles cleanly (if applicable)
 - [ ] `./scripts/test.sh --tcc` — all existing tests pass
-- [ ] `./scripts/test.sh --tcc --libs` — library tests pass
+- [ ] `./scripts/test.sh --tcc --plugins` — library tests pass
 - [ ] `lang/compiled/*` apps compile and work
 - [ ] HTTP client (`http::Client.get()`) works end-to-end
 - [ ] HTTP server (`http::server::Server`) starts and handles requests

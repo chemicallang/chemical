@@ -640,7 +640,7 @@ const mod = ctx.directory_app_module("", "main", lab::rel_path_to("src"), deps)
 See the [Testing Guide](./.agents/skills/testing/SKILL.md) for how `lang/tests/build.lab` wires:
 - Interpretation tests (`--arg-interpret`)
 - Compiled tests (default)
-- Library tests (`--arg-test-libs`)
+- Library tests (`--arg-test-plugins`)
 - Individual library tests (`--arg-test-html`, `--arg-test-css`, etc.)
 
 The test wiring uses `ctx.build_interpretation()`, `ctx.build_exe()`, `set_environment_testing()`, `has_arg()`, and `define()` to configure the build environment.

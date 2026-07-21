@@ -131,7 +131,7 @@ For detailed instructions covering all platforms, IDEs, and scenarios, see the [
 | `scripts/setup.sh` | **One-time setup after cloning:** downloads libtcc, updates submodules, (optionally LLVM with `--with-llvm`) |
 | `scripts/configure.sh` | Configure CMake project (use `--no-llvm` to skip LLVM) |
 | `scripts/build.sh` | Build targets: `--tcc`, `--llvm`, `--lsp`, `--all` |
-| `scripts/test.sh` | Build & run tests: `--tcc`, `--llvm`, `--libs`, `--no-run`, `--no-build` |
+| `scripts/test.sh` | Build & run tests: `--tcc`, `--llvm`, `--plugins`, `--no-run`, `--no-build` |
 
 > ⚠️ **`--no-build`**: Skips rebuilding the C++ compiler — changes to `.cpp`/`.h` files are **ignored**.
 > Only use when iterating on `.ch` test files without compiler changes.

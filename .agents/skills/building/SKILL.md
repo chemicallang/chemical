@@ -74,7 +74,7 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 ./scripts/test.sh --llvm
 
 # Include library tests
-./scripts/test.sh --tcc --libs
+./scripts/test.sh --tcc --plugins
 
 # Custom output path
 ./scripts/test.sh --tcc -o my_tests
@@ -150,7 +150,7 @@ comptime if(intrinsics::is_interpretation()) {
 - `--no-cache` — do not rely on previously generated objects
 - `--emit-c` — write the Translated.c file to the build directory
 - `--arg-interpret` — run in interpretation mode (interpret AST directly, no codegen)
-- `--arg-test-libs` — build library tests executable
+- `--arg-test-plugins` — build library tests executable
 - `-frecompile-plugins` — recompile compiler plugins
 
 ## Building Library Tests
@@ -163,10 +163,10 @@ These are compiler plugins, tested via a separate executable:
 
 ```bash
 # Using test script
-./scripts/test.sh --tcc --libs
+./scripts/test.sh --tcc --plugins
 
 # Manual
-cmake-build-debug/TCCCompiler "lang/tests/build.lab" -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-libs -frecompile-plugins
+cmake-build-debug/TCCCompiler "lang/tests/build.lab" -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-plugins -frecompile-plugins
 ```
 
 Helpful flags:

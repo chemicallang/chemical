@@ -86,6 +86,7 @@ public namespace tls {
     public comptime const SSL_HS_CLIENT_HELLO = 1
     public comptime const SSL_HS_SERVER_HELLO = 2
     public comptime const SSL_HS_HELLO_VERIFY_REQUEST = 3
+    public comptime const SSL_HS_HELLO_RETRY_REQUEST = 6
     public comptime const SSL_HS_NEW_SESSION_TICKET = 4
     public comptime const SSL_HS_END_OF_EARLY_DATA = 5
     public comptime const SSL_HS_ENCRYPTED_EXTENSIONS = 8

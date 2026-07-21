@@ -35,6 +35,10 @@ public namespace tls {
         return ((buf[0] as u16) << 8) | (buf[1] as u16)
     }
 
+    func read_u32_be(buf : *u8) : u32 {
+        return ((buf[0] as u32) << 24) | ((buf[1] as u32) << 16) | ((buf[2] as u32) << 8) | (buf[3] as u32)
+    }
+
     // ============================================================================
     // TLS PRF (Pseudo-Random Function) for TLS 1.2
     // ============================================================================
@@ -209,16 +213,23 @@ public namespace tls {
     // transcript_hash = SHA256(ClientHello...ServerHello)
     public func tls13_derive_handshake_keys(ssl : *mut SSLContext,
                                              shared_secret : *u8, shared_len : size_t,
-                                             transcript_hash : *u8) : int {
+                                             transcript_hash : *u8,
+                                             psk : *u8 = null, psk_len : size_t = 0) : int {
         var hash_len : size_t = 32  // SHA-256
 
-        // Step 1: Early secret = HKDF-Extract(0, 0) — well-known for no-PSK
+        // Step 1: Early secret
         var zeros32 : [32]u8
         var i : size_t = 0
         while(i < 32) { zeros32[i] = 0; i += 1 }
 
         var early_secret : [32]u8
-        tls13_hkdf_extract(&raw zeros32[0], 32, &raw zeros32[0], 32, &raw mut early_secret[0])
+        if(psk != null && psk_len > 0) {
+            // PSK mode: early_secret = HKDF-Extract(0, PSK)
+            tls13_hkdf_extract(&raw zeros32[0], 32, psk, psk_len, &raw mut early_secret[0])
+        } else {
+            // No PSK: early_secret = HKDF-Extract(0, 0)
+            tls13_hkdf_extract(&raw zeros32[0], 32, &raw zeros32[0], 32, &raw mut early_secret[0])
+        }
 
         // Step 2: Derived = HKDF-Expand-Label(early_secret, "derived", "", 32)
         // Per RFC 8446, the "derived" context is empty ("")
@@ -345,6 +356,12 @@ public namespace tls {
                            &raw mut master_secret[0])
         i = 0
         while(i < 32) { ssl.tls13_keys.master_secret[i] = master_secret[i]; i += 1 }
+
+        // Resumption master secret
+        var rms_label = "res master\0" as *char
+        tls13_hkdf_expand_label(&raw master_secret[0], 32, rms_label, 9,
+                                hs_hash, hash_len,
+                                &raw mut ssl.tls13_keys.resumption_master_secret[0], 32)
 
         // Client application traffic secret
         var c_ats : [32]u8
@@ -1580,6 +1597,56 @@ public namespace tls {
             buf[alpn_len_pos + 1] = (alpn_data_len & 0xFF) as u8
         }
 
+        // PSK key exchange modes extension (TLS 1.3)
+        buf[pos] = ((TLS_EXT_PSK_KEY_EXCHANGE_MODES >> 8) & 0xFF) as u8; pos += 1
+        buf[pos] = (TLS_EXT_PSK_KEY_EXCHANGE_MODES & 0xFF) as u8; pos += 1
+        var psk_mode_len_pos = pos
+        buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+        buf[pos] = 1 as u8; pos += 1
+        buf[pos] = 1 as u8; pos += 1  // psk_dhe_ke
+        var psk_mode_data_len = 2
+        buf[psk_mode_len_pos] = ((psk_mode_data_len >> 8) & 0xFF) as u8
+        buf[psk_mode_len_pos + 1] = (psk_mode_data_len & 0xFF) as u8
+
+        // pre_shared_key extension (when session ticket is available)
+        if(ssl.session != null && ssl.session.ticket != null &&
+           ssl.session.ticket_len > 0 && ssl.session.ticket_len < 65535) {
+            buf[pos] = ((TLS_EXT_PRE_SHARED_KEY >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_PRE_SHARED_KEY & 0xFF) as u8; pos += 1
+            var psk_ext_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+
+            // PskIdentity
+            var psk_ident_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+            write_u16_be(ssl.session.ticket_len as u16, &raw mut buf[pos]); pos += 2
+            var ti : size_t = 0
+            while(ti < ssl.session.ticket_len) {
+                buf[pos] = ssl.session.ticket[ti]
+                pos += 1
+                ti += 1
+            }
+            // obfuscated_ticket_age (4 bytes)
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            var ident_len = 2 + ssl.session.ticket_len + 4
+            buf[psk_ident_len_pos] = ((ident_len >> 8) & 0xFF) as u8
+            buf[psk_ident_len_pos + 1] = (ident_len & 0xFF) as u8
+
+            // PskBinderList (empty for now)
+            var psk_binder_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+            var psk_binder_data_len = 0
+            buf[psk_binder_len_pos] = ((psk_binder_data_len >> 8) & 0xFF) as u8
+            buf[psk_binder_len_pos + 1] = (psk_binder_data_len & 0xFF) as u8
+
+            var psk_data_len = 2 + ident_len + 2 + psk_binder_data_len
+            buf[psk_ext_len_pos] = ((psk_data_len >> 8) & 0xFF) as u8
+            buf[psk_ext_len_pos + 1] = (psk_data_len & 0xFF) as u8
+        }
+
         // Extension: key_share (TLS 1.3)
         // Only if handshake params have an ECDHE public key ready
         if(ssl.handshake != null && ssl.handshake.ecdhe_public != null &&
@@ -2536,6 +2603,17 @@ public namespace tls {
             ssl.handshake = hs_mem
         }
 
+        // Load PSK from session for resumption
+        if(ssl.session != null && ssl.session.resumption_key_len > 0) {
+            var n : size_t = ssl.session.resumption_key_len as size_t
+            var hi : size_t = 0
+            while(hi < n && hi < 32) {
+                ssl.handshake.psk[hi] = ssl.session.resumption_key[hi]
+                hi += 1
+            }
+            ssl.handshake.psk_len = n as u8
+        }
+
         // Generate ECDHE keypair (secp256r1 = 0x0017)
         var ecdh_ctx : ECDHContext
         ecdh_init(&raw mut ecdh_ctx)
@@ -2764,7 +2842,9 @@ public namespace tls {
 
         // ── Derive handshake traffic keys ────────────────────────────
         ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
-                                           &raw sh_hash[0])
+                                           &raw sh_hash[0],
+                                           &raw ssl.handshake.psk[0],
+                                           ssl.handshake.psk_len as size_t)
         if(ret < 0) { return ret }
 
         // ── Read encrypted server messages ───────────────────────────
@@ -3822,6 +3902,62 @@ public namespace tls {
             return ret
         }
 
+        return 0
+    }
+
+    // Read NewSessionTicket post-handshake message
+    public func ssl_read_new_session_ticket(ssl : *mut SSLContext) : int {
+        var hdr : [5]u8
+        var ret = read_record_header(ssl, &raw mut hdr[0])
+        if(ret < 0) { return ret }
+
+        var ct = hdr[0]
+        if(ct != SSL_MSG_HANDSHAKE as u8) {
+            return ERR_SSL_UNEXPECTED_MESSAGE
+        }
+
+        var msg_buf : [4096]u8
+        var msg_payload = read_record_payload(ssl, &raw mut msg_buf[0], 4096 as i32)
+        if(msg_payload < 4) { return ERR_SSL_DECODE_ERROR }
+
+        var msg_type = msg_buf[0]
+        if(msg_type != SSL_HS_NEW_SESSION_TICKET as u8) {
+            return ERR_SSL_UNEXPECTED_MESSAGE
+        }
+
+        var msg_len = read_u24(&raw msg_buf[1])
+        if(msg_len < 11) { return 0 }
+
+        var nst_pos : size_t = 4
+        var lifetime = read_u32_be(&raw msg_buf[nst_pos]); nst_pos += 4
+        nst_pos += 4  // skip age_add
+        var nonce_len = msg_buf[nst_pos] as size_t; nst_pos += 1 + nonce_len
+        var ticket_len = read_u16_be(&raw msg_buf[nst_pos]) as size_t; nst_pos += 2
+
+        if(ticket_len > 0 && ticket_len < 4096 && nst_pos + ticket_len <= 4 + msg_len as size_t) {
+            if(ssl.session == null) { return 0 }
+            if(ssl.session.ticket != null) {
+                unsafe { dealloc ssl.session.ticket }
+            }
+            var tkt_mem = malloc(ticket_len) as *mut u8
+            if(tkt_mem == null) { return 0 }
+            var ti : size_t = 0
+            while(ti < ticket_len) {
+                tkt_mem[ti] = msg_buf[nst_pos + ti]
+                ti += 1
+            }
+            ssl.session.ticket = tkt_mem
+            ssl.session.ticket_len = ticket_len
+            ssl.session.ticket_lifetime = lifetime
+
+            // Derive resumption key
+            var res_label = "resumption\0" as *char
+            var empty_c : [1]u8 = [0]
+            tls13_hkdf_expand_label(&raw ssl.tls13_keys.resumption_master_secret[0], 32,
+                                    res_label, 10, &raw empty_c[0], 0,
+                                    &raw mut ssl.session.resumption_key[0], 32)
+            ssl.session.resumption_key_len = 32 as u8
+        }
         return 0
     }
 

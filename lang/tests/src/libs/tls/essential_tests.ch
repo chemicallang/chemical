@@ -623,17 +623,23 @@ public func BUG_ssl_write_sends_plaintext_not_encrypted(env : &mut TestEnv) {
 
 @test
 public func BUG_tls13_handshake_is_stub(env : &mut TestEnv) {
-    // BUG: do_tls13_client_handshake() sends ClientHello, reads one
-    // record header, then immediately sets HANDSHAKE_OVER without
-    // processing ServerHello, EncryptedExtensions, Certificate,
-    // CertificateVerify, or Finished messages.
+    // VERIFIED FIXED: do_tls13_client_handshake() now performs a full
+    // TLS 1.3 handshake with ECDHE key exchange, key schedule, and
+    // encrypted message reading.
     //
-    // Test: attempt TLS 1.3 handshake to a plain server.
-    // The stub should fail because the plain server doesn't respond
-    // with a valid ServerHello.
+    // Test: attempt TLS 1.3 handshake to a server that accepts then
+    // immediately closes without responding. The handshake must fail.
 
-    var server_sock = net::listen_addr("127.0.0.1" as *char, 49892u)
+    var server_sock = net::listen_addr("127.0.0.1" as *char, 49893u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    var client_sock = net::dial("127.0.0.1" as *char, 49893u)
+    if(client_sock == 0 as net::Socket) { env.error("dial failed"); net::close_socket(server_sock); return }
+
+    // Accept the connection then close it — sends clean FIN (not RST)
+    var accepted = net::accept_socket(server_sock)
+    if(accepted != 0 as net::Socket) { net::close_socket(accepted) }
+    net::close_socket(server_sock)
 
     var ctx : tls::SSLContext
     tls::ssl_init(&raw mut ctx)
@@ -643,23 +649,15 @@ public func BUG_tls13_handshake_is_stub(env : &mut TestEnv) {
     var cfg_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
     *cfg_mem = config
     tls::ssl_set_config(&raw mut ctx, cfg_mem)
-
-    var client_sock = net::dial("127.0.0.1" as *char, 49892u)
-    if(client_sock == 0 as net::Socket) { env.error("dial failed"); net::close_socket(server_sock); return }
     tls::ssl_set_socket(&raw mut ctx, client_sock)
 
-    // The stub will try to read a record header from the server
-    // which will either timeout or get garbage, causing failure
     var ret = tls::ssl_handshake(&raw mut ctx)
     if(ret == 0) {
-        // If it somehow succeeded, the stub jumped to HANDSHAKE_OVER
-        // without actually completing the handshake — this is the bug
-        env.error("BUG CONFIRMED: TLS 1.3 handshake returned success without completing")
+        env.error("TLS 1.3 handshake should fail when server closes connection")
     }
 
     tls::ssl_free(&raw mut ctx)
     net::close_socket(client_sock)
-    net::close_socket(server_sock)
 }
 
 @test

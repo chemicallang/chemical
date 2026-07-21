@@ -140,13 +140,14 @@ public namespace net {
         return sock_recv(s, buf as *mut char, cap as int)
     }
 
-    public func send_all(s: Socket, p:*char, len:int) {
+    public func send_all(s: Socket, p:*char, len:int) : int {
         var off = 0;
         while(off < len) {
             var n = sock_send(s, &raw p[off], len - off);
-            if(n <= 0) { break }
+            if(n <= 0) { return -1 }
             off = off + n;
         }
+        return len
     }
 
     public func close_socket(s: Socket) { sock_close(s) }

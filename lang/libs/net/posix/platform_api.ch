@@ -39,7 +39,9 @@ public namespace net {
     func sock_connect(s:Socket, addr:*char, addrlen:int) : int { return connect(s as int, addr, addrlen) }
     func sock_accept(s:Socket, addr:*mut char, addrlen:*mut int) : Socket { return accept(s as int, addr, addrlen) as Socket }
     func sock_recv(s:Socket, buf:*mut char, len:int) : int { return recv(s as int, buf, len, 0) }
-    func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as int, buf, len, 0) }
+    // MSG_NOSIGNAL (0x4000 on Linux): raise EPIPE instead of SIGPIPE on broken connection
+    comptime const MSG_NOSIGNAL = 0x4000
+    func sock_send(s:Socket, buf:*char, len:int) : int { return send(s as int, buf, len, MSG_NOSIGNAL) }
     func sock_close(s:Socket) { close(s as int) }
     func sock_setsockopt(s:Socket, level:int, optname:int, optval:*char, optlen:int) : int { return setsockopt(s as int, level, optname, optval, optlen) }
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }

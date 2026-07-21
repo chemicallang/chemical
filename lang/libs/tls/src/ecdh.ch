@@ -494,6 +494,38 @@ public namespace tls {
         if(mpi_cmp(&raw mut peer_point.X, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
         if(mpi_cmp(&raw mut peer_point.Y, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
 
+        // Point-on-curve validation: y^2 ≡ x^3 - 3x + b (mod p) for P-256
+        var lhs : Mpi; mpi_init(&raw mut lhs)
+        var rhs : Mpi; mpi_init(&raw mut rhs)
+        var tmp : Mpi; mpi_init(&raw mut tmp)
+        var b_m : Mpi; mpi_init(&raw mut b_m)
+        // b = P256_B
+        mpi_grow(&raw mut b_m, 8); b_m.n = 8
+        var bj : size_t = 0
+        while(bj < 8) { b_m.p[bj] = P256_B[bj]; bj += 1 }
+        // lhs = y^2 mod p
+        ret = mpi_mul(&raw mut lhs, &raw mut peer_point.Y, &raw mut peer_point.Y)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut lhs, &raw mut lhs, &raw mut p)
+        if(ret < 0) { return ret }
+        // rhs = x^3 mod p
+        ret = mpi_mul(&raw mut rhs, &raw mut peer_point.X, &raw mut peer_point.X)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
+        ret = mpi_mul(&raw mut rhs, &raw mut rhs, &raw mut peer_point.X)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
+        // rhs = x^3 - 3x + b mod p (a = -3 for P-256)
+        ret = mpi_mul_int(&raw mut tmp, &raw mut peer_point.X, 3)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut tmp, &raw mut tmp, &raw mut p)
+        ret = mpi_sub(&raw mut rhs, &raw mut rhs, &raw mut tmp)
+        if(ret < 0) { return ret }
+        ret = mpi_add(&raw mut rhs, &raw mut rhs, &raw mut b_m)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
+        if(mpi_cmp(&raw mut lhs, &raw mut rhs) != 0) { return ERR_ECP_INVALID_KEY }
+
         // Compute shared = private * peer_point
         var shared_point : ECPPoint; ecp_point_init(&raw mut shared_point)
         ret = ecp_mul(&raw mut shared_point, &raw mut ctx.priv_key, &raw mut peer_point)

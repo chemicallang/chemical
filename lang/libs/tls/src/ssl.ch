@@ -1168,6 +1168,23 @@ public namespace tls {
             return ret
         }
 
+        // Before transforms are active, send in the clear (pre-key-exchange)
+        if(ssl.transform_out == null) {
+            var header : [5]u8
+            header[0] = content_type
+            header[1] = ssl.major_ver
+            header[2] = ssl.minor_ver
+            header[3] = ((data_len >> 8) & 0xFF) as u8
+            header[4] = (data_len & 0xFF) as u8
+            var ret = ssl_send(ssl, &raw header[0], 5)
+            if(ret < 0) { return ret }
+            if(data_len > 0) {
+                ret = ssl_send(ssl, data, data_len as i32)
+            }
+            return ret
+        }
+
+        // Transforms active — encrypt based on TLS version
         var encrypted : [17400]u8
         var enc_len : int = 0
 

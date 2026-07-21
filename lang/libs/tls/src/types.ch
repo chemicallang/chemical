@@ -43,6 +43,7 @@ public namespace tls {
     public comptime const ERR_SSL_UNEXPECTED_RECORD = -0x6700
     public comptime const ERR_SSL_NON_FATAL = -0x6680
     public comptime const ERR_SSL_ILLEGAL_PARAMETER = -0x6600
+    public comptime const ERR_SSL_CERT_VERIFY_FAILED = -0x6500
     public comptime const ERR_SSL_CONTINUE_PROCESSING = -0x6580
     public comptime const ERR_SSL_VERSION_MISMATCH = -0x5F00
     public comptime const ERR_SSL_BAD_CONFIG = -0x5E80

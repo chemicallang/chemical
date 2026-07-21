@@ -417,16 +417,10 @@ public namespace tls {
                                        pub : *mut u8, pub_len : size_t) : int {
         if(priv_len < 32 || pub_len < 65) { return ERR_ECP_BUFFER_TOO_SMALL }
 
-        // Generate private key as deterministic pseudo-random 32 bytes
-        // For testing - in production, use a secure RNG
-        var seed_val : u32 = 0x12345678u32
-        var i : size_t = 0
+        // Generate private key from CSPRNG
         var priv_mpi : Mpi; mpi_init(&raw mut priv_mpi)
-        while(i < 32) {
-            seed_val = seed_val * 1103515245 + 12345
-            priv[i] = ((seed_val >> 16) & 0xFF) as u8
-            i += 1
-        }
+        var rng_ret = random_fill(priv, 32)
+        if(rng_ret < 0) { return rng_ret }
 
         // Import private key and reduce modulo group order
         var ret = mpi_read_binary(&raw mut priv_mpi, priv, 32)
@@ -495,6 +489,12 @@ public namespace tls {
         ret = mpi_read_binary(&raw mut peer_point.Y, &raw peer_pub[33], 32)
         if(ret < 0) { return ret }
         mpi_lset(&raw mut peer_point.Z, 1)
+
+        // Basic sanity checks: reject point-at-infinity and coordinates >= p
+        if(peer_point.X.n == 0 && peer_point.Y.n == 0) { return ERR_ECP_INVALID_KEY }
+        var p : Mpi; ecp_curve_p(&raw mut p)
+        if(mpi_cmp(&raw mut peer_point.X, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
+        if(mpi_cmp(&raw mut peer_point.Y, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
 
         // Compute shared = private * peer_point
         var shared_point : ECPPoint; ecp_point_init(&raw mut shared_point)

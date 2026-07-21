@@ -38,60 +38,6 @@ public namespace tls {
 
     // ─── GF(2^128) Multiplication ──────────────────────────────────────────
 
-    // Multiply two 128-bit blocks in GF(2^128) with the GCM polynomial
-    // P(x) = x^128 + x^7 + x^2 + x + 1
-    func ghash_multiply(x : *u8, y : *u8, output : *mut u8) {
-        // Z = 0, V = Y
-        var Z : [16]u8
-        var V : [16]u8
-
-        var i : size_t = 0
-        while(i < 16) { Z[i] = 0; V[i] = y[i]; i += 1 }
-
-        i = 0
-        while(i < 128) {
-            var byte_idx = i / 8
-            var bit_idx = 7 - (i % 8)  // MSB first
-
-            var xi_bit = (x[byte_idx] >> bit_idx) & 1
-
-            // If xi_bit is 1, Z = Z XOR V
-            var j : size_t = 0
-            if(xi_bit == 1) {
-                while(j < 16) { Z[j] = Z[j] ^ V[j]; j += 1 }
-            }
-
-            // V = V >> 1 (right shift) with polynomial reduction
-            var lsb = V[15] & 1
-            j = 15
-            while(j > 0) { j -= 1; V[j] = (V[j] >> 1) | ((V[j + 1] & 1) << 7) }
-            // V[0] >>= 1 above
-            V[0] = V[0] >> 1
-            V[15] = V[15] | ((V[0] >> 7) & 0x80)  // Fix: get bit from shifted V[0]
-            // Actually the above is wrong. Let me redo:
-            // V = V >> 1 means: V[0]MSB gets 0, V[i] gets old V[i]>>1 | (V[i-1]&1)<<7
-            // Polynomial reduction: if LSB of original V was 1, XOR with R = 0xE1 << 120
-            if(lsb == 1) {
-                V[0] = V[0] ^ 0xE1
-                // R = 11100001 followed by 120 zeros
-                // x^128 term is dropped (reduction)
-                // R = 0xE1 << 120 = V[0] ^= 0xE1, V[1..15] unchanged since R is 0xE1 00...00 in MSB-first
-            }
-
-            i += 1
-        }
-
-        // Copy Z to output
-        i = 0
-        while(i < 16) {
-            output[i] = Z[i]
-            i += 1
-        }
-    }
-
-    // Actually, the bit ordering for GCM is important and tricky.
-    // Let me use a cleaner implementation based on bit-reflection for GCM.
-
     // GHASH core: multiply in GF(2^128) with the GCM polynomial
     // The GCM specification uses a specific bit ordering:
     // - Bits are numbered from MSB (bit 0) to LSB (bit 127)

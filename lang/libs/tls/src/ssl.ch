@@ -1041,41 +1041,72 @@ public namespace tls {
 
         ssl.in_msglen = record_len as i32
 
-        // TLS 1.3 decryption: if transform_in is set and the outer content_type
-        // is application_data (23), decrypt the record to get the inner content_type.
-        if(ssl.transform_in != null && ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8) {
-            var inner_ct : u8 = 0
-            var dec_buf : [17400]u8
-            var dec_len = tls13_decrypt_record(ssl,
-                                                &raw ssl.in_buf[5], record_len,
-                                                &raw mut dec_buf[0], 17400,
-                                                &raw mut inner_ct)
-            if(dec_len < 0) { return dec_len }
+        // AEAD decryption: if transform_in is set, decrypt the record payload.
+        // TLS 1.3: outer CT is always APPLICATION_DATA (23); inner CT is last byte of plaintext.
+        // TLS 1.2: CT is in the header; payload is encrypted after CCS.
+        if(ssl.transform_in != null) {
+            var did_decrypt = false
 
-            // Replace in_buf[5..] with decrypted data
-            var i : i32 = 0
-            while(i < dec_len) {
-                ssl.in_buf[5 + i] = dec_buf[i]
-                i += 1
-            }
-            ssl.in_msglen = dec_len
+            // TLS 1.3 decrypt: triggered when outer CT is APPLICATION_DATA
+            if(ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8) {
+                var inner_ct : u8 = 0
+                var dec_buf : [17400]u8
+                var dec_len = tls13_decrypt_record(ssl,
+                                                    &raw ssl.in_buf[5], record_len,
+                                                    &raw mut dec_buf[0], 17400,
+                                                    &raw mut inner_ct)
+                if(dec_len >= 0) {
+                    var i : i32 = 0
+                    while(i < dec_len) {
+                        ssl.in_buf[5 + i] = dec_buf[i]
+                        i += 1
+                    }
+                    ssl.in_msglen = dec_len
+                    ssl.in_hdr[0] = inner_ct
 
-            // Update in_hdr[0] to the inner content_type
-            ssl.in_hdr[0] = inner_ct
-
-            // Close the gap between the original record size and the decrypted size.
-            // The original record occupied 5 + record_len bytes. Now it's 5 + dec_len.
-            // Shift any trailing data (next records) to fill the gap.
-            var original_end : i32 = 5 + record_len as i32
-            var new_end : i32 = 5 + dec_len
-            if(original_end < ssl.in_left) {
-                var gap : i32 = original_end - new_end
-                var shift_i : i32 = 0
-                while(shift_i < ssl.in_left - original_end) {
-                    ssl.in_buf[new_end + shift_i] = ssl.in_buf[original_end + shift_i]
-                    shift_i += 1
+                    var original_end : i32 = 5 + record_len as i32
+                    var new_end : i32 = 5 + dec_len
+                    if(original_end < ssl.in_left) {
+                        var shift_i : i32 = 0
+                        while(shift_i < ssl.in_left - original_end) {
+                            ssl.in_buf[new_end + shift_i] = ssl.in_buf[original_end + shift_i]
+                            shift_i += 1
+                        }
+                        ssl.in_left -= (original_end - new_end)
+                    }
+                    did_decrypt = true
                 }
-                ssl.in_left -= gap
+            }
+
+            // TLS 1.2 decrypt: triggered for HANDSHAKE (22) or APPLICATION_DATA (23)
+            // when TLS 1.3 decrypt did not apply or failed.
+            if(!did_decrypt && (ssl.in_hdr[0] == SSL_MSG_HANDSHAKE as u8 || ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8)) {
+                var dec_buf2 : [17400]u8
+                var dec_len2 = tls12_decrypt_record(ssl.transform_in,
+                                                     &raw ssl.in_ctr[0],
+                                                     ssl.in_hdr[0], ssl.in_hdr[1], ssl.in_hdr[2],
+                                                     &raw ssl.in_buf[5], record_len,
+                                                     &raw mut dec_buf2[0], 17400 as size_t)
+                if(dec_len2 >= 0) {
+                    var i : i32 = 0
+                    while(i < dec_len2) {
+                        ssl.in_buf[5 + i] = dec_buf2[i]
+                        i += 1
+                    }
+                    ssl.in_msglen = dec_len2
+
+                    var original_end : i32 = 5 + record_len as i32
+                    var new_end : i32 = 5 + dec_len2
+                    if(original_end < ssl.in_left) {
+                        var shift_i : i32 = 0
+                        while(shift_i < ssl.in_left - original_end) {
+                            ssl.in_buf[new_end + shift_i] = ssl.in_buf[original_end + shift_i]
+                            shift_i += 1
+                        }
+                        ssl.in_left -= (original_end - new_end)
+                    }
+                    ssl_incr_seq_num(&raw mut ssl.in_ctr[0])
+                }
             }
         }
 
@@ -1608,7 +1639,7 @@ public namespace tls {
                                    &raw mut from_year, &raw mut from_month,
                                    &raw mut from_day, &raw mut from_hour,
                                    &raw mut from_min, &raw mut from_sec)
-        if(ret < 0) { return 0 }
+        if(ret < 0) { return X509_BADCERT_EXPIRED as i32 }
 
         // Parse notAfter
         var to_year : int = 0; var to_month : int = 0; var to_day : int = 0
@@ -1617,7 +1648,7 @@ public namespace tls {
                                &raw mut to_year, &raw mut to_month,
                                &raw mut to_day, &raw mut to_hour,
                                &raw mut to_min, &raw mut to_sec)
-        if(ret < 0) { return 0 }
+        if(ret < 0) { return X509_BADCERT_EXPIRED as i32 }
 
         // Get current UTC time
         var now : time_t = 0
@@ -1626,7 +1657,7 @@ public namespace tls {
         // Decompose current UTC time into components
         var now_tm : tm
         var gm_ret = gmtime_r(&raw now, &raw mut now_tm)
-        if(gm_ret == null) { return 0 }
+        if(gm_ret == null) { return X509_BADCERT_EXPIRED as i32 }
 
         var now_year = now_tm.year + 1900
         var now_month = now_tm.mon + 1
@@ -1904,8 +1935,8 @@ public namespace tls {
                                 var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
                                                                     ssl.hostname)
                                 if(chain_ret != 0) {
-                                    // Cert verification failed - we still proceed for now
-                                    // but the flags field will indicate the failure reason
+                                    // Cert verification failed — reject the connection
+                                    return ERR_SSL_CERT_VERIFY_FAILED
                                 }
                             }
                         }
@@ -2012,10 +2043,14 @@ public namespace tls {
         transform_init(&raw mut tr)
         tls12_populate_transform(&raw mut tr, &raw cs_info, &raw key_block[0], kb_size)
 
-        // Allocate and activate transform
+        // Allocate and activate transforms (both directions use same keys for now)
         var tr_mem = malloc(sizeof(Transform)) as *mut Transform
         *tr_mem = tr
         ssl.transform_out = tr_mem
+
+        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_in_mem = tr
+        ssl.transform_in = tr_in_mem
 
         // ═══════════════════════════════════════════════════════════════════
         // PER RFC 5246 §7.4.9: The Finished message hash includes ALL
@@ -2772,6 +2807,24 @@ public namespace tls {
     // Read application data
     public func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
+
+        // If a transform is active, use the record layer (handles decryption)
+        if(ssl.transform_in != null && ssl.state is SSLState.HANDSHAKE_OVER()) {
+            var ret = ssl_read_record(ssl)
+            if(ret < 0) { return ret }
+
+            // Copy decrypted payload from in_buf to caller's buffer
+            var copy_len = ssl.in_msglen
+            if(copy_len > len) { copy_len = len }
+            var i : i32 = 0
+            while(i < copy_len) {
+                buf[i] = ssl.in_buf[5 + i]
+                i += 1
+            }
+            ssl_consume_record(ssl)
+            return copy_len
+        }
+
         return ssl_recv(ssl, buf, len)
     }
 
@@ -2793,6 +2846,14 @@ public namespace tls {
         if(ssl.handshake != null) {
             unsafe { dealloc ssl.handshake }
             ssl.handshake = null
+        }
+        if(ssl.transform_in != null) {
+            unsafe { dealloc ssl.transform_in }
+            ssl.transform_in = null
+        }
+        if(ssl.transform_out != null) {
+            unsafe { dealloc ssl.transform_out }
+            ssl.transform_out = null
         }
         if(ssl.transport_connected) {
             net::close_socket(ssl.transport_socket)

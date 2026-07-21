@@ -309,12 +309,14 @@ public namespace tls {
             i += 1
         }
 
-        // Compare tags (constant-time comparison would be better)
+        // Constant-time tag comparison
+        var diff : u8 = 0
         i = 0
         while(i < tag_len) {
-            if(expected_tag[i] != tag[i]) { return ERR_GCM_AUTH_FAILED }
+            diff = diff | (expected_tag[i] ^ tag[i])
             i += 1
         }
+        if(diff != 0) { return ERR_GCM_AUTH_FAILED }
 
         // Decrypt (same as encrypt for CTR mode)
         var counter : [16]u8

@@ -283,9 +283,7 @@ public namespace tls {
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
 
         // Y3 = R*(X1*H^2 - X3) - Y1*H^3
-        ret = mpi_sub(&raw mut t3, &raw mut t3, &raw mut X3)
-        // Actually t3 = 2*X1*H^2, we want just X1*H^2. Let me redo:
-        // t3 = X1 * H^2
+        // t3 currently = 2*X1*H^2, recompute X1*H^2
         ret = mpi_mul(&raw mut t3, &raw mut P.X, &raw mut t1)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)

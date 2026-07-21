@@ -302,8 +302,6 @@ public:
 
     void VisitValueNode(ValueNode* node);
 
-    void VisitMultiFunctionNode(MultiFunctionNode* node);
-
     void VisitValueWrapper(ValueWrapperNode* node);
 
     void VisitAccessChainNode(AccessChainNode* node);

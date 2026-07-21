@@ -46,7 +46,6 @@ enum class ASTNodeKind : uint8_t {
     EnumDecl,
     EnumMember,
     FunctionDecl,
-    MultiFunctionNode,
     ImplDecl,
     InterfaceDecl,
     StructDecl,

@@ -36,8 +36,6 @@ class ExtendableMembersContainerNode;
 
 class AnnotableNode;
 
-class MultiFunctionNode;
-
 class VariablesContainer;
 
 class VariablesContainerBase;
@@ -501,10 +499,6 @@ public:
         return k == ASTNodeKind::FunctionDecl;
     }
 
-    static inline constexpr bool isMultiFunctionNode(ASTNodeKind k) {
-        return k == ASTNodeKind::MultiFunctionNode;
-    }
-
     static inline constexpr bool isImplDecl(ASTNodeKind k) {
         return k == ASTNodeKind::ImplDecl;
     }
@@ -659,13 +653,6 @@ public:
      */
     inline GenericTypeParameter* as_generic_type_param() {
         return isGenericTypeParam(kind()) ? (GenericTypeParameter*) this : nullptr;
-    }
-
-    /**
-     * return this as a multi function node
-     */
-    inline MultiFunctionNode* as_multi_func_node() {
-        return isMultiFunctionNode(kind()) ? (MultiFunctionNode*) this : nullptr;
     }
 
     /**
@@ -1018,14 +1005,6 @@ public:
     inline GenericTypeParameter* as_generic_type_param_unsafe() {
         CHECK_CAST(ASTNodeKind::GenericTypeParam);
         return (GenericTypeParameter*) this;
-    }
-
-    /**
-     * return this as a multi function node
-     */
-    inline MultiFunctionNode* as_multi_func_node_unsafe() {
-        CHECK_CAST(ASTNodeKind::MultiFunctionNode);
-        return (MultiFunctionNode*) this;
     }
 
     /**

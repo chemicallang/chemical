@@ -45,7 +45,6 @@
 #include "ast/types/LiteralType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
-#include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
@@ -771,7 +770,7 @@ std::vector<ASTNode*>* IfStatementadd_else_if(IfStatement* stmt, Value* conditio
 }
 
 void ImplDefinitionadd_function(ImplDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
-    definition->insert_multi_func(*astAllocator, decl);
+    definition->insert_func(decl);
 }
 
 void StructDefinitionadd_member(StructDefinition* definition, BaseDefMember* member) {
@@ -779,11 +778,11 @@ void StructDefinitionadd_member(StructDefinition* definition, BaseDefMember* mem
 }
 
 void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
-    definition->insert_multi_func(*astAllocator, decl);
+    definition->insert_func(decl);
 }
 
 void InterfaceDefinitionadd_function(InterfaceDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
-    definition->insert_multi_func(*astAllocator, decl);
+    definition->insert_func(decl);
 }
 
 std::vector<ASTNode*>* Namespaceget_body(Namespace* ns) {
@@ -807,7 +806,7 @@ void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member) {
 }
 
 void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
-    definition->insert_multi_func(*astAllocator, decl);
+    definition->insert_func(decl);
 }
 
 void VariantDefinitionadd_member(VariantDefinition* definition, BaseDefMember* member) {
@@ -967,7 +966,6 @@ void FunctionDeclarationgetAttributes(FuncDeclAttributesCBI* out, FunctionDeclar
     out->specifier = static_cast<int32_t>(attrs.specifier);
     out->is_comptime = attrs.is_comptime;
     out->is_compiler_decl = attrs.is_compiler_decl;
-    out->multi_func_index = attrs.multi_func_index;
     out->inline_strategy = static_cast<int32_t>(attrs.inline_strategy);
     out->is_extern = attrs.is_extern;
     out->is_cpp_mangle = attrs.is_cpp_mangle;
@@ -993,7 +991,6 @@ void FunctionDeclarationsetAttributes(FunctionDeclaration* decl, FuncDeclAttribu
     attrs.specifier = static_cast<AccessSpecifier>(out->specifier);
     attrs.is_comptime = out->is_comptime;
     attrs.is_compiler_decl = out->is_compiler_decl;
-    attrs.multi_func_index = out->multi_func_index;
     attrs.inline_strategy = static_cast<InlineStrategy>(out->inline_strategy);
     attrs.is_extern = out->is_extern;
     attrs.is_cpp_mangle = out->is_cpp_mangle;

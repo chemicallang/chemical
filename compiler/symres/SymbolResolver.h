@@ -98,34 +98,21 @@ private:
      */
     SymbolTable table;
 
-    /**
-     * will try to override this function, notice the '&' in the previous pointer
-     * if successfully overridden, it will modify the previous location inside the symbol table
-     * to be this declaration and return true
-     */
-    bool overload_function(const chem::string_view& name, ASTNode* const previous, FunctionDeclaration* declaration);
 
-    /**
-     * helper method that should be used to declare functions that takes into account
-     * multiple methods with same names
-     * @return true if a new symbol was declared
-     */
     inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
         const auto previous = getSymbolTable().declare_no_shadow_sym(name, (ASTNode*) declaration);
         if(previous == nullptr) {
             return true;
         } else {
             if(getSymbolTable().is_in_current_scope(previous)) {
-                overload_function(name, previous->activeNode, declaration);
-                return false;
+                dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
+                getSymbolTable().declare(name, (ASTNode*) declaration);
+                return true;
             } else {
                 const auto p = ((ASTNode*) declaration)->parent();
-                // symbols with namespace as parents, aren't duplicates, they are hiding members
                 if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
-                    // shadow the current symbol
                     getSymbolTable().declare(name, (ASTNode*) declaration);
                 } else {
-                    // shadow the current symbol
                     dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
                     getSymbolTable().declare(name, (ASTNode*) declaration);
                 }

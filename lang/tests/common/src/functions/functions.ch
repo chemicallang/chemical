@@ -63,14 +63,6 @@ func sno_func() : int {
     return 10;
 }
 
-func sno_func(a : int) : int {
-    return a;
-}
-
-func sno_func(a : int, b : int) : int {
-    return a + b;
-}
-
 func def_func_arg_works(a : int, b : int = 66) : int {
     return b;
 }
@@ -79,31 +71,6 @@ func test_name_overriding() {
     test("correct function is called when same names overriding - 1", () => {
         return sno_func() == 10
     })
-    test("correct function is called when same names overriding - 2", () => {
-        return sno_func(20) == 20
-    })
-    test("correct function is called when same names overriding - 3", () => {
-        return sno_func(20, 20) == 40
-    })
-}
-
-struct SnoPair {
-
-    var a : int
-    var b : int
-
-    func plus(&self) : int {
-        return a + b;
-    }
-
-    func plus(&self, c : int) : int {
-        return a + b + c;
-    }
-
-    func plus(&self, c : int, d : int) : int{
-        return a + b + c + d;
-    }
-
 }
 
 var total_func_ret_calls = 0;
@@ -125,21 +92,6 @@ struct FuncRetTestStr {
 func check_multiple_calls() : FuncRetTestStr {
     total_func_ret_calls += 1;
     return FuncRetTestStr {}
-}
-
-func test_name_overriding_in_struct() {
-    test("correct function is called when same names overriding in struct - 1", () => {
-        var p = SnoPair { a : 10, b : 10 }
-        return p.plus() == 20;
-    })
-    test("correct function is called when same names overriding in struct - 2", () => {
-        var p = SnoPair { a : 10, b : 10 }
-        return p.plus(10) == 30;
-    })
-    test("correct function is called when same names overriding in struct - 3", () => {
-        var p = SnoPair { a : 10, b : 10 }
-        return p.plus(10, 10) == 40;
-    })
 }
 
 func test_passing_array(arr : []int, size : int) : int {
@@ -256,7 +208,6 @@ func test_functions() {
         return def_func_arg_works(22) == 66;
     })
     test_name_overriding();
-    test_name_overriding_in_struct();
     test_parameters();
     test("arrays can be passed to functions", () => {
         return test_passing_array([11, 87, 245, 3, 23], 5) == 369;

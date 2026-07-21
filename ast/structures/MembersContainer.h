@@ -9,7 +9,6 @@
 #include "FunctionDeclaration.h"
 #include "GenericFuncDecl.h"
 #include "VariablesContainer.h"
-#include "MultiFunctionNode.h"
 #include <span>
 #include "./MembersIterators.h"
 
@@ -404,12 +403,6 @@ public:
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode, bool is_extern);
-
-    /**
-     * insert a function that can have same name for multiple declarations
-     * @return true, if could insert the function, false if there's a conflict
-     */
-    bool insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl);
 
     /**
      * is there a function with this name

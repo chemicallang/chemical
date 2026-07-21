@@ -394,8 +394,7 @@ set(COMMON_SOURCES
         compiler/InvokeUtils.h
         compiler/lab/LabJobType.h
         std/chem_string.cpp
-        ast/structures/MultiFunctionNode.h
-        ast/structures/MultiFunctionNode.cpp
+
         ast/structures/GenericTypeParameter.h
         ast/utils/GenericUtils.h
         compiler/lab/LabBuildCompilerOptions.h

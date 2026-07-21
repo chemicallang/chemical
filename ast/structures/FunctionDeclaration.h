@@ -83,10 +83,6 @@ struct FuncDeclAttributes {
      * like intrinsics::forget
      */
     bool is_compiler_decl = false;
-    /**
-     * when involved in multi function node (due to same name, different parameters)
-     */
-    uint8_t multi_func_index = 0;
 
     /**
      * the inline strategy to use
@@ -242,7 +238,7 @@ public:
             ASTNodeKind k = ASTNodeKind::FunctionDecl
     )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, signature_resolved),
          identifier(identifier),
-         attrs(specifier, false, false, 0, InlineStrategy::None, false, false, false, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, InlineStrategy::None, false, false, false, false, false, false, false, false, false, false, false, false, false, false) {
     }
 
     inline AccessSpecifier specifier() {
@@ -285,14 +281,6 @@ public:
 
     inline const std::string name_str() const {
         return identifier.str();
-    }
-
-    inline uint8_t multi_func_index() {
-        return attrs.multi_func_index;
-    }
-
-    inline void set_multi_func_index(uint8_t i) {
-        attrs.multi_func_index = i;
     }
 
     inline bool is_extern() {

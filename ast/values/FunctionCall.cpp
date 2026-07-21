@@ -23,7 +23,6 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/LinkedType.h"
-#include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/utils/GenericUtils.h"
@@ -1233,42 +1232,6 @@ ASTNode *FunctionCall::linked_node() {
     return known ? known->linked_node() : nullptr;
 }
 
-void relink_multi_id(
-    VariableIdentifier* parent,
-    std::vector<Value*>& values,
-    ASTAllocator& allocator,
-    ASTDiagnoser* diagnoser
-) {
-    if(parent->linked) {
-        auto multi = parent->linked->as_multi_func_node();
-        if(multi) {
-            auto func = multi->func_for_call(values);
-            if(func) {
-                parent->linked = func;
-                parent->setType(func->known_type());
-                parent->process_linked(diagnoser, nullptr);
-            } else {
-                diagnoser->error("couldn't find function that satisfies given arguments", parent);
-            }
-        }
-    }
-}
-
-void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
-    const auto parent_kind = parent_val->val_kind();
-    if(parent_kind == ValueKind::Identifier) {
-        auto parent = parent_val->as_identifier_unsafe();
-        if(parent) {
-            relink_multi_id(parent, values, allocator, diagnoser);
-        }
-    } else if(parent_kind == ValueKind::AccessChain) {
-        auto parent = parent_val->as_access_chain_unsafe();
-        const auto last = parent->values.back();
-        if(last->val_kind() == ValueKind::Identifier) {
-            relink_multi_id(last->as_identifier_unsafe(), values, allocator, diagnoser);
-        }
-    }
-}
 
 void constructor_not_found_err(Diag& diag, ExtendableMembersContainerNode* parent_struct, FunctionCall* call) {
     diag << "struct with name " << parent_struct->name_view() << " doesn't have a constructor ";

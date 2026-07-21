@@ -5,7 +5,6 @@
 #include "SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 #include "ast/structures/Namespace.h"
-#include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "rang.hpp"
@@ -186,38 +185,6 @@ bool params_satisfy(FunctionType* type, std::vector<FunctionParam*>& param_types
         i++;
     }
     return true;
-}
-
-bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* const previous, FunctionDeclaration* declaration) {
-    if(declaration->is_override()) {
-        const auto func = previous->as_function();
-        if(func == nullptr) {
-            error((ASTNode*) declaration) << "node with name '" << name << "' cannot be overridden because its not a function";
-            return false;
-        }
-        if (func->returnType->satisfies(declaration->returnType) && params_satisfy(func, declaration->params, false)) {
-            getSymbolTable().declare(name, declaration);
-            return true;
-        } else {
-            dup_sym_error(declaration->name_view(), previous, declaration);
-            error((ASTNode*) declaration) << "function '" << declaration->name_view() << "' cannot override because it's parameter types or return type don't match";
-            return false;
-        }
-    }
-    auto result = handle_name_overload_function(*ast_allocator, previous, declaration);
-    if(result.specifier_mismatch) {
-        error("couldn't overload function because it's access specifier is different from previous function", (ASTNode*) declaration);
-        return false;
-    } else if(!result.duplicates.empty()) {
-        for(auto dup : result.duplicates) {
-            dup_sym_error(name, dup, declaration);
-        }
-    } else if(result.new_multi_func_node) {
-        // override the previous symbol
-        getSymbolTable().declare(name, result.new_multi_func_node);
-        return true;
-    }
-    return false;
 }
 
 static void append_parts(Diag& diag, const std::span<chem::string_view>& parts) {

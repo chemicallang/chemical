@@ -66,7 +66,7 @@ public namespace http {
         }
 
         @make
-        func make(qs : &std::string_view) {
+        func make_from_qs(qs : &std::string_view) {
             return QueryMap {
                 pairs : parse_query(qs)
             }

@@ -393,3 +393,181 @@ public func image_png_too_short(env : &mut TestEnv) {
     var result = image::parse_png(&raw bad[0], 4)
     if(result is Result.Ok) { env.error("should fail on too-short data") }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PNG save + roundtrip
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func image_png_save_load_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgba(32, 32)
+    var white = image::RGBA8.make(255, 255, 255, 255)
+    image::image_fill(&raw mut img, white)
+    var red = image::RGBA8.make(255, 0, 0, 255)
+    image::image_set_rgba(&raw mut img, 10, 10, red)
+
+    var save_result = image::save_png(&raw mut img, "/tmp/test_save.png")
+    if(save_result is Result.Err) { env.error("PNG save failed"); return }
+
+    var load_result = image::load_png("/tmp/test_save.png")
+    if(load_result is Result.Err) { env.error("PNG load failed"); return }
+    var Ok(loaded) = load_result else unreachable
+    if(image::image_width(&raw mut loaded) != 32) { env.error("width should be 32") }
+    if(image::image_height(&raw mut loaded) != 32) { env.error("height should be 32") }
+
+    // Check red pixel
+    var px = image::image_get_rgba(&raw mut loaded, 10, 10)
+    if(px is Result.Ok) {
+        var Ok(color) = px else unreachable
+        if(color.r != 255 as u8) { env.error("red channel should be 255") }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BMP tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func image_bmp_invalid_signature(env : &mut TestEnv) {
+    var bad : [2]u8 = [0x41 as u8, 0x42 as u8]
+    var result = image::parse_bmp(&raw bad[0], 2)
+    if(result is Result.Ok) { env.error("should fail on bad signature") }
+}
+
+@test
+public func image_bmp_save_load_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgba(16, 16)
+    var red = image::RGBA8.make(255, 0, 0, 255)
+    image::image_fill(&raw mut img, red)
+
+    var save_result = image::save_bmp(&raw mut img, "/tmp/test_bmp.bmp")
+    if(save_result is Result.Err) { env.error("BMP save failed"); return }
+
+    var load_result = image::load_bmp("/tmp/test_bmp.bmp")
+    if(load_result is Result.Err) { env.error("BMP load failed"); return }
+    var Ok(loaded) = load_result else unreachable
+    if(image::image_width(&raw mut loaded) != 16) { env.error("width should be 16") }
+    if(image::image_height(&raw mut loaded) != 16) { env.error("height should be 16") }
+}
+
+@test
+public func image_bmp_invalid_bit_count(env : &mut TestEnv) {
+    // Create minimal BMP header with unsupported bit count
+    var buf : [54]u8
+    buf[0] = 0x42 as u8; buf[1] = 0x4D as u8  // BM
+    buf[28] = 1 as u8  // unsupported bit count (1 bpp)
+    var result = image::parse_bmp(&raw buf[0], 54)
+    if(result is Result.Ok) { env.error("should fail on 1bpp BMP") }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PPM tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func image_ppm_invalid_magic(env : &mut TestEnv) {
+    var bad : [3]u8 = [0x50 as u8, 0x39 as u8, 0x0A as u8]  // "P9\n"
+    var result = image::parse_ppm(&raw bad[0], 3)
+    if(result is Result.Ok) { env.error("should fail on P9 magic") }
+}
+
+@test
+public func image_ppm_save_load_p6_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgb(8, 8)
+    // Set pixels manually instead of fill (fill expects RGBA8)
+    var i : int = 0
+    while(i < 8 * 8) {
+        var p = image::image_pixels(&raw mut img)
+        p[i * 3] = 0 as u8
+        p[i * 3 + 1] = 255 as u8
+        p[i * 3 + 2] = 0 as u8
+        i += 1
+    }
+
+    var save_result = image::save_ppm(&raw mut img, "/tmp/test_ppm.ppm")
+    if(save_result is Result.Err) { env.error("PPM save failed"); return }
+
+    var load_result = image::load_ppm("/tmp/test_ppm.ppm")
+    if(load_result is Result.Err) { env.error("PPM load failed"); return }
+    var Ok(loaded) = load_result else unreachable
+    if(image::image_width(&raw mut loaded) != 8) { env.error("width should be 8") }
+    if(image::image_channels(&raw mut loaded) != 3) { env.error("should be 3 channels") }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Image operations edge cases
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func image_flip_v_works(env : &mut TestEnv) {
+    var img = image::image_create_rgba(4, 4)
+    var r = image::RGBA8.make(255, 0, 0, 255)
+    image::image_set_rgba(&raw mut img, 0, 0, r)
+    image::image_flip_v(&raw mut img)
+    // Pixel that was at (0,0) should now be at (0,3)
+    var px = image::image_get_rgba(&raw mut img, 0, 3)
+    if(px is Result.Ok) {
+        var Ok(color) = px else unreachable
+        if(color.r != 255 as u8) { env.error("flipped pixel should be red") }
+    }
+}
+
+@test
+public func image_fill_circle_works(env : &mut TestEnv) {
+    var img = image::image_create_rgba(32, 32)
+    var white = image::RGBA8.make(255, 255, 255, 255)
+    image::image_fill_circle(&raw mut img, 16, 16, 10, white)
+    // Center should be filled
+    var px = image::image_get_rgba(&raw mut img, 16, 16)
+    if(px is Result.Ok) {
+        var Ok(color) = px else unreachable
+        if(color.r != 255 as u8) { env.error("circle center should be filled") }
+    }
+    // Far corner should NOT be filled
+    var px2 = image::image_get_rgba(&raw mut img, 0, 0)
+    if(px2 is Result.Ok) {
+        var Ok(c2) = px2 else unreachable
+        if(c2.r == 255 as u8 && c2.g == 255 as u8 && c2.b == 255 as u8) {
+            env.error("corner should not be filled")
+        }
+    }
+}
+
+@test
+public func image_pixel_out_of_bounds(env : &mut TestEnv) {
+    var img = image::image_create_rgba(8, 8)
+    var white = image::RGBA8.make(255, 255, 255, 255)
+    var result = image::image_set_rgba(&raw mut img, 100, 100, white)
+    if(result is Result.Ok) { env.error("out-of-bounds should fail") }
+}
+
+@test
+public func image_get_rgba_out_of_bounds(env : &mut TestEnv) {
+    var img = image::image_create_rgba(4, 4)
+    var result = image::image_get_rgba(&raw mut img, 99, 99)
+    if(result is Result.Ok) { env.error("get out-of-bounds should fail") }
+}
+
+@test
+public func image_blit_mismatched_sizes(env : &mut TestEnv) {
+    var dst = image::image_create_rgba(32, 32)
+    var src = image::image_create_rgba(64, 64)
+    var result = image::image_blit(&raw mut dst, &raw mut src, 0, 0)
+    // blit should succeed with clipping
+    if(result is Result.Err) { env.error("blit with larger src should succeed (clipped)") }
+}
+
+@test
+public func image_crop_invalid_region(env : &mut TestEnv) {
+    var img = image::image_create_rgba(32, 32)
+    // Crop with width=0
+    var result = image::image_crop(&raw mut img, 0, 0, 0, 10)
+    if(result is Result.Ok) { env.error("crop with zero width should fail") }
+}
+
+@test
+public func image_rectangle_on_non_rgba(env : &mut TestEnv) {
+    var img = image::image_create_rgb(16, 16)
+    var red = image::RGBA8.make(255, 0, 0, 255)
+    image::image_rectangle(&raw mut img, 2, 2, 10, 10, red)
+}

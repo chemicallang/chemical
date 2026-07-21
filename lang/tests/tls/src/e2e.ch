@@ -129,3 +129,64 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
     net::close_socket(server_sock)
     system("pkill -f 'openssl s_client.*19880' 2>/dev/null")
 }
+
+@test
+public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
+    // ECDSA cert + x25519 key exchange — modern TLS
+    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_srv_key.pem -out /tmp/ecdsa_srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
+
+    var cert = x509_crt_load_pem_file("/tmp/ecdsa_srv_cert.pem")
+    if(cert == null) { env.error("failed to load ECDSA cert"); return }
+
+    var server_sock = net::listen_addr("127.0.0.1", 19882u)
+    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // Force x25519 on client side
+    system("openssl s_client -connect 127.0.0.1:19882 -groups X25519 -tls1_3 -no_anti_replay -quiet 2>/dev/null </dev/null &")
+    system("sleep 1")
+
+    var client_sock = net::accept_socket(server_sock)
+    if(client_sock == 0 as net::Socket) { env.error("no client"); net::close_socket(server_sock); return }
+
+    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    ssl_init(ssl_mem)
+    ssl_set_socket(ssl_mem, client_sock)
+    var cfg = ssl_config_init(SSL_IS_SERVER)
+    cfg.own_cert = cert
+    cfg.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    var ret = ssl_handshake(ssl_mem)
+    if(ret < 0) {
+        env.error("ECDSA cert + x25519 server handshake failed")
+    }
+    ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+    net::close_socket(server_sock)
+    system("pkill -f 'openssl s_client.*19882' 2>/dev/null")
+}
+
+@test
+public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
+    // Client connects to ECDSA-cert server — tests our ECDSA cert verification
+    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_key.pem -out /tmp/ecdsa_cert.pem -subj /CN=127.0.0.1 -days 1 -nodes 2>/dev/null")
+
+    system("openssl s_server -cert /tmp/ecdsa_cert.pem -key /tmp/ecdsa_key.pem -tls1_3 -no_anti_replay -accept 19883 -quiet 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    // Load the server's cert as trusted CA (self-signed)
+    var ca = x509_crt_load_pem_file("/tmp/ecdsa_cert.pem")
+    if(ca != null) { ssl_set_ca_chain(&raw mut config, ca) }
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19883u)
+    if(ret < 0) {
+        env.error("ECDSA client handshake failed")
+    }
+    ssl_free(&raw mut ctx)
+    system("pkill -f 'openssl s_server.*19883' 2>/dev/null")
+}

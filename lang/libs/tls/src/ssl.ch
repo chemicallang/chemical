@@ -3662,19 +3662,17 @@ public namespace tls {
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
         crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], hs_len)
 
-        // Parse ClientHello to find client's key_share
-        var client_public_key : [65]u8
-        var found_key_share = false
-        var ch_pos : size_t = 4  // skip type + length
+        // Parse ClientHello to find client's key_share (support both P-256 and x25519)
+        var client_p256_key : [65]u8
+        var client_x25519_key : [32]u8
+        var has_client_p256 = false
+        var has_client_x25519 = false
+        var ch_pos : size_t = 4
 
-        // Skip version (2) + random (32) + session_id
         ch_pos += 34 as size_t
         var sid_len = hs_buf[ch_pos] as size_t; ch_pos += 1 + sid_len
-        // Skip ciphersuites
         var cs_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2 + cs_len
-        // Skip compression
         var cm_count = hs_buf[ch_pos] as size_t; ch_pos += 1 + cm_count
-        // Parse extensions
         if(ch_pos + 2 <= hs_len as size_t + 4) {
             var ext_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
             var ext_end = ch_pos + ext_len
@@ -3682,40 +3680,62 @@ public namespace tls {
                 var ext_type = read_u16_be(&raw hs_buf[ch_pos]); ch_pos += 2
                 var ext_data_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
                 if(ext_type == TLS_EXT_KEY_SHARE as u16 && ext_data_len >= 4) {
-                    var ks_group = read_u16_be(&raw hs_buf[ch_pos + 2])
-                    var ks_key_len = read_u16_be(&raw hs_buf[ch_pos + 4]) as size_t
-                    if(ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
-                        var ki : size_t = 0
-                        while(ki < 65) {
-                            client_public_key[ki] = hs_buf[ch_pos + 6 + ki]
-                            ki += 1
+                    // key_share contains: client_shares_len(2) + KeyShareEntry*
+                    var shares_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
+                    var shares_end = ch_pos + shares_len
+                    while(ch_pos + 4 <= shares_end) {
+                        var ks_group = read_u16_be(&raw hs_buf[ch_pos]); ch_pos += 2
+                        var ks_key_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
+                        if(ks_group == TLS_GROUP_X25519 as u16 && ks_key_len == 32 && ch_pos + 32 <= shares_end) {
+                            var ki : size_t = 0
+                            while(ki < 32) { client_x25519_key[ki] = hs_buf[ch_pos + ki]; ki += 1 }
+                            has_client_x25519 = true
+                        } else if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65 && ch_pos + 65 <= shares_end) {
+                            var ki : size_t = 0
+                            while(ki < 65) { client_p256_key[ki] = hs_buf[ch_pos + ki]; ki += 1 }
+                            has_client_p256 = true
                         }
-                        found_key_share = true
+                        ch_pos += ks_key_len
                     }
+                    // Use the rest of ext_data_len (already consumed by shares parsing)
+                    continue
                 }
                 ch_pos += ext_data_len
             }
         }
 
-        if(!found_key_share) {
+        if(!has_client_p256 && !has_client_x25519) {
             return ERR_SSL_HANDSHAKE_FAILURE
         }
 
+        // Prefer x25519, fall back to P-256
+        var use_x25519 = has_client_x25519
+
         // ── Generate server ECDHE keypair ──────────────────────────────
-        var ecdh_ctx : ECDHContext
-        ecdh_init(&raw mut ecdh_ctx)
-        var server_priv : [32]u8
-        var server_pub : [65]u8
-        ret = ecdh_generate_keypair(&raw mut ecdh_ctx,
-                                    &raw mut server_priv[0], 32,
-                                    &raw mut server_pub[0], 65)
+        var server_p256_priv : [32]u8; var server_p256_pub : [65]u8
+        var server_x25519_priv : [32]u8; var server_x25519_pub : [32]u8
+        var has_server_x25519 = false
+
+        // Always generate P-256 (needed for fallback)
+        var ecdh_ctx : ECDHContext; ecdh_init(&raw mut ecdh_ctx)
+        ret = ecdh_generate_keypair(&raw mut ecdh_ctx, &raw mut server_p256_priv[0], 32, &raw mut server_p256_pub[0], 65)
         if(ret < 0) { return ret }
+
+        if(use_x25519) {
+            var xr = x25519_generate_keypair(&raw mut server_x25519_priv[0], &raw mut server_x25519_pub[0])
+            if(xr == 0) { has_server_x25519 = true }
+            if(!has_server_x25519) { use_x25519 = false }
+        }
 
         // ── Compute ECDHE shared secret ───────────────────────────────
         var shared_secret : [32]u8
-        ret = ecdh_compute_shared(&raw mut ecdh_ctx,
-                                  &raw client_public_key[0], 65,
-                                  &raw mut shared_secret[0], 32)
+        if(use_x25519 && has_client_x25519 && has_server_x25519) {
+            ret = x25519_compute_shared(&raw server_x25519_priv[0], &raw client_x25519_key[0], &raw mut shared_secret[0])
+        } else if(has_client_p256) {
+            ret = ecdh_compute_shared(&raw mut ecdh_ctx, &raw client_p256_key[0], 65, &raw mut shared_secret[0], 32)
+        } else {
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
         if(ret < 0) { return ret }
 
         // ── Build ServerHello ──────────────────────────────────────────
@@ -3743,20 +3763,31 @@ public namespace tls {
         // Extensions
         var sh_ext_start = sh_pos
         sh_pos += 2  // extension length placeholder
-        // key_share extension
+        // key_share extension — send the selected curve's public key
         sh_buf[sh_pos] = ((TLS_EXT_KEY_SHARE >> 8) & 0xFF) as u8; sh_pos += 1
         sh_buf[sh_pos] = (TLS_EXT_KEY_SHARE & 0xFF) as u8; sh_pos += 1
         var ks_ext_len_pos = sh_pos; sh_pos += 2
-        sh_buf[sh_pos] = ((TLS_GROUP_SECP256R1 >> 8) & 0xFF) as u8; sh_pos += 1
-        sh_buf[sh_pos] = (TLS_GROUP_SECP256R1 & 0xFF) as u8; sh_pos += 1
-        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
-        sh_buf[sh_pos] = 65 as u8; sh_pos += 1
-        var kpi : size_t = 0
-        while(kpi < 65) { sh_buf[sh_pos + kpi] = server_pub[kpi]; kpi += 1 }
-        sh_pos += 65
-        var ks_ext_len = 2 + 2 + 65
-        sh_buf[ks_ext_len_pos] = ((ks_ext_len >> 8) & 0xFF) as u8
-        sh_buf[ks_ext_len_pos + 1] = (ks_ext_len & 0xFF) as u8
+        if(use_x25519 && has_server_x25519) {
+            sh_buf[sh_pos] = ((TLS_GROUP_X25519 >> 8) & 0xFF) as u8; sh_pos += 1
+            sh_buf[sh_pos] = (TLS_GROUP_X25519 & 0xFF) as u8; sh_pos += 1
+            sh_buf[sh_pos] = 0 as u8; sh_pos += 1; sh_buf[sh_pos] = 32 as u8; sh_pos += 1
+            var kpi : size_t = 0
+            while(kpi < 32) { sh_buf[sh_pos + kpi] = server_x25519_pub[kpi]; kpi += 1 }
+            sh_pos += 32
+            var ks_ext_len = 2 + 2 + 32
+            sh_buf[ks_ext_len_pos] = ((ks_ext_len >> 8) & 0xFF) as u8
+            sh_buf[ks_ext_len_pos + 1] = (ks_ext_len & 0xFF) as u8
+        } else {
+            sh_buf[sh_pos] = ((TLS_GROUP_SECP256R1 >> 8) & 0xFF) as u8; sh_pos += 1
+            sh_buf[sh_pos] = (TLS_GROUP_SECP256R1 & 0xFF) as u8; sh_pos += 1
+            sh_buf[sh_pos] = 0 as u8; sh_pos += 1; sh_buf[sh_pos] = 65 as u8; sh_pos += 1
+            var kpi : size_t = 0
+            while(kpi < 65) { sh_buf[sh_pos + kpi] = server_p256_pub[kpi]; kpi += 1 }
+            sh_pos += 65
+            var ks_ext_len = 2 + 2 + 65
+            sh_buf[ks_ext_len_pos] = ((ks_ext_len >> 8) & 0xFF) as u8
+            sh_buf[ks_ext_len_pos + 1] = (ks_ext_len & 0xFF) as u8
+        }
         // supported_versions extension
         sh_buf[sh_pos] = ((TLS_EXT_SUPPORTED_VERSIONS >> 8) & 0xFF) as u8; sh_pos += 1
         sh_buf[sh_pos] = (TLS_EXT_SUPPORTED_VERSIONS & 0xFF) as u8; sh_pos += 1

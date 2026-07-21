@@ -79,3 +79,53 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
         env.error("no system CA bundle found")
     }
 }
+
+@test
+public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
+    // Generate server certificate
+    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/srv_key.pem -out /tmp/srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
+
+    var cert = x509_crt_load_pem_file("/tmp/srv_cert.pem")
+    if(cert == null) { env.error("failed to load server cert"); return }
+
+    // Listen on a port
+    var server_sock = net::listen_addr("127.0.0.1", 19880u)
+    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // Start OpenSSL s_client in background to connect to us
+    system("openssl s_client -connect 127.0.0.1:19880 -tls1_3 -no_anti_replay -quiet 2>/dev/null </dev/null &")
+    system("sleep 1")
+
+    // Accept the client connection
+    var client_sock = net::accept_socket(server_sock)
+    if(client_sock == 0 as net::Socket) {
+        env.error("no client connected — OpenSSL s_client may not be available")
+        net::close_socket(server_sock)
+        return
+    }
+
+    // Set up server SSL context
+    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    ssl_init(ssl_mem)
+    ssl_set_socket(ssl_mem, client_sock)
+
+    var cfg = ssl_config_init(SSL_IS_SERVER)
+    cfg.own_cert = cert
+    cfg.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    var ret = ssl_handshake(ssl_mem)
+    if(ret < 0) {
+        env.error("TLS 1.3 server handshake failed against OpenSSL client")
+    } else {
+        // Try reading what the client sent
+        var buf : [512]u8
+        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        ssl_close_notify(ssl_mem)
+    }
+
+    ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+    net::close_socket(server_sock)
+    system("pkill -f 'openssl s_client.*19880' 2>/dev/null")
+}

@@ -1152,35 +1152,45 @@ public namespace tls {
                      data : *u8, data_len : u16) : int {
         if((data_len as int) > MAX_RECORD_PAYLOAD) { return ERR_SSL_INTERNAL_ERROR }
 
-        // If encryption is active, use TLS 1.3 AEAD record format
-        if(ssl.transform_out != null && content_type != SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
-            var encrypted : [17400]u8
-            var enc_len = tls13_encrypt_record(ssl, content_type,
-                                                data, data_len as size_t,
-                                                &raw mut encrypted[0], 17400)
-            if(enc_len < 0) { return enc_len }
-            return ssl_send(ssl, &raw encrypted[0], enc_len)
-        }
-
-        // Build record header
-        var header : [5]u8
-        header[0] = content_type
-        header[1] = ssl.major_ver
-        header[2] = ssl.minor_ver
-        header[3] = ((data_len >> 8) & 0xFF) as u8
-        header[4] = (data_len & 0xFF) as u8
-
-        // Send header
-        var ret = ssl_send(ssl, &raw header[0], 5)
-        if(ret < 0) { return ret }
-
-        // Send data
-        if(data_len > 0) {
-            ret = ssl_send(ssl, data, data_len as i32)
+        // ChangeCipherSpec is sent in-the-clear per RFC
+        if(content_type == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
+            var header : [5]u8
+            header[0] = content_type
+            header[1] = ssl.major_ver
+            header[2] = ssl.minor_ver
+            header[3] = ((data_len >> 8) & 0xFF) as u8
+            header[4] = (data_len & 0xFF) as u8
+            var ret = ssl_send(ssl, &raw header[0], 5)
             if(ret < 0) { return ret }
+            if(data_len > 0) {
+                ret = ssl_send(ssl, data, data_len as i32)
+            }
+            return ret
         }
 
-        return 0
+        var encrypted : [17400]u8
+        var enc_len : int = 0
+
+        if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
+            enc_len = tls13_encrypt_record(ssl, content_type,
+                                           data, data_len as size_t,
+                                           &raw mut encrypted[0], 17400)
+        } else {
+            enc_len = tls12_encrypt_record(ssl.transform_out,
+                                           &raw ssl.out_ctr[0],
+                                           content_type,
+                                           ssl.major_ver, ssl.minor_ver,
+                                           data, data_len as size_t,
+                                           &raw mut encrypted[0], 17400)
+        }
+
+        if(enc_len < 0) { return enc_len }
+
+        var ret = ssl_send(ssl, &raw encrypted[0], enc_len)
+        if(ret >= 0 && ssl.tls_version < SSL_VERSION_TLS1_3) {
+            ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
+        }
+        return ret
     }
 
     // Send an alert record
@@ -2622,6 +2632,22 @@ public namespace tls {
         ssl.handshake.ecdhe_curve = TLS_GROUP_SECP256R1 as u16
         ssl.handshake.ecdhe_public = pub_mem
         ssl.handshake.ecdhe_public_len = 65
+
+        // Also generate x25519 keypair (preferred by most modern servers)
+        var x25519_priv : [32]u8
+        var x25519_pub : [32]u8
+        var x25519_ret = x25519_generate_keypair(&raw mut x25519_priv[0], &raw mut x25519_pub[0])
+        var has_x25519 : bool = (x25519_ret == 0)
+
+        // Store x25519 public key as ecdhe_private data (reuse field for raw bytes)
+        var x25519_pub_mem : *mut u8 = null
+        if(has_x25519) {
+            x25519_pub_mem = malloc(32) as *mut u8
+            if(x25519_pub_mem != null) {
+                var xi : size_t = 0
+                while(xi < 32) { x25519_pub_mem[xi] = x25519_pub[xi]; xi += 1 }
+            }
+        }
 
         // ── ClientHello ───────────────────────────────────────────────
         ssl.state = SSLState.CLIENT_HELLO()

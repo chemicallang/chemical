@@ -418,6 +418,113 @@ public namespace tls {
     }
 
     // ============================================================================
+    // TLS 1.3 Key Update (RFC 8446 Section 7.2)
+    // ============================================================================
+    // After the handshake, either side can send a KeyUpdate to refresh traffic keys.
+    // application_traffic_secret_N+1 = HKDF-Expand-Label(secret_N, "traffic upd", "", Hash.length)
+
+    // Update the client (send) side traffic keys
+    public func tls13_update_send_keys(ssl : *mut SSLContext) : int {
+        // Derive new secret
+        var new_secret : [32]u8
+        var empty_c : [1]u8 = [0]
+        var upd_label = "traffic upd\0" as *char
+        tls13_hkdf_expand_label(&raw mut ssl.tls13_keys.client_application_traffic_secret[0], 32,
+                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
+
+        // Store updated secret
+        var si : size_t = 0
+        while(si < 32) {
+            ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
+            si += 1
+        }
+
+        // Derive new client key and IV
+        var key_label = "key\0" as *char
+        var iv_label = "iv\0" as *char
+        var new_key : [16]u8
+        var new_iv : [12]u8
+        tls13_hkdf_expand_label(&raw new_secret[0], 32, key_label, 3,
+                                &raw empty_c[0], 0, &raw mut new_key[0], 16)
+        tls13_hkdf_expand_label(&raw new_secret[0], 32, iv_label, 2,
+                                &raw empty_c[0], 0, &raw mut new_iv[0], 12)
+
+        // Update transform_out with new keys
+        if(ssl.transform_out != null) {
+            si = 0
+            while(si < 16) { ssl.transform_out.key_enc[si] = new_key[si]; si += 1 }
+            si = 0
+            while(si < 12) { ssl.transform_out.base_iv_enc[si] = new_iv[si]; si += 1 }
+        }
+
+        // Reset send sequence number
+        si = 0
+        while(si < 8) { ssl.out_ctr[si] = 0; si += 1 }
+
+        return 0
+    }
+
+    // Update the server (receive) side traffic keys
+    public func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
+        // Derive new secret
+        var new_secret : [32]u8
+        var empty_c : [1]u8 = [0]
+        var upd_label = "traffic upd\0" as *char
+        tls13_hkdf_expand_label(&raw mut ssl.tls13_keys.server_application_traffic_secret[0], 32,
+                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
+
+        // Store updated secret
+        var si : size_t = 0
+        while(si < 32) {
+            ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
+            si += 1
+        }
+
+        // Derive new server key and IV
+        var key_label = "key\0" as *char
+        var iv_label = "iv\0" as *char
+        var new_key : [16]u8
+        var new_iv : [12]u8
+        tls13_hkdf_expand_label(&raw new_secret[0], 32, key_label, 3,
+                                &raw empty_c[0], 0, &raw mut new_key[0], 16)
+        tls13_hkdf_expand_label(&raw new_secret[0], 32, iv_label, 2,
+                                &raw empty_c[0], 0, &raw mut new_iv[0], 12)
+
+        // Update transform_in with new decryption keys
+        if(ssl.transform_in != null) {
+            si = 0
+            while(si < 16) { ssl.transform_in.key_dec[si] = new_key[si]; si += 1 }
+            si = 0
+            while(si < 12) { ssl.transform_in.base_iv_dec[si] = new_iv[si]; si += 1 }
+        }
+
+        // Reset receive sequence number
+        si = 0
+        while(si < 8) { ssl.in_ctr[si] = 0; si += 1 }
+
+        return 0
+    }
+
+    // Send a KeyUpdate message (TLS 1.3)
+    // request_response: if true, requests the peer to also send a KeyUpdate
+    public func tls13_send_key_update(ssl : *mut SSLContext, request_response : bool) : int {
+        // Update our send keys first
+        var ret = tls13_update_send_keys(ssl)
+        if(ret < 0) { return ret }
+
+        // Build KeyUpdate message: key_update_request (1 byte)
+        var ku_body : [1]u8
+        if(request_response) {
+            ku_body[0] = 1 as u8
+        } else {
+            ku_body[0] = 0 as u8
+        }
+
+        ret = send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
+        return ret
+    }
+
+    // ============================================================================
     // TLS 1.2 Key Derivation (RFC 5246)
     // ============================================================================
 
@@ -1430,6 +1537,47 @@ public namespace tls {
             var sni_data_len = 2 + 2 + hostlist_len
             buf[sni_len_pos] = (sni_data_len >> 8) as u8
             buf[sni_len_pos + 1] = sni_data_len as u8
+        }
+
+        // ALPN extension
+        if(ssl.conf != null && ssl.conf.alpn_list != null && ssl.conf.alpn_count > 0) {
+            buf[pos] = ((TLS_EXT_ALPN >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_ALPN & 0xFF) as u8; pos += 1
+
+            var alpn_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+
+            // ProtocolNameList
+            var pnl_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+
+            var alpn_count = ssl.conf.alpn_count as u8
+            var ai : u8 = 0
+            while(ai < alpn_count) {
+                var pname = ssl.conf.alpn_list[ai]
+                if(pname != null) {
+                    var plen : u32 = 0
+                    while(pname[plen] != 0) { plen += 1 }
+                    if(plen > 0 && plen <= 255) {
+                        buf[pos] = plen as u8; pos += 1
+                        var pj : u32 = 0
+                        while(pj < plen) {
+                            buf[pos] = pname[pj] as u8
+                            pos += 1
+                            pj += 1
+                        }
+                    }
+                }
+                ai += 1
+            }
+
+            var pnl_data_len = pos - pnl_len_pos - 2
+            buf[pnl_len_pos] = ((pnl_data_len >> 8) & 0xFF) as u8
+            buf[pnl_len_pos + 1] = (pnl_data_len & 0xFF) as u8
+
+            var alpn_data_len = 2 + pnl_data_len
+            buf[alpn_len_pos] = ((alpn_data_len >> 8) & 0xFF) as u8
+            buf[alpn_len_pos + 1] = (alpn_data_len & 0xFF) as u8
         }
 
         // Extension: key_share (TLS 1.3)
@@ -2527,6 +2675,42 @@ public namespace tls {
             if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
+                // Parse ALPN from EncryptedExtensions
+                if(msg_body_len2 >= 4) {
+                    var ee_pos : size_t = 4
+                    var ee_end : size_t = 4 + msg_body_len2 as size_t
+                    while(ee_pos + 4 <= ee_end) {
+                        var ext_type = read_u16_be(&raw msg_buf[ee_pos]) as u16
+                        ee_pos += 2
+                        var ext_data_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
+                        ee_pos += 2
+                        if(ext_type == TLS_EXT_ALPN as u16 && ext_data_len >= 2) {
+                            var alpn_list_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
+                            ee_pos += 2
+                            if(alpn_list_len > 0 && ee_pos < ee_end) {
+                                var alpn_name_len = msg_buf[ee_pos] as size_t
+                                ee_pos += 1
+                                if(alpn_name_len > 0 && alpn_name_len <= 255 &&
+                                   ee_pos + alpn_name_len <= ee_end) {
+                                    // Store negotiated protocol
+                                    var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
+                                    if(alpn_mem != null) {
+                                        var alpi : size_t = 0
+                                        while(alpi < alpn_name_len) {
+                                            alpn_mem[alpi] = msg_buf[ee_pos + alpi]
+                                            alpi += 1
+                                        }
+                                        alpn_mem[alpn_name_len] = 0
+                                        ssl.alpn_negotiated = alpn_mem as *char
+                                        ssl.alpn_negotiated_len = alpn_name_len
+                                    }
+                                }
+                            }
+                        }
+                        ee_pos += ext_data_len
+                    }
+                }
+
             } else if(msg_type_code == SSL_HS_CERTIFICATE as u32) {
                 // Hash Certificate into transcript BEFORE saving transcript state
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
@@ -2831,6 +3015,17 @@ public namespace tls {
     // Set the server's own RSA private key for decrypting the pre-master secret
     public func ssl_set_own_rsa_key(conf : *mut SSLConfig, rsa_key : *mut RSAContext) {
         conf.own_key = rsa_key as *mut void
+    }
+
+    // Set ALPN protocols for negotiation
+    public func ssl_set_alpn_protocols(conf : *mut SSLConfig, protocols : *mut *char, count : u8) {
+        conf.alpn_list = protocols
+        conf.alpn_count = count
+    }
+
+    // Get the negotiated ALPN protocol after handshake
+    public func ssl_get_alpn_negotiated(ssl : *mut SSLContext) : *char {
+        return ssl.alpn_negotiated
     }
 
     // Public API - Client Connection

@@ -96,6 +96,7 @@ public namespace tls {
     public comptime const SSL_HS_CERTIFICATE_VERIFY = 15
     public comptime const SSL_HS_CLIENT_KEY_EXCHANGE = 16
     public comptime const SSL_HS_FINISHED = 20
+    public comptime const SSL_HS_KEY_UPDATE = 24
 
     // ─── Alert Messages ─────────────────────────────────────────────────────
 

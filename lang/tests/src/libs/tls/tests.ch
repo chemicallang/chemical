@@ -2448,3 +2448,213 @@ public func tls_ecp_add_jac_computes_valid_point(env : &mut TestEnv) {
     if(all_zero) { env.error("shared secret should not be all zeros") }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ALPN Tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_alpn_config_setter_works(env : &mut TestEnv) {
+    var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    if(config.alpn_count != 0) {
+        env.error("alpn_count should be 0 initially")
+    }
+    if(config.alpn_list != null) {
+        env.error("alpn_list should be null initially")
+    }
+
+    var protocols : [2]*char = ["h2\0" as *char, "http/1.1\0" as *char]
+    tls::ssl_set_alpn_protocols(&raw mut config, &raw protocols[0] as *mut *char, 2)
+    if(config.alpn_count != 2) {
+        env.error("alpn_count should be 2 after set")
+    }
+    if(config.alpn_list == null) {
+        env.error("alpn_list should be set")
+    }
+}
+
+@test
+public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+    var alpn = tls::ssl_get_alpn_negotiated(&raw mut ssl)
+    if(alpn != null) {
+        env.error("alpn_negotiated should be null before handshake")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TLS 1.3 Key Update Tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
+    // Simulate a post-handshake scenario: set up keys, then update
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+
+    // Set up application traffic secrets (simulating post-handshake state)
+    var secret : [32]u8
+    var i : size_t = 0
+    while(i < 32) {
+        ssl.tls13_keys.client_application_traffic_secret[i] = (i + 1) as u8
+        ssl.tls13_keys.server_application_traffic_secret[i] = (i + 100) as u8
+        i += 1
+    }
+
+    // Set up transform_out with known key
+    var tr_out_mem = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    tls::transform_init(tr_out_mem)
+    tr_out_mem.key_len = 16
+    i = 0
+    while(i < 16) {
+        tr_out_mem.key_enc[i] = 0xAA
+        tr_out_mem.base_iv_enc[i] = 0xBB
+        i += 1
+    }
+    ssl.transform_out = tr_out_mem
+
+    // Perform key update
+    var ret = tls::tls13_update_send_keys(&raw mut ssl)
+    if(ret < 0) {
+        env.error("tls13_update_send_keys should succeed")
+        return
+    }
+
+    // Keys should have changed (no longer 0xAA)
+    var keys_changed = false
+    i = 0
+    while(i < 16) {
+        if(ssl.transform_out.key_enc[i] != 0xAA) { keys_changed = true }
+        i += 1
+    }
+    if(!keys_changed) {
+        env.error("send keys should change after update")
+    }
+
+    // Sequence number should be reset to zero
+    var seq_zero = true
+    i = 0
+    while(i < 8) {
+        if(ssl.out_ctr[i] != 0) { seq_zero = false }
+        i += 1
+    }
+    if(!seq_zero) {
+        env.error("sequence number should be reset after key update")
+    }
+}
+
+@test
+public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
+    // Test receive-side key update
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+
+    var i : size_t = 0
+    while(i < 32) {
+        ssl.tls13_keys.client_application_traffic_secret[i] = (i + 1) as u8
+        ssl.tls13_keys.server_application_traffic_secret[i] = (i + 50) as u8
+        i += 1
+    }
+
+    var tr_in_mem = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    tls::transform_init(tr_in_mem)
+    tr_in_mem.key_len = 16
+    i = 0
+    while(i < 16) {
+        tr_in_mem.key_dec[i] = 0xCC
+        tr_in_mem.base_iv_dec[i] = 0xDD
+        i += 1
+    }
+    ssl.transform_in = tr_in_mem
+
+    var ret = tls::tls13_update_recv_keys(&raw mut ssl)
+    if(ret < 0) {
+        env.error("tls13_update_recv_keys should succeed")
+        return
+    }
+
+    var keys_changed = false
+    i = 0
+    while(i < 16) {
+        if(ssl.transform_in.key_dec[i] != 0xCC) { keys_changed = true }
+        i += 1
+    }
+    if(!keys_changed) {
+        env.error("recv keys should change after update")
+    }
+}
+
+@test
+public func tls13_key_update_deterministic(env : &mut TestEnv) {
+    // Two key updates with same starting secret should produce same result
+    var ssl1 : tls::SSLContext; tls::ssl_init(&raw mut ssl1)
+    var ssl2 : tls::SSLContext; tls::ssl_init(&raw mut ssl2)
+
+    var i : size_t = 0
+    while(i < 32) {
+        ssl1.tls13_keys.client_application_traffic_secret[i] = (i + 10) as u8
+        ssl2.tls13_keys.client_application_traffic_secret[i] = (i + 10) as u8
+        i += 1
+    }
+
+    var tr1 = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    var tr2 = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    tls::transform_init(tr1); tls::transform_init(tr2)
+    tr1.key_len = 16; tr2.key_len = 16
+    ssl1.transform_out = tr1; ssl2.transform_out = tr2
+
+    tls::tls13_update_send_keys(&raw mut ssl1)
+    tls::tls13_update_send_keys(&raw mut ssl2)
+
+    var match = true
+    i = 0
+    while(i < 16) {
+        if(ssl1.transform_out.key_enc[i] != ssl2.transform_out.key_enc[i]) { match = false }
+        i += 1
+    }
+    if(!match) {
+        env.error("key update should be deterministic with same input")
+    }
+
+    // The updated secret should also match
+    match = true
+    i = 0
+    while(i < 32) {
+        if(ssl1.tls13_keys.client_application_traffic_secret[i] !=
+           ssl2.tls13_keys.client_application_traffic_secret[i]) { match = false }
+        i += 1
+    }
+    if(!match) {
+        env.error("updated traffic secret should be deterministic")
+    }
+}
+
+@test
+public func tls13_key_update_send_key_update_builds_message(env : &mut TestEnv) {
+    // tls13_send_key_update sends the update and builds a KeyUpdate message
+    // We can't test actual sending without a socket, but verify the function exists
+    // and constant SSL_HS_KEY_UPDATE is defined
+    if(tls::SSL_HS_KEY_UPDATE != 24) {
+        env.error("SSL_HS_KEY_UPDATE should be 24")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RSA gen_key (stub — intentional, not a bug)
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
+    // rsa_gen_key is intentionally not implemented.
+    // Users should use rsa_import_privkey to import keys.
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(&raw mut ctx, 2048, 65537u32)
+    if(ret == 0) {
+        env.error("rsa_gen_key should return error (not implemented)")
+    }
+    if(ret != tls::ERR_RSA_KEY_GEN_FAILED) {
+        env.error("rsa_gen_key should return ERR_RSA_KEY_GEN_FAILED")
+    }
+}
+

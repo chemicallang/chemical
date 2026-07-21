@@ -116,7 +116,7 @@ public namespace tls {
     }
 
     // PKCS#1 v1.5 unpadding for encryption (RFC 8017 Section 7.2.2)
-    func pkcs1_v15_decode(input : *u8, input_len : size_t,
+    public func pkcs1_v15_decode(input : *u8, input_len : size_t,
                            output : *mut u8, output_len : *mut size_t,
                            expected_output_len : size_t) : int {
         // Minimum: 0x00 || 0x02 || 0x00 (at least 8 bytes PS) = 11 bytes

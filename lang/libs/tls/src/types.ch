@@ -655,6 +655,11 @@ public namespace tls {
         var ecdhe_private : *mut u8
         var ecdhe_private_len : u16
 
+        // x25519 parameters
+        var x25519_public : *mut u8
+        var x25519_public_len : u16
+        var x25519_private : *mut u8
+
         // PSK
         var psk : [32]u8
         var psk_len : u8
@@ -691,6 +696,9 @@ public namespace tls {
         hs.ecdhe_public_len = 0
         hs.ecdhe_private = null
         hs.ecdhe_private_len = 0
+        hs.x25519_public = null
+        hs.x25519_public_len = 0
+        hs.x25519_private = null
         i = 0
         while(i < 32) {
             hs.psk[i] = 0

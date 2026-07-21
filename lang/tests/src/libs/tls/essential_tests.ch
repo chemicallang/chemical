@@ -832,3 +832,125 @@ public func tls_transform_populate_sets_correct_fields(env : &mut TestEnv) {
     if(!bytes_not_zero(&raw tr.key_dec[0], 16)) { env.error("key_dec should not be zero") }
     if(!bytes_not_zero(&raw tr.base_iv_enc[0], 4)) { env.error("base_iv_enc should not be zero") }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 12: CSPRNG Security + API Cleanup Tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_ecdh_keypair_uses_csprng(env : &mut TestEnv) {
+    // Two consecutive keypair generations must produce different private keys
+    var ctx1 : tls::ECDHContext
+    tls::ecdh_init(&raw mut ctx1)
+    var priv1 : [32]u8
+    var pub1 : [65]u8
+    var ret = tls::ecdh_generate_keypair(&raw mut ctx1, &raw mut priv1[0], 32, &raw mut pub1[0], 65)
+    if(ret < 0) { env.error("ecdh_generate_keypair #1 failed"); return }
+
+    var ctx2 : tls::ECDHContext
+    tls::ecdh_init(&raw mut ctx2)
+    var priv2 : [32]u8
+    var pub2 : [65]u8
+    ret = tls::ecdh_generate_keypair(&raw mut ctx2, &raw mut priv2[0], 32, &raw mut pub2[0], 65)
+    if(ret < 0) { env.error("ecdh_generate_keypair #2 failed"); return }
+
+    // Private keys must differ (CSPRNG-backed, not deterministic)
+    var keys_differ = false
+    var i : size_t = 0
+    while(i < 32) {
+        if(priv1[i] != priv2[i]) { keys_differ = true; break }
+        i += 1
+    }
+    if(!keys_differ) {
+        env.error("ECDH keypair should use CSPRNG — two calls must produce different keys")
+    }
+}
+
+@test
+public func tls_ecdh_rejects_zero_peer(env : &mut TestEnv) {
+    var ctx : tls::ECDHContext
+    tls::ecdh_init(&raw mut ctx)
+    var priv : [32]u8
+    var pub : [65]u8
+    var ret = tls::ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    if(ret < 0) { env.error("ecdh_generate_keypair failed"); return }
+
+    // Point-at-infinity (all zeros) should be rejected
+    var zero_peer : [65]u8
+    var i : size_t = 0
+    while(i < 65) { zero_peer[i] = 0; i += 1 }
+    var shared : [32]u8
+    ret = tls::ecdh_compute_shared(&raw mut ctx, &raw zero_peer[0], 65, &raw mut shared[0], 32)
+    if(ret == 0) {
+        env.error("ecdh_compute_shared should reject zero point (point-at-infinity)")
+    }
+}
+
+@test
+public func tls_cert_free_no_crash(env : &mut TestEnv) {
+    // cert_free should safely handle an initialized stack cert with no malloc'd buffers
+    var cert : tls::X509Cert
+    tls::x509_cert_init(&raw mut cert)
+    tls::cert_free(&raw mut cert)
+
+    // Also test: cert_free should not crash if cert fields are null
+    // (x509_cert_init already sets all ptr fields to null)
+    if(cert.serial != null) { env.error("serial should be null after init") }
+    if(cert.sig != null) { env.error("sig should be null after init") }
+    if(cert.pk_raw != null) { env.error("pk_raw should be null after init") }
+    if(cert.tbs_der != null) { env.error("tbs_der should be null after init") }
+}
+
+@test
+public func tls_rsa_free_no_crash(env : &mut TestEnv) {
+    // rsa_free should zero all MPI fields without crashing
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_free(&raw mut ctx)
+    // After free, key length should be zero
+    if(tls::rsa_get_len(&raw mut ctx) != 0) {
+        env.error("rsa_get_len should be 0 after rsa_free")
+    }
+}
+
+@test
+public func tls_cert_verify_failed_constant_exists(env : &mut TestEnv) {
+    // Just verify the constant compiles and has the expected value
+    var err = tls::ERR_SSL_CERT_VERIFY_FAILED
+    if(err == 0) {
+        env.error("ERR_SSL_CERT_VERIFY_FAILED should not be zero")
+    }
+}
+
+@test
+public func tls_rsa_pkcs1_padding_uses_csprng(env : &mut TestEnv) {
+    // Encode the same message twice with PKCS#1 v1.5 padding
+    // The padding bytes should differ (random), not be identical LCG output
+    var msg : [16]u8 = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
+    var em1 : [256]u8
+    var em2 : [256]u8
+
+    var ret1 = tls::pkcs1_v15_encode(&raw msg[0], 16, &raw mut em1[0], 256)
+    var ret2 = tls::pkcs1_v15_encode(&raw msg[0], 16, &raw mut em2[0], 256)
+    if(ret1 < 0 || ret2 < 0) {
+        env.error("pkcs1_v15_encode failed")
+        return
+    }
+
+    // Structure: 0x00 || 0x02 || PS (random) || 0x00 || M
+    // em[0] = 0x00, em[1] = 0x02, em[2..237] = padding, em[238] = 0x00, em[239..254] = msg
+    if(em1[0] != 0 || em1[1] != 2) { env.error("em1 header wrong") }
+    if(em2[0] != 0 || em2[1] != 2) { env.error("em2 header wrong") }
+
+    // Padding bytes (em[2]..em[237]) must differ between two encodings
+    var padding_differs = false
+    var i : size_t = 2
+    while(i < 238) {
+        if(em1[i] != em2[i]) { padding_differs = true; break }
+        i += 1
+    }
+    if(!padding_differs) {
+        env.error("PKCS#1 v1.5 padding should use CSPRNG — two encodings must differ")
+    }
+}

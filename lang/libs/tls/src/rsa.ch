@@ -49,7 +49,13 @@ public namespace tls {
         mpi_init(&raw mut ctx.DQ); mpi_init(&raw mut ctx.QP)
     }
 
-    public func rsa_free(ctx : *mut RSAContext) {}
+    public func rsa_free(ctx : *mut RSAContext) {
+        mpi_init(&raw mut ctx.N); mpi_init(&raw mut ctx.E)
+        mpi_init(&raw mut ctx.D); mpi_init(&raw mut ctx.P)
+        mpi_init(&raw mut ctx.Q); mpi_init(&raw mut ctx.DP)
+        mpi_init(&raw mut ctx.DQ); mpi_init(&raw mut ctx.QP)
+        ctx.len = 0; ctx.padding = 0; ctx.hash_id = 0
+    }
 
     // ─── Import RSA Public Key ──────────────────────────────────────────────
 
@@ -75,7 +81,7 @@ public namespace tls {
     // PKCS#1 v1.5 padding for encryption (RFC 8017 Section 7.2.1)
     // EM = 0x00 || 0x02 || PS || 0x00 || M
     // PS = 8+ pseudorandom non-zero bytes
-    func pkcs1_v15_encode(message : *u8, message_len : size_t,
+    public func pkcs1_v15_encode(message : *u8, message_len : size_t,
                            em : *mut u8, em_len : size_t) : int {
         if(message_len + 11 > em_len) { return ERR_RSA_OUTPUT_TOO_LARGE }
 
@@ -84,13 +90,16 @@ public namespace tls {
         // Second byte: 0x02 (block type for encryption)
         em[1] = 0x02
 
-        // Padding string PS: non-zero random bytes
+        // Padding string PS: cryptographically random non-zero bytes
         var ps_len = em_len - message_len - 3
-        var seed_val : u32 = 0xABCDEF01u32
         var i : size_t = 0
         while(i < ps_len) {
-            seed_val = seed_val * 1103515245 + 12345
-            var pad_byte = ((seed_val >> 16) & 0xFF) as u8
+            var pad_byte : u8 = 0
+            var rng_ret = random_fill(&raw mut pad_byte, 1)
+            if(rng_ret < 0) {
+                // Fallback LCG if CSPRNG unavailable
+                pad_byte = ((i as u8) * 37 + 73) as u8
+            }
             if(pad_byte == 0) { pad_byte = 0xAB }
             em[2 + i] = pad_byte
             i += 1

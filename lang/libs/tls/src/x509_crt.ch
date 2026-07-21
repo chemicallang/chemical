@@ -122,8 +122,25 @@ public namespace tls {
         }
     }
 
-    // Free certificate chain (destructor handles it)
-    public func cert_free(crt : *mut X509Cert) {}
+    // Free certificate chain — deallocates all malloc'd fields of each node.
+    // Does NOT free the X509Cert structs themselves (they may be stack-allocated).
+    public func cert_free(crt : *mut X509Cert) {
+        var curr = crt
+        while(curr != null) {
+            var nxt = curr.next
+            if(curr.raw_pem != null) { unsafe { dealloc curr.raw_pem } }
+            if(curr.serial != null) { unsafe { dealloc curr.serial } }
+            if(curr.sig_oid != null) { unsafe { dealloc curr.sig_oid } }
+            if(curr.issuer_raw != null) { unsafe { dealloc curr.issuer_raw } }
+            if(curr.subject_raw != null) { unsafe { dealloc curr.subject_raw } }
+            if(curr.pk_raw != null) { unsafe { dealloc curr.pk_raw } }
+            if(curr.sig != null) { unsafe { dealloc curr.sig } }
+            if(curr.sig_alg != null) { unsafe { dealloc curr.sig_alg } }
+            if(curr.tbs_der != null) { unsafe { dealloc curr.tbs_der } }
+            if(curr.san_entries != null) { unsafe { dealloc curr.san_entries } }
+            curr = nxt
+        }
+    }
 
     // Initialize an X509 certificate
     public func x509_cert_init(crt : *mut X509Cert) {

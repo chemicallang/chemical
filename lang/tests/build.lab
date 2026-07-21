@@ -35,6 +35,7 @@ import "./compiler_plugins/js/build.lab" as jsTestMod
 import "./compiler_plugins/universal/build.lab" as universalTestMod
 import "./compiler_plugins/md/build.lab" as mdTestMod
 import "./compiler_plugins/runner/build.lab" as testPluginsRunner
+import "./tls/chemical.mod" as tlsIntegrationMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -268,6 +269,14 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
     return exe_job;
 }
 
+func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-tls-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, tlsIntegrationMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     if(ctx.has_arg(std::string_view("test-plugins"))) {
@@ -278,6 +287,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("css"))
     } else if(ctx.has_arg(std::string_view("test-js"))) {
         return test_plugin_exe(ctx, std::string_view("js"))
+    } else if(ctx.has_arg(std::string_view("test-tls"))) {
+        return test_tls_exe(ctx)
     }
 
     const debug = true;

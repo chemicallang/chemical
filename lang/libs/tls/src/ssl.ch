@@ -1663,32 +1663,50 @@ public namespace tls {
             buf[psk_ext_len_pos + 1] = (psk_data_len & 0xFF) as u8
         }
 
-        // Extension: key_share (TLS 1.3)
-        // Only if handshake params have an ECDHE public key ready
-        if(ssl.handshake != null && ssl.handshake.ecdhe_public != null &&
-           ssl.handshake.ecdhe_public_len == 65) {
-            buf[pos] = ((TLS_EXT_KEY_SHARE >> 8) & 0xFF) as u8; pos += 1
-            buf[pos] = (TLS_EXT_KEY_SHARE & 0xFF) as u8; pos += 1
+        // Extension: key_share (TLS 1.3) — includes both P-256 and x25519
+        if(ssl.handshake != null) {
+            var has_p256 = ssl.handshake.ecdhe_public != null && ssl.handshake.ecdhe_public_len == 65
+            var has_x25519 = ssl.handshake.x25519_public != null && ssl.handshake.x25519_public_len == 32
+            if(has_p256 || has_x25519) {
+                buf[pos] = ((TLS_EXT_KEY_SHARE >> 8) & 0xFF) as u8; pos += 1
+                buf[pos] = (TLS_EXT_KEY_SHARE & 0xFF) as u8; pos += 1
+                var ks_len_pos = pos
+                buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+                // client_shares length placeholder
+                var cs_len_pos = pos
+                buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
 
-            var ks_len_pos = pos
-            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+                // x25519 first (preferred)
+                if(has_x25519) {
+                    buf[pos] = ((TLS_GROUP_X25519 >> 8) & 0xFF) as u8; pos += 1
+                    buf[pos] = (TLS_GROUP_X25519 & 0xFF) as u8; pos += 1
+                    buf[pos] = 0 as u8; pos += 1; buf[pos] = 32 as u8; pos += 1
+                    var ki : size_t = 0
+                    while(ki < 32) {
+                        buf[pos] = ssl.handshake.x25519_public[ki]
+                        pos += 1; ki += 1
+                    }
+                }
 
-            // NamedGroup (2 bytes)
-            buf[pos] = ((ssl.handshake.ecdhe_curve >> 8) & 0xFF) as u8; pos += 1
-            buf[pos] = (ssl.handshake.ecdhe_curve & 0xFF) as u8; pos += 1
-            // KeyExchangeLength (2 bytes) = 65
-            buf[pos] = 0 as u8; pos += 1; buf[pos] = 65 as u8; pos += 1
-            // KeyExchange (65 bytes): 04 || X || Y
-            var ki : size_t = 0
-            while(ki < 65) {
-                buf[pos] = ssl.handshake.ecdhe_public[ki]
-                pos += 1
-                ki += 1
+                // P-256 fallback
+                if(has_p256) {
+                    buf[pos] = ((TLS_GROUP_SECP256R1 >> 8) & 0xFF) as u8; pos += 1
+                    buf[pos] = (TLS_GROUP_SECP256R1 & 0xFF) as u8; pos += 1
+                    buf[pos] = 0 as u8; pos += 1; buf[pos] = 65 as u8; pos += 1
+                    var ki : size_t = 0
+                    while(ki < 65) {
+                        buf[pos] = ssl.handshake.ecdhe_public[ki]
+                        pos += 1; ki += 1
+                    }
+                }
+
+                var cs_len_key = pos - cs_len_pos - 2
+                buf[cs_len_pos] = ((cs_len_key >> 8) & 0xFF) as u8
+                buf[cs_len_pos + 1] = (cs_len_key & 0xFF) as u8
+                var ks_data_len = 2 + cs_len_key
+                buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
+                buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
             }
-
-            var ks_data_len = 2 + 2 + 65  // group + len + key
-            buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
-            buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
         }
 
         var ext_len = pos - ext_start - 2
@@ -2656,13 +2674,21 @@ public namespace tls {
         var x25519_ret = x25519_generate_keypair(&raw mut x25519_priv[0], &raw mut x25519_pub[0])
         var has_x25519 : bool = (x25519_ret == 0)
 
-        // Store x25519 public key as ecdhe_private data (reuse field for raw bytes)
-        var x25519_pub_mem : *mut u8 = null
+        // Store x25519 keypair in handshake params
         if(has_x25519) {
-            x25519_pub_mem = malloc(32) as *mut u8
+            // Store private key (copy to heap so it persists)
+            var x25519_priv_mem = malloc(32) as *mut u8
+            if(x25519_priv_mem != null) {
+                var xi : size_t = 0
+                while(xi < 32) { x25519_priv_mem[xi] = x25519_priv[xi]; xi += 1 }
+                ssl.handshake.x25519_private = x25519_priv_mem
+            }
+            var x25519_pub_mem = malloc(32) as *mut u8
             if(x25519_pub_mem != null) {
                 var xi : size_t = 0
                 while(xi < 32) { x25519_pub_mem[xi] = x25519_pub[xi]; xi += 1 }
+                ssl.handshake.x25519_public = x25519_pub_mem
+                ssl.handshake.x25519_public_len = 32 as u16
             }
         }
 
@@ -2835,7 +2861,9 @@ public namespace tls {
 
         // Parse extensions to find key_share
         var server_public_key : [65]u8
+        var server_x25519_key : [32]u8
         var found_key_share = false
+        var using_x25519 = false
         var ext_end = sh_pos + sh_ext_len
 
         while(sh_pos + 4 <= ext_end) {
@@ -2846,7 +2874,15 @@ public namespace tls {
                 var ks_group = read_u16_be(&raw hs_buf[sh_pos])
                 var ks_key_len = read_u16_be(&raw hs_buf[sh_pos + 2]) as size_t
 
-                if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65) {
+                if(ks_group == TLS_GROUP_X25519 as u16 && ks_key_len == 32 && ks_key_len <= ext_data_len - 4) {
+                    var ki : size_t = 0
+                    while(ki < 32) {
+                        server_x25519_key[ki] = hs_buf[sh_pos + 4 + ki]
+                        ki += 1
+                    }
+                    found_key_share = true
+                    using_x25519 = true
+                } else if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
                     var ki : size_t = 0
                     while(ki < 65) {
                         server_public_key[ki] = hs_buf[sh_pos + 4 + ki]
@@ -2868,9 +2904,15 @@ public namespace tls {
 
         // ── Compute ECDHE shared secret ──────────────────────────────
         var shared_secret : [32]u8
-        ret = ecdh_compute_shared(&raw mut ecdh_ctx,
-                                  &raw server_public_key[0], 65,
-                                  &raw mut shared_secret[0], 32)
+        if(using_x25519 && ssl.handshake.x25519_private != null) {
+            ret = x25519_compute_shared(ssl.handshake.x25519_private,
+                                        &raw server_x25519_key[0],
+                                        &raw mut shared_secret[0])
+        } else {
+            ret = ecdh_compute_shared(&raw mut ecdh_ctx,
+                                      &raw server_public_key[0], 65,
+                                      &raw mut shared_secret[0], 32)
+        }
         if(ret < 0) { return ret }
 
         // Hash(ClientHello...ServerHello) — save transcript state first, then finalize
@@ -3914,6 +3956,21 @@ public namespace tls {
     // Free SSL context resources (closes socket, frees handshake params)
     public func ssl_free(ssl : *mut SSLContext) {
         if(ssl.handshake != null) {
+            if(ssl.handshake.ecdhe_public != null) {
+                unsafe { dealloc ssl.handshake.ecdhe_public }
+            }
+            if(ssl.handshake.ecdhe_private != null) {
+                unsafe { dealloc ssl.handshake.ecdhe_private }
+            }
+            if(ssl.handshake.x25519_public != null) {
+                unsafe { dealloc ssl.handshake.x25519_public }
+            }
+            if(ssl.handshake.x25519_private != null) {
+                unsafe { dealloc ssl.handshake.x25519_private }
+            }
+            if(ssl.handshake.psk_identity != null) {
+                unsafe { dealloc ssl.handshake.psk_identity }
+            }
             unsafe { dealloc ssl.handshake }
             ssl.handshake = null
         }
@@ -3924,6 +3981,17 @@ public namespace tls {
         if(ssl.transform_out != null) {
             unsafe { dealloc ssl.transform_out }
             ssl.transform_out = null
+        }
+        if(ssl.session != null) {
+            if(ssl.session.ticket != null) {
+                unsafe { dealloc ssl.session.ticket }
+            }
+            unsafe { dealloc ssl.session }
+            ssl.session = null
+        }
+        if(ssl.alpn_negotiated != null) {
+            unsafe { dealloc ssl.alpn_negotiated }
+            ssl.alpn_negotiated = null
         }
         if(ssl.transport_connected) {
             net::close_socket(ssl.transport_socket)

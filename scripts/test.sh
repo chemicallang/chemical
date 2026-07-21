@@ -18,6 +18,7 @@ BUILD_TARGET=true
 TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
+TEST_TLS=false
 MODE="debug_quick"
 NO_CACHE="--no-cache"
 INCREMENTAL=false
@@ -79,6 +80,7 @@ while [ $# -gt 0 ]; do
     --interpret) TEST_INTERPRET=true ;;
     --negative) TEST_NEGATIVE=true ;;
     --plugins) TEST_PLUGINS=true ;;
+    --tls) TEST_TLS=true ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
     --no-build) BUILD_TARGET=false ;;
@@ -228,6 +230,9 @@ else
   if [ "$TEST_PLUGINS" = true ]; then
     CMD+=("--arg-test-plugins")
     [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
+  fi
+  if [ "$TEST_TLS" = true ]; then
+    CMD+=("--arg-test-tls")
   fi
   if [ "$PRINT_CMD" = true ]; then
     echo "${CMD[@]}"

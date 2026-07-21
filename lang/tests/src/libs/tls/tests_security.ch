@@ -405,3 +405,138 @@ public func SEC_gcm_input_too_short_rejected(env : &mut TestEnv) {
                                   &raw dummy[0], 20, &raw mut dummy[0], 64)
     if(r >= 0) { env.error("SEC FAIL: too-short GCM record accepted") }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// x25519 Tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func x25519_generate_keypair_unique(env : &mut TestEnv) {
+    var p1 : [32]u8; var u1 : [32]u8
+    var p2 : [32]u8; var u2 : [32]u8
+    var r1 = x25519_generate_keypair(&raw mut p1[0], &raw mut u1[0])
+    var r2 = x25519_generate_keypair(&raw mut p2[0], &raw mut u2[0])
+    if(r1 < 0 || r2 < 0) { env.error("x25519 keygen failed"); return }
+
+    // Keys must be unique from CSPRNG
+    var same = sec_bytes_equal(&raw p1[0], &raw p2[0], 32)
+    if(same) { env.error("x25519 keygen produced duplicate keys") }
+
+    // Clamped: priv[0] must have bottom 3 bits cleared
+    if((p1[0] & 0x07 as u8) != 0) { env.error("x25519 private key not clamped") }
+
+    // Public key must be non-zero
+    var pub_zero = true; var i : size_t = 0
+    while(i < 32) { if(u1[i] != 0) { pub_zero = false } i += 1 }
+    if(pub_zero) { env.error("x25519 public key is all zeros") }
+}
+
+@test
+public func x25519_shared_secret_deterministic(env : &mut TestEnv) {
+    // Key property: a * (b * G) == b * (a * G)
+    var a_priv : [32]u8; var a_pub : [32]u8
+    x25519_generate_keypair(&raw mut a_priv[0], &raw mut a_pub[0])
+
+    var b_priv : [32]u8; var b_pub : [32]u8
+    x25519_generate_keypair(&raw mut b_priv[0], &raw mut b_pub[0])
+
+    var a_shared : [32]u8
+    x25519_compute_shared(&raw a_priv[0], &raw b_pub[0], &raw mut a_shared[0])
+
+    var b_shared : [32]u8
+    x25519_compute_shared(&raw b_priv[0], &raw a_pub[0], &raw mut b_shared[0])
+
+    if(!sec_bytes_equal(&raw a_shared[0], &raw b_shared[0], 32)) {
+        env.error("x25519 shared secrets should match (ECDH property)")
+    }
+
+    var all_zero = true; var i : size_t = 0
+    while(i < 32) { if(a_shared[i] != 0) { all_zero = false } i += 1 }
+    if(all_zero) { env.error("x25519 shared secret should not be all zeros") }
+}
+
+@test
+public func x25519_rejects_all_zero_peer(env : &mut TestEnv) {
+    var priv : [32]u8; var pub : [32]u8
+    x25519_generate_keypair(&raw mut priv[0], &raw mut pub[0])
+
+    var zero_peer : [32]u8
+    var shared : [32]u8
+    var r = x25519_compute_shared(&raw priv[0], &raw zero_peer[0], &raw mut shared[0])
+    if(r >= 0) {
+        env.error("x25519 should reject all-zero peer public key")
+    }
+}
+
+@test
+public func x25519_known_answer_rfc7748(env : &mut TestEnv) {
+    // RFC 7748 Section 6.1 test vector
+    // Alice's private key
+    var alice_priv : [32]u8 = [
+        0x77 as u8, 0x07 as u8, 0x6d as u8, 0x0a as u8, 0x73 as u8,
+        0x18 as u8, 0xa5 as u8, 0x7d as u8, 0x3c as u8, 0x16 as u8,
+        0xc1 as u8, 0x72 as u8, 0x51 as u8, 0xb2 as u8, 0x66 as u8,
+        0x45 as u8, 0xdf as u8, 0x4c as u8, 0x2f as u8, 0x87 as u8,
+        0xeb as u8, 0xc0 as u8, 0x99 as u8, 0x2a as u8, 0xb1 as u8,
+        0x77 as u8, 0xfb as u8, 0xa5 as u8, 0x1d as u8, 0xb9 as u8,
+        0x2c as u8, 0x2a as u8
+    ]
+    // Alice's public key (from RFC)
+    var alice_pub : [32]u8 = [
+        0x85 as u8, 0x20 as u8, 0xf0 as u8, 0x09 as u8, 0x89 as u8,
+        0x30 as u8, 0xa7 as u8, 0x54 as u8, 0x74 as u8, 0x8b as u8,
+        0x7d as u8, 0xdc as u8, 0xb4 as u8, 0x3e as u8, 0xf7 as u8,
+        0x5a as u8, 0x0d as u8, 0xbf as u8, 0x3a as u8, 0x0d as u8,
+        0x26 as u8, 0x38 as u8, 0x1a as u8, 0xf4 as u8, 0xeb as u8,
+        0xa4 as u8, 0xa9 as u8, 0x8e as u8, 0xaa as u8, 0x9b as u8,
+        0x4e as u8, 0x6a as u8
+    ]
+    // Bob's private key
+    var bob_priv : [32]u8 = [
+        0x5d as u8, 0xab as u8, 0x08 as u8, 0x7e as u8, 0x62 as u8,
+        0x4a as u8, 0x8a as u8, 0x4b as u8, 0x79 as u8, 0xe1 as u8,
+        0x7f as u8, 0x8b as u8, 0x83 as u8, 0x80 as u8, 0x0e as u8,
+        0xe6 as u8, 0x6f as u8, 0x3b as u8, 0xb1 as u8, 0x29 as u8,
+        0x26 as u8, 0x18 as u8, 0xb6 as u8, 0xfd as u8, 0x1c as u8,
+        0x2f as u8, 0x8b as u8, 0x27 as u8, 0xff as u8, 0x88 as u8,
+        0xe0 as u8, 0xeb as u8
+    ]
+    // Bob's public key
+    var bob_pub : [32]u8 = [
+        0xde as u8, 0x9e as u8, 0xdb as u8, 0x7d as u8, 0x7b as u8,
+        0x7d as u8, 0xc1 as u8, 0xb4 as u8, 0xd3 as u8, 0x5b as u8,
+        0x61 as u8, 0xc2 as u8, 0xec as u8, 0xe4 as u8, 0x35 as u8,
+        0x37 as u8, 0x3f as u8, 0x83 as u8, 0x43 as u8, 0xc8 as u8,
+        0x5b as u8, 0x78 as u8, 0x67 as u8, 0x4d as u8, 0xad as u8,
+        0xfc as u8, 0x7e as u8, 0x14 as u8, 0x6f as u8, 0x88 as u8,
+        0x2b as u8, 0x4f as u8
+    ]
+    // Expected shared secret
+    var expected : [32]u8 = [
+        0x4a as u8, 0x5d as u8, 0x9d as u8, 0x5b as u8, 0xa4 as u8,
+        0xce as u8, 0x2d as u8, 0xe1 as u8, 0x72 as u8, 0x8e as u8,
+        0x3b as u8, 0xf4 as u8, 0x80 as u8, 0x35 as u8, 0x0f as u8,
+        0x25 as u8, 0xe0 as u8, 0x7e as u8, 0x21 as u8, 0xc9 as u8,
+        0x47 as u8, 0xd1 as u8, 0x9e as u8, 0x33 as u8, 0x76 as u8,
+        0xf0 as u8, 0x9b as u8, 0x3c as u8, 0x1e as u8, 0x16 as u8,
+        0x17 as u8, 0x42 as u8
+    ]
+
+    // Clamp both private keys
+    x25519_clamp_scalar(&raw mut alice_priv[0])
+    x25519_clamp_scalar(&raw mut bob_priv[0])
+
+    var alice_shared : [32]u8
+    x25519_compute_shared(&raw alice_priv[0], &raw bob_pub[0], &raw mut alice_shared[0])
+
+    if(!sec_bytes_equal(&raw alice_shared[0], &raw expected[0], 32)) {
+        env.error("x25519 RFC 7748 test vector failed")
+    }
+
+    var bob_shared : [32]u8
+    x25519_compute_shared(&raw bob_priv[0], &raw alice_pub[0], &raw mut bob_shared[0])
+
+    if(!sec_bytes_equal(&raw bob_shared[0], &raw expected[0], 32)) {
+        env.error("x25519 RFC 7748 test vector failed (Bob's side)")
+    }
+}

@@ -172,8 +172,8 @@ The master build script (`lang/tests/build.lab`) is the central wiring point:
 
 ```chemical
 func build(ctx : *mut AppBuildContext) : *mut LabJob {
-    // Check for --arg-test-libs → build library test executable
-    if(ctx.has_arg("test-libs")) {
+    // Check for --arg-test-plugins → build library test executable
+    if(ctx.has_arg("test-plugins")) {
         return test_lib_exe(ctx, "all")
     }
 
@@ -397,7 +397,7 @@ These are different from standard library tests — they test CBI compiler plugi
 
 3. **Run with**:
    ```bash
-   ./scripts/test.sh --tcc --libs
+   ./scripts/test.sh --tcc --plugins
    ```
 
 ### Option D: Negative Tests (Compiler Failure Verification)
@@ -589,7 +589,7 @@ The `-bt-full` flag adds thread info, registers, instruction disassembly at `$pc
 ### Library Tests
 
 ```bash
-./scripts/test.sh --tcc --libs                   # All library tests
+./scripts/test.sh --tcc --plugins                   # All library tests
 ```
 
 
@@ -597,7 +597,7 @@ The `-bt-full` flag adds thread info, registers, instruction disassembly at `$pc
 
 ```bash
 # Using --arg-test-<name> CLI args:
-./scripts/test.sh --tcc --libs                   # Tests with --arg-test-html etc internally
+./scripts/test.sh --tcc --plugins                   # Tests with --arg-test-html etc internally
 ```
 
 ### Manual Test Execution

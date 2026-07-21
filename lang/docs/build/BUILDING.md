@@ -84,7 +84,7 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 ./scripts/test.sh --llvm
 
 # Include library tests (html, css, js, etc.)
-./scripts/test.sh --tcc --libs
+./scripts/test.sh --tcc --plugins
 
 # Specify a custom output path
 ./scripts/test.sh --tcc -o /tmp/my_tests.exe
@@ -118,7 +118,7 @@ cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/tests-tcc
 
 Library tests:
 ```bash
-cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-libs -frecompile-plugins
+cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/lib-tests-tcc.exe --mode debug_quick --no-cache --arg-test-plugins -frecompile-plugins
 ```
 
 ### Isolating a Single Test Case for Debugging

@@ -287,9 +287,9 @@ class CompilerBinder {
 
 ```bash
 # Individual plugin tests:
-./scripts/test.sh --tcc --libs --arg-test-html  # Test html_cbi only
-./scripts/test.sh --tcc --libs --arg-test-css   # Test css_cbi only
-./scripts/test.sh --tcc --libs                  # Test all plugins
+./scripts/test.sh --tcc --plugins --arg-test-html  # Test html_cbi only
+./scripts/test.sh --tcc --plugins --arg-test-css   # Test css_cbi only
+./scripts/test.sh --tcc --plugins                  # Test all plugins
 ```
 
 ## Related Skills

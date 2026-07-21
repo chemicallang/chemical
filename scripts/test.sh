@@ -15,7 +15,7 @@ TEST_OUT_DIR="lang/tests/build"
 TEST_OUT_NAME=""
 RUN_TESTS=true
 BUILD_TARGET=true
-TEST_LIBS=false
+TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
 MODE="debug_quick"
@@ -41,7 +41,7 @@ usage() {
   echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
   echo "  --negative              Run negative (safety) tests only"
-  echo "  --libs                  Include library tests (passes --arg-test-libs)"
+  echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
   echo "  --no-build              Skip building compiler target, use existing binary"
@@ -78,7 +78,7 @@ while [ $# -gt 0 ]; do
       ;;
     --interpret) TEST_INTERPRET=true ;;
     --negative) TEST_NEGATIVE=true ;;
-    --libs) TEST_LIBS=true ;;
+    --plugins) TEST_PLUGINS=true ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
     --no-build) BUILD_TARGET=false ;;
@@ -225,8 +225,8 @@ else
   [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
   [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
   [ "$VERBOSE" = true ] && CMD+=("-v")
-  if [ "$TEST_LIBS" = true ]; then
-    CMD+=("--arg-test-libs")
+  if [ "$TEST_PLUGINS" = true ]; then
+    CMD+=("--arg-test-plugins")
     [ -n "$RECOMPILE_PLUGINS" ] && CMD+=("$RECOMPILE_PLUGINS")
   fi
   if [ "$PRINT_CMD" = true ]; then

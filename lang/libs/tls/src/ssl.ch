@@ -193,6 +193,231 @@ public namespace tls {
     }
 
     // ============================================================================
+    // TLS 1.3 Key Schedule (RFC 8446 Section 7.1)
+    // ============================================================================
+
+    // HKDF-Extract: PRK = HMAC-Hash(salt, IKM)
+    func tls13_hkdf_extract(salt : *u8, salt_len : size_t,
+                             ikm : *u8, ikm_len : size_t,
+                             prk : *mut u8) {
+        crypto::hmac_sha256(salt, salt_len, ikm, ikm_len, prk)
+    }
+
+    // Derive handshake traffic keys from the ECDHE shared secret.
+    // Must be called after receiving ServerHello (transcript includes CH + SH).
+    // Populates ssl.transform_in and ssl.transform_out for the handshake phase.
+    // transcript_hash = SHA256(ClientHello...ServerHello)
+    public func tls13_derive_handshake_keys(ssl : *mut SSLContext,
+                                             shared_secret : *u8, shared_len : size_t,
+                                             transcript_hash : *u8) : int {
+        var hash_len : size_t = 32  // SHA-256
+
+        // Step 1: Early secret = HKDF-Extract(0, 0) — well-known for no-PSK
+        var zeros32 : [32]u8
+        var i : size_t = 0
+        while(i < 32) { zeros32[i] = 0; i += 1 }
+
+        var early_secret : [32]u8
+        tls13_hkdf_extract(&raw zeros32[0], 32, &raw zeros32[0], 32, &raw mut early_secret[0])
+
+        // Step 2: Derived = HKDF-Expand-Label(early_secret, "derived", "", 32)
+        // Per RFC 8446, the "derived" context is empty ("")
+        var derived : [32]u8
+        var empty_ctx : [1]u8 = [0]
+        var derived_label = "derived\0" as *char
+        tls13_hkdf_expand_label(&raw early_secret[0], 32, derived_label, 7,
+                                &raw empty_ctx[0], 0, &raw mut derived[0], 32)
+
+        // Step 3: Handshake secret = HKDF-Extract(Derived, shared_secret)
+        var handshake_secret : [32]u8
+        tls13_hkdf_extract(&raw derived[0], 32, shared_secret, shared_len,
+                           &raw mut handshake_secret[0])
+
+        // Store handshake secret in key schedule
+        i = 0
+        while(i < 32) {
+            ssl.tls13_keys.handshake_secret[i] = handshake_secret[i]
+            i += 1
+        }
+
+        // Step 4: Derive client and server handshake traffic secrets
+        // Context = Transcript-Hash(ClientHello...ServerHello)
+        var client_hts : [32]u8
+        var server_hts : [32]u8
+        var chts_label = "c hs traffic\0" as *char
+        var shts_label = "s hs traffic\0" as *char
+        tls13_hkdf_expand_label(&raw handshake_secret[0], 32, chts_label, 12,
+                                transcript_hash, hash_len, &raw mut client_hts[0], 32)
+        tls13_hkdf_expand_label(&raw handshake_secret[0], 32, shts_label, 12,
+                                transcript_hash, hash_len, &raw mut server_hts[0], 32)
+
+        // Store in key schedule
+        i = 0
+        while(i < 32) {
+            ssl.tls13_keys.client_handshake_traffic_secret[i] = client_hts[i]
+            ssl.tls13_keys.server_handshake_traffic_secret[i] = server_hts[i]
+            i += 1
+        }
+
+        // Step 5: Derive keys and IVs for AES-128-GCM
+        // client_handshake_key = HKDF-Expand-Label(client_hts, "key", "", 16)
+        // client_handshake_iv  = HKDF-Expand-Label(client_hts, "iv",  "", 12)
+        // server_handshake_key = HKDF-Expand-Label(server_hts, "key", "", 16)
+        // server_handshake_iv  = HKDF-Expand-Label(server_hts, "iv",  "", 12)
+        var empty_ctx2 : [1]u8 = [0]
+        var key_label = "key\0" as *char
+        var iv_label = "iv\0" as *char
+
+        var client_key : [16]u8
+        var client_iv : [12]u8
+        var server_key : [16]u8
+        var server_iv : [12]u8
+
+        tls13_hkdf_expand_label(&raw client_hts[0], 32, key_label, 3,
+                                &raw empty_ctx2[0], 0, &raw mut client_key[0], 16)
+        tls13_hkdf_expand_label(&raw client_hts[0], 32, iv_label, 2,
+                                &raw empty_ctx2[0], 0, &raw mut client_iv[0], 12)
+        tls13_hkdf_expand_label(&raw server_hts[0], 32, key_label, 3,
+                                &raw empty_ctx2[0], 0, &raw mut server_key[0], 16)
+        tls13_hkdf_expand_label(&raw server_hts[0], 32, iv_label, 2,
+                                &raw empty_ctx2[0], 0, &raw mut server_iv[0], 12)
+
+        // Populate transform_out (client write) — for sending
+        var tr_out : Transform
+        transform_init(&raw mut tr_out)
+        tr_out.cipher_type = CIPHER_AES_128_GCM as u8
+        tr_out.key_len = 16
+        tr_out.iv_len = 12
+        tr_out.fixed_iv_len = 12
+        tr_out.mac_key_len = 0
+        i = 0
+        while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+        i = 0
+        while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+
+        // Populate transform_in (server write) — for receiving
+        var tr_in : Transform
+        transform_init(&raw mut tr_in)
+        tr_in.cipher_type = CIPHER_AES_128_GCM as u8
+        tr_in.key_len = 16
+        tr_in.iv_len = 12
+        tr_in.fixed_iv_len = 12
+        tr_in.mac_key_len = 0
+        i = 0
+        while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+        i = 0
+        while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+
+        // Allocate and install transforms
+        var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_out_mem = tr_out
+        ssl.transform_out = tr_out_mem
+
+        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_in_mem = tr_in
+        ssl.transform_in = tr_in_mem
+
+        // Reset sequence numbers for the handshake phase
+        i = 0
+        while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
+
+        return 0
+    }
+
+    // Derive application traffic keys after handshake completes.
+    // Called after both Finished messages have been exchanged.
+    public func tls13_derive_application_keys(ssl : *mut SSLContext,
+                                               hs_hash : *u8, hash_len : size_t) : int {
+        var i : size_t = 0
+
+        // Derive-Secret(handshake_secret, "derived", Hash(ClientHello...Finished))
+        var derived : [32]u8
+        var empty32 : [32]u8
+        while(i < 32) { empty32[i] = 0; i += 1 }
+        var derived_label = "derived\0" as *char
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.handshake_secret[0], 32,
+                                derived_label, 7, hs_hash, hash_len,
+                                &raw mut derived[0], 32)
+
+        // Master secret = HKDF-Extract(Derived, 0)
+        var master_secret : [32]u8
+        tls13_hkdf_extract(&raw derived[0], 32, &raw empty32[0], 32,
+                           &raw mut master_secret[0])
+        i = 0
+        while(i < 32) { ssl.tls13_keys.master_secret[i] = master_secret[i]; i += 1 }
+
+        // Client application traffic secret
+        var c_ats : [32]u8
+        var c_ats_label = "c ap traffic\0" as *char
+        tls13_hkdf_expand_label(&raw master_secret[0], 32, c_ats_label, 12,
+                                hs_hash, hash_len, &raw mut c_ats[0], 32)
+        i = 0
+        while(i < 32) { ssl.tls13_keys.client_application_traffic_secret[i] = c_ats[i]; i += 1 }
+
+        // Server application traffic secret
+        var s_ats : [32]u8
+        var s_ats_label = "s ap traffic\0" as *char
+        tls13_hkdf_expand_label(&raw master_secret[0], 32, s_ats_label, 12,
+                                hs_hash, hash_len, &raw mut s_ats[0], 32)
+        i = 0
+        while(i < 32) { ssl.tls13_keys.server_application_traffic_secret[i] = s_ats[i]; i += 1 }
+
+        // Derive application keys
+        var empty_ctx : [1]u8 = [0]
+        var key_label = "key\0" as *char
+        var iv_label = "iv\0" as *char
+
+        var client_key : [16]u8
+        var client_iv : [12]u8
+        var server_key : [16]u8
+        var server_iv : [12]u8
+
+        tls13_hkdf_expand_label(&raw c_ats[0], 32, key_label, 3,
+                                &raw empty_ctx[0], 0, &raw mut client_key[0], 16)
+        tls13_hkdf_expand_label(&raw c_ats[0], 32, iv_label, 2,
+                                &raw empty_ctx[0], 0, &raw mut client_iv[0], 12)
+        tls13_hkdf_expand_label(&raw s_ats[0], 32, key_label, 3,
+                                &raw empty_ctx[0], 0, &raw mut server_key[0], 16)
+        tls13_hkdf_expand_label(&raw s_ats[0], 32, iv_label, 2,
+                                &raw empty_ctx[0], 0, &raw mut server_iv[0], 12)
+
+        // Replace transforms with application-traffic versions
+        // Client write (out)
+        if(ssl.transform_out != null) { unsafe { dealloc ssl.transform_out } }
+        var tr_out : Transform
+        transform_init(&raw mut tr_out)
+        tr_out.cipher_type = CIPHER_AES_128_GCM as u8
+        tr_out.key_len = 16
+        tr_out.iv_len = 12
+        tr_out.fixed_iv_len = 12
+        i = 0
+        while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+        i = 0
+        while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+        var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_out_mem = tr_out
+        ssl.transform_out = tr_out_mem
+
+        // Server write (in)
+        if(ssl.transform_in != null) { unsafe { dealloc ssl.transform_in } }
+        var tr_in : Transform
+        transform_init(&raw mut tr_in)
+        tr_in.cipher_type = CIPHER_AES_128_GCM as u8
+        tr_in.key_len = 16
+        tr_in.iv_len = 12
+        tr_in.fixed_iv_len = 12
+        i = 0
+        while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+        i = 0
+        while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_in_mem = tr_in
+        ssl.transform_in = tr_in_mem
+
+        return 0
+    }
+
+    // ============================================================================
     // TLS 1.2 Key Derivation (RFC 5246)
     // ============================================================================
 
@@ -508,6 +733,177 @@ public namespace tls {
     }
 
     // ============================================================================
+    // TLS 1.3 Record Layer (RFC 8446 Section 5)
+    // ============================================================================
+
+    // TLS 1.3 uses a different record format than TLS 1.2:
+    // - Outer content_type is always application_data (23) for encrypted records
+    // - Inner content_type is in the last byte of the decrypted payload
+    // - AAD for AEAD is the 5-byte outer record header
+    // - Nonce = static IV XOR padded sequence number
+
+    // Increment a sequence number counter (8 bytes, big-endian)
+    func ssl_incr_seq_num(seq : *mut u8) {
+        var i : i32 = 7
+        while(i >= 0) {
+            var val = seq[i] as u16 + 1
+            seq[i] = (val & 0xFF) as u8
+            if(val < 256) { break }
+            i -= 1
+        }
+    }
+
+    // Build a TLS 1.3 nonce: static_iv (12 bytes) XOR (0x00000000 || seq_num)
+    func tls13_build_nonce(static_iv : *u8, seq_num : *u8, nonce : *mut u8) {
+        // First 4 bytes: static_iv XOR 0
+        var i : size_t = 0
+        while(i < 4) {
+            nonce[i] = static_iv[i]
+            i += 1
+        }
+        // Last 8 bytes: static_iv[4..11] XOR seq_num[0..7]
+        i = 0
+        while(i < 8) {
+            nonce[4 + i] = static_iv[4 + i] ^ seq_num[i]
+            i += 1
+        }
+    }
+
+    // Encrypt plaintext using TLS 1.3 AEAD record format.
+    // plaintext = content_type(1) + actual_data
+    // output = header(5) + encrypted_record
+    // Returns total bytes written (5 + encrypted_len), or negative error.
+    public func tls13_encrypt_record(ssl : *mut SSLContext,
+                                      content_type : u8,
+                                      data : *u8, data_len : size_t,
+                                      output : *mut u8, out_max : size_t) : int {
+        if(ssl.transform_out == null) { return ERR_SSL_INTERNAL_ERROR }
+        var tr = ssl.transform_out
+
+        // Build inner plaintext: data || content_type (TLS 1.3 puts content_type at end)
+        // But for send_record, caller provides data that needs to be sent as content_type.
+        // So inner plaintext = data + content_type
+        var inner_len : size_t = data_len + 1
+        var inner : [16640]u8  // MAX_RECORD_PAYLOAD + 1
+        var i : size_t = 0
+        while(i < data_len) {
+            inner[i] = data[i]
+            i += 1
+        }
+        inner[data_len] = content_type
+
+        // Build nonce
+        var nonce : [12]u8
+        tls13_build_nonce(&raw tr.base_iv_enc[0], &raw ssl.out_ctr[0], &raw mut nonce[0])
+
+        // Initialize GCM context with encryption key
+        var gcm_ctx : GCMContext
+        var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], tr.key_len as size_t)
+        if(ret < 0) { return ret }
+
+        // Additional data = outer record header
+        // outer content_type = 23 (application_data), version = 0x0303
+        var outer_hdr : [5]u8
+        outer_hdr[0] = SSL_MSG_APPLICATION_DATA as u8
+        outer_hdr[1] = 0x03
+        outer_hdr[2] = 0x03
+        outer_hdr[3] = ((inner_len >> 8) & 0xFF) as u8
+        outer_hdr[4] = (inner_len & 0xFF) as u8
+
+        // Encrypted payload goes at output + 5
+        var ct_out = output + 5
+        var tag_out = output + 5 + inner_len
+
+        // GCM encrypt: ciphertext = Encrypt(key, nonce, plaintext, AAD)
+        ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
+                                 &raw nonce[0], 12,
+                                 &raw outer_hdr[0], 5,
+                                 &raw inner[0], inner_len,
+                                 ct_out, tag_out)
+        if(ret < 0) { return ret }
+
+        // Write outer header
+        i = 0
+        while(i < 5) {
+            output[i] = outer_hdr[i]
+            i += 1
+        }
+
+        // Increment sequence number
+        ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
+
+        return (5 + inner_len + 16) as i32
+    }
+
+    // Decrypt a TLS 1.3 record.
+    // input = encrypted_record (without the 5-byte outer header, which has already been read)
+    // outer_content_type is already known (from the header read by ssl_read_record)
+    // output = decrypted plaintext (without the inner content_type at the end)
+    // inner_content_type is extracted from the last byte of decrypted data.
+    // Returns plaintext length, or negative error.
+    public func tls13_decrypt_record(ssl : *mut SSLContext,
+                                      input : *u8, input_len : size_t,
+                                      output : *mut u8, out_max : size_t,
+                                      inner_content_type : *mut u8) : int {
+        if(ssl.transform_in == null) { return ERR_SSL_INTERNAL_ERROR }
+        var tr = ssl.transform_in
+
+        if(input_len < 16) { return ERR_SSL_INVALID_RECORD }  // At minimum: tag
+
+        // The ciphertext includes the auth tag (16 bytes) at the end
+        var ct_len : size_t = input_len - 16
+        var tag_start = input + ct_len
+
+        // Build nonce
+        var nonce : [12]u8
+        tls13_build_nonce(&raw tr.base_iv_dec[0], &raw ssl.in_ctr[0], &raw mut nonce[0])
+
+        // Initialize GCM context with decryption key
+        var gcm_ctx : GCMContext
+        var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], tr.key_len as size_t)
+        if(ret < 0) { return ret }
+
+        // Additional data = outer record header (already parsed into ssl.in_hdr)
+        // We need to reconstruct it with the original length
+        var outer_hdr : [5]u8
+        outer_hdr[0] = ssl.in_hdr[0]  // Should be 23 (application_data)
+        outer_hdr[1] = ssl.in_hdr[1]  // 0x03
+        outer_hdr[2] = ssl.in_hdr[2]  // 0x03
+        outer_hdr[3] = ssl.in_hdr[3]  // length high
+        outer_hdr[4] = ssl.in_hdr[4]  // length low
+
+        // Allocate temp buffer for decrypted data
+        var dec_buf : [16640]u8
+        if(ct_len > out_max + 1) { ct_len = out_max + 1 }  // +1 for content_type
+
+        // GCM decrypt and verify
+        ret = gcm_auth_decrypt(&raw mut gcm_ctx,
+                                &raw nonce[0], 12,
+                                &raw outer_hdr[0], 5,
+                                input, ct_len,
+                                tag_start, 16,
+                                &raw mut dec_buf[0])
+        if(ret < 0) { return ERR_SSL_INVALID_RECORD }  // Authentication failed
+
+        // Inner plaintext is dec_buf[0..ct_len-1], inner content_type is dec_buf[ct_len-1]
+        if(ct_len == 0) { return ERR_SSL_INVALID_RECORD }
+        var actual_len = ct_len - 1
+        *inner_content_type = dec_buf[actual_len]
+
+        // Copy decrypted data to output
+        var i : size_t = 0
+        while(i < actual_len) {
+            output[i] = dec_buf[i]
+            i += 1
+        }
+
+        // Increment sequence number
+        ssl_incr_seq_num(&raw mut ssl.in_ctr[0])
+
+        return actual_len as i32
+    }
+
+    // ============================================================================
     // Record Layer
     // ============================================================================
 
@@ -518,6 +914,16 @@ public namespace tls {
     func send_record(ssl : *mut SSLContext, content_type : u8,
                      data : *u8, data_len : u16) : int {
         if((data_len as int) > MAX_RECORD_PAYLOAD) { return ERR_SSL_INTERNAL_ERROR }
+
+        // If encryption is active, use TLS 1.3 AEAD record format
+        if(ssl.transform_out != null && content_type != SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
+            var encrypted : [17400]u8
+            var enc_len = tls13_encrypt_record(ssl, content_type,
+                                                data, data_len as size_t,
+                                                &raw mut encrypted[0], 17400)
+            if(enc_len < 0) { return enc_len }
+            return ssl_send(ssl, &raw encrypted[0], enc_len)
+        }
 
         // Build record header
         var header : [5]u8
@@ -634,6 +1040,44 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         ssl.in_msglen = record_len as i32
+
+        // TLS 1.3 decryption: if transform_in is set and the outer content_type
+        // is application_data (23), decrypt the record to get the inner content_type.
+        if(ssl.transform_in != null && ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8) {
+            var inner_ct : u8 = 0
+            var dec_buf : [17400]u8
+            var dec_len = tls13_decrypt_record(ssl,
+                                                &raw ssl.in_buf[5], record_len,
+                                                &raw mut dec_buf[0], 17400,
+                                                &raw mut inner_ct)
+            if(dec_len < 0) { return dec_len }
+
+            // Replace in_buf[5..] with decrypted data
+            var i : i32 = 0
+            while(i < dec_len) {
+                ssl.in_buf[5 + i] = dec_buf[i]
+                i += 1
+            }
+            ssl.in_msglen = dec_len
+
+            // Update in_hdr[0] to the inner content_type
+            ssl.in_hdr[0] = inner_ct
+
+            // Close the gap between the original record size and the decrypted size.
+            // The original record occupied 5 + record_len bytes. Now it's 5 + dec_len.
+            // Shift any trailing data (next records) to fill the gap.
+            var original_end : i32 = 5 + record_len as i32
+            var new_end : i32 = 5 + dec_len
+            if(original_end < ssl.in_left) {
+                var gap : i32 = original_end - new_end
+                var shift_i : i32 = 0
+                while(shift_i < ssl.in_left - original_end) {
+                    ssl.in_buf[new_end + shift_i] = ssl.in_buf[original_end + shift_i]
+                    shift_i += 1
+                }
+                ssl.in_left -= gap
+            }
+        }
 
         return 0
     }
@@ -842,6 +1286,34 @@ public namespace tls {
             buf[sni_len_pos + 1] = sni_data_len as u8
         }
 
+        // Extension: key_share (TLS 1.3)
+        // Only if handshake params have an ECDHE public key ready
+        if(ssl.handshake != null && ssl.handshake.ecdhe_public != null &&
+           ssl.handshake.ecdhe_public_len == 65) {
+            buf[pos] = ((TLS_EXT_KEY_SHARE >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_KEY_SHARE & 0xFF) as u8; pos += 1
+
+            var ks_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+
+            // NamedGroup (2 bytes)
+            buf[pos] = ((ssl.handshake.ecdhe_curve >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (ssl.handshake.ecdhe_curve & 0xFF) as u8; pos += 1
+            // KeyExchangeLength (2 bytes) = 65
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 65 as u8; pos += 1
+            // KeyExchange (65 bytes): 04 || X || Y
+            var ki : size_t = 0
+            while(ki < 65) {
+                buf[pos] = ssl.handshake.ecdhe_public[ki]
+                pos += 1
+                ki += 1
+            }
+
+            var ks_data_len = 2 + 2 + 65  // group + len + key
+            buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
+            buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
+        }
+
         var ext_len = pos - ext_start - 2
         buf[ext_start] = (ext_len >> 8) as u8
         buf[ext_start + 1] = ext_len as u8
@@ -855,7 +1327,8 @@ public namespace tls {
 
     func ssl_send(ssl : *mut SSLContext, data : *u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
-        net::send_all(ssl.transport_socket, data as *char, len)
+        var n = net::send_all(ssl.transport_socket, data as *char, len)
+        if(n < 0) { return ERR_SSL_CONN_EOF }
         return len
     }
 
@@ -1624,27 +2097,296 @@ public namespace tls {
     func do_tls13_client_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
-        // Send ClientHello (which includes supported_versions for TLS 1.3)
+        // Ensure handshake params are allocated
+        if(ssl.handshake == null) {
+            var hs_mem = malloc(sizeof(HandshakeParams)) as *mut HandshakeParams
+            if(hs_mem == null) { return ERR_SSL_INTERNAL_ERROR }
+            handshake_params_init(hs_mem)
+            ssl.handshake = hs_mem
+        }
+
+        // Generate ECDHE keypair (secp256r1 = 0x0017)
+        var ecdh_ctx : ECDHContext
+        ecdh_init(&raw mut ecdh_ctx)
+
+        var priv_key : [32]u8
+        var pub_key : [65]u8
+        var ret = ecdh_generate_keypair(&raw mut ecdh_ctx,
+                                        &raw mut priv_key[0], 32,
+                                        &raw mut pub_key[0], 65)
+        if(ret < 0) { return ret }
+
+        // Store ECDHE public key in handshake params for build_client_hello
+        var pub_mem = malloc(65) as *mut u8
+        if(pub_mem == null) { return ERR_SSL_INTERNAL_ERROR }
+        var pi : size_t = 0
+        while(pi < 65) { pub_mem[pi] = pub_key[pi]; pi += 1 }
+        ssl.handshake.ecdhe_curve = TLS_GROUP_SECP256R1 as u16
+        ssl.handshake.ecdhe_public = pub_mem
+        ssl.handshake.ecdhe_public_len = 65
+
+        // ── ClientHello ───────────────────────────────────────────────
         ssl.state = SSLState.CLIENT_HELLO()
+        ssl.major_ver = 0x03
+        ssl.minor_ver = 0x03
 
         var ch_buf : [2048]u8
         var ch_len = build_client_hello(ssl, &raw mut ch_buf[0], 2048)
 
-        var ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
+        // Hash the ClientHello body for the transcript
+        var transcript : crypto::Sha256Context
+        crypto::sha256_init(&raw mut transcript)
+        var ch_hdr : [4]u8
+        ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
+        write_u24(ch_len as u32, &raw mut ch_hdr[1])
+        crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
+        crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len)
+
+        ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
 
+        // ── ServerHello ───────────────────────────────────────────────
         ssl.state = SSLState.SERVER_HELLO()
 
-        // Read and parse ServerHello
-        var hdr : [5]u8
-        ret = read_record_header(ssl, &raw mut hdr[0])
+        var hs_buf : [4096]u8
+        var hs_body_len : u32 = 0
+        var got_server_hello = false
+
+        while(!got_server_hello) {
+            var hdr : [5]u8
+            ret = read_record_header(ssl, &raw mut hdr[0])
+            if(ret < 0) { return ret }
+
+            var content_type = hdr[0]
+
+            // TLS 1.3: CCS is a compatibility dummy, skip it
+            if(content_type == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
+                var ccs_d : [1]u8
+                read_record_payload(ssl, &raw mut ccs_d[0], 1)
+                continue
+            }
+
+            if(content_type != SSL_MSG_HANDSHAKE as u8) {
+                return ERR_SSL_UNEXPECTED_MESSAGE
+            }
+
+            var payload = read_record_payload(ssl, &raw mut hs_buf[0], 4096 as i32)
+            if(payload < 4) { return ERR_SSL_DECODE_ERROR }
+
+            var msg_type = hs_buf[0]
+            hs_body_len = read_u24(&raw hs_buf[1])
+
+            if(msg_type == SSL_HS_SERVER_HELLO as u8) {
+                got_server_hello = true
+            }
+        }
+
+        // Parse ServerHello body
+        var sh_pos : size_t = 4  // skip hs_type(1) + length(3)
+
+        // version (2 bytes)
+        sh_pos += 2
+
+        // random (32 bytes)
+        sh_pos += 32
+
+        // session_id_echo_len (1 byte)
+        var sid_echo_len = hs_buf[sh_pos] as size_t; sh_pos += 1
+        sh_pos += sid_echo_len
+
+        // cipher_suite (2 bytes)
+        ssl.negotiated_ciphersuite = read_u16_be(&raw hs_buf[sh_pos]); sh_pos += 2
+
+        // compression_method (1 byte)
+        sh_pos += 1
+
+        // extensions_len (2 bytes)
+        if(sh_pos + 2 > hs_body_len as size_t + 4) { return ERR_SSL_DECODE_ERROR }
+        var sh_ext_len = read_u16_be(&raw hs_buf[sh_pos]) as size_t; sh_pos += 2
+
+        // Parse extensions to find key_share
+        var server_public_key : [65]u8
+        var found_key_share = false
+        var ext_end = sh_pos + sh_ext_len
+
+        while(sh_pos + 4 <= ext_end) {
+            var ext_type = read_u16_be(&raw hs_buf[sh_pos]); sh_pos += 2
+            var ext_data_len = read_u16_be(&raw hs_buf[sh_pos]) as size_t; sh_pos += 2
+
+            if(ext_type == TLS_EXT_KEY_SHARE as u16 && ext_data_len >= 4) {
+                var ks_group = read_u16_be(&raw hs_buf[sh_pos])
+                var ks_key_len = read_u16_be(&raw hs_buf[sh_pos + 2]) as size_t
+
+                if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65) {
+                    var ki : size_t = 0
+                    while(ki < 65) {
+                        server_public_key[ki] = hs_buf[sh_pos + 4 + ki]
+                        ki += 1
+                    }
+                    found_key_share = true
+                }
+            }
+
+            sh_pos += ext_data_len
+        }
+
+        if(!found_key_share) {
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
+
+        // Hash ServerHello into transcript (including the 4-byte handshake header)
+        crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
+
+        // ── Compute ECDHE shared secret ──────────────────────────────
+        var shared_secret : [32]u8
+        ret = ecdh_compute_shared(&raw mut ecdh_ctx,
+                                  &raw server_public_key[0], 65,
+                                  &raw mut shared_secret[0], 32)
         if(ret < 0) { return ret }
 
-        var content_type = hdr[0]
-        // For TLS 1.3, the ServerHello may be in a separate record
-        if(content_type != SSL_MSG_HANDSHAKE as u8) {
-            return ERR_SSL_UNEXPECTED_MESSAGE
+        // Hash(ClientHello...ServerHello) — save transcript state first, then finalize
+        var sh_transcript_copy = transcript
+        var sh_hash : [32]u8
+        crypto::sha256_final(&raw mut sh_transcript_copy, &raw mut sh_hash[0])
+
+        // ── Derive handshake traffic keys ────────────────────────────
+        ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
+                                           &raw sh_hash[0])
+        if(ret < 0) { return ret }
+
+        // ── Read encrypted server messages ───────────────────────────
+        var server_finished_verified = false
+
+        while(!server_finished_verified) {
+            var enc_hdr : [5]u8
+            ret = read_record_header(ssl, &raw mut enc_hdr[0])
+            if(ret < 0) { return ret }
+
+            var enc_ct = enc_hdr[0]
+
+            // CCS from server is allowed (compatibility)
+            if(enc_ct == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
+                var ccs_d : [1]u8
+                read_record_payload(ssl, &raw mut ccs_d[0], 1)
+                continue
+            }
+
+            // ssl_read_record already decrypts and updates in_hdr[0] to inner content_type
+            var inner_ct = enc_ct
+
+            if(inner_ct == SSL_MSG_ALERT as u8) {
+                var alert_data : [2]u8
+                read_record_payload(ssl, &raw mut alert_data[0], 2)
+                return ERR_SSL_FATAL_ALERT_MESSAGE
+            }
+
+            if(inner_ct != SSL_MSG_HANDSHAKE as u8) {
+                return ERR_SSL_UNEXPECTED_MESSAGE
+            }
+
+            // Read the handshake message body
+            var msg_buf : [4096]u8
+            var msg_payload = read_record_payload(ssl, &raw mut msg_buf[0], 4096 as i32)
+            if(msg_payload < 4) { return ERR_SSL_DECODE_ERROR }
+
+            var msg_type_code = msg_buf[0] as u32
+            var msg_body_len2 = read_u24(&raw msg_buf[1])
+
+            if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
+                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+
+            } else if(msg_type_code == SSL_HS_CERTIFICATE as u32) {
+                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+
+            } else if(msg_type_code == SSL_HS_CERTIFICATE_VERIFY as u32) {
+                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+
+            } else if(msg_type_code == SSL_HS_FINISHED as u32) {
+                // Server Finished: derive expected verify_data
+                var finished_key : [32]u8
+                var fin_key_label = "finished\0" as *char
+                var empty_c : [1]u8 = [0]
+                tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], 32,
+                                        fin_key_label, 8,
+                                        &raw empty_c[0], 0,
+                                        &raw mut finished_key[0], 32)
+
+                // Hash Transcript: save state before finalizing (copy the struct)
+                var fin_transcript_copy = transcript
+                var fin_transcript_hash : [32]u8
+                crypto::sha256_final(&raw mut fin_transcript_copy, &raw mut fin_transcript_hash[0])
+
+                // Compute expected: HMAC(finished_key, transcript_hash)
+                var expected_finished : [32]u8
+                crypto::hmac_sha256(&raw finished_key[0], 32,
+                                    &raw fin_transcript_hash[0], 32,
+                                    &raw mut expected_finished[0])
+
+                // Compare with received (msg_buf[4..4+12])
+                var verify_ok = true
+                var vi : size_t = 0
+                while(vi < 12) {
+                    if(msg_buf[4 + vi] != expected_finished[vi]) { verify_ok = false }
+                    vi += 1
+                }
+
+                if(!verify_ok) {
+                    return ERR_SSL_HANDSHAKE_FAILURE
+                }
+
+                // Hash Finished into transcript, then finalize for app key derivation
+                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+
+                var full_transcript_copy = transcript
+                var full_hash : [32]u8
+                crypto::sha256_final(&raw mut full_transcript_copy, &raw mut full_hash[0])
+
+                // Derive application traffic keys
+                ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
+                if(ret < 0) { return ret }
+
+                server_finished_verified = true
+
+            } else {
+                return ERR_SSL_UNEXPECTED_MESSAGE
+            }
         }
+
+        // ── Send client Finished ─────────────────────────────────────
+        // First send ChangeCipherSpec (TLS 1.3 compatibility)
+        var ccs_out : [1]u8 = [20]
+        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_out[0], 1)
+        if(ret < 0) { return ret }
+
+        // Derive client finished key
+        var client_finished_key : [32]u8
+        var cf_label = "finished\0" as *char
+        var empty_c2 : [1]u8 = [0]
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], 32,
+                                cf_label, 8,
+                                &raw empty_c2[0], 0,
+                                &raw mut client_finished_key[0], 32)
+
+        // Hash Transcript: finalize for client Finished compute
+        var cf_transcript_copy = transcript
+        var cf_hash : [32]u8
+        crypto::sha256_final(&raw mut cf_transcript_copy, &raw mut cf_hash[0])
+
+        var client_finished_verify : [32]u8
+        crypto::hmac_sha256(&raw client_finished_key[0], 32,
+                            &raw cf_hash[0], 32,
+                            &raw mut client_finished_verify[0])
+
+        // Build and send Finished message: hs_type(1) + length(3) + verify_data(12)
+        var cf_body : [12]u8
+        var ci : size_t = 0
+        while(ci < 12) {
+            cf_body[ci] = client_finished_verify[ci]
+            ci += 1
+        }
+
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 12)
+        if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
         return 0

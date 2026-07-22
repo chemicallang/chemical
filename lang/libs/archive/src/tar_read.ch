@@ -22,9 +22,17 @@ public func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::
 
     output.data_loaded = true
 
+    if(output.data.size() < 512) {
+        return std.Result.Err(ArchiveError.InvalidFormat(string("file too small for TAR")))
+    }
+
     var parse_result = parse_tar_entries(output)
     if(parse_result is Result.Err) {
         return std.Result.Err(ArchiveError.InvalidFormat(string("failed to parse TAR entries")))
+    }
+
+    if(output.entries.size() == 0) {
+        return std.Result.Err(ArchiveError.InvalidFormat(string("no valid TAR entries found")))
     }
 
     return std.Result.Ok(std::Unit{})
@@ -126,7 +134,7 @@ public func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mu
     while(i < archive.entries.size()) {
         var entry = archive.entries.get_ptr(i)
         if(str_equals_cstr(&raw mut entry.name, name)) {
-            memcpy(&raw mut output, &raw entry, sizeof(ArchiveEntry))
+            memcpy(output, entry, sizeof(ArchiveEntry))
             new(entry) ArchiveEntry{name: string(""), size: 0, compressed_size: 0, compression_method: 0, crc32: 0, is_directory: false, offset: 0}
             return std.Result.Ok(std::Unit{})
         }

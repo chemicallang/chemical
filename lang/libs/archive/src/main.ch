@@ -13,7 +13,14 @@ public struct Archive {
 }
 
 public func open(path : *char) : std::Result<Archive, ArchiveError> {
-    var archive : Archive
+    // Initialize with proper values at declaration so no destructor is called
+    // on uninitialized garbage (which would happen with field assignments).
+    var archive = Archive{
+        zip_data: ZipArchive{data: vector<u8>(), entries: vector<ArchiveEntry>(), data_loaded: false},
+        tar_data: TarArchive{data: vector<u8>(), entries: vector<ArchiveEntry>(), data_loaded: false},
+        archive_type: 0,
+        loaded: false
+    }
     var zip_result = open_zip(path, &raw mut archive.zip_data)
     if(zip_result is Result.Ok) {
         archive.archive_type = 1

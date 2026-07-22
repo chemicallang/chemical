@@ -56,6 +56,8 @@
 #include "ast/structures/LoopBlock.h"
 #include "ast/values/LoopValue.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/statements/DestructStmt.h"
+#include "ast/types/PointerType.h"
 
 
 void stop_interpretation_above(ASTNode* node) {
@@ -1457,6 +1459,62 @@ void InterpretScope::interpret(ASTNode* node) {
     case ASTNodeKind::UnsafeBlock:
         ::interpret(*this, &node->as_unsafe_block_unsafe()->scope);
         break;
+    case ASTNodeKind::DeleteStmt: {
+        auto stmt = node->as_destruct_stmt_unsafe();
+        auto ptrVal = stmt->identifier->evaluated_value(*this);
+        if(ptrVal && ptrVal->val_kind() == ValueKind::PointerValue) {
+            auto pv = (PointerValue*)ptrVal;
+            if(pv->data != nullptr) {
+                if(stmt->is_array) {
+                    // Array destruct: destruct[N] ptr — destruct N elements
+                    auto sizeVal = stmt->array_value ? stmt->array_value->evaluated_value(*this) : nullptr;
+                    uint64_t arraySize = 0;
+                    if(sizeVal) {
+                        auto num = sizeVal->get_number();
+                        if(num.has_value()) {
+                            arraySize = num.value();
+                        }
+                    }
+                    if(arraySize > 0) {
+                        // Get element type and size
+                        auto ptrType = pv->getType();
+                        BaseType* elemType = nullptr;
+                        if(ptrType && ptrType->kind() == BaseTypeKind::Pointer) {
+                            elemType = ((PointerType*)ptrType)->type;
+                        }
+                        uint64_t elemSize = elemType ? elemType->byte_size(global->target_data) : 1;
+                        // Iterate in reverse order (size-1 down to 0), matching C codegen
+                        for(uint64_t i = arraySize; i-- > 0; ) {
+                            auto elemPtr = new (allocate<PointerValue>()) PointerValue(
+                                (void*)((uint8_t*)pv->data + i * elemSize),
+                                elemType,
+                                i * elemSize,
+                                (arraySize - i) * elemSize,
+                                stmt->encoded_location()
+                            );
+                            auto elemVal = elemPtr->deref(*this, stmt->encoded_location(), stmt->identifier);
+                            if(elemVal) {
+                                destruct_temp_struct(*this, elemVal);
+                            }
+                        }
+                    }
+                    // If arraySize == 0, skip destruct entirely
+                } else {
+                    // Single pointer destruct
+                    auto structVal = pv->deref(*this, stmt->encoded_location(), stmt->identifier);
+                    if(structVal) {
+                        destruct_temp_struct(*this, structVal);
+                    }
+                    if(stmt->getFreeAfter()) {
+                        pv->data = nullptr;
+                        pv->ahead = 0;
+                        pv->behind = 0;
+                    }
+                }
+            }
+        }
+        break;
+    }
     default:
         break;
     }

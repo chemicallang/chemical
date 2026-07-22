@@ -1303,4 +1303,12 @@ public:
         return (ChildrenMapNode*) this;
     }
 
+    /**
+     * return as destruct stmt
+     */
+    inline DestructStmt* as_destruct_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::DeleteStmt);
+        return (DestructStmt*) this;
+    }
+
 };

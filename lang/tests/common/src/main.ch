@@ -39,6 +39,7 @@ public func run_common_tests() {
     test_for_loop();
     test_inc_dec();
     test_int_edge_cases();
+    test_c_codegen_truncation();
 
     // Type system tests
     test_typealias();

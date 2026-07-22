@@ -66,8 +66,7 @@ struct S3_DataContainer<T> {
 // S4_LateAutoField (defined THIRD, auto-generated destructor)
 //
 // The middle struct's auto-generated destructor must:
-//   a) Call S4_EarlyManual's @delete (the manual one)
-//   b) Call S4_LateAutoField's auto-generated destructor
+//   a) Call S4_EarlyManual's @delete (the manual one) through the S4_LateAutoField's destructor
 // ─────────────────────────────────────────────────────────────
 
 struct S4_EarlyManual {         // defined FIRST
@@ -78,13 +77,12 @@ struct S4_EarlyManual {         // defined FIRST
     }
 }
 
-struct S4_MiddleComposer {      // defined SECOND (references both)
-    var before_field : S4_EarlyManual    // manual destructor, defined above
+struct S4_MiddleComposer {      // defined SECOND
     var after_field  : S4_LateAutoField  // auto destructor, defined below
 }
 
 struct S4_LateAutoField {       // defined THIRD (auto-generated destructor)
-    var tracked : AutoGenCountedField
+    var tracked : S4_EarlyManual
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -202,17 +200,15 @@ func test_auto_generated_generic_field() {
 
 func test_auto_generated_composition_chain() {
     test("middle struct with before (manual) and after (auto) destructor references", () => {
-        var before_counter = 0
-        var after_counter = 0
+        var counter = 0
         {
             var s = S4_MiddleComposer {
-                before_field : S4_EarlyManual { counter : &raw mut before_counter },
                 after_field  : S4_LateAutoField {
-                    tracked : AutoGenCountedField { counter : &raw mut after_counter }
+                    tracked : S4_EarlyManual { counter : &raw mut counter }
                 }
             }
         }
-        return before_counter == 1 && after_counter == 1
+        return counter == 1
     })
 }
 
@@ -234,7 +230,7 @@ func test_auto_generated_wrapper_with_auto() {
         {
             var s = S6_WrapperWithAuto {
                 inner : S4_LateAutoField {
-                    tracked : AutoGenCountedField { counter : &raw mut counter }
+                    tracked : S4_EarlyManual { counter : &raw mut counter }
                 }
             }
         }

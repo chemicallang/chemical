@@ -21,6 +21,7 @@
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/types/DynamicType.h"
+#include "ast/types/ArrayType.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -2295,6 +2296,38 @@ void call_struct_member_delete_fn(
 ) {
     if(mem_type->kind() == BaseTypeKind::CapturingFunction) {
         call_struct_member_delete_fn(visitor, mem_type->as_capturing_func_type_unsafe()->instance_type, member_name);
+        return;
+    }
+    if(mem_type->kind() == BaseTypeKind::Array) {
+        const auto arrType = mem_type->as_array_type_unsafe();
+        const auto elemType = arrType->elem_type->canonical();
+        const auto elemContainer = elemType->get_members_container();
+        if(!elemContainer) return;
+        auto elemDestr = elemContainer->destructor_func();
+        if(!elemDestr) return;
+        auto itr_name = visitor.get_local_temp_var_name();
+        auto arr_size_str = std::to_string(arrType->get_array_size());
+        visitor.new_line_and_indent();
+        visitor.write("for(int ");
+        visitor.write(itr_name);
+        visitor.write(" = ");
+        visitor.write(arr_size_str);
+        visitor.write(" - 1; ");
+        visitor.write(itr_name);
+        visitor.write(" >= 0; ");
+        visitor.write(itr_name);
+        visitor.write("--){");
+        visitor.indentation_level++;
+        visitor.new_line_and_indent();
+        visitor.mangle(elemDestr);
+        visitor.write("(&self->");
+        visitor.write(member_name);
+        visitor.write('[');
+        visitor.write(itr_name);
+        visitor.write("]);");
+        visitor.indentation_level--;
+        visitor.new_line_and_indent();
+        visitor.write('}');
         return;
     }
     const auto mem_def = mem_type->get_members_container();

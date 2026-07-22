@@ -29,6 +29,12 @@
 #include "compiler/symres/NodeSymbolDeclarer.h"
 #include "compiler/symres/GenericInstantiatorPassAPI.h"
 #include "compiler/lab/LabGetMethodInjection.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/Namespace.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -254,6 +260,67 @@ void ASTProcessor::sym_res_generic_instantiation_file(
     }
 }
 
+static void generate_automatic_functions_in_scope(
+        Scope& scope,
+        ASTAllocator& pub_allocator,
+        ASTAllocator& mod_allocator,
+        ASTDiagnoser& diagnoser
+) {
+    for(auto node : scope.nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::StructDecl: {
+                auto sd = (StructDefinition*)node;
+                auto& alloc = sd->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
+                sd->generate_automatic_functions(alloc, diagnoser, sd);
+                break;
+            }
+            case ASTNodeKind::VariantDecl: {
+                auto vd = (VariantDefinition*)node;
+                auto& alloc = vd->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
+                vd->generate_automatic_functions(alloc, diagnoser, vd);
+                break;
+            }
+            case ASTNodeKind::GenericStructDecl: {
+                auto gsd = (GenericStructDecl*)node;
+                if(gsd->master_impl) {
+                    auto& alloc = gsd->master_impl->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
+                    gsd->master_impl->generate_automatic_functions(alloc, diagnoser, gsd);
+                }
+                break;
+            }
+            case ASTNodeKind::GenericVariantDecl: {
+                auto gvd = (GenericVariantDecl*)node;
+                if(gvd->master_impl) {
+                    auto& alloc = gvd->master_impl->specifier() == AccessSpecifier::Public ? pub_allocator : mod_allocator;
+                    gvd->master_impl->generate_automatic_functions(alloc, diagnoser, gvd);
+                }
+                break;
+            }
+            case ASTNodeKind::NamespaceDecl: {
+                auto ns = (Namespace*)node;
+                Scope ns_scope(ns, 0);
+                ns_scope.nodes = ns->nodes;
+                generate_automatic_functions_in_scope(ns_scope, pub_allocator, mod_allocator, diagnoser);
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+static void generate_automatic_functions_for_module(
+        LabModule* module,
+        ASTAllocator& pub_allocator,
+        ASTAllocator& mod_allocator,
+        ASTDiagnoser& diagnoser
+) {
+    for(auto& file_ptr : module->direct_files) {
+        auto& file = *file_ptr.result;
+        generate_automatic_functions_in_scope(file.unit.scope.body, pub_allocator, mod_allocator, diagnoser);
+    }
+}
+
 void ASTProcessor::sym_res_after_link_sig_file(
         Scope& scope,
         unsigned int fileId,
@@ -445,6 +512,12 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     file_allocator.clear();
 
     if(errored) return 1;
+
+    // generate automatic functions (constructors, destructors) for all containers
+    // before generic instantiation — this single recursive pass ensures every container
+    // gets its automatic functions generated exactly once, with correct depth-first
+    // order so member type destructors exist before dependent container destructors.
+    generate_automatic_functions_for_module(module, *resolver->ast_allocator, *resolver->mod_allocator, *resolver);
 
     // generic instantiation pass in parallel
     for(auto& file_ptr : module->direct_files) {

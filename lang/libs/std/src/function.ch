@@ -105,6 +105,6 @@ public struct default_function_instance {
 }
 
 @partial_instantiate
-public type function<T, M = default_function_instance> = %capture<T, M>;
+public type function<T> = %capture<T, default_function_instance>;
 
 }

@@ -4690,12 +4690,25 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     nested_value = prev_nested;
 
     if(data.destructor_func != nullptr) {
+        auto prev_new_line = new_line_before;
+        // check for null pointer before calling destructor
+        new_line_and_indent();
+        write("if(");
+        write(self_name);
+        write(") {");
+        indentation_level++;
+        new_line_before = true;
         IntNumValue siz_val(data.array_size, comptime_scope.typeBuilder.getU64Type(), ZERO_LOC);
         if (stmt->is_array) {
             destructor.destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
         } else {
             destructor.destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
         }
+        indentation_level--;
+        new_line_before = true;
+        new_line_and_indent();
+        write("}");
+        new_line_before = prev_new_line;
     }
 
     if(stmt->getFreeAfter()) {

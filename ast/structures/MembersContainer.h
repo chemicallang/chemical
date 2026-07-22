@@ -258,6 +258,19 @@ public:
     bool all_members_def_constructible();
 
     /**
+     * guard to ensure each container's automatic functions are generated at most once
+     * in the recursive depth-first generation pass
+     */
+    bool automatic_functions_generated = false;
+
+    /**
+     * recursively ensure automatic functions (constructors, destructors) are generated
+     * for this container and all its member type dependencies, depth-first.
+     * Each container is processed exactly once (guarded by automatic_functions_generated).
+     */
+    void generate_automatic_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
+
+    /**
      * checks if this struct type requires a destructor
      * or has one
      */

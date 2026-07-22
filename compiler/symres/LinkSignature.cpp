@@ -880,6 +880,14 @@ void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     VisitTypealiasStmt(node->master_impl);
     table.scope_end();
     node->signature_linked = true;
+    // enforce that %capture's instance type is never a generic parameter
+    if(node->master_impl->actual_type->kind() == BaseTypeKind::CapturingFunction) {
+        auto cap = node->master_impl->actual_type->as_capturing_func_type_unsafe();
+        auto linked = cap->instance_type->get_direct_linked_node();
+        if(linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
+            diagnoser.error(node) << "capturing function's instance type must not be a generic type parameter";
+        }
+    }
 }
 
 void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
@@ -907,11 +915,6 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     }
     LinkMembersContainerNoScope(node->master_impl);
     table.scope_end();
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(getAstAllocator(), linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
@@ -942,11 +945,6 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     }
     LinkMembersContainerNoScope(node->master_impl);
     table.scope_end();
-    // we must generate functions for master as well
-    // because user can call the constructor of master implementation, which should be available
-    // if this creates a destructor, then it would be copied in instantiations and instantiations won't generate another destructor
-    // similarly for default constructor
-    node->master_impl->generate_functions(getAstAllocator(), linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
@@ -1199,9 +1197,7 @@ void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
 }
 
 void TopLevelLinkSignature::VisitStructDecl(StructDefinition* node) {
-    auto& allocator = node->specifier() == AccessSpecifier::Public ? getAstAllocator() : getModAllocator();
     LinkMembersContainer(node, node->specifier());
-    node->generate_functions(allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitUnionDecl(UnionDef* node) {
@@ -1209,10 +1205,7 @@ void TopLevelLinkSignature::VisitUnionDecl(UnionDef* node) {
 }
 
 void TopLevelLinkSignature::VisitVariantDecl(VariantDefinition* node) {
-    auto& allocator = node->specifier() == AccessSpecifier::Public ? getAstAllocator() : getModAllocator();
-    auto& diagnoser = linker;
     LinkMembersContainer(node, node->specifier());
-    node->generate_functions(allocator, diagnoser, node);
 }
 
 void TopLevelLinkSignature::VisitVariantMember(VariantMember* node) {

@@ -22,6 +22,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/types/CapturingFunctionType.h"
+#include "ast/types/ArrayType.h"
 #include "ast/statements/AliasStmt.h"
 #include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -823,10 +824,44 @@ bool MembersContainer::all_members_def_constructible() {
     });
 }
 
+void MembersContainer::generate_automatic_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {
+    if(automatic_functions_generated) return;
+    automatic_functions_generated = true;
+    for(const auto var : variables()) {
+        auto type = var->known_type();
+        if(!type) continue;
+        auto resolved = type->canonical();
+        MembersContainer* member_container = nullptr;
+        if(resolved->kind() == BaseTypeKind::CapturingFunction) {
+            member_container = resolved->as_capturing_func_type_unsafe()->instance_type->get_members_container();
+        } else if(resolved->kind() == BaseTypeKind::Array) {
+            auto elem_type = resolved->as_array_type_unsafe()->elem_type;
+            member_container = elem_type->get_members_container();
+        } else {
+            member_container = resolved->get_members_container();
+        }
+        if(member_container && !member_container->has_destructor()) {
+            member_container->generate_automatic_functions(allocator, diagnoser, (ASTNode*) member_container);
+        }
+    }
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->generate_functions(allocator, diagnoser, returnNode);
+            break;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->generate_functions(allocator, diagnoser, returnNode);
+            break;
+        default:
+            break;
+    }
+}
+
 bool MembersContainer::any_member_has_destructor() {
     return one_member_type_requires(*this, [](BaseType* type)-> bool {
         if(type->kind() == BaseTypeKind::CapturingFunction) {
             return type->as_capturing_func_type_unsafe()->instance_type->get_destructor() != nullptr;
+        } else if(type->kind() == BaseTypeKind::Array) {
+            return type->as_array_type_unsafe()->elem_type->requires_destructor();
         } else {
             return type->get_master_destructor() != nullptr;
         }

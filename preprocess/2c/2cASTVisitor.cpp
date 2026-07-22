@@ -6211,20 +6211,20 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
         switch(type) {
             case IntNTypeKind::I8:
             case IntNTypeKind::Char:
-                writer << (int8_t) value->value;
+                writer << (int)(uint8_t)(int8_t)value->value;
                 break;
             case IntNTypeKind::I16:
             case IntNTypeKind::Short:
-                writer << (int16_t) value->value;
+                writer << (int)(uint16_t)(int16_t)value->value;
                 break;
             case IntNTypeKind::I32:
             case IntNTypeKind::Int:
-                writer << (int32_t) value->value;
+                writer << (int64_t)(uint32_t)(int32_t)value->value;
                 break;
             case IntNTypeKind::I64:
             case IntNTypeKind::Long:
             case IntNTypeKind::LongLong:
-                writer << (int64_t) value->value;
+                writer << (uint64_t)value->value;
                 break;
             case IntNTypeKind::Int128:
                 // TODO: handle int128
@@ -7019,6 +7019,12 @@ void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
     }
     // normal flow
     write('-');
+    // When chained with another NegativeValue (e.g. -(-32768i16)), the maximal munch
+    // rule in C parses '--' as the decrement operator. Insert a space to ensure the
+    // '-' is treated as unary negation: '- -32768' instead of '--32768'.
+    if(val->val_kind() == ValueKind::NegativeValue) {
+        write(' ');
+    }
     visit(val);
 }
 

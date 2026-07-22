@@ -1276,7 +1276,12 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                     const auto num_val = parse_num(value, suffix_index, strtoull);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned long long) num_val.result, typeBuilder.getU64Type(), location), num_val.error };
                 } else {
-                    const auto num_val = parse_num(value, suffix_index, strtoll);
+                    // Use strtoull instead of strtoll so that 9223372036854775808
+                    // (INT64_MIN's absolute value, which equals 2^63) is accepted.
+                    // strtoll rejects it because it overflows signed long long,
+                    // but the underlying IntNumValue stores uint64_t, and the
+                    // value is later reinterpreted as signed at the codegen level.
+                    const auto num_val = parse_num(value, suffix_index, strtoull);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((long long) num_val.result, typeBuilder.getI64Type(), location), num_val.error };
                 }
                 break;

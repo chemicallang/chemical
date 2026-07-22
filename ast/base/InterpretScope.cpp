@@ -236,17 +236,47 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
+        const auto firstIsSigned = !first->getType()->as_intn_type_unsafe()->is_unsigned();
+        const auto secondIsSigned = !second->getType()->as_intn_type_unsafe()->is_unsigned();
         uint64_t answer;
-        if(operation == Operation::RightShift && !first->getType()->as_intn_type_unsafe()->is_unsigned()) {
+        if(operation == Operation::RightShift && firstIsSigned) {
             // Arithmetic right shift for signed types: cast to int64_t to preserve sign
             answer = (uint64_t)((int64_t)first->get_num_value() >> second->get_num_value());
+        } else if((operation == Operation::LessThan || operation == Operation::GreaterThan ||
+                   operation == Operation::LessThanOrEqual || operation == Operation::GreaterThanOrEqual) &&
+                   firstIsSigned && secondIsSigned) {
+            // Signed comparison for signed int types: cast to int64_t to preserve sign
+            const auto a = (int64_t)first->get_num_value();
+            const auto b = (int64_t)second->get_num_value();
+            switch(operation) {
+                case Operation::LessThan:           answer = a <  b; break;
+                case Operation::GreaterThan:        answer = a >  b; break;
+                case Operation::LessThanOrEqual:    answer = a <= b; break;
+                case Operation::GreaterThanOrEqual: answer = a >= b; break;
+                default: answer = 0; break;
+            }
         } else {
             answer = operate(operation, first->get_num_value(), second->get_num_value());
         }
         if(is_bool_output(operation)) {
             return pack_bool(scope, answer, location);
         } else {
-            return pack_by_kind(scope, determine_output(first->getType()->IntNKind(), second->getType()->IntNKind()), answer, location);
+            // Use the expression's already-determined type (from debugValue) for the result,
+            // which properly considers bit width (unlike determine_output which compares enum ordinals).
+            // Fall back to determine_output if debugValue's type is not available.
+            auto resultKindIntN = [&]() -> IntNTypeKind {
+                if(debugValue) {
+                    auto resultType = debugValue->getType();
+                    if(resultType) {
+                        auto canon = resultType->canonical();
+                        if(canon->kind() == BaseTypeKind::IntN) {
+                            return canon->as_intn_type_unsafe()->IntNKind();
+                        }
+                    }
+                }
+                return determine_output(first->getType()->IntNKind(), second->getType()->IntNKind());
+            }();
+            return pack_by_kind(scope, resultKindIntN, answer, location);
         }
     } else if(fKind == ValueKind::Double || fKind == ValueKind::Float || sKind == ValueKind::Double || sKind == ValueKind::Float) {
         const auto first = get_double_value(fEvl, fKind);

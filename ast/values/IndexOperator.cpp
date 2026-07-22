@@ -174,7 +174,11 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
                             if (index.value() < maxIdx) {
                                 uint64_t val = 0;
                                 std::memcpy(&val, (char*)arr->contiguousData + index.value() * elemSize, elemSize);
-                                return new (scope.allocate<IntNumValue>()) IntNumValue(val, scope.global->typeBuilder.getIntNType((unsigned int)(elemSize * 8), true), location);
+                                // Use the element's IntNTypeKind with pack_by_kind to properly
+                                // sign-extend narrow signed types (e.g. i16: 0x8000 → 0xFFFF8000).
+                                // Raw IntNumValue construction would lose sign information.
+                                auto elemIntN = elemType->as_intn_type_unsafe();
+                                return pack_by_kind(scope, elemIntN->IntNKind(), val, location);
                             }
                         }
                     }

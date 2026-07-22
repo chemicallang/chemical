@@ -195,5 +195,18 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceL
 
 Value* pack_by_kind(InterpretScope& scope, IntNTypeKind kind, uint64_t value, SourceLocation location) {
     auto& typeBuilder = scope.global->typeBuilder;
-    return new (scope.allocate<IntNumValue>()) IntNumValue(value, typeBuilder.getIntNType(kind), location);
+    auto type = typeBuilder.getIntNType(kind);
+    auto bits = type->num_bits(scope.global->target_data);
+    if(bits < 64) {
+        auto mask = (1ULL << bits) - 1;
+        value &= mask;
+        if(!type->is_unsigned()) {
+            // Sign extend for signed narrow types
+            auto sign_bit = 1ULL << (bits - 1);
+            if(value & sign_bit) {
+                value |= ~mask;
+            }
+        }
+    }
+    return new (scope.allocate<IntNumValue>()) IntNumValue(value, type, location);
 }

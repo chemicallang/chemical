@@ -130,6 +130,8 @@ public func run_common_tests() {
     test_call_destruction()
     test_nullptr_destruct()
 
+    test_auto_generated_destructors()
+
 
     // References
     test_references()

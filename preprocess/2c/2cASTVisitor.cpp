@@ -3,6 +3,7 @@
 #include "2cASTVisitor.h"
 #include <ostream>
 #include <iostream>
+#include <cstdint>
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/symres/CoreNodes.h"
@@ -6211,7 +6212,7 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
         switch(type) {
             case IntNTypeKind::I8:
             case IntNTypeKind::Char:
-                if(value->value > 127) {
+                if(value->value > INT8_MAX) {
                     writer << "(int8_t)(" << (int)(uint8_t)(int8_t)value->value << ")";
                 } else {
                     writer << (int)(int8_t)value->value;
@@ -6219,7 +6220,7 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
                 break;
             case IntNTypeKind::I16:
             case IntNTypeKind::Short:
-                if(value->value > 32767) {
+                if(value->value > INT16_MAX) {
                     writer << "(int16_t)(" << (int)(uint16_t)(int16_t)value->value << ")";
                 } else {
                     writer << (int)(int16_t)value->value;
@@ -6227,7 +6228,7 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
                 break;
             case IntNTypeKind::I32:
             case IntNTypeKind::Int:
-                if(value->value > 2147483647) {
+                if(value->value > INT32_MAX) {
                     writer << "(int32_t)(" << (int64_t)(uint32_t)(int32_t)value->value << ")";
                 } else {
                     writer << (int64_t)(int32_t)value->value;
@@ -7030,6 +7031,15 @@ void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
         }
     }
     // normal flow
+    // For IntNumValue, negate the value directly to avoid '--' maximal munch issue
+    // and ensure correct signed overflow behavior (e.g. -32768i16 must produce -32768
+    // in C, not -(int16_t)(32768) which evaluates to 32768 as int).
+    if(val->val_kind() == ValueKind::IntN) {
+        auto* intVal = (IntNumValue*)val;
+        IntNumValue negated(-intVal->value, intVal->getType(), intVal->encoded_location());
+        VisitIntNValue(&negated);
+        return;
+    }
     write('-');
     // When chained with another NegativeValue (e.g. -(-32768i16)), the maximal munch
     // rule in C parses '--' as the decrement operator. Insert a space to ensure the

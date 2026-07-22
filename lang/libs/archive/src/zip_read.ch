@@ -161,7 +161,7 @@ public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mu
     while(i < archive.entries.size()) {
         var entry = archive.entries.get_ptr(i)
         if(str_equals_cstr(&raw mut entry.name, name)) {
-            memcpy(output, &raw entry, sizeof(ArchiveEntry))
+            memcpy(output, entry, sizeof(ArchiveEntry))
             new(entry) ArchiveEntry{name: string(""), size: 0, compressed_size: 0, compression_method: 0, crc32: 0, is_directory: false, offset: 0}
             return std.Result.Ok(std::Unit{})
         }

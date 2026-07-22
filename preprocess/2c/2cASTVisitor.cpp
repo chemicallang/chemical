@@ -6690,6 +6690,33 @@ void overload_expr_operator(ToCAstVisitor& visitor, MembersContainer* container,
     call_two_arg_operator_func(visitor, overloaded, expr->firstValue, expr->secondValue);
 }
 
+// Writes an explicit C truncation cast for narrow integer types (i8, i16, u8, u16, char, short)
+// that C would otherwise promote to int, losing overflow/wrapping semantics.
+// Returns true if a cast was written, false otherwise.
+static bool write_narrow_int_truncation_cast(ToCAstVisitor& visitor, BaseType* type) {
+    if(!type || type->kind() != BaseTypeKind::IntN) return false;
+    switch(((IntNType*)type)->IntNKind()) {
+        case IntNTypeKind::I8:
+        case IntNTypeKind::Char:
+            visitor.write("(int8_t)");
+            return true;
+        case IntNTypeKind::U8:
+        case IntNTypeKind::UChar:
+            visitor.write("(uint8_t)");
+            return true;
+        case IntNTypeKind::I16:
+        case IntNTypeKind::Short:
+            visitor.write("(int16_t)");
+            return true;
+        case IntNTypeKind::U16:
+        case IntNTypeKind::UShort:
+            visitor.write("(uint16_t)");
+            return true;
+        default:
+            return false;
+    }
+}
+
 void ToCAstVisitor::VisitExpression(Expression *expr) {
     auto prev_nested = nested_value;
     nested_value = true;
@@ -6710,6 +6737,15 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     }
 
     // expression begins
+    
+    // Check if the expression's result type is a narrow integer (i8, i16, u8, u16, char, short)
+    // C integer promotion promotes these to int before any arithmetic, losing overflow wrapping.
+    // Add an explicit truncation cast to preserve the narrow-type semantics.
+    const auto result_type = expr->getType();
+    if(result_type) {
+        write_narrow_int_truncation_cast(*this, result_type->canonical());
+    }
+
     write('(');
 
     visit(expr->firstValue);
@@ -7039,6 +7075,13 @@ void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
         IntNumValue negated(-intVal->value, intVal->getType(), intVal->encoded_location());
         VisitIntNValue(&negated);
         return;
+    }
+    // Check if the result type needs truncation cast (narrow integer like i8, i16, u8, u16)
+    // C integer promotion promotes narrow types to int before unary negation,
+    // so we need to add an explicit cast to preserve the narrow-type semantics.
+    const auto neg_result_type = negValue->getType();
+    if(neg_result_type) {
+        write_narrow_int_truncation_cast(*this, neg_result_type->canonical());
     }
     write('-');
     // When chained with another NegativeValue (e.g. -(-32768i16)), the maximal munch

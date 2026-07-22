@@ -126,6 +126,7 @@ public func run_common_tests() {
     test_break_destruction()
     test_self_ref_destruct()
     test_call_destruction()
+    test_nullptr_destruct()
 
 
     // References

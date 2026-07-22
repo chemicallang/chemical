@@ -318,6 +318,31 @@ std::pair<unsigned int, llvm::Value*> Value::access_chain_parent_pointer(
 
     unsigned parent_index = 0;
     Value* parent = values[0];
+
+    // detect if the chain starts with a namespace qualifier (e.g., 'std' in 'std.vector<int>')
+    // namespaces are compile-time constructs with no runtime address.
+    // When a chain starts with a namespace, it represents a TYPE, not a runtime value.
+    // Skip the namespace qualifiers and use the last element's type for the base pointer.
+    bool has_namespace_start = false;
+    if(parent->val_kind() == ValueKind::Identifier) {
+        auto id = parent->as_identifier_unsafe();
+        has_namespace_start = (id->linked && id->linked->kind() == ASTNodeKind::NamespaceDecl);
+    }
+
+    if(has_namespace_start) {
+        // This chain starts with a namespace — it's a type chain.
+        // Create an alloca of the final type as the base pointer for GEP operations.
+        // Use `until` as the parent_index so create_gep uses the correct type.
+        const auto last = values[until]->getType();
+        if(last && last->canonical()) {
+            auto alloca = gen.builder->CreateAlloca(last->llvm_type(gen), nullptr);
+            gen.di.instr(alloca, values[until]);
+            return { until, (llvm::Value*)alloca };
+        }
+        // fallback: can't resolve the type — return an opaque null pointer constant
+        return { until, llvm::Constant::getNullValue(gen.builder->getPtrTy()) };
+    }
+
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
     // queue return of first function call return for destruction (at the end of this chain loading)

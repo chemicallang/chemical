@@ -6211,20 +6211,32 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
         switch(type) {
             case IntNTypeKind::I8:
             case IntNTypeKind::Char:
-                writer << (int)(uint8_t)(int8_t)value->value;
+                if(value->value > 127) {
+                    writer << "(int8_t)(" << (int)(uint8_t)(int8_t)value->value << ")";
+                } else {
+                    writer << (int)(int8_t)value->value;
+                }
                 break;
             case IntNTypeKind::I16:
             case IntNTypeKind::Short:
-                writer << (int)(uint16_t)(int16_t)value->value;
+                if(value->value > 32767) {
+                    writer << "(int16_t)(" << (int)(uint16_t)(int16_t)value->value << ")";
+                } else {
+                    writer << (int)(int16_t)value->value;
+                }
                 break;
             case IntNTypeKind::I32:
             case IntNTypeKind::Int:
-                writer << (int64_t)(uint32_t)(int32_t)value->value;
+                if(value->value > 2147483647) {
+                    writer << "(int32_t)(" << (int64_t)(uint32_t)(int32_t)value->value << ")";
+                } else {
+                    writer << (int64_t)(int32_t)value->value;
+                }
                 break;
             case IntNTypeKind::I64:
             case IntNTypeKind::Long:
             case IntNTypeKind::LongLong:
-                writer << (uint64_t)value->value;
+                writer << (int64_t)value->value;
                 break;
             case IntNTypeKind::Int128:
                 // TODO: handle int128

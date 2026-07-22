@@ -38,6 +38,7 @@ public func run_common_tests() {
     test_in_value();
     test_for_loop();
     test_inc_dec();
+    test_int_edge_cases();
 
     // Type system tests
     test_typealias();

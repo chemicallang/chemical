@@ -110,6 +110,7 @@ public func run_common_tests() {
 
     // Newly moved tests (v3)
     test_constructors_with_init();
+    test_constructors_with_destructor();
     // test_basic_interfaces() — skipped: interface definitions (even unused) crash interpreter
     test_var_init();
     // test_interface_generic_dispatch() — skipped: interface definitions crash interpreter
@@ -161,6 +162,7 @@ public func run_common_tests() {
 
     test_new();
     test_core_ops();
+    test_bitwise_precedence();
 
     test_for_in()
     test_sizeof_alignof()

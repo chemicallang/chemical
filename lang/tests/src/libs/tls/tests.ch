@@ -2823,7 +2823,7 @@ public func tls_ssl_read_nst_function_exists(env : &mut TestEnv) {
 @test
 public func tls_session_ticket_storage_in_context(env : &mut TestEnv) {
     // Verify that Session struct has ticket storage fields
-    var session : tls::Session
+    var session = tls::Session()
     if(session.ticket != null) {
         env.error("new session should have null ticket")
     }

@@ -111,3 +111,54 @@ func test_constructors_with_init() {
     })
 
 }
+
+// ── @constructor with @delete ──────────────────────────────────
+
+struct CtorWithDtorType {
+    var ptr : *void
+    var val : int
+
+    @constructor
+    func constructor() : CtorWithDtorType {
+        return CtorWithDtorType {
+            ptr: null,
+            val: 42
+        }
+    }
+
+    @delete
+    func destruct(&self) {
+        // safe: ptr is null from constructor
+    }
+}
+
+func test_constructors_with_destructor() {
+
+    test("var x = Type() calls @constructor correctly", () => {
+        var s = CtorWithDtorType()
+        return s.ptr == null && s.val == 42
+    })
+
+    test("@delete after @constructor is safe (null check)", () => {
+        var s = CtorWithDtorType()
+        // destructor runs at scope exit, checks ptr == null, safe
+        return s.val == 42
+    })
+
+}
+
+// ── Bitwise & precedence with != / == ──────────────────────────
+
+func test_bitwise_precedence() {
+
+    test("bitwise & precedence with != 0", () => {
+        var flags : u8 = 0x03
+        return (flags & 0x02) != 0 && (flags & 0x01) != 0 && (flags & 0x04) == 0
+    })
+
+    test("bitwise & with == 0", () => {
+        var flags : u8 = 0x0A
+        return (flags & 0x01) == 0 && (flags & 0x04) == 0 && (flags & 0x02) != 0 && (flags & 0x08) != 0
+    })
+
+}

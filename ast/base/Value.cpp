@@ -361,6 +361,12 @@ std::pair<unsigned int, llvm::Value*> Value::access_chain_parent_pointer(
 
     while (i <= until) {
         if(i + 1 <= until && values[i]->is_stored_ptr_or_ref(gen.allocator)) {
+            if(!values[i]->add_member_index(gen, values[i - 1], idxList)) {
+                auto& diag = gen.error(values[i]);
+                diag << "couldn't add member index for ptr/ref fragment '";
+                diag << values[i]->representation();
+                diag << "' in access chain";
+            }
             llvm::Value* gep;
             if(idxList.empty()) {
                 gep = pointer;

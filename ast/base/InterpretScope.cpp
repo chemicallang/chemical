@@ -232,6 +232,16 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
     if(fKind == ValueKind::Bool && sKind == ValueKind::Bool) {
         const auto result = operate(operation, fEvl->get_the_bool(), sEvl->get_the_bool());
         return pack_bool(scope, result, location);
+    } else if(is_int_n(fKind) && sKind == ValueKind::Bool) {
+        auto first = (IntNumValue*) fEvl;
+        auto secondVal = sEvl->get_the_bool();
+        auto second = new (scope.allocate<IntNumValue>()) IntNumValue(secondVal ? 1 : 0, first->getType(), location);
+        return scope.evaluate(operation, fEvl, (Value*)second, location, debugValue);
+    } else if(fKind == ValueKind::Bool && is_int_n(sKind)) {
+        auto firstVal = fEvl->get_the_bool();
+        auto second = (IntNumValue*) sEvl;
+        auto first = new (scope.allocate<IntNumValue>()) IntNumValue(firstVal ? 1 : 0, second->getType(), location);
+        return scope.evaluate(operation, (Value*)first, sEvl, location, debugValue);
     } else if(is_int_n(fKind) && is_int_n(sKind)) {
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;

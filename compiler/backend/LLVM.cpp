@@ -992,13 +992,13 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         } else if(from_num_bits > to_num_bits) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
-    } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
-        if(((IntNType*) type)->is_unsigned()) {
-            return gen.builder->CreateFPToUI(llvm_val, type->llvm_type(gen));
+    } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && pure_type->kind() == BaseTypeKind::IntN) {
+        if(((IntNType*) pure_type)->is_unsigned()) {
+            return gen.builder->CreateFPToUI(llvm_val, pure_type->llvm_type(gen));
         } else {
-            return gen.builder->CreateFPToSI(llvm_val, type->llvm_type(gen));
+            return gen.builder->CreateFPToSI(llvm_val, pure_type->llvm_type(gen));
         }
-    } else if((value_type->kind() == BaseTypeKind::IntN && (type->kind() == BaseTypeKind::Float || type->kind() == BaseTypeKind::Double))) {
+    } else if((value_type->kind() == BaseTypeKind::IntN && (pure_type->kind() == BaseTypeKind::Float || pure_type->kind() == BaseTypeKind::Double))) {
         if(((IntNType*) value_type)->is_unsigned()) {
             return gen.builder->CreateUIToFP(llvm_val, type->llvm_type(gen));
         } else {

@@ -161,4 +161,64 @@ func test_bitwise_precedence() {
         return (flags & 0x01) == 0 && (flags & 0x04) == 0 && (flags & 0x02) != 0 && (flags & 0x08) != 0
     })
 
+    // this exercises the Operation.cpp safety net: i1 ZExt'd before And/Or/Xor
+    test("bitwise & with bool expression does not crash", () => {
+        var flags : u8 = 0x03
+        var result = flags & (0x02 != 0)
+        return result == 1
+    })
+
+    test("bitwise | with bool expression does not crash", () => {
+        var flags : u8 = 0x00
+        var result = flags | (0x01 == 0x01)
+        return result == 1
+    })
+
+}
+
+// ── Double to typealias cast (CastedValue pure_type fix) ───────
+
+type mysize = int
+
+func test_double_to_typealias_cast() {
+
+    test("double to type_alias cast via 'as' works", () => {
+        var x = (44100.0 * 0.5) as mysize
+        return x == 22050
+    })
+
+    test("fractional double truncated on cast to int", () => {
+        var x = (99.0 / 2.0) as mysize
+        return x == 49
+    })
+
+}
+
+// ── Access chain through ref field (add_member_index fix) ──────
+
+struct DataBlock {
+    var values : [4]int
+}
+
+struct ChainRefHolder {
+    var block : &mut DataBlock
+}
+
+func test_access_chain_thru_ref() {
+
+    test("access chain through struct ref field works", () => {
+        var data = DataBlock { values: [10, 20, 30, 40] }
+        var holder = ChainRefHolder { block: &mut data }
+        holder.block.values[1] = 99
+        return holder.block.values[1] == 99
+    })
+
+    test("multiple access chain through ref field works", () => {
+        var data = DataBlock { values: [0, 0, 0, 0] }
+        var holder = ChainRefHolder { block: &mut data }
+        holder.block.values[0] = 5
+        holder.block.values[2] = 7
+        return holder.block.values[0] == 5 && holder.block.values[2] == 7 && holder.block.values[1] == 0
+    })
+
 }

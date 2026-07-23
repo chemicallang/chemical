@@ -904,6 +904,77 @@ cmake-build-debug/TCCCompiler "lang/compiled/temp.ch" -o "lang/compiled/temp.exe
 5. Inspect the LLVM IR or C translation output to find codegen bugs
 6. Add debug logs to the compiler source, rebuild, and repeat
 
+### Isolating Tests That Depend on Libraries
+
+Many test failures involve library code (TLS, audio, HTTP, etc.) that a bare `temp.ch` cannot import.
+For those, create a **standalone module with a `chemical.mod`** that imports the required
+dependencies:
+
+```bash
+mkdir -p lang/compiled/my_test/src
+```
+
+**`lang/compiled/my_test/chemical.mod`** — use `application` with imports:
+```
+application my_test
+source "src"
+import cstd
+import std
+import audio                    # add whatever libs the test needs
+import tls
+import net
+```
+
+**`lang/compiled/my_test/src/main.ch`** — your test code:
+```
+public func main() : int {
+    // ... test code that uses audio, tls, etc. ...
+    return 0
+}
+```
+
+**Compile with the LLVM backend:**
+```bash
+cmake-build-debug/Compiler "lang/compiled/my_test/chemical.mod" \
+    -o "lang/compiled/my_test/main.exe" \
+    --mode debug_complete --assertions
+```
+
+The Compiler resolves imports from `lang/libs/` automatically. No special flags needed.
+
+**Run:**
+```bash
+./lang/compiled/my_test/main.exe
+```
+
+**Inspect LLVM IR (add `--out-ll-all`):**
+```bash
+cmake-build-debug/Compiler "lang/compiled/my_test/chemical.mod" \
+    -o "lang/compiled/my_test/main.exe" \
+    --mode debug_complete --assertions \
+    --out-ll-all --build-dir "lang/compiled/my_test/build/"
+
+# IR is at: lang/compiled/my_test/build/modules/<name>/llvm_ir.ll
+```
+
+**Get a backtrace on crash:**
+```bash
+gdb -batch -ex run -ex bt -ex "info registers" -ex "x/16i \$pc" \
+    ./lang/compiled/my_test/main.exe
+```
+
+This approach gives you:
+- Full library access (no manual code copying)
+- Fast iteration (no full test suite rebuild)
+- Focused LLVM IR for just your module
+- GDB backtraces for SIGSEGV crashes in library-dependent tests
+
+## Isolating Library-Dependent Failures (Standalone Module)
+
+When a test failure depends on library code (TLS, audio, etc.), see the
+[Debugging: Isolating a Single Test Case](#debugging-isolating-a-single-test-case)
+section above under **Isolating Tests That Depend on Libraries**.
+
 ## Compiled Packages (`lang/compiled/`)
 
 

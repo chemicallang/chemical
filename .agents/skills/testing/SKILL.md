@@ -569,6 +569,74 @@ The `-bt-full` flag adds thread info, registers, instruction disassembly at `$pc
 
 > Both flags imply `-g` automatically. Works in all modes (compiled, interpret, negative).
 
+> ⚠️ However, `-bt` only catches crashes in the **parent process**. The `@test` runner dispatches tests via `posix_spawnp` subprocesses, so child-process crashes are NOT caught by `-bt`. For those, use the standalone module approach below.
+
+### Isolating Library-Dependent Test Failures
+
+When a test failure depends on library code (TLS, audio, HTTP, etc.), a bare `.ch` file
+cannot import them. Create a **standalone module with a `chemical.mod`** instead:
+
+```bash
+mkdir -p lang/compiled/my_test/src
+```
+
+**`lang/compiled/my_test/chemical.mod`**:
+```
+application my_test
+source "src"
+import cstd
+import std
+import tls           # add whatever libs the failure requires
+import audio
+import net
+```
+
+**`lang/compiled/my_test/src/main.ch`** — reproduce the exact failing code path:
+```chemical
+@extern
+public func printf(format : *char, _ : any...) : int
+
+public func main() : int {
+    // mirror the failing @test code here
+    var ssl : tls::SSLContext
+    tls::ssl_init(&raw mut ssl)
+    // ...
+    printf("Done\n")
+    return 0
+}
+```
+
+**Compile and run:**
+```bash
+cmake-build-debug/Compiler "lang/compiled/my_test/chemical.mod" \
+    -o "lang/compiled/my_test/main.exe" \
+    --mode debug_complete --assertions
+
+./lang/compiled/my_test/main.exe
+```
+
+**Get a GDB backtrace on SIGSEGV:**
+```bash
+gdb -batch -ex run -ex bt -ex "info registers" -ex "x/16i \$pc" \
+    ./lang/compiled/my_test/main.exe
+```
+
+**Inspect the LLVM IR:**
+```bash
+cmake-build-debug/Compiler "lang/compiled/my_test/chemical.mod" \
+    -o "lang/compiled/my_test/main.exe" \
+    --mode debug_complete --assertions \
+    --out-ll-all --build-dir "lang/compiled/my_test/build/"
+
+# IR at: lang/compiled/my_test/build/modules/<name>/llvm_ir.ll
+```
+
+This approach gives you:
+- **Full library access** — no manual code copying
+- **Fast iteration** — no need to rebuild the full test suite
+- **Focused LLVM IR** — only your module's codegen, easy to inspect
+- **GDB backtraces** — the standalone executable runs in a single process, so the parent-process `gdb -batch` approach works for all crashes
+
 ## Running Tests
 
 ### Interpretation Tests

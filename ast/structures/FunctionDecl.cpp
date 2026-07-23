@@ -24,6 +24,7 @@
 #include "ast/structures/StructMember.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/types/CapturingFunctionType.h"
+#include "ast/types/ArrayType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "compiler/ASTDiagnoser.h"
@@ -742,6 +743,20 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
             const auto decl = mem_type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
             if(decl) {
                 create_call_member_func(gen, decl, def, func, index, false, location);
+            }
+            return;
+        }
+        if(mem_type->kind() == BaseTypeKind::Array) {
+            const auto arr_type = mem_type->as_array_type_unsafe();
+            const auto elem_type = arr_type->elem_type;
+            if(elem_type->requires_destructor()) {
+                auto arg = func->getArg(0);
+                std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+                auto array_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
+                const auto prev = gen.current_function;
+                gen.current_function = func;
+                gen.destruct(array_ptr, arr_type->get_array_size(), elem_type, location);
+                gen.current_function = prev;
             }
             return;
         }

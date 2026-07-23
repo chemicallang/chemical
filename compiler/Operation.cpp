@@ -280,14 +280,33 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 return builder->CreateICmpNE(lhs, rhs); // Not equal to
             }
         case Operation::BitwiseAND:
+        case Operation::LogicalAND:
+            if(lhs->getType()->isIntegerTy() && rhs->getType()->isIntegerTy() && lhs->getType() != rhs->getType()) {
+                if(lhs->getType()->getIntegerBitWidth() == 1) {
+                    lhs = builder->CreateZExt(lhs, rhs->getType());
+                } else if(rhs->getType()->getIntegerBitWidth() == 1) {
+                    rhs = builder->CreateZExt(rhs, lhs->getType());
+                }
+            }
             return builder->CreateAnd(lhs, rhs);
         case Operation::BitwiseXOR:
+            if(lhs->getType()->isIntegerTy() && rhs->getType()->isIntegerTy() && lhs->getType() != rhs->getType()) {
+                if(lhs->getType()->getIntegerBitWidth() == 1) {
+                    lhs = builder->CreateZExt(lhs, rhs->getType());
+                } else if(rhs->getType()->getIntegerBitWidth() == 1) {
+                    rhs = builder->CreateZExt(rhs, lhs->getType());
+                }
+            }
             return builder->CreateXor(lhs, rhs);
         case Operation::BitwiseOR:
-            return builder->CreateOr(lhs, rhs);
-        case Operation::LogicalAND:
-            return builder->CreateAnd(lhs, rhs);
         case Operation::LogicalOR:
+            if(lhs->getType()->isIntegerTy() && rhs->getType()->isIntegerTy() && lhs->getType() != rhs->getType()) {
+                if(lhs->getType()->getIntegerBitWidth() == 1) {
+                    lhs = builder->CreateZExt(lhs, rhs->getType());
+                } else if(rhs->getType()->getIntegerBitWidth() == 1) {
+                    rhs = builder->CreateZExt(rhs, lhs->getType());
+                }
+            }
             return builder->CreateOr(lhs, rhs);
         default:
             error(first) << "Cannot operate on operation " << to_string(op);

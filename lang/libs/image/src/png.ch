@@ -12,7 +12,7 @@ func png_crc32_table_entry(i : u32) : u32 {
     var crc = i
     var j : u32 = 0
     while(j < 8) {
-        if(crc & 1u32 != 0) {
+        if((crc & 1u32) != 0) {
             crc = (crc >> 1) ^ 0xEDB88320u32
         } else {
             crc = crc >> 1

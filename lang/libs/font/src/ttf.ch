@@ -417,11 +417,11 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
             outline.flags.push(flags)
 
             // X coordinate
-            if(flags & 0x02 != 0) {
+            if((flags & 0x02) != 0) {
                 // Short vector, same or different
                 if(pos < font.data.size()) {
                     var dx = font.data.data()[pos] as i32
-                    if(flags & 0x10 == 0) { dx = -dx }
+                    if((flags & 0x10) == 0) { dx = -dx }
                     var prev_x : i32 = 0
                     if(outline.points.size() > 0) { prev_x = outline.points.get(outline.points.size() - 2) }
                     outline.points.push(prev_x + dx)
@@ -429,7 +429,7 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
                 }
             } else {
                 // Long vector
-                if(flags & 0x10 != 0) {
+                if((flags & 0x10) != 0) {
                     // Same as previous
                     var prev_x : i32 = 0
                     if(outline.points.size() > 0) { prev_x = outline.points.get(outline.points.size() - 2) }
@@ -446,17 +446,17 @@ public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Resu
             }
 
             // Y coordinate
-            if(flags & 0x04 != 0) {
+            if((flags & 0x04) != 0) {
                 if(pos < font.data.size()) {
                     var dy = font.data.data()[pos] as i32
-                    if(flags & 0x20 == 0) { dy = -dy }
+                    if((flags & 0x20) == 0) { dy = -dy }
                     var prev_y : i32 = 0
                     if(outline.points.size() > 0) { prev_y = outline.points.get(outline.points.size() - 1) }
                     outline.points.push(prev_y + dy)
                     pos += 1
                 }
             } else {
-                if(flags & 0x20 != 0) {
+                if((flags & 0x20) != 0) {
                     var prev_y : i32 = 0
                     if(outline.points.size() > 0) { prev_y = outline.points.get(outline.points.size() - 1) }
                     outline.points.push(prev_y)

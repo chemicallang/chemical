@@ -341,6 +341,16 @@ public namespace tls {
         var ret = rsa_private(ctx, input, &raw mut buf[0])
         if(ret < 0) { return ret }
 
+        // For keys too small to hold PKCS#1 padding, fall back to raw RSA output
+        if(ctx.len < 11) {
+            var copy_len = ctx.len
+            if(expected_max_len < copy_len) { copy_len = expected_max_len }
+            var i : size_t = 0
+            while(i < copy_len) { output[i] = buf[i]; i += 1 }
+            *output_len = copy_len
+            return 0
+        }
+
         ret = pkcs1_v15_decode(&raw buf[0], ctx.len, output, output_len, expected_max_len)
         return ret
     }

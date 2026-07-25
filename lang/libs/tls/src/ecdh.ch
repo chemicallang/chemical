@@ -77,7 +77,7 @@ public namespace tls {
     // ─── Modular arithmetic helpers for P-256 ────────────────────────────
 
     // Load curve parameter p into an Mpi
-    func ecp_curve_p(p : *mut Mpi) {
+    public func ecp_curve_p(p : *mut Mpi) {
         mpi_init(p)
         p.n = 8
         var i : size_t = 0
@@ -528,12 +528,16 @@ public namespace tls {
         ret = mpi_mul_int(&raw mut tmp, &raw mut peer_point.X, 3)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut tmp, &raw mut tmp, &raw mut p)
-        ret = mpi_sub(&raw mut rhs, &raw mut rhs, &raw mut tmp)
+        // Use separate temporary to avoid aliasing issues
+        var rhs2 : Mpi; mpi_init(&raw mut rhs2)
+        ret = mpi_sub(&raw mut rhs2, &raw mut rhs, &raw mut tmp)
         if(ret < 0) { return ret }
-        ret = mpi_add(&raw mut rhs, &raw mut rhs, &raw mut b_m)
+        ret = mpi_mod(&raw mut rhs2, &raw mut rhs2, &raw mut p)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-        if(mpi_cmp(&raw mut lhs, &raw mut rhs) != 0) { return ERR_ECP_INVALID_KEY }
+        ret = mpi_add(&raw mut rhs2, &raw mut rhs2, &raw mut b_m)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut rhs2, &raw mut rhs2, &raw mut p)
+        if(mpi_cmp(&raw mut lhs, &raw mut rhs2) != 0) { return ERR_ECP_INVALID_KEY }
 
         // Compute shared = private * peer_point
         var shared_point : ECPPoint; ecp_point_init(&raw mut shared_point)

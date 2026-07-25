@@ -2265,15 +2265,6 @@ public namespace tls {
             if(dn_match) { is_self_signed = true }
         }
 
-        if(trusted_ca == null && is_self_signed) {
-            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
-                leaf.flags = 0
-                return 0
-            }
-            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
-            return ERR_X509_CERT_VERIFY_FAILED
-        }
-
         // 2. Check hostname first (always run regardless of CA verification)
         var hostname_ok = true
         if(hostname != null) {
@@ -2293,6 +2284,15 @@ public namespace tls {
         var date_ret = x509_check_date(leaf)
         if(date_ret != 0) {
             leaf.flags = leaf.flags | date_ret as u32
+            return ERR_X509_CERT_VERIFY_FAILED
+        }
+
+        if(trusted_ca == null && is_self_signed) {
+            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
+                leaf.flags = 0
+                return 0
+            }
+            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
         }
 

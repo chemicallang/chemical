@@ -16,35 +16,35 @@ func to_msg_cmd_type(str : *char) : MessageCommandType {
 }
 
 func read_msg_type(msg_ptr : *mut *char) : MessageCommandType {
-    if (!msg_ptr) return MessageCommandType.None;      // guard **null
+    if (!msg_ptr) {
+        printf("msg_ptr received in read_msg_type is null\n");
+        return MessageCommandType.None;     // guard **null
+    }
     var msg = *msg_ptr;
-    if (!msg)      return MessageCommandType.None;     // guard *null
+    if (!msg)      {
+        printf("msg received in read_msg_type is null\n");
+        return MessageCommandType.None;     // guard *null
+    }
 
-    const CMD_MAX = 120;
+    const CMD_MAX = 128;
     var command_buffer : [CMD_MAX]char;
-    var out = &mut command_buffer[0];
     var written : int = 0;
 
     while (true) {
-        var c = *msg;
-        if (c == '\0' || c == ',') {
-            if (written < CMD_MAX) {
-                *out = '\0';
-            } else {
-                // ensure termination even if we filled the buffer completely
-                command_buffer[CMD_MAX-1] = '\0';
-            }
-            *msg_ptr = msg; // leave at delimiter or '\0'
+        var c = *(msg + written);
+        if(written >= (CMD_MAX - 1)) {
+            printf("message type exceeded the buffer limit of %d, when parsing message %s\n", CMD_MAX, msg);
+            command_buffer[CMD_MAX - 1] = '\0'
+            *msg_ptr = msg + written;
             break;
-        } else {
-            if (written < CMD_MAX - 1) { // keep room for '\0'
-                *out = c;
-                out++;
-                written++;
-            }
-            // Always advance source, even if we stopped writing, to not overflow.
-            msg++;
         }
+        if (c == '\0' || c == ',') {
+            *msg_ptr = msg + written;
+            command_buffer[written] = '\0';
+            break
+        }
+        command_buffer[written] = c;
+        written++;
     }
 
     return to_msg_cmd_type(&raw command_buffer[0]);
@@ -138,10 +138,10 @@ func read_char(msg_ptr : *mut *char, c : char) : bool {
     }
 }
 
-func read_str(msg_ptr : *mut *char, into : &mut std::string) {
-    if (!msg_ptr) return;
+func read_str(msg_ptr : *mut *char, into : &mut std::string) : *char {
+    if (!msg_ptr) return "mesage pointer passed to read_str is null";
     var msg = *msg_ptr;
-    if (!msg) return;
+    if (!msg) return "message itself passed to read_str is null";
 
     // Append until NUL; caller is responsible for delimitation (e.g., already consumed the comma).
     while (*msg != '\0') {
@@ -149,23 +149,26 @@ func read_str(msg_ptr : *mut *char, into : &mut std::string) {
         msg++;
     }
     *msg_ptr = msg;
+    return null
 }
 
-func parseLog(msg_ptr : *mut *char, log : &mut TestLog) {
-    if (!msg_ptr) return;
+func parseLog(msg_ptr : *mut *char, log : &mut TestLog) : *char {
+    if (!msg_ptr) {
+        return "message pointer is null";
+    }
 
-    if (!read_char(msg_ptr, ',')) { return; }
+    if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
     log.type = parse_int_from_str(msg_ptr) as LogType;
 
-    if (!read_char(msg_ptr, ',')) { return; }
+    if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
     log.line = parse_int_from_str(msg_ptr) as ubigint;
 
-    if (!read_char(msg_ptr, ',')) { return; }
+    if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
     log.character = parse_int_from_str(msg_ptr) as ubigint;
 
-    if (!read_char(msg_ptr, ',')) { return; }
+    if (!read_char(msg_ptr, ',')) { return "couldn't read a comma ','"; }
 
-    read_str(msg_ptr, &mut log.message);
+    return read_str(msg_ptr, &mut log.message);
 }
 
 /*
@@ -179,10 +182,16 @@ $quit_group
 $quit_all
 */
 func process_message(state : &mut TestFunctionState, msg : *char) {
-    if (!msg)   return;
+    if (!msg) {
+        printf("failed message parsing : mesgae is null\n");
+        state.failed_msg_parse = std::string("message is null");
+        return;
+    }
 
     // Must start with '$' to be one of ours
     if (!read_char(&raw mut msg, '$')) {
+        printf("failed message parsing : expected '$' in start\n");
+        state.failed_msg_parse.append_expr(`must start with a $, instead received ${msg}`);
         return;
     }
 
@@ -190,11 +199,16 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
 
     switch (msgType) {
         MessageCommandType.None, default => {
+            printf("failed message parsing : empty message received\n");
             return;
         }
         MessageCommandType.Log => {
             var l = TestLog();
-            parseLog(&raw mut msg, &mut l);
+            const parseMessage = parseLog(&raw mut msg, &mut l);
+            if(parseMessage != null) {
+                printf("failed message parsing : %s\n", parseMessage);
+                state.failed_msg_parse.append_expr(`${parseMessage}`)
+            }
             if(l.type !in LogType.Information, LogType.Warning, LogType.Success) {
                 state.has_failed = true;
                 state.has_error_log = true;

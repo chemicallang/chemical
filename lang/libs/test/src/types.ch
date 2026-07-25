@@ -23,6 +23,8 @@ struct TestEnvImpl {
         var fd : int
     }
 
+    var has_error : bool = false
+
 }
 
 impl TestEnv for TestEnvImpl {
@@ -35,6 +37,20 @@ impl TestEnv for TestEnvImpl {
     }
 
     func logIt(&mut self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
+        // fd == -2 means stdout-based output (interactive single-test mode)
+        if(self.fd == -2) {
+            var status_color : *char
+            switch(type) {
+                LogType.Error, LogType.Panic => { status_color = "\x1b[31m" }
+                LogType.Warning => { status_color = "\x1b[33m" }
+                LogType.Success => { status_color = "\x1b[32m" }
+                default => { status_color = "\x1b[34m" }
+            }
+            if(type == LogType.Error || type == LogType.Panic) {
+                self.has_error = true
+            }
+            return;
+        }
         var msg = std::string();
         msg.append_char_ptr("$log,")
         var buff : [2048]char
@@ -42,6 +58,8 @@ impl TestEnv for TestEnvImpl {
         msg.append_char_ptr(&raw buff[0])
         self.send_message(msg.data(), msg.size())
     }
+
+
 
     func quit_current_group(&mut self, reason : *char) {
         var msg = std::string();
@@ -84,9 +102,31 @@ struct TestRunnerConfig {
     var benchmark : bool = false
     /**
      * when -1, means user didn't give --test-id command line argument
-     * this contains the parsed id
+     * this contains the parsed id (single test mode, kept for backward compat)
      */
     var single_test_id : int = -1
+    /**
+     * list of test ids to run (from --test-ids)
+     * when non-empty, only these test functions are dispatched (no subprocess spawning)
+     */
+    var test_ids : std::vector<int>
+    /**
+     * list of test function names to run (from --test-names)
+     * when non-empty, only functions matching these names are dispatched
+     */
+    var test_names : std::vector<*char>
+    /**
+     * when true, skip sequential inline tests and only run @test runner
+     */
+    var skip_sequential : bool = false
+    /**
+     * explicit flag set when --test-ids is used (vector may not be reliable due to zero init)
+     */
+    var has_test_ids : bool = false
+    /**
+     * explicit flag set when --test-names is used (vector may not be reliable due to zero init)
+     */
+    var has_test_names : bool = false
     /**
      * the communication id is used for ipc communication between processes
      * it may or may not be required
@@ -138,10 +178,13 @@ struct TestFunctionState {
 
     var logs : std::vector<TestLog>
 
+    var failed_msg_parse : std::string
+
     @make
     func make(t_fn : *mut TestFunction) {
         return TestFunctionState {
-            fn : t_fn
+            fn : t_fn,
+            failed_msg_parse : std::string()
         }
     }
 

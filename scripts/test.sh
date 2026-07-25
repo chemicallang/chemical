@@ -33,6 +33,9 @@ BENCHMARK_FILES=false
 BENCHMARK_MODULES=false
 VERBOSE=false
 PRINT_CMD=false
+TEST_IDS=""
+TEST_NAMES=""
+SKIP_SEQUENTIAL=false
 
 usage() {
   echo "Usage: $0 [options]"
@@ -62,6 +65,9 @@ usage() {
   echo "  -bt-full, --bt-full     Run tests under GDB -batch with full bt, registers, disasm (implies -g)"
   echo "  -v                      Pass -v to the compiler (verbose output)"
   echo "  --print-command         Print the compiler command without running it"
+  echo "  --test-ids <ids>        Comma-separated list of @test IDs to run (e.g. --test-ids 1,2,3)"
+  echo "  --test-names <names>    Comma-separated list of @test function names to run"
+  echo "  --skip-sequential       Skip sequential inline tests, only run @test runner"
   echo "  -j N                    Number of parallel jobs (default: $JOBS)"
   echo "  --help, -h              Show this help"
   exit 1
@@ -100,6 +106,9 @@ while [ $# -gt 0 ]; do
     -v) VERBOSE=true ;;
     --print-command) PRINT_CMD=true ;;
     -j) JOBS="$2"; shift ;;
+    --test-ids) TEST_IDS="$2"; shift ;;
+    --test-names) TEST_NAMES="$2"; shift ;;
+    --skip-sequential) SKIP_SEQUENTIAL=true ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
   esac
@@ -252,13 +261,24 @@ else
       echo "Error: Test executable not found at $TEST_OUT"
       exit 1
     fi
-    echo "==> Running tests..."
+    # Build test runner arguments
+    declare -a TEST_ARGS=()
+    if [ -n "$TEST_IDS" ]; then
+      TEST_ARGS+=("--test-ids" "$TEST_IDS")
+    fi
+    if [ -n "$TEST_NAMES" ]; then
+      TEST_ARGS+=("--test-names" "$TEST_NAMES")
+    fi
+    if [ "$SKIP_SEQUENTIAL" = true ]; then
+      TEST_ARGS+=("--skip-sequential")
+    fi
+    echo "==> Running tests${TEST_ARGS[*]+ ${TEST_ARGS[*]}}..."
     if [ "$GDB" = true ]; then
-      gdb "$TEST_OUT"
+      gdb --args "$TEST_OUT" "${TEST_ARGS[@]}"
     elif [ "$BT_MODE" != "none" ]; then
-      run_under_gdb_batch "$BT_MODE" "$TEST_OUT"
+      run_under_gdb_batch "$BT_MODE" "$TEST_OUT" "${TEST_ARGS[@]}"
     else
-      "$TEST_OUT"
+      "$TEST_OUT" "${TEST_ARGS[@]}"
     fi
   fi
 fi

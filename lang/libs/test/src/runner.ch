@@ -11,7 +11,7 @@ func run_test_fn_ptr(env : &mut TestEnv, ptr : *void, ret_bool : bool) : bool {
     }
 }
 
-func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
+func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, out_has_error : *mut bool) {
 
     var env = create_test_env(tfn, config);
 
@@ -32,6 +32,10 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
 
     if(config.after_each) {
         config.after_each(&mut env)
+    }
+
+    if(out_has_error) {
+        *out_has_error = env.has_error
     }
 
 }
@@ -57,11 +61,25 @@ func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunct
     }
 }
 
+func fn_name_match(fn_name : *char, name_list : &std::vector<*char>) : bool {
+    if(name_list.empty()) { return true }
+    var i : size_t = 0
+    while(i < name_list.size()) {
+        if(strcmp(fn_name, name_list.get(i)) == 0) { return true }
+        i += 1
+    }
+    return false
+}
+
 type TestFunctionPtr = (env : &mut TestEnv) => void
 
 func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig) {
 
-    if(config.single_test_id != -1) {
+    var filter_by_ids = config.has_test_ids
+    var filter_by_names = config.has_test_names
+    var has_single_id = config.single_test_id != -1
+
+    if(has_single_id || filter_by_ids || filter_by_names) {
 
         // initialize before each and after each
         config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
@@ -71,16 +89,30 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
-            if(test_start.id == config.single_test_id) {
-                // executing the single test
-                run_single_test(test_start, config)
-                // returning
-                return;
+            var should_run = false
+            if(has_single_id && test_start.id == config.single_test_id) {
+                should_run = true
+            }
+            if(filter_by_ids) {
+                var ii : size_t = 0
+                while(ii < config.test_ids.size()) {
+                    if(test_start.id == config.test_ids.get(ii)) { should_run = true; break }
+                    ii += 1
+                }
+            }
+            if(filter_by_names) {
+                if(fn_name_match(test_start.name.data(), &config.test_names)) {
+                    should_run = true
+                }
+            }
+            if(should_run) {
+                const saved_fd = config.comm_id
+                var test_failed : bool = false
+                run_single_test(test_start, config, &raw mut test_failed)
             }
             test_start++;
         }
-
-        // TODO: test not found error, should be reported to parent
+        return;
 
     } else if(!config.groups_to_launch.empty()) {
 

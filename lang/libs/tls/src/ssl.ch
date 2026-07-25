@@ -1850,6 +1850,10 @@ public namespace tls {
 
         var n_data = data + pos
         var n_data_len = n_len
+        // Strip leading 0x00 byte (DER positive integer indicator)
+        if(n_data_len > 0 && n_data[0] == 0) {
+            n_data += 1; n_data_len -= 1
+        }
         pos += n_len
 
         // Parse INTEGER E
@@ -1860,6 +1864,10 @@ public namespace tls {
 
         var e_data = data + pos
         var e_data_len = e_len
+        // Strip leading 0x00 byte if present
+        if(e_data_len > 0 && e_data[0] == 0) {
+            e_data += 1; e_data_len -= 1
+        }
 
         // Import into RSA context
         ret = rsa_import_pubkey(rsa, n_data, n_data_len, e_data, e_data_len)

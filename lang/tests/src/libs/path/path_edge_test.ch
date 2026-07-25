@@ -105,7 +105,7 @@ func test_path_normalize_deep_dotdot(env : &mut TestEnv) {
     var r = path::normalize("a/../../b", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
-    if(!(len == 3 && buf[0] == '.' && buf[1] == '.' && buf[2] == '/' &&
+    if(!(len == 4 && buf[0] == '.' && buf[1] == '.' && buf[2] == '/' &&
          buf[3] == 'b' && buf[4] == '\0')) {
         env.error("normalize a/../../b should return ../b");
     }
@@ -150,7 +150,7 @@ func test_path_normalize_tricky(env : &mut TestEnv) {
     var r = path::normalize("foo/.../bar", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
-    if(!(len == 10 && buf[0] == 'f' && buf[1] == 'o' && buf[2] == 'o' && buf[3] == '/' &&
+    if(!(len == 11 && buf[0] == 'f' && buf[1] == 'o' && buf[2] == 'o' && buf[3] == '/' &&
          buf[4] == '.' && buf[5] == '.' && buf[6] == '.' && buf[7] == '/' &&
          buf[8] == 'b' && buf[9] == 'a' && buf[10] == 'r' && buf[11] == '\0')) {
         env.error("normalize foo/.../bar should keep ...");

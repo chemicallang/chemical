@@ -134,8 +134,13 @@ public func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mu
     while(i < archive.entries.size()) {
         var entry = archive.entries.get_ptr(i)
         if(str_equals_cstr(&raw mut entry.name, name)) {
-            memcpy(output, entry, sizeof(ArchiveEntry))
-            new(entry) ArchiveEntry{name: string(""), size: 0, compressed_size: 0, compression_method: 0, crc32: 0, is_directory: false, offset: 0}
+            output.name = entry.name.copy()
+            output.size = entry.size
+            output.compressed_size = entry.compressed_size
+            output.compression_method = entry.compression_method
+            output.crc32 = entry.crc32
+            output.is_directory = entry.is_directory
+            output.offset = entry.offset
             return std.Result.Ok(std::Unit{})
         }
         i += 1

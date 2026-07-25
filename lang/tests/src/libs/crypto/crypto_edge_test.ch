@@ -48,7 +48,7 @@ func test_sha256_multi_block(env : &mut TestEnv) {
     var digest : [32]u8;
     crypto::sha256_hash(&raw data[0], 100, &raw mut digest[0]);
     // SHA-256 of 100 'a' characters
-    if(!(digest[0] == 0x9B && digest[1] == 0xD8 && digest[2] == 0x07 && digest[3] == 0x93)) {
+    if(!(digest[0] == 0x28 && digest[1] == 0x16 && digest[2] == 0x59 && digest[3] == 0x78)) {
         env.error("SHA-256 of 100 'a' bytes is wrong");
     }
 }
@@ -215,7 +215,7 @@ func test_md5_longer_data(env : &mut TestEnv) {
     while(i < 1000) { data[i] = 0x61; i += 1; }
     var digest : [16]u8;
     crypto::md5_hash(&raw data[0], 1000, &raw mut digest[0]);
-    if(!(digest[0] == 0xAC && digest[1] == 0xAB && digest[2] == 0x82 && digest[3] == 0x63)) {
+    if(!(digest[0] == 0xCA && digest[1] == 0xBE && digest[2] == 0x45 && digest[3] == 0xDC)) {
         env.error("MD5 of 1000 'a' bytes is wrong");
     }
 }

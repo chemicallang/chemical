@@ -100,7 +100,7 @@ public namespace tls {
 
     func aes_rcon(i : size_t) : u32 {
         var rc : [10]u8 = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]
-        if(i < 10) { return rc[i] as u32 }
+        if(i > 0 && i < 11) { return rc[i - 1] as u32 }
         return 0
     }
 
@@ -175,22 +175,22 @@ public namespace tls {
             var t2 : u32
             var t3 : u32
 
-            t0 = (AES_SBOX[(s0 >> 24) & 0xFF] as u32) ^
-                 ((AES_SBOX[(s1 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_SBOX[(s2 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_SBOX[s3 & 0xFF] as u32) << 24
-            t1 = (AES_SBOX[(s1 >> 24) & 0xFF] as u32) ^
-                 ((AES_SBOX[(s2 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_SBOX[(s3 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_SBOX[s0 & 0xFF] as u32) << 24
-            t2 = (AES_SBOX[(s2 >> 24) & 0xFF] as u32) ^
-                 ((AES_SBOX[(s3 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_SBOX[(s0 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_SBOX[s1 & 0xFF] as u32) << 24
-            t3 = (AES_SBOX[(s3 >> 24) & 0xFF] as u32) ^
-                 ((AES_SBOX[(s0 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_SBOX[(s1 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_SBOX[s2 & 0xFF] as u32) << 24
+            t0 = ((AES_SBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_SBOX[(s1 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_SBOX[(s2 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_SBOX[s3 & 0xFF] as u32)
+            t1 = ((AES_SBOX[(s1 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_SBOX[(s2 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_SBOX[(s3 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_SBOX[s0 & 0xFF] as u32)
+            t2 = ((AES_SBOX[(s2 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_SBOX[(s3 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_SBOX[(s0 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_SBOX[s1 & 0xFF] as u32)
+            t3 = ((AES_SBOX[(s3 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_SBOX[(s0 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_SBOX[(s1 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_SBOX[s2 & 0xFF] as u32)
 
             // MixColumns using byte extraction
             var b0_b0 = (t0 >> 24) & 0xFF; var b0_b1 = (t0 >> 16) & 0xFF
@@ -232,22 +232,22 @@ public namespace tls {
         }
 
         // Final round (no MixColumns)
-        var t0_f = (AES_SBOX[(s0 >> 24) & 0xFF] as u32) ^
-                   ((AES_SBOX[(s1 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_SBOX[(s2 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_SBOX[s3 & 0xFF] as u32) << 24
-        var t1_f = (AES_SBOX[(s1 >> 24) & 0xFF] as u32) ^
-                   ((AES_SBOX[(s2 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_SBOX[(s3 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_SBOX[s0 & 0xFF] as u32) << 24
-        var t2_f = (AES_SBOX[(s2 >> 24) & 0xFF] as u32) ^
-                   ((AES_SBOX[(s3 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_SBOX[(s0 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_SBOX[s1 & 0xFF] as u32) << 24
-        var t3_f = (AES_SBOX[(s3 >> 24) & 0xFF] as u32) ^
-                   ((AES_SBOX[(s0 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_SBOX[(s1 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_SBOX[s2 & 0xFF] as u32) << 24
+        var t0_f = ((AES_SBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_SBOX[(s1 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_SBOX[(s2 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_SBOX[s3 & 0xFF] as u32)
+        var t1_f = ((AES_SBOX[(s1 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_SBOX[(s2 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_SBOX[(s3 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_SBOX[s0 & 0xFF] as u32)
+        var t2_f = ((AES_SBOX[(s2 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_SBOX[(s3 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_SBOX[(s0 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_SBOX[s1 & 0xFF] as u32)
+        var t3_f = ((AES_SBOX[(s3 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_SBOX[(s0 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_SBOX[(s1 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_SBOX[s2 & 0xFF] as u32)
 
         s0 = t0_f ^ ctx.rk[ctx.nr * 4]
         s1 = t1_f ^ ctx.rk[ctx.nr * 4 + 1]
@@ -299,22 +299,28 @@ public namespace tls {
             var t2 : u32
             var t3 : u32
 
-            t0 = (AES_RSBOX[(s0 >> 24) & 0xFF] as u32) ^
-                 ((AES_RSBOX[(s3 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_RSBOX[(s2 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_RSBOX[s1 & 0xFF] as u32) << 24
-            t1 = (AES_RSBOX[(s1 >> 24) & 0xFF] as u32) ^
-                 ((AES_RSBOX[(s0 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_RSBOX[(s3 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_RSBOX[s2 & 0xFF] as u32) << 24
-            t2 = (AES_RSBOX[(s2 >> 24) & 0xFF] as u32) ^
-                 ((AES_RSBOX[(s1 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_RSBOX[(s0 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_RSBOX[s3 & 0xFF] as u32) << 24
-            t3 = (AES_RSBOX[(s3 >> 24) & 0xFF] as u32) ^
-                 ((AES_RSBOX[(s2 >> 16) & 0xFF] as u32) << 8) ^
-                 ((AES_RSBOX[(s1 >> 8) & 0xFF] as u32) << 16) ^
-                 (AES_RSBOX[s0 & 0xFF] as u32) << 24
+            t0 = ((AES_RSBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_RSBOX[(s3 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_RSBOX[(s2 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_RSBOX[s1 & 0xFF] as u32)
+            t1 = ((AES_RSBOX[(s1 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_RSBOX[(s0 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_RSBOX[(s3 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_RSBOX[s2 & 0xFF] as u32)
+            t2 = ((AES_RSBOX[(s2 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_RSBOX[(s1 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_RSBOX[(s0 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_RSBOX[s3 & 0xFF] as u32)
+            t3 = ((AES_RSBOX[(s3 >> 24) & 0xFF] as u32) << 24) ^
+                 ((AES_RSBOX[(s2 >> 16) & 0xFF] as u32) << 16) ^
+                 ((AES_RSBOX[(s1 >> 8) & 0xFF] as u32) << 8) ^
+                 (AES_RSBOX[s0 & 0xFF] as u32)
+
+            // AddRoundKey (before InvMixColumns for standard inverse cipher)
+            t0 ^= ctx.rk[r * 4]
+            t1 ^= ctx.rk[r * 4 + 1]
+            t2 ^= ctx.rk[r * 4 + 2]
+            t3 ^= ctx.rk[r * 4 + 3]
 
             // InvMixColumns
             var b0 = t0; var b1 = t1; var b2 = t2; var b3 = t3
@@ -348,33 +354,27 @@ public namespace tls {
                  (mul13(b3_b0) ^ mul9(b3_b1) ^ mul14(b3_b2) ^ mul11(b3_b3)) << 8 |
                  (mul11(b3_b0) ^ mul13(b3_b1) ^ mul9(b3_b2) ^ mul14(b3_b3))
 
-            // AddRoundKey
-            s0 ^= ctx.rk[r * 4]
-            s1 ^= ctx.rk[r * 4 + 1]
-            s2 ^= ctx.rk[r * 4 + 2]
-            s3 ^= ctx.rk[r * 4 + 3]
-
             if(r == 0) { break }
             r -= 1
         }
 
         // Final AddRoundKey (round 0)
-        var t0_f = (AES_RSBOX[(s0 >> 24) & 0xFF] as u32) ^
-                   ((AES_RSBOX[(s3 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_RSBOX[(s2 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_RSBOX[s1 & 0xFF] as u32) << 24
-        var t1_f = (AES_RSBOX[(s1 >> 24) & 0xFF] as u32) ^
-                   ((AES_RSBOX[(s0 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_RSBOX[(s3 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_RSBOX[s2 & 0xFF] as u32) << 24
-        var t2_f = (AES_RSBOX[(s2 >> 24) & 0xFF] as u32) ^
-                   ((AES_RSBOX[(s1 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_RSBOX[(s0 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_RSBOX[s3 & 0xFF] as u32) << 24
-        var t3_f = (AES_RSBOX[(s3 >> 24) & 0xFF] as u32) ^
-                   ((AES_RSBOX[(s2 >> 16) & 0xFF] as u32) << 8) ^
-                   ((AES_RSBOX[(s1 >> 8) & 0xFF] as u32) << 16) ^
-                   (AES_RSBOX[s0 & 0xFF] as u32) << 24
+        var t0_f = ((AES_RSBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_RSBOX[(s3 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_RSBOX[(s2 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_RSBOX[s1 & 0xFF] as u32)
+        var t1_f = ((AES_RSBOX[(s1 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_RSBOX[(s0 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_RSBOX[(s3 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_RSBOX[s2 & 0xFF] as u32)
+        var t2_f = ((AES_RSBOX[(s2 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_RSBOX[(s1 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_RSBOX[(s0 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_RSBOX[s3 & 0xFF] as u32)
+        var t3_f = ((AES_RSBOX[(s3 >> 24) & 0xFF] as u32) << 24) ^
+                   ((AES_RSBOX[(s2 >> 16) & 0xFF] as u32) << 16) ^
+                   ((AES_RSBOX[(s1 >> 8) & 0xFF] as u32) << 8) ^
+                   (AES_RSBOX[s0 & 0xFF] as u32)
 
         s0 = t0_f ^ ctx.rk[0]
         s1 = t1_f ^ ctx.rk[1]

@@ -152,7 +152,7 @@ public func image_copy(src : *mut Image) : Image {
 }
 
 public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
-    if(x < 0 || y < 0 || x + w > img.width || y + h > img.height) {
+    if(x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > img.width || y + h > img.height) {
         return std.Result.Err(ImageError.InvalidDimensions(w, h))
     }
     var cropped = image_create(w, h, img.channels)
@@ -230,7 +230,7 @@ public func image_rotate90(img : *mut Image) : Image {
         var x : size_t = 0
         while(x < src_w) {
             var src_off = (y * src_w + x) * bpp
-            var dst_off = (x * src_h + (src_h - 1 - y)) * bpp
+            var dst_off = ((src_w - 1 - x) * src_h + y) * bpp
             var i : size_t = 0
             while(i < bpp) {
                 dst_ptr[dst_off + i] = src_ptr[src_off + i]

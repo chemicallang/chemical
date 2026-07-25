@@ -54,7 +54,7 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
         var chunk_id = read_u32_le(data, pos)
         var chunk_size = read_u32_le(data, pos + 4) as size_t
 
-        if(chunk_id == 0x666D7420u32) {
+        if(chunk_id == 0x20746D66u32) {
             if(chunk_size < 16 || pos + 24 > data_len) {
                 return std.Result.Err(AudioError.InvalidFormat(string("fmt chunk too small")))
             }
@@ -71,7 +71,7 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
 
             pos += 8 + chunk_size
             if(chunk_size % 2 != 0) { pos += 1 }
-        } else if(chunk_id == 0x64617461u32) {
+        } else if(chunk_id == 0x61746164u32) {
             var data_size = chunk_size
             var bytes_per_sample = (audio.bits_per_sample / 8) as size_t
             var total_samples = data_size / bytes_per_sample
@@ -150,7 +150,7 @@ public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, 
     var i : size_t = 0
     while(i < audio.samples.size()) {
         var offset = 44 + i * (bytes_per_sample as size_t)
-        if(offset + 1 < file_data.size()) {
+        if(offset < file_data.size()) {
             var sample = audio.samples.get(i)
             if(audio.bits_per_sample == 16) {
                 fptr[offset] = (sample & 0xFF) as u8

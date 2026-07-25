@@ -30,13 +30,18 @@ public namespace tls {
         while(i < MAX_LIMBS) { m.p[i] = 0; i += 1 }
     }
 
-    public func mpi_lset(m : *mut Mpi, val : i32) {
+    public func mpi_lset(m : *mut Mpi, val : i64) {
         if(val < 0) { m.s = -1 } else { m.s = 1 }
-        var uv : u32 = 0
-        if(val >= 0) { uv = val as u32 }
-        else { uv = 0u32 - (val as u32) }
-        m.p[0] = uv; m.n = 1
-        var i : size_t = 1
+        var uv : u64 = 0
+        if(val >= 0) { uv = val as u64 }
+        else { uv = 0u64 - (val as u64) }
+        m.p[0] = (uv & 0xFFFFFFFFu64) as u32
+        m.n = 1
+        if(uv > 0xFFFFFFFFu64) {
+            m.p[1] = (uv >> 32) as u32
+            m.n = 2
+        }
+        var i = m.n
         while(i < MAX_LIMBS) { m.p[i] = 0; i += 1 }
     }
 
@@ -61,10 +66,11 @@ public namespace tls {
         var top = m.p[m.n - 1]
         var bits : size_t = (m.n - 1) * BITS_PER_LIMB
         var msb : u32 = 0x80000000u32
+        var i : size_t = 32
         while(msb != 0) {
-            if(top & msb) { return bits + 1 }
-            bits += 1
+            if(top & msb) { return bits + i }
             msb = msb >> 1
+            i -= 1
         }
         return bits
     }
@@ -102,7 +108,7 @@ public namespace tls {
         return -mpi_cmp_abs(a, b)
     }
 
-    public func mpi_cmp_int(m : *mut Mpi, val : i32) : int {
+    public func mpi_cmp_int(m : *mut Mpi, val : i64) : int {
         var tmp : Mpi; mpi_init(&raw mut tmp); mpi_lset(&raw mut tmp, val)
         return mpi_cmp(m, &raw mut tmp)
     }
@@ -190,6 +196,11 @@ public namespace tls {
     public func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 || b.n == 0) { mpi_lset(x, 0); return 0 }
+        // Handle input/output aliasing
+        var a_sav : Mpi; mpi_init(&raw mut a_sav)
+        var b_sav : Mpi; mpi_init(&raw mut b_sav)
+        if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
+        if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
         var ret = mpi_grow(x, a.n + b.n)
         if(ret < 0) { return ret }
         var i : size_t = 0
@@ -312,6 +323,12 @@ public namespace tls {
     // ─── Montgomery Modular Exponentiation ───────────────────────────────
 
     func montgomery_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {
+        // Handle input/output aliasing: if a or b alias x, save them first
+        var a_sav : Mpi; mpi_init(&raw mut a_sav)
+        var b_sav : Mpi; mpi_init(&raw mut b_sav)
+        if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
+        if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
+
         // Need 2*n + 1 limbs for intermediate accumulation
         var work_limbs = n.n * 2 + 1
         var ret = mpi_grow(x, work_limbs)
@@ -368,28 +385,54 @@ public namespace tls {
         return ret
     }
 
+    func mpi_exp_mod_fallback(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
+        // Simple left-to-right binary exponentiation with modular reduction
+        mpi_lset(x, 1)
+        var bitlen = mpi_bitlen(e)
+        var i = bitlen
+        while(i > 0) {
+            i -= 1
+            var tmp : Mpi; mpi_init(&raw mut tmp)
+            var ret = mpi_mul(&raw mut tmp, x, x)
+            if(ret < 0) { return ret }
+            ret = mpi_mod(x, &raw mut tmp, n)
+            if(ret < 0) { return ret }
+            var limb_idx = i / BITS_PER_LIMB
+            var bit_idx = i % BITS_PER_LIMB
+            if(e.p[limb_idx] & (1u32 << bit_idx)) {
+                ret = mpi_mul(&raw mut tmp, x, a)
+                if(ret < 0) { return ret }
+                ret = mpi_mod(x, &raw mut tmp, n)
+                if(ret < 0) { return ret }
+            }
+        }
+        return 0
+    }
+
     public func mpi_exp_mod(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
-        if(mpi_cmp_int(n, 0) <= 0 || (n.p[0] & 1) == 0) {
+        if(mpi_cmp_int(n, 0) <= 0) {
             return ERR_MPI_BAD_INPUT_DATA
         }
         mpi_trim(e)
         if(e.n == 0) { mpi_lset(x, 1); return 0 }
+
+        // Even modulus: use fallback
+        if((n.p[0] & 1) == 0) {
+            return mpi_exp_mod_fallback(x, a, e, n)
+        }
 
         // Precompute R^2 mod N
         var r2 : Mpi; mpi_init(&raw mut r2)
         var ret = compute_r2(&raw mut r2, n)
         if(ret < 0) { return ret }
 
-        // Compute n_inv0 = -n0^-1 mod 2^32
+        // Compute n_inv0 = -n0^-1 mod 2^32 using Newton's method
         var n0 = n.p[0]
-        var x0 : u32 = 2
-        var cur : u32 = (n0 * x0) & 0xFFFFFFFFu32
-        var limit : size_t = 0
-        while(cur != 1) {
-            var t = 0u32 - cur
-            x0 = x0 * t
-            cur = (n0 * x0) & 0xFFFFFFFFu32
-            limit += 1; if(limit > 32) { break }
+        var x0 : u32 = 1
+        var iter : size_t = 0
+        while(iter < 5) {
+            x0 = x0 * (2u32 - n0 * x0)
+            iter += 1
         }
         var n_inv0 = 0u32 - x0
 
@@ -524,15 +567,14 @@ public namespace tls {
     public func mpi_write_binary(m : *mut Mpi, buf : *mut u8, buflen : size_t) : int {
         var size = mpi_size(m)
         if(buflen < size) { return ERR_MPI_BUFFER_TOO_SMALL }
+        var pad = buflen - size
         var i : size_t = 0
-        while(i < size) {
-            var byte_pos = size - 1 - i
-            var limb = i / 4; var offset = (i % 4) * 8
-            buf[byte_pos] = ((m.p[limb] >> offset) & 0xFFu32) as u8
-            i += 1
+        while(i < pad) { buf[i] = 0; i += 1 }
+        var j : size_t = 0
+        while(j < size) {
+            buf[buflen - 1 - j] = ((m.p[j / 4] >> ((j % 4) * 8)) & 0xFFu32) as u8
+            j += 1
         }
-        i = size
-        while(i < buflen) { buf[buflen - 1 - i] = 0; i += 1 }
         return 0
     }
 

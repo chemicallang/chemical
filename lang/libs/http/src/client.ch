@@ -22,13 +22,18 @@ public namespace http {
             var u = *url_str;
             var res = URL();
 
-            if(u.starts_with("http://")) {
-                res.scheme = std::string::make_no_len("http");
-                u = u.skip(7u);
-            } else if(u.starts_with("https://")) {
-                res.scheme = std::string::make_no_len("https");
-                res.port = 443u;
-                u = u.skip(8u);
+            if(u.size() >= 7 && (u.get(0) == 'h' || u.get(0) == 'H') &&
+               (u.get(1) == 't' || u.get(1) == 'T') &&
+               (u.get(2) == 't' || u.get(2) == 'T') &&
+               (u.get(3) == 'p' || u.get(3) == 'P')) {
+                if(u.size() >= 8 && (u.get(4) == 's' || u.get(4) == 'S') && u.get(5) == ':' && u.get(6) == '/' && u.get(7) == '/') {
+                    res.scheme = std::string::make_no_len("https");
+                    res.port = 443u;
+                    u = u.skip(8u);
+                } else if(u.get(4) == ':' && u.get(5) == '/' && u.get(6) == '/') {
+                    res.scheme = std::string::make_no_len("http");
+                    u = u.skip(7u);
+                }
             }
 
             var slash = u.find("/");
@@ -39,12 +44,18 @@ public namespace http {
             } else {
                 host_port = u.subview(0u, slash);
                 var full_path = u.subview(slash, u.size());
+                var hash_pos = full_path.find("#");
+                var path_end = hash_pos;
+                if(hash_pos == std::NPOS) { path_end = full_path.size() }
                 var qmark = full_path.find("?");
-                if(qmark == std::NPOS) {
-                    res.path = std::string::view_make(&full_path);
+                if(qmark == std::NPOS || qmark > path_end) {
+                    res.path = std::string::view_make(full_path.subview(0u, path_end));
                 } else {
                     res.path = std::string::view_make(full_path.subview(0u, qmark));
-                    res.query = std::string::view_make(full_path.subview(qmark + 1u, full_path.size()));
+                    var query_end = path_end;
+                    if(query_end > qmark + 1u) {
+                        res.query = std::string::view_make(full_path.subview(qmark + 1u, query_end));
+                    }
                 }
             }
 

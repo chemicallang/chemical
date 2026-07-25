@@ -84,7 +84,7 @@ public namespace tls {
         while(i < 8) { p.p[i] = P256_P[i]; i += 1 }
     }
 
-    func ecp_curve_n(p : *mut Mpi) {
+    public func ecp_curve_n(p : *mut Mpi) {
         mpi_init(p)
         p.n = 8
         var i : size_t = 0
@@ -103,6 +103,13 @@ public namespace tls {
 
     // Point double: R = 2 * P on the P-256 curve
     func ecp_double_jac(R : *mut ECPPoint, P : *mut ECPPoint) : int {
+        // Handle point-at-infinity
+        if(mpi_is_zero(&raw mut P.Z)) {
+            mpi_lset(&raw mut R.X, 1)
+            mpi_lset(&raw mut R.Y, 1)
+            mpi_lset(&raw mut R.Z, 0)
+            return 0
+        }
         // Jacobian coordinate doubling formula
         // For curve y^2 = x^3 + a*x + b with a = -3 (for P-256):
         // If P = (X1, Y1, Z1), then 2*P = (X3, Y3, Z3) where:
@@ -210,6 +217,14 @@ public namespace tls {
         // P = (X1, Y1, Z1), Q = (X2, Y2, 1)
         // R = (X3, Y3, Z3) = P + Q
 
+        // Handle P = infinity: return Q
+        if(mpi_is_zero(&raw mut P.Z)) {
+            mpi_copy(&raw mut R.X, &raw mut Q.X)
+            mpi_copy(&raw mut R.Y, &raw mut Q.Y)
+            mpi_copy(&raw mut R.Z, &raw mut Q.Z)
+            return 0
+        }
+
         var p : Mpi; ecp_curve_p(&raw mut p)
         var t1 : Mpi; mpi_init(&raw mut t1)
         var t2 : Mpi; mpi_init(&raw mut t2)
@@ -314,23 +329,21 @@ public namespace tls {
 
     // R = k * P on P-256 using Montgomery ladder for safety
     func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
-        // Montgomery ladder: R = k * P
-        // R0 = infinity, R1 = P
-        // For each bit of k from MSB to LSB:
-        //   if bit == 0: R1 = R0 + R1, R0 = 2 * R0
-        //   if bit == 1: R0 = R0 + R1, R1 = 2 * R1
-        // Result = R0
+        // Double-and-add: R = k * P
+        // Uses ecp_add_jac which requires P to remain in affine form (Z=1).
+        // P starts affine (from generator or normalized point) and is
+        // kept affine throughout by only doubling the accumulator.
 
-        // Initialize R0 = O (point at infinity = (1, 1, 0))
         var R0 : ECPPoint; ecp_point_init(&raw mut R0)
         mpi_lset(&raw mut R0.X, 1)
         mpi_lset(&raw mut R0.Y, 1)
         mpi_lset(&raw mut R0.Z, 0)
 
-        var R1 : ECPPoint; ecp_point_init(&raw mut R1)
-        mpi_copy(&raw mut R1.X, &raw mut P.X)
-        mpi_copy(&raw mut R1.Y, &raw mut P.Y)
-        mpi_copy(&raw mut R1.Z, &raw mut P.Z)
+        // Keep a normalized copy of P that stays affine (Z=1)
+        var P_affine : ECPPoint; ecp_point_init(&raw mut P_affine)
+        mpi_copy(&raw mut P_affine.X, &raw mut P.X)
+        mpi_copy(&raw mut P_affine.Y, &raw mut P.Y)
+        mpi_lset(&raw mut P_affine.Z, 1)
 
         var bitlen = mpi_bitlen(k)
         var i = bitlen
@@ -340,17 +353,13 @@ public namespace tls {
             var bit_idx = i % BITS_PER_LIMB
             var bit = (k.p[limb_idx] >> bit_idx) & 1
 
-            if(bit == 0) {
-                // R1 = R0 + R1, R0 = 2 * R0
-                var ret = ecp_add_jac(&raw mut R1, &raw mut R0, &raw mut R1)
-                if(ret < 0) { return ret }
-                ret = ecp_double_jac(&raw mut R0, &raw mut R0)
-                if(ret < 0) { return ret }
-            } else {
-                // R0 = R0 + R1, R1 = 2 * R1
-                var ret = ecp_add_jac(&raw mut R0, &raw mut R0, &raw mut R1)
-                if(ret < 0) { return ret }
-                ret = ecp_double_jac(&raw mut R1, &raw mut R1)
+            // R0 = 2 * R0
+            var ret = ecp_double_jac(&raw mut R0, &raw mut R0)
+            if(ret < 0) { return ret }
+
+            if(bit == 1) {
+                // R0 = R0 + P (P stays affine, so mixed addition works)
+                ret = ecp_add_jac(&raw mut R0, &raw mut R0, &raw mut P_affine)
                 if(ret < 0) { return ret }
             }
         }

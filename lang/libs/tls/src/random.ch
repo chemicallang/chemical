@@ -50,7 +50,7 @@ public namespace tls {
         var val : u32 = 0
         var ret = random_fill(&raw mut val as *mut u8, 4)
         if(ret < 0) {
-            return 0
+            return 0xDEADBEEFu32
         }
         return val
     }

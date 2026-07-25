@@ -37,20 +37,6 @@ impl TestEnv for TestEnvImpl {
     }
 
     func logIt(&mut self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
-        // fd == -2 means stdout-based output (interactive single-test mode)
-        if(self.fd == -2) {
-            var status_color : *char
-            switch(type) {
-                LogType.Error, LogType.Panic => { status_color = "\x1b[31m" }
-                LogType.Warning => { status_color = "\x1b[33m" }
-                LogType.Success => { status_color = "\x1b[32m" }
-                default => { status_color = "\x1b[34m" }
-            }
-            if(type == LogType.Error || type == LogType.Panic) {
-                self.has_error = true
-            }
-            return;
-        }
         var msg = std::string();
         msg.append_char_ptr("$log,")
         var buff : [2048]char

@@ -229,7 +229,7 @@ public namespace tls {
         var id_len : size_t
         var master : [48]u8           // TLS 1.2 master secret
         var ciphersuite : u16
-        var tls_version : u8
+        var tls_version : int
         var endpoint : u8             // SSL_IS_CLIENT or SSL_IS_SERVER
         var peer_cert : *mut X509Cert // Peer certificate chain
         var verify_result : u32
@@ -479,7 +479,7 @@ public namespace tls {
         var handshake : *mut HandshakeParams
 
         // TLS version negotiated
-        var tls_version : u8
+        var tls_version : int
         var major_ver : u8
         var minor_ver : u8
 

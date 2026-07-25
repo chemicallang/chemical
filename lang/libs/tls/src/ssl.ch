@@ -3409,7 +3409,7 @@ public namespace tls {
         } else {
             ssl.minor_ver = 3 as u8
         }
-        ssl.tls_version = conf.max_tls_version as u8
+        ssl.tls_version = conf.max_tls_version
     }
 
     // ─── Server-Side TLS 1.2 Handshake (Minimal) ─────────────────────────

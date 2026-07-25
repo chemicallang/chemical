@@ -199,7 +199,15 @@ public namespace tls {
     }
 
     public func x25519_compute_shared(priv : *u8, peer_pub : *u8, shared : *mut u8) : int {
-        x25519_ladder(shared, priv, peer_pub)
+        // Clamp the private key per RFC 7748 Section 5
+        var clamped_priv : [32]u8
+        var ci : size_t = 0
+        while(ci < 32) {
+            clamped_priv[ci] = priv[ci]
+            ci += 1
+        }
+        x25519_clamp_scalar(&raw mut clamped_priv[0])
+        x25519_ladder(shared, &raw clamped_priv[0], peer_pub)
 
         var all_zero = true; var i : size_t = 0
         while(i < 32) { if(shared[i] != 0) { all_zero = false } i += 1 }

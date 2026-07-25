@@ -803,35 +803,39 @@ public namespace tls {
                     bi += 1
                 }
 
-                // Copy IV to output
+                // Copy IV to output (also save a copy since aes_crypt_cbc clobbers it)
+                var iv_copy : [16]u8
                 var j3 : size_t = 0
                 while(j3 < iv_len) {
                     output[j3] = tr.iv_enc[j3]
+                    iv_copy[j3] = tr.iv_enc[j3]
                     j3 += 1
                 }
 
-                // Encrypt
+                // Encrypt using a separate IV buffer (not output[0], which gets clobbered)
                 var aes_ctx : AESContext
                 var a_ret = aes_setkey_enc(&raw mut aes_ctx, &raw tr.key_enc[0], key_len)
                 if(a_ret < 0) { return a_ret }
                 a_ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, block_len,
-                                       &raw mut output[0], &raw cbc_block[0], &raw mut output[iv_len])
+                                       &raw mut iv_copy[0], &raw cbc_block[0], &raw mut output[iv_len])
                 if(a_ret < 0) { return a_ret }
 
                 return (iv_len + block_len) as i32
             }
 
             // No MAC — just encrypt without MAC (for compatibility)
+            var iv_copy_nm : [16]u8
             var i : size_t = 0
             while(i < iv_len) {
                 output[i] = tr.iv_enc[i]
+                iv_copy_nm[i] = tr.iv_enc[i]
                 i += 1
             }
 
             var aes_ctx : AESContext
             aes_setkey_enc(&raw mut aes_ctx, &raw tr.key_enc[0], key_len)
             var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, input_len,
-                                     &raw mut output[0], input, &raw mut output[iv_len])
+                                     &raw mut iv_copy_nm[0], input, &raw mut output[iv_len])
             if(ret < 0) { return ret }
 
             return (iv_len + input_len) as i32
@@ -898,9 +902,17 @@ public namespace tls {
             var aes_ctx : AESContext
             aes_setkey_dec(&raw mut aes_ctx, &raw tr.key_dec[0], key_len)
 
+            // Copy IV from input to a separate buffer since aes_crypt_cbc modifies it
+            var iv_buf : [16]u8
+            var jiv : size_t = 0
+            while(jiv < iv_len) {
+                iv_buf[jiv] = input[jiv]
+                jiv += 1
+            }
+
             var cipher_len = input_len - iv_len
             var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_DECRYPT, cipher_len,
-                                     &raw mut input[0], &raw input[iv_len], output)
+                                     &raw mut iv_buf[0], &raw input[iv_len], output)
             if(ret < 0) { return ret }
 
             // Verify MAC and remove PKCS#7 padding

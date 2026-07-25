@@ -355,24 +355,38 @@ public namespace tls {
             // u = (T[0] + a[i]*b[0]) * n_inv0 mod 2^32
             var b0 = b.p[0]
             var t0 = (x.p[0] as u64) + (ai as u64) * (b0 as u64)
-            var u_val = t0 * (n_inv0 as u64)
+            var u_val = (t0 * (n_inv0 as u64)) & 0xFFFFFFFFu64
 
-            // Combined multiplication and reduction: T += a[i]*b + u*n, shift right after
-            var carry : u64 = 0
+            // Step 1: Multiply-accumulate: T += a[i] * b
+            // Step 2: Reduce: T += u * n; T >>= 32
+            var carry_mul : u64 = 0
+            var carry_red : u64 = 0
             var j : size_t = 0
             while(j < n.n) {
                 var bj : u32 = 0; if(j < b.n) { bj = b.p[j] }
-                var prod = (x.p[j] as u64) + (ai as u64) * (bj as u64) + (u_val & 0xFFFFFFFFu64) * (n.p[j] as u64) + carry
-                x.p[j] = (prod & 0xFFFFFFFFu64) as u32
-                carry = prod >> 32; j += 1
+                var nj = n.p[j]
+
+                // T[j] += a[i]*b[j] + carry_mul
+                var mul_sum = (x.p[j] as u64) + (ai as u64) * (bj as u64) + carry_mul
+                var mul_low = (mul_sum & 0xFFFFFFFFu64) as u32
+                carry_mul = mul_sum >> 32
+
+                // T[j] += u * n[j] + carry_red (use the multiply result)
+                var red_sum = (mul_low as u64) + (u_val as u64) * (nj as u64) + carry_red
+                x.p[j] = (red_sum & 0xFFFFFFFFu64) as u32
+                carry_red = red_sum >> 32
+
+                j += 1
             }
 
-            // Propagate carry
+            // Add remaining carries
+            var total_carry = carry_mul + carry_red
             var k : size_t = n.n
-            while(carry > 0) {
-                var sum = (x.p[k] as u64) + carry
+            while(total_carry > 0) {
+                var sum = (x.p[k] as u64) + (total_carry & 0xFFFFFFFFu64)
                 x.p[k] = (sum & 0xFFFFFFFFu64) as u32
-                carry = sum >> 32; k += 1
+                total_carry = (sum >> 32) + (total_carry >> 32)
+                k += 1
             }
 
             // Shift T right by 1 limb (the lowest limb is 0 mod 2^32 and is dropped)

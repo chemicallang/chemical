@@ -196,7 +196,11 @@ public namespace tls {
     public func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 || b.n == 0) { mpi_lset(x, 0); return 0 }
-        // Use multiply-by-single-limb + shift + add to avoid 64-bit multiplications
+        // Handle input/output aliasing: save a and b before zeroing x
+        var a_sav : Mpi; mpi_init(&raw mut a_sav)
+        var b_sav : Mpi; mpi_init(&raw mut b_sav)
+        if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
+        if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
         // a * b = sum over j of (a * b.p[j]) * 2^(32*j)
         mpi_lset(x, 0)
         var tmp : Mpi; mpi_init(&raw mut tmp)

@@ -3163,3 +3163,72 @@ public func BUG_HIGH_tls13_hardcodes_sha256(env : &mut TestEnv) {
     }
 }
 
+@test
+public func tls_config_authmode_none_disables_verify(env : &mut TestEnv) {
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    cfg.authmode = tls::SSL_VERIFY_NONE
+    if(cfg.authmode != tls::SSL_VERIFY_NONE) {
+        env.error("authmode should be SSL_VERIFY_NONE")
+    }
+    if(cfg.endpoint != tls::SSL_IS_CLIENT) {
+        env.error("endpoint should be SSL_IS_CLIENT")
+    }
+}
+
+@test
+public func tls_config_authmode_required_is_default(env : &mut TestEnv) {
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    if(cfg.authmode != tls::SSL_VERIFY_REQUIRED) {
+        env.error("default authmode should be SSL_VERIFY_REQUIRED")
+    }
+}
+
+@test
+public func tls_hostname_sni_stored_correctly(env : &mut TestEnv) {
+    var ctx : tls::SSLContext
+    tls::ssl_init(&raw mut ctx)
+    var host = "test.example.com\0" as *char
+    tls::ssl_set_hostname(&raw mut ctx, host)
+    if(ctx.hostname != host) {
+        env.error("hostname pointer should match")
+    }
+    if(ctx.hostname_len != 16 as size_t) {
+        env.error("hostname_len should be 16")
+    }
+    if(ctx.hostname_len > 255) {
+        env.error("hostname_len should not exceed 255")
+    }
+}
+
+@test
+public func tls_config_own_cert_works(env : &mut TestEnv) {
+    var cert_mem = malloc(sizeof(tls::X509Cert)) as *mut tls::X509Cert
+    if(cert_mem == null) { env.error("malloc failed"); return }
+    tls::x509_cert_init(cert_mem)
+
+    var cfg = tls::ssl_config_init(tls::SSL_IS_SERVER)
+    cfg.own_cert = cert_mem
+    if(cfg.own_cert != cert_mem) {
+        env.error("own_cert should be set correctly")
+    }
+    if(cfg.endpoint != tls::SSL_IS_SERVER) {
+        env.error("endpoint should be SSL_IS_SERVER")
+    }
+
+    // Clean up
+    tls::cert_free(cert_mem)
+    unsafe { dealloc cert_mem }
+}
+
+@test
+public func tls_config_ciphersuite_default_count(env : &mut TestEnv) {
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    if(cfg.ciphersuite_count == 0) {
+        env.error("should have at least one default ciphersuite")
+    }
+    // First preferred should be TLS 1.3 AES-128-GCM
+    if(cfg.ciphersuite_list[0] != tls::TLS1_3_AES_128_GCM_SHA256 as u16) {
+        env.error("first preferred ciphersuite should be TLS 1.3 AES-128-GCM")
+    }
+}
+

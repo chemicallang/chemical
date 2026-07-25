@@ -1579,7 +1579,7 @@ public namespace tls {
                 n += 1
             }
 
-            var sni_data_len = 2 + 2 + hostlist_len
+            var sni_data_len = 2 + hostlist_len
             buf[sni_len_pos] = (sni_data_len >> 8) as u8
             buf[sni_len_pos + 1] = sni_data_len as u8
         }
@@ -1625,18 +1625,8 @@ public namespace tls {
             buf[alpn_len_pos + 1] = (alpn_data_len & 0xFF) as u8
         }
 
-        // PSK key exchange modes extension (TLS 1.3)
-        buf[pos] = ((TLS_EXT_PSK_KEY_EXCHANGE_MODES >> 8) & 0xFF) as u8; pos += 1
-        buf[pos] = (TLS_EXT_PSK_KEY_EXCHANGE_MODES & 0xFF) as u8; pos += 1
-        var psk_mode_len_pos = pos
-        buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
-        buf[pos] = 1 as u8; pos += 1
-        buf[pos] = 1 as u8; pos += 1  // psk_dhe_ke
-        var psk_mode_data_len = 2
-        buf[psk_mode_len_pos] = ((psk_mode_data_len >> 8) & 0xFF) as u8
-        buf[psk_mode_len_pos + 1] = (psk_mode_data_len & 0xFF) as u8
-
-        // pre_shared_key extension (when session ticket is available)
+        // pre_shared_key + PSK key exchange modes extensions (TLS 1.3)
+        // Only send these when a session ticket is available for resumption
         if(ssl.session != null && ssl.session.ticket != null &&
            ssl.session.ticket_len > 0 && ssl.session.ticket_len < 65535) {
             buf[pos] = ((TLS_EXT_PRE_SHARED_KEY >> 8) & 0xFF) as u8; pos += 1
@@ -2751,6 +2741,15 @@ public namespace tls {
                 var ccs_d : [1]u8
                 read_record_payload(ssl, &raw mut ccs_d[0], 1)
                 continue
+            }
+
+            // Handle alert messages from the server (e.g., protocol rejection)
+            if(content_type == SSL_MSG_ALERT as u8) {
+                var alert_data : [2]u8
+                read_record_payload(ssl, &raw mut alert_data[0], 2)
+                ssl.last_alert_level = alert_data[0]
+                ssl.last_alert_desc = alert_data[1]
+                return ERR_SSL_FATAL_ALERT_MESSAGE
             }
 
             if(content_type != SSL_MSG_HANDSHAKE as u8) {

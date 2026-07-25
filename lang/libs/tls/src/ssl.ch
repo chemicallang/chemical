@@ -579,7 +579,7 @@ public namespace tls {
         }
 
         var label = "key expansion\0" as *char
-        tls12_prf(master_secret, 48, label, 14, &raw seed[0], 64, key_block, key_block_len)
+        tls12_prf(master_secret, 48, label, 13, &raw seed[0], 64, key_block, key_block_len)
     }
 
     // Compute the key block size needed for a cipher suite

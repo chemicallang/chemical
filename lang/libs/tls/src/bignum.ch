@@ -317,7 +317,17 @@ public namespace tls {
     }
 
     public func mpi_mod(r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
-        return mpi_div(null, r, a, b)
+        // Handle negative dividend: result must be non-negative modulo |b|
+        var ret = mpi_div(null, r, a, b)
+        if(ret < 0) { return ret }
+        // If remainder is negative, add |b| to get positive residue
+        if(r != null && r.s < 0) {
+            var tmp : Mpi; mpi_init(&raw mut tmp)
+            ret = mpi_add(&raw mut tmp, r, b)
+            if(ret < 0) { return ret }
+            mpi_copy(r, &raw mut tmp)
+        }
+        return 0
     }
 
     // ─── Montgomery Modular Exponentiation ───────────────────────────────
@@ -357,6 +367,23 @@ public namespace tls {
                 carry = sum >> 32; k += 1
             }
             i += 1
+        }
+
+        // Montgomery product is in the upper n limbs (x[n..2n-1])
+        // with possible carry at position 2n. Shift result down.
+        var rj : size_t = 0
+        while(rj < n.n) {
+            x.p[rj] = x.p[n.n + rj]
+            rj += 1
+        }
+        if(x.p[2 * n.n] != 0) {
+            x.p[rj] = x.p[2 * n.n]
+            rj += 1
+        }
+        x.n = rj
+        while(rj < work_limbs) {
+            x.p[rj] = 0
+            rj += 1
         }
         if(mpi_cmp_abs(x, n) >= 0) { mpi_sub_abs(x, x, n) }
         mpi_trim(x); return 0

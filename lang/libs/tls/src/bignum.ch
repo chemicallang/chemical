@@ -196,28 +196,25 @@ public namespace tls {
     public func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 || b.n == 0) { mpi_lset(x, 0); return 0 }
-        // Handle input/output aliasing
-        var a_sav : Mpi; mpi_init(&raw mut a_sav)
-        var b_sav : Mpi; mpi_init(&raw mut b_sav)
-        if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
-        if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
-        var ret = mpi_grow(x, a.n + b.n)
-        if(ret < 0) { return ret }
-        var i : size_t = 0
-        while(i < a.n + b.n) { x.p[i] = 0; i += 1 }
-        i = 0
-        while(i < a.n) {
-            var carry : u64 = 0
-            var j : size_t = 0
-            while(j < b.n) {
-                var prod = (a.p[i] as u64) * (b.p[j] as u64) + (x.p[i + j] as u64) + carry
-                x.p[i + j] = (prod & 0xFFFFFFFFu64) as u32
-                carry = prod >> 32; j += 1
+        // Use multiply-by-single-limb + shift + add to avoid 64-bit multiplications
+        // a * b = sum over j of (a * b.p[j]) * 2^(32*j)
+        mpi_lset(x, 0)
+        var tmp : Mpi; mpi_init(&raw mut tmp)
+        var j : size_t = 0
+        while(j < b.n) {
+            var ret = mpi_mul_int(&raw mut tmp, a, b.p[j])
+            if(ret < 0) { return ret }
+            if(j > 0) {
+                ret = mpi_shift_l(&raw mut tmp, j * BITS_PER_LIMB)
+                if(ret < 0) { return ret }
             }
-            if(carry > 0) { x.p[i + b.n] = carry as u32 }
-            i += 1
+            ret = mpi_add(x, x, &raw mut tmp)
+            if(ret < 0) { return ret }
+            j += 1
         }
-        x.n = a.n + b.n; x.s = a.s * b.s; mpi_trim(x); return 0
+        x.s = a.s * b.s
+        mpi_trim(x)
+        return 0
     }
 
     public func mpi_mul_int(x : *mut Mpi, a : *mut Mpi, b : u32) : int {
@@ -570,6 +567,40 @@ public namespace tls {
     }
 
     // ─── Shift Operations ──────────────────────────────────────────────
+
+    public func mpi_shift_l(m : *mut Mpi, count : size_t) : int {
+        if(m.n == 0 || count == 0) { return 0 }
+        var limb_shift = count / BITS_PER_LIMB
+        var bit_shift = count % BITS_PER_LIMB
+        // Grow to accommodate the shift
+        var new_n = m.n + limb_shift + 1
+        var ret = mpi_grow(m, new_n)
+        if(ret < 0) { return ret }
+        // Shift whole limbs left
+        if(limb_shift > 0) {
+            var i = m.n
+            while(i > 0) { i -= 1
+                m.p[i + limb_shift] = m.p[i]
+            }
+            var j : size_t = 0
+            while(j < limb_shift) { m.p[j] = 0; j += 1 }
+            m.n += limb_shift
+        }
+        // Shift bits within limbs
+        if(bit_shift > 0) {
+            var carry : u32 = 0
+            var i : size_t = 0
+            while(i < m.n) {
+                var val = ((m.p[i] as u64) << bit_shift) | (carry as u64)
+                m.p[i] = (val & 0xFFFFFFFFu64) as u32
+                carry = (val >> 32) as u32
+                i += 1
+            }
+            if(carry > 0) { m.p[m.n] = carry; m.n += 1 }
+        }
+        mpi_trim(m)
+        return 0
+    }
 
     public func mpi_shift_r(m : *mut Mpi, count : size_t) : int {
         if(m.n == 0 || count == 0) { return 0 }

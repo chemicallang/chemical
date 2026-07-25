@@ -252,7 +252,11 @@ public namespace tls {
 
         if(mpi_cmp_abs(&raw mut A, &raw mut B) < 0) {
             if(q != null) { mpi_lset(q, 0) }
-            if(r != null) { mpi_copy(r, &raw mut A); r.s = a.s }
+            if(r != null) {
+                var a_sign = a.s
+                mpi_copy(r, &raw mut A)
+                r.s = a_sign
+            }
             return 0
         }
 
@@ -313,7 +317,10 @@ public namespace tls {
 
         mpi_trim(&raw mut Q); Q.s = sign
         if(q != null) { mpi_copy(q, &raw mut Q) }
-        if(r != null) { mpi_trim(&raw mut A); A.s = a.s; mpi_copy(r, &raw mut A) }
+        if(r != null) {
+            var a_sign = a.s
+            mpi_trim(&raw mut A); A.s = a_sign; mpi_copy(r, &raw mut A)
+        }
         return 0
     }
 

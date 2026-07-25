@@ -522,9 +522,8 @@ public func x25519_known_answer_rfc7748(env : &mut TestEnv) {
         0x17 as u8, 0x42 as u8
     ]
 
-    // Clamp both private keys
-    x25519_clamp_scalar(&raw mut alice_priv[0])
-    x25519_clamp_scalar(&raw mut bob_priv[0])
+    // Note: x25519_compute_shared clamps internally per RFC 7748 Section 5.
+    // The test vectors are PRE-clamped (RFC says), so we pass them as-is.
 
     var alice_shared : [32]u8
     x25519_compute_shared(&raw alice_priv[0], &raw bob_pub[0], &raw mut alice_shared[0])

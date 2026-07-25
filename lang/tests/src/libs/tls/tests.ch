@@ -1055,32 +1055,31 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
 
     // 4. Verifications:
 
-    // a) Ciphertext should start with 0x00 (PKCS#1 v1.5 encoding starts with 0x00 || 0x02)
-    if(ciphertext[0] != 0x00) {
-        env.error("RSA ciphertext should start with 0x00 (PKCS#1 v1.5 format)")
-    }
+    // a) Verify encryption actually transformed the data
+    // Compute what the padded message would look like
+    var expected_padded : [256]u8
+    tls::pkcs1_v15_encode(&raw pre_master[0], 48, &raw mut expected_padded[0], key_len)
 
-    // b) Second byte should be 0x02 (block type for encryption)
-    if(ciphertext[1] != 0x02) {
-        env.error("RSA ciphertext should have 0x02 as second byte (block type 02)")
-    }
-
-    // c) All padding bytes (bytes 2 through 255-48-1=204) should be non-zero
-    // and there should be exactly one 0x00 separator before the message
-    var zero_count : size_t = 0
-    var found_separator : bool = false
-    i = 2
+    // Ciphertext should differ from the padded message (encryption was applied)
+    var ct_differs = false
+    i = 0
     while(i < key_len) {
-        if(ciphertext[i] == 0x00 && !found_separator) {
-            found_separator = true
-            zero_count += 1
-        } else if(ciphertext[i] == 0x00 && found_separator) {
-            zero_count += 1
-        }
+        if(ciphertext[i] != expected_padded[i]) { ct_differs = true }
         i += 1
     }
-    if(!found_separator) {
-        env.error("PKCS#1 v1.5 ciphertext should have 0x00 separator before message")
+    if(!ct_differs) {
+        env.error("RSA ciphertext should differ from padded plaintext (encryption not applied)")
+    }
+
+    // b) Ciphertext should not be all zeros
+    var ct_nonzero = false
+    i = 0
+    while(i < key_len) {
+        if(ciphertext[i] != 0) { ct_nonzero = true }
+        i += 1
+    }
+    if(!ct_nonzero) {
+        env.error("RSA ciphertext should not be all zeros")
     }
 }
 

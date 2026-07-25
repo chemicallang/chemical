@@ -339,48 +339,56 @@ public namespace tls {
         if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
         if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
 
-        // Need 2*n + 1 limbs for intermediate accumulation
-        var work_limbs = n.n * 2 + 1
+        // Need n.n + 2 limbs: n for result + 1 for carry + 1 safety
+        var work_limbs = n.n + 2
         var ret = mpi_grow(x, work_limbs)
         if(ret < 0) { return ret }
         var i : size_t = 0
         while(i < work_limbs) { x.p[i] = 0; i += 1 }; x.n = work_limbs
 
+        // Coarsely Integrated Operand Scanning (CIOS) Montgomery multiplication
         i = 0
         while(i < n.n) {
             var ai : u32 = 0
             if(i < a.n) { ai = a.p[i] }
-            var u_val = (x.p[0] as u64) + (ai as u64) * (b.p[0] as u64)
-            u_val = u_val * (n_inv0 as u64)
+
+            // u = (T[0] + a[i]*b[0]) * n_inv0 mod 2^32
+            var b0 = b.p[0]
+            var t0 = (x.p[0] as u64) + (ai as u64) * (b0 as u64)
+            var u_val = t0 * (n_inv0 as u64)
+
+            // Combined multiplication and reduction: T += a[i]*b + u*n, shift right after
             var carry : u64 = 0
             var j : size_t = 0
             while(j < n.n) {
                 var bj : u32 = 0; if(j < b.n) { bj = b.p[j] }
-                var prod = (ai as u64) * (bj as u64) + (u_val & 0xFFFFFFFFu64) * (n.p[j] as u64) + (x.p[i + j] as u64) + carry
-                x.p[i + j] = (prod & 0xFFFFFFFFu64) as u32
+                var prod = (x.p[j] as u64) + (ai as u64) * (bj as u64) + (u_val & 0xFFFFFFFFu64) * (n.p[j] as u64) + carry
+                x.p[j] = (prod & 0xFFFFFFFFu64) as u32
                 carry = prod >> 32; j += 1
             }
-            var k : size_t = i + n.n
+
+            // Propagate carry
+            var k : size_t = n.n
             while(carry > 0) {
                 var sum = (x.p[k] as u64) + carry
                 x.p[k] = (sum & 0xFFFFFFFFu64) as u32
                 carry = sum >> 32; k += 1
             }
+
+            // Shift T right by 1 limb (the lowest limb is 0 mod 2^32 and is dropped)
+            var si : size_t = 0
+            while(si < work_limbs - 1) {
+                x.p[si] = x.p[si + 1]
+                si += 1
+            }
+            x.p[work_limbs - 1] = 0
+
             i += 1
         }
 
-        // Montgomery product is in the upper n limbs (x[n..2n-1])
-        // with possible carry at position 2n. Shift result down.
-        var rj : size_t = 0
-        while(rj < n.n) {
-            x.p[rj] = x.p[n.n + rj]
-            rj += 1
-        }
-        if(x.p[2 * n.n] != 0) {
-            x.p[rj] = x.p[2 * n.n]
-            rj += 1
-        }
-        x.n = rj
+        // Result is now in x[0..n.n-1] after n shifts
+        x.n = n.n
+        var rj : size_t = n.n
         while(rj < work_limbs) {
             x.p[rj] = 0
             rj += 1

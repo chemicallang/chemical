@@ -1,3 +1,12 @@
+func has_flag(argc : int, argv : **char, flag : *char) : bool {
+    var i = 1
+    while(i < argc) {
+        if(strcmp(argv[i], flag) == 0) { return true }
+        i += 1
+    }
+    return false
+}
+
 func run_executable_tests() {
 
     // ---------------------------------
@@ -57,14 +66,17 @@ func run_executable_tests() {
 }
 
 public func main(argc : int, argv : **char) : int {
-    if(argc <= 1) {
+
+    var skip_seq = has_flag(argc, argv, "--skip-sequential") || has_flag(argc, argv, "-skip-sequential")
+
+    if(!skip_seq && argc <= 1) {
         run_executable_tests()
         // print a separator
         printf("\n");
     }
     // this will trigger tests with @test annotation
     test_runner(argc, argv)
-    if(argc <= 1) {
+    if(argc <= 1 && !skip_seq) {
         // this will print the test stats
         print_test_stats();
     }

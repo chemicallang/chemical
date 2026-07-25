@@ -231,16 +231,14 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
             const status_text = if(s.has_failed) "FAIL" else "PASS";
             printf("  %s- %s%s%s%s", status_color, col_bold(), fn_name, col_reset(), col_reset());
 
-            /* Print function id only when present and less than INT_MAX/2 */
-            // NOTE: using literal threshold 1073741823 (INT_MAX/2 on 32-bit int)
+            /* Print function id always (when the fn pointer is present) */
             if (s.fn) {
-                const id_thres : uint = 1073741823u;
-                // ensure s.fn.id is treated as unsigned for a safe comparison
-                if ((s.fn.id as uint) < id_thres) {
-                    printf(" (id %u)", s.fn.id as uint);
-                }
+                printf(" %u", s.fn.id as uint);
             }
             printf("\n");
+            if(!s.failed_msg_parse.empty()) {
+                printf("     failed message parsing with message : %s\n");
+            }
 
             /* Print logs, if any */
             if(config.display_logs) {

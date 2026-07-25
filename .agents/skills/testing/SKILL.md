@@ -713,6 +713,112 @@ lang/tests/
 │   └── runner/             # Library test runner
 ```
 
+## Running Specific Tests
+
+### How Test IDs Work
+
+Every `@test`-annotated function gets a numeric ID assigned at compile time by
+`intrinsics::get_tests<TestFunction>()`. When the test suite runs, the results
+display the ID alongside the function name:
+
+```
+  - test_fs_file_low_level_api (id 1073741823)
+  - font_create_empty_works    (id 1073741824)
+```
+
+**Inline tests** (manually called in `run_common_tests()` etc.) are also numbered
+sequentially and display their ID as part of the output:
+
+```
+Test 1505 [bitwise & with bool expression does not crash] succeeded
+```
+
+### Running a Single Test by ID
+
+Use `--test-ids` with a comma-separated list of IDs. Combine with `--skip-sequential`
+to skip the inline tests:
+
+```bash
+# Run one @test by ID
+./scripts/test.sh --tcc --no-build --skip-sequential --test-ids 1073741823
+
+# Run multiple @tests by ID
+./scripts/test.sh --tcc --no-build --skip-sequential --test-ids 1073741823,1073741824,1073741825
+```
+
+Or run the test executable directly:
+
+```bash
+./lang/tests/build/tests-tcc.exe --skip-sequential --test-ids 1073741823
+```
+
+### Running Tests by Function Name
+
+Use `--test-names` with comma-separated function names:
+
+```bash
+# By name, single
+./scripts/test.sh --tcc --no-build --skip-sequential \
+    --test-names font_create_empty_works
+
+# By name, multiple
+./scripts/test.sh --tcc --no-build --skip-sequential \
+    --test-names font_create_empty_works,test_hex_encode_upper
+```
+
+### Skipping Sequential Inline Tests
+
+The `--skip-sequential` flag skips all inline (sequential) tests registered in
+`run_executable_tests()` and only dispatches `@test`-annotated functions via the
+test runner. This is useful when you're iterating on a single `@test` function:
+
+```bash
+# Only @test functions, no inline tests
+./lang/tests/build/tests.exe --skip-sequential
+
+# With test ID filter
+./lang/tests/build/tests.exe --skip-sequential --test-ids 1073741823
+
+# Equivalently via test.sh
+./scripts/test.sh --tcc --no-build --skip-sequential --test-ids 1073741823
+```
+
+### Finding a Test's ID
+
+Run the full test suite once. The @test results section prints each function name
+with its ID:
+
+```
+  - font_create_empty_works (id 1073741824)
+  PASS
+```
+
+For inline tests, the test number is shown in the "Test N [name]" format during
+the inline run (before the @test section).
+
+### ID Stability
+
+Test IDs are stable within a single build of the test executable. Recompiling
+with different backends (TCC vs LLVM) or different source files may shuffle the
+ordering. Always check the IDs from the test output of the exact executable
+you're using.
+
+### Direct Test Executable Usage (without test.sh)
+
+```bash
+# Build
+cmake-build-debug/Compiler "lang/tests/build.lab" -o "lang/tests/build/tests.exe" --mode debug_complete
+
+# Run a single @test by ID (skip inline tests)
+./lang/tests/build/tests.exe --skip-sequential --test-ids 1073741823
+
+# Run multiple @tests by name
+./lang/tests/build/tests.exe --skip-sequential --test-names test1,test2
+
+# Normal full run (inline + @test)
+./lang/tests/build/tests.exe
+```
+
 ## Best Practices
 
 1. **Always test both modes**: Write tests that work in both interpretation and compiled modes

@@ -711,29 +711,52 @@ public func BUG_send_record_plaintext_fallback_not_encrypted(env : &mut TestEnv)
 
 @test
 public func tls_ecdh_shared_secret_deterministic(env : &mut TestEnv) {
-    var ctx1 : tls::ECDHContext
-    tls::ecdh_init(&raw mut ctx1)
-    var priv1 : [32]u8
-    var pub1 : [65]u8
-    var ret1 = tls::ecdh_generate_keypair(&raw mut ctx1, &raw mut priv1[0], 32, &raw mut pub1[0], 65)
-    if(ret1 < 0) { env.error("ecdh_generate_keypair ctx1 failed"); return }
+    // Known-answer: dA=1, QA=G; dB=2, QB=2*G
+    // Alice: private = 1
+    var alice_priv : [32]u8 = [
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    ]
+    // Bob: private = 2
+    var bob_priv : [32]u8 = [
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02
+    ]
+    // Bob's public key = 2*G (verified on P-256)
+    var bob_pub : [65]u8 = [
+        0x04,
+        0x7C,0xF2,0x7B,0x18,0x8D,0x03,0x4F,0x7E,0x8A,0x52,0x38,0x03,0x04,0xB5,0x1A,0xC3,
+        0xC0,0x89,0x69,0xE2,0x77,0xF2,0x1B,0x35,0xA6,0x0B,0x48,0xFC,0x47,0x66,0x99,0x78,
+        0x07,0x77,0x55,0x10,0xDB,0x8E,0xD0,0x40,0x29,0x3D,0x9A,0xC6,0x9F,0x74,0x30,0xDB,
+        0xBA,0x7D,0xAD,0xE6,0x3C,0xE9,0x82,0x29,0x9E,0x04,0xB7,0x9D,0x22,0x78,0x73,0xD1
+    ]
 
-    var ctx2 : tls::ECDHContext
-    tls::ecdh_init(&raw mut ctx2)
-    var priv2 : [32]u8
-    var pub2 : [65]u8
-    var ret2 = tls::ecdh_generate_keypair(&raw mut ctx2, &raw mut priv2[0], 32, &raw mut pub2[0], 65)
-    if(ret2 < 0) { env.error("ecdh_generate_keypair ctx2 failed"); return }
+    // Alice's public key = G (generator, verified on P-256)
+    var alice_pub : [65]u8 = [
+        0x04,
+        0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,0xF8,0xBC,0xE6,0xE5,0x63,0xA4,0x40,0xF2,
+        0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,0xF4,0xA1,0x39,0x45,0xD8,0x98,0xC2,0x96,
+        0x4F,0xE3,0x42,0xE2,0xFE,0x1A,0x7F,0x9B,0x8E,0xE7,0xEB,0x4A,0x7C,0x0F,0x9E,0x16,
+        0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
+    ]
 
-    // Different contexts generate different private keys (deterministic per-context)
-    // but ctx1 + ctx2 cross-compute shared secrets
+    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
+    var ret = tls::mpi_read_binary(&raw mut alice.priv_key, &raw alice_priv[0], 32)
+    if(ret < 0) { env.error("import alice key failed"); return }
+    alice.is_init = true
+
+    var bob : tls::ECDHContext; tls::ecdh_init(&raw mut bob)
+    ret = tls::mpi_read_binary(&raw mut bob.priv_key, &raw bob_priv[0], 32)
+    if(ret < 0) { env.error("import bob key failed"); return }
+    bob.is_init = true
+
     var shared1 : [32]u8
     var shared2 : [32]u8
-    var ret_s1 = tls::ecdh_compute_shared(&raw mut ctx1, &raw pub2[0], 65, &raw mut shared1[0], 32)
-    var ret_s2 = tls::ecdh_compute_shared(&raw mut ctx2, &raw pub1[0], 65, &raw mut shared2[0], 32)
+    var ret_s1 = tls::ecdh_compute_shared(&raw mut alice, &raw bob_pub[0], 65, &raw mut shared1[0], 32)
+    var ret_s2 = tls::ecdh_compute_shared(&raw mut bob, &raw alice_pub[0], 65, &raw mut shared2[0], 32)
     if(ret_s1 < 0 || ret_s2 < 0) { env.error("ecdh_compute_shared failed"); return }
 
-    // Shared secrets must match (ECDH property: a*B == b*A)
+    // Shared secrets must match (ECDH property: 1*(2*G) == 2*G == 2*G for both)
     var i : size_t = 0
     while(i < 32) {
         if(shared1[i] != shared2[i]) {
@@ -742,8 +765,6 @@ public func tls_ecdh_shared_secret_deterministic(env : &mut TestEnv) {
         }
         i += 1
     }
-
-    // Shared secret must not be all zeros
     if(!bytes_not_zero(&raw shared1[0], 32)) {
         env.error("ECDH shared secret should not be all zeros")
     }

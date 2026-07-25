@@ -62,11 +62,11 @@ public func md5_update(ctx : *mut Md5Context, data : *u8, data_len : size_t) {
     var pos : size_t = 0;
     var space = 64 - ctx.buffer_pos;
     if(data_len >= space) {
-        var i : size_t = 0;
-        while(i < space) {
-            ctx.buffer[ctx.buffer_pos + i] = data[pos]; i += 1;
-        }
-        pos += space;
+    var i : size_t = 0;
+    while(i < space) {
+        ctx.buffer[ctx.buffer_pos + i] = data[pos + i]; i += 1;
+    }
+    pos += space;
         md5_transform(ctx, &raw ctx.buffer[0]);
         while(pos + 63 < data_len) {
             md5_transform(ctx, data + pos);

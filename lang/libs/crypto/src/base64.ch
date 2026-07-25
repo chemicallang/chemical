@@ -24,6 +24,7 @@ public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_le
     var i : size_t = 0;
     var pos : size_t = 0;
     while(i < data_len) {
+        var group_start = i;
         var b0 = data[i]; i += 1;
         var b1 : u8 = 0; if(i < data_len) { b1 = data[i]; i += 1; }
         var b2 : u8 = 0; if(i < data_len) { b2 = data[i]; i += 1; }
@@ -32,10 +33,9 @@ public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_le
         out[pos + 1] = BASE64_TABLE[((triple >> 12) & 0x3F) as size_t];
         out[pos + 2] = BASE64_TABLE[((triple >> 6) & 0x3F) as size_t];
         out[pos + 3] = BASE64_TABLE[(triple & 0x3F) as size_t];
-        var remaining = data_len - (i - 3);
-        if(remaining == 0) { /* nothing */ }
-        else if(remaining == 2) { out[pos + 2] = '='; out[pos + 3] = '='; }
-        else if(remaining == 1) { out[pos + 3] = '='; }
+        var bytes_in_group = i - group_start;
+        if(bytes_in_group == 1) { out[pos + 2] = '='; out[pos + 3] = '='; }
+        else if(bytes_in_group == 2) { out[pos + 3] = '='; }
         pos += 4;
     }
     out[pos] = 0;
@@ -54,24 +54,25 @@ public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len 
     var i : size_t = 0;
     var pos : size_t = 0;
     while(i < effective_len) {
+        var group_start = i;
         var c0 = base64_val(b64[i]); i += 1;
         var c1 = base64_val(b64[i]); i += 1;
         var c2 : int = 0; if(i < effective_len) { c2 = base64_val(b64[i]); i += 1; }
         var c3 : int = 0; if(i < effective_len) { c3 = base64_val(b64[i]); i += 1; }
         if(c0 < 0 || c1 < 0) { return Result.Err(CryptoError.InvalidInput()); }
         var triple = ((c0 as u32) << 18) | ((c1 as u32) << 12);
-        var remaining = effective_len - (i - 4);
-        if(remaining >= 2) {
+        var chars_in_group = i - group_start;
+        if(chars_in_group >= 3) {
             if(c2 < 0) { return Result.Err(CryptoError.InvalidInput()); }
             triple |= (c2 as u32) << 6;
         }
-        if(remaining >= 3) {
+        if(chars_in_group >= 4) {
             if(c3 < 0) { return Result.Err(CryptoError.InvalidInput()); }
             triple |= c3 as u32;
         }
         out[pos] = ((triple >> 16) & 0xFF) as u8; pos += 1;
-        if(remaining >= 2) { out[pos] = ((triple >> 8) & 0xFF) as u8; pos += 1; }
-        if(remaining >= 3) { out[pos] = (triple & 0xFF) as u8; pos += 1; }
+        if(chars_in_group >= 3) { out[pos] = ((triple >> 8) & 0xFF) as u8; pos += 1; }
+        if(chars_in_group >= 4) { out[pos] = (triple & 0xFF) as u8; pos += 1; }
     }
     return Result.Ok(decoded_len);
 }

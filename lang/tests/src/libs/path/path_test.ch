@@ -138,7 +138,7 @@ func test_path_normalize_relative_dotdot(env : &mut TestEnv) {
     var r = path::normalize("a/b/../c", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
-    if(!(len == 4 && buf[0] == 'a' && buf[1] == '/' && buf[2] == 'c' && buf[3] == '\0')) {
+    if(!(len == 3 && buf[0] == 'a' && buf[1] == '/' && buf[2] == 'c' && buf[3] == '\0')) {
         env.error("normalize a/b/../c should return a/c");
     }
 }

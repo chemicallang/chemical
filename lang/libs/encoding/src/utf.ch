@@ -14,15 +14,27 @@ public func utf8_is_valid(data : *char, data_len : size_t) : bool {
         var c = data[i] as u8;
         if(c < 0x80) { i += 1; continue; }
         var seq_len : u8 = 0;
-        if((c & 0xE0) == 0xC0) { seq_len = 2; }
-        else if((c & 0xF0) == 0xE0) { seq_len = 3; }
-        else if((c & 0xF8) == 0xF0) { seq_len = 4; }
+        var min_code : u32 = 0;
+        if((c & 0xE0) == 0xC0) { seq_len = 2; min_code = 0x80; }
+        else if((c & 0xF0) == 0xE0) { seq_len = 3; min_code = 0x800; }
+        else if((c & 0xF8) == 0xF0) { seq_len = 4; min_code = 0x10000; }
         else { return false; }
         if(i + (seq_len as size_t) > data_len) { return false; }
-        var j : size_t = 1;
-        while(j < (seq_len as size_t)) {
-            if((data[i + j] as u8 & 0xC0) != 0x80) { return false; }
-            j += 1;
+        if(seq_len == 2) {
+            var c2 = data[i + 1] as u8;
+            if((c2 & 0xC0) != 0x80) { return false; }
+            var code = (((c & 0x1F) as u32) << 6) | (c2 & 0x3F) as u32;
+            if(code < min_code) { return false; }
+        } else if(seq_len == 3) {
+            var c2 = data[i + 1] as u8; var c3 = data[i + 2] as u8;
+            if((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80) { return false; }
+            var code = (((c & 0x0F) as u32) << 12) | (((c2 & 0x3F) as u32) << 6) | ((c3 & 0x3F) as u32);
+            if(code < min_code || (code >= 0xD800u32 && code <= 0xDFFFu32)) { return false; }
+        } else if(seq_len == 4) {
+            var c2 = data[i + 1] as u8; var c3 = data[i + 2] as u8; var c4 = data[i + 3] as u8;
+            if((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80 || (c4 & 0xC0) != 0x80) { return false; }
+            var code = (((c & 0x07) as u32) << 18) | (((c2 & 0x3F) as u32) << 12) | (((c3 & 0x3F) as u32) << 6) | ((c4 & 0x3F) as u32);
+            if(code < min_code || code > 0x10FFFFu32) { return false; }
         }
         i += seq_len as size_t;
     }

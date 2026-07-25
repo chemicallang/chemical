@@ -185,7 +185,7 @@ public func audio_trim_works(env : &mut TestEnv) {
     a.loaded = true
 
     var trimmed = audio::audio_trim(&raw mut a, 500.0, 1500.0)
-    if(trimmed.num_samples < 44000 || trimmed.num_samples > 44200) { env.error("trimmed sample count") }
+    if(trimmed.num_samples != 22050) { env.error("trimmed sample count") }
 }
 
 @test

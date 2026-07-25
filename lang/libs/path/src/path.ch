@@ -100,19 +100,24 @@ public func extension(p : *char, out : *mut char, out_len : size_t) : Result<siz
     var start = end;
     while(start > 0 && p[start-1] != '/' && p[start-1] != '\\') { start -= 1; }
 
-    var dot_pos = start;
-    while(dot_pos < end && p[dot_pos] != '.') { dot_pos += 1; }
-    if(dot_pos >= end || dot_pos == start) {
+    var dot_pos = end;
+    while(dot_pos > start && p[dot_pos-1] != '.') { dot_pos -= 1; }
+    if(dot_pos <= start) {
+        if(out_len < 1) { return Result.Err(PathError.BufferTooSmall()); }
+        out[0] = 0;
+        return Result.Ok(0);
+    }
+    if(dot_pos - 1 == start || dot_pos == end) {
         if(out_len < 1) { return Result.Err(PathError.BufferTooSmall()); }
         out[0] = 0;
         return Result.Ok(0);
     }
 
-    var ext_len = end - dot_pos;
+    var ext_len = end - dot_pos + 1;
     if(ext_len + 1 > out_len) { return Result.Err(PathError.BufferTooSmall()); }
     var i : size_t = 0;
     while(i < ext_len) {
-        out[i] = p[dot_pos + i];
+        out[i] = p[dot_pos - 1 + i];
         i += 1;
     }
     out[i] = 0;
@@ -141,7 +146,7 @@ public func stem(p : *char, out : *mut char, out_len : size_t) : Result<size_t, 
         return Result.Ok(stem_len);
     }
 
-    var stem_len = dot_pos - start;
+    var stem_len = dot_pos - start - 1;
     if(stem_len + 1 > out_len) { return Result.Err(PathError.BufferTooSmall()); }
     var i : size_t = 0;
     while(i < stem_len) {
@@ -175,7 +180,8 @@ public func join(a : *char, b : *char, out : *mut char, out_len : size_t) : Resu
     }
 
     var need_sep = (a[a_len-1] != '/' && a[a_len-1] != '\\');
-    var total = a_len + (if(need_sep) 1u else 0u) + b_len;
+    var total = a_len + b_len;
+    if(need_sep) { total += 1; }
     if(total + 1 > out_len) { return Result.Err(PathError.BufferTooSmall()); }
 
     var pos : size_t = 0;

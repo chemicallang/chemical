@@ -215,8 +215,8 @@ public namespace tls {
         if(*pos >= data_len) { return ERR_X509_INVALID_FORMAT }
         var t = data[*pos]; *pos += 1
 
-        // Long-form tags not supported
-        if(t >= 0x1F) { return ERR_X509_FEATURE_UNAVAILABLE }
+        // Long-form tags not supported (check tag number in lower 5 bits)
+        if((t & 0x1F) == 0x1F) { return ERR_X509_FEATURE_UNAVAILABLE }
 
         if(*pos >= data_len) { return ERR_X509_INVALID_FORMAT }
         var len_byte = data[*pos]; *pos += 1

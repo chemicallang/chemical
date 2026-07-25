@@ -34,9 +34,9 @@ public func sha256_update(ctx : *mut Sha256Context, data : *u8, data_len : size_
     var pos : size_t = 0;
     var space = 64 - ctx.buffer_pos;
     if(data_len >= space) {
-        var i : size_t = 0;
-        while(i < space) {
-            ctx.buffer[ctx.buffer_pos + i] = data[pos]; i += 1; }
+    var i : size_t = 0;
+    while(i < space) {
+        ctx.buffer[ctx.buffer_pos + i] = data[pos + i]; i += 1; }
         pos += space;
         sha256_transform(ctx, &raw ctx.buffer[0]);
         ctx.buffer_pos = 0;

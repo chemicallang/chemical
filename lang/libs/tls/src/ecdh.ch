@@ -551,6 +551,10 @@ public namespace tls {
         ret = mpi_write_binary(&raw mut shared_point.X, shared, 32)
         if(ret < 0) { return ret }
 
+        printf("[DBG_ECDH] shared: "); var _es : size_t = 0
+        while(_es < 32) { printf("%02x", shared[_es] as int); _es += 1 }
+        printf("\n")
+
         return 0
     }
 

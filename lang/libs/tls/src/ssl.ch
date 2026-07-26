@@ -293,7 +293,21 @@ public namespace tls {
         tls13_hkdf_expand_label(&raw server_hts[0], 32, iv_label, 2,
                                 &raw empty_ctx2[0], 0, &raw mut server_iv[0], 12)
 
-        // Populate transform_out (client write) — for sending
+        // Per RFC 8446:
+        // - Client role: transform_out (send) = client_key, transform_in (recv) = server_key
+        // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
+        var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+            printf("[DBG13] transcript_hash: "); var _di : size_t = 0
+            while(_di < 32) { printf("%02x", transcript_hash[_di] as int); _di += 1 }
+            printf("\n")
+            printf("[DBG13] shared_secret: "); _di = 0
+            while(_di < 32) { printf("%02x", shared_secret[_di] as int); _di += 1 }
+            printf("\n")
+        }
+
+        // Populate transform_out — for sending
         var tr_out : Transform
         transform_init(&raw mut tr_out)
         tr_out.cipher_type = CIPHER_AES_128_GCM as u8
@@ -301,12 +315,19 @@ public namespace tls {
         tr_out.iv_len = 12
         tr_out.fixed_iv_len = 12
         tr_out.mac_key_len = 0
-        i = 0
-        while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
-        i = 0
-        while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+        if(is_server_role) {
+            i = 0
+            while(i < 16) { tr_out.key_enc[i] = server_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_out.base_iv_enc[i] = server_iv[i]; i += 1 }
+        } else {
+            i = 0
+            while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+        }
 
-        // Populate transform_in (server write) — for receiving
+        // Populate transform_in — for receiving
         var tr_in : Transform
         transform_init(&raw mut tr_in)
         tr_in.cipher_type = CIPHER_AES_128_GCM as u8
@@ -314,10 +335,38 @@ public namespace tls {
         tr_in.iv_len = 12
         tr_in.fixed_iv_len = 12
         tr_in.mac_key_len = 0
-        i = 0
-        while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
-        i = 0
-        while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+        if(is_server_role) {
+            i = 0
+            while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
+        } else {
+            i = 0
+            while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+        }
+
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+            printf("[DBG13] client_key: "); var _di2 : size_t = 0
+            while(_di2 < 16) { printf("%02x", client_key[_di2] as int); _di2 += 1 }
+            printf("\n")
+            printf("[DBG13] client_iv: "); _di2 = 0
+            while(_di2 < 12) { printf("%02x", client_iv[_di2] as int); _di2 += 1 }
+            printf("\n")
+            printf("[DBG13] server_key: "); _di2 = 0
+            while(_di2 < 16) { printf("%02x", server_key[_di2] as int); _di2 += 1 }
+            printf("\n")
+            printf("[DBG13] server_iv: "); _di2 = 0
+            while(_di2 < 12) { printf("%02x", server_iv[_di2] as int); _di2 += 1 }
+            printf("\n")
+            printf("[DBG13] tr_out.key_enc: "); _di2 = 0
+            while(_di2 < 16) { printf("%02x", tr_out.key_enc[_di2] as int); _di2 += 1 }
+            printf("\n")
+            printf("[DBG13] tr_in.key_dec: "); _di2 = 0
+            while(_di2 < 16) { printf("%02x", tr_in.key_dec[_di2] as int); _di2 += 1 }
+            printf("\n")
+        }
 
         // Allocate and install transforms
         var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
@@ -398,8 +447,13 @@ public namespace tls {
         tls13_hkdf_expand_label(&raw s_ats[0], 32, iv_label, 2,
                                 &raw empty_ctx[0], 0, &raw mut server_iv[0], 12)
 
+        // Per RFC 8446:
+        // - Client role: transform_out (send) = client_key, transform_in (recv) = server_key
+        // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
+        var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+
         // Replace transforms with application-traffic versions
-        // Client write (out)
+        // Send direction (transform_out)
         if(ssl.transform_out != null) { unsafe { dealloc ssl.transform_out } }
         var tr_out : Transform
         transform_init(&raw mut tr_out)
@@ -407,15 +461,22 @@ public namespace tls {
         tr_out.key_len = 16
         tr_out.iv_len = 12
         tr_out.fixed_iv_len = 12
-        i = 0
-        while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
-        i = 0
-        while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+        if(is_server_role) {
+            i = 0
+            while(i < 16) { tr_out.key_enc[i] = server_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_out.base_iv_enc[i] = server_iv[i]; i += 1 }
+        } else {
+            i = 0
+            while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+        }
         var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
         *tr_out_mem = tr_out
         ssl.transform_out = tr_out_mem
 
-        // Server write (in)
+        // Receive direction (transform_in)
         if(ssl.transform_in != null) { unsafe { dealloc ssl.transform_in } }
         var tr_in : Transform
         transform_init(&raw mut tr_in)
@@ -423,10 +484,17 @@ public namespace tls {
         tr_in.key_len = 16
         tr_in.iv_len = 12
         tr_in.fixed_iv_len = 12
-        i = 0
-        while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
-        i = 0
-        while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+        if(is_server_role) {
+            i = 0
+            while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
+        } else {
+            i = 0
+            while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+            i = 0
+            while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+        }
         var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
         *tr_in_mem = tr_in
         ssl.transform_in = tr_in_mem
@@ -440,23 +508,50 @@ public namespace tls {
     // After the handshake, either side can send a KeyUpdate to refresh traffic keys.
     // application_traffic_secret_N+1 = HKDF-Expand-Label(secret_N, "traffic upd", "", Hash.length)
 
-    // Update the client (send) side traffic keys
+    // Update the send side traffic keys (role-aware)
+    // Client sends with client_application_traffic_secret -> transform_out.key_enc
+    // Server sends with server_application_traffic_secret -> transform_out.key_enc
     public func tls13_update_send_keys(ssl : *mut SSLContext) : int {
-        // Derive new secret
+        var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+
+        // Choose the correct traffic secret based on role
+        var traffic_secret : [32]u8
+        var si : size_t = 0
+        if(is_server_role) {
+            while(si < 32) {
+                traffic_secret[si] = ssl.tls13_keys.server_application_traffic_secret[si]
+                si += 1
+            }
+        } else {
+            while(si < 32) {
+                traffic_secret[si] = ssl.tls13_keys.client_application_traffic_secret[si]
+                si += 1
+            }
+        }
+
+        // Derive new secret from current traffic secret
         var new_secret : [32]u8
         var empty_c : [1]u8 = [0]
         var upd_label = "traffic upd\0" as *char
-        tls13_hkdf_expand_label(&raw mut ssl.tls13_keys.client_application_traffic_secret[0], 32,
+        tls13_hkdf_expand_label(&raw traffic_secret[0], 32,
                                 upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
 
-        // Store updated secret
-        var si : size_t = 0
-        while(si < 32) {
-            ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
-            si += 1
+        // Store updated secret back to the correct slot
+        if(is_server_role) {
+            si = 0
+            while(si < 32) {
+                ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
+                si += 1
+            }
+        } else {
+            si = 0
+            while(si < 32) {
+                ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
+                si += 1
+            }
         }
 
-        // Derive new client key and IV
+        // Derive new key and IV
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
         var new_key : [16]u8
@@ -466,7 +561,7 @@ public namespace tls {
         tls13_hkdf_expand_label(&raw new_secret[0], 32, iv_label, 2,
                                 &raw empty_c[0], 0, &raw mut new_iv[0], 12)
 
-        // Update transform_out with new keys
+        // Update transform_out with new encryption keys
         if(ssl.transform_out != null) {
             si = 0
             while(si < 16) { ssl.transform_out.key_enc[si] = new_key[si]; si += 1 }
@@ -481,23 +576,50 @@ public namespace tls {
         return 0
     }
 
-    // Update the server (receive) side traffic keys
+    // Update the recv side traffic keys (role-aware)
+    // Client receives with server_application_traffic_secret -> transform_in.key_dec
+    // Server receives with client_application_traffic_secret -> transform_in.key_dec
     public func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
-        // Derive new secret
+        var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+
+        // Choose the correct traffic secret based on role
+        var traffic_secret : [32]u8
+        var si : size_t = 0
+        if(is_server_role) {
+            while(si < 32) {
+                traffic_secret[si] = ssl.tls13_keys.client_application_traffic_secret[si]
+                si += 1
+            }
+        } else {
+            while(si < 32) {
+                traffic_secret[si] = ssl.tls13_keys.server_application_traffic_secret[si]
+                si += 1
+            }
+        }
+
+        // Derive new secret from current traffic secret
         var new_secret : [32]u8
         var empty_c : [1]u8 = [0]
         var upd_label = "traffic upd\0" as *char
-        tls13_hkdf_expand_label(&raw mut ssl.tls13_keys.server_application_traffic_secret[0], 32,
+        tls13_hkdf_expand_label(&raw traffic_secret[0], 32,
                                 upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
 
-        // Store updated secret
-        var si : size_t = 0
-        while(si < 32) {
-            ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
-            si += 1
+        // Store updated secret back to the correct slot
+        if(is_server_role) {
+            si = 0
+            while(si < 32) {
+                ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
+                si += 1
+            }
+        } else {
+            si = 0
+            while(si < 32) {
+                ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
+                si += 1
+            }
         }
 
-        // Derive new server key and IV
+        // Derive new key and IV
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
         var new_key : [16]u8
@@ -1050,14 +1172,15 @@ public namespace tls {
         var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], tr.key_len as size_t)
         if(ret < 0) { return ret }
 
-        // Additional data = outer record header
-        // outer content_type = 23 (application_data), version = 0x0303
+        // Per RFC 8446 Section 5.2: The length field in AAD and record header
+        // MUST be the length of the encrypted_record (inner_len + 16 for AEAD tag)
+        var enc_record_len : size_t = inner_len + 16
         var outer_hdr : [5]u8
         outer_hdr[0] = SSL_MSG_APPLICATION_DATA as u8
         outer_hdr[1] = 0x03
         outer_hdr[2] = 0x03
-        outer_hdr[3] = ((inner_len >> 8) & 0xFF) as u8
-        outer_hdr[4] = (inner_len & 0xFF) as u8
+        outer_hdr[3] = ((enc_record_len >> 8) & 0xFF) as u8
+        outer_hdr[4] = (enc_record_len & 0xFF) as u8
 
         // Encrypted payload goes at output + 5
         var ct_out = output + 5
@@ -1132,7 +1255,20 @@ public namespace tls {
                                 input, ct_len,
                                 tag_start, 16,
                                 &raw mut dec_buf[0])
-        if(ret < 0) { return ERR_SSL_INVALID_RECORD }  // Authentication failed
+        if(ret < 0) {
+            printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
+                read_u16_be(&raw ssl.in_hdr[3]) as int)
+            printf("[DBG13] key_dec: "); var _di3 : size_t = 0
+            while(_di3 < tr.key_len as size_t) { printf("%02x", tr.key_dec[_di3] as int); _di3 += 1 }
+            printf("\n")
+            printf("[DBG13] nonce: "); _di3 = 0
+            while(_di3 < 12) { printf("%02x", nonce[_di3] as int); _di3 += 1 }
+            printf("\n")
+            printf("[DBG13] aad: "); _di3 = 0
+            while(_di3 < 5) { printf("%02x", outer_hdr[_di3] as int); _di3 += 1 }
+            printf("\n")
+            return ERR_SSL_INVALID_RECORD
+        }
 
         // Inner plaintext is dec_buf[0..ct_len-1], inner content_type is dec_buf[ct_len-1]
         if(ct_len == 0) { return ERR_SSL_INVALID_RECORD }
@@ -2721,6 +2857,13 @@ public namespace tls {
         var x25519_ret = x25519_generate_keypair(&raw mut x25519_priv[0], &raw mut x25519_pub[0])
         var has_x25519 : bool = (x25519_ret == 0)
 
+        printf("[DBG13] x25519_priv: "); var _dka : size_t = 0
+        while(_dka < 32) { printf("%02x", x25519_priv[_dka] as int); _dka += 1 }
+        printf("\n")
+        printf("[DBG13] x25519_pub: "); _dka = 0
+        while(_dka < 32) { printf("%02x", x25519_pub[_dka] as int); _dka += 1 }
+        printf("\n")
+
         // Store x25519 keypair in handshake params
         if(has_x25519) {
             // Store private key (copy to heap so it persists)
@@ -2938,6 +3081,9 @@ public namespace tls {
                     }
                     found_key_share = true
                     using_x25519 = true
+                    printf("[DBG13] server_x25519_key: "); var _dkb : size_t = 0
+                    while(_dkb < 32) { printf("%02x", server_x25519_key[_dkb] as int); _dkb += 1 }
+                    printf("\n")
                 } else if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
                     var ki : size_t = 0
                     while(ki < 65) {

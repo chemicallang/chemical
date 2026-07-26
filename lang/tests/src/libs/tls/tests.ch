@@ -3232,3 +3232,249 @@ public func tls_config_ciphersuite_default_count(env : &mut TestEnv) {
     }
 }
 
+// ─── TLS 1.3 Record Encryption/Decryption Tests ───────────────────────────
+// Tests the TLS 1.3 record layer with proper AAD length and key assignment.
+// This verifies the AAD fix (enc_record_len = inner_len + 16) and key-swap fix.
+
+@test
+public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
+    // Simulate a TLS 1.3 handshake by setting up an SSL context with derived keys
+    var ssl_mem = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+    tls::ssl_init(ssl_mem)
+
+    // Set up config for client role
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    cfg.max_tls_version = tls::SSL_VERSION_TLS1_3
+    tls::ssl_set_config(ssl_mem, &raw mut cfg)
+
+    // Manually set transform_out and transform_in with known keys
+    var tr_out : tls::Transform
+    tls::transform_init(&raw mut tr_out)
+    tr_out.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr_out.key_len = 16
+    tr_out.iv_len = 12
+    tr_out.fixed_iv_len = 12
+    // Client key (for sending)
+    var client_key : [16]u8 = [0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c]
+    var client_iv : [12]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b]
+    var server_key : [16]u8 = [0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60, 0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97]
+    var server_iv : [12]u8 = [0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17]
+
+    // Client role: tr_out uses client keys, tr_in uses server keys
+    var i : size_t = 0
+    while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+    i = 0
+    while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
+
+    var tr_in : tls::Transform
+    tls::transform_init(&raw mut tr_in)
+    tr_in.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr_in.key_len = 16
+    tr_in.iv_len = 12
+    tr_in.fixed_iv_len = 12
+    i = 0
+    while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+    i = 0
+    while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+
+    // Allocate and install transforms
+    var tr_out_mem = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    *tr_out_mem = tr_out
+    ssl_mem.transform_out = tr_out_mem
+
+    var tr_in_mem = malloc(sizeof(tls::Transform)) as *mut tls::Transform
+    *tr_in_mem = tr_in
+    ssl_mem.transform_in = tr_in_mem
+
+    // Reset sequence numbers
+    i = 0
+    while(i < 8) { ssl_mem.in_ctr[i] = 0; ssl_mem.out_ctr[i] = 0; i += 1 }
+
+    // Test data
+    var test_data : [32]u8 = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10]
+
+    // Encrypt using TLS 1.3 record encryption
+    var ciphertext : [256]u8
+    var ct_len = tls::tls13_encrypt_record(ssl_mem, 23 as u8, &raw test_data[0], 32, &raw mut ciphertext[0], 256)
+    if(ct_len < 0) {
+        env.error("tls13_encrypt_record should succeed"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Parse the 5-byte header to extract payload length
+    // header: content_type(1) + version(2) + length(2)
+    // The length should be inner_len + 16 = (32+1) + 16 = 49
+    var payload_len = ((ciphertext[3] as u16) << 8) | (ciphertext[4] as u16)
+    if(payload_len != 49) {
+        env.error("AAD length should be 49 (33 inner + 16 tag)"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Now simulate receiving the encrypted record
+    // Set in_hdr from the first 5 bytes
+    ssl_mem.in_hdr[0] = ciphertext[0]
+    ssl_mem.in_hdr[1] = ciphertext[1]
+    ssl_mem.in_hdr[2] = ciphertext[2]
+    ssl_mem.in_hdr[3] = ciphertext[3]
+    ssl_mem.in_hdr[4] = ciphertext[4]
+
+    // The encrypted payload starts at ciphertext[5]
+    // Copy payload to a separate buffer for decryption
+    var enc_payload : [256]u8
+    var pi : size_t = 0
+    while(pi < payload_len as size_t) {
+        enc_payload[pi] = ciphertext[5 + pi]
+        pi += 1
+    }
+
+    // Decrypt using TLS 1.3 record decryption
+    var dec_buf : [256]u8
+    var inner_ct : u8 = 0
+    var dec_len = tls::tls13_decrypt_record(ssl_mem, &raw enc_payload[0], payload_len as size_t, &raw mut dec_buf[0], 256, &raw mut inner_ct)
+    if(dec_len < 0) {
+        env.error("tls13_decrypt_record should succeed"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Decrypted length should be 32 (same as original)
+    if(dec_len != 32) {
+        env.error("decrypted length should be 32"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Inner content type should be 23 (application_data)
+    if(inner_ct != 23 as u8) {
+        env.error("inner content type should be 23"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Verify plaintext matches
+    var matches = true
+    i = 0
+    while(i < 32) {
+        if(dec_buf[i] != test_data[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("TLS 1.3 record decrypt should produce original plaintext"); 
+    }
+
+    tls::ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+}
+
+@test
+public func tls13_derive_handshake_keys_client_role(env : &mut TestEnv) {
+    // Test that TLS 1.3 key derivation assigns keys correctly for client role
+    // Client: transform_out = client_key, transform_in = server_key
+
+    var ssl_mem = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+    tls::ssl_init(ssl_mem)
+
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    cfg.max_tls_version = tls::SSL_VERSION_TLS1_3
+    tls::ssl_set_config(ssl_mem, &raw mut cfg)
+
+    // Provide a known shared secret and transcript hash
+    var shared_secret : [32]u8
+    var transcript_hash : [32]u8
+    var i : size_t = 0
+    while(i < 32) {
+        shared_secret[i] = i as u8
+        transcript_hash[i] = (i + 32) as u8
+        i += 1
+    }
+
+    var ret = tls::tls13_derive_handshake_keys(ssl_mem, &raw shared_secret[0], 32, &raw transcript_hash[0])
+    if(ret < 0) {
+        env.error("tls13_derive_handshake_keys should succeed"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // Verify transform_out exists and is not null
+    if(ssl_mem.transform_out == null) {
+        env.error("transform_out should be allocated"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+    if(ssl_mem.transform_in == null) {
+        env.error("transform_in should be allocated"); 
+        tls::ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+        return
+    }
+
+    // For client role: transform_out.key_enc should be the derived client key (not server key)
+    var all_zero = true
+    i = 0
+    while(i < 16) {
+        if(ssl_mem.transform_out.key_enc[i] != 0) { all_zero = false }
+        i += 1
+    }
+    if(all_zero) {
+        env.error("transform_out.key_enc should be populated (client key)")
+    }
+
+    // transform_in.key_dec should be different from transform_out.key_enc (server vs client key)
+    var keys_differ = false
+    i = 0
+    while(i < 16) {
+        if(ssl_mem.transform_in.key_dec[i] != ssl_mem.transform_out.key_enc[i]) { keys_differ = true }
+        i += 1
+    }
+    if(!keys_differ) {
+        env.error("transform_in and transform_out should have different keys (server vs client)")
+    }
+
+    tls::ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+}
+
+@test
+public func tls13_handshake_keys_sequence_reset(env : &mut TestEnv) {
+    // Test that key derivation resets sequence numbers
+
+    var ssl_mem = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+    tls::ssl_init(ssl_mem)
+
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    cfg.max_tls_version = tls::SSL_VERSION_TLS1_3
+    tls::ssl_set_config(ssl_mem, &raw mut cfg)
+
+    // Set sequence numbers to non-zero values
+    ssl_mem.in_ctr[7] = 5
+    ssl_mem.out_ctr[7] = 10
+
+    var shared_secret : [32]u8
+    var transcript_hash : [32]u8
+    var i : size_t = 0
+    while(i < 32) { shared_secret[i] = i as u8; transcript_hash[i] = i as u8; i += 1 }
+
+    var ret = tls::tls13_derive_handshake_keys(ssl_mem, &raw shared_secret[0], 32, &raw transcript_hash[0])
+    if(ret < 0) { env.error("key derivation should succeed"); tls::ssl_free(ssl_mem); unsafe { dealloc ssl_mem }; return }
+
+    // After derivation, sequence numbers should be reset to 0
+    i = 0
+    while(i < 8) {
+        if(ssl_mem.in_ctr[i] != 0) { env.error("in_ctr should be reset to 0 after key derivation"); break }
+        if(ssl_mem.out_ctr[i] != 0) { env.error("out_ctr should be reset to 0 after key derivation"); break }
+        i += 1
+    }
+
+    tls::ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+}
+

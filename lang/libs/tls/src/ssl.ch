@@ -1471,6 +1471,9 @@ public namespace tls {
             buf[pos] = 0 as u8; pos += 1
         }
 
+        // Determine TLS 1.3 support for conditional extensions
+        var supports_tls13 : bool = (ssl.conf != null && ssl.conf.max_tls_version >= SSL_VERSION_TLS1_3)
+
         // Cipher suites
         var suite_count : u32 = 0
         var suite_start = pos
@@ -1481,11 +1484,21 @@ public namespace tls {
         while(i < ssl.conf.ciphersuite_count) {
             var cs_id = ssl.conf.ciphersuite_list[i]
             if(cs_id != 0) {
-                buf[pos] = ((cs_id >> 8) & 0xFF) as u8
-                pos += 1
-                buf[pos] = (cs_id & 0xFF) as u8
-                pos += 1
-                suite_count += 1
+                // In TLS 1.2 mode, skip TLS 1.3-only cipher suites
+                var skip_cs : bool = false
+                if(!supports_tls13) {
+                    var cs_info = get_ciphersuite_info(cs_id)
+                    if(cs_info.max_tls_version >= SSL_VERSION_TLS1_3 as u8) {
+                        skip_cs = true
+                    }
+                }
+                if(!skip_cs) {
+                    buf[pos] = ((cs_id >> 8) & 0xFF) as u8
+                    pos += 1
+                    buf[pos] = (cs_id & 0xFF) as u8
+                    pos += 1
+                    suite_count += 1
+                }
             }
             i += 1
         }
@@ -1504,6 +1517,7 @@ public namespace tls {
         buf[pos] = 0 as u8; pos += 1
 
         // Extension: supported_versions
+        // Conditionally include TLS 1.3 only if the config allows it
         buf[pos] = ((TLS_EXT_SUPPORTED_VERSIONS >> 8) & 0xFF) as u8; pos += 1
         buf[pos] = (TLS_EXT_SUPPORTED_VERSIONS & 0xFF) as u8; pos += 1
 
@@ -1511,19 +1525,26 @@ public namespace tls {
         buf[pos] = 0 as u8; pos += 1
         buf[pos] = 0 as u8; pos += 1
 
-        buf[pos] = 4 as u8; pos += 1  // List length (2 versions * 2 bytes)
-        buf[pos] = 0x03 as u8; pos += 1; buf[pos] = 0x04 as u8; pos += 1  // TLS 1.3
-        buf[pos] = 0x03 as u8; pos += 1; buf[pos] = 0x03 as u8; pos += 1  // TLS 1.2
+        if(supports_tls13) {
+            buf[pos] = 4 as u8; pos += 1  // List length (2 versions * 2 bytes)
+            buf[pos] = 0x03 as u8; pos += 1; buf[pos] = 0x04 as u8; pos += 1  // TLS 1.3
+            buf[pos] = 0x03 as u8; pos += 1; buf[pos] = 0x03 as u8; pos += 1  // TLS 1.2
+            var sv_data_len = 5
+            buf[sv_len_pos] = ((sv_data_len >> 8) & 0xFF) as u8
+            buf[sv_len_pos + 1] = (sv_data_len & 0xFF) as u8
+        } else {
+            buf[pos] = 2 as u8; pos += 1  // List length (1 version * 2 bytes)
+            buf[pos] = 0x03 as u8; pos += 1; buf[pos] = 0x03 as u8; pos += 1  // TLS 1.2
+            var sv_data_len = 3
+            buf[sv_len_pos] = ((sv_data_len >> 8) & 0xFF) as u8
+            buf[sv_len_pos + 1] = (sv_data_len & 0xFF) as u8
+        }
 
-        var sv_data_len = 5
-        buf[sv_len_pos] = ((sv_data_len >> 8) & 0xFF) as u8
-        buf[sv_len_pos + 1] = (sv_data_len & 0xFF) as u8
-
-        // Extension: supported_groups
+        // Extension: supported_groups (always advertise for TLS 1.2 ECDHE too)
         buf[pos] = ((TLS_EXT_SUPPORTED_GROUPS >> 8) & 0xFF) as u8; pos += 1
         buf[pos] = (TLS_EXT_SUPPORTED_GROUPS & 0xFF) as u8; pos += 1
 
-        var sg_len_pos = pos
+            var sg_len_pos = pos
         buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
 
         buf[pos] = 0 as u8; pos += 1; buf[pos] = 8 as u8; pos += 1
@@ -2432,27 +2453,35 @@ public namespace tls {
             ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
 
             // Parse first certificate in the chain
-            if(hs_len >= 6) {
-                var first_cert_len_u24 = read_u24(&raw hs_buf[3])
-                var first_cert_len = first_cert_len_u24 as size_t
-                if(3 + first_cert_len <= hs_len as size_t) {
-                    var cert : X509Cert
-                    x509_cert_init(&raw mut cert)
-                    var ret2 = parse_cert_der(&raw mut cert, &raw hs_buf[6], first_cert_len)
-                    if(ret2 == 0) {
-                        // Try to extract RSA public key
-                        rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-                        var ret3 = x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
-                        if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
-                            has_rsa_key = true
-                            ssl.peer_cert = &raw mut cert
-                            // Run certificate chain verification if CA chain is configured
-                            if(ssl.conf != null && ssl.conf.ca_chain != null) {
-                                var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
-                                                                    ssl.hostname)
-                                if(chain_ret != 0) {
-                                    // Cert verification failed — reject the connection
-                                    return ERR_SSL_CERT_VERIFY_FAILED
+            // Handshake message layout:
+            //   hs_buf[0]: handshake type
+            //   hs_buf[1..3]: body length (hs_len)
+            //   hs_buf[4..6]: certificate_list length (3 bytes)
+            //   hs_buf[7..9]: first cert data length (3 bytes)
+            //   hs_buf[10..]: first cert DER data
+            if(hs_len >= 8) {
+                var cert_list_len = read_u24(&raw hs_buf[4]) as size_t
+                if(3 + cert_list_len <= hs_len as size_t && cert_list_len >= 7) {
+                    var first_cert_len = read_u24(&raw hs_buf[7]) as size_t
+                    if(3 + first_cert_len <= cert_list_len && first_cert_len >= 4) {
+                        var cert : X509Cert
+                        x509_cert_init(&raw mut cert)
+                        var ret2 = parse_cert_der(&raw mut cert, &raw hs_buf[10], first_cert_len)
+                        if(ret2 == 0) {
+                            // Try to extract RSA public key
+                            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+                            var ret3 = x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+                            if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
+                                has_rsa_key = true
+                                ssl.peer_cert = &raw mut cert
+                                // Run certificate chain verification if CA chain is configured
+                                if(ssl.conf != null && ssl.conf.ca_chain != null) {
+                                    var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
+                                                                        ssl.hostname)
+                                    if(chain_ret != 0) {
+                                        // Cert verification failed — reject the connection
+                                        return ERR_SSL_CERT_VERIFY_FAILED
+                                    }
                                 }
                             }
                         }
@@ -2465,26 +2494,34 @@ public namespace tls {
         }
 
         // 4. Read ServerKeyExchange (if present) or ServerHelloDone
+        var got_shd : bool = false
         if(ssl.state is SSLState.SERVER_KEY_EXCHANGE) {
             ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
             if(ret < 0) { return ret }
             ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            if(hs_type == SSL_HS_SERVER_HELLO_DONE as u8) {
+                // RSA key exchange: ServerHelloDone received directly after Certificate
+                got_shd = true
+            }
             ssl.state = SSLState.SERVER_HELLO_DONE()
         }
 
-        // 5. Read ServerHelloDone if not already
-        if(ssl.state is SSLState.SERVER_HELLO_DONE) {
-            ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
-                                      &raw mut hs_buf[0], 8192)
-            if(ret < 0) { return ret }
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
-        } else {
-            // Certificate was not present, read ServerHelloDone
-            ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
-                                      &raw mut hs_buf[0], 8192)
-            if(ret < 0) { return ret }
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+        // 5. Read ServerHelloDone if not already received
+        if(!got_shd) {
+            if(ssl.state is SSLState.SERVER_HELLO_DONE) {
+                // For ECDHE: server sends ServerKeyExchange then ServerHelloDone
+                ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                                          &raw mut hs_buf[0], 8192)
+                if(ret < 0) { return ret }
+                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            } else {
+                // Certificate was not present, read ServerHelloDone
+                ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                                          &raw mut hs_buf[0], 8192)
+                if(ret < 0) { return ret }
+                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            }
         }
 
         // ── Generate pre-master secret (TLS_RSA key exchange) ──

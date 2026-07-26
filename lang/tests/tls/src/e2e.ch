@@ -58,7 +58,7 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
 public func INT_tls12_client(env : &mut TestEnv) {
     system("openssl req -x509 -newkey rsa:2048 -keyout /tmp/tls12_key.pem -out /tmp/tls12_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
 
-    system("setsid openssl s_server -cert /tmp/tls12_cert.pem -key /tmp/tls12_key.pem -tls1_2 -no_anti_replay -accept 19877 -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_server -cert /tmp/tls12_cert.pem -key /tmp/tls12_key.pem -tls1_2 -no_anti_replay -accept 19877 -cipher kRSA -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)

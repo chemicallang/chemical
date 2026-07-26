@@ -3260,7 +3260,8 @@ public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var server_key : [16]u8 = [0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60, 0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97]
     var server_iv : [12]u8 = [0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17]
 
-    // Client role: tr_out uses client keys, tr_in uses server keys
+    // For roundtrip test: use SAME key/IV for both encrypt and decrypt
+    // Encrypt with tr_out (client_key/client_iv), decrypt with tr_in set to same
     var i : size_t = 0
     while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
     i = 0
@@ -3272,10 +3273,11 @@ public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     tr_in.key_len = 16
     tr_in.iv_len = 12
     tr_in.fixed_iv_len = 12
+    // Use SAME key/IV for decrypt (simulating server decrypting our client message)
     i = 0
-    while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+    while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
     i = 0
-    while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+    while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
 
     // Allocate and install transforms
     var tr_out_mem = malloc(sizeof(tls::Transform)) as *mut tls::Transform
@@ -3476,5 +3478,99 @@ public func tls13_handshake_keys_sequence_reset(env : &mut TestEnv) {
 
     tls::ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
+}
+
+// ─── x25519 RFC 7748 Test Vectors ────────────────────────────────────────────
+
+@test
+public func tls_x25519_rfc7748_vector1_works(env : &mut TestEnv) {
+    // RFC 7748 Section 6.1, Vector #1
+    // After clamping: scalar = a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4
+    var scalar : [32]u8 = [
+        0xa5, 0x46, 0xe3, 0x6b, 0xf0, 0x52, 0x7c, 0x9d,
+        0x3b, 0x16, 0x15, 0x4b, 0x82, 0x46, 0x5e, 0xdd,
+        0x62, 0x14, 0x4c, 0x0a, 0xc1, 0xfc, 0x5a, 0x18,
+        0x50, 0x6a, 0x22, 0x44, 0xba, 0x44, 0x9a, 0xc4
+    ]
+    var u : [32]u8 = [
+        0xe6, 0xdb, 0x68, 0x67, 0x58, 0x30, 0x30, 0xdb,
+        0x35, 0x94, 0xc1, 0xa4, 0x24, 0xb1, 0x5f, 0x7c,
+        0x72, 0x6f, 0xe4, 0xa6, 0xf6, 0xb4, 0xd6, 0xe7,
+        0xf2, 0xf2, 0xd8, 0xe1, 0xb0, 0xc8, 0xa1, 0xb0
+    ]
+    var expected : [32]u8 = [
+        0x76, 0x84, 0x1d, 0x03, 0x23, 0x21, 0x5a, 0xd9,
+        0x6c, 0x67, 0x3e, 0x9d, 0xe4, 0xa5, 0x04, 0x9e,
+        0x5b, 0x9f, 0x8d, 0xbf, 0x8e, 0xa7, 0x1a, 0xf8,
+        0x00, 0x20, 0x76, 0xf3, 0x9b, 0x69, 0xdd, 0x18
+    ]
+
+    // Clamp scalar per RFC 7748 Section 5
+    var clamped : [32]u8
+    var ci : size_t = 0
+    while(ci < 32) { clamped[ci] = scalar[ci]; ci += 1 }
+    tls::x25519_clamp_scalar(&raw mut clamped[0])
+
+    // Compute using the ladder
+    var output : [32]u8
+    tls::x25519_ladder(&raw mut output[0], &raw clamped[0], &raw u[0])
+
+    printf("[X25519_V1] actual:   "); var _pi : size_t = 0
+    while(_pi < 32) { printf("%02x", output[_pi] as int); _pi += 1 }
+    printf("\n")
+    printf("[X25519_V1] expected: "); _pi = 0
+    while(_pi < 32) { printf("%02x", expected[_pi] as int); _pi += 1 }
+    printf("\n")
+
+    var matches = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(output[i] != expected[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("x25519 RFC 7748 Vector #1 does not match expected")
+    }
+}
+
+@test
+public func tls_x25519_rfc7748_vector2_works(env : &mut TestEnv) {
+    // RFC 7748 Section 6.1, Vector #2
+    var scalar : [32]u8 = [
+        0x4b, 0x66, 0xe9, 0xd4, 0xd1, 0xb4, 0x67, 0x3c,
+        0x5a, 0xc6, 0xfd, 0x4b, 0x3c, 0x2c, 0xc8, 0xcd,
+        0x71, 0x3f, 0x26, 0x7f, 0xe7, 0xcf, 0x42, 0xe1,
+        0x0a, 0x5b, 0x09, 0x75, 0xd1, 0x59, 0x1c, 0x52
+    ]
+    var u : [32]u8 = [
+        0xe5, 0x21, 0x0f, 0x12, 0x64, 0xfb, 0x10, 0xd9,
+        0xfe, 0xb3, 0x3c, 0x6b, 0xd3, 0x48, 0x36, 0xf7,
+        0x3a, 0x36, 0x8a, 0x2f, 0x89, 0x9c, 0x35, 0x10,
+        0x27, 0x22, 0xdb, 0x6e, 0x9d, 0xbf, 0x9d, 0x2f
+    ]
+    var expected : [32]u8 = [
+        0x40, 0x16, 0xef, 0x19, 0x56, 0x5f, 0x8e, 0x7a,
+        0xf4, 0xcf, 0xac, 0x54, 0x92, 0xeb, 0x27, 0x5e,
+        0x0d, 0x7b, 0x50, 0x3f, 0xeb, 0xab, 0x82, 0xb9,
+        0x91, 0xca, 0x35, 0xe8, 0xfe, 0xaa, 0x55, 0x6a
+    ]
+
+    var clamped : [32]u8
+    var ci : size_t = 0
+    while(ci < 32) { clamped[ci] = scalar[ci]; ci += 1 }
+    tls::x25519_clamp_scalar(&raw mut clamped[0])
+
+    var output : [32]u8
+    tls::x25519_ladder(&raw mut output[0], &raw clamped[0], &raw u[0])
+
+    var matches = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(output[i] != expected[i]) { matches = false }
+        i += 1
+    }
+    if(!matches) {
+        env.error("x25519 RFC 7748 Vector #2 does not match expected")
+    }
 }
 

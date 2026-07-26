@@ -18,6 +18,9 @@ public namespace tls {
 
     // ─── TLS 1.2 Cipher Suites ──────────────────────────────────────────────
 
+    public comptime const TLS_RSA_WITH_AES_128_GCM_SHA256 = 0x009C
+    public comptime const TLS_RSA_WITH_AES_256_GCM_SHA384 = 0x009D
+
     public comptime const TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = 0xC02B
     public comptime const TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 0xC02C
     public comptime const TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 0xC02F
@@ -73,6 +76,7 @@ public namespace tls {
     public comptime const KE_PSK = 3
     public comptime const KE_ECDHE_PSK = 4
     public comptime const KE_ECJPAKE = 5
+    public comptime const KE_RSA = 6
 
     public comptime const CIPHERSUITE_SHORT_TAG : u8 = 1
 
@@ -201,6 +205,28 @@ public namespace tls {
                 key_size: 32, iv_size: 12, tag_size: 16, mac_key_len: 0
             }
         }
+        if(ciphersuite_id == cs(TLS_RSA_WITH_AES_128_GCM_SHA256)) {
+            return CipherSuiteInfo {
+                id: cs(TLS_RSA_WITH_AES_128_GCM_SHA256),
+                name: null,
+                cipher: CIPHER_AES_128_GCM as u8,
+                hash: HASH_SHA256 as u8,
+                key_exchange: KE_RSA as u8,
+                flags: 0, min_tls_version: 3, max_tls_version: 3,
+                key_size: 16, iv_size: 12, tag_size: 16, mac_key_len: 0
+            }
+        }
+        if(ciphersuite_id == cs(TLS_RSA_WITH_AES_256_GCM_SHA384)) {
+            return CipherSuiteInfo {
+                id: cs(TLS_RSA_WITH_AES_256_GCM_SHA384),
+                name: null,
+                cipher: CIPHER_AES_256_GCM as u8,
+                hash: HASH_SHA384 as u8,
+                key_exchange: KE_RSA as u8,
+                flags: 0, min_tls_version: 3, max_tls_version: 3,
+                key_size: 32, iv_size: 12, tag_size: 16, mac_key_len: 0
+            }
+        }
         return CipherSuiteInfo {
             id: 0, name: null, cipher: CIPHER_NONE as u8, hash: 0,
             key_exchange: 0, flags: 0, min_tls_version: 0, max_tls_version: 0,
@@ -209,18 +235,20 @@ public namespace tls {
     }
 
     public func num_preferred_ciphersuites() : u32 {
-        return 8
+        return 10
     }
 
     public func get_preferred_ciphersuite(index : u32) : u16 {
         if(index == 0) { return cs(TLS1_3_AES_128_GCM_SHA256) }
-        if(index == 1) { return cs(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) }
-        if(index == 2) { return cs(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) }
-        if(index == 3) { return cs(TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) }
-        if(index == 4) { return cs(TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384) }
-        if(index == 5) { return cs(TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) }
-        if(index == 6) { return cs(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256) }
-        if(index == 7) { return cs(TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384) }
+        if(index == 1) { return cs(TLS_RSA_WITH_AES_128_GCM_SHA256) }
+        if(index == 2) { return cs(TLS_RSA_WITH_AES_256_GCM_SHA384) }
+        if(index == 3) { return cs(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) }
+        if(index == 4) { return cs(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) }
+        if(index == 5) { return cs(TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) }
+        if(index == 6) { return cs(TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384) }
+        if(index == 7) { return cs(TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) }
+        if(index == 8) { return cs(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256) }
+        if(index == 9) { return cs(TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384) }
         return 0
     }
 
@@ -240,6 +268,8 @@ public namespace tls {
         if(ciphersuite_id == cs(TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256)) { return true }
         if(ciphersuite_id == cs(TLS_ECDHE_ECDSA_WITH_AES_128_CCM)) { return true }
         if(ciphersuite_id == cs(TLS_ECDHE_ECDSA_WITH_AES_256_CCM)) { return true }
+        if(ciphersuite_id == cs(TLS_RSA_WITH_AES_128_GCM_SHA256)) { return true }
+        if(ciphersuite_id == cs(TLS_RSA_WITH_AES_256_GCM_SHA384)) { return true }
         return false
     }
 

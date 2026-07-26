@@ -213,6 +213,8 @@ public namespace tls {
         while(i < 32) { if(shared[i] != 0) { all_zero = false } i += 1 }
         if(all_zero) { return ERR_ECP_INVALID_KEY }
 
+
+
         return 0
     }
 

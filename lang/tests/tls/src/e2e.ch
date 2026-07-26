@@ -8,8 +8,8 @@ public func INT_smoke_test(env : &mut TestEnv) {
 
 @test
 public func INT_tls13_client_openssl(env : &mut TestEnv) {
+    system("pkill -9 -f 'openssl s_server.*19876' 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_key.pem -out /tmp/tls_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-
     system("setsid openssl s_server -cert /tmp/tls_cert.pem -key /tmp/tls_key.pem -tls1_3 -no_anti_replay -accept 19876 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
@@ -21,7 +21,29 @@ public func INT_tls13_client_openssl(env : &mut TestEnv) {
 
     var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19876u)
     if(ret < 0) {
-        env.error("TLS 1.3 handshake failed against OpenSSL server")
+        if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("TLS13: ERR_SSL_HANDSHAKE_FAILURE") }
+        else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("TLS13: ERR_SSL_UNEXPECTED_MESSAGE") }
+        else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
+            if(ctx.last_alert_desc == 40) { env.error("TLS13: alert = handshake_failure(40)") }
+            else if(ctx.last_alert_desc == 70) { env.error("TLS13: alert = protocol_version(70)") }
+            else if(ctx.last_alert_desc == 47) { env.error("TLS13: alert = illegal_parameter(47)") }
+            else if(ctx.last_alert_desc == 50) { env.error("TLS13: alert = decode_error(50)") }
+            else if(ctx.last_alert_desc == 51) { env.error("TLS13: alert = decrypt_error(51)") }
+            else if(ctx.last_alert_desc == 10) { env.error("TLS13: alert = unexpected_message(10)") }
+            else if(ctx.last_alert_desc == 86) { env.error("TLS13: alert = inappropriate_fallback(86)") }
+            else if(ctx.last_alert_desc == 110) { env.error("TLS13: alert = unsupported_ext(110)") }
+            else if(ctx.last_alert_desc == 112) { env.error("TLS13: alert = unrecognized_name(112)") }
+            else { env.error("TLS13: ERR_SSL_FATAL_ALERT_MESSAGE") }
+        }
+        else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS13: ERR_SSL_DECODE_ERROR") }
+        else if(ret == ERR_SSL_INTERNAL_ERROR) { env.error("TLS13: ERR_SSL_INTERNAL_ERROR") }
+        else if(ret == ERR_SSL_CONN_EOF) { env.error("TLS13: ERR_SSL_CONN_EOF") }
+        else if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("TLS13: ERR_SSL_CERT_VERIFY_FAILED") }
+        else if(ret == ERR_SSL_BAD_CONFIG) { env.error("TLS13: ERR_SSL_BAD_CONFIG") }
+        else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("TLS13: ERR_SSL_BAD_PROTOCOL_VERSION") }
+        else if(ret == ERR_SSL_INVALID_RECORD) { env.error("TLS13: ERR_SSL_INVALID_RECORD") }
+        else if(ret == ERR_SSL_NO_RNG) { env.error("TLS13: ERR_SSL_NO_RNG") }
+        else { env.error("TLS13: unknown error") }
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
@@ -35,8 +57,8 @@ public func INT_tls13_client_openssl(env : &mut TestEnv) {
 
 @test
 public func INT_x25519_handshake(env : &mut TestEnv) {
+    system("pkill -9 -f 'openssl s_server.*19878' 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_x25519_key.pem -out /tmp/tls_x25519_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-
     system("setsid openssl s_server -cert /tmp/tls_x25519_cert.pem -key /tmp/tls_x25519_key.pem -groups X25519 -tls1_3 -no_anti_replay -accept 19878 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
@@ -48,7 +70,26 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
 
     var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19878u)
     if(ret < 0) {
-        env.error("x25519 handshake failed against OpenSSL")
+        if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("X25519: ERR_SSL_HANDSHAKE_FAILURE") }
+        else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("X25519: ERR_SSL_UNEXPECTED_MESSAGE") }
+        else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
+            if(ctx.last_alert_desc == 40) { env.error("X25519: alert = handshake_failure(40)") }
+            else if(ctx.last_alert_desc == 70) { env.error("X25519: alert = protocol_version(70)") }
+            else if(ctx.last_alert_desc == 47) { env.error("X25519: alert = illegal_parameter(47)") }
+            else if(ctx.last_alert_desc == 50) { env.error("X25519: alert = decode_error(50)") }
+            else if(ctx.last_alert_desc == 51) { env.error("X25519: alert = decrypt_error(51)") }
+            else if(ctx.last_alert_desc == 110) { env.error("X25519: alert = unsupported_ext(110)") }
+            else { env.error("X25519: ERR_SSL_FATAL_ALERT_MESSAGE") }
+        }
+        else if(ret == ERR_SSL_DECODE_ERROR) { env.error("X25519: ERR_SSL_DECODE_ERROR") }
+        else if(ret == ERR_SSL_INTERNAL_ERROR) { env.error("X25519: ERR_SSL_INTERNAL_ERROR") }
+        else if(ret == ERR_SSL_CONN_EOF) { env.error("X25519: ERR_SSL_CONN_EOF") }
+        else if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("X25519: ERR_SSL_CERT_VERIFY_FAILED") }
+        else if(ret == ERR_SSL_BAD_CONFIG) { env.error("X25519: ERR_SSL_BAD_CONFIG") }
+        else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("X25519: ERR_SSL_BAD_PROTOCOL_VERSION") }
+        else if(ret == ERR_SSL_INVALID_RECORD) { env.error("X25519: ERR_SSL_INVALID_RECORD") }
+        else if(ret == ERR_SSL_NO_RNG) { env.error("X25519: ERR_SSL_NO_RNG") }
+        else { env.error("X25519: unknown error") }
     }
     ssl_free(&raw mut ctx)
     system("pkill -f 'openssl s_server.*19878' 2>/dev/null")
@@ -56,8 +97,8 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
 
 @test
 public func INT_tls12_client(env : &mut TestEnv) {
+    system("pkill -9 -f 'openssl s_server.*19877' 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey rsa:2048 -keyout /tmp/tls12_key.pem -out /tmp/tls12_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-
     system("setsid openssl s_server -cert /tmp/tls12_cert.pem -key /tmp/tls12_key.pem -tls1_2 -no_anti_replay -accept 19877 -cipher kRSA -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
@@ -69,7 +110,26 @@ public func INT_tls12_client(env : &mut TestEnv) {
 
     var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19877u)
     if(ret < 0) {
-        env.error("TLS 1.2 handshake failed against OpenSSL")
+        if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("TLS12: ERR_SSL_HANDSHAKE_FAILURE") }
+        else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("TLS12: ERR_SSL_UNEXPECTED_MESSAGE") }
+        else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
+            if(ctx.last_alert_desc == 40) { env.error("TLS12: alert = handshake_failure(40)") }
+            else if(ctx.last_alert_desc == 70) { env.error("TLS12: alert = protocol_version(70)") }
+            else if(ctx.last_alert_desc == 47) { env.error("TLS12: alert = illegal_parameter(47)") }
+            else if(ctx.last_alert_desc == 50) { env.error("TLS12: alert = decode_error(50)") }
+            else if(ctx.last_alert_desc == 51) { env.error("TLS12: alert = decrypt_error(51)") }
+            else if(ctx.last_alert_desc == 110) { env.error("TLS12: alert = unsupported_ext(110)") }
+            else { env.error("TLS12: ERR_SSL_FATAL_ALERT_MESSAGE") }
+        }
+        else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS12: ERR_SSL_DECODE_ERROR") }
+        else if(ret == ERR_SSL_INTERNAL_ERROR) { env.error("TLS12: ERR_SSL_INTERNAL_ERROR") }
+        else if(ret == ERR_SSL_CONN_EOF) { env.error("TLS12: ERR_SSL_CONN_EOF") }
+        else if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("TLS12: ERR_SSL_CERT_VERIFY_FAILED") }
+        else if(ret == ERR_SSL_BAD_CONFIG) { env.error("TLS12: ERR_SSL_BAD_CONFIG") }
+        else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("TLS12: ERR_SSL_BAD_PROTOCOL_VERSION") }
+        else if(ret == ERR_SSL_INVALID_RECORD) { env.error("TLS12: ERR_SSL_INVALID_RECORD") }
+        else if(ret == ERR_SSL_NO_RNG) { env.error("TLS12: ERR_SSL_NO_RNG") }
+        else { env.error("TLS12: unknown error") }
     }
     ssl_free(&raw mut ctx)
     system("pkill -f 'openssl s_server.*19877' 2>/dev/null")
@@ -85,6 +145,7 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
 
 @test
 public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
+    system("fuser -k 19880/tcp 2>/dev/null; sleep 0.3")
     // Generate server certificate
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/srv_key.pem -out /tmp/srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
 
@@ -130,11 +191,12 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
     net::close_socket(server_sock)
-    system("pkill -f 'openssl s_client.*19880' 2>/dev/null")
+    system("fuser -k 19880/tcp 2>/dev/null")
 }
 
 @test
 public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
+    system("fuser -k 19882/tcp 2>/dev/null; sleep 0.3")
     // ECDSA cert + x25519 key exchange — modern TLS
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_srv_key.pem -out /tmp/ecdsa_srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
 
@@ -166,11 +228,12 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
     net::close_socket(server_sock)
-    system("pkill -f 'openssl s_client.*19882' 2>/dev/null")
+    system("fuser -k 19882/tcp 2>/dev/null")
 }
 
 @test
 public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
+    system("pkill -9 -f 'openssl s_server.*19883' 2>/dev/null; sleep 0.3")
     // Client connects to ECDSA-cert server — tests our ECDSA cert verification
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_key.pem -out /tmp/ecdsa_cert.pem -subj /CN=127.0.0.1 -days 1 -nodes 2>/dev/null")
 
@@ -185,7 +248,26 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
 
     var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19883u)
     if(ret < 0) {
-        env.error("ECDSA client handshake failed")
+        if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("ECDSA: ERR_SSL_HANDSHAKE_FAILURE") }
+        else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("ECDSA: ERR_SSL_UNEXPECTED_MESSAGE") }
+        else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
+            if(ctx.last_alert_desc == 40) { env.error("ECDSA: alert = handshake_failure(40)") }
+            else if(ctx.last_alert_desc == 70) { env.error("ECDSA: alert = protocol_version(70)") }
+            else if(ctx.last_alert_desc == 47) { env.error("ECDSA: alert = illegal_parameter(47)") }
+            else if(ctx.last_alert_desc == 50) { env.error("ECDSA: alert = decode_error(50)") }
+            else if(ctx.last_alert_desc == 51) { env.error("ECDSA: alert = decrypt_error(51)") }
+            else if(ctx.last_alert_desc == 110) { env.error("ECDSA: alert = unsupported_ext(110)") }
+            else { env.error("ECDSA: ERR_SSL_FATAL_ALERT_MESSAGE") }
+        }
+        else if(ret == ERR_SSL_DECODE_ERROR) { env.error("ECDSA: ERR_SSL_DECODE_ERROR") }
+        else if(ret == ERR_SSL_INTERNAL_ERROR) { env.error("ECDSA: ERR_SSL_INTERNAL_ERROR") }
+        else if(ret == ERR_SSL_CONN_EOF) { env.error("ECDSA: ERR_SSL_CONN_EOF") }
+        else if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("ECDSA: ERR_SSL_CERT_VERIFY_FAILED") }
+        else if(ret == ERR_SSL_BAD_CONFIG) { env.error("ECDSA: ERR_SSL_BAD_CONFIG") }
+        else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("ECDSA: ERR_SSL_BAD_PROTOCOL_VERSION") }
+        else if(ret == ERR_SSL_INVALID_RECORD) { env.error("ECDSA: ERR_SSL_INVALID_RECORD") }
+        else if(ret == ERR_SSL_NO_RNG) { env.error("ECDSA: ERR_SSL_NO_RNG") }
+        else { env.error("ECDSA: unknown error") }
     }
     ssl_free(&raw mut ctx)
     system("pkill -f 'openssl s_server.*19883' 2>/dev/null")

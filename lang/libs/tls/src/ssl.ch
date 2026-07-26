@@ -864,10 +864,20 @@ public namespace tls {
             var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], key_len)
             if(ret < 0) { return ret }
 
-            // Encrypt with nonce as 12-byte IV, no AAD
+            // Encrypt with proper TLS 1.2 AAD
+            // Build AAD = seq_num(8) || type(1) || version(2) || length(2)
+            var aad : [13]u8
+            var ai : size_t = 0
+            while(ai < 8) { aad[ai] = seq_num[ai]; ai += 1 }
+            aad[8] = content_type
+            aad[9] = version_major
+            aad[10] = version_minor
+            aad[11] = ((input_len >> 8) & 0xFF) as u8
+            aad[12] = (input_len & 0xFF) as u8
+
             ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
                                      &raw nonce[0], 12,
-                                     null, 0,
+                                     &raw aad[0], 13,
                                      input, input_len,
                                      ct_out, tag_out)
             if(ret < 0) { return ret }
@@ -998,17 +1008,28 @@ public namespace tls {
                 i += 1
             }
 
+            // Build TLS 1.2 AEAD additional_data = seq_num(8) || type(1) || version(2) || length(2)
+            var aad : [13]u8
+            var ai : size_t = 0
+            while(ai < 8) { aad[ai] = seq_num[ai]; ai += 1 }
+            aad[8] = content_type
+            aad[9] = version_major
+            aad[10] = version_minor
+            // ct_len in big-endian
+            aad[11] = ((ct_len >> 8) & 0xFF) as u8
+            aad[12] = (ct_len & 0xFF) as u8
+
             // Initialize GCM context
             var gcm_ctx : GCMContext
             var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], key_len)
             if(ret < 0) { return ret }
 
-            // Authenticated decrypt
+            // Authenticated decrypt with proper TLS 1.2 AAD
             var ct_start = input + explicit_nonce_len
             var tag_start = input + explicit_nonce_len + ct_len
             ret = gcm_auth_decrypt(&raw mut gcm_ctx,
                                     &raw nonce[0], 12,
-                                    null, 0,
+                                    &raw aad[0], 13,
                                     ct_start, ct_len,
                                     tag_start, tag_len,
                                     output)
@@ -1485,6 +1506,8 @@ public namespace tls {
                             shift_i += 1
                         }
                         ssl.in_left -= (original_end - new_end)
+                    } else {
+                        ssl.in_left = new_end
                     }
                     did_decrypt = true
                 }
@@ -1516,6 +1539,8 @@ public namespace tls {
                             shift_i += 1
                         }
                         ssl.in_left -= (original_end - new_end)
+                    } else {
+                        ssl.in_left = new_end
                     }
                     ssl_incr_seq_num(&raw mut ssl.in_ctr[0])
                 }
@@ -4022,6 +4047,11 @@ public namespace tls {
 
         ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
                                            &raw ch_sh_hash[0])
+        if(ret < 0) { return ret }
+
+        // ── Send CCS (ChangeCipherSpec compatibility indicator) ──────
+        var ccs_data : [1]u8 = [1]
+        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_data[0], 1 as u16)
         if(ret < 0) { return ret }
 
         // ── Send encrypted server messages ───────────────────────────

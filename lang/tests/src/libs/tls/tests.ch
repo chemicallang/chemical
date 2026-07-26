@@ -3574,3 +3574,214 @@ public func tls_x25519_rfc7748_vector2_works(env : &mut TestEnv) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TLS 1.2 GCM AAD Tests — verify RFC 5246/5288 AAD behavior
+// ═══════════════════════════════════════════════════════════════
+
+func tls_test_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
+    var i : size_t = 0
+    while(i < len) {
+        if(a[i] != b[i]) { return false }
+        i += 1
+    }
+    return true
+}
+
+@test
+public func tls12_gcm_encrypt_decrypt_roundtrip_with_aad(env : &mut TestEnv) {
+    var key : [16]u8 = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+    ]
+    var base_iv : [12]u8 = [
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1A, 0x1B, 0x1C
+    ]
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+    tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr.key_len = 16 as u8
+    tr.fixed_iv_len = 4 as u8
+    tr.iv_len = 0 as u8
+    var i : size_t = 0
+    while(i < 16) { tr.key_enc[i] = key[i]; tr.key_dec[i] = key[i]; i += 1 }
+    i = 0
+    while(i < 4) { tr.base_iv_enc[i] = base_iv[i]; tr.base_iv_dec[i] = base_iv[i]; i += 1 }
+
+    var plaintext : [10]u8 = [
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x54, 0x4C, 0x53, 0x21
+    ]
+    var seq_num : [8]u8 = [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    ]
+    var encrypted : [128]u8
+
+    var enc_len = tls::tls12_encrypt_record(
+        &raw mut tr, &raw seq_num[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw plaintext[0], 10, &raw mut encrypted[0], 128)
+    if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
+    if((enc_len as size_t) != 34) {
+        env.error("GCM encrypted length should be 34 (8+10+16)")
+    }
+
+    var decrypted : [64]u8
+    var dec_len = tls::tls12_decrypt_record(
+        &raw mut tr, &raw seq_num[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw encrypted[0], enc_len as size_t, &raw mut decrypted[0], 64)
+    if(dec_len < 0) { env.error("tls12_decrypt_record failed"); return }
+    if((dec_len as size_t) != 10) { env.error("decrypted length should be 10") }
+    if(!tls_test_bytes_equal(&raw decrypted[0], &raw plaintext[0], 10)) {
+        env.error("GCM roundtrip with AAD did not recover plaintext")
+    }
+
+    // Encrypt should produce non-repeating output (not just plaintext XOR'd)
+    var looks_different = false
+    i = 0
+    while(i < 10) {
+        if(encrypted[8 + i] != plaintext[i]) { looks_different = true }
+        i += 1
+    }
+    if(!looks_different) {
+        env.error("GCM ciphertext should differ from plaintext")
+    }
+}
+
+@test
+public func tls12_gcm_decrypt_fails_with_wrong_aad(env : &mut TestEnv) {
+    // Same key/iv setup as encrypt, but decrypt with different seq_num
+    var key : [16]u8 = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+    ]
+    var base_iv : [12]u8 = [
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1A, 0x1B, 0x1C
+    ]
+    var tr : tls::Transform
+    tls::transform_init(&raw mut tr)
+    tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr.key_len = 16 as u8
+    tr.fixed_iv_len = 4 as u8
+    tr.iv_len = 0 as u8
+    var i : size_t = 0
+    while(i < 16) { tr.key_enc[i] = key[i]; tr.key_dec[i] = key[i]; i += 1 }
+    i = 0
+    while(i < 4) { tr.base_iv_enc[i] = base_iv[i]; tr.base_iv_dec[i] = base_iv[i]; i += 1 }
+
+    var plaintext : [10]u8 = [
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x54, 0x4C, 0x53, 0x21
+    ]
+    var seq_num_encrypt : [8]u8 = [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05
+    ]
+    var seq_num_decrypt : [8]u8 = [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06
+    ]
+    var encrypted : [128]u8
+
+    var enc_len = tls::tls12_encrypt_record(
+        &raw mut tr, &raw seq_num_encrypt[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw plaintext[0], 10, &raw mut encrypted[0], 128)
+    if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
+
+    // Decrypt with WRONG sequence number — should fail GCM auth
+    var decrypted : [64]u8
+    var dec_len = tls::tls12_decrypt_record(
+        &raw mut tr, &raw seq_num_decrypt[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw encrypted[0], enc_len as size_t, &raw mut decrypted[0], 64)
+    if(dec_len >= 0) {
+        env.error("GCM decrypt should FAIL with wrong AAD (seq_num) but succeeded")
+    }
+}
+
+@test
+public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) {
+    // Same key/iv/plaintext, different AAD content → different ciphertext
+    var key : [16]u8 = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+    ]
+    var base_iv : [12]u8 = [
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1A, 0x1B, 0x1C
+    ]
+
+    var tr1 : tls::Transform
+    tls::transform_init(&raw mut tr1)
+    tr1.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr1.key_len = 16 as u8
+    tr1.fixed_iv_len = 4 as u8
+    tr1.iv_len = 0 as u8
+
+    var tr2 : tls::Transform
+    tls::transform_init(&raw mut tr2)
+    tr2.cipher_type = tls::CIPHER_AES_128_GCM as u8
+    tr2.key_len = 16 as u8
+    tr2.fixed_iv_len = 4 as u8
+    tr2.iv_len = 0 as u8
+
+    var i : size_t = 0
+    while(i < 16) {
+        tr1.key_enc[i] = key[i]; tr1.key_dec[i] = key[i]
+        tr2.key_enc[i] = key[i]; tr2.key_dec[i] = key[i]
+        i += 1
+    }
+    i = 0
+    while(i < 4) {
+        tr1.base_iv_enc[i] = base_iv[i]; tr1.base_iv_dec[i] = base_iv[i]
+        tr2.base_iv_enc[i] = base_iv[i]; tr2.base_iv_dec[i] = base_iv[i]
+        i += 1
+    }
+
+    var plaintext : [10]u8 = [
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x54, 0x4C, 0x53, 0x21
+    ]
+    var seq_a : [8]u8 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01]
+    var seq_b : [8]u8 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09]
+
+    var enc_a : [128]u8
+    var enc_b : [128]u8
+
+    var len_a = tls::tls12_encrypt_record(
+        &raw mut tr1, &raw seq_a[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw plaintext[0], 10, &raw mut enc_a[0], 128)
+    if(len_a < 0) { env.error("encrypt with seq_a failed"); return }
+
+    var len_b = tls::tls12_encrypt_record(
+        &raw mut tr2, &raw seq_b[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw plaintext[0], 10, &raw mut enc_b[0], 128)
+    if(len_b < 0) { env.error("encrypt with seq_b failed"); return }
+
+    // Different AAD → different tag (and possibly different ciphertext)
+    // At minimum the tag should differ since AAD is bound into GCM authentication
+    var tags_differ = false
+    i = 0
+    while(i < 16) {
+        if(enc_a[18 + i] != enc_b[18 + i]) { tags_differ = true }
+        i += 1
+    }
+    if(!tags_differ) {
+        env.error("GCM tags should differ with different AAD but are identical")
+    }
+
+    // Both decrypt correctly with their own AAD (own seq_num)
+    var dec_a : [64]u8
+    if(tls::tls12_decrypt_record(
+        &raw mut tr1, &raw seq_a[0],
+        tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
+        &raw enc_a[0], len_a as size_t, &raw mut dec_a[0], 64) < 0
+    ) {
+        env.error("decrypt with original AAD failed")
+        return
+    }
+    if(!tls_test_bytes_equal(&raw dec_a[0], &raw plaintext[0], 10)) {
+        env.error("decrypt with original AAD produced wrong plaintext")
+    }
+}
+

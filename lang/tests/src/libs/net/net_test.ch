@@ -2,6 +2,85 @@ using namespace std;
 using namespace net;
 using namespace http;
 
+// ===== Socket-level timeout tests =====
+
+@test
+func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
+    // Setup: listen, connect in thread, accept, then recv without data should timeout
+    var listen_sock = net::listen_addr("127.0.0.1", 19990u)
+    if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // Connect in a background thread
+    var t = std::concurrent::spawn(||(arg : *void) => {
+        var sock = net::dial("127.0.0.1", 19990u)
+        if(sock == 0 as net::Socket) { }
+        // Stay connected but send nothing
+        std::concurrent::sleep_ms(500u)
+        // Hang up
+        return null
+    }, null)
+    std::concurrent::sleep_ms(100u)
+
+    // Accept the connection
+    var client_sock = net::accept_socket(listen_sock)
+    if(client_sock == 0 as net::Socket) { env.error("accept failed"); net::close_socket(listen_sock); t.join(); return }
+
+    // Set a 1-second recv timeout
+    net::set_recv_timeout(client_sock, 1, 0)
+
+    // Try to recv — should time out after ~1s instead of hanging forever
+    var buf : [1]u8
+    var n = net::recv_all(client_sock, &raw mut buf[0], 1)
+    if(n > 0) {
+        env.error("recv should not succeed on idle socket")
+    }
+    // n <= 0 means timeout or error — that's the expected behavior
+
+    net::close_socket(client_sock)
+    net::close_socket(listen_sock)
+    t.join()
+}
+
+@test
+func test_socket_echo(env : &mut TestEnv) {
+    // Verify basic socket send/recv works (connect, send, recv, verify)
+    var listen_sock = net::listen_addr("127.0.0.1", 19991u)
+    if(listen_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // Spawn a client thread that connects, sends "ping", then waits
+    var t = std::concurrent::spawn(||(arg : *void) => {
+        var sock = net::dial("127.0.0.1", 19991u)
+        if(sock == 0 as net::Socket) { return null }
+        // Wait for the server to be ready to recv
+        std::concurrent::sleep_ms(200u)
+        var msg = "ping\0"
+        net::send_all(sock, &raw msg[0], 5)
+        std::concurrent::sleep_ms(300u)
+        net::close_socket(sock)
+        return null
+    }, null)
+    std::concurrent::sleep_ms(100u)
+
+    // Accept
+    var client_sock = net::accept_socket(listen_sock)
+    if(client_sock == 0 as net::Socket) { env.error("accept failed"); net::close_socket(listen_sock); t.join(); return }
+
+    // Read with timeout
+    net::set_recv_timeout(client_sock, 3, 0)
+    var buf : [16]u8
+    var n = net::recv_all(client_sock, &raw mut buf[0], 16)
+    if(n <= 0) { env.error("recv failed or timed out"); }
+    else if(n < 5) {
+        env.error("received too little data")
+    } else if(buf[0] != ('p' as u8) || buf[1] != ('i' as u8) || buf[2] != ('n' as u8) || buf[3] != ('g' as u8)) {
+        env.error("received wrong data")
+    }
+
+    net::close_socket(client_sock)
+    net::close_socket(listen_sock)
+    t.join()
+}
+
 @test
 func test_http_get(env : &mut TestEnv) {
     var cfg = server::ServerConfig();

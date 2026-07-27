@@ -251,6 +251,18 @@ public namespace tls {
             i += 1
         }
 
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+            printf("[DBG13] early_secret: "); var _des : size_t = 0
+            while(_des < 32) { printf("%02x", early_secret[_des] as int); _des += 1 }
+            printf("\n")
+            printf("[DBG13] derived: "); _des = 0
+            while(_des < 32) { printf("%02x", derived[_des] as int); _des += 1 }
+            printf("\n")
+            printf("[DBG13] handshake_secret: "); _des = 0
+            while(_des < 32) { printf("%02x", handshake_secret[_des] as int); _des += 1 }
+            printf("\n")
+        }
+
         // Step 4: Derive client and server handshake traffic secrets
         // Context = Transcript-Hash(ClientHello...ServerHello)
         var client_hts : [32]u8
@@ -1269,6 +1281,11 @@ public namespace tls {
         var dec_buf : [16640]u8
         if(ct_len > out_max + 1) { ct_len = out_max + 1 }  // +1 for content_type
 
+        // DEBUG: nonce before gcm_auth_decrypt
+        printf("[DBG13] nonce_before: "); var _ndbg : size_t = 0
+        while(_ndbg < 12) { printf("%02x", nonce[_ndbg] as int); _ndbg += 1 }
+        printf("\n")
+
         // GCM decrypt and verify
         ret = gcm_auth_decrypt(&raw mut gcm_ctx,
                                 &raw nonce[0], 12,
@@ -1276,6 +1293,9 @@ public namespace tls {
                                 input, ct_len,
                                 tag_start, 16,
                                 &raw mut dec_buf[0])
+        printf("[DBG13] nonce_after: "); var _ndbg2 : size_t = 0
+        while(_ndbg2 < 12) { printf("%02x", nonce[_ndbg2] as int); _ndbg2 += 1 }
+        printf("\n")
         if(ret < 0) {
             printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
                 read_u16_be(&raw ssl.in_hdr[3]) as int)
@@ -1285,8 +1305,20 @@ public namespace tls {
             printf("[DBG13] nonce: "); _di3 = 0
             while(_di3 < 12) { printf("%02x", nonce[_di3] as int); _di3 += 1 }
             printf("\n")
+            printf("[DBG13] base_iv_dec: "); _di3 = 0
+            while(_di3 < 12) { printf("%02x", tr.base_iv_dec[_di3] as int); _di3 += 1 }
+            printf("\n")
+            printf("[DBG13] in_ctr: "); _di3 = 0
+            while(_di3 < 8) { printf("%02x", ssl.in_ctr[_di3] as int); _di3 += 1 }
+            printf("\n")
             printf("[DBG13] aad: "); _di3 = 0
             while(_di3 < 5) { printf("%02x", outer_hdr[_di3] as int); _di3 += 1 }
+            printf("\n")
+            printf("[DBG13] ct: "); _di3 = 0
+            while(_di3 < ct_len) { printf("%02x", input[_di3] as int); _di3 += 1 }
+            printf("\n")
+            printf("[DBG13] tag: "); _di3 = 0
+            while(_di3 < 16) { printf("%02x", tag_start[_di3] as int); _di3 += 1 }
             printf("\n")
             return ERR_SSL_INVALID_RECORD
         }
@@ -1965,8 +1997,6 @@ public namespace tls {
 
         *hs_type = hs_buf[0]
         *hs_len = read_u24(&raw hs_buf[1])
-
-        ssl_consume_record(ssl)
         return 0
     }
 
@@ -2925,6 +2955,15 @@ public namespace tls {
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
         crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
 
+        // DEBUG: print ClientHello bytes for transcript verification
+        printf("[DBG13] CH: "); var _chdbg : size_t = 0
+        while(_chdbg < 4 + ch_len as size_t) { 
+            if(_chdbg < 4) { printf("%02x", ch_hdr[_chdbg] as int) }
+            else { printf("%02x", ch_buf[_chdbg - 4] as int) }
+            _chdbg += 1 
+        }
+        printf("\n")
+
         ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
 
@@ -2946,7 +2985,6 @@ public namespace tls {
             if(content_type == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
                 var ccs_d : [1]u8
                 read_record_payload(ssl, &raw mut ccs_d[0], 1)
-                ssl_consume_record(ssl)
                 continue
             }
 
@@ -2956,7 +2994,6 @@ public namespace tls {
                 read_record_payload(ssl, &raw mut alert_data[0], 2)
                 ssl.last_alert_level = alert_data[0]
                 ssl.last_alert_desc = alert_data[1]
-                ssl_consume_record(ssl)
                 return ERR_SSL_FATAL_ALERT_MESSAGE
             }
 
@@ -2966,11 +3003,10 @@ public namespace tls {
             }
 
             var payload = read_record_payload(ssl, &raw mut hs_buf[0], 4096 as i32)
-            if(payload < 4) { ssl_consume_record(ssl); return ERR_SSL_DECODE_ERROR }
+            if(payload < 4) { return ERR_SSL_DECODE_ERROR }
 
             var msg_type = hs_buf[0]
             hs_body_len = read_u24(&raw hs_buf[1])
-            ssl_consume_record(ssl)
 
             if(msg_type == SSL_HS_SERVER_HELLO as u8) {
                 got_server_hello = true
@@ -3134,6 +3170,11 @@ public namespace tls {
         // Hash ServerHello into transcript (including the 4-byte handshake header)
         crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
 
+        // DEBUG: print ServerHello bytes
+        printf("[DBG13] SH: "); var _shdbg : size_t = 0
+        while(_shdbg < 4 + hs_body_len) { printf("%02x", hs_buf[_shdbg] as int); _shdbg += 1 }
+        printf("\n")
+
         // ── Compute ECDHE shared secret ──────────────────────────────
         var shared_secret : [32]u8
         if(using_x25519 && ssl.handshake.x25519_private != null) {
@@ -3172,7 +3213,7 @@ public namespace tls {
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
             ret = read_record_header(ssl, &raw mut enc_hdr[0])
-            if(ret < 0) { return ret }
+            if(ret < 0) { printf("[DBG_WL] read_record_header returned %d\n", ret as int); return ret }
 
             var enc_ct = enc_hdr[0]
 
@@ -3180,7 +3221,6 @@ public namespace tls {
             if(enc_ct == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
                 var ccs_d : [1]u8
                 read_record_payload(ssl, &raw mut ccs_d[0], 1)
-                ssl_consume_record(ssl)
                 continue
             }
 
@@ -3190,7 +3230,6 @@ public namespace tls {
             if(inner_ct == SSL_MSG_ALERT as u8) {
                 var alert_data : [2]u8
                 read_record_payload(ssl, &raw mut alert_data[0], 2)
-                ssl_consume_record(ssl)
                 return ERR_SSL_FATAL_ALERT_MESSAGE
             }
 
@@ -3202,11 +3241,10 @@ public namespace tls {
             // Read the handshake message body
             var msg_buf : [4096]u8
             var msg_payload = read_record_payload(ssl, &raw mut msg_buf[0], 4096 as i32)
-            if(msg_payload < 4) { ssl_consume_record(ssl); return ERR_SSL_DECODE_ERROR }
+            if(msg_payload < 4) { return ERR_SSL_DECODE_ERROR }
 
             var msg_type_code = msg_buf[0] as u32
             var msg_body_len2 = read_u24(&raw msg_buf[1])
-            ssl_consume_record(ssl)
 
             if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)

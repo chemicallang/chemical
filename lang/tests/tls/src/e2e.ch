@@ -1,4 +1,5 @@
 using namespace tls
+using namespace crypto
 
 @test
 public func INT_smoke_test(env : &mut TestEnv) {

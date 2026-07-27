@@ -11,7 +11,7 @@ public func INT_smoke_test(env : &mut TestEnv) {
 public func INT_tls13_client_openssl(env : &mut TestEnv) {
     system("fuser -k 19876/tcp 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_key.pem -out /tmp/tls_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-    system("setsid openssl s_server -cert /tmp/tls_cert.pem -key /tmp/tls_key.pem -tls1_3 -no_anti_replay -accept 19876 -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_server -cert /tmp/tls_cert.pem -key /tmp/tls_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19876 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -60,7 +60,7 @@ public func INT_tls13_client_openssl(env : &mut TestEnv) {
 public func INT_x25519_handshake(env : &mut TestEnv) {
     system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_x25519_key.pem -out /tmp/tls_x25519_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-    system("setsid openssl s_server -cert /tmp/tls_x25519_cert.pem -key /tmp/tls_x25519_key.pem -groups X25519 -tls1_3 -no_anti_replay -accept 19878 -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_server -cert /tmp/tls_x25519_cert.pem -key /tmp/tls_x25519_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19878 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -158,7 +158,7 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
     // Start OpenSSL s_client in background to connect to us
-    system("setsid openssl s_client -connect 127.0.0.1:19880 -tls1_3 -no_anti_replay -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_client -connect 127.0.0.1:19880 -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     // Accept the client connection with non-blocking loop (timeout after ~5s)
@@ -215,7 +215,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
     // Force x25519 on client side
-    system("setsid openssl s_client -connect 127.0.0.1:19882 -groups X25519 -tls1_3 -no_anti_replay -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_client -connect 127.0.0.1:19882 -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     // Accept with non-blocking loop (timeout after ~5s)
@@ -253,7 +253,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     // Client connects to ECDSA-cert server — tests our ECDSA cert verification
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_key.pem -out /tmp/ecdsa_cert.pem -subj /CN=127.0.0.1 -days 1 -nodes 2>/dev/null")
 
-    system("setsid openssl s_server -cert /tmp/ecdsa_cert.pem -key /tmp/ecdsa_key.pem -tls1_3 -no_anti_replay -accept 19883 -quiet </dev/null 2>/dev/null &")
+    system("setsid openssl s_server -cert /tmp/ecdsa_cert.pem -key /tmp/ecdsa_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19883 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)

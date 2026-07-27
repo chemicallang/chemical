@@ -511,6 +511,10 @@ public namespace tls {
         *tr_in_mem = tr_in
         ssl.transform_in = tr_in_mem
 
+        // Reset sequence numbers for the application data phase
+        i = 0
+        while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
+
         return 0
     }
 
@@ -1255,6 +1259,15 @@ public namespace tls {
 
         if(input_len < 16) { return ERR_SSL_INVALID_RECORD }  // At minimum: tag
 
+        // DEBUG: print raw in_buf header bytes
+        printf("[DBG_REC] ssl.in_hdr: "); var _ri:size_t =0
+        while(_ri<5) { printf("%02x", ssl.in_hdr[_ri] as int); _ri+=1 }
+        printf(" in_buf[5]: "); _ri=0
+        while(_ri<16 && _ri<input_len) { printf("%02x", ssl.in_buf[5+_ri] as int); _ri+=1 }
+        printf("...\n")
+
+        // The ciphertext includes the auth tag (16 bytes) at the end
+
         // The ciphertext includes the auth tag (16 bytes) at the end
         var ct_len : size_t = input_len - 16
         var tag_start = input + ct_len
@@ -1547,7 +1560,9 @@ public namespace tls {
 
             // TLS 1.2 decrypt: triggered for HANDSHAKE (22) or APPLICATION_DATA (23)
             // when TLS 1.3 decrypt did not apply or failed.
-            if(!did_decrypt && (ssl.in_hdr[0] == SSL_MSG_HANDSHAKE as u8 || ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8)) {
+            // NOTE: only run TLS 1.2 decrypt when NOT in TLS 1.3 mode
+            if(!did_decrypt && ssl.tls_version < SSL_VERSION_TLS1_3 &&
+                (ssl.in_hdr[0] == SSL_MSG_HANDSHAKE as u8 || ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8)) {
                 var dec_buf2 : [17400]u8
                 var dec_len2 = tls12_decrypt_record(ssl.transform_in,
                                                      &raw ssl.in_ctr[0],
@@ -3446,16 +3461,8 @@ public namespace tls {
                     return ERR_SSL_HANDSHAKE_FAILURE
                 }
 
-                // Hash Finished into transcript, then finalize for app key derivation
+                // Hash Finished into transcript
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
-
-                var full_transcript_copy = transcript
-                var full_hash : [32]u8
-                crypto::sha256_final(&raw mut full_transcript_copy, &raw mut full_hash[0])
-
-                // Derive application traffic keys
-                ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
-                if(ret < 0) { return ret }
 
                 server_finished_verified = true
 
@@ -3498,6 +3505,13 @@ public namespace tls {
         }
 
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 12)
+        if(ret < 0) { return ret }
+
+        // ── Derive application traffic keys (after sending client Finished) ────
+        var full_transcript_copy = transcript
+        var full_hash : [32]u8
+        crypto::sha256_final(&raw mut full_transcript_copy, &raw mut full_hash[0])
+        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
         if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
@@ -4197,12 +4211,6 @@ public namespace tls {
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], 12)
         if(ret < 0) { return ret }
 
-        // ── Derive application traffic keys ────────────────────────
-        var full_hash : [32]u8
-        crypto::sha256_final(&raw mut transcript, &raw mut full_hash[0])
-        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
-        if(ret < 0) { return ret }
-
         // ── Read client Finished ────────────────────────────────────
         ssl.state = SSLState.CLIENT_FINISHED()
         ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
@@ -4211,6 +4219,12 @@ public namespace tls {
         if(hs_type != SSL_HS_FINISHED as u8) {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
+
+        // ── Derive application traffic keys (after both Finished messages) ──
+        var full_hash : [32]u8
+        crypto::sha256_final(&raw mut transcript, &raw mut full_hash[0])
+        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
+        if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
 

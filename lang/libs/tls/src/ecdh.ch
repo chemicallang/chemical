@@ -110,95 +110,94 @@ public namespace tls {
             mpi_lset(&raw mut R.Z, 0)
             return 0
         }
-        // Jacobian coordinate doubling formula
-        // For curve y^2 = x^3 + a*x + b with a = -3 (for P-256):
-        // If P = (X1, Y1, Z1), then 2*P = (X3, Y3, Z3) where:
-        // W = 3*X1^2 + a*Z1^4   (a = -3 mod p, so = 3*(X1 + Z1^2)*(X1 - Z1^2))
-        // S = 4*X1*Y1^2
-        // X3 = W^2 - 2*S
-        // Y3 = W*(S - X3) - 8*Y1^4
-        // Z3 = 2*Y1*Z1
-
-        // For P-256, a = -3, so we can use: W = 3*(X1 + Z1^2)*(X1 - Z1^2)
-
+        // Using formulas from http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2007-bl
+        // For a = -3 (P-256): optimized formulas
         var p : Mpi; ecp_curve_p(&raw mut p)
-        var t1 : Mpi; mpi_init(&raw mut t1)
-        var t2 : Mpi; mpi_init(&raw mut t2)
-        var t3 : Mpi; mpi_init(&raw mut t3)
+        var XX : Mpi; mpi_init(&raw mut XX)
+        var YY : Mpi; mpi_init(&raw mut YY)
+        var ZZ : Mpi; mpi_init(&raw mut ZZ)
+        var S : Mpi; mpi_init(&raw mut S)
+        var M : Mpi; mpi_init(&raw mut M)
+        var T : Mpi; mpi_init(&raw mut T)
         var X3 : Mpi; mpi_init(&raw mut X3)
         var Y3 : Mpi; mpi_init(&raw mut Y3)
         var Z3 : Mpi; mpi_init(&raw mut Z3)
         var ret : int = 0
 
-        // t1 = Z1^2 mod p
-        ret = mpi_mul(&raw mut t1, &raw mut P.Z, &raw mut P.Z)
+        // XX = X1^2
+        ret = mpi_mul(&raw mut XX, &raw mut P.X, &raw mut P.X)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
-        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut XX, &raw mut XX, &raw mut p)
 
-        // t2 = X1 - t1 = X1 - Z1^2
-        ret = mpi_sub(&raw mut t2, &raw mut P.X, &raw mut t1)
+        // YY = Y1^2
+        ret = mpi_mul(&raw mut YY, &raw mut P.Y, &raw mut P.Y)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
-        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut YY, &raw mut YY, &raw mut p)
 
-        // t1 = X1 + t1 = X1 + Z1^2
-        ret = mpi_add(&raw mut t1, &raw mut P.X, &raw mut t1)
+        // ZZ = Z1^2
+        ret = mpi_mul(&raw mut ZZ, &raw mut P.Z, &raw mut P.Z)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
+        ret = mpi_mod(&raw mut ZZ, &raw mut ZZ, &raw mut p)
 
-        // t2 = t1 * t2 = (X1 + Z1^2) * (X1 - Z1^2) = X1^2 - Z1^4
-        ret = mpi_mul(&raw mut t2, &raw mut t1, &raw mut t2)
+        // S = 4*X1*YY
+        ret = mpi_mul(&raw mut S, &raw mut P.X, &raw mut YY)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
+        ret = mpi_mod(&raw mut S, &raw mut S, &raw mut p)
+        ret = mpi_mul_int(&raw mut S, &raw mut S, 4)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut S, &raw mut S, &raw mut p)
 
-        // t2 = 3 * t2 = 3 * (X1^2 - Z1^4) = W
-        ret = mpi_mul_int(&raw mut t2, &raw mut t2, 3)
+        // For a=-3: M = 3*(X1 + ZZ)*(X1 - ZZ)
+        // Let T = X1 + ZZ
+        ret = mpi_add(&raw mut T, &raw mut P.X, &raw mut ZZ)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
+        ret = mpi_mod(&raw mut T, &raw mut T, &raw mut p)
+        // Let ZZ = X1 - ZZ (reuse ZZ since we don't need original ZZ after this)
+        var XZ_diff : Mpi; mpi_init(&raw mut XZ_diff)
+        ret = mpi_sub(&raw mut XZ_diff, &raw mut P.X, &raw mut ZZ)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut XZ_diff, &raw mut XZ_diff, &raw mut p)
+        // M = 3 * T * (X1 - ZZ)
+        ret = mpi_mul(&raw mut M, &raw mut T, &raw mut XZ_diff)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut M, &raw mut M, &raw mut p)
+        ret = mpi_mul_int(&raw mut M, &raw mut M, 3)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut M, &raw mut M, &raw mut p)
 
-        // t3 = Y1^2
-        ret = mpi_mul(&raw mut t3, &raw mut P.Y, &raw mut P.Y)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
-
-        // t1 = 4 * X1 * Y1^2 = 4 * X1 * t3
-        ret = mpi_mul(&raw mut t1, &raw mut P.X, &raw mut t3)
-        if(ret < 0) { return ret }
-        ret = mpi_mul_int(&raw mut t1, &raw mut t1, 4)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
-
-        // X3 = W^2 - 2*S = t2^2 - 2*t1
-        ret = mpi_mul(&raw mut X3, &raw mut t2, &raw mut t2)
+        // X3 = M^2 - 2*S
+        ret = mpi_mul(&raw mut X3, &raw mut M, &raw mut M)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
-        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut t1)
+        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut S)
         if(ret < 0) { return ret }
-        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut t1)
+        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut S)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
 
-        // Y3 = W*(S - X3) - 8*Y1^4
-        // t3 = Y1^2 (already computed), so Y1^4 = t3^2
-        ret = mpi_mul(&raw mut t3, &raw mut t3, &raw mut t3)
+        // Y3 = M*(S - X3) - 8*YY^2
+        ret = mpi_sub(&raw mut T, &raw mut S, &raw mut X3)
         if(ret < 0) { return ret }
-        ret = mpi_mul_int(&raw mut t3, &raw mut t3, 8)
+        ret = mpi_mod(&raw mut T, &raw mut T, &raw mut p)
+        ret = mpi_mul(&raw mut Y3, &raw mut M, &raw mut T)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
 
-        // t1 - X3 = S - X3
-        ret = mpi_sub(&raw mut Y3, &raw mut t1, &raw mut X3)
+        // 8*YY^2
+        ret = mpi_mul(&raw mut YY, &raw mut YY, &raw mut YY)
         if(ret < 0) { return ret }
-        ret = mpi_mul(&raw mut Y3, &raw mut t2, &raw mut Y3)
+        ret = mpi_mod(&raw mut YY, &raw mut YY, &raw mut p)
+        ret = mpi_mul_int(&raw mut YY, &raw mut YY, 8)
         if(ret < 0) { return ret }
-        ret = mpi_sub(&raw mut Y3, &raw mut Y3, &raw mut t3)
+        ret = mpi_mod(&raw mut YY, &raw mut YY, &raw mut p)
+
+        ret = mpi_sub(&raw mut Y3, &raw mut Y3, &raw mut YY)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut Y3, &raw mut Y3, &raw mut p)
 
         // Z3 = 2*Y1*Z1
         ret = mpi_mul(&raw mut Z3, &raw mut P.Y, &raw mut P.Z)
         if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut Z3, &raw mut Z3, &raw mut p)
         ret = mpi_mul_int(&raw mut Z3, &raw mut Z3, 2)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut Z3, &raw mut Z3, &raw mut p)
@@ -216,6 +215,7 @@ public namespace tls {
         // Mixed Jacobian-affine addition
         // P = (X1, Y1, Z1), Q = (X2, Y2, 1)
         // R = (X3, Y3, Z3) = P + Q
+        // Using formulas from http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-madd-2007-bl
 
         // Handle P = infinity: return Q
         if(mpi_is_zero(&raw mut P.Z)) {
@@ -226,96 +226,118 @@ public namespace tls {
         }
 
         var p : Mpi; ecp_curve_p(&raw mut p)
-        var t1 : Mpi; mpi_init(&raw mut t1)
-        var t2 : Mpi; mpi_init(&raw mut t2)
-        var t3 : Mpi; mpi_init(&raw mut t3)
-        var t4 : Mpi; mpi_init(&raw mut t4)
+        var Z1Z1 : Mpi; mpi_init(&raw mut Z1Z1)
+        var U2 : Mpi; mpi_init(&raw mut U2)
+        var S2 : Mpi; mpi_init(&raw mut S2)
+        var H : Mpi; mpi_init(&raw mut H)
+        var HH : Mpi; mpi_init(&raw mut HH)
+        var I : Mpi; mpi_init(&raw mut I)
+        var R_val : Mpi; mpi_init(&raw mut R_val)
+        var J : Mpi; mpi_init(&raw mut J)
+        var V : Mpi; mpi_init(&raw mut V)
         var X3 : Mpi; mpi_init(&raw mut X3)
         var Y3 : Mpi; mpi_init(&raw mut Y3)
         var Z3 : Mpi; mpi_init(&raw mut Z3)
         var ret : int = 0
 
-        // t1 = Z1^2
-        ret = mpi_mul(&raw mut t1, &raw mut P.Z, &raw mut P.Z)
+        // Z1Z1 = Z1^2
+        ret = mpi_mul(&raw mut Z1Z1, &raw mut P.Z, &raw mut P.Z)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
+        ret = mpi_mod(&raw mut Z1Z1, &raw mut Z1Z1, &raw mut p)
 
-        // t2 = Z1 * t1 = Z1^3
-        ret = mpi_mul(&raw mut t2, &raw mut P.Z, &raw mut t1)
+        // U2 = X2 * Z1Z1
+        ret = mpi_mul(&raw mut U2, &raw mut Q.X, &raw mut Z1Z1)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
+        ret = mpi_mod(&raw mut U2, &raw mut U2, &raw mut p)
 
-        // t1 = t1 * X2 = Z1^2 * X2
-        // t2 = t2 * Y2 = Z1^3 * Y2
-        ret = mpi_mul(&raw mut t1, &raw mut t1, &raw mut Q.X)
+        // S2 = Y2 * Z1 * Z1Z1 = Y2 * Z1^3
+        ret = mpi_mul(&raw mut S2, &raw mut Q.Y, &raw mut P.Z)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
-
-        ret = mpi_mul(&raw mut t2, &raw mut t2, &raw mut Q.Y)
+        ret = mpi_mul(&raw mut S2, &raw mut S2, &raw mut Z1Z1)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
+        ret = mpi_mod(&raw mut S2, &raw mut S2, &raw mut p)
 
-        // t3 = t1 - X1 = Z1^2 * X2 - X1 = H
-        ret = mpi_sub(&raw mut t3, &raw mut t1, &raw mut P.X)
+        // H = U2 - X1
+        ret = mpi_sub(&raw mut H, &raw mut U2, &raw mut P.X)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
+        ret = mpi_mod(&raw mut H, &raw mut H, &raw mut p)
 
-        // t4 = t2 - Y1 = Z1^3 * Y2 - Y1 = R
-        ret = mpi_sub(&raw mut t4, &raw mut t2, &raw mut P.Y)
+        // HH = H^2
+        ret = mpi_mul(&raw mut HH, &raw mut H, &raw mut H)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t4, &raw mut t4, &raw mut p)
+        ret = mpi_mod(&raw mut HH, &raw mut HH, &raw mut p)
 
-        // Z3 = Z1 * H = Z1 * t3
-        ret = mpi_mul(&raw mut Z3, &raw mut P.Z, &raw mut t3)
+        // I = 4 * HH  (but for standard formula: I = 4*HH, we compute 2*HH later)
+        // Actually: I = 4*HH is used for X3 formula
+        ret = mpi_mul_int(&raw mut I, &raw mut HH, 4)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut Z3, &raw mut Z3, &raw mut p)
+        ret = mpi_mod(&raw mut I, &raw mut I, &raw mut p)
 
-        // H^2 = t3^2
-        ret = mpi_mul(&raw mut t1, &raw mut t3, &raw mut t3)
+        // J = H * I
+        ret = mpi_mul(&raw mut J, &raw mut H, &raw mut I)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t1, &raw mut t1, &raw mut p)
+        ret = mpi_mod(&raw mut J, &raw mut J, &raw mut p)
 
-        // H^3 = t1 * t3
-        ret = mpi_mul(&raw mut t2, &raw mut t1, &raw mut t3)
+        // R_val = 2 * (S2 - Y1)
+        ret = mpi_sub(&raw mut R_val, &raw mut S2, &raw mut P.Y)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
+        ret = mpi_mod(&raw mut R_val, &raw mut R_val, &raw mut p)
+        ret = mpi_mul_int(&raw mut R_val, &raw mut R_val, 2)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut R_val, &raw mut R_val, &raw mut p)
 
-        // X3 = R^2 - H^3 - 2*X1*H^2
-        ret = mpi_mul(&raw mut X3, &raw mut t4, &raw mut t4)
+        // V = X1 * I
+        ret = mpi_mul(&raw mut V, &raw mut P.X, &raw mut I)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut V, &raw mut V, &raw mut p)
+
+        // X3 = R_val^2 - J - 2*V
+        ret = mpi_mul(&raw mut X3, &raw mut R_val, &raw mut R_val)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
+        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut J)
+        if(ret < 0) { return ret }
+        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V once
+        if(ret < 0) { return ret }
+        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V again = 2*V
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
 
-        ret = mpi_mul(&raw mut t3, &raw mut P.X, &raw mut t1)
+        // Y3 = R_val * (V - X3) - 2 * Y1 * J
+        // temp = V - X3
+        var tmp_vy : Mpi; mpi_init(&raw mut tmp_vy)
+        ret = mpi_sub(&raw mut tmp_vy, &raw mut V, &raw mut X3)
         if(ret < 0) { return ret }
-        ret = mpi_mul_int(&raw mut t3, &raw mut t3, 2)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
-
-        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut t2)
-        if(ret < 0) { return ret }
-        ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut t3)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
-
-        // Y3 = R*(X1*H^2 - X3) - Y1*H^3
-        // t3 currently = 2*X1*H^2, recompute X1*H^2
-        ret = mpi_mul(&raw mut t3, &raw mut P.X, &raw mut t1)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
-
-        ret = mpi_sub(&raw mut t3, &raw mut t3, &raw mut X3)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut t3, &raw mut t3, &raw mut p)
-
-        ret = mpi_mul(&raw mut t3, &raw mut t4, &raw mut t3)
+        ret = mpi_mod(&raw mut tmp_vy, &raw mut tmp_vy, &raw mut p)
+        // Y3 = R_val * (V - X3)
+        ret = mpi_mul(&raw mut Y3, &raw mut R_val, &raw mut tmp_vy)
         if(ret < 0) { return ret }
 
-        ret = mpi_mul(&raw mut t4, &raw mut P.Y, &raw mut t2)
+        // Y1J = Y1 * J
+        var Y1J : Mpi; mpi_init(&raw mut Y1J)
+        ret = mpi_mul(&raw mut Y1J, &raw mut P.Y, &raw mut J)
         if(ret < 0) { return ret }
+        mpi_mod(&raw mut Y1J, &raw mut Y1J, &raw mut p)
+        // 2 * Y1J
+        mpi_mul_int(&raw mut Y1J, &raw mut Y1J, 2)
+        mpi_mod(&raw mut Y1J, &raw mut Y1J, &raw mut p)
 
-        ret = mpi_sub(&raw mut Y3, &raw mut t3, &raw mut t4)
+        // Y3 = Y3 - 2*Y1*J
+        ret = mpi_sub(&raw mut Y3, &raw mut Y3, &raw mut Y1J)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut Y3, &raw mut Y3, &raw mut p)
+
+        // Z3 = (Z1 + H)^2 - Z1Z1 - HH
+        ret = mpi_add(&raw mut Z3, &raw mut P.Z, &raw mut H)
+        if(ret < 0) { return ret }
+        ret = mpi_mul(&raw mut Z3, &raw mut Z3, &raw mut Z3)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut Z3, &raw mut Z3, &raw mut p)
+        ret = mpi_sub(&raw mut Z3, &raw mut Z3, &raw mut Z1Z1)
+        if(ret < 0) { return ret }
+        ret = mpi_sub(&raw mut Z3, &raw mut Z3, &raw mut HH)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(&raw mut Z3, &raw mut Z3, &raw mut p)
 
         // Copy result
         mpi_copy(&raw mut R.X, &raw mut X3)

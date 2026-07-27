@@ -3598,6 +3598,16 @@ public namespace tls {
         ssl_context_init(ssl)
     }
 
+    // Apply read timeout to the SSL socket (from config, or 5s default)
+    func ssl_apply_recv_timeout(ssl : *mut SSLContext) {
+        var timeout_ms : u32 = 5000
+        if(ssl.conf != null && ssl.conf.read_timeout > 0) {
+            timeout_ms = ssl.conf.read_timeout
+            if(timeout_ms > 8000) { timeout_ms = 8000 }
+        }
+        net::set_recv_timeout(ssl.transport_socket, (timeout_ms / 1000) as long, (timeout_ms % 1000 * 1000) as long)
+    }
+
     // Set the socket for the SSL connection
     public func ssl_set_socket(ssl : *mut SSLContext, socket : net::Socket) {
         ssl.transport_socket = socket
@@ -3605,6 +3615,7 @@ public namespace tls {
         // Set default TLS record version
         ssl.major_ver = 3
         ssl.minor_ver = 3 as u8
+        ssl_apply_recv_timeout(ssl)
     }
 
     // Set the hostname for SNI and certificate verification
@@ -4172,6 +4183,8 @@ public namespace tls {
     public func ssl_handshake(ssl : *mut SSLContext) : int {
         if(ssl.conf == null) { return ERR_SSL_BAD_CONFIG }
         ensure_init()
+
+        ssl_apply_recv_timeout(ssl)
 
         if(ssl.conf.endpoint == SSL_IS_SERVER) {
             if(ssl.tls_version >= SSL_VERSION_TLS1_3) {

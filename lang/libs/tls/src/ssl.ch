@@ -1551,7 +1551,7 @@ public namespace tls {
     }
 
     // Consume (remove) the current record from the input buffer
-    func ssl_consume_record(ssl : *mut SSLContext) {
+    public func ssl_consume_record(ssl : *mut SSLContext) {
         var consumed = 5 + ssl.in_msglen
         if(consumed > ssl.in_left) { consumed = ssl.in_left }
         if(consumed <= 0) { return }

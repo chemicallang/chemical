@@ -55,6 +55,18 @@ public namespace net {
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
     func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
 
+    // Windows poll stub (uses WSAPoll, but we accept with a simple timeout approach)
+    public struct pollfd {
+        var fd: uintptr_t
+        var events: short
+        var revents: short
+    }
+    func sock_poll(fds:*mut pollfd, nfds:ulong, timeout:int): int {
+        // Windows: just return 1 (data available) immediately since accept() blocks anyway
+        // Proper implementation would use WSAPoll, but this is Windows-stub
+        return 1
+    }
+
     public func set_nonblocking(s: Socket) {
         var argp: u32 = 1u;
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);

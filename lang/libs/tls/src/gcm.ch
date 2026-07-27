@@ -283,6 +283,12 @@ public namespace tls {
         var i : size_t = 0
         while(i < 16) { J0[i] = 0; i += 1 }
 
+        printf("[GCM_DBG] iv_addr=%p iv_len=%d\n", iv, iv_len)
+        printf("[GCM_DBG] iv_bytes: ")
+        var _ivdbg : size_t = 0
+        while(_ivdbg < iv_len) { printf("%02x", iv[_ivdbg] as int); _ivdbg += 1 }
+        printf("\n")
+
         if(iv_len == 12) {
             i = 0
             while(i < 12) { J0[i] = iv[i]; i += 1 }
@@ -331,6 +337,9 @@ public namespace tls {
             printf("\n")
             printf("[GCM_DBG] H: "); _gti = 0
             while(_gti < 16) { printf("%02x", ctx.H[_gti] as int); _gti += 1 }
+            printf("\n")
+            printf("[GCM_DBG] J0: "); _gti = 0
+            while(_gti < 16) { printf("%02x", J0[_gti] as int); _gti += 1 }
             printf("\n")
 
             return ERR_GCM_AUTH_FAILED

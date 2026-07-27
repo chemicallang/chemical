@@ -8,7 +8,7 @@ public func INT_smoke_test(env : &mut TestEnv) {
 
 @test
 public func INT_tls13_client_openssl(env : &mut TestEnv) {
-    system("pkill -9 -f 'openssl s_server.*19876' 2>/dev/null; sleep 0.3")
+    system("fuser -k 19876/tcp 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_key.pem -out /tmp/tls_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
     system("setsid openssl s_server -cert /tmp/tls_cert.pem -key /tmp/tls_key.pem -tls1_3 -no_anti_replay -accept 19876 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
@@ -52,12 +52,12 @@ public func INT_tls13_client_openssl(env : &mut TestEnv) {
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
-    system("pkill -f 'openssl s_server.*19876' 2>/dev/null")
+    system("fuser -k 19876/tcp 2>/dev/null")
 }
 
 @test
 public func INT_x25519_handshake(env : &mut TestEnv) {
-    system("pkill -9 -f 'openssl s_server.*19878' 2>/dev/null; sleep 0.3")
+    system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_x25519_key.pem -out /tmp/tls_x25519_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
     system("setsid openssl s_server -cert /tmp/tls_x25519_cert.pem -key /tmp/tls_x25519_key.pem -groups X25519 -tls1_3 -no_anti_replay -accept 19878 -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
@@ -92,12 +92,12 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
         else { env.error("X25519: unknown error") }
     }
     ssl_free(&raw mut ctx)
-    system("pkill -f 'openssl s_server.*19878' 2>/dev/null")
+    system("fuser -k 19878/tcp 2>/dev/null")
 }
 
 @test
 public func INT_tls12_client(env : &mut TestEnv) {
-    system("pkill -9 -f 'openssl s_server.*19877' 2>/dev/null; sleep 0.3")
+    system("fuser -k 19877/tcp 2>/dev/null; sleep 0.3")
     system("openssl req -x509 -newkey rsa:2048 -keyout /tmp/tls12_key.pem -out /tmp/tls12_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
     system("setsid openssl s_server -cert /tmp/tls12_cert.pem -key /tmp/tls12_key.pem -tls1_2 -no_anti_replay -accept 19877 -cipher kRSA -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
@@ -132,7 +132,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
         else { env.error("TLS12: unknown error") }
     }
     ssl_free(&raw mut ctx)
-    system("pkill -f 'openssl s_server.*19877' 2>/dev/null")
+    system("fuser -k 19877/tcp 2>/dev/null")
 }
 
 @test
@@ -233,7 +233,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
 
 @test
 public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
-    system("pkill -9 -f 'openssl s_server.*19883' 2>/dev/null; sleep 0.3")
+    system("fuser -k 19883/tcp 2>/dev/null; sleep 0.3")
     // Client connects to ECDSA-cert server — tests our ECDSA cert verification
     system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_key.pem -out /tmp/ecdsa_cert.pem -subj /CN=127.0.0.1 -days 1 -nodes 2>/dev/null")
 
@@ -270,5 +270,5 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
         else { env.error("ECDSA: unknown error") }
     }
     ssl_free(&raw mut ctx)
-    system("pkill -f 'openssl s_server.*19883' 2>/dev/null")
+    system("fuser -k 19883/tcp 2>/dev/null")
 }

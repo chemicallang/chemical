@@ -160,8 +160,15 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
     system("setsid openssl s_client -connect 127.0.0.1:19880 -tls1_3 -no_anti_replay -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
-    // Accept the client connection
-    var client_sock = net::accept_socket(server_sock)
+    // Accept the client connection with non-blocking loop (timeout after ~5s)
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var accept_attempts = 0
+    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock)
+        accept_attempts += 1
+    }
     if(client_sock == 0 as net::Socket) {
         env.error("no client connected — OpenSSL s_client may not be available")
         net::close_socket(server_sock)
@@ -210,7 +217,15 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     system("setsid openssl s_client -connect 127.0.0.1:19882 -groups X25519 -tls1_3 -no_anti_replay -quiet </dev/null 2>/dev/null &")
     system("sleep 1")
 
-    var client_sock = net::accept_socket(server_sock)
+    // Accept with non-blocking loop (timeout after ~5s)
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var accept_attempts = 0
+    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock)
+        accept_attempts += 1
+    }
     if(client_sock == 0 as net::Socket) { env.error("no client"); net::close_socket(server_sock); return }
 
     var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext

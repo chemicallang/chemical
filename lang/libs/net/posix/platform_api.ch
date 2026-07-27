@@ -47,6 +47,8 @@ public namespace net {
     func sock_getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char) : int { return getaddrinfo(node, service, hints, res) }
     func sock_freeaddrinfo(res:*mut char) { freeaddrinfo(res) }
 
+    // poll wrapper for timed I/O (stub - use non-blocking accept instead)
+
     public func set_nonblocking(s: Socket) {
         var flags = fcntl(s as int, F_GETFL, 0);
         fcntl(s as int, F_SETFL, flags | O_NONBLOCK);

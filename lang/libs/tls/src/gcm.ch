@@ -316,7 +316,25 @@ public namespace tls {
             diff = diff | (expected_tag[i] ^ tag[i])
             i += 1
         }
-        if(diff != 0) { return ERR_GCM_AUTH_FAILED }
+        if(diff != 0) {
+            printf("[GCM_DBG] EXPECTED_TAG: "); var _gti : size_t = 0
+            while(_gti < 16) { printf("%02x", expected_tag[_gti] as int); _gti += 1 }
+            printf("\n")
+            printf("[GCM_DBG] RECEIVED_TAG: "); _gti = 0
+            while(_gti < tag_len) { printf("%02x", tag[_gti] as int); _gti += 1 }
+            printf("\n")
+            printf("[GCM_DBG] GHASH: "); _gti = 0
+            while(_gti < 16) { printf("%02x", gh[_gti] as int); _gti += 1 }
+            printf("\n")
+            printf("[GCM_DBG] ENC_J0: "); _gti = 0
+            while(_gti < 16) { printf("%02x", enc_J0[_gti] as int); _gti += 1 }
+            printf("\n")
+            printf("[GCM_DBG] H: "); _gti = 0
+            while(_gti < 16) { printf("%02x", ctx.H[_gti] as int); _gti += 1 }
+            printf("\n")
+
+            return ERR_GCM_AUTH_FAILED
+        }
 
         // Decrypt (same as encrypt for CTR mode)
         var counter : [16]u8

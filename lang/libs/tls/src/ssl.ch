@@ -1966,6 +1966,7 @@ public namespace tls {
         *hs_type = hs_buf[0]
         *hs_len = read_u24(&raw hs_buf[1])
 
+        ssl_consume_record(ssl)
         return 0
     }
 
@@ -2945,6 +2946,7 @@ public namespace tls {
             if(content_type == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
                 var ccs_d : [1]u8
                 read_record_payload(ssl, &raw mut ccs_d[0], 1)
+                ssl_consume_record(ssl)
                 continue
             }
 
@@ -2954,18 +2956,21 @@ public namespace tls {
                 read_record_payload(ssl, &raw mut alert_data[0], 2)
                 ssl.last_alert_level = alert_data[0]
                 ssl.last_alert_desc = alert_data[1]
+                ssl_consume_record(ssl)
                 return ERR_SSL_FATAL_ALERT_MESSAGE
             }
 
             if(content_type != SSL_MSG_HANDSHAKE as u8) {
+                ssl_consume_record(ssl)
                 return ERR_SSL_UNEXPECTED_MESSAGE
             }
 
             var payload = read_record_payload(ssl, &raw mut hs_buf[0], 4096 as i32)
-            if(payload < 4) { return ERR_SSL_DECODE_ERROR }
+            if(payload < 4) { ssl_consume_record(ssl); return ERR_SSL_DECODE_ERROR }
 
             var msg_type = hs_buf[0]
             hs_body_len = read_u24(&raw hs_buf[1])
+            ssl_consume_record(ssl)
 
             if(msg_type == SSL_HS_SERVER_HELLO as u8) {
                 got_server_hello = true
@@ -3175,6 +3180,7 @@ public namespace tls {
             if(enc_ct == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
                 var ccs_d : [1]u8
                 read_record_payload(ssl, &raw mut ccs_d[0], 1)
+                ssl_consume_record(ssl)
                 continue
             }
 
@@ -3184,20 +3190,23 @@ public namespace tls {
             if(inner_ct == SSL_MSG_ALERT as u8) {
                 var alert_data : [2]u8
                 read_record_payload(ssl, &raw mut alert_data[0], 2)
+                ssl_consume_record(ssl)
                 return ERR_SSL_FATAL_ALERT_MESSAGE
             }
 
             if(inner_ct != SSL_MSG_HANDSHAKE as u8) {
+                ssl_consume_record(ssl)
                 return ERR_SSL_UNEXPECTED_MESSAGE
             }
 
             // Read the handshake message body
             var msg_buf : [4096]u8
             var msg_payload = read_record_payload(ssl, &raw mut msg_buf[0], 4096 as i32)
-            if(msg_payload < 4) { return ERR_SSL_DECODE_ERROR }
+            if(msg_payload < 4) { ssl_consume_record(ssl); return ERR_SSL_DECODE_ERROR }
 
             var msg_type_code = msg_buf[0] as u32
             var msg_body_len2 = read_u24(&raw msg_buf[1])
+            ssl_consume_record(ssl)
 
             if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)

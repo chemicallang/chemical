@@ -30,6 +30,19 @@ public namespace tls {
         0xFFFFFFFFu32, 0xFFFFFFFFu32, 0x00000000u32, 0xFFFFFFFFu32
     ]
 
+    public func ecp_curve_gx(gx : *mut Mpi) {
+        mpi_init(gx); gx.n = 8
+        var i : size_t = 0; while(i < 8) { gx.p[i] = P256_GX[i]; i += 1 }
+    }
+    public func ecp_curve_gy(gy : *mut Mpi) {
+        mpi_init(gy); gy.n = 8
+        var i : size_t = 0; while(i < 8) { gy.p[i] = P256_GY[i]; i += 1 }
+    }
+    public func ecp_curve_b(b : *mut Mpi) {
+        mpi_init(b); b.n = 8
+        var i : size_t = 0; while(i < 8) { b.p[i] = P256_B[i]; i += 1 }
+    }
+
     // Generator Gx = 6B17D1F2 E12C4247 F8BCE6E5 63A440F2 77037D81 2DEB33A0 F4A13945 D898C296
     var P256_GX : [8]u32 = [
         0xD898C296u32, 0xF4A13945u32, 0x2DEB33A0u32, 0x77037D81u32,
@@ -43,7 +56,7 @@ public namespace tls {
     ]
 
     // Curve coefficient b = 5AC635D8 AA3A93E7 B3EBBD55 769886BC 651D06B0 CC53B0F6 3BCE3C3E 27D2604B
-    var P256_B : [8]u32 = [
+    public var P256_B : [8]u32 = [
         0x27D2604Bu32, 0x3BCE3C3Eu32, 0xCC53B0F6u32, 0x651D06B0u32,
         0x769886BCu32, 0xB3EBBD55u32, 0xAA3A93E7u32, 0x5AC635D8u32
     ]
@@ -350,7 +363,7 @@ public namespace tls {
     // ─── Scalar Multiplication (Double-and-Add) ──────────────────────────
 
     // R = k * P on P-256 using Montgomery ladder for safety
-    func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
+    public func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
         // Double-and-add: R = k * P
         // Uses ecp_add_jac which requires P to remain in affine form (Z=1).
         // P starts affine (from generator or normalized point) and is
@@ -396,7 +409,7 @@ public namespace tls {
     // ─── Point Normalization (Jacobian to Affine) ────────────────────────
 
     // Convert Jacobian coordinates to affine: (X/Z^2, Y/Z^3, 1)
-    func ecp_normalize_jac(P : *mut ECPPoint) : int {
+    public func ecp_normalize_jac(P : *mut ECPPoint) : int {
         if(mpi_is_zero(&raw mut P.Z)) {
             // Point at infinity
             mpi_lset(&raw mut P.X, 1)
@@ -572,10 +585,6 @@ public namespace tls {
 
         ret = mpi_write_binary(&raw mut shared_point.X, shared, 32)
         if(ret < 0) { return ret }
-
-        printf("[DBG_ECDH] shared: "); var _es : size_t = 0
-        while(_es < 32) { printf("%02x", shared[_es] as int); _es += 1 }
-        printf("\n")
 
         return 0
     }

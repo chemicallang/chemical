@@ -1934,9 +1934,19 @@ public namespace tls {
                 var cs_len_key = pos - cs_len_pos - 2
                 buf[cs_len_pos] = ((cs_len_key >> 8) & 0xFF) as u8
                 buf[cs_len_pos + 1] = (cs_len_key & 0xFF) as u8
+                printf("[DBG_KS] cs_len_key=%d cs_byte0=%02x cs_byte1=%02x buf_kspos01=%02x%02x\n",
+                    cs_len_key as int,
+                    buf[cs_len_pos] as int, buf[cs_len_pos+1] as int,
+                    buf[ks_len_pos] as int, buf[ks_len_pos+1] as int)
                 var ks_data_len = 2 + cs_len_key
                 buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
                 buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
+                printf("[DBG_KS] ks_data_len=%d after_write ext_bytes=%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                    ks_data_len as int,
+                    buf[ks_len_pos-2] as int, buf[ks_len_pos-1] as int,
+                    buf[ks_len_pos] as int, buf[ks_len_pos+1] as int,
+                    buf[cs_len_pos] as int, buf[cs_len_pos+1] as int,
+                    buf[cs_len_pos+2] as int, buf[cs_len_pos+3] as int)
             }
         }
 
@@ -3955,11 +3965,15 @@ public namespace tls {
         crypto::sha256_init(&raw mut transcript)
 
         // Hash ClientHello into transcript
+        // FIXED: hs_buf from read_handshake_msg has the 4-byte handshake header
+        // prepended, so hs_buf[0..3] = handshake type + length. The header is
+        // hashed separately as ch_hdr above, so we must hash the BODY starting
+        // from hs_buf[4] to avoid doubling the header and truncating the body.
         var ch_hdr : [4]u8
         ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
         write_u24(hs_len, &raw mut ch_hdr[1])
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], hs_len)
+        crypto::sha256_update(&raw mut transcript, &raw hs_buf[4], hs_len)
 
         // Parse ClientHello to find client's key_share (support both P-256 and x25519)
         var client_p256_key : [65]u8

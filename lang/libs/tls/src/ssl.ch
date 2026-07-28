@@ -1422,12 +1422,25 @@ public namespace tls {
                                            data, data_len as size_t,
                                            &raw mut encrypted[0], 17400)
         } else {
+            // TLS 1.2: prepend 5-byte record header before encrypted payload
             enc_len = tls12_encrypt_record(ssl.transform_out,
                                            &raw ssl.out_ctr[0],
                                            content_type,
                                            ssl.major_ver, ssl.minor_ver,
                                            data, data_len as size_t,
-                                           &raw mut encrypted[0], 17400)
+                                           &raw mut encrypted[5], 17395)
+            if(enc_len < 0) { return enc_len }
+
+            // Write record header at the beginning (encrypted starts at offset 5)
+            encrypted[0] = content_type
+            encrypted[1] = ssl.major_ver
+            encrypted[2] = ssl.minor_ver
+            encrypted[3] = ((enc_len >> 8) & 0xFF) as u8
+            encrypted[4] = (enc_len & 0xFF) as u8
+            enc_len += 5
+
+            // Increment send sequence number for the next encrypted record
+            ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
         }
 
         if(enc_len < 0) { return enc_len }
@@ -1707,11 +1720,18 @@ public namespace tls {
         while(i < ssl.conf.ciphersuite_count) {
             var cs_id = ssl.conf.ciphersuite_list[i]
             if(cs_id != 0) {
-                // In TLS 1.2 mode, skip TLS 1.3-only cipher suites
+                // In TLS 1.2 mode, skip TLS 1.3-only cipher suites and ECDHE/SHA-384 ciphers
                 var skip_cs : bool = false
+                var cs_info = get_ciphersuite_info(cs_id)
                 if(!supports_tls13) {
-                    var cs_info = get_ciphersuite_info(cs_id)
                     if(cs_info.max_tls_version >= SSL_VERSION_TLS1_3 as u8) {
+                        skip_cs = true
+                    }
+                    // TLS 1.2 client only supports RSA key exchange (not ECDHE) and SHA-256 PRF
+                    if(cs_info.key_exchange != KE_RSA as u8 && cs_info.key_exchange != KE_NONE as u8) {
+                        skip_cs = true
+                    }
+                    if(cs_info.hash != HASH_SHA256 as u8 && cs_info.hash != HASH_NONE as u8) {
                         skip_cs = true
                     }
                 }
@@ -2563,11 +2583,20 @@ public namespace tls {
     // ─── Parse ServerHello and extract key parameters ────────────────────
 
     func parse_server_hello(ssl : *mut SSLContext, data : *u8, data_len : u32) : int {
+        // data starts with the 4-byte handshake header (type + 3-byte length),
+        // followed by the ServerHello body.
+        // ServerHello body layout: version(2) + random(32) + session_id(1+len) + ciphersuite(2) + compression(1) + extensions
+        // Session ID has variable length, so ciphersuite offset = 39 + session_id_len
         if(data_len < 38) { return ERR_SSL_DECODE_ERROR }
 
         var sh_version_major = data[4]
         var sh_version_minor = data[5]
-        var sh_ciphersuite = read_u16_be(&raw data[37])
+
+        // Read session_id_len FIRST to compute ciphersuite offset correctly
+        var session_id_len = data[38] as size_t
+        if(data_len < 37 + session_id_len) { return ERR_SSL_DECODE_ERROR }
+
+        var sh_ciphersuite = read_u16_be(&raw data[39 + session_id_len])
 
         ssl.major_ver = sh_version_major
         ssl.minor_ver = sh_version_minor
@@ -2587,7 +2616,6 @@ public namespace tls {
         }
 
         // Extract session ID from ServerHello (bytes 38+ depending on session_id_len)
-        var session_id_len = data[38] as size_t
         if(session_id_len > 0 && session_id_len <= 32) {
             if(ssl.session != null) {
                 ssl.session.id_len = session_id_len
@@ -2650,8 +2678,8 @@ public namespace tls {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
 
-        // Feed ServerHello into transcript hash
-        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+        // Feed ServerHello into transcript hash (body starts at hs_buf[4] after 4-byte header)
+        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
         ret = parse_server_hello(ssl, &raw hs_buf[0], hs_len)
         if(ret < 0) { return ret }
@@ -2663,9 +2691,7 @@ public namespace tls {
             i += 1
         }
 
-        // Record negotiated ciphersuite
-        var negotiated_cs = read_u16_be(&raw hs_buf[37])
-        ssl.negotiated_ciphersuite = negotiated_cs
+        // Record negotiated ciphersuite (already set by parse_server_hello)
 
         // 3. Read Certificate
         ssl.state = SSLState.SERVER_CERTIFICATE()
@@ -2681,8 +2707,8 @@ public namespace tls {
         if(hs_type == SSL_HS_CERTIFICATE as u8) {
             ssl.state = SSLState.SERVER_KEY_EXCHANGE()
 
-            // Feed Certificate into transcript hash
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            // Feed Certificate into transcript hash (body starts at hs_buf[4])
+            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
             // Parse first certificate in the chain
             // Handshake message layout:
@@ -2722,7 +2748,7 @@ public namespace tls {
             }
         } else if(hs_type == SSL_HS_SERVER_HELLO_DONE as u8) {
             ssl.state = SSLState.SERVER_HELLO_DONE()
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
         }
 
         // 4. Read ServerKeyExchange (if present) or ServerHelloDone
@@ -2731,7 +2757,7 @@ public namespace tls {
             ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
             if(ret < 0) { return ret }
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
             if(hs_type == SSL_HS_SERVER_HELLO_DONE as u8) {
                 // RSA key exchange: ServerHelloDone received directly after Certificate
                 got_shd = true
@@ -2746,13 +2772,13 @@ public namespace tls {
                 ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
-                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
             } else {
                 // Certificate was not present, read ServerHelloDone
                 ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
-                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
             }
         }
 
@@ -2814,7 +2840,16 @@ public namespace tls {
             &raw mut key_block[0], kb_size
         )
 
-        // ── Populate transform ──
+        // 6. Send ClientKeyExchange (must be sent BEFORE transform activation per RFC 5246)
+        //    Encryption starts after ChangeCipherSpec, so CKE must be in the clear.
+        ssl.state = SSLState.CLIENT_KEY_EXCHANGE()
+        ret = send_handshake_msg(ssl, SSL_HS_CLIENT_KEY_EXCHANGE as u8, &raw cke_data[0], cke_len as u32)
+        if(ret < 0) { return ret }
+
+        // Feed ClientKeyExchange into transcript hash
+        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
+
+        // ── Populate transform (NOW activate transforms, after CKE is sent) ──
         var tr : Transform
         transform_init(&raw mut tr)
         tls12_populate_transform(&raw mut tr, &raw cs_info, &raw key_block[0], kb_size)
@@ -2828,20 +2863,9 @@ public namespace tls {
         *tr_in_mem = tr
         ssl.transform_in = tr_in_mem
 
-        // ═══════════════════════════════════════════════════════════════════
-        // PER RFC 5246 §7.4.9: The Finished message hash includes ALL
-        // handshake messages up to (but not including) the Finished itself.
-        // This means ClientKeyExchange MUST be sent and hashed BEFORE
-        // finalizing the transcript hash and computing the Finished.
-        // ═══════════════════════════════════════════════════════════════════
-
-        // 6. Send ClientKeyExchange
-        ssl.state = SSLState.CLIENT_KEY_EXCHANGE()
-        ret = send_handshake_msg(ssl, SSL_HS_CLIENT_KEY_EXCHANGE as u8, &raw cke_data[0], cke_len as u32)
-        if(ret < 0) { return ret }
-
-        // Feed ClientKeyExchange into transcript hash
-        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
+        // Reset sequence numbers for handshake encryption phase
+        i = 0
+        while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
 
         // ── Finalize handshake transcript hash (includes all msgs up to CKE) ──
         var hs_hash : [32]u8
@@ -3788,8 +3812,8 @@ public namespace tls {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
 
-        // Feed ClientHello into transcript hash
-        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+        // Feed ClientHello into transcript hash (body starts at hs_buf[4])
+        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
         // Extract client random from ClientHello (bytes 2-33)
         if(hs_len >= 34 && ssl.handshake != null) {
@@ -3858,7 +3882,7 @@ public namespace tls {
         if(hs_type != SSL_HS_CLIENT_KEY_EXCHANGE as u8) {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
-        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[0])
+        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
         // Parse encrypted pre-master secret from ClientKeyExchange
         // For RSA: body = length(2) + encrypted_pre_master
@@ -4182,8 +4206,8 @@ public namespace tls {
         ret = send_handshake_msg(ssl, SSL_HS_ENCRYPTED_EXTENSIONS as u8, &raw ee_buf[4], 2)
         if(ret < 0) { return ret }
 
-        // Certificate (skip if no cert configured)
-        if(ssl.conf.own_cert != null) {
+        // Certificate (skip if no cert configured or no private key)
+        if(ssl.conf.own_cert != null && ssl.conf.own_key != null) {
             ssl.state = SSLState.SERVER_CERTIFICATE()
             var cert_data = ssl.conf.own_cert
             var der_len = cert_data.raw_pem_len
@@ -4221,9 +4245,26 @@ public namespace tls {
                 ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[4], cert_body_pos - 4)
                 if(ret < 0) { return ret }
             }
+        } else {
+            // Send empty Certificate (required by TLS 1.3 spec when not authenticating via certificate)
+            ssl.state = SSLState.SERVER_CERTIFICATE()
+            // Empty Certificate: certificate_request_context(0) + empty certificate_list(0,0,0)
+            var empty_cert_buf : [8]u8
+            empty_cert_buf[0] = SSL_HS_CERTIFICATE as u8
+            write_u24(4, &raw mut empty_cert_buf[1])  // body length = 4 bytes
+            empty_cert_buf[4] = 0 as u8               // certificate_request_context = empty
+            empty_cert_buf[5] = 0 as u8               // certificate_list length high
+            empty_cert_buf[6] = 0 as u8               // certificate_list length mid
+            empty_cert_buf[7] = 0 as u8               // certificate_list length low (= 0 = empty)
+
+            crypto::sha256_update(&raw mut transcript, &raw empty_cert_buf[0], 8)
+
+            ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw empty_cert_buf[4], 4)
+            if(ret < 0) { return ret }
         }
 
-        // CertificateVerify — skipped (requires server private key with ECDSA/RSA)
+        // CertificateVerify — skipped (TLS 1.3 requires CertificateVerify when non-empty cert sent)
+        // TODO: implement CertificateVerify signing for authenticated server mode
 
         // Finished
         ssl.state = SSLState.SERVER_FINISHED()

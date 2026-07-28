@@ -25,32 +25,30 @@ using namespace crypto
     var p:[32]u8 = [0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
                     0xBC,0xE6,0xFA,0xAD,0xA7,0x17,0x9E,0x84,0xF3,0xB9,0xCA,0xC2,0xFC,0x63,0x25,0x51]
     var b:[1]u8; b[0]=2
-    // p * 2 - compare against Python via system
     var ph:[65]char; test_bytes_to_hex(&raw p[0], 32, &raw mut ph[0])
+    var id=py_uniq(); var outfile:[32]char
+    outfile[0]=47; outfile[1]=116; outfile[2]=109; outfile[3]=112; outfile[4]=47; outfile[5]=112; outfile[6]=121
+    var ofi:size_t=7; var tid=id
+    if(tid==0){outfile[ofi]=48; ofi+=1}else{}
+    var rev:[10]char; var ri:size_t=0
+    while(tid>0){rev[ri]=48 as char+((tid%10)as char); tid=tid/10; ri+=1}
+    while(ri>0){ri-=1; outfile[ofi]=rev[ri]; ofi+=1}
+    outfile[ofi]=46; outfile[ofi+1]=111; outfile[ofi+2]=117; outfile[ofi+3]=116; outfile[ofi+4]=0
 
-    // Build python one-liner
-    var cmd:[200]char; var cp:size_t=0
+    var cmd:[512]char; var cp:size_t=0
     var c0="python3 -c 'a=int.from_bytes(bytes.fromhex(\"\0" as *char; var si:size_t=0
     while(c0[si]!=0){cmd[cp]=c0[si]; cp+=1; si+=1}
     si=0; while(ph[si]!=0){cmd[cp]=ph[si]; cp+=1; si+=1}
-    var c1="\"),\"big\");r=a*2;l=(r.bit_length()+7)//8 or 1;print(r.to_bytes(l,\"big\").hex())'\0" as *char; si=0
+    var c1="\"),\"big\");r=a*2;l=(r.bit_length()+7)//8 or 1;print(r.to_bytes(l,\"big\").hex())' > \0" as *char; si=0
     while(c1[si]!=0){cmd[cp]=c1[si]; cp+=1; si+=1}
+    si=0; while(outfile[si]!=0){cmd[cp]=outfile[si]; cp+=1; si+=1}
+    cmd[cp]=32; cp+=1; var c2="2>/dev/null\0" as *char; si=0
+    while(c2[si]!=0){cmd[cp]=c2[si]; cp+=1; si+=1}
     cmd[cp]=0
-
-    // Capture to file
-    var fullcmd:[512]char; var fc:size_t=0
-    while(fc<cp){fullcmd[fc]=cmd[fc]; fc+=1}
-    fullcmd[fc]=32; fc+=1; fullcmd[fc]=62; fc+=1; fullcmd[fc]=32; fc+=1
-    fullcmd[fc]=47; fc+=1; fullcmd[fc]=116; fc+=1; fullcmd[fc]=109; fc+=1; fullcmd[fc]=112; fc+=1
-    fullcmd[fc]=47; fc+=1; fullcmd[fc]=112; fc+=1; fullcmd[fc]=121; fc+=1; fullcmd[fc]=111; fc+=1
-    fullcmd[fc]=46; fc+=1; fullcmd[fc]=116; fc+=1; fullcmd[fc]=120; fc+=1; fullcmd[fc]=116; fc+=1
-    fullcmd[fc]=32; fc+=1; fullcmd[fc]=50; fc+=1; fullcmd[fc]=62; fc+=1; fullcmd[fc]=47; fc+=1
-    fullcmd[fc]=100; fc+=1; fullcmd[fc]=101; fc+=1; fullcmd[fc]=118; fc+=1; fullcmd[fc]=47; fc+=1
-    fullcmd[fc]=110; fc+=1; fullcmd[fc]=117; fc+=1; fullcmd[fc]=108; fc+=1; fullcmd[fc]=108; fc+=1; fullcmd[fc]=0
-    system(&raw fullcmd[0])
+    system(&raw cmd[0])
 
     var outbuf:[256]u8
-    var n = test_read_file("/tmp/pyo.txt\0" as *char, &raw mut outbuf[0] as *mut u8, 256)
+    var n = test_read_file(&raw outfile[0], &raw mut outbuf[0] as *mut u8, 256)
 
     // Chemical: p * 2
     var ma2:Mpi; mpi_read_binary(&raw mut ma2, &raw p[0], 32)
@@ -113,10 +111,8 @@ func py_uniq() : i32 { _py_id = _py_id + 1; return _py_id }
     var mm:Mpi;mpi_read_binary(&raw mut mm,&raw m[0],1)
     var mr:Mpi;mpi_init(&raw mut mr);mpi_mod(&raw mut mr,&raw mut tmp,&raw mut mm)
     var cs=mpi_size(&raw mut mr);var cb:[4]u8;mpi_write_binary(&raw mut mr,&raw mut cb[0],4)
-    if(cs!=py_len){
-        if(cs==0){if(py_len==1){if(py_r[0]==0){}else{env.error("mpi_mod mismatch")}}else{env.error("mpi_mod mismatch")}}else{env.error("mpi_mod mismatch")}
-    }else{
-        if(!test_bytes_eq(&raw cb[4-cs],&raw py_r[0],cs)){env.error("mpi_mod mismatch")}else{}
+    if(cs!=py_len || !test_bytes_eq(&raw cb[4-cs],&raw py_r[0],cs)){
+        env.error("mpi_mod mismatch")
     }
 }
 
@@ -125,17 +121,28 @@ func py_uniq() : i32 { _py_id = _py_id + 1; return _py_id }
     var p:[32]u8 = [0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
                     0xBC,0xE6,0xFA,0xAD,0xA7,0x17,0x9E,0x84,0xF3,0xB9,0xCA,0xC2,0xFC,0x63,0x25,0x51]
     var ph:[65]char; test_bytes_to_hex(&raw p[0], 32, &raw mut ph[0])
+    var id=py_uniq(); var outfile:[32]char
+    outfile[0]=47; outfile[1]=116; outfile[2]=109; outfile[3]=112; outfile[4]=47; outfile[5]=112; outfile[6]=121
+    var ofi:size_t=7; var tid=id
+    if(tid==0){outfile[ofi]=48; ofi+=1}else{}
+    var rev:[10]char; var ri:size_t=0
+    while(tid>0){rev[ri]=48 as char+((tid%10)as char); tid=tid/10; ri+=1}
+    while(ri>0){ri-=1; outfile[ofi]=rev[ri]; ofi+=1}
+    outfile[ofi]=46; outfile[ofi+1]=111; outfile[ofi+2]=117; outfile[ofi+3]=116; outfile[ofi+4]=0
 
     var cmd:[512]char; var cp:size_t=0
     var c0="python3 -c 'a=int.from_bytes(bytes.fromhex(\"\0" as *char; var si:size_t=0
     while(c0[si]!=0){cmd[cp]=c0[si]; cp+=1; si+=1}
     si=0; while(ph[si]!=0){cmd[cp]=ph[si]; cp+=1; si+=1}
-    var c1="\"),\"big\");r=a-5;l=(r.bit_length()+7)//8 or 1;print(r.to_bytes(l,\"big\").hex())' > /tmp/pyo.txt 2>/dev/null\0" as *char; si=0
+    var c1="\"),\"big\");r=a-5;l=(r.bit_length()+7)//8 or 1;print(r.to_bytes(l,\"big\").hex())' > \0" as *char; si=0
     while(c1[si]!=0){cmd[cp]=c1[si]; cp+=1; si+=1}
+    si=0; while(outfile[si]!=0){cmd[cp]=outfile[si]; cp+=1; si+=1}
+    cmd[cp]=32; cp+=1; var c2="2>/dev/null\0" as *char; si=0
+    while(c2[si]!=0){cmd[cp]=c2[si]; cp+=1; si+=1}
     cmd[cp]=0
     system(&raw cmd[0])
     var outbuf:[256]u8
-    var n = test_read_file("/tmp/pyo.txt\0" as *char, &raw mut outbuf[0] as *mut u8, 256)
+    var n = test_read_file(&raw outfile[0], &raw mut outbuf[0] as *mut u8, 256)
     var py_r:[40]u8; var py_len:size_t=0
     while(py_len*2<n&&outbuf[py_len*2]!=10&&outbuf[py_len*2]!=0){
         py_r[py_len]=test_hex_pair_byte(outbuf[py_len*2]as char,outbuf[py_len*2+1]as char); py_len+=1}
@@ -207,6 +214,20 @@ func py_uniq() : i32 { _py_id = _py_id + 1; return _py_id }
         printf("[SUBMOD] cs=%d cb[3]=%d\n",cs as int, cb[3] as int)
         env.error("mpi_sub+mod mismatch")
     }else{}
+}
+
+@test public func TEST_p256_prime(env:&mut TestEnv) {
+    // Verify P-256 prime is correct: FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+    var p: Mpi; ecp_curve_p(&raw mut p)
+    var expected:[32]u8 = [
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xBC,0xE6,0xFA,0xAD,0xA7,0x17,0x9E,0x84,0xF3,0xB9,0xCA,0xC2,0xFC,0x63,0x25,0x51
+    ]
+    var buf:[32]u8
+    mpi_write_binary(&raw mut p, &raw mut buf[0], 32)
+    if(!test_bytes_eq(&raw buf[0], &raw expected[0], 32)){
+        env.error("P-256 prime mismatch")
+    }
 }
 
 @test public func TEST_ecdh_k3_vs_py(env:&mut TestEnv) {

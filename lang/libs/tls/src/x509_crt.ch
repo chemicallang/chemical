@@ -475,6 +475,14 @@ public namespace tls {
         crt.raw_pem = der_data as *mut u8
         crt.raw_pem_len = der_len
 
+        // Copy DER to heap so it persists after caller's buffer is freed
+        var der_copy = malloc(der_len) as *mut u8
+        if(der_copy != null) {
+            var dc : size_t = 0
+            while(dc < der_len) { der_copy[dc] = der_data[dc]; dc += 1 }
+            crt.raw_pem = der_copy
+        }
+
         var pos : size_t = 0
 
         // --- Outer SEQUENCE (Certificate) ---

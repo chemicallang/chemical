@@ -17,15 +17,19 @@ public namespace tls {
     public struct ECDSAContext {
         var pub_x : Mpi       // Public key X coordinate (affine)
         var pub_y : Mpi       // Public key Y coordinate (affine)
+        var priv_key : Mpi    // Private key scalar (for signing)
         var curve_id : u16    // Named curve (TLS_GROUP_SECP256R1 etc.)
         var is_init : bool
+        var has_private : bool
     }
 
     public func ecdsa_init(ctx : *mut ECDSAContext) {
         mpi_init(&raw mut ctx.pub_x)
         mpi_init(&raw mut ctx.pub_y)
+        mpi_init(&raw mut ctx.priv_key)
         ctx.curve_id = 0
         ctx.is_init = false
+        ctx.has_private = false
     }
 
     // ─── Import ECDSA Public Key ──────────────────────────────────────────
@@ -45,6 +49,143 @@ public namespace tls {
 
         ctx.curve_id = curve
         ctx.is_init = true
+        return 0
+    }
+
+    // Import raw private key scalar (32 bytes for P-256)
+    public func ecdsa_import_privkey(ctx : *mut ECDSAContext,
+                                      priv_key : *u8, priv_key_len : size_t,
+                                      curve : u16) : int {
+        var ret = mpi_read_binary(&raw mut ctx.priv_key, priv_key, priv_key_len)
+        if(ret < 0) { return ret }
+        ctx.curve_id = curve
+        ctx.has_private = true
+        ctx.is_init = true
+        return 0
+    }
+
+    // ─── ECDSA Signing (secp256r1) ────────────────────────────────────────
+
+    public func ecdsa_sign(ctx : *mut ECDSAContext,
+                            hash : *u8, hash_len : size_t,
+                            sig_out : *mut u8, sig_out_len : *mut u16) : int {
+        printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
+        if(!ctx.has_private) { printf("[ECDSA_DBG] no private key!\n"); return ERR_ECDSA_VERIFY_FAILED }
+        if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
+            return ERR_ECP_FEATURE_UNAVAILABLE
+        }
+
+        var n : Mpi; ecp_curve_n(&raw mut n)
+        var e : Mpi; mpi_init(&raw mut e)
+        var ret = mpi_read_binary(&raw mut e, hash, hash_len)
+        printf("[ECDSA_DBG] read_hash=%d\n", ret)
+        if(ret < 0) { return ret }
+
+        var G : ECPPoint; ecp_point_init(&raw mut G)
+        mpi_grow(&raw mut G.X, 8); G.X.n = 8
+        mpi_grow(&raw mut G.Y, 8); G.Y.n = 8
+        var gi : size_t = 0
+        while(gi < 8) { G.X.p[gi] = P256_GX[gi]; gi += 1 }
+        gi = 0
+        while(gi < 8) { G.Y.p[gi] = P256_GY[gi]; gi += 1 }
+        mpi_lset(&raw mut G.Z, 1)
+        printf("[ECDSA_DBG] G_ok\n")
+
+        var k : Mpi; mpi_init(&raw mut k)
+        var r_val : Mpi; mpi_init(&raw mut r_val)
+        var s_val : Mpi; mpi_init(&raw mut s_val)
+        var k_inv : Mpi; mpi_init(&raw mut k_inv)
+        var temp : Mpi; mpi_init(&raw mut temp)
+        var R : ECPPoint; ecp_point_init(&raw mut R)
+
+        var attempts : i32 = 0
+        var k_bytes : [32]u8
+        var r_bytes : [32]u8
+        var s_bytes : [32]u8
+        var r_body_len : size_t = 0
+        var s_body_len : size_t = 0
+
+        while(attempts < 100) {
+            ret = random_fill(&raw mut k_bytes[0], 32)
+            if(ret < 0) { return ret }
+            k_bytes[0] = (k_bytes[0] & 0x7F) as u8
+            ret = mpi_read_binary(&raw mut k, &raw k_bytes[0], 32)
+            if(ret < 0) { return ret }
+            ret = mpi_mod(&raw mut k, &raw mut k, &raw mut n)
+            if(ret < 0) { return ret }
+            if(mpi_cmp_int(&raw mut k, 1) < 0) { attempts += 1; continue }
+
+            ret = ecp_mul(&raw mut R, &raw mut k, &raw mut G)
+            if(ret < 0) { return ret }
+            ret = ecp_normalize_jac(&raw mut R)
+            if(ret < 0) { return ret }
+
+            ret = mpi_mod(&raw mut r_val, &raw mut R.X, &raw mut n)
+            if(ret < 0) { return ret }
+            if(mpi_cmp_int(&raw mut r_val, 0) == 0) { attempts += 1; continue }
+
+            ret = mpi_mod_inv(&raw mut k_inv, &raw mut k, &raw mut n)
+            if(ret < 0) { return ret }
+            ret = mpi_mul(&raw mut temp, &raw mut r_val, &raw mut ctx.priv_key)
+            if(ret < 0) { return ret }
+            ret = mpi_mod(&raw mut temp, &raw mut temp, &raw mut n)
+            if(ret < 0) { return ret }
+            ret = mpi_add(&raw mut temp, &raw mut temp, &raw mut e)
+            if(ret < 0) { return ret }
+            ret = mpi_mod(&raw mut temp, &raw mut temp, &raw mut n)
+            if(ret < 0) { return ret }
+            ret = mpi_mul(&raw mut s_val, &raw mut k_inv, &raw mut temp)
+            if(ret < 0) { return ret }
+            ret = mpi_mod(&raw mut s_val, &raw mut s_val, &raw mut n)
+            if(ret < 0) { return ret }
+            if(mpi_cmp_int(&raw mut s_val, 0) == 0) { attempts += 1; continue }
+
+            break
+        }
+        if(attempts >= 100) { return ERR_ECDSA_VERIFY_FAILED }
+
+        ret = mpi_write_binary(&raw mut r_val, &raw mut r_bytes[0], 32)
+        if(ret < 0) { return ret }
+        ret = mpi_write_binary(&raw mut s_val, &raw mut s_bytes[0], 32)
+        if(ret < 0) { return ret }
+
+        // DER encode: SEQUENCE { INTEGER r, INTEGER s }
+        var r_start : size_t = 0
+        while(r_start < 32 && r_bytes[r_start] == 0) { r_start += 1 }
+        var r_need : bool = (r_start < 32 && (r_bytes[r_start] & 0x80) != 0)
+        if(r_need) { r_body_len = (32 - r_start) + 1 } else { r_body_len = 32 - r_start }
+
+        var s_start : size_t = 0
+        while(s_start < 32 && s_bytes[s_start] == 0) { s_start += 1 }
+        var s_need : bool = (s_start < 32 && (s_bytes[s_start] & 0x80) != 0)
+        if(s_need) { s_body_len = (32 - s_start) + 1 } else { s_body_len = 32 - s_start }
+
+        var total_content = 2 + r_body_len + 2 + s_body_len
+
+        var pos : size_t = 0
+        sig_out[pos] = 0x30 as u8; pos += 1
+        if(total_content < 128) {
+            sig_out[pos] = total_content as u8; pos += 1
+        } else {
+            sig_out[pos] = 0x81 as u8; pos += 1
+            sig_out[pos] = total_content as u8; pos += 1
+        }
+
+        sig_out[pos] = 0x02 as u8; pos += 1
+        sig_out[pos] = r_body_len as u8; pos += 1
+        if(r_need) { sig_out[pos] = 0; pos += 1 }
+        var ri : size_t = 0
+        while(ri < 32 - r_start) { sig_out[pos + ri] = r_bytes[r_start + ri]; ri += 1 }
+        pos += ri
+
+        sig_out[pos] = 0x02 as u8; pos += 1
+        sig_out[pos] = s_body_len as u8; pos += 1
+        if(s_need) { sig_out[pos] = 0; pos += 1 }
+        var si : size_t = 0
+        while(si < 32 - s_start) { sig_out[pos + si] = s_bytes[s_start + si]; si += 1 }
+        pos += si
+
+        *sig_out_len = pos as u16
         return 0
     }
 

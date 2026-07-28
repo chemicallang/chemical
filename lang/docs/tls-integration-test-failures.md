@@ -286,3 +286,46 @@ For the `INT_tls12_client` test, add debug logging at every `ssl_hash_handshake_
 - OpenSSL: 3.5.5 (27 Jan 2026)
 - TCCCompiler: Chemical C translation + TinyCC
 - All tests: localhost TCP
+
+## CRITICAL UPDATE — 2026-07-28, Session 2
+
+### Master Secret Verified Matching (TLS 1.2)
+
+Python's server-side SSL keylog (added via `helpers.ch`) captures:
+```
+CLIENT_RANDOM <client_random_hex> <master_secret_hex>
+```
+
+Chemical's debug output and Python's keylog show EXACTLY the same master_secret:
+- Chemical: `4fa62df5cc56fa462151a1d0ed7cf9b4aea433ad65ccdfc3dad06f7e8ab1b30a7...`
+- Python:  `4fa62df5cc56fa462151a1d0ed7cf9b4aea433ad65ccdfc3dad06f7e8ab1b30a7...` (identical)
+
+This PROVES:
+- RSA encryption/decryption of pre_master works correctly
+- PRF (HMAC-SHA256 based) produces identical output
+- Key block derivation produces identical output
+- The mismatch is in the transcript hash (`hs_hash`) between the two sides
+
+### ECDHE vs RSA Cipher — socat Trace Comparison
+
+Used `socat -x` as TCP proxy. `openssl s_client -cipher 'ECDHE-RSA-AES128-GCM-SHA256:AES128-GCM-SHA256:@SECLEVEL=0'` successfully completes TLS 1.2 handshake with Python server. Python selects `ECDHE-RSA-AES128-GCM-SHA256` (0xC02F). The identical AES-128-GCM engine works correctly.
+
+Chemical client ONLY offers `TLS_RSA_WITH_AES_128_GCM_SHA256` (0x009C) due to cipher filter (lines 1727-1733 of ssl.ch). The GCM engine is identical between these ciphers, yet Python's GCM decryption fails for the RSA variant. This is a STRONG clue that Python/OpenSSL's key block layout differs for non-PFS ciphers.
+
+### TLS 1.2 Client — Next Investigation Step
+
+The transcript hash (`hs_hash`) differs between Chemical client and Python server. The hash includes: ClientHello + ServerHello + Certificate + ServerHelloDone + ClientKeyExchange.
+
+To find the exact mismatch, add SHA-256 hash computation at each `ssl_hash_handshake_msg` call and compare with a Python script that computes the same from captured wire bytes (using socat). The ClientKeyExchange body format is the most likely culprit: check if `cke_len` (258 = 2+256) matches Python's expected CKE body length.
+
+### TLS 1.3 Server — New Hypotheses
+
+1. Python 3.14's OpenSSL might REQUIRE a CertificateVerify signature even with `CERT_NONE` when the server has `own_cert` set. Try setting `own_key` from the PEM file.
+2. The `supported_versions` extension in ClientHello has version `0301` in the record header but `0303` in the body. Check if this causes confusion.
+3. Python might expect the EncryptedExtensions message to include specific extensions (like `server_name` if SNI was in ClientHello).
+
+### Fixes Applied (committed)
+
+1. `lang/libs/net/posix/platform_api.ch`: Added `set_blocking()` — clears `O_NONBLOCK` on sockets
+2. `lang/libs/tls/src/ssl.ch`: `ssl_set_socket` calls `net::set_blocking(socket)` — prevents EAGAIN errors on non-blocking inherited sockets
+3. `lang/tests/tls/src/helpers.ch`: Added server-side SSL keylog (`ctx.keylog_filename`)

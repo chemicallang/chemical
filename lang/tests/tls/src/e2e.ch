@@ -150,9 +150,14 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19880/tcp 2>/dev/null; sleep 0.3")
     system("python3 /tmp/tls_utils.py cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec")
+    // Export private key as hex for Chemical to load
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19880_key.pem /tmp/tls_19880_priv.hex")
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19880_cert.pem")
     if(cert == null) { env.error("failed to load server cert"); return }
+
+    var priv_key = ec_privkey_load_hex_file("/tmp/tls_19880_priv.hex")
+    if(priv_key == null) { env.error("failed to load private key"); return }
 
     var server_sock = net::listen_addr("127.0.0.1", 19880u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
@@ -180,6 +185,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
 
     var cfg = ssl_config_init(SSL_IS_SERVER)
     cfg.own_cert = cert
+    cfg.own_key = priv_key as *mut void
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(ssl_mem, &raw mut cfg)
 
@@ -203,9 +209,13 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19882/tcp 2>/dev/null; sleep 0.3")
     system("python3 /tmp/tls_utils.py cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec")
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19882_key.pem /tmp/tls_19882_priv.hex")
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19882_cert.pem")
     if(cert == null) { env.error("failed to load ECDSA cert"); return }
+
+    var priv_key = ec_privkey_load_hex_file("/tmp/tls_19882_priv.hex")
+    if(priv_key == null) { env.error("failed to load private key"); return }
 
     var server_sock = net::listen_addr("127.0.0.1", 19882u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
@@ -228,6 +238,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     ssl_set_socket(ssl_mem, client_sock)
     var cfg = ssl_config_init(SSL_IS_SERVER)
     cfg.own_cert = cert
+    cfg.own_key = priv_key as *mut void
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(ssl_mem, &raw mut cfg)
 

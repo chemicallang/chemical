@@ -26,7 +26,7 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
     l="es=hmac.new(bytes(32),bytes(32),hashlib.sha256).digest()\n\0" as *char; si=0
     while(l[si]!=0){script[sp]=l[si]; sp+=1; si+=1}
 
-    l="d=hkdf_expand_label(es,b'derived',b'',32)\n\0" as *char; si=0
+    l="empty_hash=hashlib.sha256(b'').digest()\nd=hkdf_expand_label(es,b'derived',empty_hash,32)\n\0" as *char; si=0
     while(l[si]!=0){script[sp]=l[si]; sp+=1; si+=1}
 
     l="hs=hmac.new(d,bytes.fromhex('\0" as *char; si=0

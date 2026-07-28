@@ -18,10 +18,10 @@ public namespace tls {
 
     // ─── secp256r1 (P-256) Curve Parameters ─────────────────────────────────
 
-    // Prime p = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC632551
+    // Prime p = FFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFF
     var P256_P : [8]u32 = [
-        0xFC632551u32, 0xF3B9CAC2u32, 0xA7179E84u32, 0xBCE6FAADu32,
-        0xFFFFFFFFu32, 0xFFFFFFFFu32, 0x00000000u32, 0xFFFFFFFFu32
+        0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32, 0x00000000u32,
+        0x00000000u32, 0x00000000u32, 0x00000001u32, 0xFFFFFFFFu32
     ]
 
     // Order n = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC632551
@@ -161,17 +161,16 @@ public namespace tls {
         ret = mpi_mod(&raw mut S, &raw mut S, &raw mut p)
 
         // For a=-3: M = 3*(X1 + ZZ)*(X1 - ZZ)
-        // Let T = X1 + ZZ
-        ret = mpi_add(&raw mut T, &raw mut P.X, &raw mut ZZ)
+        // = 3*(X1^2 - Z1^4) = 3*X1^2 + a*Z1^4 (where a=-3)
+        var X_plus_ZZ : Mpi; mpi_init(&raw mut X_plus_ZZ)
+        ret = mpi_add(&raw mut X_plus_ZZ, &raw mut P.X, &raw mut ZZ)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut T, &raw mut T, &raw mut p)
-        // Let ZZ = X1 - ZZ (reuse ZZ since we don't need original ZZ after this)
-        var XZ_diff : Mpi; mpi_init(&raw mut XZ_diff)
-        ret = mpi_sub(&raw mut XZ_diff, &raw mut P.X, &raw mut ZZ)
+        ret = mpi_mod(&raw mut X_plus_ZZ, &raw mut X_plus_ZZ, &raw mut p)
+        var X_minus_ZZ : Mpi; mpi_init(&raw mut X_minus_ZZ)
+        ret = mpi_sub(&raw mut X_minus_ZZ, &raw mut P.X, &raw mut ZZ)
         if(ret < 0) { return ret }
-        ret = mpi_mod(&raw mut XZ_diff, &raw mut XZ_diff, &raw mut p)
-        // M = 3 * T * (X1 - ZZ)
-        ret = mpi_mul(&raw mut M, &raw mut T, &raw mut XZ_diff)
+        ret = mpi_mod(&raw mut X_minus_ZZ, &raw mut X_minus_ZZ, &raw mut p)
+        ret = mpi_mul(&raw mut M, &raw mut X_plus_ZZ, &raw mut X_minus_ZZ)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut M, &raw mut M, &raw mut p)
         ret = mpi_mul_int(&raw mut M, &raw mut M, 3)
@@ -224,7 +223,7 @@ public namespace tls {
     }
 
     // Point addition: R = P + Q (with Q in affine coordinates, Z=1)
-    func ecp_add_jac(R : *mut ECPPoint, P : *mut ECPPoint, Q : *mut ECPPoint) : int {
+    public func ecp_add_jac(R : *mut ECPPoint, P : *mut ECPPoint, Q : *mut ECPPoint) : int {
         // Mixed Jacobian-affine addition
         // P = (X1, Y1, Z1), Q = (X2, Y2, 1)
         // R = (X3, Y3, Z3) = P + Q
@@ -308,13 +307,18 @@ public namespace tls {
         ret = mpi_mul(&raw mut X3, &raw mut R_val, &raw mut R_val)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
+        printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n); var _x3i:size_t; var _x3b:[32]u8; _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1};printf("\n")
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut J)
-        if(ret < 0) { return ret }
+        if(ret < 0) { printf("[X3DBG] sub1 failed ret=%d\n",ret); return ret }
+        printf("[X3DBG] after -J: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};var _x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n")
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V once
-        if(ret < 0) { return ret }
+        if(ret < 0) { printf("[X3DBG] sub2 failed ret=%d\n",ret); return ret }
+        printf("[X3DBG] after -V: s=%d n=%lu\n", X3.s, X3.n)
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V again = 2*V
-        if(ret < 0) { return ret }
+        if(ret < 0) { printf("[X3DBG] sub3 failed ret=%d\n",ret); return ret }
+        printf("[X3DBG] after -2V: s=%d n=%lu\n", X3.s, X3.n)
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
+        printf("[X3DBG] final: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n")
 
         // Y3 = R_val * (V - X3) - 2 * Y1 * J
         // temp = V - X3
@@ -322,9 +326,29 @@ public namespace tls {
         ret = mpi_sub(&raw mut tmp_vy, &raw mut V, &raw mut X3)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut tmp_vy, &raw mut tmp_vy, &raw mut p)
+        if(ret < 0) { return ret }
+        printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n); var _y3b:[32]u8; var _y3i:size_t; _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};var _y3sz=mpi_size(&raw mut tmp_vy);if(_y3sz>32){printf("<too big:%lu>",_y3sz)}else{mpi_write_binary(&raw mut tmp_vy,&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1}};printf("\n")
         // Y3 = R_val * (V - X3)
         ret = mpi_mul(&raw mut Y3, &raw mut R_val, &raw mut tmp_vy)
         if(ret < 0) { return ret }
+        printf("[Y3DBG] after mul s=%d n=%lu ret=%d\n", Y3.s, Y3.n, ret)
+        _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(&raw mut Y3);if(_y3sz>32){printf("[Y3DBG] after mul val=<too big:%lu>\n",_y3sz)}else{mpi_write_binary(&raw mut Y3,&raw mut _y3b[0],32);printf("[Y3DBG] after mul val=");_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1};printf("\n")}
+
+
+        // DEBUG ALL INTERMEDIATES
+        if(P.Z.n == 8) { var _b:[32]u8; var _i:size_t
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut Z1Z1,&raw mut _b[0],32);printf("[ADDDBG] Z1Z1=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut U2,&raw mut _b[0],32);printf("[ADDDBG] U2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut H,&raw mut _b[0],32);printf("[ADDDBG] H=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut S2,&raw mut _b[0],32);printf("[ADDDBG] S2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut HH,&raw mut _b[0],32);printf("[ADDDBG] HH=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut I,&raw mut _b[0],32);printf("[ADDDBG] I=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut J,&raw mut _b[0],32);printf("[ADDDBG] J=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut R_val,&raw mut _b[0],32);printf("[ADDDBG] R_val=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut V,&raw mut _b[0],32);printf("[ADDDBG] V=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut X3,&raw mut _b[0],32);printf("[ADDDBG] X3=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut Y3,&raw mut _b[0],32);printf("[ADDDBG] Y3=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
+        }
 
         // Y1J = Y1 * J
         var Y1J : Mpi; mpi_init(&raw mut Y1J)

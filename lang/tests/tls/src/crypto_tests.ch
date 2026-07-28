@@ -307,6 +307,87 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 }
 
 // ============================================================================
+// 2*G test: check if doubling alone is correct
+// ============================================================================
+@test public func TEST_ecdh_k2_direct(env:&mut TestEnv) {
+    // Get G from library
+    var G : ECPPoint; ecp_point_init(&raw mut G)
+    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
+    var k : Mpi; mpi_init(&raw mut k); mpi_lset(&raw mut k, 2)
+    var R : ECPPoint; ecp_point_init(&raw mut R)
+    var ret = ecp_mul(&raw mut R, &raw mut k, &raw mut G)
+    if(ret < 0) { printf("[K2] ecp_mul error=%d\n", ret); env.error("ecp_mul failed"); return }
+    ret = ecp_normalize_jac(&raw mut R)
+    if(ret < 0) { printf("[K2] normalize error=%d\n", ret); env.error("normalize failed"); return }
+    var chem_x : [32]u8; ret = mpi_write_binary(&raw mut R.X, &raw mut chem_x[0], 32)
+    if(ret < 0) { printf("[K2] write error=%d\n", ret); env.error("write failed"); return }
+
+    // Python: compute 2*G
+    var py_script : [512]u8; var psi:size_t=0
+    // import sys, from cryptography...ec, from cryptography...Encoding,PublicFormat
+    py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=10;psi+=1
+    // from cryptography.hazmat.primitives.asymmetric import ec
+    py_script[psi]=102;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=122;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=10;psi+=1
+    // from cryptography.hazmat.primitives.serialization import Encoding,PublicFormat
+    py_script[psi]=102;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=122;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=122;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=69;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=70;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=10;psi+=1
+    // sk=ec.derive_private_key(2,ec.SECP256R1())
+    py_script[psi]=115;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=50;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=83;psi+=1;py_script[psi]=69;psi+=1;py_script[psi]=67;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=50;psi+=1;py_script[psi]=53;psi+=1;py_script[psi]=54;psi+=1;py_script[psi]=82;psi+=1;py_script[psi]=49;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
+    // pub=sk.public_key().public_bytes(Encoding.X962,PublicFormat.UncompressedPoint)
+    py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=69;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=88;psi+=1;py_script[psi]=57;psi+=1;py_script[psi]=54;psi+=1;py_script[psi]=50;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=70;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=85;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
+    // sys.stdout.write(pub.hex())
+    py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=119;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=120;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
+
+    var py_pub:[65]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_pub[0], 65)
+    if(py_len < 65) { printf("[K2] Python output too short: %d\n", py_len as int); env.error("python failed"); return }
+
+    printf("[K2] chem=%064x py=%064x\n", chem_x[0] as int, py_pub[1] as int)
+    if(!test_bytes_eq(&raw chem_x[0], &raw py_pub[1], 32)) {
+        printf("[K2] X mismatch\n")
+        print_hex("chem", &raw chem_x[0], 32); print_hex("py  ", &raw py_pub[1], 32)
+        env.error("k2 mismatch")
+    }
+}
+
+// ============================================================================
+// 2G + G using the mixed Jacobian-affine addition, compared against ecp_mul(3*G)
+// ============================================================================
+@test public func TEST_ecdh_add(env:&mut TestEnv) {
+    var G : ECPPoint; ecp_point_init(&raw mut G)
+    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
+
+    // Compute 2G via ecp_mul
+    var k2 : Mpi; mpi_init(&raw mut k2); mpi_lset(&raw mut k2, 2)
+    var R2 : ECPPoint; ecp_point_init(&raw mut R2)
+    var ret = ecp_mul(&raw mut R2, &raw mut k2, &raw mut G)
+    if(ret < 0) { env.error("ecp_mul k=2"); return }
+
+    // Compute 3G via ecp_add_jac: R2 + G = 2G + G = 3G
+    var P_affine : ECPPoint; ecp_point_init(&raw mut P_affine)
+    ecp_curve_gx(&raw mut P_affine.X); ecp_curve_gy(&raw mut P_affine.Y); mpi_lset(&raw mut P_affine.Z, 1)
+    var R3_add : ECPPoint; ecp_point_init(&raw mut R3_add)
+    ret = ecp_add_jac(&raw mut R3_add, &raw mut R2, &raw mut P_affine)
+    if(ret < 0) { env.error("ecp_add_jac failed"); return }
+    ret = ecp_normalize_jac(&raw mut R3_add)
+    if(ret < 0) { env.error("normalize failed"); return }
+    var add_x : [32]u8; mpi_write_binary(&raw mut R3_add.X, &raw mut add_x[0], 32)
+
+    // Compute 3G via ecp_mul as reference
+    var k3 : Mpi; mpi_init(&raw mut k3); mpi_lset(&raw mut k3, 3)
+    var R3_mul : ECPPoint; ecp_point_init(&raw mut R3_mul)
+    ret = ecp_mul(&raw mut R3_mul, &raw mut k3, &raw mut G)
+    if(ret < 0) { env.error("ecp_mul k=3"); return }
+    ret = ecp_normalize_jac(&raw mut R3_mul)
+    if(ret < 0) { env.error("normalize mul"); return }
+    var mul_x : [32]u8; mpi_write_binary(&raw mut R3_mul.X, &raw mut mul_x[0], 32)
+
+    if(!test_bytes_eq(&raw add_x[0], &raw mul_x[0], 32)) {
+        printf("[ADD] add="); var _adi:size_t=0; while(_adi<32){printf("%02x",add_x[_adi]as int);_adi+=1}; printf("\n")
+        printf("[ADD] mul="); _adi=0; while(_adi<32){printf("%02x",mul_x[_adi]as int);_adi+=1}; printf("\n")
+        env.error("add != mul")
+    }
+}
+
+// ============================================================================
 // ECDH: Compute 3*G using ecp_mul() directly, compare against Python
 // No hardcoded constants — uses library's own curve parameters
 // ============================================================================

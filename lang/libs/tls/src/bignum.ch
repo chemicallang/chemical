@@ -159,34 +159,44 @@ public namespace tls {
 
     public func mpi_add(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         var ret : int = 0
-        if(a.s * b.s >= 0) {
+        // Same sign: add magnitudes
+        if(a.s == b.s) {
+            var asgn = a.s
             ret = mpi_add_abs(x, a, b)
-            if(ret >= 0) { x.s = a.s }
+            if(ret >= 0) { x.s = asgn }
             return ret
         }
+        // Opposite signs: subtract smaller from larger
         if(mpi_cmp_abs(a, b) >= 0) {
+            var asgn = a.s
             ret = mpi_sub_abs(x, a, b)
-            if(ret >= 0) { x.s = a.s }
+            if(ret >= 0) { x.s = asgn }
         } else {
+            var bsgn = b.s
             ret = mpi_sub_abs(x, b, a)
-            if(ret >= 0) { x.s = b.s }
+            if(ret >= 0) { x.s = bsgn }
         }
         return ret
     }
 
     public func mpi_sub(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         var ret : int = 0
+        // Opposite signs: add magnitudes
         if(a.s != b.s) {
+            var asgn = a.s
             ret = mpi_add_abs(x, a, b)
-            if(ret >= 0) { x.s = a.s }
+            if(ret >= 0) { x.s = asgn }
             return ret
         }
+        // Same sign: subtract smaller from larger
         if(mpi_cmp_abs(a, b) >= 0) {
+            var asgn = a.s
             ret = mpi_sub_abs(x, a, b)
-            if(ret >= 0) { x.s = a.s }
+            if(ret >= 0) { x.s = asgn }
         } else {
+            var asgn = a.s
             ret = mpi_sub_abs(x, b, a)
-            if(ret >= 0) { x.s = -a.s }
+            if(ret >= 0) { x.s = -asgn }
         }
         return ret
     }

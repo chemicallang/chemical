@@ -3624,6 +3624,46 @@ public namespace tls {
         return null
     }
 
+    // ─── EC Private Key Loading ──────────────────────────────────────────
+    public func ec_privkey_load_hex_file(path : *char) : *mut ECDSAContext {
+        var mode = "r\0" as *char
+        var f = fopen(path, mode)
+        if(f == null) { return null }
+        var hex_buf : [80]u8
+        var total_read : size_t = 0
+        while(total_read < 64) {
+            var n = fread(&raw mut hex_buf[total_read], 1 as size_t, 64 - total_read, f)
+            if(n <= 0) { break }
+            total_read += n
+        }
+        fclose(f)
+        if(total_read < 64) { return null }
+
+        var key_bytes : [32]u8
+        var i : size_t = 0
+        while(i < 32) {
+            var hi = hex_buf[i*2]
+            var lo = hex_buf[i*2 + 1]
+            var hv : u8 = 0
+            if(hi >= 48 && hi <= 57) { hv = hi - 48 as u8 }
+            else if(hi >= 97 && hi <= 102) { hv = (hi - 97) + 10 as u8 }
+            else if(hi >= 65 && hi <= 70) { hv = (hi - 65) + 10 as u8 }
+            var lv : u8 = 0
+            if(lo >= 48 && lo <= 57) { lv = lo - 48 as u8 }
+            else if(lo >= 97 && lo <= 102) { lv = (lo - 97) + 10 as u8 }
+            else if(lo >= 65 && lo <= 70) { lv = (lo - 65) + 10 as u8 }
+            key_bytes[i] = (hv << 4) | lv
+            i += 1
+        }
+
+        var ctx = malloc(sizeof(ECDSAContext)) as *mut ECDSAContext
+        if(ctx == null) { return null }
+        ecdsa_init(ctx)
+        var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], 32, TLS_GROUP_SECP256R1 as u16)
+        if(ret < 0) { unsafe { dealloc ctx }; return null }
+        return ctx
+    }
+
     // ─── CA Trust Store ───────────────────────────────────────────────────
     // Load a PEM-encoded certificate from a file on disk.
     // Returns a pointer to a heap-allocated X509Cert on success,
@@ -4261,8 +4301,74 @@ public namespace tls {
             if(ret < 0) { return ret }
         }
 
-        // CertificateVerify — skipped (TLS 1.3 requires CertificateVerify when non-empty cert sent)
-        // TODO: implement CertificateVerify signing for authenticated server mode
+        // CertificateVerify
+        printf("[CV_CHK_REACHED]\n")
+        if(ssl.conf.own_cert != null && ssl.conf.own_key != null) {
+            printf("[CV_IN_BLOCK]\n")
+            ssl.state = SSLState.CERTIFICATE_VERIFY()
+
+            var cv_copy = transcript
+            var cv_transcript_hash : [32]u8
+            crypto::sha256_final(&raw mut cv_copy, &raw mut cv_transcript_hash[0])
+
+            // content = 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
+            var sig_in : [200]u8
+            var sp : size_t = 0
+            while(sp < 64) { sig_in[sp] = 0x20 as u8; sp += 1 }
+            var ctx_label = "TLS 1.3, server CertificateVerify\0" as *char
+            var clen : size_t = 0
+            while(ctx_label[clen] != 0) { clen += 1 }
+            var ci : size_t = 0
+            while(ci < clen) { sig_in[sp + ci] = ctx_label[ci] as u8; ci += 1 }
+            sp += clen
+            sig_in[sp] = 0x00 as u8; sp += 1
+            var cj : size_t = 0
+            while(cj < 32) { sig_in[sp + cj] = cv_transcript_hash[cj]; cj += 1 }
+            sp += 32
+
+            var cv_hash : [32]u8
+            var cv_hctx : crypto::Sha256Context
+            crypto::sha256_init(&raw mut cv_hctx)
+            crypto::sha256_update(&raw mut cv_hctx, &raw sig_in[0], sp)
+            crypto::sha256_final(&raw mut cv_hctx, &raw mut cv_hash[0])
+            printf("[CV_HASH_OK] pk_type=%d\n", ssl.conf.own_cert.pk_type as int)
+
+            var pk_type = ssl.conf.own_cert.pk_type
+            var sig_buf : [256]u8
+            var sig_len : u16 = 0
+            var sig_alg : u16 = 0
+            sig_len = 256  // buffer size input for ecdsa_sign
+
+            if(pk_type == PK_ECKEY as u8) {
+                printf("[CV_BEFORE_SIGN]\n")
+                var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
+                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], 32, &raw mut sig_buf[0], &raw mut sig_len)
+                printf("[CV_AFTER_SIGN] ret=%d sig_len=%d\n", ret, sig_len as int)
+                if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
+                sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16
+            } else {
+                return ERR_SSL_INTERNAL_ERROR
+            }
+
+            var cv_buf : [512]u8
+            cv_buf[0] = SSL_HS_CERTIFICATE_VERIFY as u8
+            var cv_body : u32 = (2 + 2 + sig_len) as u32
+            write_u24(cv_body, &raw mut cv_buf[1])
+            cv_buf[4] = ((sig_alg >> 8) & 0xFF) as u8
+            cv_buf[5] = (sig_alg & 0xFF) as u8
+            write_u16_be(sig_len, &raw mut cv_buf[6])
+            var ck : size_t = 0
+            while(ck < sig_len as size_t) { cv_buf[8 + ck] = sig_buf[ck]; ck += 1 }
+            var cv_total = 4 + cv_body
+            printf("[CV] sig_len=%d sig_der=", sig_len as int); var _cvd : size_t = 0
+            while(_cvd < sig_len as size_t) { printf("%02x", sig_buf[_cvd] as int); _cvd += 1 }
+            printf("\n")
+
+            crypto::sha256_update(&raw mut transcript, &raw cv_buf[0], cv_total as size_t)
+
+            ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE_VERIFY as u8, &raw cv_buf[4], cv_body)
+            if(ret < 0) { return ret }
+        }
 
         // Finished
         ssl.state = SSLState.SERVER_FINISHED()

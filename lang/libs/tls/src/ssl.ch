@@ -1324,6 +1324,9 @@ public namespace tls {
         if(ret < 0) {
             printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
                 read_u16_be(&raw ssl.in_hdr[3]) as int)
+            var _role_str : *char = "client"
+            if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER) { _role_str = "server" }
+            printf("[DBG13] CTX role=%s\n", _role_str)
             printf("[DBG13] key_dec: "); var _di3 : size_t = 0
             while(_di3 < tr.key_len as size_t) { printf("%02x", tr.key_dec[_di3] as int); _di3 += 1 }
             printf("\n")

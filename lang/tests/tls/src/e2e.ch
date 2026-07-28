@@ -132,6 +132,12 @@ public func INT_tls12_client(env : &mut TestEnv) {
         else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("TLS12: ERR_SSL_BAD_PROTOCOL_VERSION") }
         else if(ret == ERR_SSL_INVALID_RECORD) { env.error("TLS12: ERR_SSL_INVALID_RECORD") }
         else { env.error("TLS12: unknown error") }
+    } else {
+        var req = "GET / HTTP/1.0\r\n\r\n"
+        ssl_write(&raw mut ctx, req as *u8, 18)
+        var buf : [512]u8
+        ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
     system("fuser -k 19877/tcp 2>/dev/null")
@@ -195,6 +201,8 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     } else {
         var buf : [512]u8
         ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
         ssl_close_notify(ssl_mem)
     }
 
@@ -245,6 +253,12 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     var ret = ssl_handshake(ssl_mem)
     if(ret < 0) {
         env.error("ECDSA cert + x25519 server handshake failed")
+    } else {
+        var buf : [512]u8
+        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
+        ssl_close_notify(ssl_mem)
     }
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }

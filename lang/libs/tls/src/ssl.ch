@@ -1550,8 +1550,8 @@ public namespace tls {
         if(ssl.transform_in != null) {
             var did_decrypt = false
 
-            // TLS 1.3 decrypt: triggered when outer CT is APPLICATION_DATA
-            if(ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8) {
+            // TLS 1.3 decrypt: triggered when outer CT is APPLICATION_DATA in TLS 1.3
+            if(ssl.tls_version >= SSL_VERSION_TLS1_3 && ssl.in_hdr[0] == SSL_MSG_APPLICATION_DATA as u8) {
                 var inner_ct : u8 = 0
                 var dec_buf : [17400]u8
                 var dec_len = tls13_decrypt_record(ssl,
@@ -2846,12 +2846,18 @@ public namespace tls {
         // Feed ClientKeyExchange into transcript hash
         ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
 
-        // ── Populate transform (NOW activate transforms, after CKE is sent) ──
+        // 7. Send ChangeCipherSpec (in the clear!)
+        ssl.state = SSLState.CLIENT_CHANGE_CIPHER_SPEC()
+        var ccs_msg : [1]u8
+        ccs_msg[0] = 1 as u8
+        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
+        if(ret < 0) { return ret }
+
+        // ── Populate and activate transforms (AFTER ChangeCipherSpec is sent) ──
         var tr : Transform
         transform_init(&raw mut tr)
         tls12_populate_transform(&raw mut tr, &raw cs_info, &raw key_block[0], kb_size)
 
-        // Allocate and activate transforms (both directions use same keys for now)
         var tr_mem = malloc(sizeof(Transform)) as *mut Transform
         *tr_mem = tr
         ssl.transform_out = tr_mem
@@ -2865,24 +2871,21 @@ public namespace tls {
         while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
 
         // ── Finalize handshake transcript hash (includes all msgs up to CKE) ──
-        var hs_hash : [32]u8
-        crypto::sha256_final(&raw mut hash_ctx, &raw mut hs_hash[0])
+        var client_hs_hash : [32]u8
+        var copy_ctx = hash_ctx
+        crypto::sha256_final(&raw mut copy_ctx, &raw mut client_hs_hash[0])
 
         // ── Compute client Finished verify_data ──
         var client_finished : [12]u8
-        tls12_compute_finished(&raw master_secret[0], true, &raw hs_hash[0], 32, &raw mut client_finished[0])
-
-        // 7. Send ChangeCipherSpec
-        ssl.state = SSLState.CLIENT_CHANGE_CIPHER_SPEC()
-        var ccs_msg : [1]u8
-        ccs_msg[0] = 1 as u8
-        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
-        if(ret < 0) { return ret }
+        tls12_compute_finished(&raw master_secret[0], true, &raw client_hs_hash[0], 32, &raw mut client_finished[0])
 
         // 8. Send Finished (with verify_data)
         ssl.state = SSLState.CLIENT_FINISHED()
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw client_finished[0], 12)
         if(ret < 0) { return ret }
+
+        // Feed Client Finished message into transcript hash for verifying Server Finished
+        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw client_finished[0])
 
         // 9. Read Server's ChangeCipherSpec + Finished
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
@@ -2892,12 +2895,13 @@ public namespace tls {
 
         // Verify server's Finished
         if(hs_type == SSL_HS_FINISHED as u8) {
-            // Compute expected server verify_data using same transcript hash
-            // The server's Finished uses the SAME handshake messages hash as the client's,
-            // but with label "server finished" instead of "client finished"
+            var server_hs_hash : [32]u8
+            crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
+
+            // Compute expected server verify_data using transcript hash including Client Finished
             var expected_server_finished : [12]u8
             tls12_compute_finished(&raw master_secret[0], false,
-                                    &raw hs_hash[0], 32,
+                                    &raw server_hs_hash[0], 32,
                                     &raw mut expected_server_finished[0])
 
             // Compare against received server Finished
@@ -3497,10 +3501,11 @@ public namespace tls {
                                     &raw fin_transcript_hash[0], 32,
                                     &raw mut expected_finished[0])
 
-                // Compare with received (msg_buf[4..4+12])
+                // Compare with received (msg_buf[4..4+32])
                 var verify_ok = true
+                if(msg_body_len2 != 32) { verify_ok = false }
                 var vi : size_t = 0
-                while(vi < 12) {
+                while(vi < 32) {
                     if(msg_buf[4 + vi] != expected_finished[vi]) { verify_ok = false }
                     vi += 1
                 }
@@ -3544,15 +3549,25 @@ public namespace tls {
                             &raw cf_hash[0], 32,
                             &raw mut client_finished_verify[0])
 
-        // Build and send Finished message: hs_type(1) + length(3) + verify_data(12)
-        var cf_body : [12]u8
+        // Build and send Finished message: hs_type(1) + length(3) + verify_data(32)
+        var cf_body : [32]u8
         var ci : size_t = 0
-        while(ci < 12) {
+        while(ci < 32) {
             cf_body[ci] = client_finished_verify[ci]
             ci += 1
         }
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 12)
+        var cf_msg_buf : [36]u8
+        cf_msg_buf[0] = SSL_HS_FINISHED as u8
+        write_u24(32, &raw mut cf_msg_buf[1])
+        ci = 0
+        while(ci < 32) {
+            cf_msg_buf[4 + ci] = client_finished_verify[ci]
+            ci += 1
+        }
+        crypto::sha256_update(&raw mut transcript, &raw cf_msg_buf[0], 36)
+
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 32)
         if(ret < 0) { return ret }
 
         // ── Derive application traffic keys (after sending client Finished) ────
@@ -3974,12 +3989,13 @@ public namespace tls {
         }
 
         // Compute transcript hash up to ClientKeyExchange for Finished verification
-        var hs_hash : [32]u8
-        crypto::sha256_final(&raw mut hash_ctx, &raw mut hs_hash[0])
+        var client_hs_hash : [32]u8
+        var copy_ctx = hash_ctx
+        crypto::sha256_final(&raw mut copy_ctx, &raw mut client_hs_hash[0])
 
         // Verify client Finished message
         var expected_client_finished : [12]u8
-        tls12_compute_finished(&raw master_secret[0], true, &raw hs_hash[0], 32, &raw mut expected_client_finished[0])
+        tls12_compute_finished(&raw master_secret[0], true, &raw client_hs_hash[0], 32, &raw mut expected_client_finished[0])
 
         // Compare received client Finished against expected
         var fin_match = true
@@ -3993,6 +4009,12 @@ public namespace tls {
             return ERR_SSL_HANDSHAKE_FAILURE
         }
 
+        // Feed received Client Finished message into transcript hash for computing Server Finished
+        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw hs_buf[4])
+
+        var server_hs_hash : [32]u8
+        crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
+
         // 8. Send ChangeCipherSpec
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
         var ccs_msg : [1]u8
@@ -4002,8 +4024,7 @@ public namespace tls {
 
         // 9. Send Finished
         ssl.state = SSLState.SERVER_FINISHED()
-        tls12_compute_finished(&raw master_secret[0], false, &raw hs_hash[0], 32, &raw mut hs_buf[0])
-        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw hs_buf[0])
+        tls12_compute_finished(&raw master_secret[0], false, &raw server_hs_hash[0], 32, &raw mut hs_buf[0])
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw hs_buf[0], 12)
         if(ret < 0) { return ret }
         ssl.state = SSLState.HANDSHAKE_OVER()
@@ -4387,16 +4408,16 @@ public namespace tls {
         crypto::hmac_sha256(&raw finished_key[0], 32, &raw full_hash_before_fin[0], 32,
                             &raw mut server_verify[0])
 
-        // Build Finished
-        var fin_buf : [16]u8
+        // Build Finished (32 bytes verify_data for SHA-256 in TLS 1.3)
+        var fin_buf : [36]u8
         fin_buf[0] = SSL_HS_FINISHED as u8
-        write_u24(12, &raw mut fin_buf[1])
+        write_u24(32, &raw mut fin_buf[1])
         var fi : size_t = 0
-        while(fi < 12) { fin_buf[4 + fi] = server_verify[fi]; fi += 1 }
+        while(fi < 32) { fin_buf[4 + fi] = server_verify[fi]; fi += 1 }
 
-        crypto::sha256_update(&raw mut transcript, &raw fin_buf[0], 16)
+        crypto::sha256_update(&raw mut transcript, &raw fin_buf[0], 36)
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], 12)
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], 32)
         if(ret < 0) { return ret }
 
         // ── Read client Finished ────────────────────────────────────
@@ -4407,6 +4428,42 @@ public namespace tls {
         if(hs_type != SSL_HS_FINISHED as u8) {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
+
+        // Verify client Finished message
+        var client_finished_key : [32]u8
+        var cf_label = "finished\0" as *char
+        var empty_c2 : [1]u8 = [0]
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], 32,
+                                cf_label, 8,
+                                &raw empty_c2[0], 0,
+                                &raw mut client_finished_key[0], 32)
+
+        var cf_copy = transcript
+        var cf_transcript_hash : [32]u8
+        crypto::sha256_final(&raw mut cf_copy, &raw mut cf_transcript_hash[0])
+
+        var expected_client_verify : [32]u8
+        crypto::hmac_sha256(&raw client_finished_key[0], 32,
+                            &raw cf_transcript_hash[0], 32,
+                            &raw mut expected_client_verify[0])
+
+        var verify_ok = true
+        if(hs_len != 32) { verify_ok = false }
+        var cfi : size_t = 0
+        while(cfi < 32) {
+            if(hs_buf[4 + cfi] != expected_client_verify[cfi]) { verify_ok = false }
+            cfi += 1
+        }
+        if(!verify_ok) {
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
+
+        // Hash client Finished into transcript
+        var cf_hdr : [4]u8
+        cf_hdr[0] = SSL_HS_FINISHED as u8
+        write_u24(hs_len, &raw mut cf_hdr[1])
+        crypto::sha256_update(&raw mut transcript, &raw cf_hdr[0], 4)
+        crypto::sha256_update(&raw mut transcript, &raw hs_buf[4], hs_len)
 
         // ── Derive application traffic keys (after both Finished messages) ──
         var full_hash : [32]u8

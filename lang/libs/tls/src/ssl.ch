@@ -1438,9 +1438,6 @@ public namespace tls {
             encrypted[3] = ((enc_len >> 8) & 0xFF) as u8
             encrypted[4] = (enc_len & 0xFF) as u8
             enc_len += 5
-
-            // Increment send sequence number for the next encrypted record
-            ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
         }
 
         if(enc_len < 0) { return enc_len }

@@ -8,10 +8,11 @@ public func INT_smoke_test(env : &mut TestEnv) {
 }
 
 @test
-public func INT_tls13_client_openssl(env : &mut TestEnv) {
+public func INT_tls13_client(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19876/tcp 2>/dev/null; sleep 0.3")
-    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_key.pem -out /tmp/tls_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-    system("setsid openssl s_server -cert /tmp/tls_cert.pem -key /tmp/tls_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19876 -quiet </dev/null 2>/dev/null &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem test.example.com ec")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3 &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -58,9 +59,10 @@ public func INT_tls13_client_openssl(env : &mut TestEnv) {
 
 @test
 public func INT_x25519_handshake(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
-    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/tls_x25519_key.pem -out /tmp/tls_x25519_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-    system("setsid openssl s_server -cert /tmp/tls_x25519_cert.pem -key /tmp/tls_x25519_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19878 -quiet </dev/null 2>/dev/null &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3 &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -98,9 +100,10 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
 
 @test
 public func INT_tls12_client(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19877/tcp 2>/dev/null; sleep 0.3")
-    system("openssl req -x509 -newkey rsa:2048 -keyout /tmp/tls12_key.pem -out /tmp/tls12_cert.pem -subj /CN=test.example.com -days 1 -nodes 2>/dev/null")
-    system("setsid openssl s_server -cert /tmp/tls12_cert.pem -key /tmp/tls12_key.pem -tls1_2 -no_anti_replay -accept 19877 -cipher kRSA -quiet </dev/null 2>/dev/null &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com rsa")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -119,7 +122,6 @@ public func INT_tls12_client(env : &mut TestEnv) {
             else if(ctx.last_alert_desc == 47) { env.error("TLS12: alert = illegal_parameter(47)") }
             else if(ctx.last_alert_desc == 50) { env.error("TLS12: alert = decode_error(50)") }
             else if(ctx.last_alert_desc == 51) { env.error("TLS12: alert = decrypt_error(51)") }
-            else if(ctx.last_alert_desc == 110) { env.error("TLS12: alert = unsupported_ext(110)") }
             else { env.error("TLS12: ERR_SSL_FATAL_ALERT_MESSAGE") }
         }
         else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS12: ERR_SSL_DECODE_ERROR") }
@@ -129,7 +131,6 @@ public func INT_tls12_client(env : &mut TestEnv) {
         else if(ret == ERR_SSL_BAD_CONFIG) { env.error("TLS12: ERR_SSL_BAD_CONFIG") }
         else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("TLS12: ERR_SSL_BAD_PROTOCOL_VERSION") }
         else if(ret == ERR_SSL_INVALID_RECORD) { env.error("TLS12: ERR_SSL_INVALID_RECORD") }
-        else if(ret == ERR_SSL_NO_RNG) { env.error("TLS12: ERR_SSL_NO_RNG") }
         else { env.error("TLS12: unknown error") }
     }
     ssl_free(&raw mut ctx)
@@ -145,23 +146,20 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
 }
 
 @test
-public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
+public func INT_tls13_server_client(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19880/tcp 2>/dev/null; sleep 0.3")
-    // Generate server certificate
-    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/srv_key.pem -out /tmp/srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec")
 
-    var cert = x509_crt_load_pem_file("/tmp/srv_cert.pem")
+    var cert = x509_crt_load_pem_file("/tmp/tls_19880_cert.pem")
     if(cert == null) { env.error("failed to load server cert"); return }
 
-    // Listen on a port
     var server_sock = net::listen_addr("127.0.0.1", 19880u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
-    // Start OpenSSL s_client in background to connect to us
-    system("setsid openssl s_client -connect 127.0.0.1:19880 -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -quiet </dev/null 2>/dev/null &")
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19880 1.3 &")
     system("sleep 1")
 
-    // Accept the client connection with non-blocking loop (timeout after ~5s)
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
     var accept_attempts = 0
@@ -171,12 +169,11 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
         accept_attempts += 1
     }
     if(client_sock == 0 as net::Socket) {
-        env.error("no client connected — OpenSSL s_client may not be available")
+        env.error("no client connected")
         net::close_socket(server_sock)
         return
     }
 
-    // Set up server SSL context
     var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
     ssl_init(ssl_mem)
     ssl_set_socket(ssl_mem, client_sock)
@@ -188,9 +185,8 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
 
     var ret = ssl_handshake(ssl_mem)
     if(ret < 0) {
-        env.error("TLS 1.3 server handshake failed against OpenSSL client")
+        env.error("TLS 1.3 server handshake failed against Python client")
     } else {
-        // Try reading what the client sent
         var buf : [512]u8
         ssl_read(ssl_mem, &raw mut buf[0], 512)
         ssl_close_notify(ssl_mem)
@@ -204,21 +200,19 @@ public func INT_tls13_server_openssl_client(env : &mut TestEnv) {
 
 @test
 public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19882/tcp 2>/dev/null; sleep 0.3")
-    // ECDSA cert + x25519 key exchange — modern TLS
-    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_srv_key.pem -out /tmp/ecdsa_srv_cert.pem -subj /CN=localhost -days 1 -nodes 2>/dev/null")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec")
 
-    var cert = x509_crt_load_pem_file("/tmp/ecdsa_srv_cert.pem")
+    var cert = x509_crt_load_pem_file("/tmp/tls_19882_cert.pem")
     if(cert == null) { env.error("failed to load ECDSA cert"); return }
 
     var server_sock = net::listen_addr("127.0.0.1", 19882u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
-    // Force x25519 on client side
-    system("setsid openssl s_client -connect 127.0.0.1:19882 -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -quiet </dev/null 2>/dev/null &")
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19882 1.3 &")
     system("sleep 1")
 
-    // Accept with non-blocking loop (timeout after ~5s)
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
     var accept_attempts = 0
@@ -249,11 +243,10 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
 
 @test
 public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
+    write_tls_python_utils()
     system("fuser -k 19883/tcp 2>/dev/null; sleep 0.3")
-    // Client connects to ECDSA-cert server — tests our ECDSA cert verification
-    system("openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout /tmp/ecdsa_key.pem -out /tmp/ecdsa_cert.pem -subj /CN=127.0.0.1 -days 1 -nodes 2>/dev/null")
-
-    system("setsid openssl s_server -cert /tmp/ecdsa_cert.pem -key /tmp/ecdsa_key.pem -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -no_anti_replay -accept 19883 -quiet </dev/null 2>/dev/null &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3 &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)

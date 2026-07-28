@@ -1,5 +1,104 @@
 // Shared helpers for TLS integration tests
 
+using std::string;
+using std::string_view;
+using std::vector;
+
+// -- Cross-platform temp path --
+func test_temp_path(name : string_view) : string {
+    comptime if(def.windows) {
+        var dir_opt = environment_get_temp()
+        var result = string()
+        if(dir_opt != null) {
+            result = string(dir_opt)
+        } else {
+            result = string("C:\\Windows\\Temp\\")
+        }
+        result.append_view("\\")
+        result.append_view(&name)
+        return result
+    } else {
+        var result = string("/tmp/")
+        result.append_view(&name)
+        return result
+    }
+}
+
+func environment_get_temp() : *char {
+    comptime if(def.windows) {
+        return getenv("TEMP")
+    } else {
+        return getenv("TMPDIR")
+    }
+}
+
+// -- Cross-platform random bytes --
+func test_random_bytes(buf : *mut u8, len : size_t) {
+    tls::random_fill(buf, len)
+}
+
+// -- Cross-platform Python script runner --
+func test_python_run_script(script : *u8, len : size_t, script_name : string_view) : vector<u8> {
+    var path = test_temp_path(script_name)
+    if(!test_write_file(path.data(), script, len)) { return vector<u8>() } else {}
+    return test_python_run_script_file(path.data())
+}
+
+func test_python_run_script_file(py_path : *char) : vector<u8> {
+    var result = vector<u8>()
+    var out_path = string(py_path)
+    out_path.append_view(".out")
+
+    comptime if(def.windows) {
+        var cmd = string("python3 ")
+        cmd.append_view(string_view(py_path))
+        cmd.append_view(" > ")
+        cmd.append_view(out_path.to_view())
+        cmd.append_view(" 2>nul")
+        system(cmd.data())
+    } else {
+        var cmd = string("python3 ")
+        cmd.append_view(string_view(py_path))
+        cmd.append_view(" > ")
+        cmd.append_view(out_path.to_view())
+        cmd.append_view(" 2>/dev/null")
+        system(cmd.data())
+    }
+
+    var buf : [4096]u8
+    var n = test_read_file(out_path.data(), &raw mut buf[0], 4096)
+    var i : size_t = 0
+    while(i < n) { result.push(buf[i]); i += 1 }
+    return result
+}
+
+// -- Parse hex output from Python stdout --
+func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *mut u8, out_len : size_t) : size_t {
+    var pos : size_t = 0
+    var found = false
+    while(pos + label.size() < output.size()) {
+        var match = true
+        var li : size_t = 0
+        while(li < label.size()) {
+            if(output.get(pos + li) != (label.get(li) as u8)) { match = false; break } else {}
+            li += 1
+        }
+        if(match) { pos += label.size(); found = true; break } else {}
+        pos += 1
+    }
+    if(!found) { return 0 } else {}
+    var written : size_t = 0
+    while(written < out_len && pos + 1 < output.size()) {
+        var hi = output.get(pos) as char
+        var lo = output.get(pos + 1) as char
+        if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
+        out[written] = test_hex_pair_byte(hi, lo)
+        written += 1
+        pos += 2
+    }
+    return written
+}
+
 func test_nibble_to_hex(n : uint) : char {
     if(n < 10) { return (48 as char) + (n as char) }
     else { return (87 as char) + (n as char) }

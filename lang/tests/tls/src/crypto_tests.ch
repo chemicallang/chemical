@@ -531,111 +531,27 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 // y^2 = x^3 - 3x + b (mod p) by comparing each intermediate against Python
 // ============================================================================
 @test public func TEST_curve_equation_stepwise(env:&mut TestEnv) {
-    // Python script (written as raw bytes, 10=newline)
-    var py_script : [1024]u8; var psi:size_t=0
-    // import sys
-    py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=10;psi+=1
-    // from cryptography.hazmat.primitives.asymmetric import ec
-    py_script[psi]=102;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=122;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=32;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=10;psi+=1
-    // curve=ec.SECP256R1()
-    py_script[psi]=99;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=83;psi+=1;py_script[psi]=69;psi+=1;py_script[psi]=67;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=50;psi+=1;py_script[psi]=53;psi+=1;py_script[psi]=54;psi+=1;py_script[psi]=82;psi+=1;py_script[psi]=49;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
-    // sk=ec.derive_private_key(1,curve)
-    py_script[psi]=115;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=49;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=118;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
-    // pub=sk.public_key().public_bytes(ec.Encoding.X962,ec.PublicFormat.UncompressedPoint)
-    py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=107;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=69;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=88;psi+=1;py_script[psi]=57;psi+=1;py_script[psi]=54;psi+=1;py_script[psi]=50;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=108;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=70;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=97;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=85;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=99;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=80;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
-    // Gx=int.from_bytes(pub[1:33],'big')
-    py_script[psi]=71;psi+=1;py_script[psi]=120;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=102;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=91;psi+=1;py_script[psi]=49;psi+=1;py_script[psi]=58;psi+=1;py_script[psi]=51;psi+=1;py_script[psi]=51;psi+=1;py_script[psi]=93;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=39;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=39;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
-    // Gy=int.from_bytes(pub[33:65],'big')
-    py_script[psi]=71;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=61;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=110;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=102;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=109;psi+=1;py_script[psi]=95;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=91;psi+=1;py_script[psi]=51;psi+=1;py_script[psi]=51;psi+=1;py_script[psi]=58;psi+=1;py_script[psi]=54;psi+=1;py_script[psi]=53;psi+=1;py_script[psi]=93;psi+=1;py_script[psi]=44;psi+=1;py_script[psi]=39;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=103;psi+=1;py_script[psi]=39;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
-    // p=0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
-    var py_p = "p=0x" as *char; var ci:size_t=0; while(py_p[ci]!=0){py_script[psi]=py_p[ci]as u8;psi+=1;ci+=1}
-    var p_m : Mpi; ecp_curve_p(&raw mut p_m); var p_buf:[32]u8; mpi_get_bytes(&raw mut p_m, &raw mut p_buf[0])
-    var p_hex:[65]char; test_bytes_to_hex(&raw p_buf[0], 32, &raw mut p_hex[0])
-    ci=0; while(p_hex[ci]!=0){py_script[psi]=p_hex[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // b=0x...
-    var py_b = "b=0x" as *char; ci=0; while(py_b[ci]!=0){py_script[psi]=py_b[ci]as u8;psi+=1;ci+=1}
-    var b_m : Mpi; ecp_curve_b(&raw mut b_m); var b_buf:[32]u8; mpi_get_bytes(&raw mut b_m, &raw mut b_buf[0])
-    var b_hex:[65]char; test_bytes_to_hex(&raw b_buf[0], 32, &raw mut b_hex[0])
-    ci=0; while(b_hex[ci]!=0){py_script[psi]=b_hex[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // lhs=(Gy*Gy)%p
-    var py_l1 = "lhs=(Gy*Gy)%p" as *char; ci=0; while(py_l1[ci]!=0){py_script[psi]=py_l1[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // x3=pow(Gx,3,p)
-    var py_x3 = "x3=pow(Gx,3,p)" as *char; ci=0; while(py_x3[ci]!=0){py_script[psi]=py_x3[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // three_x=(3*Gx)%p
-    var py_tx = "three_x=(3*Gx)%p" as *char; ci=0; while(py_tx[ci]!=0){py_script[psi]=py_tx[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // rhs=(x3-three_x+b)%p
-    var py_rh = "rhs=(x3-three_x+b)%p" as *char; ci=0; while(py_rh[ci]!=0){py_script[psi]=py_rh[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-    // sys.stdout.write(f'{lhs:064x}{x3:064x}{three_x:064x}{rhs:064x}')
-    var py_wr = "sys.stdout.write(f'" as *char; ci=0; while(py_wr[ci]!=0){py_script[psi]=py_wr[ci]as u8;psi+=1;ci+=1}
-    var py_fmt = "{lhs:064x}{x3:064x}{three_x:064x}{rhs:064x}')" as *char; ci=0; while(py_fmt[ci]!=0){py_script[psi]=py_fmt[ci]as u8;psi+=1;ci+=1}
-    py_script[psi]=10;psi+=1
-
-    var py_out:[256]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_out[0], 256)
-    if(py_len < 128) { env.error("Python output too short"); return }
-
-    var py_lhs = &raw py_out[0]; var py_x3p = &raw py_out[32]
-    var py_3x  = &raw py_out[64]; var py_rhs = &raw py_out[96]
-
-    // Chemical: get from library
-    var Gx : Mpi; ecp_curve_gx(&raw mut Gx); var Gy : Mpi; ecp_curve_gy(&raw mut Gy)
-    var p  : Mpi; ecp_curve_p(&raw mut p); var b  : Mpi; ecp_curve_b(&raw mut b)
-    var chem_lhs:[32]u8; var chem_x3:[32]u8; var chem_3x:[32]u8; var chem_rhs:[32]u8
-
-    // Step 1: y^2 mod p
-    var y2 : Mpi; mpi_init(&raw mut y2)
-    mpi_mul(&raw mut y2, &raw mut Gy, &raw mut Gy); mpi_mod(&raw mut y2, &raw mut y2, &raw mut p)
-    mpi_get_bytes(&raw mut y2, &raw mut chem_lhs[0])
-    if(!test_bytes_eq(&raw chem_lhs[0], py_lhs, 32)) {
-        printf("[CURVE] y^2 mod p mismatch\n"); print_hex("chem",&raw chem_lhs[0],32); print_hex("py  ",py_lhs,32)
-        env.error("step1: y^2 mismatch"); return
-    }
-
-    // Step 2: x^3 mod p
-    var x3m : Mpi; mpi_init(&raw mut x3m)
-    mpi_mul(&raw mut x3m, &raw mut Gx, &raw mut Gx); mpi_mod(&raw mut x3m, &raw mut x3m, &raw mut p)
-    mpi_mul(&raw mut x3m, &raw mut x3m, &raw mut Gx); mpi_mod(&raw mut x3m, &raw mut x3m, &raw mut p)
-    mpi_get_bytes(&raw mut x3m, &raw mut chem_x3[0])
-    if(!test_bytes_eq(&raw chem_x3[0], py_x3p, 32)) {
-        printf("[CURVE] x^3 mod p mismatch\n"); print_hex("chem",&raw chem_x3[0],32); print_hex("py  ",py_x3p,32)
-        env.error("step2: x^3 mismatch"); return
-    }
-
-    // Step 3: 3*x mod p
-    var t3x : Mpi; mpi_init(&raw mut t3x)
-    mpi_mul_int(&raw mut t3x, &raw mut Gx, 3); mpi_mod(&raw mut t3x, &raw mut t3x, &raw mut p)
-    mpi_get_bytes(&raw mut t3x, &raw mut chem_3x[0])
-    if(!test_bytes_eq(&raw chem_3x[0], py_3x, 32)) {
-        printf("[CURVE] 3x mod p mismatch\n"); print_hex("chem",&raw chem_3x[0],32); print_hex("py  ",py_3x,32)
-        env.error("step3: 3x mismatch"); return
-    }
-
-    // Step 4: x^3 - 3x + b mod p
-    var t2 : Mpi; mpi_init(&raw mut t2)
-    mpi_sub(&raw mut t2, &raw mut x3m, &raw mut t3x); mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
-    mpi_add(&raw mut t2, &raw mut t2, &raw mut b); mpi_mod(&raw mut t2, &raw mut t2, &raw mut p)
-    mpi_get_bytes(&raw mut t2, &raw mut chem_rhs[0])
-    if(!test_bytes_eq(&raw chem_rhs[0], py_rhs, 32)) {
-        printf("[CURVE] x^3-3x+b mod p mismatch\n"); print_hex("chem",&raw chem_rhs[0],32); print_hex("py  ",py_rhs,32)
-        env.error("step4: rhs mismatch"); return
-    }
-
-    // Final: y^2 should equal x^3-3x+b for the generator
-    if(!test_bytes_eq(&raw chem_lhs[0], &raw chem_rhs[0], 32)) {
-        printf("[CURVE] curve equation y^2 != x^3-3x+b for generator G\n")
-        print_hex("y^2  ", &raw chem_lhs[0], 32); print_hex("x^3-3x+b", &raw chem_rhs[0], 32)
-        env.error("curve equation failed")
+    // Self-consistency: verify G is on curve using Chemical MPI
+    var G : ECPPoint; ecp_point_init(&raw mut G)
+    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
+    var p : Mpi; ecp_curve_p(&raw mut p)
+    var b_m : Mpi; ecp_curve_b(&raw mut b_m)
+    var lhs : Mpi; mpi_init(&raw mut lhs)
+    mpi_mul(&raw mut lhs, &raw mut G.Y, &raw mut G.Y); mpi_mod(&raw mut lhs, &raw mut lhs, &raw mut p)
+    var x_sq : Mpi; mpi_init(&raw mut x_sq)
+    mpi_mul(&raw mut x_sq, &raw mut G.X, &raw mut G.X); mpi_mod(&raw mut x_sq, &raw mut x_sq, &raw mut p)
+    var x_cu : Mpi; mpi_init(&raw mut x_cu)
+    mpi_mul(&raw mut x_cu, &raw mut x_sq, &raw mut G.X); mpi_mod(&raw mut x_cu, &raw mut x_cu, &raw mut p)
+    var three_x : Mpi; mpi_init(&raw mut three_x)
+    mpi_mul_int(&raw mut three_x, &raw mut G.X, 3); mpi_mod(&raw mut three_x, &raw mut three_x, &raw mut p)
+    var rhs : Mpi; mpi_init(&raw mut rhs)
+    mpi_sub(&raw mut rhs, &raw mut x_cu, &raw mut three_x); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
+    mpi_add(&raw mut rhs, &raw mut rhs, &raw mut b_m); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
+    if(mpi_cmp(&raw mut lhs, &raw mut rhs) != 0) {
+        printf("[CURVE] G NOT on curve!\n")
+        env.error("G not on curve")
     }
 }
-
-// ============================================================================
-// mpi_mul_int: Simple test - 7 * 6 = 42
-// ============================================================================
 @test public func TEST_mpi_mul_simple(env:&mut TestEnv) {
     var a:[32]u8; a[31]=7
     var ma:Mpi; mpi_read_binary(&raw mut ma, &raw a[0], 32)

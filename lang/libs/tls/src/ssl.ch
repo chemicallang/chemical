@@ -232,12 +232,17 @@ public namespace tls {
         }
 
         // Step 2: Derived = HKDF-Expand-Label(early_secret, "derived", "", 32)
-        // Per RFC 8446, the "derived" context is empty ("")
+        // Per RFC 8446 Section 7.1: Derive-Secret(Secret, Label, Messages) =
+        //   HKDF-Expand-Label(Secret, Label, Transcript-Hash(Messages), Hash.length)
+        // For empty Messages "", Transcript-Hash("") = SHA256("") = 32-byte hash
         var derived : [32]u8
-        var empty_ctx : [1]u8 = [0]
+        var empty_hash : [32]u8
+        var sha_ctx : crypto::Sha256Context
+        crypto::sha256_init(&raw mut sha_ctx)
+        crypto::sha256_final(&raw mut sha_ctx, &raw mut empty_hash[0])
         var derived_label = "derived\0" as *char
         tls13_hkdf_expand_label(&raw early_secret[0], 32, derived_label, 7,
-                                &raw empty_ctx[0], 0, &raw mut derived[0], 32)
+                                &raw empty_hash[0], 32, &raw mut derived[0], 32)
 
         // Step 3: Handshake secret = HKDF-Extract(Derived, shared_secret)
         var handshake_secret : [32]u8
@@ -280,6 +285,15 @@ public namespace tls {
             ssl.tls13_keys.client_handshake_traffic_secret[i] = client_hts[i]
             ssl.tls13_keys.server_handshake_traffic_secret[i] = server_hts[i]
             i += 1
+        }
+
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+            printf("[DBG13] CLIENT_HANDSHAKE_TRAFFIC_SECRET: "); var _dts : size_t = 0
+            while(_dts < 32) { printf("%02x", client_hts[_dts] as int); _dts += 1 }
+            printf("\n")
+            printf("[DBG13] SERVER_HANDSHAKE_TRAFFIC_SECRET: "); _dts = 0
+            while(_dts < 32) { printf("%02x", server_hts[_dts] as int); _dts += 1 }
+            printf("\n")
         }
 
         // Step 5: Derive keys and IVs for AES-128-GCM
@@ -1260,12 +1274,6 @@ public namespace tls {
         if(input_len < 16) { return ERR_SSL_INVALID_RECORD }  // At minimum: tag
 
         // DEBUG: print raw in_buf header bytes
-        printf("[DBG_REC] ssl.in_hdr: "); var _ri:size_t =0
-        while(_ri<5) { printf("%02x", ssl.in_hdr[_ri] as int); _ri+=1 }
-        printf(" in_buf[5]: "); _ri=0
-        while(_ri<16 && _ri<input_len) { printf("%02x", ssl.in_buf[5+_ri] as int); _ri+=1 }
-        printf("...\n")
-
         // The ciphertext includes the auth tag (16 bytes) at the end
 
         // The ciphertext includes the auth tag (16 bytes) at the end
@@ -1295,8 +1303,12 @@ public namespace tls {
         if(ct_len > out_max + 1) { ct_len = out_max + 1 }  // +1 for content_type
 
         // DEBUG: nonce before gcm_auth_decrypt
-        printf("[DBG13] nonce_before: "); var _ndbg : size_t = 0
-        while(_ndbg < 12) { printf("%02x", nonce[_ndbg] as int); _ndbg += 1 }
+        printf("[DBG13] TRACE input_len=%d ct_len=%d record_len_from_hdr=%d\n", input_len as int, ct_len as int, read_u16_be(&raw ssl.in_hdr[3]) as int);
+        printf("[DBG13] TRACE outer_hdr: "); var _todbg : size_t = 0
+        while(_todbg < 5) { printf("%02x", outer_hdr[_todbg] as int); _todbg += 1 }
+        printf("\n")
+        printf("[DBG13] TRACE ssl.in_hdr: "); _todbg = 0
+        while(_todbg < 5) { printf("%02x", ssl.in_hdr[_todbg] as int); _todbg += 1 }
         printf("\n")
 
         // GCM decrypt and verify
@@ -2692,7 +2704,7 @@ public namespace tls {
                                 has_rsa_key = true
                                 ssl.peer_cert = &raw mut cert
                                 // Run certificate chain verification if CA chain is configured
-                                if(ssl.conf != null && ssl.conf.ca_chain != null) {
+                                if(ssl.conf != null && ssl.conf.ca_chain != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
                                     var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
                                                                         ssl.hostname)
                                     if(chain_ret != 0) {
@@ -3347,7 +3359,8 @@ public namespace tls {
                                             has_server_ecdsa = true
                                         }
                                     }
-                                    if(has_server_rsa || has_server_ecdsa) {
+                                    if((has_server_rsa || has_server_ecdsa) && 
+                                        ssl.conf != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
                                         // Verify the certificate chain
                                         var ca = ssl.conf.ca_chain
                                         var chain_ret = x509_verify_chain(&raw mut x509_cert, ca, ssl.hostname)
@@ -3428,8 +3441,9 @@ public namespace tls {
                         }
                         // If we don't recognize the signature algorithm, allow pass
                         // (verification will be skipped)
-
-                        if(verify_ret != 0) {
+                        // When authmode is SSL_VERIFY_NONE or ssl.conf is not set, skip
+                        if(verify_ret != 0 && 
+                            (ssl.conf == null || ssl.conf.authmode != SSL_VERIFY_NONE)) {
                             return ERR_SSL_CERT_VERIFY_FAILED
                         }
                     }

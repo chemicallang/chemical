@@ -54,4 +54,9 @@ public namespace net {
         fcntl(s as int, F_SETFL, flags | O_NONBLOCK);
     }
 
+    public func set_blocking(s: Socket) {
+        var flags = fcntl(s as int, F_GETFL, 0);
+        fcntl(s as int, F_SETFL, flags & ~O_NONBLOCK);
+    }
+
 }

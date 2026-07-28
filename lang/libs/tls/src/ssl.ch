@@ -3712,6 +3712,7 @@ public namespace tls {
     public func ssl_set_socket(ssl : *mut SSLContext, socket : net::Socket) {
         ssl.transport_socket = socket
         ssl.transport_connected = true
+        net::set_blocking(socket)
         // Set default TLS record version
         ssl.major_ver = 3
         ssl.minor_ver = 3 as u8

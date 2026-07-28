@@ -78,11 +78,11 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     // Parse inner content type and data
     var pos : size_t = 0
     while(pos<500){if(py_out[pos]=='I' as u8 && py_out[pos+1]=='C' as u8 && py_out[pos+2]=='=' as u8){pos+=3;break}else{}pos+=1}
-    // IC is in hex format like "0x16" - parse it
+    // IC is in hex format like "0x16" - parse it (HEX FIX: shift by 4 before ORing new nibble)
     var ic_val : uint = 0
     while(pos<500 && py_out[pos]!=10 as u8) {  // until newline
         if(py_out[pos] == '0' as u8 && py_out[pos+1] == 'x' as u8) { pos+=2 } else {}
-        ic_val = test_hex_char_val(py_out[pos]); pos+=1
+        ic_val = (ic_val << 4) | test_hex_char_val(py_out[pos]); pos+=1
     }
 
     // Find DATA=

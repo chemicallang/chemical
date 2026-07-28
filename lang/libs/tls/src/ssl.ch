@@ -3969,7 +3969,14 @@ public namespace tls {
         var ch_pos : size_t = 4
 
         ch_pos += 34 as size_t
-        var sid_len = hs_buf[ch_pos] as size_t; ch_pos += 1 + sid_len
+        var sid_len = hs_buf[ch_pos] as size_t;
+        var server_client_sid : [32]u8
+        var sid_copy_len : size_t = sid_len
+        if(sid_copy_len > 32) { sid_copy_len = 32 }
+        var server_client_sid_len : size_t = sid_copy_len
+        var sid_copy_i : size_t = 0
+        while(sid_copy_i < sid_copy_len) { server_client_sid[sid_copy_i] = hs_buf[ch_pos + 1 + sid_copy_i]; sid_copy_i += 1 }
+        ch_pos += 1 + sid_len
         var cs_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2 + cs_len
         var cm_count = hs_buf[ch_pos] as size_t; ch_pos += 1 + cm_count
         if(ch_pos + 2 <= hs_len as size_t + 4) {
@@ -4053,7 +4060,12 @@ public namespace tls {
         // Random (32 bytes)
         random_fill(&raw mut sh_buf[sh_pos], 32); sh_pos += 32
         // Session ID (echo client's)
-        sh_buf[sh_pos] = 0 as u8; sh_pos += 1
+        sh_buf[sh_pos] = server_client_sid_len as u8; sh_pos += 1
+        var sid_echo_i : size_t = 0
+        while(sid_echo_i < server_client_sid_len && sid_echo_i < 32) {
+            sh_buf[sh_pos] = server_client_sid[sid_echo_i]; sh_pos += 1
+            sid_echo_i += 1
+        }
         // Cipher suite
         sh_buf[sh_pos] = ((ssl.negotiated_ciphersuite >> 8) & 0xFF) as u8; sh_pos += 1
         sh_buf[sh_pos] = (ssl.negotiated_ciphersuite & 0xFF) as u8; sh_pos += 1
@@ -4091,7 +4103,7 @@ public namespace tls {
         sh_buf[sh_pos] = ((TLS_EXT_SUPPORTED_VERSIONS >> 8) & 0xFF) as u8; sh_pos += 1
         sh_buf[sh_pos] = (TLS_EXT_SUPPORTED_VERSIONS & 0xFF) as u8; sh_pos += 1
         sh_buf[sh_pos] = 0 as u8; sh_pos += 1
-        sh_buf[sh_pos] = 4 as u8; sh_pos += 1
+        sh_buf[sh_pos] = 2 as u8; sh_pos += 1
         sh_buf[sh_pos] = 0x03 as u8; sh_pos += 1
         sh_buf[sh_pos] = 0x04 as u8; sh_pos += 1  // TLS 1.3
         // Extension length

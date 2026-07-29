@@ -111,8 +111,13 @@ public namespace tls {
         var nk : u32 = 0  // Number of 32-bit words in the key
         var nr : u32 = 0  // Number of rounds
 
-        if(key_len == 16) { nk = 4; nr = 10 }
-        else if(key_len == 32) { nk = 8; nr = 14 }
+        // Accept key_len in both bytes (16, 32) and bits (128, 256)
+        var actual_key_len = key_len
+        if(actual_key_len == 128) { actual_key_len = 16 }
+        else if(actual_key_len == 256) { actual_key_len = 32 }
+
+        if(actual_key_len == 16) { nk = 4; nr = 10 }
+        else if(actual_key_len == 32) { nk = 8; nr = 14 }
         else { return AES_ERR_INVALID_KEY_LENGTH }
 
         ctx.nr = nr

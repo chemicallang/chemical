@@ -484,6 +484,8 @@ public namespace tls {
         // - Client role: transform_out (send) = client_key, transform_in (recv) = server_key
         // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+        // In loopback mode (no transport connected), use the same key for both directions
+        var is_loopback : bool = !ssl.transport_connected
 
         // Replace transforms with application-traffic versions
         // Send direction (transform_out)
@@ -517,7 +519,20 @@ public namespace tls {
         tr_in.key_len = 16
         tr_in.iv_len = 12
         tr_in.fixed_iv_len = 12
-        if(is_server_role) {
+        if(is_loopback) {
+            // Loopback mode: both directions use the sending key
+            if(is_server_role) {
+                i = 0
+                while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+                i = 0
+                while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
+            } else {
+                i = 0
+                while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+                i = 0
+                while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
+            }
+        } else if(is_server_role) {
             i = 0
             while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
             i = 0
@@ -1209,11 +1224,8 @@ public namespace tls {
         if(ssl.transform_out == null) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transform_out
 
-        // Build inner plaintext: data || content_type (TLS 1.3 puts content_type at end)
-        // But for send_record, caller provides data that needs to be sent as content_type.
-        // So inner plaintext = data + content_type
         var inner_len : size_t = data_len + 1
-        var inner : [16640]u8  // MAX_RECORD_PAYLOAD + 1
+        var inner : [16640]u8
         var i : size_t = 0
         while(i < data_len) {
             inner[i] = data[i]
@@ -1221,17 +1233,13 @@ public namespace tls {
         }
         inner[data_len] = content_type
 
-        // Build nonce
         var nonce : [12]u8
         tls13_build_nonce(&raw tr.base_iv_enc[0], &raw ssl.out_ctr[0], &raw mut nonce[0])
 
-        // Initialize GCM context with encryption key
         var gcm_ctx : GCMContext
         var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], tr.key_len as size_t)
         if(ret < 0) { return ret }
 
-        // Per RFC 8446 Section 5.2: The length field in AAD and record header
-        // MUST be the length of the encrypted_record (inner_len + 16 for AEAD tag)
         var enc_record_len : size_t = inner_len + 16
         var outer_hdr : [5]u8
         outer_hdr[0] = SSL_MSG_APPLICATION_DATA as u8
@@ -1240,11 +1248,9 @@ public namespace tls {
         outer_hdr[3] = ((enc_record_len >> 8) & 0xFF) as u8
         outer_hdr[4] = (enc_record_len & 0xFF) as u8
 
-        // Encrypted payload goes at output + 5
         var ct_out = output + 5
         var tag_out = output + 5 + inner_len
 
-        // GCM encrypt: ciphertext = Encrypt(key, nonce, plaintext, AAD)
         ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
                                  &raw nonce[0], 12,
                                  &raw outer_hdr[0], 5,
@@ -1252,16 +1258,13 @@ public namespace tls {
                                  ct_out, tag_out)
         if(ret < 0) { return ret }
 
-        // Write outer header
         i = 0
         while(i < 5) {
             output[i] = outer_hdr[i]
             i += 1
         }
 
-        // Increment sequence number
         ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
-
         return (5 + inner_len + 16) as i32
     }
 
@@ -1278,45 +1281,34 @@ public namespace tls {
         if(ssl.transform_in == null) { return ERR_SSL_INTERNAL_ERROR }
         var tr = ssl.transform_in
 
-        if(input_len < 16) { return ERR_SSL_INVALID_RECORD }  // At minimum: tag
+        if(input_len < 16) { return ERR_SSL_INVALID_RECORD }
 
-        // DEBUG: print raw in_buf header bytes
-        // The ciphertext includes the auth tag (16 bytes) at the end
-
-        // The ciphertext includes the auth tag (16 bytes) at the end
         var ct_len : size_t = input_len - 16
         var tag_start = input + ct_len
 
-        // Build nonce
         var nonce : [12]u8
         tls13_build_nonce(&raw tr.base_iv_dec[0], &raw ssl.in_ctr[0], &raw mut nonce[0])
 
-        // Initialize GCM context with decryption key
         var gcm_ctx : GCMContext
         var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], tr.key_len as size_t)
         if(ret < 0) { return ret }
 
-        // Additional data = outer record header (already parsed into ssl.in_hdr)
-        // We need to reconstruct it with the original length
         var outer_hdr : [5]u8
-        outer_hdr[0] = ssl.in_hdr[0]  // Should be 23 (application_data)
-        outer_hdr[1] = ssl.in_hdr[1]  // 0x03
-        outer_hdr[2] = ssl.in_hdr[2]  // 0x03
-        outer_hdr[3] = ssl.in_hdr[3]  // length high
-        outer_hdr[4] = ssl.in_hdr[4]  // length low
+        outer_hdr[0] = ssl.in_hdr[0]
+        outer_hdr[1] = ssl.in_hdr[1]
+        outer_hdr[2] = ssl.in_hdr[2]
+        outer_hdr[3] = ssl.in_hdr[3]
+        outer_hdr[4] = ssl.in_hdr[4]
 
-        // Allocate temp buffer for decrypted data
         var dec_buf : [16640]u8
-        if(ct_len > out_max + 1) { ct_len = out_max + 1 }  // +1 for content_type
+        if(ct_len > out_max + 1) { ct_len = out_max + 1 }
 
-        // DEBUG: nonce before gcm_auth_decrypt
         if(tls_config::EXTENSIVE_DEBUG_LOG) { var _todbg : size_t
         printf("[DBG13] TRACE input_len=%d ct_len=%d record_len_from_hdr=%d\n", input_len as int, ct_len as int, read_u16_be(&raw ssl.in_hdr[3]) as int);
         printf("[DBG13] TRACE outer_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", outer_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
         printf("[DBG13] TRACE ssl.in_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", ssl.in_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
         }
 
-        // GCM decrypt and verify
         ret = gcm_auth_decrypt(&raw mut gcm_ctx,
                                 &raw nonce[0], 12,
                                 &raw outer_hdr[0], 5,
@@ -1342,21 +1334,17 @@ public namespace tls {
             return ERR_SSL_INVALID_RECORD
         }
 
-        // Inner plaintext is dec_buf[0..ct_len-1], inner content_type is dec_buf[ct_len-1]
         if(ct_len == 0) { return ERR_SSL_INVALID_RECORD }
         var actual_len = ct_len - 1
         *inner_content_type = dec_buf[actual_len]
 
-        // Copy decrypted data to output
         var i : size_t = 0
         while(i < actual_len) {
             output[i] = dec_buf[i]
             i += 1
         }
 
-        // Increment sequence number
         ssl_incr_seq_num(&raw mut ssl.in_ctr[0])
-
         return actual_len as i32
     }
 

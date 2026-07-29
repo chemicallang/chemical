@@ -438,6 +438,18 @@ public namespace tls {
     // Implements RFC 7748 Section 5.
 
     public func x25519_ladder(out : *mut u8, scalar : *u8, u : *u8) {
+        // Clamp scalar per RFC 7748 Section 5 (implementations MUST clamp)
+        var clamped : [32]u8
+        var ci : size_t = 0
+        while(ci < 32) {
+            clamped[ci] = scalar[ci]
+            ci += 1
+        }
+        clamped[0] = clamped[0] & 0xF8 as u8
+        clamped[31] = clamped[31] & 0x7F as u8
+        clamped[31] = clamped[31] | 0x40 as u8
+        var effective_scalar = &raw clamped[0]
+
         // Decode u coordinate
         var u_fe : [8]u32
         fe_decode(&raw mut u_fe[0], u)
@@ -472,7 +484,7 @@ public namespace tls {
         while(bit >= 0) {
             var byte_idx = (bit / 8) as size_t
             var bit_idx = (bit % 8) as u32
-            var kbit = ((scalar[byte_idx] >> bit_idx) as u32) & 1u32
+            var kbit = ((effective_scalar[byte_idx] >> bit_idx) as u32) & 1u32
 
             swap = swap ^ kbit
 
@@ -547,6 +559,16 @@ public namespace tls {
 
     // Compute shared secret from private key and peer public key
     public func x25519_compute_shared(priv : *u8, peer_pub : *u8, shared : *mut u8) : int {
+        // Per RFC 7748: rejecting all-zero output is mandatory.
+        // Check peer public key for all-zero first.
+        var all_zero_peer = true
+        var cz : size_t = 0
+        while(cz < 32) {
+            if(peer_pub[cz] != 0) { all_zero_peer = false }
+            cz += 1
+        }
+        if(all_zero_peer) { return ERR_ECP_INVALID_KEY }
+
         // Clamp the private key per RFC 7748 Section 5
         var clamped_priv : [32]u8
         var ci : size_t = 0

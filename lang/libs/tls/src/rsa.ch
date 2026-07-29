@@ -371,7 +371,7 @@ public namespace tls {
 
     // ─── RSA Key Generation (simplified, for testing) ────────────────────
 
-    // Generate an RSA key pair with the given modulus size (in bytes)
+    // Generate an RSA key pair with the given modulus size (in bits)
     // Note: This is a simplified implementation for testing only.
     // For production, use proper prime generation and key checks.
     public func rsa_gen_key(ctx : *mut RSAContext, nbits : size_t, exponent : u32) : int {
@@ -380,10 +380,6 @@ public namespace tls {
 
         // Key size in bytes
         ctx.len = nbits / 8
-
-        // Generate P and Q using a deterministic algorithm for testing
-        // NOTE: This is NOT cryptographically secure - for testing only!
-        // Real key generation needs entropy and primality testing.
 
         var p_bits = nbits / 2
         var q_bits = nbits - p_bits

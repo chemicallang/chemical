@@ -249,9 +249,10 @@ public namespace tls {
         tls13_hkdf_extract(&raw derived[0], 32, shared_secret, shared_len,
                            &raw mut handshake_secret[0])
 
-        // Store handshake secret in key schedule
+        // Store secrets in key schedule
         i = 0
         while(i < 32) {
+            ssl.tls13_keys.early_secret[i] = early_secret[i]
             ssl.tls13_keys.handshake_secret[i] = handshake_secret[i]
             i += 1
         }
@@ -434,7 +435,7 @@ public namespace tls {
 
         // Resumption master secret
         var rms_label = "res master\0" as *char
-        tls13_hkdf_expand_label(&raw master_secret[0], 32, rms_label, 9,
+        tls13_hkdf_expand_label(&raw master_secret[0], 32, rms_label, 10,
                                 hs_hash, hash_len,
                                 &raw mut ssl.tls13_keys.resumption_master_secret[0], 32)
 

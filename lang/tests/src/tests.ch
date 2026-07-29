@@ -62,6 +62,7 @@ func run_executable_tests() {
     test_thread_pool()
     test_time_types();
     test_allocator();
+    test_recursive_mutex();
 
 }
 

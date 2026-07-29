@@ -62,7 +62,7 @@ public namespace std {
         }
 
         // wait (blocking). Caller must hold mutex before calling.
-        // mutex is your std::mutex (the one storing CRITICAL_SECTION or pthread_mutex_t bytes).
+        // mutex is your std::mutex (the one storing pthread_mutex_t bytes).
         func wait(&mut self, mutex : &mut std::mutex) {
             var r = pthread_cond_wait(&raw mut storage[0], &raw mut mutex.storage[0])
             if(r != 0) {

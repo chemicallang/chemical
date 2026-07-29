@@ -61,7 +61,7 @@ public func INT_tls13_client(env : &mut TestEnv) {
 public func INT_x25519_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec 2>/dev/null")
     system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3 2>/dev/null &")
     system("sleep 1")
 
@@ -102,20 +102,44 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
 public func INT_tls12_client(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19877/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com rsa")
-    // Write TCP echo server script
-    var echo_script = std::string("import socket\ns=socket.socket()\ns.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\ns.bind(('127.0.0.1',19877))\ns.listen(1)\ns.settimeout(5)\nc,a=s.accept()\nd=c.recv(4096)\nc.sendall(b'OK')\nc.close()\ns.close()\n")
-    test_write_file("/tmp/chem_echo_19877.py\0" as *char, echo_script.data() as *u8, echo_script.size())
-    system("setsid python3 /tmp/chem_echo_19877.py 2>/dev/null &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com rsa 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 2>/dev/null &")
     system("sleep 1")
 
-    var sock = net::dial("127.0.0.1", 19877u)
-    if(sock == 0 as net::Socket) { env.error("tcp connect failed"); system("fuser -k 19877/tcp 2>/dev/null"); return } else {}
-    net::send_all(sock, "ping\0" as *char, 4)
-    var buf : [64]u8
-    var n = net::recv_all(sock, &raw mut buf[0], 64)
-    if(n < 2 || buf[0] != 79 || buf[1] != 75) { env.error("tcp echo failed"); net::close_socket(sock); system("fuser -k 19877/tcp 2>/dev/null"); return } else {}
-    net::close_socket(sock)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_2
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19877u)
+    if(ret < 0) {
+        if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("TLS12: ERR_SSL_HANDSHAKE_FAILURE") }
+        else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("TLS12: ERR_SSL_UNEXPECTED_MESSAGE") }
+        else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
+            if(ctx.last_alert_desc == 40) { env.error("TLS12: alert = handshake_failure(40)") }
+            else if(ctx.last_alert_desc == 70) { env.error("TLS12: alert = protocol_version(70)") }
+            else if(ctx.last_alert_desc == 47) { env.error("TLS12: alert = illegal_parameter(47)") }
+            else if(ctx.last_alert_desc == 50) { env.error("TLS12: alert = decode_error(50)") }
+            else if(ctx.last_alert_desc == 51) { env.error("TLS12: alert = decrypt_error(51)") }
+            else { env.error("TLS12: ERR_SSL_FATAL_ALERT_MESSAGE") }
+        }
+        else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS12: ERR_SSL_DECODE_ERROR") }
+        else if(ret == ERR_SSL_INTERNAL_ERROR) { env.error("TLS12: ERR_SSL_INTERNAL_ERROR") }
+        else if(ret == ERR_SSL_CONN_EOF) { env.error("TLS12: ERR_SSL_CONN_EOF") }
+        else if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("TLS12: ERR_SSL_CERT_VERIFY_FAILED") }
+        else if(ret == ERR_SSL_BAD_CONFIG) { env.error("TLS12: ERR_SSL_BAD_CONFIG") }
+        else if(ret == ERR_SSL_BAD_PROTOCOL_VERSION) { env.error("TLS12: ERR_SSL_BAD_PROTOCOL_VERSION") }
+        else if(ret == ERR_SSL_INVALID_RECORD) { env.error("TLS12: ERR_SSL_INVALID_RECORD") }
+        else { env.error("TLS12: unknown error") }
+    } else {
+        var req = "GET / HTTP/1.0\r\n\r\n"
+        ssl_write(&raw mut ctx, req as *u8, 18)
+        var buf : [512]u8
+        ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        ssl_close_notify(&raw mut ctx)
+    }
+    ssl_free(&raw mut ctx)
     system("fuser -k 19877/tcp 2>/dev/null")
 }
 
@@ -131,9 +155,9 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
 public func INT_tls13_server_client(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19880/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec 2>/dev/null")
     // Export private key as hex for Chemical to load
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19880_key.pem /tmp/tls_19880_priv.hex")
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19880_key.pem /tmp/tls_19880_priv.hex 2>/dev/null")
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19880_cert.pem")
     if(cert == null) { env.error("failed to load server cert"); return }
@@ -192,8 +216,8 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
 public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19882/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec")
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19882_key.pem /tmp/tls_19882_priv.hex")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec 2>/dev/null")
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19882_key.pem /tmp/tls_19882_priv.hex 2>/dev/null")
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19882_cert.pem")
     if(cert == null) { env.error("failed to load ECDSA cert"); return }
@@ -246,7 +270,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
 public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19883/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec 2>/dev/null")
     system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3 2>/dev/null &")
     system("sleep 1")
 

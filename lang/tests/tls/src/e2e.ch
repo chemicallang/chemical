@@ -11,8 +11,8 @@ public func INT_smoke_test(env : &mut TestEnv) {
 public func INT_tls13_client(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19876/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem test.example.com ec")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3 &")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem test.example.com ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -62,7 +62,7 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
     system("python3 /tmp/tls_utils.py cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3 &")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -106,7 +106,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
     // Write TCP echo server script
     var echo_script = std::string("import socket\ns=socket.socket()\ns.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\ns.bind(('127.0.0.1',19877))\ns.listen(1)\ns.settimeout(5)\nc,a=s.accept()\nd=c.recv(4096)\nc.sendall(b'OK')\nc.close()\ns.close()\n")
     test_write_file("/tmp/chem_echo_19877.py\0" as *char, echo_script.data() as *u8, echo_script.size())
-    system("setsid python3 /tmp/chem_echo_19877.py &")
+    system("setsid python3 /tmp/chem_echo_19877.py 2>/dev/null &")
     system("sleep 1")
 
     var sock = net::dial("127.0.0.1", 19877u)
@@ -144,7 +144,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     var server_sock = net::listen_addr("127.0.0.1", 19880u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19880 1.3 &")
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19880 1.3 2>/dev/null &")
     system("sleep 1")
 
     net::set_nonblocking(server_sock)
@@ -204,7 +204,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     var server_sock = net::listen_addr("127.0.0.1", 19882u)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19882 1.3 &")
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19882 1.3 2>/dev/null &")
     system("sleep 1")
 
     net::set_nonblocking(server_sock)
@@ -247,7 +247,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
     system("fuser -k 19883/tcp 2>/dev/null; sleep 0.3")
     system("python3 /tmp/tls_utils.py cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3 &")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3 2>/dev/null &")
     system("sleep 1")
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)

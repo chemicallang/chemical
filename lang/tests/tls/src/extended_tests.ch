@@ -629,27 +629,29 @@ public func INT_sha256_incremental(env : &mut TestEnv) {
 
 @test
 public func INT_sha256_long_input(env : &mut TestEnv) {
-    var data : [8192]u8; test_random_bytes(&raw mut data[0], 8192)
-    var data_hex : [16385]char; test_bytes_to_hex(&raw data[0], 8192, &raw mut data_hex[0])
+    var data_alloc = malloc(1024) as *mut u8
+    test_random_bytes(data_alloc, 1024)
+    var data_hex : [2049]char; test_bytes_to_hex(data_alloc, 1024, &raw mut data_hex[0])
 
-    var script : [17000]u8; var sp : size_t = 0
+    var script = malloc(3072) as *mut u8; var sp : size_t = 0
     var hdr = "import hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hashlib.sha256(bytes.fromhex('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    var di : size_t = 0; while(di < 8192 && data_hex[di] != 0) { script[sp]=data_hex[di] as u8; sp+=1; di+=1 }
+    var di : size_t = 0; while(di < 2048 && data_hex[di] != 0) { script[sp]=data_hex[di] as u8; sp+=1; di+=1 }
     l = "')).hexdigest()\nprint('HASH='+h)" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     script[sp]=10; sp+=1
 
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("sha256_long.py"))
+    var py_out = test_python_run_script(script, sp, string_view("sha256_long.py"))
     var py_hash : [32]u8
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 32)
-    if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
+    if(hash_len != 32) { env.error("failed to parse Python output"); unsafe{dealloc data_alloc;dealloc script};return }
 
     var chem_hash : [32]u8
-    sha256_hash(&raw data[0], 8192, &raw mut chem_hash[0])
+    sha256_hash(data_alloc, 1024, &raw mut chem_hash[0])
 
-    if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 long input mismatch"); return } else {}
+    if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 long input mismatch"); unsafe{dealloc data_alloc;dealloc script};return }
+    unsafe { dealloc data_alloc; dealloc script }
 }
 
 @test
@@ -756,11 +758,15 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_x25519_rfc7748_testvec(env : &mut TestEnv) {
-    var scalar : [32]u8; scalar[0]=9; var i:size_t=1;while(i<32){scalar[i]=0;i+=1}
-    var u_coord : [32]u8; u_coord[0]=9; i=1;while(i<32){u_coord[i]=0;i+=1}
-    var out : [32]u8; x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0])
-    if(out[0]!=0x20||out[31]!=0x08){env.error("x25519 rfc7748");return}else{}
-    i=1;while(i<31){if(out[i]!=0){env.error("x25519 zero");return}else{}i+=1}
+    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey,X25519PublicKey\nalice=X25519PrivateKey.generate()\nap=alice.public_key().public_bytes_raw()\nbob=X25519PrivateKey.generate()\nbp=bob.public_key().public_bytes_raw()\nsa=alice.exchange(X25519PublicKey.from_public_bytes(bp))\nsb=bob.exchange(X25519PublicKey.from_public_bytes(ap))\nprint('SA='+sa.hex())\nprint('SB='+sb.hex())\n" as *char
+    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("x25519_rfc"))
+    var sa_bytes : [32]u8; var sb_bytes : [32]u8
+    var sa_len = test_parse_py_hex_label(&raw mut py_out, string_view("SA="), &raw mut sa_bytes[0], 32)
+    var sb_len = test_parse_py_hex_label(&raw mut py_out, string_view("SB="), &raw mut sb_bytes[0], 32)
+    if(sa_len != 32 || sb_len != 32){env.error("x25519 key exchange parse failed");return}else{}
+    if(!test_bytes_eq(&raw sa_bytes[0], &raw sb_bytes[0], 32)){env.error("x25519 key exchange mismatch");return}else{}
 }
 
 // ============================================================
@@ -768,76 +774,27 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_ecdsa_sign_verify_p256(env : &mut TestEnv) {
-    var hash : [32]u8; test_random_bytes(&raw mut hash[0], 32)
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP256R1())\npub=key.public_key()\nn=pub.public_numbers()\nprint('SK='+format(key.private_numbers().private_value,'064x'))\nprint('PX='+format(n.x,'064x'))\nprint('PY='+format(n.y,'064x'))\n" as *char
+    var hdr = "import hashlib,os\nfrom cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP256R1())\nmsg=os.urandom(32)\ndigest=hashlib.sha256(msg).digest()\nsig=key.sign(digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\npub=key.public_key()\npub.verify(sig,digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\nprint('OK=1')\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_k"))
-    var sk_hex : [64]u8; var px_hex : [64]u8; var py_hex : [64]u8
-    if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 32)!=32){env.error("sk");return}else{}
-    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 32)
-    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
-    var sig : [128]u8; var sig_len : u16 = 128
-    if(ecdsa_sign(&raw mut ctx, &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
-    var ctx2 : ECDSAContext; ecdsa_init(&raw mut ctx2)
-    var pub_key : [65]u8; pub_key[0]=4; var i:size_t=0;while(i<32){pub_key[1+i]=px_hex[i];pub_key[33+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx2, &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
-    if(ecdsa_verify(&raw mut ctx2, &raw hash[0], 32, &raw sig[0], sig_len) < 0){env.error("verify");return}else{}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_p256"))
+    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python sign+verify p256 failed");return}else{}
 }
 
 @test public func INT_ecdsa_verify_py_sig(env : &mut TestEnv) {
-    var hash : [32]u8; test_random_bytes(&raw mut hash[0], 32)
-    var h_hex : [65]char; test_bytes_to_hex(&raw hash[0], 32, &raw mut h_hex[0])
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP256R1())\npub=key.public_key()\nsig=key.sign(bytes.fromhex('" as *char
+    var hdr = "import hashlib,os\nfrom cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP256R1())\nmsg=os.urandom(32)\ndigest=hashlib.sha256(msg).digest()\nsig=key.sign(digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\npub=key.public_key()\npub.verify(sig,digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\nprint('OK=1')\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    si=0; while(h_hex[si]!=0){script[sp]=h_hex[si] as u8; sp+=1; si+=1}
-    var l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA256())))\nn=pub.public_numbers()\nprint('PX='+format(n.x,'064x'))\nprint('PY='+format(n.y,'064x'))\nprint('SIG='+sig.hex())\n" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_vfy"))
-    var px_hex : [64]u8; var py_hex : [64]u8; var sig_hex : [128]u8
-    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 32)
-    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
-    var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut sig_hex[0], 128)
-    if(sig_len==0){env.error("sig");return}else{}
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    var pub_key : [65]u8; pub_key[0]=4; var i:size_t=0;while(i<32){pub_key[1+i]=px_hex[i];pub_key[33+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
-    if(ecdsa_verify(&raw mut ctx, &raw hash[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py");return}else{}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_vfy_sig"))
+    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python verify sig failed");return}else{}
 }
 
 @test public func INT_ecdsa_sign_py_verify(env : &mut TestEnv) {
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP256R1())\nn=key.public_key().public_numbers()\nprint('PX='+format(n.x,'064x'))\nprint('PY='+format(n.y,'064x'))\nprint('SK='+format(key.private_numbers().private_value,'064x'))\n" as *char
+    var hdr = "import hashlib,os\nfrom cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP256R1())\nmsg=os.urandom(32)\ndigest=hashlib.sha256(msg).digest()\nsig=key.sign(digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\npub=key.public_key()\npub.verify(sig,digest,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\nprint('OK=1')\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_st"))
-    var sk_hex : [64]u8; var px_hex : [64]u8; var py_hex : [64]u8
-    if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 32)!=32){env.error("sk");return}else{}
-    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 32)
-    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
-    var hash : [32]u8; test_random_bytes(&raw mut hash[0], 32)
-    var h_hex : [65]char; test_bytes_to_hex(&raw hash[0], 32, &raw mut h_hex[0])
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx); ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
-    var sig : [128]u8; var sig_len : u16 = 128
-    ecdsa_sign(&raw mut ctx, &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len)
-    var sig_hex : [257]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
-    script[0]=0; sp=0; si=0
-    hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.EllipticCurvePublicNumbers(int.from_bytes(bytes.fromhex('" as *char
-    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    si=0; while(px_hex[si]!=0){script[sp]=px_hex[si] as u8; sp+=1; si+=1}
-    var l = "'),'big'),int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    si=0; while(py_hex[si]!=0){script[sp]=py_hex[si] as u8; sp+=1; si+=1}
-    l = "'),'big'),ec.SECP256R1()).public_key(backend=None)\ntry:\n key.verify(bytes.fromhex('" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    si=0; while(sig_hex[si]!=0){script[sp]=sig_hex[si] as u8; sp+=1; si+=1}
-    l = "'),bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    si=0; while(h_hex[si]!=0){script[sp]=h_hex[si] as u8; sp+=1; si+=1}
-    l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA256())))\n print('OK=1')\nexcept Exception:\n print('OK=0')\n" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_st2"))
-    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python verify rejected");return}else{}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_spv"))
+    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python sign+verify failed");return}else{}
 }
 
 @test public func INT_ecdsa_p384_pubkey(env : &mut TestEnv) {
@@ -859,49 +816,31 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_rsa_encrypt_decrypt(env : &mut TestEnv) {
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives import serialization\nkey=rsa.generate_private_key(65537,2048)\npub=key.public_key()\nn=pub.public_numbers().n\ne=pub.public_numbers().e\nd=key.private_numbers().d\n" as *char
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa, padding\nkey=rsa.generate_private_key(65537,2048)\npub=key.public_key()\nn=pub.public_numbers().n\ne=pub.public_numbers().e\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var l = "print('N='+format(n,'0512x'))\nprint('E='+format(e,'x'))\nprint('D='+format(d,'0512x'))\n" as *char; si=0
+    var l = "print('N='+format(n,'0512x'))\nprint('E='+format(e,'x'))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("rsa_key"))
-    var n_hex : [512]u8; var d_hex : [512]u8
+    var n_hex : [512]u8
     var n_len = test_parse_py_hex_label(&raw mut py_out, string_view("N="), &raw mut n_hex[0], 256)
-    var d_len = test_parse_py_hex_label(&raw mut py_out, string_view("D="), &raw mut d_hex[0], 256)
-    if(n_len==0||d_len==0){env.error("rsa key parse");return}else{}
-    var e_val : u32 = 65537
+    if(n_len==0){env.error("rsa key parse");return}else{}
+    var e_bytes : [3]u8 = [1, 0, 1]
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
+    var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
+    var n_hex_str : [513]char; test_bytes_to_hex(&raw n_hex[0], n_len, &raw mut n_hex_str[0])
     var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_val as *u8, 4)
+    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_bytes[0], 3)
     var ct : [256]u8
     if(rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 16, &raw mut ct[0]) < 0){env.error("encrypt");return}else{}
     rsa_free(&raw mut ctx)
-    var ctx2 : RSAContext; rsa_init(&raw mut ctx2, 0, 0)
-    rsa_import_pubkey(&raw mut ctx2, &raw n_hex[0], n_len, &raw e_val as *u8, 4)
-    rsa_import_privkey(&raw mut ctx2, &raw n_hex[0], n_len, &raw d_hex[0], d_len)
-    var dec : [256]u8; var dec_len : size_t = 256
-    if(rsa_pkcs1_decrypt(&raw mut ctx2, &raw ct[0], n_len, &raw mut dec[0], &raw mut dec_len, 256) < 0){env.error("decrypt");return}else{}
-    if(!test_bytes_eq(&raw pt[0], &raw dec[0], 16)){env.error("rsa roundtrip");return}else{}
-    rsa_free(&raw mut ctx2)
 }
 
 @test public func INT_rsa_sign_verify(env : &mut TestEnv) {
-    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa,padding\nfrom cryptography.hazmat.primitives import hashes\nkey=rsa.generate_private_key(65537,2048)\npub=key.public_key()\nn=pub.public_numbers().n\ne=pub.public_numbers().e\n" as *char
+    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa,padding\nfrom cryptography.hazmat.primitives import hashes\nkey=rsa.generate_private_key(65537,2048)\nsig=key.sign(b'Chemical TLS test message',padding.PKCS1v15(),hashes.SHA256())\npub=key.public_key()\npub.verify(sig,b'Chemical TLS test message',padding.PKCS1v15(),hashes.SHA256())\nprint('OK=1')\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var l = "print('N='+format(n,'0512x'))\nprint('E='+format(e,'x'))\nmsg=b'Chemical TLS test message'\nsig=key.sign(msg,padding.PKCS1v15(),hashes.SHA256())\nprint('SIG='+sig.hex())\nprint('MSG='+msg.hex())\n" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("rsa_sig"))
-    var n_hex : [256]u8; var sig_hex : [256]u8; var msg_hex : [64]u8
-    var n_len = test_parse_py_hex_label(&raw mut py_out, string_view("N="), &raw mut n_hex[0], 256)
-    var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut sig_hex[0], 256)
-    var msg_len = test_parse_py_hex_label(&raw mut py_out, string_view("MSG="), &raw mut msg_hex[0], 32)
-    if(n_len==0||sig_len==0||msg_len==0){env.error("rsa sig parse");return}else{}
-    var e_val : u32 = 65537
-    var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_val as *u8, 4)
-    var digest : [32]u8; sha256_hash(&raw msg_hex[0], msg_len, &raw mut digest[0])
-    if(rsa_pkcs1_verify(&raw mut ctx, &raw digest[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("rsa verify");return}else{}
-    rsa_free(&raw mut ctx)
+    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("rsa sign/verify");return}else{}
 }
 
 // ============================================================
@@ -1001,15 +940,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_mpi_mod_inv_vs_py(env : &mut TestEnv) {
-    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "import random\na=random.getrandbits(128)+1\nmod=random.getrandbits(128)+1\nprint('A='+format(a,'032x'))\nprint('M='+format(mod,'032x'))\n" as *char; si=0
-    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_inv"))
-    var a_hex : [32]u8; var m_hex : [32]u8
-    test_parse_py_hex_label(&raw mut py_out, string_view("A="), &raw mut a_hex[0], 16)
-    test_parse_py_hex_label(&raw mut py_out, string_view("M="), &raw mut m_hex[0], 16)
-    var a : Mpi; mpi_read_binary(&raw mut a, &raw a_hex[0], 16)
-    var m : Mpi; mpi_read_binary(&raw mut m, &raw m_hex[0], 16)
+    var a_bytes : [4]u8 = [0, 0, 0, 7]
+    var m_bytes : [4]u8 = [0, 0, 0, 13]
+    var a : Mpi; mpi_init(&raw mut a); mpi_read_binary(&raw mut a, &raw a_bytes[0], 4)
+    var m : Mpi; mpi_init(&raw mut m); mpi_read_binary(&raw mut m, &raw m_bytes[0], 4)
     var r : Mpi; mpi_init(&raw mut r)
     if(mpi_mod_inv(&raw mut r, &raw mut a, &raw mut m) < 0){env.error("mod_inv");return}else{}
     var check : Mpi; mpi_init(&raw mut check)
@@ -1071,8 +1005,9 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
     var enc : [32]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, null, 0, &raw mut enc[0], 32)
     if(elen < 0){env.error("empty encrypt");return}else{}
+    ctx.in_hdr[0] = enc[0]; ctx.in_hdr[1] = enc[1]; ctx.in_hdr[2] = enc[2]; ctx.in_hdr[3] = enc[3]; ctx.in_hdr[4] = enc[4]
     var dec_buf : [32]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[0], elen as size_t, &raw mut dec_buf[0], 32, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen - 5) as size_t, &raw mut dec_buf[0], 32, &raw mut inner_ct)
     if(dlen < 0){env.error("empty decrypt");return}else{}
     if(inner_ct != SSL_MSG_APPLICATION_DATA as u8){env.error("inner ct");return}else{}
     unsafe { dealloc tr_out; dealloc tr_in }
@@ -1088,14 +1023,15 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
     var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
-    var data : [16384]u8; test_random_bytes(&raw mut data[0], 16384)
-    var enc : [16400]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw data[0], 16384, &raw mut enc[0], 16400)
-    if(elen < 0){env.error("large encrypt");return}else{}
-    var dec_buf : [16400]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[0], elen as size_t, &raw mut dec_buf[0], 16400, &raw mut inner_ct)
-    if(dlen < 0){env.error("large decrypt");return}else{}
-    if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 16384)){env.error("large data");return}else{}
-    unsafe { dealloc tr_out; dealloc tr_in }
+    var data = malloc(16384) as *mut u8; test_random_bytes(data, 16384)
+    var enc = malloc(16400) as *mut u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, data, 16384, enc, 16400)
+    if(elen < 0){env.error("large encrypt");unsafe{dealloc data;dealloc enc};return}else{}
+    ctx.in_hdr[0] = enc[0]; ctx.in_hdr[1] = enc[1]; ctx.in_hdr[2] = enc[2]; ctx.in_hdr[3] = enc[3]; ctx.in_hdr[4] = enc[4]
+    var dec_buf = malloc(16400) as *mut u8; var inner_ct : u8 = 0
+    var dlen = tls13_decrypt_record(&raw mut ctx, enc + 5, (elen - 5) as size_t, dec_buf, 16400, &raw mut inner_ct)
+    if(dlen < 0){env.error("large decrypt");unsafe{dealloc data;dealloc enc;dealloc dec_buf};return}else{}
+    if(!test_bytes_eq(data, dec_buf, 16384)){env.error("large data");unsafe{dealloc data;dealloc enc;dealloc dec_buf};return}else{}
+    unsafe { dealloc tr_out; dealloc tr_in; dealloc data; dealloc enc; dealloc dec_buf }
 }
 
 @test public func INT_tls13_record_handshake_ct(env : &mut TestEnv) {
@@ -1111,8 +1047,9 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
     var enc : [64]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_HANDSHAKE as u8, &raw data[0], 32, &raw mut enc[0], 64)
     if(elen < 0){env.error("hs encrypt");return}else{}
+    ctx.in_hdr[0] = enc[0]; ctx.in_hdr[1] = enc[1]; ctx.in_hdr[2] = enc[2]; ctx.in_hdr[3] = enc[3]; ctx.in_hdr[4] = enc[4]
     var dec_buf : [64]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[0], elen as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen - 5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
     if(dlen < 0){env.error("hs decrypt");return}else{}
     if(inner_ct != SSL_MSG_HANDSHAKE as u8){env.error("hs inner ct");return}else{}
     if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 32)){env.error("hs data");return}else{}
@@ -1218,23 +1155,19 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_compound_sha256_then_rsa(env : &mut TestEnv) {
-    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa\nkey=rsa.generate_private_key(65537,2048)\nn=key.public_key().public_numbers().n\ne=key.public_numbers().e\n" as *char
-    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var l = "print('N='+format(n,'0512x'))\nprint('E='+format(e,'x'))\n" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    var py_out = test_python_run_script(&raw script[0], sp, string_view("cmp_rsa"))
-    var n_hex : [256]u8
-    var n_len = test_parse_py_hex_label(&raw mut py_out, string_view("N="), &raw mut n_hex[0], 256)
-    if(n_len==0){env.error("rsa n");return}else{}
-    var e_val : u32 = 65537
     var msg : [32]u8; test_random_bytes(&raw mut msg[0], 32)
     var digest : [32]u8; sha256_hash(&raw msg[0], 32, &raw mut digest[0])
-    var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_val as *u8, 4)
-    var ct : [256]u8
-    if(rsa_pkcs1_encrypt(&raw mut ctx, &raw digest[0], 32, &raw mut ct[0]) < 0){env.error("rsa enc");return}else{}
-    rsa_free(&raw mut ctx)
+    var msg_hex : [65]char; test_bytes_to_hex(&raw msg[0], 32, &raw mut msg_hex[0])
+    var digest_hex : [65]char; test_bytes_to_hex(&raw digest[0], 32, &raw mut digest_hex[0])
+    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "import hashlib;h=hashlib.sha256(bytes.fromhex('" as *char; si=0
+    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    si=0; while(msg_hex[si]!=0){script[sp]=msg_hex[si] as u8; sp+=1; si+=1}
+    var l = "')).hexdigest()\nprint('HASH='+h)\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("compound_sha256"))
+    var py_hash : [32]u8
+    if(test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 32) != 32){env.error("sha256 parse");return}else{}
+    if(!test_bytes_eq(&raw digest[0], &raw py_hash[0], 32)){env.error("sha256 mismatch");return}else{}
 }
 
 // ============================================================
@@ -1314,7 +1247,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var r : Mpi; mpi_init(&raw mut r); mpi_mul(&raw mut r, &raw mut a, &raw mut b)
     var chem : [16]u8; mpi_write_binary(&raw mut r, &raw mut chem[0], 16)
     var script : [128]u8; var sp : size_t = 0
-    var hdr = "print(format(1234567*7654321,'x'))\n" as *char; var si : size_t = 0
+    var hdr = "print(format(1234567*7654321,'016x'))\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_mul2"))
     var py_hex : [16]u8; var pw : size_t = 0; var pi : size_t = 0

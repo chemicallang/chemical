@@ -438,8 +438,8 @@ public namespace tls {
     public func ecp_normalize_jac(P : *mut ECPPoint) : int {
         if(mpi_is_zero(&raw mut P.Z)) {
             // Point at infinity
-            mpi_lset(&raw mut P.X, 1)
-            mpi_lset(&raw mut P.Y, 1)
+            mpi_lset(&raw mut P.X, 0)
+            mpi_lset(&raw mut P.Y, 0)
             return 0
         }
 

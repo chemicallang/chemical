@@ -21,6 +21,8 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
     if(key_len > 64) {
         sha256_hash(key, key_len, &raw mut actual_key[0]);
         actual_key_len = 32;
+        var zi : size_t = actual_key_len;
+        while(zi < 64) { actual_key[zi] = 0; zi += 1 }
     } else {
         var i : size_t = 0;
         while(i < key_len) {
@@ -75,6 +77,8 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
     if(key_len > 64) {
         md5_hash(key, key_len, &raw mut actual_key[0]);
         actual_key_len = 16;
+        var zi : size_t = actual_key_len;
+        while(zi < 64) { actual_key[zi] = 0; zi += 1 }
     } else {
         var i : size_t = 0;
         while(i < key_len) {

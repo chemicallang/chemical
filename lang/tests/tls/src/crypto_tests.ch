@@ -499,7 +499,7 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 }
 
 @test public func TEST_mpi_mul_simple(env:&mut TestEnv) {
-    var a:[32]u8; a[31]=7
+    var a:[32]u8 = [0]; a[31]=7
     var ma:Mpi; mpi_read_binary(&raw mut ma, &raw a[0], 32)
     var mr:Mpi; mpi_init(&raw mut mr)
     var ret = mpi_mul_int(&raw mut mr, &raw mut ma, 6)

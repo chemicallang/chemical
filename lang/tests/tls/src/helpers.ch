@@ -88,10 +88,20 @@ func test_parse_py_hex_label(output : *vector<u8>, label : string_view, out : *m
     }
     if(!found) { return 0 } else {}
     var written : size_t = 0
-    while(written < out_len && pos + 1 < output.size()) {
+    while(written < out_len && pos < output.size()) {
         var hi = output.get(pos) as char
-        var lo = output.get(pos + 1) as char
         if(hi == 10 as char || hi == 13 as char || hi == 0 as char) { break } else {}
+        if(pos + 1 >= output.size()) {
+            out[written] = test_hex_char_val(hi) as u8
+            written += 1
+            break
+        }
+        var lo = output.get(pos + 1) as char
+        if(lo == 10 as char || lo == 13 as char || lo == 0 as char) {
+            out[written] = test_hex_char_val(hi) as u8
+            written += 1
+            break
+        }
         out[written] = test_hex_pair_byte(hi, lo)
         written += 1
         pos += 2

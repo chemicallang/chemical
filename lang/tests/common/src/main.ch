@@ -170,6 +170,7 @@ public func run_common_tests() {
     test_sizeof_alignof()
     test_failing_code()
     test_variant_pattern_matching();
+    test_if();
 
     // Parallel generic instantiation tests
     test_generic_instantiation();

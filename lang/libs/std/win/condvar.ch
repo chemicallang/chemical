@@ -13,11 +13,11 @@ public func WakeConditionVariable(cond : *mut u8) : void
 @extern
 public func WakeAllConditionVariable(cond : *mut u8) : void
 
-// (SleepConditionVariableCS returns nonzero on success; 0 on timeout or failure)
+// (SleepConditionVariableSRW returns nonzero on success; 0 on timeout or failure)
 @dllimport
 @stdcall
 @extern
-public func SleepConditionVariableCS(cond : *mut u8, cs : *mut u8, ms : ulong) : int
+public func SleepConditionVariableSRW(cond : *mut u8, srw : *mut u8, ms : ulong, flags : ulong) : int
 
 public namespace std {
 
@@ -37,20 +37,17 @@ public namespace std {
         }
 
         // wait (blocking). Caller must hold mutex before calling.
-        // mutex is your std::mutex (the one storing CRITICAL_SECTION or pthread_mutex_t bytes).
         func wait(&mut self, mutex : &mut std::mutex) {
-            var ok = SleepConditionVariableCS(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu) // INFINITE
+            var ok = SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu, 0u) // INFINITE
             if(ok == 0) {
-                // 0 -> timeout or failure, but since we passed INFINITE it means failure
-                panic("SleepConditionVariableCS failed in wait")
+                panic("SleepConditionVariableSRW failed in wait")
             }
         }
 
         // timed_wait: returns true if signalled, false if timed out.
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
-            // SleepConditionVariableCS returns nonzero on success (signalled), 0 on timeout/failure.
-            var ok = SleepConditionVariableCS(&raw mut storage[0], &raw mut mutex.storage[0], timeout_ms)
+            var ok = SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], timeout_ms, 0u)
             return ok != 0
         }
 
@@ -66,7 +63,7 @@ public namespace std {
             WakeAllConditionVariable(&raw mut storage[0])
         }
 
-        // destructor: POSIX needs destroy, Windows does not.
+        // destructor: Windows CONDITION_VARIABLE does not need explicit cleanup.
         @delete
         func delete(&mut self) {
             // must keep the destructor, don't know the consequences in common code

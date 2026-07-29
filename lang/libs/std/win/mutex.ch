@@ -1,67 +1,49 @@
 @dllimport
 @stdcall
 @extern
-public func InitializeCriticalSectionAndSpinCount(cs : *mut u8, spin : ulong) : void
+public func InitializeSRWLock(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func EnterCriticalSection(cs : *mut u8) : void
+public func AcquireSRWLockExclusive(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func TryEnterCriticalSection(cs : *mut u8) : int // nonzero on success
+public func TryAcquireSRWLockExclusive(srw : *mut u8) : u8
 
 @dllimport
 @stdcall
 @extern
-public func LeaveCriticalSection(cs : *mut u8) : void
-
-@dllimport
-@stdcall
-@extern
-public func DeleteCriticalSection(cs : *mut u8) : void
+public func ReleaseSRWLockExclusive(srw : *mut u8) : void
 
 public namespace std {
 
-    comptime const CRITICAL_SECTION_SIZE = 40
+    comptime const SRWLOCK_SIZE = 8
 
-    // ----- std::mutex implementation -----
     public struct mutex {
 
-        var storage : [CRITICAL_SECTION_SIZE]u8;
+        var storage : [SRWLOCK_SIZE]u8;
 
-        // constructor: initialize native mutex
         @constructor
         func constructor() {
             var m = mutex { storage : [] }
-            // use a reasonable spin count (e.g., 4000)
-            InitializeCriticalSectionAndSpinCount(&raw mut m.storage[0], 4000u)
+            InitializeSRWLock(&raw mut m.storage[0])
             return m;
         }
 
-        // lock: blocking
         func lock(&mut self) {
-            EnterCriticalSection(&raw mut storage[0])
+            AcquireSRWLockExclusive(&raw mut storage[0])
         }
 
-        // try_lock: non-blocking; returns true on success, false otherwise
         func try_lock(&mut self) : bool {
-            // TryEnterCriticalSection returns non-zero on success
-            var r = TryEnterCriticalSection(&raw mut storage[0])
+            var r = TryAcquireSRWLockExclusive(&raw mut storage[0])
             return r != 0
         }
 
-        // unlock: release
         func unlock(&mut self) {
-            LeaveCriticalSection(&raw mut storage[0])
-        }
-
-        // destructor: destroy native mutex
-        @delete
-        func delete(&mut self) {
-            DeleteCriticalSection(&raw mut storage[0])
+            ReleaseSRWLockExclusive(&raw mut storage[0])
         }
     }
 

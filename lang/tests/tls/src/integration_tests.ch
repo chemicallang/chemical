@@ -332,8 +332,6 @@ public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "f2=open('/tmp/chem_test_cert.der','rb');der2=f2.read();f2.close()\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "print('DER_OK=1')\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-
     var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_gen.py"))
 
     var cert_file = fopen("/tmp/chem_test_cert.der\0" as *char, "rb\0" as *char)
@@ -347,6 +345,78 @@ public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
     if(crt.pk_type != PK_ECKEY) { env.error("expected EC key type"); return } else {}
     if(crt.pk_bitlen != 256) { env.error("expected 256-bit EC key"); return } else {}
+}
+
+@test
+public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
+    var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import ec\nimport datetime\n" as *char; si=0
+    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var l = "key=ec.generate_private_key(ec.SECP256R1())\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).public_key(key.public_key()).serial_number(1).not_valid_before(datetime.datetime(2024,1,1)).not_valid_after(datetime.datetime(2026,1,1)).sign(key,hashes.SHA256()))\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "der=cert.public_bytes(x509.Encoding.DER)\nf=open('/tmp/chem_hostname_cert.der','wb');f.write(der);f.close()\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_hostname.py"))
+
+    var cert_file = fopen("/tmp/chem_hostname_cert.der\0" as *char, "rb\0" as *char)
+    if(cert_file == null) { env.error("cannot open generated cert"); return } else {}
+    var cert_buf : [2048]u8
+    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
+    fclose(cert_file)
+
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
+
+    var match = x509_verify_hostname(&raw mut crt, "myhost.example.com" as *char)
+    if(match != 0) { env.error("expected hostname to match"); return } else {}
+
+    var nomatch = x509_verify_hostname(&raw mut crt, "wrong.example.com" as *char)
+    if(nomatch == 0) { env.error("expected hostname mismatch"); return } else {}
+}
+
+@test
+public func INT_x509_ecdsa_self_sig_verify(env : &mut TestEnv) {
+    var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import ec\nimport datetime\n" as *char; si=0
+    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var l = "key=ec.generate_private_key(ec.SECP256R1())\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'sigtest')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'sigtest')])).public_key(key.public_key()).serial_number(42).not_valid_before(datetime.datetime(2024,1,1)).not_valid_after(datetime.datetime(2026,1,1)).sign(key,hashes.SHA256()))\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "pub_enc=key.public_key().public_bytes_raw()\nder=cert.public_bytes(x509.Encoding.DER)\nf=open('/tmp/chem_sig_cert.der','wb');f.write(der);f.close()\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "print('PUB='+pub_enc.hex())\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_sig.py"))
+
+    var py_pub : [64]u8
+    var pub_len = test_parse_py_hex_label(&raw mut py_out, string_view("PUB="), &raw mut py_pub[0], 64)
+    if(pub_len != 64) { env.error("failed to parse pubkey"); return } else {}
+
+    var cert_file = fopen("/tmp/chem_sig_cert.der\0" as *char, "rb\0" as *char)
+    if(cert_file == null) { env.error("cannot open cert"); return } else {}
+    var cert_buf : [2048]u8
+    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
+    fclose(cert_file)
+
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
+    if(crt.pk_type != PK_ECKEY) { env.error("expected EC key type"); return } else {}
+
+    var pub_uncomp : [65]u8; pub_uncomp[0] = 0x04
+    var pi : size_t = 0; while(pi < 64) { pub_uncomp[1 + pi] = py_pub[pi]; pi += 1 }
+
+    var issuer : ECDSAContext; ecdsa_init(&raw mut issuer)
+    ret = ecdsa_import_pubkey(&raw mut issuer, &raw pub_uncomp[0], 65, TLS_GROUP_SECP256R1 as u16)
+    if(ret < 0) { env.error("import pubkey failed"); return } else {}
+
+    ret = x509_verify_cert_ecdsa_signature(&raw mut crt, &raw mut issuer)
+    if(ret < 0) { env.error("self-signature verification failed"); return } else {}
 }
 
 @test
@@ -414,4 +484,39 @@ public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
     if(ret < 0) { env.error("ecdh_compute_shared failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_shared[0], &raw py_shared[0], 32)) { env.error("ECDH P-256 shared secret mismatch vs Python"); return } else {}
+}
+
+@test
+public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
+    var pt_len : size_t = 16384
+    var pt_data : [16384]u8; test_random_bytes(&raw mut pt_data[0], pt_len)
+
+    var ssl : SSLContext; ssl_init(&raw mut ssl)
+    var cfg = ssl_config_init(SSL_IS_CLIENT)
+    cfg.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ssl, &raw mut cfg)
+
+    var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
+    var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
+    tls13_derive_handshake_keys(&raw mut ssl, &raw ss[0], 32, &raw hh[0])
+    tls13_derive_application_keys(&raw mut ssl, &raw hh[0], 32)
+
+    var ct_buf : [17408]u8
+    var ct_len = tls13_encrypt_record(&raw mut ssl, 23 as u8, &raw pt_data[0], pt_len, &raw mut ct_buf[0], 17408)
+    if(ct_len < 0) { env.error("encrypt max-size record failed"); return } else {}
+
+    ssl.in_hdr[0] = ct_buf[0]
+    ssl.in_hdr[1] = ct_buf[1]
+    ssl.in_hdr[2] = ct_buf[2]
+    ssl.in_hdr[3] = ct_buf[3]
+    ssl.in_hdr[4] = ct_buf[4]
+
+    var ct_payload_len = (ct_len as size_t) - 5
+    var inner_ct : u8 = 0
+    var dec_buf : [17408]u8
+    var dec_len = tls13_decrypt_record(&raw mut ssl, &raw ct_buf[5], ct_payload_len, &raw mut dec_buf[0], 17408, &raw mut inner_ct)
+    if(dec_len < 0) { env.error("decrypt max-size record failed"); return } else {}
+    if(inner_ct != 23) { env.error("inner content type mismatch"); return } else {}
+    if(dec_len as size_t != pt_len) { env.error("decrypted length mismatch"); return } else {}
+    if(!test_bytes_eq(&raw dec_buf[0], &raw pt_data[0], pt_len)) { env.error("decrypted data mismatch"); return } else {}
 }

@@ -307,18 +307,19 @@ public namespace tls {
         ret = mpi_mul(&raw mut X3, &raw mut R_val, &raw mut R_val)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
-        printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n); var _x3i:size_t; var _x3b:[32]u8; _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1};printf("\n")
+        var _x3i : size_t; var _x3b : [32]u8; var _x3size : size_t
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1};printf("\n") }
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut J)
-        if(ret < 0) { printf("[X3DBG] sub1 failed ret=%d\n",ret); return ret }
-        printf("[X3DBG] after -J: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};var _x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n")
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub1 failed ret=%d\n",ret); return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] after -J: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n") }
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V once
-        if(ret < 0) { printf("[X3DBG] sub2 failed ret=%d\n",ret); return ret }
-        printf("[X3DBG] after -V: s=%d n=%lu\n", X3.s, X3.n)
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub2 failed ret=%d\n",ret); return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] after -V: s=%d n=%lu\n", X3.s, X3.n)
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut V)  // subtract V again = 2*V
-        if(ret < 0) { printf("[X3DBG] sub3 failed ret=%d\n",ret); return ret }
-        printf("[X3DBG] after -2V: s=%d n=%lu\n", X3.s, X3.n)
+        if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub3 failed ret=%d\n",ret); return ret }
+        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] after -2V: s=%d n=%lu\n", X3.s, X3.n)
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
-        printf("[X3DBG] final: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n")
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] final: s=%d n=%lu val=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};_x3size=mpi_size(&raw mut X3);if(_x3size>32){printf("<too big:%lu>",_x3size)}else{mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1}};printf("\n") }
 
         // Y3 = R_val * (V - X3) - 2 * Y1 * J
         // temp = V - X3
@@ -327,16 +328,17 @@ public namespace tls {
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut tmp_vy, &raw mut tmp_vy, &raw mut p)
         if(ret < 0) { return ret }
-        printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n); var _y3b:[32]u8; var _y3i:size_t; _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};var _y3sz=mpi_size(&raw mut tmp_vy);if(_y3sz>32){printf("<too big:%lu>",_y3sz)}else{mpi_write_binary(&raw mut tmp_vy,&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1}};printf("\n")
+        var _y3b : [32]u8; var _y3i : size_t; var _y3sz : size_t
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n); _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(&raw mut tmp_vy);if(_y3sz>32){printf("<too big:%lu>",_y3sz)}else{mpi_write_binary(&raw mut tmp_vy,&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1}};printf("\n") }
         // Y3 = R_val * (V - X3)
         ret = mpi_mul(&raw mut Y3, &raw mut R_val, &raw mut tmp_vy)
         if(ret < 0) { return ret }
-        printf("[Y3DBG] after mul s=%d n=%lu ret=%d\n", Y3.s, Y3.n, ret)
-        _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(&raw mut Y3);if(_y3sz>32){printf("[Y3DBG] after mul val=<too big:%lu>\n",_y3sz)}else{mpi_write_binary(&raw mut Y3,&raw mut _y3b[0],32);printf("[Y3DBG] after mul val=");_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1};printf("\n")}
+        if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[Y3DBG] after mul s=%d n=%lu ret=%d\n", Y3.s, Y3.n, ret)
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(&raw mut Y3);if(_y3sz>32){printf("[Y3DBG] after mul val=<too big:%lu>\n",_y3sz)}else{mpi_write_binary(&raw mut Y3,&raw mut _y3b[0],32);printf("[Y3DBG] after mul val=");_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1};printf("\n")} }
 
 
         // DEBUG ALL INTERMEDIATES
-        if(P.Z.n == 8) { var _b:[32]u8; var _i:size_t
+        if(P.Z.n == 8 && tls_config::EXTENSIVE_DEBUG_LOG) { var _b:[32]u8; var _i:size_t
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut Z1Z1,&raw mut _b[0],32);printf("[ADDDBG] Z1Z1=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut U2,&raw mut _b[0],32);printf("[ADDDBG] U2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut H,&raw mut _b[0],32);printf("[ADDDBG] H=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")

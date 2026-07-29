@@ -287,11 +287,12 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var k : Mpi; mpi_init(&raw mut k); mpi_lset(&raw mut k, 2)
     var R : ECPPoint; ecp_point_init(&raw mut R)
     var ret = ecp_mul(&raw mut R, &raw mut k, &raw mut G)
-    if(ret < 0) { printf("[K2] ecp_mul error=%d\n", ret); env.error("ecp_mul failed"); return }
+    var _k2b : [256]char
+    if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] ecp_mul error=%d", ret); env.info(&raw _k2b[0]); env.error("ecp_mul failed"); return }
     ret = ecp_normalize_jac(&raw mut R)
-    if(ret < 0) { printf("[K2] normalize error=%d\n", ret); env.error("normalize failed"); return }
+    if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] normalize error=%d", ret); env.info(&raw _k2b[0]); env.error("normalize failed"); return }
     var chem_x : [32]u8; ret = mpi_write_binary(&raw mut R.X, &raw mut chem_x[0], 32)
-    if(ret < 0) { printf("[K2] write error=%d\n", ret); env.error("write failed"); return }
+    if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] write error=%d", ret); env.info(&raw _k2b[0]); env.error("write failed"); return }
 
     // Python: compute 2*G
     var py_script : [512]u8; var psi:size_t=0
@@ -303,11 +304,11 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=119;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=120;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
 
     var py_pub:[65]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_pub[0], 65)
-    if(py_len < 65) { printf("[K2] Python output too short: %d\n", py_len as int); env.error("python failed"); return }
+    if(py_len < 65) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] Python output too short: %d", py_len as int); env.info(&raw _k2b[0]); env.error("python failed"); return }
 
-    printf("[K2] chem=%064x py=%064x\n", chem_x[0] as int, py_pub[1] as int)
+    snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] chem=%064x py=%064x", chem_x[0] as int, py_pub[1] as int); env.info(&raw _k2b[0])
     if(!test_bytes_eq(&raw chem_x[0], &raw py_pub[1], 32)) {
-        printf("[K2] X mismatch\n")
+        env.info("[K2] X mismatch")
         print_hex("chem", &raw chem_x[0], 32); print_hex("py  ", &raw py_pub[1], 32)
         env.error("k2 mismatch")
     }

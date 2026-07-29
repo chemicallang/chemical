@@ -256,7 +256,7 @@ public namespace tls {
             i += 1
         }
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
             printf("[DBG13] early_secret: "); var _des : size_t = 0
             while(_des < 32) { printf("%02x", early_secret[_des] as int); _des += 1 }
             printf("\n")
@@ -287,7 +287,7 @@ public namespace tls {
             i += 1
         }
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
             printf("[DBG13] CLIENT_HANDSHAKE_TRAFFIC_SECRET: "); var _dts : size_t = 0
             while(_dts < 32) { printf("%02x", client_hts[_dts] as int); _dts += 1 }
             printf("\n")
@@ -324,7 +324,7 @@ public namespace tls {
         // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
             printf("[DBG13] transcript_hash: "); var _di : size_t = 0
             while(_di < 32) { printf("%02x", transcript_hash[_di] as int); _di += 1 }
             printf("\n")
@@ -373,7 +373,7 @@ public namespace tls {
             while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
         }
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT) {
+        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
             printf("[DBG13] client_key: "); var _di2 : size_t = 0
             while(_di2 < 16) { printf("%02x", client_key[_di2] as int); _di2 += 1 }
             printf("\n")
@@ -1303,13 +1303,11 @@ public namespace tls {
         if(ct_len > out_max + 1) { ct_len = out_max + 1 }  // +1 for content_type
 
         // DEBUG: nonce before gcm_auth_decrypt
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _todbg : size_t
         printf("[DBG13] TRACE input_len=%d ct_len=%d record_len_from_hdr=%d\n", input_len as int, ct_len as int, read_u16_be(&raw ssl.in_hdr[3]) as int);
-        printf("[DBG13] TRACE outer_hdr: "); var _todbg : size_t = 0
-        while(_todbg < 5) { printf("%02x", outer_hdr[_todbg] as int); _todbg += 1 }
-        printf("\n")
-        printf("[DBG13] TRACE ssl.in_hdr: "); _todbg = 0
-        while(_todbg < 5) { printf("%02x", ssl.in_hdr[_todbg] as int); _todbg += 1 }
-        printf("\n")
+        printf("[DBG13] TRACE outer_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", outer_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
+        printf("[DBG13] TRACE ssl.in_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", ssl.in_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
+        }
 
         // GCM decrypt and verify
         ret = gcm_auth_decrypt(&raw mut gcm_ctx,
@@ -1318,36 +1316,22 @@ public namespace tls {
                                 input, ct_len,
                                 tag_start, 16,
                                 &raw mut dec_buf[0])
-        printf("[DBG13] nonce_after: "); var _ndbg2 : size_t = 0
-        while(_ndbg2 < 12) { printf("%02x", nonce[_ndbg2] as int); _ndbg2 += 1 }
-        printf("\n")
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[DBG13] nonce_after: "); var _ndbg2 : size_t = 0; while(_ndbg2 < 12) { printf("%02x", nonce[_ndbg2] as int); _ndbg2 += 1 }; printf("\n") }
         if(ret < 0) {
-            printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
-                read_u16_be(&raw ssl.in_hdr[3]) as int)
-            var _role_str : *char = "client"
-            if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER) { _role_str = "server" }
-            printf("[DBG13] CTX role=%s\n", _role_str)
-            printf("[DBG13] key_dec: "); var _di3 : size_t = 0
-            while(_di3 < tr.key_len as size_t) { printf("%02x", tr.key_dec[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] nonce: "); _di3 = 0
-            while(_di3 < 12) { printf("%02x", nonce[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] base_iv_dec: "); _di3 = 0
-            while(_di3 < 12) { printf("%02x", tr.base_iv_dec[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] in_ctr: "); _di3 = 0
-            while(_di3 < 8) { printf("%02x", ssl.in_ctr[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] aad: "); _di3 = 0
-            while(_di3 < 5) { printf("%02x", outer_hdr[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] ct: "); _di3 = 0
-            while(_di3 < ct_len) { printf("%02x", input[_di3] as int); _di3 += 1 }
-            printf("\n")
-            printf("[DBG13] tag: "); _di3 = 0
-            while(_di3 < 16) { printf("%02x", tag_start[_di3] as int); _di3 += 1 }
-            printf("\n")
+            if(tls_config::DEBUG_LOG) {
+                printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
+                    read_u16_be(&raw ssl.in_hdr[3]) as int)
+                var _role_str : *char = "client"
+                if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER) { _role_str = "server" }
+                printf("[DBG13] CTX role=%s\n", _role_str)
+                printf("[DBG13] key_dec: "); var _di3 : size_t = 0; while(_di3 < tr.key_len as size_t) { printf("%02x", tr.key_dec[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] nonce: "); _di3 = 0; while(_di3 < 12) { printf("%02x", nonce[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] base_iv_dec: "); _di3 = 0; while(_di3 < 12) { printf("%02x", tr.base_iv_dec[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] in_ctr: "); _di3 = 0; while(_di3 < 8) { printf("%02x", ssl.in_ctr[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] aad: "); _di3 = 0; while(_di3 < 5) { printf("%02x", outer_hdr[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] ct: "); _di3 = 0; while(_di3 < ct_len) { printf("%02x", input[_di3] as int); _di3 += 1 }; printf("\n")
+                printf("[DBG13] tag: "); _di3 = 0; while(_di3 < 16) { printf("%02x", tag_start[_di3] as int); _di3 += 1 }; printf("\n")
+            }
             return ERR_SSL_INVALID_RECORD
         }
 
@@ -1966,14 +1950,14 @@ public namespace tls {
                 var cs_len_key = pos - cs_len_pos - 2
                 buf[cs_len_pos] = ((cs_len_key >> 8) & 0xFF) as u8
                 buf[cs_len_pos + 1] = (cs_len_key & 0xFF) as u8
-                printf("[DBG_KS] cs_len_key=%d cs_byte0=%02x cs_byte1=%02x buf_kspos01=%02x%02x\n",
+                if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[DBG_KS] cs_len_key=%d cs_byte0=%02x cs_byte1=%02x buf_kspos01=%02x%02x\n",
                     cs_len_key as int,
                     buf[cs_len_pos] as int, buf[cs_len_pos+1] as int,
                     buf[ks_len_pos] as int, buf[ks_len_pos+1] as int)
                 var ks_data_len = 2 + cs_len_key
                 buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
                 buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
-                printf("[DBG_KS] ks_data_len=%d after_write ext_bytes=%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[DBG_KS] ks_data_len=%d after_write ext_bytes=%02x%02x%02x%02x%02x%02x%02x%02x\n",
                     ks_data_len as int,
                     buf[ks_len_pos-2] as int, buf[ks_len_pos-1] as int,
                     buf[ks_len_pos] as int, buf[ks_len_pos+1] as int,
@@ -2978,12 +2962,10 @@ public namespace tls {
         var x25519_ret = x25519_generate_keypair(&raw mut x25519_priv[0], &raw mut x25519_pub[0])
         var has_x25519 : bool = (x25519_ret == 0)
 
-        printf("[DBG13] x25519_priv: "); var _dka : size_t = 0
-        while(_dka < 32) { printf("%02x", x25519_priv[_dka] as int); _dka += 1 }
-        printf("\n")
-        printf("[DBG13] x25519_pub: "); _dka = 0
-        while(_dka < 32) { printf("%02x", x25519_pub[_dka] as int); _dka += 1 }
-        printf("\n")
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _dka : size_t
+        printf("[DBG13] x25519_priv: "); _dka = 0; while(_dka < 32) { printf("%02x", x25519_priv[_dka] as int); _dka += 1 }; printf("\n")
+        printf("[DBG13] x25519_pub: "); _dka = 0; while(_dka < 32) { printf("%02x", x25519_pub[_dka] as int); _dka += 1 }; printf("\n")
+        }
 
         // Store x25519 keypair in handshake params
         if(has_x25519) {
@@ -3021,13 +3003,15 @@ public namespace tls {
         crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
 
         // DEBUG: print ClientHello bytes for transcript verification
-        printf("[DBG13] CH: "); var _chdbg : size_t = 0
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _chdbg : size_t = 0
+        printf("[DBG13] CH: ")
         while(_chdbg < 4 + ch_len as size_t) { 
             if(_chdbg < 4) { printf("%02x", ch_hdr[_chdbg] as int) }
             else { printf("%02x", ch_buf[_chdbg - 4] as int) }
             _chdbg += 1 
         }
         printf("\n")
+        }
 
         ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
@@ -3212,9 +3196,7 @@ public namespace tls {
                     }
                     found_key_share = true
                     using_x25519 = true
-                    printf("[DBG13] server_x25519_key: "); var _dkb : size_t = 0
-                    while(_dkb < 32) { printf("%02x", server_x25519_key[_dkb] as int); _dkb += 1 }
-                    printf("\n")
+                    if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[DBG13] server_x25519_key: "); var _dkb : size_t = 0; while(_dkb < 32) { printf("%02x", server_x25519_key[_dkb] as int); _dkb += 1 }; printf("\n") }
                 } else if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
                     var ki : size_t = 0
                     while(ki < 65) {
@@ -3236,9 +3218,11 @@ public namespace tls {
         crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
 
         // DEBUG: print ServerHello bytes
-        printf("[DBG13] SH: "); var _shdbg : size_t = 0
+        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _shdbg : size_t = 0
+        printf("[DBG13] SH: ")
         while(_shdbg < 4 + hs_body_len) { printf("%02x", hs_buf[_shdbg] as int); _shdbg += 1 }
         printf("\n")
+        }
 
         // ── Compute ECDHE shared secret ──────────────────────────────
         var shared_secret : [32]u8
@@ -3278,7 +3262,7 @@ public namespace tls {
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
             ret = read_record_header(ssl, &raw mut enc_hdr[0])
-            if(ret < 0) { printf("[DBG_WL] read_record_header returned %d\n", ret as int); return ret }
+            if(ret < 0) { if(tls_config::DEBUG_LOG) printf("[DBG_WL] read_record_header returned %d\n", ret as int); return ret }
 
             var enc_ct = enc_hdr[0]
 
@@ -4323,9 +4307,9 @@ public namespace tls {
         }
 
         // CertificateVerify
-        printf("[CV_CHK_REACHED]\n")
+        if(tls_config::DEBUG_LOG) printf("[CV_CHK_REACHED]\n")
         if(ssl.conf.own_cert != null && ssl.conf.own_key != null) {
-            printf("[CV_IN_BLOCK]\n")
+            if(tls_config::DEBUG_LOG) printf("[CV_IN_BLOCK]\n")
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
             var cv_copy = transcript
@@ -4352,7 +4336,7 @@ public namespace tls {
             crypto::sha256_init(&raw mut cv_hctx)
             crypto::sha256_update(&raw mut cv_hctx, &raw sig_in[0], sp)
             crypto::sha256_final(&raw mut cv_hctx, &raw mut cv_hash[0])
-            printf("[CV_HASH_OK] pk_type=%d\n", ssl.conf.own_cert.pk_type as int)
+            if(tls_config::DEBUG_LOG) printf("[CV_HASH_OK] pk_type=%d\n", ssl.conf.own_cert.pk_type as int)
 
             var pk_type = ssl.conf.own_cert.pk_type
             var sig_buf : [256]u8
@@ -4361,10 +4345,10 @@ public namespace tls {
             sig_len = 256  // buffer size input for ecdsa_sign
 
             if(pk_type == PK_ECKEY as u8) {
-                printf("[CV_BEFORE_SIGN]\n")
+                if(tls_config::DEBUG_LOG) printf("[CV_BEFORE_SIGN]\n")
                 var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
                 ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], 32, &raw mut sig_buf[0], &raw mut sig_len)
-                printf("[CV_AFTER_SIGN] ret=%d sig_len=%d\n", ret, sig_len as int)
+                if(tls_config::DEBUG_LOG) printf("[CV_AFTER_SIGN] ret=%d sig_len=%d\n", ret, sig_len as int)
                 if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
                 sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16
             } else {
@@ -4381,9 +4365,7 @@ public namespace tls {
             var ck : size_t = 0
             while(ck < sig_len as size_t) { cv_buf[8 + ck] = sig_buf[ck]; ck += 1 }
             var cv_total = 4 + cv_body
-            printf("[CV] sig_len=%d sig_der=", sig_len as int); var _cvd : size_t = 0
-            while(_cvd < sig_len as size_t) { printf("%02x", sig_buf[_cvd] as int); _cvd += 1 }
-            printf("\n")
+            if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[CV] sig_len=%d sig_der=", sig_len as int); var _cvd : size_t = 0; while(_cvd < sig_len as size_t) { printf("%02x", sig_buf[_cvd] as int); _cvd += 1 }; printf("\n") }
 
             crypto::sha256_update(&raw mut transcript, &raw cv_buf[0], cv_total as size_t)
 

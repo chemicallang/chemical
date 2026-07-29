@@ -14,6 +14,15 @@ public namespace tls_config {
     public comptime const VERSION_NUMBER = 0x04020000
     public comptime const VERSION_STRING = "Chemical TLS 4.2.0"
 
+    // ─── Debug Logging ───────────────────────────────────────────────────────
+
+    // Set to true to enable debug log output
+    public comptime const DEBUG_LOG = false
+
+    // Set to true to enable extensive/trace-level debug log output
+    // WARNING: This produces a LOT of output (per-iteration crypto intermediates, per-record traces)
+    public comptime const EXTENSIVE_DEBUG_LOG = false
+
     // ─── Platform ───────────────────────────────────────────────────────────
 
     // Use our net module instead of mbedTLS net_sockets.c

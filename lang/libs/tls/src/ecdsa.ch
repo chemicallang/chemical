@@ -69,8 +69,8 @@ public namespace tls {
     public func ecdsa_sign(ctx : *mut ECDSAContext,
                             hash : *u8, hash_len : size_t,
                             sig_out : *mut u8, sig_out_len : *mut u16) : int {
-        printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
-        if(!ctx.has_private) { printf("[ECDSA_DBG] no private key!\n"); return ERR_ECDSA_VERIFY_FAILED }
+        if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
+        if(!ctx.has_private) { if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] no private key!\n"); return ERR_ECDSA_VERIFY_FAILED }
         if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
             return ERR_ECP_FEATURE_UNAVAILABLE
         }
@@ -78,7 +78,7 @@ public namespace tls {
         var n : Mpi; ecp_curve_n(&raw mut n)
         var e : Mpi; mpi_init(&raw mut e)
         var ret = mpi_read_binary(&raw mut e, hash, hash_len)
-        printf("[ECDSA_DBG] read_hash=%d\n", ret)
+        if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] read_hash=%d\n", ret)
         if(ret < 0) { return ret }
 
         var G : ECPPoint; ecp_point_init(&raw mut G)
@@ -89,7 +89,7 @@ public namespace tls {
         gi = 0
         while(gi < 8) { G.Y.p[gi] = P256_GY[gi]; gi += 1 }
         mpi_lset(&raw mut G.Z, 1)
-        printf("[ECDSA_DBG] G_ok\n")
+        if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] G_ok\n")
 
         var k : Mpi; mpi_init(&raw mut k)
         var r_val : Mpi; mpi_init(&raw mut r_val)

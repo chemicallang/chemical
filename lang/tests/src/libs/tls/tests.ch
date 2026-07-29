@@ -3515,12 +3515,18 @@ public func tls_x25519_rfc7748_vector1_works(env : &mut TestEnv) {
     var output : [32]u8
     tls::x25519_ladder(&raw mut output[0], &raw clamped[0], &raw u[0])
 
-    printf("[X25519_V1] actual:   "); var _pi : size_t = 0
-    while(_pi < 32) { printf("%02x", output[_pi] as int); _pi += 1 }
-    printf("\n")
-    printf("[X25519_V1] expected: "); _pi = 0
-    while(_pi < 32) { printf("%02x", expected[_pi] as int); _pi += 1 }
-    printf("\n")
+    var _x1buf : [512]char
+    var _x1pos : size_t = 0
+    _x1pos = (_x1pos as int + snprintf(&raw mut _x1buf[0], sizeof(_x1buf), "[X25519_V1] actual:   ")) as size_t
+    var _pi : size_t = 0
+    while(_pi < 32) { _x1pos = (_x1pos as int + snprintf(&raw mut _x1buf[_x1pos], sizeof(_x1buf) - _x1pos, "%02x", output[_pi] as int)) as size_t; _pi += 1 }
+    env.info(&raw _x1buf[0])
+    var _x2buf : [512]char
+    var _x2pos : size_t = 0
+    _x2pos = (_x2pos as int + snprintf(&raw mut _x2buf[0], sizeof(_x2buf), "[X25519_V1] expected: ")) as size_t
+    _pi = 0
+    while(_pi < 32) { _x2pos = (_x2pos as int + snprintf(&raw mut _x2buf[_x2pos], sizeof(_x2buf) - _x2pos, "%02x", expected[_pi] as int)) as size_t; _pi += 1 }
+    env.info(&raw _x2buf[0])
 
     var matches = true
     var i : size_t = 0

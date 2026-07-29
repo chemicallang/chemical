@@ -189,11 +189,8 @@ public namespace tls {
         fe_strong_reduce(c)
     }
 
-    // Debug flag
-    comptime const X25519_DEBUG = true
-
     func fe_debug_print(msg : *char, f : *u32) {
-        if(!X25519_DEBUG) { return }
+        if(!tls_config::EXTENSIVE_DEBUG_LOG) { return }
         var bytes : [32]u8
         fe_encode(&raw mut bytes[0], f)
         printf("[FEDBG] %s: ", msg)
@@ -445,7 +442,7 @@ public namespace tls {
         var u_fe : [8]u32
         fe_decode(&raw mut u_fe[0], u)
 
-        if(X25519_DEBUG) {
+        if(tls_config::EXTENSIVE_DEBUG_LOG) {
             var _enc : [32]u8; fe_encode(&raw mut _enc[0], &raw u_fe[0])
             printf("[LADDER] u_decoded: ");
             var _xi : size_t = 0; while(_xi < 8) { printf("%08x ", u_fe[_xi]); _xi += 1 }

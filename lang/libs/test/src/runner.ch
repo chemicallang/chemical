@@ -88,6 +88,13 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         var test_start = tests_view.data() as *mut TestFunction
         const test_end = test_start + tests_view.size()
 
+        // When running as a child process (comm_id != -1), run in-process with IPC.
+        // When running as the parent (comm_id == -1), launch child processes for proper IPC/result reporting.
+        var is_child = (config.comm_id != -1)
+
+        var state = TestRunnerState()
+        state.tests.reserve(tests_view.size());
+
         while(test_start != test_end) {
             var should_run = false
             if(has_single_id && test_start.id == config.single_test_id) {
@@ -106,11 +113,25 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                 }
             }
             if(should_run) {
-                const saved_fd = config.comm_id
-                var test_failed : bool = false
-                run_single_test(test_start, config, &raw mut test_failed)
+                if(is_child) {
+                    var test_failed : bool = false
+                    run_single_test(test_start, config, &raw mut test_failed)
+                } else {
+                    var ind = state.tests.size()
+                    state.tests.push(TestFunctionState(test_start));
+                    const fn_state = state.tests.get_ptr(ind)
+                    const test_id = test_start.id;
+                    const test_retry = test_start.retry as int
+                    var timeout_ms = 10000;
+                    if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
+                    launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
+                }
             }
             test_start++;
+        }
+
+        if(!is_child) {
+            print_test_results(&mut config.display, state.tests.data(), state.tests.size())
         }
         return;
 

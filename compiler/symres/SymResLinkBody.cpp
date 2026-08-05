@@ -63,6 +63,7 @@
 #include "NodeSymbolDeclarer.h"
 #include "rang.hpp"
 #include "ast/base/ChildResolution.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
@@ -500,12 +501,28 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
             diagnoser.error(identifier) << "unresolved variable identifier '" << value << "' not found";
             return;
         }
-        if(sym->index < lambda_scope_start && !sym->activeNode->is_top_level()) {
-            // since the symbol is outside lambda scope
-            // we'll link this with unresolved declaration
-            identifier->linked = get_unresolved_decl();
-            identifier->setType(identifier->linked->known_type());
-            diagnoser.error(identifier) << "symbol '" << value << "' is outside of lambda scope";
+        if(sym->index < lambda_scope_start && !sym->activeNode->isNonLocalDeclaration()) {
+            switch (out_scope_res_behavior) {
+                case OutScopeResBehavior::Error: {
+                    // since the symbol is outside lambda scope
+                    // we'll link this with unresolved declaration
+                    identifier->linked = get_unresolved_decl();
+                    identifier->setType(identifier->linked->known_type());
+                    diagnoser.error(identifier) << "symbol '" << value << "' is outside of lambda scope";
+                    break;
+                }
+                case OutScopeResBehavior::AutoComptimeCapture: {
+                    const auto captured = new (getAstAllocator().allocate<CapturedComptimeVariable>()) CapturedComptimeVariable(sym->activeNode, sym->activeNode, identifier->encoded_location());
+                    identifier->linked = captured;
+                    identifier->setType(sym->activeNode->known_type());
+                    if (check_access) {
+                        // check for validity if accessible or assignable (because moved)
+                        check_id(identifier, diagnoser);
+                    }
+                    identifier->process_linked(&diagnoser, current_func_type);
+                    return;
+                }
+            }
         } else {
             identifier->linked = sym->activeNode;
             identifier->setType(identifier->linked->known_type());
@@ -2727,9 +2744,77 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 }
 
 void SymResLinkBody::VisitRuntimeValue(RuntimeValue* value) {
+    // start a scope
+    const auto scope_index = table.scope_start_index();
+    auto scope = table.get_scope_at_index(scope_index);
+    auto val_scope_start = scope->start;
+
+    // handle scoping for runtime block value
+    // set for nested evaluation scope
+    // change resolution behavior to auto comptime capture
+    const auto prev_lamb_scope = in_lambda_scope;
+    in_lambda_scope = true;
+    const auto prev_cap_behavior = out_scope_res_behavior;
+    out_scope_res_behavior = OutScopeResBehavior::AutoComptimeCapture;
+    const auto prev_scope_start = lambda_scope_start;
+    lambda_scope_start = val_scope_start;
+
+    // visit
     visit(value->underlying);
+    // determine type
     const auto runtimeType = value->getType()->as_runtime_type_unsafe();
     runtimeType->underlying = value->underlying->getType();
+
+    // reset back
+    in_lambda_scope = prev_lamb_scope;
+    out_scope_res_behavior = prev_cap_behavior;
+    lambda_scope_start = prev_scope_start;
+
+    // end scope
+    table.scope_end();
+}
+
+void SymResLinkBody::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
+    // starting the scope
+    const auto scope_index = table.scope_start_index();
+    auto scope = table.get_scope_at_index(scope_index);
+    auto val_scope_start = scope->start;
+
+    // handle scoping for runtime block value
+    // set for nested evaluation scope
+    // change resolution behavior to auto comptime capture
+    const auto prev_lamb_scope = in_lambda_scope;
+    in_lambda_scope = true;
+    const auto prev_cap_behavior = out_scope_res_behavior;
+    out_scope_res_behavior = OutScopeResBehavior::AutoComptimeCapture;
+    const auto prev_scope_start = lambda_scope_start;
+    lambda_scope_start = val_scope_start;
+
+    // visit the variables
+    for(auto node : value->scope.nodes) {
+        visit(node);
+    }
+    // determine type
+    constexpr auto MISSING_VALUE = chem::string_view("expected expression before end of statement expression");
+    if (value->scope.nodes.empty()) {
+        diagnoser.error(MISSING_VALUE, value);
+        return;
+    }
+    const auto stmt_expr = value->get_stmt_expr();
+    if (stmt_expr == nullptr) {
+        diagnoser.error(MISSING_VALUE, value);
+        return;
+    }
+    const auto runtimeType = value->getType()->as_runtime_type_unsafe();
+    runtimeType->underlying = stmt_expr->getType();
+
+    // reset back
+    in_lambda_scope = prev_lamb_scope;
+    out_scope_res_behavior = prev_cap_behavior;
+    lambda_scope_start = prev_scope_start;
+
+    // end scope
+    table.scope_end();
 }
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {

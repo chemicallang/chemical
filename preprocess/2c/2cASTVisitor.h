@@ -3,6 +3,7 @@
 #pragma once
 
 #include "compiler/ASTDiagnoser.h"
+#include "ast/base/ComptimeReturnHandler.h"
 #include "ast/base/ASTAny.h"
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 
 class ImplementationsIndex;
 class CoreNodes;
+class InterpretScope;
 class GlobalInterpretScope;
 class ASTAllocator;
 class CompilerBinder;
@@ -168,6 +170,17 @@ public:
      * the function type for which code is being generated
      */
     FunctionTypeBody* current_func_type = nullptr;
+
+    /**
+     * the interpret scope where the top most comptime function's return value
+     * is being interpreted, set by a ToCReturnHandlerBase implementation right
+     * before translating the returned runtime value.
+     *
+     * identifiers that are linked with a CapturedComptimeVariable node look up
+     * this scope to find the captured variable's value (by node identifier)
+     * and translate that value. null when no comptime return is being handled.
+     */
+    InterpretScope* current_comptime_scope = nullptr;
 
     /**
      * current scope being visited is set when visiting scopes
@@ -793,6 +806,15 @@ public:
     void VisitPointerValue(PointerValue* value) {}
 
     void VisitBlockValue(BlockValue* value);
+
+    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
+
+    /**
+     * a runtime value is translated to its underlying expression, identifiers
+     * that are linked with a captured comptime variable resolve through the
+     * interpret scope set on the visitor by the return handler
+     */
+    void VisitRuntimeValue(RuntimeValue* value);
 
     // TODO handle wrap value
     void VisitWrapValue(WrapValue* value) {}

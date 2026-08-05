@@ -74,6 +74,15 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                     // maybe in the future, we should verify the underlying value
                     return eval;
                 default:
+                    // a %runtime_value / %runtime_block_value cannot be
+                    // evaluated at comptime outside of the interpretation mode:
+                    // the backends translate the casted expression (with the
+                    // cast preserved) directly at the codegen site, so keep it
+                    // instead of erroring out on the unevaluated expression
+                    if(!scope.global->interpretation_mode &&
+                       (value->val_kind() == ValueKind::RuntimeValue || value->val_kind() == ValueKind::RuntimeBlockValue)) {
+                        return this;
+                    }
                     scope.error("unknown value being casted to a pointer", this);
                     return eval;
             }

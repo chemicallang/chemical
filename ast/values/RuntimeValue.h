@@ -5,8 +5,6 @@
 #include "ast/base/Value.h"
 #include "ast/types/RuntimeType.h"
 
-Value* runtime_value_of(InterpretScope& scope, Value* underlying);
-
 /**
  * runtime value, a runtime value is
  */
@@ -23,7 +21,10 @@ public:
         return new (allocator.allocate<RuntimeValue>()) RuntimeValue(underlying->copy(allocator), getType()->copy(allocator));
     }
     Value* evaluated_value(InterpretScope &scope) final {
-        return runtime_value_of(scope, underlying);
+        if (scope.global->interpretation_mode) {
+            return underlying->evaluated_value(scope);
+        }
+        return underlying;
     }
 
     Value* child(InterpretScope& scope, const chem::string_view& name) final {
@@ -45,4 +46,8 @@ public:
         const auto eval = underlying->evaluated_value(scope);
         return eval ? eval->find_in(scope, parent) : nullptr;
     }
+
+#ifdef COMPILER_BUILD
+    llvm::Value* llvm_value(Codegen& gen, BaseType* type = nullptr) override;
+#endif
 };

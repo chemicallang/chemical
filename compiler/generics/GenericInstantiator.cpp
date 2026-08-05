@@ -2,6 +2,7 @@
 #include "GenericInstantiator.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "GenInstantiatorAPI.h"
+#include "ast/base/ChildResolution.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -11,6 +12,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "compiler/symres/ImplementationsIndex.h"
 
 void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
@@ -75,6 +77,32 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
 
 bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
     const auto id = val->as_identifier_unsafe();
+
+    // identifiers that symres linked to a CapturedComptimeVariable are a bridge
+    // to the comptime environment: they reference a variable captured from the
+    // enclosing comptime function's scope into a %runtime_value /
+    // %runtime_block_value. the backends resolve the captured value through this
+    // bridge at codegen time, so instantiation must never relink such an
+    // identifier to a symbol that merely shares the same name (for example an
+    // instantiated function parameter). the type can still change because of
+    // generics, so it is updated to the concrete type of this instantiation
+    // while the capture bridge is kept intact: prefer the concrete declaration
+    // in the symbol table (parameters and locals of the instantiation),
+    // otherwise copy the master declaration's type and concretize the copy
+    if(id->linked && id->linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
+        BaseType* concrete_type = nullptr;
+        const auto captured_node = table.resolve(id->value);
+        if(captured_node) {
+            concrete_type = captured_node->getType();
+        } else {
+            const auto captured = id->linked->as_captured_comptime_var_unsafe()->linked;
+            concrete_type = captured->known_type()->copy(getAllocator());
+            visit(concrete_type);
+        }
+        id->setType(concrete_type);
+        return true;
+    }
+
     const auto node = table.resolve(id->value);
     if(node) {
         id->linked = node;
@@ -102,23 +130,30 @@ void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, Functi
     while (i < values_size) {
         const auto id = chain->values[i]->as_identifier_unsafe();
         const auto parent = chain->values[i - 1];
-        auto linked_node = parent->linked_node();
-        if(linked_node) {
-            const auto child = linked_node->child(&instantiator.child_resolver, id->value);
-            if(child) {
-                id->linked = child;
-                id->setType(child->known_type());
-                id->process_linked(&instantiator.diagnoser, curr_func);
+        // identifiers linked with a CapturedComptimeVariable are a bridge to the
+        // master declaration whose type is still generic, so children are
+        // resolved against the concrete type of the captured identifier (set by
+        // relink_identifier) to find the monomorphized members for this
+        // instantiation
+        ASTNode* child = nullptr;
+        if(parent->kind() == ValueKind::Identifier) {
+            const auto pid = parent->as_identifier_unsafe();
+            if(pid->linked && pid->linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
+                child = provide_child(&instantiator.child_resolver, pid->getType(), id->value, nullptr);
             } else {
-                id->linked = (ASTNode*) instantiator.typeBuilder.getUnresolvedDecl();
-                id->setType(id->linked->known_type());
-                instantiator.diagnoser.error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
-                return;
+                child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
             }
+        } else {
+            child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
+        }
+        if(child) {
+            id->linked = child;
+            id->setType(child->known_type());
+            id->process_linked(&instantiator.diagnoser, curr_func);
         } else {
             id->linked = (ASTNode*) instantiator.typeBuilder.getUnresolvedDecl();
             id->setType(id->linked->known_type());
-            instantiator.diagnoser.error(id) << "unresolved child '" << id->value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+            instantiator.diagnoser.error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
             return;
         }
         i++;
@@ -559,6 +594,12 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
 void GenericInstantiator::VisitRuntimeValue(RuntimeValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitRuntimeValue(value);
     value->getType()->as_runtime_type_unsafe()->underlying = value->underlying->getType();
+}
+
+void GenericInstantiator::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitRuntimeBlockValue(value);
+    const auto val = value->get_stmt_expr();
+    if (val) value->getType()->as_runtime_type_unsafe()->underlying = val->getType();
 }
 
 void GenericInstantiator::VisitExpression(Expression *expr) {

@@ -274,6 +274,8 @@ public:
 
     void VisitRuntimeValue(RuntimeValue* value);
 
+    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
+
     void VisitExpression(Expression *expr);
 
     void VisitIndexOperator(IndexOperator* value);

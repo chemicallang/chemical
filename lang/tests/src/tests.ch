@@ -63,6 +63,7 @@ func run_executable_tests() {
     test_time_types();
     test_allocator();
     test_recursive_mutex();
+    test_string_expr();
 
 }
 

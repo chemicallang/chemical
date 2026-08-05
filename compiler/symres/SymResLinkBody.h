@@ -6,6 +6,16 @@
 #include "SymbolTable.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 
+/**
+ * when a variable is outside evaluation scope, for example an identifier lambda referencing a variable above lambda
+ * this determines what behavior to used
+ */
+enum class OutScopeResBehavior : uint8_t {
+    Error,
+    // with this comptime variables are automatically wrapped in a comptime captured variable node
+    AutoComptimeCapture
+};
+
 class SymResLinkBody : public NonRecursiveVisitor<SymResLinkBody> {
 public:
 
@@ -82,6 +92,11 @@ public:
      * turned on when symbol resolving a lambda body
      */
     bool in_lambda_scope = false;
+
+    /**
+     * resolution behavior for variables outside evaluation scope
+     */
+    OutScopeResBehavior out_scope_res_behavior = OutScopeResBehavior::Error;
 
     /**
      * constructor
@@ -385,6 +400,8 @@ public:
     void VisitPlacementNewValue(PlacementNewValue* value);
 
     void VisitRuntimeValue(RuntimeValue* value);
+
+    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
 
     void VisitNotValue(NotValue* value);
 

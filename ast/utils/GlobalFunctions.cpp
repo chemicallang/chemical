@@ -24,6 +24,7 @@
 #include "ast/values/ExtractionValue.h"
 #include "ast/values/ExpressiveString.h"
 #include "ast/values/BlockValue.h"
+#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"
@@ -444,6 +445,7 @@ public:
 
 };
 
+// TODO: this function should be made A LOT SIMPLER
 Value* resolve_ref(Value* val, InterpretScope *call_scope) {
     Value* value = nullptr;
     if(val->reference()) {
@@ -513,16 +515,6 @@ public:
     }
 };
 
-/**
- * evaluates comptime identifiers and function calls in a wrap value
- * suppose intrinsics::wrap(constructor(value, intrinsics::size(value)))
- * in this value constructor is a function call that is not comptime
- * so constructor won't be called, but intrinsics::size is a comptime
- * function call, intrinsics::size will be called with value as argument
- * so the ending call would become constructor(value, 12) or something
- * since here value is a identifier, which could be pointing to value present
- * inside the function declaration, we replace that with it's evaluated value as well
- */
 Value* evaluated_comptime(Value* value, InterpretScope& scope) {
     switch(value->val_kind()) {
         case ValueKind::AccessChain: {
@@ -585,14 +577,6 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
 
 bool is_interpretation_mode(InterpretScope* call_scope) {
     return call_scope->global->interpretation_mode;
-}
-
-Value* runtime_value_of(InterpretScope& scope, Value* underlying) {
-    // In interpretation mode, wrap is a no-op since there is no runtime
-    if (is_interpretation_mode(&scope)) {
-        return underlying->evaluated_value(scope);
-    }
-    return evaluated_comptime(underlying, scope);
 }
 
 class InterpretRetStructPtr : public FunctionDeclaration {

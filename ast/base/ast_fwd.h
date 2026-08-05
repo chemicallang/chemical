@@ -102,6 +102,8 @@ class VariantCaseVariable;
 
 class CapturedVariable;
 
+class CapturedComptimeVariable;
+
 class LoopASTNode;
 
 class IntNType;
@@ -231,6 +233,7 @@ class LambdaFunction;
 class TypeInsideValue;
 
 class RuntimeValue;
+class RuntimeBlockValue;
 
 class AnyType;
 

@@ -74,6 +74,15 @@ public struct string {
     }
 
     @constructor
+    comptime func make(expr : %expressive_string) {
+        return %runtime_block_value {
+            var str = std::string()
+            str.append_expr(expr)
+            str;
+        }
+    }
+
+    @constructor
     func constructor(value : *char, length : size_t) {
         var s = string {
             storage : {

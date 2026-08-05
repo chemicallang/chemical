@@ -200,6 +200,9 @@ public:
     inline void VisitCapturedVariable(CapturedVariable* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitCapturedComptimeVariable(CapturedComptimeVariable* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitVariantCaseVariable(VariantCaseVariable* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -385,6 +388,10 @@ public:
     }
 
     inline void VisitRuntimeValue(RuntimeValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitRuntimeBlockValue(RuntimeBlockValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
@@ -688,6 +695,9 @@ public:
             case ASTNodeKind::CapturedVariable:
                 static_cast<Derived*>(this)->VisitCapturedVariable((CapturedVariable*) node);
                 return;
+            case ASTNodeKind::CapturedComptimeVariable:
+                static_cast<Derived*>(this)->VisitCapturedComptimeVariable((CapturedComptimeVariable*) node);
+                return;
             case ASTNodeKind::VariantCaseVariable:
                 static_cast<Derived*>(this)->VisitVariantCaseVariable((VariantCaseVariable*) node);
                 return;
@@ -850,6 +860,9 @@ public:
                 return;
             case ValueKind::RuntimeValue:
                 static_cast<Derived*>(this)->VisitRuntimeValue((RuntimeValue*) value);
+                return;
+            case ValueKind::RuntimeBlockValue:
+                static_cast<Derived*>(this)->VisitRuntimeBlockValue((RuntimeBlockValue*) value);
                 return;
             case ValueKind::ExtractionValue:
                 static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);
@@ -1114,6 +1127,9 @@ public:
     inline void VisitByPtrTypeNoNullCheck(CapturedVariable* node) {
         static_cast<Derived*>(this)->VisitCapturedVariable(node);
     }
+    inline void VisitByPtrTypeNoNullCheck(CapturedComptimeVariable* node) {
+        static_cast<Derived*>(this)->VisitCapturedComptimeVariable(node);
+    }
     inline void VisitByPtrTypeNoNullCheck(VariantCaseVariable* node) {
         static_cast<Derived*>(this)->VisitVariantCaseVariable(node);
     }
@@ -1221,6 +1237,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(BlockValue* value) {
         static_cast<Derived*>(this)->VisitBlockValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(RuntimeBlockValue* value) {
+        static_cast<Derived*>(this)->VisitRuntimeBlockValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(IfValue* value) {
         static_cast<Derived*>(this)->VisitIfValue(value);

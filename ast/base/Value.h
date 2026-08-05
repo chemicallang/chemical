@@ -859,6 +859,10 @@ public:
         return k == ValueKind::WrapValue;
     }
 
+    static constexpr inline bool isRuntimeBlockValue(ValueKind k) {
+        return k == ValueKind::RuntimeBlockValue;
+    }
+
     // --------------------------------------------
     // ------- as_value methods begin here ---------
     // --------------------------------------------
@@ -1103,6 +1107,11 @@ public:
     inline WrapValue* as_wrap_value_unsafe() {
         CHECK_CAST(ValueKind::WrapValue);
         return ((WrapValue*) this);
+    }
+
+    inline RuntimeBlockValue* as_runtime_block_value_unsafe() {
+        CHECK_CAST(ValueKind::RuntimeBlockValue);
+        return ((RuntimeBlockValue*) this);
     }
 
     inline PatternMatchExpr* as_pattern_match_expr_unsafe() {

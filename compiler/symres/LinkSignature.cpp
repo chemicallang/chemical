@@ -463,6 +463,13 @@ void TopLevelLinkSignature::VisitBlockValue(BlockValue* value) {
     }
 }
 
+void TopLevelLinkSignature::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitRuntimeBlockValue(value);
+    if(!comptime_context) {
+        diagnoser.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
 void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitStructValue(value);
     const auto structValue = value;

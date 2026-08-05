@@ -58,6 +58,11 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/InValue.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/structures/CapturedComptimeVariable.h"
+#include "ast/values/RuntimeBlockValue.h"
+#include "ast/values/RuntimeValue.h"
+#include "ast/statements/AccessChainNode.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "ast/values/ExtractionValue.h"
 #include "ast/values/EmbeddedValue.h"
 #include "ast/statements/Continue.h"
@@ -636,6 +641,46 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_typ
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
     return linked->llvm_load(gen, encoded_location());
+}
+
+static Value* captured_comptime_resolved_value(Codegen& gen, CapturedComptimeVariable* captured) {
+    const auto nodeId = captured->linked->get_node_identifier();
+    if(nodeId.empty()) {
+        gen.error(captured) << "couldn't determine node identifier for a captured comptime variable";
+        return nullptr;
+    }
+    // the value of this variable exists in the interpret scope where the top
+    // most comptime function's return is being interpreted, the backend's
+    // return handler sets this pointer on the codegen right before translating
+    // the returned runtime value
+    const auto scope = gen.current_comptime_scope;
+    if(!scope) {
+        gen.error(captured) << "no comptime interpret scope is available to resolve a captured comptime variable";
+        return nullptr;
+    }
+    const auto val = scope->find_value(nodeId);
+    if(!val) {
+        gen.error(captured) << "couldn't find the value of the captured comptime variable in the interpret scope";
+        return nullptr;
+    }
+    return val;
+}
+
+llvm::Type *CapturedComptimeVariable::llvm_type(Codegen &gen) {
+    const auto val = captured_comptime_resolved_value(gen, this);
+    return val ? val->llvm_type(gen) : nullptr;
+}
+
+llvm::Value *CapturedComptimeVariable::llvm_pointer(Codegen &gen) {
+    const auto val = captured_comptime_resolved_value(gen, this);
+    return val ? val->llvm_pointer(gen) : nullptr;
+}
+
+llvm::Value *CapturedComptimeVariable::llvm_load(Codegen& gen, SourceLocation location) {
+    // a captured comptime variable holds an already evaluated comptime value,
+    // it never has allocated storage, so we generate the value directly
+    const auto val = captured_comptime_resolved_value(gen, this);
+    return val ? val->llvm_value(gen) : nullptr;
 }
 
 bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
@@ -1640,6 +1685,89 @@ llvm::Value* BlockValue::llvm_value(Codegen& gen, BaseType* type) {
 void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
     gen_BlockValue_scope(gen, this);
     calculated_value->llvm_conditional_branch(gen, then_block, otherwise_block);
+}
+
+static Value* runtime_block_last_value(RuntimeBlockValue* blockVal) {
+    auto& nodes = blockVal->scope.nodes;
+    if(nodes.empty()) return nullptr;
+    const auto last = nodes.back();
+    switch(last->kind()) {
+        case ASTNodeKind::AccessChainNode:
+            return &last->as_access_chain_node_unsafe()->chain;
+        case ASTNodeKind::ValueNode:
+            return last->as_value_node_unsafe()->value;
+        default:
+            return nullptr;
+    }
+}
+
+static void gen_RuntimeBlockValue_scope(Codegen& gen, RuntimeBlockValue* blockVal) {
+    blockVal->scope.code_gen(gen);
+}
+
+llvm::AllocaInst* RuntimeBlockValue::llvm_allocate(
+        Codegen& gen,
+        const std::string& identifier,
+        BaseType* expected_type
+) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    return last ? last->llvm_allocate(gen, identifier, expected_type) : nullptr;
+}
+
+unsigned int RuntimeBlockValue::store_in_struct(
+        Codegen& gen,
+        Value* parent,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType* expected_type
+) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    return last ? last->store_in_struct(gen, parent, allocated, allocated_type, idxList, index, expected_type) : 0;
+}
+
+unsigned int RuntimeBlockValue::store_in_array(
+        Codegen& gen,
+        Value* parent,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType* expected_type
+) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    return last ? last->store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type) : 0;
+}
+
+llvm::Value* RuntimeBlockValue::llvm_pointer(Codegen& gen) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    return last ? last->llvm_pointer(gen) : nullptr;
+}
+
+llvm::Value* RuntimeBlockValue::llvm_value(Codegen& gen, BaseType* type) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    return last ? last->llvm_value(gen) : nullptr;
+}
+
+llvm::Value* RuntimeValue::llvm_value(Codegen& gen, BaseType* type) {
+    // a runtime value is translated to its underlying expression, identifiers
+    // that are linked with a captured comptime variable resolve through the
+    // interpret scope set on the codegen by the return handler
+    return underlying->llvm_value(gen, type);
+}
+
+void RuntimeBlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
+    gen_RuntimeBlockValue_scope(gen, this);
+    const auto last = runtime_block_last_value(this);
+    if(last) {
+        last->llvm_conditional_branch(gen, then_block, otherwise_block);
+    }
 }
 
 inline static bool isValueKindRValue(ValueKind k) {

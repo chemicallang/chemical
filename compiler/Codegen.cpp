@@ -751,7 +751,13 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
         comptime_scope.current_func_type = current_func_type;
         const auto prev_runtime_call = comptime_scope.is_runtime_call;
         comptime_scope.is_runtime_call = true;
+        // install this codegen as the return handler for the duration of the call,
+        // so a return of a runtime value from the top most comptime function is
+        // translated to llvm ir while the interpret scope is still alive
+        const auto prev_handler = comptime_scope.return_handler;
+        comptime_scope.return_handler = this;
         auto ret = decl->call(&comptime_scope, allocator, call, build_parent_chain(call->parent_val, allocator), false);
+        comptime_scope.return_handler = prev_handler;
         comptime_scope.is_runtime_call = prev_runtime_call;
         comptime_scope.current_func_type = prev;
 
@@ -768,6 +774,33 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
         evaluated_func_calls[call] = ret;
         return evaluated_func_calls[call];
     }
+}
+
+void Codegen::handle_return_value(InterpretScope& scope, Value* value) {
+    // set the interpret scope so identifiers that are linked with a captured
+    // comptime variable can be resolved (by node identifier, using find_value)
+    // while the returned value is translated to llvm ir
+    const auto prev = current_comptime_scope;
+    current_comptime_scope = &scope;
+    // also share it on the global interpret scope, so the interpreter itself
+    // can resolve captured comptime variables (e.g. a nested comptime
+    // intrinsic call like intrinsics::size inside the returned expression)
+    const auto prev_capture = scope.global->current_capture_scope;
+    scope.global->current_capture_scope = &scope;
+    // mark that a nested comptime function call being translated from within
+    // this visit must also be intercepted (its scope is alive only now)
+    const auto prev_in_handler = scope.global->in_return_handler;
+    scope.global->in_return_handler = true;
+    // the top most interpreted function call is the last entry on the call stack,
+    // the generated llvm value is cached against it for the caller to retrieve
+    const auto call = scope.global->call_stack.empty() ? nullptr : scope.global->call_stack.back();
+    const auto generated = value->llvm_value(*this);
+    if(call) {
+        comptime_return_handled_values[call] = generated;
+    }
+    scope.global->in_return_handler = prev_in_handler;
+    scope.global->current_capture_scope = prev_capture;
+    current_comptime_scope = prev;
 }
 
 bool has_allocated_storage(Value* value) {

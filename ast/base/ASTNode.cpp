@@ -62,6 +62,7 @@
 #include <sstream>
 #include <iostream>
 #include "ChildResolution.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "compiler/symres/ChildResolver.h"
 #include "std/except.h"
 
@@ -158,7 +159,7 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
 //#endif
 //}
 
-bool ASTNode::is_top_level() {
+bool ASTNode::is_top_level() const {
     if(!parent()) return true;
     switch(parent()->kind()) {
         case ASTNodeKind::FileScope:
@@ -169,7 +170,7 @@ bool ASTNode::is_top_level() {
     }
 }
 
-bool ASTNode::is_member_or_top_level() {
+bool ASTNode::is_member_or_top_level() const {
     switch (kind()) {
         case ASTNodeKind::FunctionDecl:
         case ASTNodeKind::VariantMember:
@@ -177,6 +178,32 @@ bool ASTNode::is_member_or_top_level() {
             return true;
         default:
             return is_top_level();
+    }
+}
+
+bool ASTNode::isNonLocalDeclaration() const {
+    switch(kind()) {
+        case ASTNodeKind::FileScope:
+        case ASTNodeKind::NamespaceDecl:
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericUnionDecl:
+            return true;
+        case ASTNodeKind::VarInitStmt:
+        case ASTNodeKind::TypealiasStmt:
+        case ASTNodeKind::GenericTypeDecl:
+            return is_top_level();
+        default:
+            return false;
     }
 }
 
@@ -313,6 +340,8 @@ chem::string_view ASTNode::get_node_identifier() {
         return as_enum_decl_unsafe()->name_view();
     case ASTNodeKind::FunctionDecl:
         return as_function_unsafe()->name_view();
+    case ASTNodeKind::FunctionParam:
+        return as_func_param_unsafe()->name_view();
     case ASTNodeKind::GenericFuncDecl:
         return as_gen_func_decl_unsafe()->master_impl->name_view();
     case ASTNodeKind::InterfaceDecl:
@@ -898,6 +927,8 @@ ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &
             return container_child(resolver, as_members_container_unsafe(), name);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->linked->child(name);
+        case ASTNodeKind::CapturedComptimeVariable:
+            return as_captured_comptime_var_unsafe()->linked->child(name);
         case ASTNodeKind::GenericStructDecl:
             return as_gen_struct_def_unsafe()->master_impl->ASTNode::child(name);
         case ASTNodeKind::GenericUnionDecl:

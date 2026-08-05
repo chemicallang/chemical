@@ -347,6 +347,8 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         // Resolve through chains of VariableIdentifiers to prevent
         // infinite recursion in child(). If the found value is itself
         // an identifier, resolve it further.
+        // TODO: remove this, it maybe of no use, and cause stackoverflow
+        // TODO: verify tests after removal
         if(found->val_kind() == ValueKind::Identifier && found != this) {
             return static_cast<VariableIdentifier*>(found)->evaluated_value(scope);
         }
@@ -380,6 +382,24 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         } else if(linked_kind == ASTNodeKind::EnumMember) {
             const auto mem = linked->as_enum_member_unsafe();
             return mem->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
+        } else if(linked_kind == ASTNodeKind::CapturedComptimeVariable) {
+            // an identifier that references a variable auto captured from the
+            // comptime environment (a parameter/local of a comptime function
+            // used inside a %runtime_value). the value of that variable exists
+            // in the interpret scope where the runtime value's return is being
+            // interpreted, which the backend's return handler keeps alive and
+            // points to (global->current_capture_scope) while it translates
+            // the returned value. the interpreter can't find it by walking its
+            // own scope chain (e.g. a nested comptime intrinsic call like
+            // intrinsics::size creates its own scope), so resolve it through
+            // the capture scope instead
+            const auto capture_scope = scope.global->current_capture_scope;
+            if(capture_scope) {
+                const auto captured = capture_scope->find_value(value);
+                if(captured) {
+                    return captured;
+                }
+            }
         }
     }
     return this;

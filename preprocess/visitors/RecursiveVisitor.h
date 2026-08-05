@@ -108,6 +108,7 @@
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/RuntimeValue.h"
+#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/ZeroedValue.h"
 
 template<typename Derived>
@@ -565,6 +566,10 @@ public:
 
     inline void VisitRuntimeValue(RuntimeValue* value) {
         visit_it(value->underlying);
+    }
+
+    inline void VisitRuntimeBlockValue(RuntimeBlockValue* value) {
+        visit_it(value->scope);
     }
 
     void VisitPlacementNewValue(PlacementNewValue *value) {

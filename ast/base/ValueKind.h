@@ -52,6 +52,7 @@ enum class ValueKind : uint8_t {
     ExtractionValue,
     WrapValue,
     RuntimeValue,
+    RuntimeBlockValue,
 
     EmbeddedValue,
 

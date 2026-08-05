@@ -145,12 +145,19 @@ public:
      * 1 - a node is inside the file
      * 2 - a node is inside a namespace
      */
-    bool is_top_level();
+    bool is_top_level() const;
 
     /**
      * is top level node or is a function or struct/variant member
      */
-    bool is_member_or_top_level();
+    bool is_member_or_top_level() const;
+
+    /**
+     * Returns true if this declaration is non-local, meaning it is
+     * not nested inside a function body. This includes declarations
+     * at file scope, namespace scope, and type scope.
+     */
+    bool isNonLocalDeclaration() const;
 
     /**
      * get the type of this node
@@ -1093,6 +1100,14 @@ public:
     inline CapturedVariable *as_captured_var_unsafe() {
         CHECK_CAST(ASTNodeKind::CapturedVariable);
         return (CapturedVariable*) this;
+    }
+
+    /**
+     * return if this is a captured comptime variable
+     */
+    inline CapturedComptimeVariable* as_captured_comptime_var_unsafe() {
+        CHECK_CAST(ASTNodeKind::CapturedComptimeVariable);
+        return (CapturedComptimeVariable*) this;
     }
 
     /**

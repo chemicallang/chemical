@@ -489,6 +489,7 @@ set(COMMON_SOURCES
         ast/values/PointerValue.cpp
         ast/values/BlockValue.h
         ast/values/BlockValue.cpp
+        ast/values/RuntimeBlockValue.h
         preprocess/visitors/NonRecursiveVisitor.h
         ast/base/ast_fwd.h
         ast/base/IntNTypeKind.h
@@ -641,6 +642,7 @@ set(COMMON_SOURCES
         ast/values/ReferenceOfValue.cpp
         compiler/lab/LabJobAttributes.h
         compiler/symres/GenericInstantiatorPassAPI.h
+        ast/structures/CapturedComptimeVariable.h
 )
 
 # Chemical LSP Executable Target

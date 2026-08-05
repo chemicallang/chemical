@@ -31,6 +31,7 @@
 #include "parse_num.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/values/ComptimeValue.h"
+#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
@@ -814,6 +815,16 @@ Value* Parser::parseMagicValue(ASTAllocator& allocator) {
             }
             const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
             return new (allocator.allocate<RuntimeValue>()) RuntimeValue(expr, runtime_type);
+        }
+        case hasher("runtime_block_value"): {
+            auto scopeOpt = parseNestedBraceBlock("runtime_block_value", allocator);
+            if (!scopeOpt.has_value()) {
+                error("expected a block body for %runtime_block_value");
+                return nullptr;
+            }
+            auto scope = std::move(scopeOpt.value());
+            const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
+            return new (allocator.allocate<RuntimeBlockValue>()) RuntimeBlockValue(parent_node, std::move(scope), runtime_type, loc_single(token));
         }
         default:
             error("unknown identifier after symbol '%', unrecognized magic value");

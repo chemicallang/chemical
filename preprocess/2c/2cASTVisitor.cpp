@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "2cASTVisitor.h"
+#include "ast/values/RuntimeBlockValue.h"
 #include <ostream>
 #include <iostream>
 #include <cstdint>
@@ -119,6 +120,7 @@
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/PlacementNewNode.h"
 #include "ast/structures/BlockScope.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/structures/ForInLoop.h"
 #include "ast/values/DynamicValue.h"
 #include "ast/values/ExpressiveString.h"
@@ -128,6 +130,7 @@
 #include "ast/values/ZeroedValue.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "compiler/symres/ImplementationsIndex.h"
+#include "ast/values/RuntimeValue.h"
 
 ToCAstVisitor::ToCAstVisitor(
     CompilerBinder& binder,
@@ -809,16 +812,136 @@ inline bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, Referen
     return write_value_for_ref_with_val_type(visitor, val, ref_type->type);
 }
 
+/**
+ * base class for the 2c implementations of ComptimeReturnHandler. each
+ * implementation is created on the stack at the call site where the returned
+ * value of a comptime function is translated.
+ *
+ * handle_return_value is invoked by the return statement (set_return) of the
+ * top most comptime function that is called from the runtime mode (codegen),
+ * while the interpret scope where the return is being interpreted is still
+ * alive. it sets that scope on the visitor (and on the global interpret scope)
+ * so identifiers that are linked with a CapturedComptimeVariable node can
+ * resolve the captured variable's value (by node identifier, using find_value)
+ * while the returned value is translated into the final output buffer.
+ */
+class ToCReturnHandlerBase : public ComptimeReturnHandler {
+protected:
+
+    /**
+     * the c translation visitor that the returned value is translated with
+     */
+    ToCAstVisitor& visitor;
+
+    explicit ToCReturnHandlerBase(ToCAstVisitor& visitor) : visitor(visitor) {
+
+    }
+
+public:
+
+    /**
+     * set to true when handle_return_value is invoked, meaning the function
+     * returned through set_return and the handler already translated the
+     * returned value into the output buffer. functions that return the value
+     * directly without going through set_return (intrinsics like
+     * intrinsics::size that override call) never invoke the handler, so the
+     * call site must translate the returned value itself
+     */
+    bool handled = false;
+
+    void handle_return_value(InterpretScope& scope, Value* value) final {
+        handled = true;
+        // the interpret scope is alive only for the duration of this call,
+        // set it on the visitor so captured comptime variables can be resolved
+        const auto prev = visitor.current_comptime_scope;
+        visitor.current_comptime_scope = &scope;
+        // also share it on the global interpret scope, so the interpreter
+        // itself can resolve captured comptime variables (e.g. a nested
+        // comptime intrinsic call like intrinsics::size inside the returned
+        // expression)
+        const auto prev_capture = scope.global->current_capture_scope;
+        scope.global->current_capture_scope = &scope;
+        // a nested comptime function call being translated from within this
+        // visit must also be intercepted (its scope is alive only now)
+        const auto prev_in_handler = scope.global->in_return_handler;
+        scope.global->in_return_handler = true;
+        write_value(scope, value);
+        scope.global->in_return_handler = prev_in_handler;
+        scope.global->current_capture_scope = prev_capture;
+        visitor.current_comptime_scope = prev;
+    }
+
+    /**
+     * translates the returned value into the final output buffer
+     */
+    virtual void write_value(InterpretScope& scope, Value* value) = 0;
+
+};
+
+/**
+ * return handler that translates the returned value using the generic value
+ * visit, used when a comptime function call is written as a value in an
+ * expression
+ */
+class ToCVisitReturnHandler : public ToCReturnHandlerBase {
+public:
+
+    explicit ToCVisitReturnHandler(ToCAstVisitor& visitor) : ToCReturnHandlerBase(visitor) {
+
+    }
+
+    void write_value(InterpretScope&, Value* value) override {
+        visitor.visit(value);
+    }
+
+};
+
+/**
+ * return handler that translates the returned value with an expected type
+ * (accept_mutating_value), used when a comptime function call's result is
+ * written into a location with a known type
+ */
+class ToCValueReturnHandler : public ToCReturnHandlerBase {
+private:
+
+    /**
+     * the type the returned value is written with
+     */
+    BaseType* expected_type;
+
+public:
+
+    ToCValueReturnHandler(ToCAstVisitor& visitor, BaseType* expected_type)
+        : ToCReturnHandlerBase(visitor), expected_type(expected_type) {
+    }
+
+    void write_value(InterpretScope&, Value* value) override {
+        // the returned value is already the final evaluated value, so it is
+        // written with the expected type directly (accept_mutating_value would
+        // re-check implicit constructors on an already converted value)
+        visitor.accept_mutating_value_explicit(expected_type, value);
+    }
+
+};
+
 Value* evaluate_comptime_func(
         ToCAstVisitor& visitor,
         FunctionDeclaration* func_decl,
-        FunctionCall* call
+        FunctionCall* call,
+        ComptimeReturnHandler* return_handler
 ) {
     const auto prev = visitor.comptime_scope.current_func_type;
     visitor.comptime_scope.current_func_type = visitor.current_func_type;
     const auto prev_runtime_call = visitor.comptime_scope.is_runtime_call;
     visitor.comptime_scope.is_runtime_call = true;
-    auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, build_parent_chain(call->parent_val, visitor.allocator), false);
+    // install the given return handler for the duration of the call. when the
+    // function returns (set_return), the handler translates the returned value
+    // directly into the final output buffer while the interpret scope is still
+    // alive, so no Value* needs to be returned to the caller
+    const auto prev_handler = visitor.comptime_scope.return_handler;
+    visitor.comptime_scope.return_handler = return_handler;
+    const auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, build_parent_chain(call->parent_val, visitor.allocator), false);
+    visitor.comptime_scope.return_handler = prev_handler;
     visitor.comptime_scope.is_runtime_call = prev_runtime_call;
     visitor.comptime_scope.current_func_type = prev;
     // put all diagnostics for this function inside the diagnoser
@@ -829,28 +952,10 @@ Value* evaluate_comptime_func(
         // visitor.error("comptime function call didn't return anything", call);
         return nullptr;
     }
-    auto eval_call = value;
-    visitor.evaluated_func_calls[call] = eval_call;
-    return eval_call;
-}
-
-Value* evaluated_func_val(
-        ToCAstVisitor& visitor,
-        FunctionDeclaration* func_decl,
-        FunctionCall* call
-) {
-    Value* eval;
-    auto found_eval = visitor.evaluated_func_calls.find(call);
-    if(found_eval == visitor.evaluated_func_calls.end()) {
-        eval = evaluate_comptime_func(visitor, func_decl, call);
-    } else {
-        eval = found_eval->second;
-    }
-    return eval;
-}
-
-inline Value* evaluated_func_val_proper(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
-    return evaluated_func_val(visitor, func_decl, call);
+    // the evaluated value is kept for the destruction visitor, which only
+    // analyzes its kind/type to decide which destructors must be queued
+    visitor.evaluated_func_calls[call] = value;
+    return value;
 }
 
 void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {
@@ -938,7 +1043,6 @@ void write_lambda_expansion_site(ToCAstVisitor& visitor, LambdaFunction* lambdaF
             const auto imp_cons = makeFnDecl;
             if (imp_cons->is_comptime()) {
                 const auto imp_cons_call = call_with_arg(imp_cons, lambdaFn, type, visitor.allocator, visitor);
-                const auto eval = evaluated_func_val_proper(visitor, imp_cons, imp_cons_call);
 
                 auto lambda_name = implement_lambda(visitor, lambdaFn);
 
@@ -978,7 +1082,15 @@ void write_lambda_expansion_site(ToCAstVisitor& visitor, LambdaFunction* lambdaF
                     visitor.write('&');
                 }
 
-                visitor.accept_mutating_value_explicit(type, eval);
+                // the comptime constructor call is evaluated right here, the
+                // return handler translates the evaluated result directly into
+                // the output buffer (inside the compound expression) while the
+                // comptime interpret scope is still alive
+                ToCValueReturnHandler return_handler(visitor, type);
+                const auto eval = evaluate_comptime_func(visitor, imp_cons, imp_cons_call, &return_handler);
+                if(!return_handler.handled && eval) {
+                    visitor.accept_mutating_value_explicit(type, eval);
+                }
                 visitor.write(';');
                 visitor.write(" })");
 
@@ -1042,9 +1154,16 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
         const auto imp_cons = type->implicit_constructor_for(value);
         if (imp_cons) {
             if(imp_cons->is_comptime()) {
+                // the comptime constructor call is evaluated right here, the
+                // return handler translates the evaluated result directly into
+                // the output buffer with the expected type while the comptime
+                // interpret scope is still alive
                 const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
-                const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
-                accept_mutating_value_explicit(type, eval);
+                ToCValueReturnHandler return_handler(*this, type);
+                const auto eval = evaluate_comptime_func(*this, imp_cons, imp_cons_call, &return_handler);
+                if(!return_handler.handled && eval) {
+                    accept_mutating_value_explicit(type, eval);
+                }
             } else {
                 call_implicit_constructor(*this, imp_cons, value, false);
             }
@@ -1220,10 +1339,12 @@ void func_call_single_arg_w_imp_cons(
     const auto imp_cons = param->type->implicit_constructor_for(val);
     if(imp_cons) {
         if(imp_cons->is_comptime()) {
+            // pass the comptime call itself as the value, the return handler
+            // translates the returned value directly into the output buffer at
+            // the value position, with the parameter type providing the
+            // required context (reference temps, struct addresses, etc.)
             const auto comptime_imp_call = call_with_arg(imp_cons, val, param->type, visitor.allocator, visitor);
-            const auto eval = evaluated_func_val_proper(visitor, imp_cons, comptime_imp_call);
-            // change the value to evaluated value
-            func_call_single_arg(visitor, param->type, eval, temp_struct_name, d_ref_name);
+            func_call_single_arg(visitor, param->type, comptime_imp_call, temp_struct_name, d_ref_name);
             return;
         } else {
             call_implicit_constructor(visitor, imp_cons, val, true);
@@ -1381,78 +1502,6 @@ bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_t
         return false;
     }
 }
-
-//void visit_evaluated_func_val(
-//        ToCAstVisitor& visitor,
-//        Visitor* actual_visitor,
-//        FunctionDeclaration* func_decl,
-//        FunctionCall* call,
-//        Value* eval,
-//        const chem::string_view& assign_id = ""
-//) {
-//    auto returns_struct = func_decl->returnType->isStructLikeType();
-//    FunctionCall* remove_alloc = nullptr;
-//    bool write_semi = false;
-//    if(!assign_id.empty() && returns_struct) {
-//        const auto eval_kind = eval->val_kind();
-//        if(eval_kind == ValueKind::StructValue) {
-//            const auto eval_struct_val = eval->as_struct_value_unsafe();
-//            visitor.write(assign_id);
-//            visitor.write(" = ");
-//            write_struct_def_value_call(visitor, eval_struct_val->linked_struct());
-//            write_semi = true;
-//        } else if(eval_kind == ValueKind::AccessChain) {
-//            auto& chain = eval->as_access_chain_unsafe()->values;
-//            auto last = chain[chain.size() - 1];
-//            const auto last_func_call = last->as_func_call();
-//            if(last_func_call) {
-//                visitor.local_allocated[last] = assign_id.str();
-//                remove_alloc = last_func_call;
-//            }
-//        }
-//    }
-//    eval->accept(actual_visitor);
-//    if(remove_alloc) {
-//        auto found = visitor.local_allocated.find(remove_alloc);
-//        if(found != visitor.local_allocated.end()) {
-//            visitor.local_allocated.erase(found);
-//        }
-//    }
-//    if(write_semi) {
-//        visitor.write(';');
-//    }
-//}
-
-// when values are declared with initializer that contain equal symbol in C
-// for example int x = 5; <----
-// now if the value is a struct value, that is not possible
-//bool is_declared_with_initializer(ASTAllocator& allocator, Value* value) {
-//    switch(value->val_kind()) {
-//        case ValueKind::Int:
-//        case ValueKind::UInt:
-//        case ValueKind::Short:
-//        case ValueKind::UShort:
-//        case ValueKind::BigInt:
-//        case ValueKind::UBigInt:
-//        case ValueKind::Char:
-//        case ValueKind::UChar:
-//        case ValueKind::Long:
-//        case ValueKind::ULong:
-//        case ValueKind::String:
-//        case ValueKind::Expression:
-//        case ValueKind::NegativeValue:
-//        case ValueKind::NotValue:
-//        case ValueKind::NumberValue:
-//            return true;
-//        case ValueKind::Identifier:
-//        case ValueKind::AccessChain:
-//        case ValueKind::FunctionCall:
-//        case ValueKind::IndexOperator:
-//            return !value->getType()->isStructLikeType();
-//        default:
-//            return false;
-//    }
-//}
 
 void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value, bool write_id = true) {
     if(write_id) {
@@ -3406,9 +3455,11 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto imp_cons = type->implicit_constructor_for(val);
     if(imp_cons) {
         if(imp_cons->is_comptime()) {
-            const auto imp_call = call_with_arg(imp_cons, val, type, allocator, *this);
-            const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_call);
-            val = eval;
+            // the comptime constructor is evaluated below at the write position:
+            // visiting the call goes through VisitFunctionCall, where the return
+            // handler translates the evaluated result into the output buffer
+            // while the comptime interpret scope is still alive
+            val = call_with_arg(imp_cons, val, type, allocator, *this);
         } else {
             call_implicit_constructor_no_alloc(*this, imp_cons, val, get_struct_return_param_name(*this), true);
             return;
@@ -5948,9 +5999,17 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
     if(func_decl) {
         if(func_decl->is_comptime()) {
-            // handling comptime functions
-            const auto value = evaluated_func_val(*this, func_decl, call);
-            visit(value);
+            // the return handler (created here) translates the returned value
+            // directly into the output buffer at this call site while the
+            // comptime interpret scope is still alive. functions that return
+            // the value directly without going through set_return (intrinsics
+            // like intrinsics::size that override call) never invoke the
+            // handler, so the returned value is written here in that case
+            ToCVisitReturnHandler return_handler(*this);
+            const auto eval = evaluate_comptime_func(*this, func_decl, call, &return_handler);
+            if(!return_handler.handled && eval) {
+                visit(eval);
+            }
             return;
         }
     }
@@ -6642,6 +6701,47 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 }
                 break;
             }
+            case ASTNodeKind::CapturedComptimeVariable: {
+                // variable captured from comptime environment, we must evaluate it
+                // and then translate it
+                const auto evl = linked->as_captured_comptime_var_unsafe();
+                const auto nodeId = evl->linked->get_node_identifier();
+                if (nodeId.empty()) {
+                    error("couldn't determine node identifier", evl);
+                    write("missing_identifier_for_node_and_determination_failed");
+                    return;
+                }
+                // the value of this variable exists in the interpret scope where
+                // the top most comptime function's return is being interpreted,
+                // the backend's return handler sets this pointer on the visitor
+                // right before translating the returned runtime value
+                const auto scope_ptr = current_comptime_scope;
+                if(!scope_ptr) {
+                    error("no comptime interpret scope is available to resolve a captured comptime variable", evl);
+                    write("missing_comptime_interpret_scope");
+                    return;
+                }
+                const auto val = scope_ptr->find_value(nodeId);
+                if(!val) {
+                    error("couldn't find the value of the captured comptime variable in the interpret scope", evl);
+                    write("missing_captured_comptime_variable_value");
+                    return;
+                }
+                // translate the evaluated value using the c translation visitor.
+                // an array value cannot be written as a bare initializer list in
+                // expression position (that would be invalid c), so it is written
+                // as a compound literal, the same way an array argument to a
+                // pointer parameter is translated
+                if(val->kind() == ValueKind::ArrayValue) {
+                    const auto arrVal = val->as_array_value_unsafe();
+                    auto& elem_type = arrVal->known_elem_type();
+                    write('(');
+                    visit(elem_type);
+                    write("[])");
+                }
+                visit(val);
+                return;
+            }
             case ASTNodeKind::VariantCaseVariable:{
                 const auto var = linked->as_variant_case_var_unsafe();
                 const auto expr = var->parent()->expression;
@@ -7079,6 +7179,52 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
         visit(blockVal->getCalculatedValue());
         write("; ");
     }
+    write("})");
+}
+
+void ToCAstVisitor::VisitRuntimeValue(RuntimeValue *value) {
+    visit(value->underlying);
+}
+
+void ToCAstVisitor::VisitRuntimeBlockValue(RuntimeBlockValue *blockVal) {
+    write("({");
+    new_line_and_indent();
+    const auto& nodes = blockVal->scope.nodes;
+    const auto size = nodes.size();
+    // manage a scope so the destructors of the block's locals are dispatched
+    // inside the statement expression (where the locals are in scope) and not
+    // at the end of the enclosing scope, where they would reference variables
+    // that no longer exist
+    const auto destruct_begin = destructor.destruct_jobs.size();
+    // the last node holds the block's value, so it is translated as an
+    // expression (the value of a statement expression) rather than as a
+    // statement: visiting it as a statement (visit_wrapped_value) would turn
+    // e.g. `str;` into a temporary declaration with a queued destructor and
+    // leave a declaration as the last statement, which is invalid in a
+    // statement expression
+    const auto value_size = size > 0 ? size - 1 : 0;
+    for(unsigned i = 0; i < value_size; i++) {
+        visit(nodes[i]);
+    }
+    if(size > 0) {
+        new_line_and_indent();
+        const auto stmt_expr = blockVal->get_stmt_expr();
+        if(stmt_expr) {
+            // the block's value is moved out of the block, so the source
+            // variable is not destroyed (only its identifier drops the flag)
+            set_moved_ref_drop_flag(*this, stmt_expr);
+            write(' ');
+            visit(stmt_expr);
+        } else {
+            visit(nodes[size - 1]);
+        }
+        write(';');
+    }
+    // dispatch the destructors of the block's locals before the statement
+    // expression closes
+    destructor.dispatch_jobs_from_no_clean((int) destruct_begin);
+    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
     write("})");
 }
 

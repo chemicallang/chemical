@@ -673,7 +673,18 @@ llvm::Type *CapturedComptimeVariable::llvm_type(Codegen &gen) {
 
 llvm::Value *CapturedComptimeVariable::llvm_pointer(Codegen &gen) {
     const auto val = captured_comptime_resolved_value(gen, this);
-    return val ? val->llvm_pointer(gen) : nullptr;
+    if(!val) {
+        return nullptr;
+    }
+    // a captured struct or array value only exists in the interpret scope (it
+    // was evaluated at comptime) and has no allocated storage in the generated
+    // code, so materialize it into an alloca before producing a pointer to it,
+    // for example when it is passed by value to a function argument
+    const auto kind = val->val_kind();
+    if(kind == ValueKind::StructValue || kind == ValueKind::ArrayValue) {
+        return val->llvm_allocate(gen, "", nullptr);
+    }
+    return val->llvm_pointer(gen);
 }
 
 llvm::Value *CapturedComptimeVariable::llvm_load(Codegen& gen, SourceLocation location) {

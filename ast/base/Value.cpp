@@ -421,7 +421,23 @@ llvm::Value* Value::access_chain_pointer(
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
         if(func_decl && func_decl->is_comptime()) {
-            auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
+            // the return handler generates the llvm ir for the returned value
+            // while the comptime interpret scope is still alive, so use that
+            // instead of re-translating the returned expression (which would
+            // need the now dead interpret scope)
+            LLVMReturnHandler return_handler(gen);
+            auto& ret_value = gen.eval_comptime(last_func_call, func_decl, &return_handler);
+            if(return_handler.handled) {
+                if(return_handler.generated && return_handler.generated->getType()->isPointerTy()) {
+                    return return_handler.generated;
+                }
+                // non-struct-like return was generated as a plain value,
+                // materialize it into an alloca so a pointer can be returned
+                const auto alloca = gen.builder->CreateAlloca(return_handler.generated->getType());
+                gen.di.instr(alloca, last_func_call);
+                gen.builder->CreateStore(return_handler.generated, alloca);
+                return alloca;
+            }
             if(ret_value) {
                 return ret_value->llvm_pointer(gen);
             } else {
@@ -450,7 +466,23 @@ llvm::Value* Value::loadable_access_chain_pointer(
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
         if(func_decl && func_decl->is_comptime()) {
-            auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
+            // the return handler generates the llvm ir for the returned value
+            // while the comptime interpret scope is still alive, so use that
+            // instead of re-translating the returned expression (which would
+            // need the now dead interpret scope)
+            LLVMReturnHandler return_handler(gen);
+            auto& ret_value = gen.eval_comptime(last_func_call, func_decl, &return_handler);
+            if(return_handler.handled) {
+                if(return_handler.generated && return_handler.generated->getType()->isPointerTy()) {
+                    return return_handler.generated;
+                }
+                // non-struct-like return was generated as a plain value,
+                // materialize it into an alloca so a pointer can be returned
+                const auto alloca = gen.builder->CreateAlloca(return_handler.generated->getType());
+                gen.di.instr(alloca, last_func_call);
+                gen.builder->CreateStore(return_handler.generated, alloca);
+                return alloca;
+            }
             if(ret_value) {
                 switch(ret_value->kind()) {
                     case ValueKind::AccessChain:

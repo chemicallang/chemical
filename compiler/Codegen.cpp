@@ -742,46 +742,47 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
     return fn;
 }
 
-Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
-    auto found = evaluated_func_calls.find(call);
-    if(found != evaluated_func_calls.end()) {
-        return found->second;
-    } else {
-        auto prev = comptime_scope.current_func_type;
-        comptime_scope.current_func_type = current_func_type;
-        const auto prev_runtime_call = comptime_scope.is_runtime_call;
-        comptime_scope.is_runtime_call = true;
-        // install this codegen as the return handler for the duration of the call,
-        // so a return of a runtime value from the top most comptime function is
-        // translated to llvm ir while the interpret scope is still alive
-        const auto prev_handler = comptime_scope.return_handler;
-        comptime_scope.return_handler = this;
-        auto ret = decl->call(&comptime_scope, allocator, call, build_parent_chain(call->parent_val, allocator), false);
-        comptime_scope.return_handler = prev_handler;
-        comptime_scope.is_runtime_call = prev_runtime_call;
-        comptime_scope.current_func_type = prev;
+Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl, ComptimeReturnHandler* return_handler) {
+    // matching the c translation's evaluate_comptime_func, the comptime
+    // function is always evaluated (never short-circuited on a cached value),
+    // so the installed return handler is invoked on every evaluation. the
+    // evaluated value is kept in evaluated_func_calls so a Value*& can be
+    // returned that stays valid across calls
+    auto prev = comptime_scope.current_func_type;
+    comptime_scope.current_func_type = current_func_type;
+    const auto prev_runtime_call = comptime_scope.is_runtime_call;
+    comptime_scope.is_runtime_call = true;
+    // install the given return handler for the duration of the call, so a
+    // return of a runtime value from the top most comptime function is
+    // translated to llvm ir while the interpret scope is still alive
+    const auto prev_handler = comptime_scope.return_handler;
+    comptime_scope.return_handler = return_handler;
+    auto ret = decl->call(&comptime_scope, allocator, call, build_parent_chain(call->parent_val, allocator), false);
+    comptime_scope.return_handler = prev_handler;
+    comptime_scope.is_runtime_call = prev_runtime_call;
+    comptime_scope.current_func_type = prev;
 
-        // put all diagnostics for this function inside the diagnoser
-        auto& diags = comptime_scope.diagnostics;
-        diagnostics.insert(diagnostics.end(), diags.begin(), diags.end());
-        comptime_scope.reset_diagnostics();
+    // put all diagnostics for this function inside the diagnoser
+    auto& diags = comptime_scope.diagnostics;
+    diagnostics.insert(diagnostics.end(), diags.begin(), diags.end());
+    comptime_scope.reset_diagnostics();
 
-        if(!ret) {
+    if(!ret) {
 //            warn("compile time function didn't return a value", decl);
-            evaluated_func_calls[call] = nullptr;
-            return evaluated_func_calls[call];
-        }
-        evaluated_func_calls[call] = ret;
+        evaluated_func_calls[call] = nullptr;
         return evaluated_func_calls[call];
     }
+    evaluated_func_calls[call] = ret;
+    return evaluated_func_calls[call];
 }
 
-void Codegen::handle_return_value(InterpretScope& scope, Value* value) {
+void LLVMReturnHandler::handle_return_value(InterpretScope& scope, Value* value) {
+    handled = true;
     // set the interpret scope so identifiers that are linked with a captured
     // comptime variable can be resolved (by node identifier, using find_value)
     // while the returned value is translated to llvm ir
-    const auto prev = current_comptime_scope;
-    current_comptime_scope = &scope;
+    const auto prev = gen.current_comptime_scope;
+    gen.current_comptime_scope = &scope;
     // also share it on the global interpret scope, so the interpreter itself
     // can resolve captured comptime variables (e.g. a nested comptime
     // intrinsic call like intrinsics::size inside the returned expression)
@@ -791,16 +792,32 @@ void Codegen::handle_return_value(InterpretScope& scope, Value* value) {
     // this visit must also be intercepted (its scope is alive only now)
     const auto prev_in_handler = scope.global->in_return_handler;
     scope.global->in_return_handler = true;
-    // the top most interpreted function call is the last entry on the call stack,
-    // the generated llvm value is cached against it for the caller to retrieve
-    const auto call = scope.global->call_stack.empty() ? nullptr : scope.global->call_stack.back();
-    const auto generated = value->llvm_value(*this);
-    if(call) {
-        comptime_return_handled_values[call] = generated;
+    // callers of a comptime function call follow the same contract as a runtime
+    // function call: for struct-like returns they expect a pointer (sret alloca),
+    // for other returns a plain value. a struct-like return value therefore has
+    // to be materialized into allocated storage and the pointer kept.
+    llvm::Value* out = nullptr;
+    const auto ret_type = value->getType();
+    if(ret_type->isStructLikeType()) {
+        auto src = value->llvm_pointer(gen);
+        if(src) {
+            const auto type = ret_type->llvm_type(gen);
+            const auto alloca = gen.builder->CreateAlloca(type);
+            gen.di.instr(alloca, value);
+            gen.memcpy_struct(type, alloca, src, value->encoded_location());
+            out = alloca;
+        } else {
+            // a comptime evaluated struct or array value has no allocated
+            // storage in the generated code, materialize it now
+            out = value->llvm_allocate(gen, "", ret_type);
+        }
+    } else {
+        out = value->llvm_value(gen);
     }
+    generated = out;
     scope.global->in_return_handler = prev_in_handler;
     scope.global->current_capture_scope = prev_capture;
-    current_comptime_scope = prev;
+    gen.current_comptime_scope = prev;
 }
 
 bool has_allocated_storage(Value* value) {
@@ -1007,7 +1024,21 @@ llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* valu
     // cached func pointer and captured structs are used after this
     lambda_func->llvm_value_unpacked(*this, nullptr);
     auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
-    const auto evaluated = eval_comptime(called, makeFnDecl);
+    // the return handler translates the returned value (e.g. a %runtime_value)
+    // to llvm ir while the comptime interpret scope was still alive, so use
+    // that instead of re-translating the returned expression, which would need
+    // the now dead interpret scope to resolve captured comptime variables
+    LLVMReturnHandler return_handler(*this);
+    const auto evaluated = eval_comptime(called, makeFnDecl, &return_handler);
+    if(return_handler.handled) {
+        if(pointer) {
+            // the generated value was created without knowledge of the
+            // destination, copy it into the destination slot
+            memcpy_struct(evaluated->getType()->llvm_type(*this), pointer, return_handler.generated, value->encoded_location());
+            return pointer;
+        }
+        return return_handler.generated;
+    }
     if(pointer && evaluated->kind() == ValueKind::FunctionCall) {
         const auto call = evaluated->as_func_call_unsafe();
         return call->llvm_chain_value(*this, pointer);

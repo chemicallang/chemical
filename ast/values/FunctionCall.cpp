@@ -739,30 +739,22 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     if(decl && decl->is_comptime()) {
         // the return handler generates llvm ir for the returned value while the
-        // comptime interpret scope is still alive and caches it against the
-        // call, so use that generated value instead of generating it again
-        // (which would require the now dead interpret scope)
-        const auto handled = gen.comptime_return_handled_values.find(this);
-        if(handled != gen.comptime_return_handled_values.end()) {
-            return handled->second;
-        }
-        auto val = gen.eval_comptime(this, decl);
-        if(!val) {
-            return NullValue::null_llvm_value(gen);
-        }
-        // the return handler runs while the comptime function is interpreted,
-        // so the returned value may already have been translated to llvm ir and
-        // cached against this call. prefer the cached value: regenerating it
-        // would require the interpret scope, which has died by now
-        const auto handled_after = gen.comptime_return_handled_values.find(this);
-        if(handled_after != gen.comptime_return_handled_values.end()) {
+        // comptime interpret scope is still alive, so use that generated value
+        // instead of generating it again (which would require the now dead
+        // interpret scope to resolve captured comptime variables)
+        LLVMReturnHandler return_handler(gen);
+        auto val = gen.eval_comptime(this, decl, &return_handler);
+        if(return_handler.handled) {
             if(returnsStruct && returnedValue) {
-                // the cached value was generated without knowledge of the
+                // the generated value was created without knowledge of the
                 // destination, copy it into the destination slot
-                gen.memcpy_struct(func_type->returnType->llvm_type(gen), returnedValue, handled_after->second, encoded_location());
+                gen.memcpy_struct(func_type->returnType->llvm_type(gen), returnedValue, return_handler.generated, encoded_location());
                 return returnedValue;
             }
-            return handled_after->second;
+            return return_handler.generated;
+        }
+        if(!val) {
+            return NullValue::null_llvm_value(gen);
         }
         if(returnsStruct) {
             if(!returnedStruct) {

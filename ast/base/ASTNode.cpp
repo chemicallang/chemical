@@ -221,6 +221,8 @@ BaseType* ASTNode::getType() {
             return as_for_in_loop_unsafe()->known_type();
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->known_type();
+        case ASTNodeKind::CapturedComptimeVariable:
+            return as_captured_comptime_var_unsafe()->known_type();
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->known_type();
         case ASTNodeKind::EnumMember:
@@ -1000,6 +1002,8 @@ llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
             return as_base_def_member_unsafe()->llvm_pointer(gen);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::CapturedComptimeVariable:
+            return as_captured_comptime_var_unsafe()->llvm_pointer(gen);
         case ASTNodeKind::FunctionParam:
             return as_func_param_unsafe()->llvm_pointer(gen);
         case ASTNodeKind::FunctionDecl:
@@ -1032,6 +1036,8 @@ llvm::Value* ASTNode::loadable_llvm_pointer(Codegen& gen, SourceLocation locatio
             return as_base_def_member_unsafe()->loadable_llvm_pointer(gen, location);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->loadable_llvm_pointer(gen);
+        case ASTNodeKind::CapturedComptimeVariable:
+            return as_captured_comptime_var_unsafe()->loadable_llvm_pointer(gen);
         case ASTNodeKind::FunctionParam:
             return as_func_param_unsafe()->loadable_llvm_pointer(gen, location);
         case ASTNodeKind::FunctionDecl:

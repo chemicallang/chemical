@@ -8,10 +8,13 @@
 
 #include <string>
 #include <unordered_map>
+
+#include "ASTNode.h"
 #include "ast/base/ASTAllocator.h"
 #include "std/chem_string_view.h"
 #include "ast/utils/Operation.h"
 #include "ast/base/ValueKind.h"
+#include "core/diag/Diagnostic.h"
 
 class Value;
 
@@ -22,6 +25,8 @@ class Scope;
 class ASTNode;
 
 class LocationManager;
+
+class ASTDiagnoser;
 
 using node_map = std::unordered_map<chem::string_view, ASTNode*>;
 using node_iterator = node_map::iterator;
@@ -53,6 +58,44 @@ public:
      * that's it
      */
     ASTAllocator& allocator;
+
+    /**
+     * Return value for the current function being interpreted.
+     * This is set by set_return() and retrieved by call() after
+     * body interpretation completes. Stored here instead of on
+     * AST nodes to avoid storing comptime state in the AST.
+     */
+    Value* returnValue = nullptr;
+
+    /**
+     * Implicit arguments map — populated by `provide` statements.
+     * When a function with implicit parameters is called, the interpreter
+     * looks up the parameter name in this map from the caller's scope.
+     */
+    std::unordered_map<chem::string_view, Value*> implicit_args;
+
+    /**
+     * When set to false (e.g. global scope), values in this scope
+     * are NOT destructed when the scope ends.
+     */
+    bool should_destruct_values = true;
+
+    /**
+     * When a return statement is interpreted inside this scope,
+     * this flag is set to stop further interpretation of sibling
+     * nodes in all parent scopes up to the function scope.
+     * Prevents non-loop scopes (like if-blocks) from continuing
+     * after a return has been processed.
+     */
+    bool stopInterpretation = false;
+
+    /**
+     * When a break A with a value (break i) is interpreted inside a loop,
+     * the evaluated value is stored here so that LoopValue::evaluated_value()
+     * can retrieve it. Stored on the scope rather than on AST nodes to avoid
+     * polluting the AST with interpretation state.
+     */
+    Value* loop_break_value = nullptr;
 
     /**
      * constructor
@@ -132,62 +175,75 @@ public:
     }
 
     /**
-     * emit an error for given node
-     */
-    void error(std::string& err, ASTNode* any);
-
-    /**
-     * emit an error for given value
-     */
-    void error(std::string& err, Value* any);
-
-    /**
      *  emit an error for given node
      */
-    void error(std::string_view err, ASTNode* any);
+    template <typename GS = GlobalInterpretScope>
+    inline void error(const chem::string_view& err, ASTNode* node) {
+        const auto diagnoser = static_cast<GS*>(global)->getASTDiagnoser();
+        diagnoser.error(err, node);
+    }
 
     /**
-     * emit an error for given value
+     *  emit an error for given value
      */
-    void error(std::string_view err, Value* any);
+    template <typename GS = GlobalInterpretScope>
+    inline void error(const chem::string_view& err, Value* value) {
+        static_cast<GS*>(global)->getASTDiagnoser().error(err, value);
+    }
 
     /**
-     * Return value for the current function being interpreted.
-     * This is set by set_return() and retrieved by call() after
-     * body interpretation completes. Stored here instead of on
-     * AST nodes to avoid storing comptime state in the AST.
+     *  emit an error for given value
      */
-    Value* returnValue = nullptr;
+    template <typename GS = GlobalInterpretScope>
+    inline Diag& error(SourceLocation location) {
+        return static_cast<GS*>(global)->getASTDiagnoser().error(location);
+    }
 
     /**
-     * Implicit arguments map — populated by `provide` statements.
-     * When a function with implicit parameters is called, the interpreter
-     * looks up the parameter name in this map from the caller's scope.
+     *  emit an error for given value
      */
-    std::unordered_map<chem::string_view, Value*> implicit_args;
+    template <typename GS = GlobalInterpretScope>
+    inline Diag& warn(SourceLocation location) {
+        return static_cast<GS*>(global)->getASTDiagnoser().warn(location);
+    }
 
     /**
-     * When set to false (e.g. global scope), values in this scope
-     * are NOT destructed when the scope ends.
+     *  emit an error for given value
      */
-    bool should_destruct_values = true;
+    template <typename GS = GlobalInterpretScope>
+    inline Diag& info(SourceLocation location) {
+        return static_cast<GS*>(global)->getASTDiagnoser().info(location);
+    }
 
     /**
-     * When a return statement is interpreted inside this scope,
-     * this flag is set to stop further interpretation of sibling
-     * nodes in all parent scopes up to the function scope.
-     * Prevents non-loop scopes (like if-blocks) from continuing
-     * after a return has been processed.
+     * create a info diagnostic
      */
-    bool stopInterpretation = false;
+    template <typename NodeT>
+    inline Diag& info(NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
+        return info(node->encoded_location());
+    }
 
     /**
-     * When a break A with a value (break i) is interpreted inside a loop,
-     * the evaluated value is stored here so that LoopValue::evaluated_value()
-     * can retrieve it. Stored on the scope rather than on AST nodes to avoid
-     * polluting the AST with interpretation state.
+     * create a warning diagnostic
      */
-    Value* loop_break_value = nullptr;
+    template <typename NodeT>
+    inline Diag& warn(NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
+        return warn(node->encoded_location());
+    }
+
+    /**
+     * create a error diagnostic
+     */
+    template <typename NodeT>
+    inline Diag& error(NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
+        return error(node->encoded_location());
+    }
 
     /**
      * Iterates over all values in this scope and calls destructors

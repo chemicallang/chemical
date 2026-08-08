@@ -638,12 +638,12 @@ Value *StructValue::call_member(
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name.str() + " in a struct by name " + getRefType()->representation(), this);
+        scope.error(this) << "couldn't find member function by name " << name << " in a struct by name " << getRefType()->representation();
         return nullptr;
     }
 #ifdef DEBUG
     if (!fn->body.has_value()) {
-        scope.error("function doesn't have body in a struct " + name.str(), this);
+        scope.error(this) << "function doesn't have body in a struct " << name.str();
         return nullptr;
     }
 #endif

@@ -5,13 +5,6 @@
 //
 
 #include "GlobalInterpretScope.h"
-#include "ast/base/Value.h"
-#include "ast/base/ASTNode.h"
-#include "ast/base/BaseType.h"
-#include "ast/structures/Scope.h"
-#include "rang.hpp"
-#include <utility>
-#include <iostream>
 
 GlobalInterpretScope::GlobalInterpretScope(
     OutputMode mode,
@@ -27,52 +20,6 @@ GlobalInterpretScope::GlobalInterpretScope(
     interpretation_mode(interpretation_mode) {
     // Global scope should not destruct values - it's reused and outlives individual interpretations
     should_destruct_values = false;
-}
-
-void GlobalInterpretScope::interpret_error(std::string& msg, SourceLocation loc) {
-#ifdef DEBUG
-    std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
-#endif
-    ASTDiagnoser::empty_diagnostic(loc, DiagSeverity::Error) << msg;
-}
-
-void GlobalInterpretScope::interpret_error(std::string_view& msg, SourceLocation loc) {
-#ifdef DEBUG
-    std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
-#endif
-    ASTDiagnoser::empty_diagnostic(loc, DiagSeverity::Error) << msg;
-}
-
-void GlobalInterpretScope::interpret_error(std::string& error, ASTNode* any) {
-    interpret_error(error, any->encoded_location());
-}
-
-void GlobalInterpretScope::interpret_error(std::string_view& error, ASTNode* any) {
-    interpret_error(error, any->encoded_location());
-}
-
-void GlobalInterpretScope::interpret_error(std::string& error, Value* any) {
-    if(any) {
-        interpret_error(error, any->encoded_location());
-    } else {
-        interpret_error(error, SourceLocation(0));
-    }
-}
-
-void GlobalInterpretScope::interpret_error(std::string_view& error, Value* any) {
-    if(any) {
-        interpret_error(error, any->encoded_location());
-    } else {
-        interpret_error(error, SourceLocation(0));
-    }
-}
-
-void GlobalInterpretScope::interpret_error(std::string& error, const TypeLoc& any) {
-    interpret_error(error, any.encoded_location());
-}
-
-void GlobalInterpretScope::interpret_error(std::string_view& error, const TypeLoc& any) {
-    interpret_error(error, any.encoded_location());
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

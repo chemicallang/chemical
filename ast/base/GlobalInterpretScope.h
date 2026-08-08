@@ -162,6 +162,13 @@ public:
     );
 
     /**
+     * returns the ast diagnoser
+     */
+    inline ASTDiagnoser& getASTDiagnoser() noexcept {
+        return *this;
+    }
+
+    /**
      * deleted copy constructor
      * @param copy
      */
@@ -194,45 +201,5 @@ public:
      * causes segfaults, which could be because of object slicing
      */
     ~GlobalInterpretScope() final;
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string& error, SourceLocation loc);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string_view& error, SourceLocation loc);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string& error, ASTNode* any);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string_view& error, ASTNode* any);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string& error, Value* any);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string_view& error, Value* any);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string& error, const TypeLoc& any);
-
-    /**
-     * apart from adding a diagnostic, this notifies in debug mode
-     */
-    void interpret_error(std::string_view& error, const TypeLoc& any);
 
 };

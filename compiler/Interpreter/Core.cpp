@@ -498,7 +498,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
         }
         }
     } else {
-        scope.error("for-in loop not supported for expression type (kind: " + std::to_string(static_cast<int>(kind)) + ") in comptime", loop->expr);
+        scope.error(loop->expr) << "for-in loop not supported for expression type (kind: " << std::to_string(static_cast<int>(kind)) << ") in comptime";
     }
 }
 

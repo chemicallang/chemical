@@ -1204,7 +1204,7 @@ Value *FunctionDeclaration::call(
         } else if(param->defValue) {
             fn_scope->declare(param->name, param->defValue->scope_value(*call_scope));
         } else if(!isInVarArgs(param->index)) {
-            call_scope->error("couldn't find implicit argument '" + param->name.str() + "' in current scope", debug_value);
+            call_scope->error(debug_value) << "couldn't find implicit argument '" << param->name << "' in current scope";
         }
     }
     if(!body.has_value()) {

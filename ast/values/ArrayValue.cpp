@@ -35,13 +35,34 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
 }
 
 void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, BaseType* expected_type) {
+    // if not all elements of the array are explicitly provided (empty literal
+    // '[]' or a partial literal), zero-fill the entire array first so the
+    // unprovided elements default to zero, matching C aggregate initialization
+    auto parent_type = llvm_type(gen);
+    auto total_size = array_size();
+    if(expected_type) {
+        const auto pure_type = expected_type->canonical();
+        if(pure_type->kind() == BaseTypeKind::Array) {
+            const auto arr_type = pure_type->as_array_type_unsafe();
+            if(arr_type->has_array_size()) {
+                parent_type = arr_type->llvm_type(gen);
+                total_size = (unsigned int) arr_type->get_array_size();
+            }
+        }
+    }
+    if(values.size() < total_size) {
+        const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(parent_type);
+        if(alloc_size > 0) {
+            const auto memsetInst = gen.builder->CreateMemSet(allocated, gen.builder->getInt8(0), alloc_size, llvm::MaybeAlign(1));
+            gen.di.instr(memsetInst, this);
+        }
+    }
     // filling array with values
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
     auto known_child_t = element_type(gen.allocator)->canonical();
     const auto def = known_child_t->get_direct_linked_struct();
-    auto parent_type = llvm_type(gen);
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {
 

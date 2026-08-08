@@ -143,6 +143,7 @@ public func run_common_tests() {
     test_dereferences();
     test_if_switch_loop_value();
     test_arrays();
+    test_array_literal_zero_fill();
     test_zeroed_value();
     test_common_char_ptr_strings();
     test_namespaces();

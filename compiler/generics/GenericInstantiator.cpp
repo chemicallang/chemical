@@ -89,17 +89,14 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
     // while the capture bridge is kept intact: prefer the concrete declaration
     // in the symbol table (parameters and locals of the instantiation),
     // otherwise copy the master declaration's type and concretize the copy
-    if(id->linked && id->linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
-        BaseType* concrete_type = nullptr;
+    const auto linked = id->linked;
+    if(linked && linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
         const auto captured_node = table.resolve(id->value);
         if(captured_node) {
-            concrete_type = captured_node->getType();
+            id->setType(captured_node->getType());
         } else {
-            const auto captured = id->linked->as_captured_comptime_var_unsafe()->linked;
-            concrete_type = captured->known_type()->copy(getAllocator());
-            visit(concrete_type);
+            id->setType(linked->as_captured_comptime_var_unsafe()->linked->known_type());
         }
-        id->setType(concrete_type);
         return true;
     }
 

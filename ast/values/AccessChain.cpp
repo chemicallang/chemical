@@ -87,7 +87,7 @@ Value *AccessChain::parent(InterpretScope &scope) {
     while (i < (values.size() - 1)) {
         current = values[i]->find_in(scope, current);
         if (current == nullptr) {
-            scope.error("(access chain) " + Value::representation() + " child " + values[i]->representation() + " not found", (ASTNode*) this);
+            scope.error(this) << "child '" << values[i]->representation() << "' in access chain '" << Value::representation()  << "' not found";
             return nullptr;
         }
         i++;
@@ -141,7 +141,7 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
                 }
             }
         } else {
-            scope.error("(access chain) parent is null for set_value", (ASTNode*) this);
+            scope.error(this) << "(access chain) parent is null for set_value";
         }
     }
 }

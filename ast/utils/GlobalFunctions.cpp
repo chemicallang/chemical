@@ -445,11 +445,11 @@ public:
 
 };
 
-// TODO: this function should be made A LOT SIMPLER
 Value* resolve_ref(Value* val, InterpretScope *call_scope) {
     Value* value = nullptr;
     if(val->reference()) {
         auto linked = val->linked_node();
+        // this var init case handles var inits outside comptime functions which don't get put on the interpret scope
         if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
             value = linked->as_var_init_unsafe()->value;
         } else {
@@ -458,6 +458,7 @@ Value* resolve_ref(Value* val, InterpretScope *call_scope) {
     } else {
         value = val->evaluated_value(*call_scope);
     }
+    // TODO: remove this after removing return this in the variable identifier
     if(value && value->reference()) {
         return resolve_ref(value, call_scope);
     }
@@ -487,30 +488,25 @@ public:
             return nullptr;
         }
         const auto val = call->values[0];
-//        const auto val_type = val->getType();
-//        const auto val_type_pure = val_type->pure_type(allocator);
-//        const auto val_type_kind = val_type_pure->kind();
-//        if(val_type_kind != BaseTypeKind::String && val_type_kind != BaseTypeKind::Array) {
-//            call_scope->error("intrinsics::size called with invalid arguments", call);
-//            return nullptr;
-//        }
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        const auto loc = val->encoded_location();
         auto value = resolve_ref(val, call_scope);
         if(!value) {
             call_scope->error("couldn't get value for intrinsics::size", call);
-            return nullptr;
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);;
         }
         const auto val_kind = value->val_kind();
         if(val_kind != ValueKind::String && val_kind != ValueKind::ArrayValue) {
             call_scope->error("intrinsics::size called with invalid arguments", call);
-            return nullptr;
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);;
         }
         switch(val_kind) {
             case ValueKind::String:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->get_the_string().size(), call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_string_unsafe()->value.size(), typeBuilder.getU64Type(), loc);
             case ValueKind::ArrayValue:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_array_value()->array_size(), call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_array_value_unsafe()->array_size(), typeBuilder.getU64Type(), loc);
             default:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);
         }
     }
 };
@@ -1118,7 +1114,7 @@ public:
         if(call->values.empty()) return new (allocator.allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (allocator.allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), ZERO_LOC);
-        call_scope->error(val->get_the_string().view(), call);
+        call_scope->error(call) << val->get_the_string();
         return new (allocator.allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), ZERO_LOC);
     }
 };

@@ -548,22 +548,6 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
     }
 }
 
-void InterpretScope::error(std::string& err, ASTNode* any) {
-    global->interpret_error(err, any);
-}
-
-void InterpretScope::error(std::string& err, Value* any) {
-    global->interpret_error(err, any);
-}
-
-void InterpretScope::error(std::string_view err, ASTNode* any) {
-    global->interpret_error(err, any);
-}
-
-void InterpretScope::error(std::string_view err, Value* any) {
-    global->interpret_error(err, any);
-}
-
 InterpretScope::~InterpretScope() {
     if(should_destruct_values) {
         destroy_values();

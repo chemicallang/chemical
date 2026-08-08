@@ -224,8 +224,7 @@ Value* LambdaFunction::call(
         if(captured_val) {
             fn_scope.declare(cap->name, captured_val);
         } else {
-            auto err = chem::string("could not find captured variable '") + chem::string(cap->name) + "' in current scope";
-                call_scope->error(err.to_view(), this);
+            call_scope->error(this) << "could not find captured variable '" << cap->name << "' in current scope";
         }
     }
 

@@ -176,7 +176,7 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
 void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location) {
 #ifdef DEBUG
     if (parent == nullptr) {
-        scope.error("set_value_in in variable identifier, received null pointer to parent", parent);
+        scope.error(parent) << "set_value_in in variable identifier, received null pointer to parent";
         return;
     }
 #endif
@@ -207,7 +207,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
                 }
             }
         }
-        scope.error("couldn't find identifier '" + value.str() + "' in current scope", this);
+        scope.error(this) << "couldn't find identifier '" << value << "' in current scope";
         return;
     }
 
@@ -217,7 +217,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     const auto newValue = evalNewValue->scope_value(itr.second);
 //    auto newValue = rawValue->scope_value(itr.second);
     if (newValue == nullptr) {
-        scope.error("trying to assign null ptr to identifier " + value.str(), this);
+        scope.error(this) << "trying to assign null ptr to identifier '" << value << "'";
         return;
     }
 
@@ -374,6 +374,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
             const auto init = linked->as_var_init_unsafe();
             if(init->is_const()) {
                 auto constVal = init->value;
+                // TODO: remove this and test after removal
                 if(constVal && constVal->val_kind() == ValueKind::Identifier && constVal != this) {
                     return static_cast<VariableIdentifier*>(constVal)->evaluated_value(scope);
                 }
@@ -402,5 +403,6 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
             }
         }
     }
+    // TODO: try returning a nullptr
     return this;
 }

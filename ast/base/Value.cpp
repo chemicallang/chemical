@@ -1325,7 +1325,7 @@ void Value::set_child_value(InterpretScope& scope, const chem::string_view& name
                 evaluated->set_child_value(scope, name, value, op);
                 return;
             }
-            scope.error("can't set child value with name " + name.str(), this);
+            scope.error(this) << "can't set child value with name" << name;
             return;
         }
     }

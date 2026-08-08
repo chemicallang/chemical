@@ -952,9 +952,6 @@ Value* evaluate_comptime_func(
         // visitor.error("comptime function call didn't return anything", call);
         return nullptr;
     }
-    // the evaluated value is kept for the destruction visitor, which only
-    // analyzes its kind/type to decide which destructors must be queued
-    visitor.evaluated_func_calls[call] = value;
     return value;
 }
 
@@ -2292,33 +2289,17 @@ void CDestructionVisitor::queue_destruct_varInit_type(BaseType* type, ASTNode* i
 }
 
 void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
-    const auto pure_t = init->known_type()->pure_type(visitor.allocator);
+    const auto pure_t = init->known_type()->canonical();
     const auto pure_t_kind = pure_t->kind();
     if(pure_t_kind == BaseTypeKind::Pointer || pure_t_kind == BaseTypeKind::Reference) {
+        // do not destruct pointers or references
         return;
     }
-    if(init->value) {
-        auto init_value = init->value;
-        auto chain = init_value->as_access_chain();
-        if(chain) {
-            const auto func_call = chain->values.back()->as_func_call();
-            if(func_call) {
-                auto decl = func_call->safe_linked_func();
-                if (decl && decl->is_comptime()) {
-                    auto found = visitor.evaluated_func_calls.find(func_call);
-                    if (found != visitor.evaluated_func_calls.end()) {
-                        init_value = found->second;
-                    } else {
-                        std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor for " << func_call->representation() << std::endl;
-                    }
-                }
-            }
-        }
-        process_init_value(init, init_value);
+    if (pure_t == nullptr) {
+        visitor.error(init) << "couldn't determine type";
         return;
-    } else {
-        queue_destruct_varInit_type(pure_t, init, init->name_str());
     }
+    queue_destruct_varInit_type(pure_t, init, init->name_str());
 }
 
 // this will also destruct given function type's params at the end of scope
@@ -3321,7 +3302,6 @@ void ToCAstVisitor::file_level_reset() {
     allocator.clear();
     local_allocated.clear();
     destructible_refs.clear();
-    evaluated_func_calls.clear();
     destructor.file_level_reset();
     aliases.clear();
 }
@@ -4204,7 +4184,6 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     }
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
-    visitor.evaluated_func_calls.clear();
     scope(visitor, decl->body.value(), decl);
     visitor.current_func_type = prev_func_decl;
 }
@@ -4425,7 +4404,6 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     }
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
-    visitor.evaluated_func_calls.clear();
     visitor.visit_scope(&decl->body.value(), (int) begin);
     if(has_cleanup_block) {
         visitor.new_line_and_indent();

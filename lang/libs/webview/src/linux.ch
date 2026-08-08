@@ -55,14 +55,15 @@ const WEBKIT_LOAD_FINISHED = 4
 @extern public func webkit_web_view_get_title(web_view : *mut WebKitWebView) : *char
 @extern public func webkit_web_view_get_settings(web_view : *mut WebKitWebView) : *mut WebKitSettings
 
-@extern public func webkit_settings_set_javascript_enabled(settings : *mut WebKitSettings, enabled : int)
 @extern public func webkit_settings_set_allow_file_access_from_file_urls(settings : *mut WebKitSettings, allowed : int)
 
 @extern public func webkit_web_view_evaluate_javascript(web_view : *mut WebKitWebView, script : *char, length : isize, source_uri : *char, cancellable : *mut void, callback : *mut void, user_data : *mut void)
 
 // GLib signal connection
-@extern public func g_signal_connect(instance : *mut void, signal : *char, handler : *mut void, data : *mut void) : u64
-@extern public func g_signal_connect_swapped(instance : *mut void, signal : *char, handler : *mut void, data : *mut void) : u64
+// NOTE: g_signal_connect / g_signal_connect_swapped are header macros in C
+// (they expand to g_signal_connect_data), so the actual exported symbol is
+// g_signal_connect_data (lives in libgobject-2.0).
+@extern public func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
 
 // GMainLoop
 @no_init @extern public struct GMainLoop {}
@@ -142,9 +143,10 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     }
 
     // Configure web view settings
+    // (JavaScript is always enabled in modern WebKitGTK (>= 2.40);
+    // webkit_settings_set_javascript_enabled no longer exists there)
     var settings = webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView)
     if(settings != null) {
-        webkit_settings_set_javascript_enabled(settings, TRUE)
         webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE)
     }
 
@@ -156,10 +158,10 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     gtk_container_add(wv.window as *mut GtkContainer, wv.box)
 
     // Connect destroy signal
-    g_signal_connect(wv.window as *mut void, "destroy\0" as *char, linux_on_window_destroy as *mut void, null)
+    g_signal_connect_data(wv.window as *mut void, "destroy\0" as *char, linux_on_window_destroy as *mut void, null, null, 0)
 
     // Connect navigation finished signal
-    g_signal_connect(wv.web_view as *mut void, "load-changed\0" as *char, linux_on_navigation_complete as *mut void, null)
+    g_signal_connect_data(wv.web_view as *mut void, "load-changed\0" as *char, linux_on_navigation_complete as *mut void, null, null, 0)
 
     wv.visible = false
     wv.initialized = true

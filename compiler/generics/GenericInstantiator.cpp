@@ -700,9 +700,8 @@ void GenericInstantiator::waitSignatureFinalized(BaseGenericDecl* decl, size_t i
     auto& status_mutex = container.getInstantiationStatusMutex();
     auto& cv = container.getInstantiationCv();
     std::unique_lock<std::mutex> lock(status_mutex);
-    auto& entry = decl->instantiation_statuses[index];
-    cv.wait(lock, [&entry]() {
-        return entry.status == InstantiationStatus::SignatureFinalized;
+    cv.wait(lock, [decl, index]() {
+        return decl->instantiation_statuses[index].status == InstantiationStatus::SignatureFinalized;
     });
 }
 

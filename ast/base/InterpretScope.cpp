@@ -252,6 +252,17 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         if(operation == Operation::RightShift && firstIsSigned) {
             // Arithmetic right shift for signed types: cast to int64_t to preserve sign
             answer = (uint64_t)((int64_t)first->get_num_value() >> second->get_num_value());
+        } else if((operation == Operation::Division || operation == Operation::Modulus) &&
+                   firstIsSigned && secondIsSigned) {
+            // Signed division/remainder for signed int types (mirrors the LLVM
+            // backend's SDiv/SRem and C semantics): e.g. -5 % 3 == -2, not 1
+            const auto a = (int64_t)first->get_num_value();
+            const auto b = (int64_t)second->get_num_value();
+            if(operation == Operation::Division) {
+                answer = (uint64_t)(a / b);
+            } else {
+                answer = (uint64_t)(a % b);
+            }
         } else if((operation == Operation::LessThan || operation == Operation::GreaterThan ||
                    operation == Operation::LessThanOrEqual || operation == Operation::GreaterThanOrEqual) &&
                    firstIsSigned && secondIsSigned) {

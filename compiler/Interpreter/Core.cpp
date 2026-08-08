@@ -762,6 +762,14 @@ Scope* pm_eval_body_for_if(InterpretScope& scope, IfStatement* stmt) {
 static void pm_declare_vars_from_patt(InterpretScope& scope, InterpretScope& child, PatternMatchExpr* patt) {
     if(patt->param_names.empty() || !patt->member) return;
     auto exprVal = patt->expression->evaluated_value(scope);
+    // the matched expression may be a reference stored inside a struct member
+    // (e.g. h.value where value : &Variant) — dereference it to get the variant
+    if(exprVal && exprVal->val_kind() == ValueKind::PointerValue) {
+        auto deref = ((PointerValue*) exprVal)->deref(scope, patt->encoded_location(), exprVal);
+        if(deref) {
+            exprVal = deref;
+        }
+    }
     if(exprVal && exprVal->val_kind() == ValueKind::StructValue) {
         auto vs = exprVal->as_struct_value_unsafe();
         for(auto& pm : patt->param_names) {
@@ -917,6 +925,11 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
     Value* evalExpr = nullptr;
     if(!node->value.param_names.empty() && node->value.member) {
         evalExpr = node->value.expression->evaluated_value(scope);
+        // the matched expression may be a reference stored inside a struct member
+        // (e.g. h.value where value : &Variant) — dereference it to get the variant
+        if(evalExpr && evalExpr->val_kind() == ValueKind::PointerValue) {
+            evalExpr = ((PointerValue*) evalExpr)->deref(scope, node->encoded_location(), evalExpr);
+        }
         if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue) {
             auto evalBool = node->value.evaluated_value(scope);
             matches = evalBool && evalBool->get_the_bool();

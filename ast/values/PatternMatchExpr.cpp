@@ -13,6 +13,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/PointerValue.h"
 #include "ast/types/BoolType.h"
 
 #ifdef COMPILER_BUILD
@@ -235,6 +236,14 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
 Value* PatternMatchExpr::evaluated_value(InterpretScope &scope) {
     // Evaluate the expression being matched (e.g. the variant value)
     auto evalExpr = expression->evaluated_value(scope);
+    // the matched expression may be a reference stored inside a struct member
+    // (e.g. h.value where value : &Variant) — dereference it to get the variant
+    if(evalExpr && evalExpr->val_kind() == ValueKind::PointerValue) {
+        auto deref = ((PointerValue*) evalExpr)->deref(scope, encoded_location(), evalExpr);
+        if(deref) {
+            evalExpr = deref;
+        }
+    }
     if(evalExpr && evalExpr->val_kind() == ValueKind::StructValue && member) {
         auto structVal = evalExpr->as_struct_value_unsafe();
         int64_t structMemberIndex = structVal->get_variant_member_index();

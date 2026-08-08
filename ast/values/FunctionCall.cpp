@@ -738,20 +738,24 @@ llvm::Value* FunctionCall::llvm_chain_value(
     auto returnsStruct = func_type->returnType->isStructLikeType();
 
     if(decl && decl->is_comptime()) {
-        // the return handler generates llvm ir for the returned value while the
-        // comptime interpret scope is still alive, so use that generated value
-        // instead of generating it again (which would require the now dead
-        // interpret scope to resolve captured comptime variables)
-        LLVMReturnHandler return_handler(gen);
-        auto val = gen.eval_comptime(this, decl, &return_handler);
-        if(return_handler.handled) {
-            if(returnsStruct && returnedValue) {
-                // the generated value was created without knowledge of the
-                // destination, copy it into the destination slot
-                gen.memcpy_struct(func_type->returnType->llvm_type(gen), returnedValue, return_handler.generated, encoded_location());
-                return returnedValue;
-            }
-            return return_handler.generated;
+        // a comptime call captured inside a %runtime_value / %runtime_block_value
+        // was already evaluated while the enclosing comptime scope was alive
+        // (its result is stored in the runtime value's captured refs, which the
+        // call node points to); its stored result is translated here. this
+        // matters for location-aware intrinsics and for arguments that reference
+        // the enclosing comptime function's locals, which cannot be resolved
+        // after the scope has been destroyed
+        Value* val = nullptr;
+        if(captured_ref_owner && captured_ref_index >= 0 && captured_ref_index < (int) captured_ref_owner->refs.size()) {
+            val = captured_ref_owner->refs[captured_ref_index].evaluated;
+        }
+        if(!val) {
+            // a returned %runtime_value / %runtime_block_value is fully
+            // self-contained (its captured comptime variables were evaluated into
+            // an evaluated copy at return time), so the returned value is
+            // translated directly here, after the comptime interpret scope has
+            // been destroyed
+            val = gen.eval_comptime(this, decl);
         }
         if(!val) {
             return NullValue::null_llvm_value(gen);

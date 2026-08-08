@@ -7,6 +7,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "IntNumValue.h"
 #include "ast/values/PointerValue.h"
+#include "ast/values/FunctionCall.h"
 #include "ast/types/PointerType.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
@@ -74,13 +75,16 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                     // maybe in the future, we should verify the underlying value
                     return eval;
                 default:
-                    // a %runtime_value / %runtime_block_value cannot be
-                    // evaluated at comptime outside of the interpretation mode:
-                    // the backends translate the casted expression (with the
-                    // cast preserved) directly at the codegen site, so keep it
-                    // instead of erroring out on the unevaluated expression
+                    // in codegen mode (outside interpretation), the backends
+                    // translate the casted expression (with the cast preserved)
+                    // directly at the codegen site: a runtime variable reference
+                    // (Identifier that couldn't be resolved to a value) or a
+                    // %runtime_value / %runtime_block_value cannot be evaluated
+                    // to a pointer at comptime, so keep the cast instead of
+                    // erroring out on the unevaluated expression
                     if(!scope.global->interpretation_mode &&
-                       (value->val_kind() == ValueKind::RuntimeValue || value->val_kind() == ValueKind::RuntimeBlockValue)) {
+                       (value->val_kind() == ValueKind::RuntimeValue || value->val_kind() == ValueKind::RuntimeBlockValue ||
+                        eval->val_kind() == ValueKind::Identifier)) {
                         return this;
                     }
                     scope.error("unknown value being casted to a pointer", this);

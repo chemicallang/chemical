@@ -1032,35 +1032,23 @@ Value *FunctionDeclaration::call(
 // called by the return statement
 void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
     if(value) {
-        // When the top most comptime function that is called from the runtime
-        // mode (codegen) returns a runtime value (%runtime_value /
+        // When a comptime function that is called from the runtime mode
+        // (codegen) returns a runtime value (%runtime_value /
         // %runtime_block_value), the returned expression references comptime
-        // variables that were automatically captured (CapturedComptimeVariable).
-        // Those captured variables can only be resolved inside the interpret
-        // scope where the return is being interpreted, which dies right after
-        // the top most comptime function finishes execution.
+        // variables that were automatically captured (CapturedComptimeVariable)
+        // from the enclosing comptime function's scope. Evaluating the return
+        // expression right here (evaluated_value) evaluates those captured
+        // variables into an evaluated copy of the runtime value, while this
+        // interpret scope is still alive, so the returned value is fully
+        // self-contained and can be translated by the backend after the scope
+        // has been destroyed (the copy holds the evaluated values, the original
+        // runtime value acts as a template).
         //
-        // The backend's return handler translates the evaluated value right now
-        // while this scope is still alive. This happens for every return of the
-        // top most comptime function called from codegen (not only for runtime
-        // values), so the backend writes the returned value directly and no
-        // Value* ever flows back to the caller. call_stack contains exactly one
-        // entry when this function is the top most interpreted call; nested
-        // comptime function calls push more entries onto it. A nested comptime
-        // call that is being translated from within the handler's visit
-        // (in_return_handler) is also intercepted, because its return value can
-        // only be translated while the nested interpret scope is still alive.
-        const auto handled_by_backend =
-            func_scope.global->return_handler != nullptr
-            && (func_scope.global->call_stack.size() == 1 || func_scope.global->in_return_handler);
         // Evaluate the return value expression in the current scope (func_scope),
         // not in the function-level scope (*target). Variables like variant case
         // variables are declared in nested scopes inside the function body and
         // would not be found when evaluating from the function-level scope.
         const auto evaluated = value->evaluated_value(func_scope);
-        if(handled_by_backend) {
-            func_scope.global->return_handler->handle_return_value(func_scope, evaluated);
-        }
         // Walk up the scope chain to find the function-level scope
         // (created by call() with the global as parent).
         // set_return may be called with a nested scope (inside if/block/etc.),

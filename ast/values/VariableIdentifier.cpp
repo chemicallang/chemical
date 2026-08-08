@@ -7,6 +7,7 @@
 #include "ast/values/NullValue.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/EnumMember.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/FileScope.h"
@@ -386,20 +387,28 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         case ASTNodeKind::CapturedComptimeVariable: {
             // an identifier that references a variable auto captured from the
             // comptime environment (a parameter/local of a comptime function
-            // used inside a %runtime_value). the value of that variable exists
-            // in the interpret scope where the runtime value's return is being
-            // interpreted, which the backend's return handler keeps alive and
-            // points to (global->current_capture_scope) while it translates
-            // the returned value. the interpreter can't find it by walking its
-            // own scope chain (e.g. a nested comptime intrinsic call like
-            // intrinsics::size creates its own scope), so resolve it through
-            // the capture scope instead
-            const auto capture_scope = scope.global->current_capture_scope;
-            if(capture_scope) {
-                const auto captured = capture_scope->find_value(value);
-                if(captured) {
-                    return captured;
+            // used inside a %runtime_value / %runtime_block_value). when the
+            // runtime value was returned, evaluated_value evaluated the
+            // captured variables and stored them in the owning runtime value's
+            // refs (which the bridge node points to), so the value is resolved
+            // through there. this also works when the interpreter re-evaluates
+            // the expression during codegen translation (e.g. a nested comptime
+            // intrinsic call like intrinsics::size inside the returned
+            // expression)
+            const auto captured = linked->as_captured_comptime_var_unsafe();
+            if(captured->parent_refs && captured->index < captured->parent_refs->refs.size() && captured->parent_refs->refs[captured->index].evaluated) {
+                return captured->parent_refs->refs[captured->index].evaluated;
+            }
+            // the runtime value was not evaluated (e.g. pure interpretation
+            // mode, where %runtime_value evaluates its underlying expression
+            // directly): the value is in the live interpret scope chain
+            InterpretScope* chain = &scope;
+            while(chain != nullptr && chain != scope.global) {
+                const auto found = chain->values.find(value);
+                if(found != chain->values.end()) {
+                    return found->second;
                 }
+                chain = chain->parent;
             }
             return this;
         }

@@ -5,6 +5,7 @@
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "SymbolTable.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 
 /**
  * when a variable is outside evaluation scope, for example an identifier lambda referencing a variable above lambda
@@ -97,6 +98,14 @@ public:
      * resolution behavior for variables outside evaluation scope
      */
     OutScopeResBehavior out_scope_res_behavior = OutScopeResBehavior::Error;
+
+    /**
+     * the stack of %runtime_value / %runtime_block_value being symbol
+     * resolved. identifiers referencing variables from outside the runtime
+     * value's scope (AutoComptimeCapture) are captured into the top of this
+     * stack (the innermost enclosing runtime value)
+     */
+    std::vector<CapturedComptimeValues*> capturing_runtime_stack;
 
     /**
      * constructor

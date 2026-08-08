@@ -421,22 +421,19 @@ llvm::Value* Value::access_chain_pointer(
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
         if(func_decl && func_decl->is_comptime()) {
-            // the return handler generates the llvm ir for the returned value
-            // while the comptime interpret scope is still alive, so use that
-            // instead of re-translating the returned expression (which would
-            // need the now dead interpret scope)
-            LLVMReturnHandler return_handler(gen);
-            auto& ret_value = gen.eval_comptime(last_func_call, func_decl, &return_handler);
-            if(return_handler.handled) {
-                if(return_handler.generated && return_handler.generated->getType()->isPointerTy()) {
-                    return return_handler.generated;
-                }
-                // non-struct-like return was generated as a plain value,
-                // materialize it into an alloca so a pointer can be returned
-                const auto alloca = gen.builder->CreateAlloca(return_handler.generated->getType());
-                gen.di.instr(alloca, last_func_call);
-                gen.builder->CreateStore(return_handler.generated, alloca);
-                return alloca;
+            // a comptime call captured inside a %runtime_value was already
+            // evaluated while the enclosing comptime scope was alive; translate
+            // its stored result. otherwise the call is evaluated directly here
+            // (a returned %runtime_value / %runtime_block_value is fully
+            // self-contained: its captured comptime variables were evaluated
+            // into an evaluated copy at return time)
+            Value* ret_value = nullptr;
+            if(last_func_call->captured_ref_owner && last_func_call->captured_ref_index >= 0 && last_func_call->captured_ref_index < (int) last_func_call->captured_ref_owner->refs.size()) {
+                ret_value = last_func_call->captured_ref_owner->refs[last_func_call->captured_ref_index].evaluated;
+            }
+            if(!ret_value) {
+                auto& ret = gen.eval_comptime(last_func_call, func_decl);
+                ret_value = ret;
             }
             if(ret_value) {
                 return ret_value->llvm_pointer(gen);
@@ -466,22 +463,19 @@ llvm::Value* Value::loadable_access_chain_pointer(
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
         if(func_decl && func_decl->is_comptime()) {
-            // the return handler generates the llvm ir for the returned value
-            // while the comptime interpret scope is still alive, so use that
-            // instead of re-translating the returned expression (which would
-            // need the now dead interpret scope)
-            LLVMReturnHandler return_handler(gen);
-            auto& ret_value = gen.eval_comptime(last_func_call, func_decl, &return_handler);
-            if(return_handler.handled) {
-                if(return_handler.generated && return_handler.generated->getType()->isPointerTy()) {
-                    return return_handler.generated;
-                }
-                // non-struct-like return was generated as a plain value,
-                // materialize it into an alloca so a pointer can be returned
-                const auto alloca = gen.builder->CreateAlloca(return_handler.generated->getType());
-                gen.di.instr(alloca, last_func_call);
-                gen.builder->CreateStore(return_handler.generated, alloca);
-                return alloca;
+            // a comptime call captured inside a %runtime_value was already
+            // evaluated while the enclosing comptime scope was alive; translate
+            // its stored result. otherwise the call is evaluated directly here
+            // (a returned %runtime_value / %runtime_block_value is fully
+            // self-contained: its captured comptime variables were evaluated
+            // into an evaluated copy at return time)
+            Value* ret_value = nullptr;
+            if(last_func_call->captured_ref_owner && last_func_call->captured_ref_index >= 0 && last_func_call->captured_ref_index < (int) last_func_call->captured_ref_owner->refs.size()) {
+                ret_value = last_func_call->captured_ref_owner->refs[last_func_call->captured_ref_index].evaluated;
+            }
+            if(!ret_value) {
+                auto& ret = gen.eval_comptime(last_func_call, func_decl);
+                ret_value = ret;
             }
             if(ret_value) {
                 switch(ret_value->kind()) {

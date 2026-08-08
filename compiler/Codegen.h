@@ -12,7 +12,6 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/BaseTypeKind.h"
 #include "ASTDiagnoser.h"
-#include "ast/base/ComptimeReturnHandler.h"
 #include "OutputMode.h"
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
@@ -164,15 +163,6 @@ public:
      * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction
      */
     std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
-
-    /**
-     * the interpret scope where the top most comptime function's return value
-     * is being interpreted, set by the return handler (handle_return_value)
-     * right before generating llvm ir for the returned runtime value.
-     * identifiers that are linked with a CapturedComptimeVariable node look up
-     * this scope (by node identifier) to find the captured variable's value
-     */
-    InterpretScope* current_comptime_scope = nullptr;
 
     /**
      * implicit arguments are provided using provide as statement
@@ -567,12 +557,12 @@ public:
      * the given call is linked with given comptime function decl, that is evaluated to receive the return value
      * using this function, the evaluation is done once, so this function caches the return value
      *
-     * the given return handler is installed on the comptime scope for the
-     * duration of the call, so a return of a runtime value from the top most
-     * comptime function is translated to llvm ir by the handler while the
-     * interpret scope is still alive
+     * the returned value of a %runtime_value / %runtime_block_value is fully
+     * self-contained (the captured comptime variables were evaluated into an
+     * evaluated copy of the runtime value at return time), so it can be
+     * translated after the interpret scope has been destroyed
      */
-    Value*& eval_comptime(FunctionCall* call, FunctionDeclaration* decl, ComptimeReturnHandler* return_handler);
+    Value*& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
      * stores the value, into the pointer, it's an assignment, it takes care of auto dereferences during
@@ -779,52 +769,6 @@ public:
      * destructor takes care of deallocating members
      */
     ~Codegen();
-
-};
-
-/**
- * stack local implementation of ComptimeReturnHandler for the LLVM backend,
- * mirroring the C translation's ToCReturnHandlerBase.
- *
- * created on the stack at the call site where the returned value of a comptime
- * function is translated. handle_return_value is invoked by the return
- * statement (set_return) of the top most comptime function that is called from
- * the runtime mode (codegen), while the interpret scope where the return is
- * being interpreted is still alive. it sets that scope on the codegen (and on
- * the global interpret scope) so identifiers that are linked with a
- * CapturedComptimeVariable node can resolve the captured variable's value (by
- * node identifier, using find_value) while the returned value is translated to
- * llvm ir.
- */
-class LLVMReturnHandler : public ComptimeReturnHandler {
-public:
-
-    /**
-     * set to true when handle_return_value is invoked, meaning the function
-     * returned through set_return and the handler already translated the
-     * returned value to llvm ir. functions that return the value directly
-     * without going through set_return (intrinsics like intrinsics::size that
-     * override call) never invoke the handler, so the call site must translate
-     * the returned value itself
-     */
-    bool handled = false;
-
-    /**
-     * the llvm ir generated for the returned value, valid only when handled
-     * is true. for struct-like returns it is a pointer to an alloca slot
-     */
-    llvm::Value* generated = nullptr;
-
-    /**
-     * the codegen the returned value is translated with
-     */
-    Codegen& gen;
-
-    explicit LLVMReturnHandler(Codegen& gen) : gen(gen) {
-
-    }
-
-    void handle_return_value(InterpretScope& scope, Value* value) final;
 
 };
 

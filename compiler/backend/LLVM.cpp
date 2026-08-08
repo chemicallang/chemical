@@ -644,26 +644,15 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_typ
 }
 
 static Value* captured_comptime_resolved_value(Codegen& gen, CapturedComptimeVariable* captured) {
-    const auto nodeId = captured->linked->get_node_identifier();
-    if(nodeId.empty()) {
-        gen.error(captured) << "couldn't determine node identifier for a captured comptime variable";
+    // the returned %runtime_value / %runtime_block_value evaluated the captured
+    // variables when it was returned (evaluated_value created an evaluated
+    // copy), so the value is resolved through the owning runtime value's refs
+    // (parent + index)
+    if(!captured->parent_refs || captured->index >= captured->parent_refs->refs.size() || !captured->parent_refs->refs[captured->index].evaluated) {
+        gen.error(captured) << "couldn't find the value of the captured comptime variable";
         return nullptr;
     }
-    // the value of this variable exists in the interpret scope where the top
-    // most comptime function's return is being interpreted, the backend's
-    // return handler sets this pointer on the codegen right before translating
-    // the returned runtime value
-    const auto scope = gen.current_comptime_scope;
-    if(!scope) {
-        gen.error(captured) << "no comptime interpret scope is available to resolve a captured comptime variable";
-        return nullptr;
-    }
-    const auto val = scope->find_value(nodeId);
-    if(!val) {
-        gen.error(captured) << "couldn't find the value of the captured comptime variable in the interpret scope";
-        return nullptr;
-    }
-    return val;
+    return captured->parent_refs->refs[captured->index].evaluated;
 }
 
 llvm::Type *CapturedComptimeVariable::llvm_type(Codegen &gen) {

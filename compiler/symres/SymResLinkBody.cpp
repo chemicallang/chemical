@@ -512,15 +512,30 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
                     break;
                 }
                 case OutScopeResBehavior::AutoComptimeCapture: {
-                    const auto captured = new (getAstAllocator().allocate<CapturedComptimeVariable>()) CapturedComptimeVariable(sym->activeNode, sym->activeNode, identifier->encoded_location());
-                    identifier->linked = captured;
-                    identifier->setType(sym->activeNode->known_type());
-                    if (check_access) {
-                        // check for validity if accessible or assignable (because moved)
-                        check_id(identifier, diagnoser);
+                    // the identifier references a variable from outside the
+                    // %runtime_value / %runtime_block_value being symbol
+                    // resolved, so it is captured: a CapturedComptimeVariable
+                    // bridge node is linked to the identifier and registered
+                    // in the enclosing runtime value's captured refs with its
+                    // index. when the runtime value is returned (evaluated
+                    // value), the captured variable's value is evaluated into
+                    // the refs and the backends translate it through the
+                    // bridge
+                    if(!capturing_runtime_stack.empty()) {
+                        const auto captured = new (getAstAllocator().allocate<CapturedComptimeVariable>()) CapturedComptimeVariable(sym->activeNode, sym->activeNode, identifier->encoded_location());
+                        captured->parent_refs = capturing_runtime_stack.back();
+                        captured->index = captured->parent_refs->add_ref(captured, identifier->value);
+                        identifier->linked = captured;
+                        identifier->setType(sym->activeNode->known_type());
+                        if (check_access) {
+                            // check for validity if accessible or assignable (because moved)
+                            check_id(identifier, diagnoser);
+                        }
+                        identifier->process_linked(&diagnoser, current_func_type);
+                        return;
                     }
-                    identifier->process_linked(&diagnoser, current_func_type);
-                    return;
+                    // no enclosing runtime value: fall through to the error path
+                    break;
                 }
             }
         } else {
@@ -2137,6 +2152,22 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     const auto parent_val = call->parent_val;
     visit(parent_val, nullptr);
     link_call_without_parent(*this, call, exp_type, true);
+    // a comptime call inside a %runtime_value / %runtime_block_value is a value
+    // that must be evaluated while the enclosing comptime scope (and its call
+    // stack) is still alive: location-aware intrinsics like
+    // intrinsics::get_call_loc resolve the first runtime call site through the
+    // call stack, and call arguments may reference the enclosing function's
+    // locals. the call is therefore registered into the runtime value's
+    // captured refs and evaluated when the runtime value is evaluated
+    // (evaluated_value); during translation it is resolved through its ref
+    // instead of being evaluated with a dead scope
+    if(!capturing_runtime_stack.empty()) {
+        const auto decl = call->safe_linked_func();
+        if(decl && decl->is_comptime()) {
+            call->captured_ref_index = (int) capturing_runtime_stack.back()->add_call_ref(call);
+            call->captured_ref_owner = capturing_runtime_stack.back();
+        }
+    }
     // we miss setting the type of the function call (even though we shouldn't)
     // therefore this checks and fixes that
     if (call->getType() == nullptr) {
@@ -2759,6 +2790,9 @@ void SymResLinkBody::VisitRuntimeValue(RuntimeValue* value) {
     const auto prev_scope_start = lambda_scope_start;
     lambda_scope_start = val_scope_start;
 
+    // push the runtime value so captured variables are registered into its refs
+    capturing_runtime_stack.emplace_back(&value->captured_refs);
+
     // visit
     visit(value->underlying);
     // determine type
@@ -2766,6 +2800,7 @@ void SymResLinkBody::VisitRuntimeValue(RuntimeValue* value) {
     runtimeType->underlying = value->underlying->getType();
 
     // reset back
+    capturing_runtime_stack.pop_back();
     in_lambda_scope = prev_lamb_scope;
     out_scope_res_behavior = prev_cap_behavior;
     lambda_scope_start = prev_scope_start;
@@ -2790,6 +2825,9 @@ void SymResLinkBody::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
     const auto prev_scope_start = lambda_scope_start;
     lambda_scope_start = val_scope_start;
 
+    // push the runtime value so captured variables are registered into its refs
+    capturing_runtime_stack.emplace_back(&value->captured_refs);
+
     // visit the variables
     for(auto node : value->scope.nodes) {
         visit(node);
@@ -2809,6 +2847,7 @@ void SymResLinkBody::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
     runtimeType->underlying = stmt_expr->getType();
 
     // reset back
+    capturing_runtime_stack.pop_back();
     in_lambda_scope = prev_lamb_scope;
     out_scope_res_behavior = prev_cap_behavior;
     lambda_scope_start = prev_scope_start;

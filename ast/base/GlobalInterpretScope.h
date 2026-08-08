@@ -7,7 +7,6 @@
 #pragma once
 
 #include "InterpretScope.h"
-#include "ComptimeReturnHandler.h"
 #include "ASTAllocator.h"
 #include "compiler/ASTDiagnoser.h"
 #include <vector>
@@ -69,45 +68,6 @@ public:
      * pure interpretation mode
      */
     bool is_runtime_call = false;
-
-    /**
-     * set to true by the backend's return handler while it is translating a
-     * returned runtime value (inside handle_return_value).
-     *
-     * used to intercept nested comptime function calls that are being
-     * translated from within the handler's visit (e.g. a comptime call inside
-     * a %runtime_block_value's scope), where the nested return value can only
-     * be translated while the nested interpret scope is still alive
-     */
-    bool in_return_handler = false;
-
-    /**
-     * when set, a return statement of the top most comptime function that is
-     * called from the runtime mode (codegen) will be handled by this handler,
-     * implemented by the backend (C translator or LLVM backend).
-     *
-     * the handler translates the returned runtime value while the interpret
-     * scope where the return is being interpreted is still alive, so captured
-     * comptime variables can be resolved
-     */
-    ComptimeReturnHandler* return_handler = nullptr;
-
-    /**
-     * the interpret scope where the top most comptime function's return is
-     * being interpreted. the backend's return handler sets this right before
-     * translating the returned runtime value and restores it afterwards, so
-     * the scope (and the parameters/locals stored in it) stays alive while
-     * the value is translated, and is only destroyed after translation.
-     *
-     * identifiers that are linked with a CapturedComptimeVariable (a variable
-     * auto captured from the comptime environment, referenced inside a
-     * %runtime_value) resolve their value through this scope. this is used by
-     * the backend's own identifier translation (C translator / LLVM) and by
-     * the interpreter when it evaluates such identifiers, for example a nested
-     * comptime intrinsic call like intrinsics::size invoked from within the
-     * returned expression
-     */
-    InterpretScope* current_capture_scope = nullptr;
 
     /**
      * a pointer to backend context is stored, so compile time

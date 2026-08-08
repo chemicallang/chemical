@@ -27,6 +27,7 @@
 #include "ast/structures/If.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/RuntimeValue.h"
 #include "ast/types/CapturingFunctionType.h"
 #include <cstdlib>
 #include <optional>
@@ -981,12 +982,31 @@ llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* valu
     // return time), so it can be translated here, after the comptime interpret
     // scope has been destroyed
     const auto evaluated = eval_comptime(called, makeFnDecl);
-    if(pointer && evaluated->kind() == ValueKind::FunctionCall) {
-        const auto call = evaluated->as_func_call_unsafe();
-        return call->llvm_chain_value(*this, pointer);
-    } else {
-        return evaluated->llvm_value(*this);
+    if(pointer) {
+        // the comptime make function returns a %runtime_value wrapping a
+        // runtime call (make2) that builds the function instance; translate
+        // that call directly into the destination slot, matching the old
+        // behavior where evaluated_value returned the underlying call node
+        auto translated = evaluated;
+        if(translated->kind() == ValueKind::RuntimeValue) {
+            translated = ((RuntimeValue*) translated)->underlying;
+        }
+        if(translated->kind() == ValueKind::FunctionCall) {
+            const auto call = translated->as_func_call_unsafe();
+            return call->llvm_chain_value(*this, pointer);
+        }
+        // materialize a non-call result into the destination slot
+        auto src = translated->llvm_pointer(*this);
+        if(!src) {
+            src = translated->llvm_allocate(*this, "", translated->getType());
+        }
+        if(src) {
+            memcpy_struct(translated->getType()->llvm_type(*this), pointer, src, value->encoded_location());
+            return pointer;
+        }
+        return nullptr;
     }
+    return evaluated->llvm_value(*this);
 }
 
 llvm::StructType* Codegen::fat_pointer_type() {

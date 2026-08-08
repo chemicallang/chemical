@@ -287,7 +287,15 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     const auto switch_statement = parent();
     auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
     const auto expr_type = switch_statement->expression->getType();
-    if(expr_type && expr_type->kind() == BaseTypeKind::Pointer) {
+    // when the switched expression is a pointer or reference stored inside a
+    // struct member (or a local pointer/reference variable), llvm_pointer
+    // returns the address of the storage slot (a pointer to a pointer). we must
+    // load it to get the pointer to the actual variant value.
+    // is_stored_ptr_or_ref (via direct_linked_node) is deliberately false for
+    // DereferenceValue, whose llvm_pointer already yields the final pointer.
+    if(switch_statement->expression->is_stored_ptr_or_ref(gen.allocator)) {
+        holder_pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), holder_pointer);
+    } else if(expr_type && expr_type->kind() == BaseTypeKind::Pointer) {
         holder_pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), holder_pointer);
     }
     const auto linked_member = member_param->parent();

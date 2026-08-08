@@ -203,3 +203,62 @@ func test_int_edge_cases() {
         return c == 5i32
     })
 }
+
+// ═══════════════════════════════════════════════════════
+// Unsigned modulus (LLVM backend used to emit `srem` for `%`,
+// which produced negative remainders for values with the top
+// bit set, e.g. u64 9223372036854775808 % 10 == -8 instead of 8)
+// ═══════════════════════════════════════════════════════
+
+func test_unsigned_modulus() {
+
+    test("modulus on u64 with the top bit set works", () => {
+        var x : u64 = 9223372036854775808u64
+        return (x % 10u64) == 8u64
+    })
+
+    test("modulus on u64 max works", () => {
+        var x : u64 = 18446744073709551615u64
+        return (x % 10u64) == 5u64
+    })
+
+    test("modulus on u32 with the top bit set works", () => {
+        var x : u32 = 2147483648u32
+        return (x % 10u32) == 8u32
+    })
+
+    test("modulus on u16 with the top bit set works", () => {
+        var x : u16 = 32768u16
+        return (x % 10u16) == 8u16
+    })
+
+    test("modulus on ubigint with the top bit set works", () => {
+        var x : ubigint = 9223372036854775808u64
+        return (x % 10u64) == 8u64
+    })
+
+    test("division and modulus on u64 with the top bit set work", () => {
+        var x : u64 = 9223372036854775808u64
+        return (x / 10u64) == 922337203685477580u64 && (x % 10u64) == 8u64
+    })
+
+    test("modulus on unsigned variable against signed literal works", () => {
+        var x : u64 = 9223372036854775808u64
+        return (x % 10) == 8u64
+    })
+
+    test("signed modulus on negative values still works", () => {
+        var x : i64 = -9223372036854775807i64 - 1i64
+        return (x % 10i64) == -8i64
+    })
+
+    test("signed modulus on small negative values still works", () => {
+        var x : i64 = -5i64
+        return (x % 3i64) == -2i64
+    })
+
+    test("modulus on signed positive values still works", () => {
+        var x : i64 = 9223372036854775807i64
+        return (x % 10i64) == 7i64
+    })
+}

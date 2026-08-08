@@ -206,7 +206,13 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 }
             }
         case Operation::Modulus:
-            return builder->CreateSRem(lhs, rhs); // Signed remainder
+            if(is_floating) {
+                return builder->CreateFRem(lhs, rhs);
+            } else if(is_unsigned()) {
+                return builder->CreateURem(lhs, rhs);
+            } else {
+                return builder->CreateSRem(lhs, rhs);
+            }
         case Operation::Addition:
             if(is_floating) {
                 return builder->CreateFAdd(lhs, rhs);

@@ -39,6 +39,7 @@ public func run_common_tests() {
     test_for_loop();
     test_inc_dec();
     test_int_edge_cases();
+    test_unsigned_modulus();
     test_c_codegen_truncation();
 
     // Type system tests
@@ -170,6 +171,8 @@ public func run_common_tests() {
     test_sizeof_alignof()
     test_failing_code()
     test_variant_pattern_matching();
+    test_pattern_match_reference_member();
+    test_pattern_match_reference_member_chain();
     test_if();
 
     // Parallel generic instantiation tests

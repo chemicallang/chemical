@@ -47,7 +47,17 @@ bool PatternMatchIdentifier::add_child_index(Codegen &gen, std::vector<llvm::Val
 }
 
 llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
-    const auto pointer = expression->llvm_pointer(gen);
+    auto pointer = expression->llvm_pointer(gen);
+    // when the matched expression is a pointer or reference stored inside a
+    // struct member (or a local pointer/reference variable), llvm_pointer
+    // returns the address of the storage slot (a pointer to a pointer). we must
+    // load it to get the pointer to the actual variant value, otherwise the
+    // payload GEP reads garbage. is_stored_ptr_or_ref (via direct_linked_node)
+    // is deliberately false for DereferenceValue, whose llvm_pointer already
+    // yields the final pointer.
+    if(expression->is_stored_ptr_or_ref(gen.allocator)) {
+        pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), pointer);
+    }
     const auto elseKind = elseExpression.kind;
     if(elseKind == PatternElseExprKind::DefValue) {
 
@@ -148,7 +158,13 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
 
 void PatternMatchExpr::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) {
 
-    const auto pointer = expression->llvm_pointer(gen);
+    auto pointer = expression->llvm_pointer(gen);
+    // see llvm_value above: stored pointer/reference slots need a single load;
+    // DereferenceValue must NOT be loaded again (its llvm_pointer already
+    // returns the final pointer)
+    if(expression->is_stored_ptr_or_ref(gen.allocator)) {
+        pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), pointer);
+    }
 
     // must be set
     llvm_expr = pointer;

@@ -197,3 +197,91 @@ func test_variant_pattern_matching() {
         return value == 23
     })
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Pattern matching through a reference member of a struct.
+//
+// Bug history: the LLVM backend used the address of the reference *slot*
+// (a pointer to a pointer) as the variant pointer, instead of loading the
+// reference. Extracted values were garbage (e.g. 0 instead of 42).
+// ═══════════════════════════════════════════════════════════════════════
+
+struct PMRefHolder {
+    var value : &PMOpt1
+}
+
+func get_pm_via_ref_member(h : &PMRefHolder) : int {
+    var Some(value) = h.value else unreachable
+    return value
+}
+
+func get_pm_via_ref_member_if(h : &PMRefHolder) : int {
+    if(h.value is PMOpt1.Some) {
+        var Some(value) = h.value else unreachable
+        return value
+    }
+    return -1
+}
+
+func get_pm_via_ref_member_switch(h : &PMRefHolder) : int {
+    switch(h.value) {
+        Some(value) => {
+            return value
+        }
+        None() => {
+            return -1
+        }
+    }
+}
+
+func test_pattern_match_reference_member() {
+    test("pattern match through a reference member works - 1", () => {
+        var o = PMOpt1.Some(10)
+        var h = PMRefHolder { value : &o }
+        return get_pm_via_ref_member(&h) == 10
+    })
+    test("pattern match through a reference member works - 2", () => {
+        var o = PMOpt1.Some(20)
+        var h = PMRefHolder { value : &o }
+        return get_pm_via_ref_member_if(&h) == 20
+    })
+    test("pattern match through a reference member works - 3", () => {
+        var o = PMOpt1.None()
+        var h = PMRefHolder { value : &o }
+        return get_pm_via_ref_member_if(&h) == -1
+    })
+    test("pattern match through a reference member works - 4", () => {
+        var o = PMOpt1.Some(30)
+        var h = PMRefHolder { value : &o }
+        return get_pm_via_ref_member_switch(&h) == 30
+    })
+    test("pattern match through a reference member works - 5", () => {
+        var o = PMOpt1.None()
+        var h = PMRefHolder { value : &o }
+        return get_pm_via_ref_member_switch(&h) == -1
+    })
+    test("pattern match in if body directly through reference member works", () => {
+        var o = PMOpt1.Some(77)
+        var h = PMRefHolder { value : &o }
+        var Some(value) = h.value else unreachable
+        return value == 77
+    })
+}
+
+struct PMRefHolder2 {
+    var holder : &PMRefHolder
+}
+
+func get_pm_via_ref_member_chain(h : &PMRefHolder2) : int {
+    var Some(value) = h.holder.value else unreachable
+    return value
+}
+
+func test_pattern_match_reference_member_chain() {
+    test("pattern match through nested reference members in a chain works", () => {
+        var o = PMOpt1.Some(55)
+        var h = PMRefHolder { value : &o }
+        var h2 = PMRefHolder2 { holder : &h }
+        return get_pm_via_ref_member_chain(&h2) == 55
+    })
+}

@@ -144,12 +144,6 @@ public:
     std::unordered_map<Value*, std::string> destructible_refs;
 
     /**
-     * comptime functions are evaluated once and put on this unordered map
-     * once used, they are disposed as well
-     */
-    std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
-
-    /**
      * map tells which static interfaces have implementations
      * at the end, we iterate over every static interface here and generate a stub
      */

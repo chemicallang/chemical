@@ -43,6 +43,7 @@ public enum ValueKind {
     ExtractionValue,
     WrapValue,
     RuntimeValue,
+    RuntimeBlockValue,
 
     EmbeddedValue,
 

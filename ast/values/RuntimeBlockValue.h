@@ -7,9 +7,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/AccessChain.h"
 
-// TODO: remove this
 class InterpretScope;
-Value* evaluated_comptime(Value* value, InterpretScope& scope);
 
 class RuntimeBlockValue : public Value {
 public:

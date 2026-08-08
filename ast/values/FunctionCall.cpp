@@ -25,6 +25,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
 #include "ast/values/DynamicValue.h"

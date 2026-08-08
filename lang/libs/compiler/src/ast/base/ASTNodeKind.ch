@@ -53,6 +53,7 @@ public enum ASTNodeKind {
     GenericTypeParam,
     VariantMemberParam,
     CapturedVariable,
+    CapturedComptimeVariable,
     VariantCaseVariable,
     PatternMatchId,
 

@@ -236,4 +236,7 @@ public enum ChemicalTokenType {
     StringExprStart,
     StringExprEnd,
 
+    IndexKwStart = ForKw,
+    IndexKwEnd = ConstKw,
+
 }

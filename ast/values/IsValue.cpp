@@ -12,6 +12,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/PointerValue.h"
 
 Value* IsValue::evaluated_value(InterpretScope &scope) {
     auto& typeBuilder = scope.global->typeBuilder;
@@ -22,6 +23,14 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
     // Runtime variant member check: handle `value is VariantType.Member` expressions
     if(value) {
         auto evalVal = value->evaluated_value(scope);
+        // the checked value may be a reference stored inside a struct member
+        // (e.g. h.value where value : &Variant) — dereference it to get the variant
+        if(evalVal && evalVal->val_kind() == ValueKind::PointerValue) {
+            auto deref = ((PointerValue*) evalVal)->deref(scope, encoded_location(), evalVal);
+            if(deref) {
+                evalVal = deref;
+            }
+        }
         if(evalVal && evalVal->val_kind() == ValueKind::StructValue) {
             auto structVal = evalVal->as_struct_value_unsafe();
             auto typeLinked = type->get_linked_canonical_node(true, false);

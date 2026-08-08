@@ -445,22 +445,24 @@ public:
 
 };
 
-Value* resolve_ref(Value* val, InterpretScope *call_scope) {
-    Value* value = nullptr;
+static Value* evaluate_val_once(Value* val, InterpretScope *call_scope) {
     if(val->reference()) {
         auto linked = val->linked_node();
         // this var init case handles var inits outside comptime functions which don't get put on the interpret scope
         if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
-            value = linked->as_var_init_unsafe()->value;
+            return linked->as_var_init_unsafe()->value;
         } else {
-            value = val->evaluated_value(*call_scope);
+            return val->evaluated_value(*call_scope);
         }
     } else {
-        value = val->evaluated_value(*call_scope);
+        return val->evaluated_value(*call_scope);
     }
-    // TODO: remove this after removing return this in the variable identifier
+}
+
+static Value* resolve_ref(Value* val, InterpretScope *call_scope) {
+    const auto value = evaluate_val_once(val, call_scope);
     if(value && value->reference()) {
-        return resolve_ref(value, call_scope);
+        return evaluate_val_once(value, call_scope);
     }
     return value;
 }

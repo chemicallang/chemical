@@ -344,46 +344,46 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto found = scope.find_value(value);
     if (found != nullptr) {
-        // Resolve through chains of VariableIdentifiers to prevent
-        // infinite recursion in child(). If the found value is itself
-        // an identifier, resolve it further.
-        // TODO: remove this, it maybe of no use, and cause stackoverflow
-        // TODO: verify tests after removal
-        if(found->val_kind() == ValueKind::Identifier && found != this) {
-            return static_cast<VariableIdentifier*>(found)->evaluated_value(scope);
-        }
         return found;
     }
     auto linkedNode = linked_node();
-    if(linkedNode) {
-        const auto linked_kind = linkedNode->kind();
-        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+    if(linkedNode == nullptr) {
+        return nullptr;
+    }
+    const auto linked_kind = linkedNode->kind();
+    switch (linked_kind) {
+        case ASTNodeKind::NamespaceDecl:
+            return this;
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::UnnamedStruct: {
             const auto found_self = scope.find_value("self");
             if(found_self) {
                 // Guard against self-referencing: when this same VariableIdentifier
                 // is stored in the scope under "self", resolving would cause infinite
                 // recursion. Return this to let child() handle the nullptr path.
                 if(found_self == this) return this;
+                // getting the child
                 auto childResult = found_self->child(scope, value);
                 if(childResult && childResult->val_kind() == ValueKind::Identifier && childResult != this) {
                     return static_cast<VariableIdentifier*>(childResult)->evaluated_value(scope);
                 }
                 return childResult;
             }
-        } else if(linked_kind == ASTNodeKind::VarInitStmt) {
+            return this;
+        }
+        case ASTNodeKind::VarInitStmt: {
             const auto init = linked->as_var_init_unsafe();
             if(init->is_const()) {
-                auto constVal = init->value;
-                // TODO: remove this and test after removal
-                if(constVal && constVal->val_kind() == ValueKind::Identifier && constVal != this) {
-                    return static_cast<VariableIdentifier*>(constVal)->evaluated_value(scope);
-                }
-                return constVal;
+                return init->value;
             }
-        } else if(linked_kind == ASTNodeKind::EnumMember) {
+            return this;
+        }
+        case ASTNodeKind::EnumMember: {
             const auto mem = linked->as_enum_member_unsafe();
             return mem->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
-        } else if(linked_kind == ASTNodeKind::CapturedComptimeVariable) {
+        }
+        case ASTNodeKind::CapturedComptimeVariable: {
             // an identifier that references a variable auto captured from the
             // comptime environment (a parameter/local of a comptime function
             // used inside a %runtime_value). the value of that variable exists
@@ -401,8 +401,9 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
                     return captured;
                 }
             }
+            return this;
         }
+        default:
+            return this;
     }
-    // TODO: try returning a nullptr
-    return this;
 }

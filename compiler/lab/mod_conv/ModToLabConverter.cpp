@@ -311,7 +311,13 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
                     break;
                 case ModFileLinkLibKind::Path:
-                    output << "\tctx.add_lib_search_path(__chx_job, lab::rel_path_to(\"" << lib.name << "\").to_view(), null)\n";
+                    // store the path in a variable first: calling .to_view() on a
+                    // temporary std::string is rejected by type checking (lifetime
+                    // dependency on a destroyed temporary)
+                    output << "\t{\n";
+                    output << "var rel_path = lab::rel_path_to(\"" << lib.name << "\");";
+                    output << "\t\tctx.add_lib_search_path(__chx_job, rel_path.to_view(), null)\n";
+                    output << "\t}\n";
                     break;
             }
             if(has_if) {
@@ -328,7 +334,13 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 writeIfConditional(ship.if_cond, output);
                 output << ") {\n\t";
             }
-            output << "\tctx.ship_file(__chx_job, lab::rel_path_to(\"" << ship.path << "\").to_view());\n";
+            // store the path in a variable first: calling .to_view() on a
+            // temporary std::string is rejected by type checking (lifetime
+            // dependency on a destroyed temporary)
+            output << "\t{\n";
+            output << "var rel_path = lab::rel_path_to(\"" << ship.path << "\");";
+            output << "\t\tctx.ship_file(__chx_job, rel_path.to_view());\n";
+            output << "\t}\n";
             if(has_if) {
                 output << "\t}\n";
             }

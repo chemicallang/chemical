@@ -513,66 +513,6 @@ public:
     }
 };
 
-Value* evaluated_comptime(Value* value, InterpretScope& scope) {
-    switch(value->val_kind()) {
-        case ValueKind::AccessChain: {
-            const auto chain = value->as_access_chain_unsafe();
-            unsigned size = chain->values.size();
-            const auto first = chain->values[0];
-            if(size == 1) {
-                return evaluated_comptime(first, scope);
-            } else {
-                // partially evaluating the access chain
-                const auto first_eval = evaluated_comptime(first, scope);
-                return evaluate_from(chain->values, scope, first_eval, 1);
-            }
-        }
-        case ValueKind::FunctionCall: {
-            const auto call = value->as_func_call_unsafe();
-            const auto decl = call->safe_linked_func();
-            if(decl && decl->is_comptime()) {
-                return call->evaluated_value(scope);
-            } else {
-                const auto copied = call->copy(scope.allocator);
-                copied->parent_val = (Value*) evaluated_comptime(call->parent_val, scope);
-                auto i = 0;
-                const auto args_size = copied->values.size();
-                while(i < args_size) {
-                    auto& arg = copied->values[i];
-                    arg = evaluated_comptime(arg, scope);
-                    i++;
-                }
-                return copied;
-            }
-        }
-        // explicitly should be evaluated when present in a wrap
-        case ValueKind::SizeOfValue:
-        case ValueKind::AlignOfValue:
-            return value;
-        case ValueKind::CastedValue: {
-            const auto casted = value->as_casted_value_unsafe();
-            const auto copied = (CastedValue*) casted->copy(scope.allocator);
-            copied->value = evaluated_comptime(copied->value, scope);
-            return copied;
-        }
-        case ValueKind::Expression: {
-            const auto expr = value->as_expression_unsafe();
-            const auto copied = (Expression*) expr->copy(scope.allocator);
-            copied->firstValue = evaluated_comptime(copied->firstValue, scope);
-            copied->secondValue = evaluated_comptime(copied->secondValue, scope);
-            return copied;
-        }
-        case ValueKind::ReferenceOfValue: {
-            const auto refValue = value->as_reference_of_value_unsafe();
-            const auto evaluated_value = evaluated_comptime(refValue->value, scope);
-            return new (scope.allocate<ReferenceOfValue>()) ReferenceOfValue(evaluated_value, refValue->is_mutable, refValue->getType(), refValue->encoded_location());
-        }
-        default:
-            const auto eval = value->evaluated_value(scope);
-            return eval ? eval : value;
-    }
-}
-
 bool is_interpretation_mode(InterpretScope* call_scope) {
     return call_scope->global->interpretation_mode;
 }

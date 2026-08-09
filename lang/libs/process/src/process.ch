@@ -174,6 +174,4 @@ public func kill(child : *mut ChildProcess, signal : int) : UT_Result {
     }
 }
 
-@extern public func TerminateProcess(hProcess : *mut void, exitCode : u32) : bool
-
 } // end namespace process

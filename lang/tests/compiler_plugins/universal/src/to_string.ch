@@ -38,7 +38,7 @@ public func universal_element_in_html_works_js(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Greeting /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"` Hello `"}); }\nwindow.$__uni_dispatch('universal_lib_test_Greeting', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nwindow.$__uni_dispatch('universal_lib_test_Greeting', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -51,7 +51,7 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"` Hello `"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, (() => { const html = ${"`<span>Hello</span>`"}; return $_uc_h(html, "universal_lib_test_Greeting", {}); })()); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, (() => { const html = ${"`<span>Hello</span>`"}; return $_uc_h(html, "universal_lib_test_Greeting", {}); })()); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
 }
 
@@ -170,7 +170,7 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
     #html { <ConditionalRender show={true} /> }
     
     var js = std::string()
-    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, (window.$__uni_value(props.show) ? $_ur.createElement("span", {}, ${"` Show `"}) : $_ur.createElement("span", {}, ${"` Hide `"}))); }\nwindow.$__uni_dispatch('universal_lib_test_ConditionalRender', document.getElementById('u${page.getComponentId(0)}'), {"show":1});\n`)
+    js.append_expr(`function universal_lib_test_ConditionalRender(props) { return $_ur.createElement("div", {}, (window.$__uni_value(props.show) ? $_ur.createElement("span", {}, ${"`Show`"}) : $_ur.createElement("span", {}, ${"`Hide`"}))); }\nwindow.$__uni_dispatch('universal_lib_test_ConditionalRender', document.getElementById('u${page.getComponentId(0)}'), {"show":1});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 
@@ -210,7 +210,7 @@ public func universal_backtick_in_text(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <BacktickText /> }
     var js = std::string()
-    js.append_expr(`function universal_lib_test_BacktickText(props) { return $_ur.createElement("p", {}, ${"` The code is \\`sync.status\\` and \\`lastSyncedAt\\`. `"}); }\nwindow.$__uni_dispatch('universal_lib_test_BacktickText', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    js.append_expr(`function universal_lib_test_BacktickText(props) { return $_ur.createElement("p", {}, ${"`The code is \\`sync.status\\` and \\`lastSyncedAt\\`.`"}); }\nwindow.$__uni_dispatch('universal_lib_test_BacktickText', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 #universal ParenthesizedTernaryLabel(item) {

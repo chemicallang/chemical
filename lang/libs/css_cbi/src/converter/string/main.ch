@@ -1288,8 +1288,10 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             const pair = value.data as *mut CSSValuePair
             converter.writeValue(&mut pair.first)
-            str.append(' ');
-            converter.writeValue(&mut pair.second)
+            if(pair.second.kind != CSSValueKind.Unknown) {
+                str.append(' ');
+                converter.writeValue(&mut pair.second)
+            }
 
         }
 
@@ -1902,7 +1904,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
         var sel_str = std::string();
         var k : uint = 0;
         while(k < current_selectors.size()) {
-            if(k > 0) sel_str.append_view(", ");
+            if(k > 0) sel_str.append_view(",");
             sel_str.append_view(current_selectors.get_ptr(k).view());
             k++;
         }
@@ -1915,7 +1917,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
              converter.convertDeclaration(decl);
              idx++;
         }
-        str.append('}');
+        str.append_view(" }");
         converter.put_chain_in();
     }
     
@@ -1960,7 +1962,7 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
              converter.convertDeclaration(om.declarations.get(i));
              i++;
          }
-         str.append('}');
+         str.append_view(" }");
          converter.put_chain_in();
      }
      
@@ -2033,20 +2035,24 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         const total = builder.allocate_view(std::string_view(&raw className[0], 9u));
         const classView = std::string_view(total.data() + 1, 7u);
 
-        converter.put_view_chain(&total)
         om.className = classView
-        
-        var i : uint = 0
-        while(i < size) {
-            var decl = om.declarations.get(i)
-            converter.convertDeclaration(decl)
-            i++;
-        }
-        
-        // Main class block end
-        if(str.empty()) {
-            converter.put_char_chain('}')
-        } else {
+
+        // Only emit the .rHash{...} class block when there is something that needs
+        // the generated class as a selector: direct root declarations, media query
+        // declarations, or keyframes. If the user only wrote selectors/nested rules
+        // (global css), there is nothing to apply to the generated class name, so
+        // skip it entirely.
+        if(size > 0 || !om.media_queries.empty() || !om.keyframes.empty()) {
+            converter.put_view_chain(&total)
+
+            var i : uint = 0
+            while(i < size) {
+                var decl = om.declarations.get(i)
+                converter.convertDeclaration(decl)
+                i++;
+            }
+
+            // Main class block end
             str.append('}')
             converter.put_chain_in();
         }

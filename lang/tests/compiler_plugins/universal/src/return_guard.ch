@@ -15,7 +15,7 @@ public func universal_return_guard_fetch_js(env : &mut TestEnv) {
         <ReturnGuardFetch />
     }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_ReturnGuardFetch(props) { if(window.$__uni_value(props.cond)) return; fetch(); return $_ur.createElement("span", {}, ${"` ok `"}); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardFetch', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_ReturnGuardFetch(props) { if(window.$__uni_value(props.cond)) return; fetch(); return $_ur.createElement("span", {}, ${"`ok`"}); }\nwindow.$__uni_dispatch('universal_lib_test_ReturnGuardFetch', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view())
 }
 

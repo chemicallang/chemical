@@ -638,9 +638,9 @@ public func nested_queries_test(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
     expected.append_view(&classView)
-    expected.append_view(".blue { color:blue;}");
+    expected.append_view(".blue { color:blue; }");
     expected.append_view(&classView)
-    expected.append_view("#yellow { color:yellow;}");
+    expected.append_view("#yellow { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -662,9 +662,9 @@ public func nested_queries_test2(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
     expected.append_view(&classView)
-    expected.append_view(" .blue { color:blue;}");
+    expected.append_view(" .blue { color:blue; }");
     expected.append_view(&classView)
-    expected.append_view(" #yellow { color:yellow;}");
+    expected.append_view(" #yellow { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -686,9 +686,9 @@ public func nested_queries_test3(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
     expected.append_view(&classView)
-    expected.append_view(" > .blue { color:blue;}");
+    expected.append_view(" > .blue { color:blue; }");
     expected.append_view(&classView)
-    expected.append_view(" > #yellow { color:yellow;}");
+    expected.append_view(" > #yellow { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -710,9 +710,9 @@ public func nested_queries_test4(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
     expected.append_view(&classView)
-    expected.append_view(" ~ .blue { color:blue;}");
+    expected.append_view(" ~ .blue { color:blue; }");
     expected.append_view(&classView)
-    expected.append_view(" ~ #yellow { color:yellow;}");
+    expected.append_view(" ~ #yellow { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -734,9 +734,9 @@ public func nested_queries_test5(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
     expected.append_view(&classView)
-    expected.append_view(":hover { color:red;}");
+    expected.append_view(":hover { color:red; }");
     expected.append_view(&classView)
-    expected.append_view("::before { color:blue;}");
+    expected.append_view("::before { color:blue; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -754,7 +754,7 @@ public func nested_queries_test6(env : &mut TestEnv) {
     var classView = std::string_view(got.data(), 8)
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
-    expected.append_view("div { color:red;}");
+    expected.append_view("div { color:red; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -773,7 +773,7 @@ public func nested_queries_test7(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}div > ");
     expected.append_view(&classView)
-    expected.append_view(" { color:red;}");
+    expected.append_view(" { color:red; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -795,9 +795,9 @@ public func nested_queries_test8(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}.blue ");
     expected.append_view(&classView)
-    expected.append_view(" { color:blue;}#yellow ");
+    expected.append_view(" { color:blue; }#yellow ");
     expected.append_view(&classView)
-    expected.append_view(" { color:yellow;}");
+    expected.append_view(" { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -817,7 +817,7 @@ public func nested_queries_test9(env : &mut TestEnv) {
     expected.append_view(&classView)
     expected.append_view("{color:red;}.blue ");
     expected.append_view(&classView)
-    expected.append_view(" { color:blue;}");
+    expected.append_view(" { color:blue; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 

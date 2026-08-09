@@ -2412,20 +2412,15 @@ public namespace tls {
         if(ret < 0) { return X509_BADCERT_EXPIRED as i32 }
 
         // Get current UTC time
-        var now : time_t = 0
-        time(&raw mut now)
+        var now_st = std::chrono::SystemTime::now()
+        var now_dt = datetime::DateTime::from_system_time(&now_st)
 
-        // Decompose current UTC time into components
-        var now_tm : tm
-        var gm_ret = gmtime_r(&raw now, &raw mut now_tm)
-        if(gm_ret == null) { return X509_BADCERT_EXPIRED as i32 }
-
-        var now_year = now_tm.year + 1900
-        var now_month = now_tm.mon + 1
-        var now_day = now_tm.mday
-        var now_hour = now_tm.hour
-        var now_min = now_tm.min
-        var now_sec = now_tm.sec
+        var now_year = now_dt.year_val()
+        var now_month = now_dt.month_val()
+        var now_day = now_dt.day_val()
+        var now_hour = now_dt.hour_val()
+        var now_min = now_dt.minute_val()
+        var now_sec = now_dt.second_val()
 
         // Compare current time to notBefore (cert not yet valid -> FUTURE)
         if(now_year < from_year) { return X509_BADCERT_FUTURE }

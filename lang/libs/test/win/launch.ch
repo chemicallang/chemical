@@ -11,10 +11,16 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     si.cb = sizeof(si);
     ZeroMemory(&raw mut pi, sizeof(pi));
 
-    var cmd = std::string()
+var cmd = std::string()
     cmd.append_char_ptr(exe_path)
-    cmd.append(' ');
+    cmd.append(' ')
     cmd.append_char_ptr("--test-id ");
+    append_integer(&mut cmd, id);
+
+    // On Windows, comm_id is only used as a sentinel to tell the child it is a child
+    // (is_child = comm_id != -1). The actual pipe connection is made by test id.
+    cmd.append(' ')
+    cmd.append_char_ptr("--comm-id ");
     append_integer(&mut cmd, id);
 
     // get pipe name
@@ -33,6 +39,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     );
 
     if (hPipe == INVALID_HANDLE_VALUE) {
+        fprintf(get_stderr(), "CreateNamedPipeA failed for test id %d, pipe '%s'\n", id, pipeName.data());
         print_last_error("CreateNamedPipeA")
         return 1;
     }
@@ -120,6 +127,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+    CloseHandle(hPipe);
 
     return 0;
 

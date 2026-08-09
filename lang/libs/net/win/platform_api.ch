@@ -72,4 +72,9 @@ public namespace net {
         ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
     }
 
+    public func set_blocking(s: Socket) {
+        var argp: u32 = 0u;
+        ioctlsocket(s as uintptr_t, FIONBIO, &raw mut argp);
+    }
+
 }

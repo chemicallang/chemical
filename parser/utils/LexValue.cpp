@@ -1258,27 +1258,27 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
         switch(num) {
             case 8:
                 if(is_unsigned) {
-                    const auto num_value = parse_num(value, suffix_index, strtoul);
+                    const auto num_value = parse_num(value, suffix_index, strtoull);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getU8Type(), location), num_value.error };
                 } else {
-                    const auto num_value = parse_num(value, suffix_index, strtol);
+                    const auto num_value = parse_num(value, suffix_index, strtoll);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getI8Type(), location), num_value.error };
                 }
             case 16:
                 if(is_unsigned) {
-                    const auto num_val = parse_num(value, suffix_index, strtoul);
+                    const auto num_val = parse_num(value, suffix_index, strtoull);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned short) num_val.result, typeBuilder.getU16Type(), location), num_val.error };
                 } else {
-                    const auto num_value = parse_num(value, suffix_index, strtol);
+                    const auto num_value = parse_num(value, suffix_index, strtoll);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((short) num_value.result, typeBuilder.getI16Type(), location), num_value.error };
                 }
                 break;
             case 32:
                 if(is_unsigned) {
-                    const auto num_val = parse_num(value, suffix_index, strtoul);
+                    const auto num_val = parse_num(value, suffix_index, strtoull);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned int) num_val.result, typeBuilder.getU32Type(), location), num_val.error };
                 } else {
-                    const auto num_val = parse_num(value, suffix_index, strtol);
+                    const auto num_val = parse_num(value, suffix_index, strtoll);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((int) num_val.result, typeBuilder.getI32Type(), location), num_val.error };
                 }
                 break;
@@ -1332,7 +1332,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
         case 'u': {
             // mut_value[last_char_index] = '\0';
             const auto parse_size = suffix_index == value_size ? last_char_index : suffix_index;
-            const auto num_val = parse_num(value, parse_size, strtoul);
+            const auto num_val = parse_num(value, parse_size, strtoull);
             // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<IntNumValue>()) IntNumValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error};
         }
@@ -1340,7 +1340,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
         case 'I': {
             // mut_value[last_char_index] = '\0';
             const auto parse_size = suffix_index == value_size ? last_char_index : suffix_index;
-            const auto num_val = parse_num(value, parse_size, strtol);
+            const auto num_val = parse_num(value, parse_size, strtoll);
             // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<IntNumValue>()) IntNumValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error};
         }
@@ -1351,13 +1351,13 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 const auto sec_last = value[sec_last_index];
                 if(sec_last == 'u' || sec_last == 'U') {
                     // mut_value[sec_last_index] = '\0';
-                    const auto num_value = parse_num(value, sec_last_index, strtoul);
+                    const auto num_value = parse_num(value, sec_last_index, strtoull);
                     // mut_value[sec_last_index] = sec_last;
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue(num_value.result, typeBuilder.getULongType(), location), err.empty() ? num_value.error : err };
                 }
             }
             // mut_value[last_char_index] = '\0';
-            const auto num_value = parse_num(value, last_char_index, strtol);
+            const auto num_value = parse_num(value, last_char_index, strtoll);
             // mut_value[last_char_index] = last_char;
             return { new (alloc.allocate<IntNumValue>()) IntNumValue(num_value.result, typeBuilder.getLongType(), location), err.empty() ? num_value.error : err };
         }

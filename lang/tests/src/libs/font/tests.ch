@@ -116,7 +116,8 @@ public func text_metrics_struct_works(env : &mut TestEnv) {
 
 @test
 public func font_load_nonexistent_file(env : &mut TestEnv) {
-    var result = font::font_load("/tmp/nonexistent_font_file.ttf")
+    var font_path = make_temp_test_path("nonexistent_font_file.ttf")
+    var result = font::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 
@@ -125,20 +126,22 @@ public func font_load_garbage_data(env : &mut TestEnv) {
     // Write garbage data to temp file and try to load it
     var garbage : [20]u8; var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
-    var write_result = fs::write_text_file("/tmp/test_bad_font.ttf", &raw garbage[0], 20)
+    var font_path = make_temp_test_path("test_bad_font.ttf")
+    var write_result = fs::write_text_file(font_path.data(), &raw garbage[0], 20)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load("/tmp/test_bad_font.ttf")
+    var result = font::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on garbage data") }
 }
 
 @test
 public func font_load_too_small(env : &mut TestEnv) {
     var tiny : [4]u8 = [0, 0, 0, 0]
-    var write_result = fs::write_text_file("/tmp/test_tiny_font.ttf", &raw tiny[0], 4)
+    var font_path = make_temp_test_path("test_tiny_font.ttf")
+    var write_result = fs::write_text_file(font_path.data(), &raw tiny[0], 4)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load("/tmp/test_tiny_font.ttf")
+    var result = font::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on <12 byte file") }
 }
 
@@ -148,10 +151,11 @@ public func font_load_bad_sfnt_version(env : &mut TestEnv) {
     var data : [12]u8
     data[0] = 0x00; data[1] = 0x00; data[2] = 0x00; data[3] = 0x00  // sfVersion = 0, not 0x00010000
     data[4] = 0; data[5] = 0  // numTables = 0
-    var write_result = fs::write_text_file("/tmp/test_bad_sfnt.ttf", &raw data[0], 12)
+    var font_path = make_temp_test_path("test_bad_sfnt.ttf")
+    var write_result = fs::write_text_file(font_path.data(), &raw data[0], 12)
     if(write_result is Result.Err) { env.error("should write temp file"); return }
 
-    var result = font::font_load("/tmp/test_bad_sfnt.ttf")
+    var result = font::font_load(font_path.data())
     if(result is Result.Ok) { env.error("should fail on bad sfVersion") }
 }
 

@@ -520,10 +520,11 @@ public func audio_wav_save_roundtrip(env : &mut TestEnv) {
     sptr[1] = -6789
     a.loaded = true
 
-    var save_result = audio::save_wav(&raw mut a, "/tmp/test_roundtrip.wav")
+    var wav_path = make_temp_test_path("test_roundtrip.wav")
+    var save_result = audio::save_wav(&raw mut a, wav_path.data())
     if(save_result is Result.Err) { env.error("save WAV failed"); return }
 
-    var load_result = audio::load_wav("/tmp/test_roundtrip.wav")
+    var load_result = audio::load_wav(wav_path.data())
     if(load_result is Result.Err) { env.error("load WAV failed"); return }
     var Ok(loaded) = load_result else unreachable
     if(loaded.sample_rate != 22050) { env.error("roundtrip sample rate") }
@@ -666,6 +667,7 @@ public func audio_wav_no_data_chunk(env : &mut TestEnv) {
 
 @test
 public func audio_load_wav_nonexistent(env : &mut TestEnv) {
-    var result = audio::load_wav("/tmp/nonexistent_audio_file.wav")
+    var wav_path = make_temp_test_path("nonexistent_audio_file.wav")
+    var result = audio::load_wav(wav_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }

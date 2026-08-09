@@ -145,6 +145,12 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
     }
     const t = getNextToken2(html, lexer);
+    // after_chem_expr only preserves the whitespace immediately following a
+    // chemical expression; once any other token (text, tags, ...) is produced
+    // the flag must be cleared, otherwise trailing whitespace before the
+    // macro close (e.g. after "</div>" in "<div>{x}Text</div>") would leak
+    // into the output.
+    html.after_chem_expr = false;
     // printf("created token : %.*s with type %d\n", t.value.size(), t.value.data(), t.type);
     return t;
 }

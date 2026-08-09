@@ -435,9 +435,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.put_chain_in();
              } else {
                  var decoded = decode_html_entities(text.value);
-                 converter.str.append_view("` ");
+                 converter.str.append_view("`");
                  converter.escapeJs(decoded.to_view());
-                 converter.str.append_view(" `");
+                 converter.str.append_view("`");
              }
         }
         JsNodeKind.Paren => {

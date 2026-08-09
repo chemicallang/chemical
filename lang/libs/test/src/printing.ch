@@ -237,7 +237,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
             }
             printf("\n");
             if(!s.failed_msg_parse.empty()) {
-                printf("     failed message parsing with message : %s\n");
+                printf("     failed message parsing with message : %s\n", s.failed_msg_parse.data());
             }
 
             /* Print logs, if any */

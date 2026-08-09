@@ -139,7 +139,10 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         }
         var buf : uint8_t* = null
         if(len > 0) {
-            buf = malloc(len) as *mut uint8_t
+            // allocate one extra byte so the payload is NUL-terminated;
+            // the message parsers (read_str, strchr, strlen, strtol) scan
+            // for a '\0' and would otherwise read past the buffer
+            buf = malloc(len + 1) as *mut uint8_t
             if(!buf) {
                 close(parent_fd)
                 var status : int
@@ -158,6 +161,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
                 }
                 return -1;
             }
+            buf[len] = 0
         }
 
         process_message(state, buf as *char)

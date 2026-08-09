@@ -2499,7 +2499,7 @@ bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor) {
         visitor.visit(cap);
     }
     bool result = true;
-    for (auto& param : fn->params) {
+    for (const auto param : fn->params) {
         link_param(visitor, param);
         visitor.visit(param);
     }
@@ -2524,21 +2524,39 @@ void link_lambda_body(unsigned long scope_index, LambdaFunction* fn, SymResLinkB
 bool link_full(LambdaFunction* fn, SymResLinkBody& visitor) {
     auto scope_index = visitor.table.scope_start_index();
     const auto result = link_params_and_caps(fn, visitor);
+    // parameters with no types, set to void types
+    // otherwise we crash on nullptr, after resolving parameters
+    for (const auto param : fn->params) {
+        if (!param->type) {
+            param->type = TypeLoc(visitor.getTypeBuilder().getVoidType(), param->encoded_location());
+        }
+    }
     link_lambda_body(scope_index, fn, visitor);
     visitor.table.scope_end();
     return result;
 }
 
 void copy_func_params_types(
+        const TypeBuilder& tyBuilder,
         const std::vector<FunctionParam*>& from_params,
         std::vector<FunctionParam*>& to_params,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         Value* debug_value
 ) {
+    // if user gives way too many parameters in lambda function, more than the actual function type
+    // we set excessive parameters' type to void
     if(to_params.size() > from_params.size()) {
         diagnoser.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " parameters however given " << std::to_string(to_params.size());
-        return;
+        // set rest of the parameters of lambda function to void type
+        // we've already given error, this avoids crashing on nullptr in this visitor
+        auto s = from_params.size();
+        const auto total = to_params.size();
+        while (s < total) {
+            to_params[s]->type = TypeLoc(tyBuilder.getVoidType(), to_params[s]->encoded_location());
+        }
+        // continue on, so rest of the parameters, get their type
+        // this is important, because if type remains null, we crash on it
     }
     auto total = from_params.size();
     auto start = 0;
@@ -2576,6 +2594,7 @@ void copy_func_params_types(
 }
 
 bool link_lambda(
+        const TypeBuilder& tyBuilder,
         LambdaFunction* func,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
@@ -2583,7 +2602,7 @@ bool link_lambda(
 ) {
     auto& params = func->params;
     auto& returnType = func->returnType;
-    copy_func_params_types(func_type->params, params, allocator, diagnoser, func);
+    copy_func_params_types(tyBuilder, func_type->params, params, allocator, diagnoser, func);
     if(!returnType) {
         returnType = func_type->returnType;
     } else if(!returnType->is_same(func_type->returnType)) {
@@ -2670,7 +2689,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
         // will also create parameters that don't exist, assign types to parameters not given
         // assigned types won't be visited (assumed linked)
-        link_lambda(lambVal, getAstAllocator(), diagnoser, func_type);
+        link_lambda(getTypeBuilder(), lambVal, getAstAllocator(), diagnoser, func_type);
 
         // link the body
         link_lambda_body(scope_index, lambVal, *this);

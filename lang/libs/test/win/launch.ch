@@ -11,7 +11,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     si.cb = sizeof(si);
     ZeroMemory(&raw mut pi, sizeof(pi));
 
-var cmd = std::string()
+    var cmd = std::string()
     cmd.append_char_ptr(exe_path)
     cmd.append(' ')
     cmd.append_char_ptr("--test-id ");
@@ -75,7 +75,32 @@ var cmd = std::string()
 
     var buffer : [2048]char;
     var bytesRead : DWORD;
+    // Named pipe handles are waitable objects: WaitForSingleObject(hPipe, ms)
+    // returns when a message is available or the pipe is broken. Poll it with a
+    // short timeout so the overall test timeout is enforced while the child is
+    // alive but silent (mirrors the posix poll() read loop). Without this, a
+    // hung child would block ReadFile forever and hang the whole test run.
+    var start_time = std::chrono::Instant::now()
+    var timed_out = false
     while(true) {
+        var wait_res = WaitForSingleObject(hPipe, 100);
+        if(wait_res == 258 as DWORD) { // WAIT_TIMEOUT
+            var now = std::chrono::Instant::now()
+            var elapsed_ms = now.duration_since(&start_time).as_millis()
+            if(elapsed_ms >= timeout_ms as i64) {
+                TerminateProcess(pi.hProcess, 1)
+                var l = TestLog()
+                l.type = LogType.Error
+                l.message.append_view("Test timed out after 10s")
+                state.logs.push(l)
+                state.has_failed = true
+                state.exitCode = 1 // dummy exit code for timeout
+                timed_out = true
+                break
+            }
+            continue
+        }
+
         if (ReadFile(hPipe, &raw mut buffer[0], sizeof(buffer)-1, &raw mut bytesRead, null)) {
             if(bytesRead > 0) {
                 buffer[bytesRead] = '\0'; // null terminate
@@ -102,25 +127,27 @@ var cmd = std::string()
         }
     }
 
-    // Wait for process to finish
-    // WAIT_TIMEOUT is 258
-    var waitRes = WaitForSingleObject(pi.hProcess, timeout_ms as DWORD);
+    // Wait for process to finish (skipped when the read loop already timed out and killed it)
+    if(!timed_out) {
+        // WAIT_TIMEOUT is 258
+        var waitRes = WaitForSingleObject(pi.hProcess, timeout_ms as DWORD);
 
-    if(waitRes == 258 as DWORD) {
-        TerminateProcess(pi.hProcess, 1)
-        var l = TestLog()
-        l.type = LogType.Error
-        l.message.append_view("Test timed out after 10s")
-        state.logs.push(l)
-        state.has_failed = true
-        state.exitCode = 1 // dummy exit code for timeout
-    } else {
-        var exitCode : DWORD;
-        if (GetExitCodeProcess(pi.hProcess, &raw mut exitCode)) {
-            // set the exit code in state
-            state.exitCode = exitCode;
-            if(exitCode != 0 && !state.fn.pass_on_crash) {
-                state.has_failed = true;
+        if(waitRes == 258 as DWORD) {
+            TerminateProcess(pi.hProcess, 1)
+            var l = TestLog()
+            l.type = LogType.Error
+            l.message.append_view("Test timed out after 10s")
+            state.logs.push(l)
+            state.has_failed = true
+            state.exitCode = 1 // dummy exit code for timeout
+        } else {
+            var exitCode : DWORD;
+            if (GetExitCodeProcess(pi.hProcess, &raw mut exitCode)) {
+                // set the exit code in state
+                state.exitCode = exitCode;
+                if(exitCode != 0 && !state.fn.pass_on_crash) {
+                    state.has_failed = true;
+                }
             }
         }
     }

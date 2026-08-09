@@ -668,10 +668,11 @@ public func image_png_save_load_roundtrip(env : &mut TestEnv) {
     var red = image::RGBA8.make(255, 0, 0, 255)
     image::image_set_rgba(&raw mut img, 10, 10, red)
 
-    var save_result = image::save_png(&raw mut img, "/tmp/test_save.png")
+    var png_path = make_temp_test_path("test_save.png")
+    var save_result = image::save_png(&raw mut img, png_path.data())
     if(save_result is Result.Err) { env.error("PNG save failed"); return }
 
-    var load_result = image::load_png("/tmp/test_save.png")
+    var load_result = image::load_png(png_path.data())
     if(load_result is Result.Err) { env.error("PNG load failed"); return }
     var Ok(loaded) = load_result else unreachable
     if(image::image_width(&raw mut loaded) != 32) { env.error("width should be 32") }
@@ -686,7 +687,8 @@ public func image_png_save_load_roundtrip(env : &mut TestEnv) {
 
 @test
 public func image_load_png_nonexistent(env : &mut TestEnv) {
-    var result = image::load_png("/tmp/nonexistent_file_xyz.png")
+    var png_path = make_temp_test_path("nonexistent_file_xyz.png")
+    var result = image::load_png(png_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 
@@ -729,10 +731,11 @@ public func image_bmp_save_load_roundtrip(env : &mut TestEnv) {
     var red = image::RGBA8.make(255, 0, 0, 255)
     image::image_fill(&raw mut img, red)
 
-    var save_result = image::save_bmp(&raw mut img, "/tmp/test_bmp.bmp")
+    var bmp_path = make_temp_test_path("test_bmp.bmp")
+    var save_result = image::save_bmp(&raw mut img, bmp_path.data())
     if(save_result is Result.Err) { env.error("BMP save failed"); return }
 
-    var load_result = image::load_bmp("/tmp/test_bmp.bmp")
+    var load_result = image::load_bmp(bmp_path.data())
     if(load_result is Result.Err) { env.error("BMP load failed"); return }
     var Ok(loaded) = load_result else unreachable
     if(image::image_width(&raw mut loaded) != 16) { env.error("width should be 16") }
@@ -783,7 +786,8 @@ public func image_bmp_negative_height_top_down(env : &mut TestEnv) {
 
 @test
 public func image_load_bmp_nonexistent(env : &mut TestEnv) {
-    var result = image::load_bmp("/tmp/nonexistent_file_xyz.bmp")
+    var bmp_path = make_temp_test_path("nonexistent_file_xyz.bmp")
+    var result = image::load_bmp(bmp_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 
@@ -810,10 +814,11 @@ public func image_ppm_save_load_p6_roundtrip(env : &mut TestEnv) {
         i += 1
     }
 
-    var save_result = image::save_ppm(&raw mut img, "/tmp/test_ppm.ppm")
+    var ppm_path = make_temp_test_path("test_ppm.ppm")
+    var save_result = image::save_ppm(&raw mut img, ppm_path.data())
     if(save_result is Result.Err) { env.error("PPM save failed"); return }
 
-    var load_result = image::load_ppm("/tmp/test_ppm.ppm")
+    var load_result = image::load_ppm(ppm_path.data())
     if(load_result is Result.Err) { env.error("PPM load failed"); return }
     var Ok(loaded) = load_result else unreachable
     if(image::image_width(&raw mut loaded) != 8) { env.error("width should be 8") }
@@ -857,12 +862,14 @@ public func image_ppm_parse_p3_ascii(env : &mut TestEnv) {
 @test
 public func image_save_ppm_non_rgb_fails(env : &mut TestEnv) {
     var img = image::image_create_rgba(4, 4)
-    var result = image::save_ppm(&raw mut img, "/tmp/test_invalid.ppm")
+    var ppm_path = make_temp_test_path("test_invalid.ppm")
+    var result = image::save_ppm(&raw mut img, ppm_path.data())
     if(result is Result.Ok) { env.error("saving RGBA as PPM should fail") }
 }
 
 @test
 public func image_load_ppm_nonexistent(env : &mut TestEnv) {
-    var result = image::load_ppm("/tmp/nonexistent_file_xyz.ppm")
+    var ppm_path = make_temp_test_path("nonexistent_file_xyz.ppm")
+    var result = image::load_ppm(ppm_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }

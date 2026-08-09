@@ -320,11 +320,12 @@ public func zip_writer_save_to_file(env : &mut TestEnv) {
     var d : [5]u8 = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
     archive::zip_writer_add_file(&raw mut writer, "data.bin\0" as *char, &raw d[0], 5)
 
-    var save_result = archive::zip_writer_save(&raw mut writer, "/tmp/test_writer_save.zip")
+    var zip_path = make_temp_test_path("test_writer_save.zip")
+    var save_result = archive::zip_writer_save(&raw mut writer, zip_path.data())
     if(save_result is Result.Err) { env.error("should save ZIP to file"); return }
 
     var a = archive::ZipArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    var open_result = archive::open_zip("/tmp/test_writer_save.zip", &raw mut a)
+    var open_result = archive::open_zip(zip_path.data(), &raw mut a)
     if(open_result is Result.Err) { env.error("should open saved ZIP"); return }
     if(archive::zip_entry_count(&raw mut a) != 1) { env.error("should have 1 entry") }
 }
@@ -397,7 +398,8 @@ public func deflate_decompress_stored_from_zip(env : &mut TestEnv) {
 @test
 public func tar_nonexistent_file_rejected(env : &mut TestEnv) {
     var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    var result = archive::open_tar("/tmp/does_not_exist_xyz.tar", &raw mut a)
+    var tar_path = make_temp_test_path("does_not_exist_xyz.tar")
+    var result = archive::open_tar(tar_path.data(), &raw mut a)
     if(result is Result.Ok) { env.error("nonexistent file should fail") }
 }
 
@@ -463,10 +465,11 @@ public func tar_parse_single_file(env : &mut TestEnv) {
 
     var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
     // Write tar to disk and open
-    var write_result = fs::write_text_file("/tmp/test_single_file.tar", tar_data.data(), tar_data.size())
+    var tar_path = make_temp_test_path("test_single_file.tar")
+    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar file"); return }
 
-    var open_result = archive::open_tar("/tmp/test_single_file.tar", &raw mut a)
+    var open_result = archive::open_tar(tar_path.data(), &raw mut a)
     if(open_result is Result.Err) { env.error("open tar should succeed"); return }
 
     if(archive::tar_entry_count(&raw mut a) != 1) { env.error("should have 1 entry") }
@@ -485,11 +488,12 @@ public func tar_find_entry_not_found(env : &mut TestEnv) {
     var data : [3]u8 = [0xAA, 0xBB, 0xCC]
     var tar_data = build_single_file_tar(string("present.txt"), &raw data[0], 3)
 
-    var write_result = fs::write_text_file("/tmp/test_tar_not_found.tar", tar_data.data(), tar_data.size())
+    var tar_path = make_temp_test_path("test_tar_not_found.tar")
+    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar"); return }
 
     var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    archive::open_tar("/tmp/test_tar_not_found.tar", &raw mut a)
+    archive::open_tar(tar_path.data(), &raw mut a)
 
     if(archive::tar_contains(&raw mut a, "absent.txt\0" as *char)) {
         env.error("should not contain absent.txt")
@@ -503,11 +507,12 @@ public func tar_entries_accessor(env : &mut TestEnv) {
     var data : [2]u8 = [0x01, 0x02]
     var tar_data = build_single_file_tar(string("a.dat"), &raw data[0], 2)
 
-    var write_result = fs::write_text_file("/tmp/test_tar_entries.tar", tar_data.data(), tar_data.size())
+    var tar_path = make_temp_test_path("test_tar_entries.tar")
+    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar"); return }
 
     var a = archive::TarArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
-    archive::open_tar("/tmp/test_tar_entries.tar", &raw mut a)
+    archive::open_tar(tar_path.data(), &raw mut a)
 
     var entries = archive::tar_entries(&raw mut a)
     if(entries.size() != 1) { env.error("should have 1 entry via accessor") }
@@ -524,10 +529,11 @@ public func archive_open_zip(env : &mut TestEnv) {
     archive::zip_writer_add_file(&raw mut writer, "hello.txt\0" as *char, &raw d[0], 3)
     archive::zip_writer_close(&raw mut writer)
 
-    var write_result = fs::write_text_file("/tmp/test_unified_archive.zip", writer.data.data(), writer.data.size())
+    var zip_path = make_temp_test_path("test_unified_archive.zip")
+    var write_result = fs::write_text_file(zip_path.data(), writer.data.data(), writer.data.size())
     if(write_result is Result.Err) { env.error("write zip"); return }
 
-    var  arc_result = archive::open("/tmp/test_unified_archive.zip")
+    var  arc_result = archive::open(zip_path.data())
     if( arc_result is Result.Err) { env.error("open unified archive"); return }
 
     var Ok(arc) =  arc_result else unreachable
@@ -545,10 +551,11 @@ public func archive_open_tar_via_unified(env : &mut TestEnv) {
     var content : [4]u8 = [0x44, 0x41, 0x54, 0x41]
     var tar_data = build_single_file_tar(string("info.txt"), &raw content[0], 4)
 
-    var write_result = fs::write_text_file("/tmp/test_unified_tar.tar", tar_data.data(), tar_data.size())
+    var tar_path = make_temp_test_path("test_unified_tar.tar")
+    var write_result = fs::write_text_file(tar_path.data(), tar_data.data(), tar_data.size())
     if(write_result is Result.Err) { env.error("write tar"); return }
 
-    var archive_result = archive::open("/tmp/test_unified_tar.tar")
+    var archive_result = archive::open(tar_path.data())
     if(archive_result is Result.Err) { env.error("open unified tar"); return }
 
     var Ok(arc) = archive_result else unreachable
@@ -565,15 +572,17 @@ public func archive_open_tar_via_unified(env : &mut TestEnv) {
 public func archive_open_invalid_format(env : &mut TestEnv) {
     var garbage : [20]u8; var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
-    var write_result = fs::write_text_file("/tmp/test_invalid_archive.bin", &raw garbage[0], 20)
+    var arc_path = make_temp_test_path("test_invalid_archive.bin")
+    var write_result = fs::write_text_file(arc_path.data(), &raw garbage[0], 20)
     if(write_result is Result.Err) { env.error("write"); return }
 
-    var result = archive::open("/tmp/test_invalid_archive.bin")
+    var result = archive::open(arc_path.data())
     if(result is Result.Ok) { env.error("invalid archive should fail") }
 }
 
 @test
 public func archive_open_nonexistent(env : &mut TestEnv) {
-    var result = archive::open("/tmp/does_not_exist_xyz.arc")
+    var arc_path = make_temp_test_path("does_not_exist_xyz.arc")
+    var result = archive::open(arc_path.data())
     if(result is Result.Ok) { env.error("nonexistent archive should fail") }
 }

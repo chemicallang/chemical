@@ -346,7 +346,17 @@ func test_generic_instantiation() {
     })
     test("generic size box works for long", () => {
         var b = GenericSizeBox<long> { value : 42 }
-        return sizeof(long) == 8
+        comptime if(def.is64Bit) {
+            comptime if(def.windows) {
+                // Windows uses the LLP64 data model: long is 4 bytes
+                return sizeof(long) == 4
+            } else {
+                // Linux/macOS use LP64: long is 8 bytes
+                return sizeof(long) == 8
+            }
+        } else {
+            return sizeof(long) == 4
+        }
     })
     test("generic size box works for short", () => {
         var b = GenericSizeBox<short> { value : 42 }

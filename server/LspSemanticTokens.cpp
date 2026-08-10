@@ -359,6 +359,8 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
     // linking signatures in all files
     unsigned i = 0;
+    std::vector<SymResSignatureResult> sig_results;
+    sig_results.reserve(fileUnits.size());
     for(const auto cachedUnit : fileUnits) {
 
         auto& unit = cachedUnit->unit;
@@ -366,7 +368,21 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
         auto& priv_sym_range = priv_sym_ranges[i];
 
-        resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range);
+        sig_results.emplace_back(resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range));
+
+        i++;
+    }
+
+    // generic instantiation pass in all files
+    i = 0;
+    for(const auto cachedUnit : fileUnits) {
+
+        auto& unit = cachedUnit->unit;
+        auto path_str = unit.scope.meta.abs_path;
+
+        auto& priv_sym_range = priv_sym_ranges[i];
+
+        resolver.generic_instantiation_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_range, sig_results[i]);
 
         i++;
     }
@@ -786,11 +802,26 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
             // linking signatures of all files in current module
             i = 0;
+            std::vector<SymResSignatureResult> sig_results;
+            sig_results.reserve(modData->fileUnits.size());
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
                 if (last_file->fileId != unit.scope.getFileId()) {
-                    resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i]);
+                    sig_results.emplace_back(resolver.link_signature_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i]));
+                } else {
+                    sig_results.emplace_back(SymResSignatureResult{});
                 }
+                i++;
+            }
+
+            // generic instantiation pass of all files in current module
+            i = 0;
+            for (const auto cachedUnit: modData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                if (last_file->fileId != unit.scope.getFileId()) {
+                    resolver.generic_instantiation_file(unit.scope.body, unit.scope.meta.file_id, priv_sym_ranges[i], sig_results[i]);
+                }
+                i++;
             }
 
             i = 0;

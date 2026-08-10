@@ -10,7 +10,9 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/FunctionCall.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/utils/ASTUtils.h"
 #include "preprocess/2c/BufferedWriter.h"
 
 #ifdef COMPILER_BUILD
@@ -117,6 +119,13 @@ void VarInitStatement::code_gen(Codegen &gen) {
     } else {
         if (value) {
 
+            // replace the value with a call to the implicit constructor if there is one
+            const auto exp_type = known_type_or_err();
+            const auto implicit = exp_type->implicit_constructor_for(value);
+            if (implicit) {
+                value = call_with_arg(implicit, value, exp_type, gen.allocator, gen);
+            }
+
             if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
                 llvm_ptr = initializer_value(gen);
                 put_destructible(gen);
@@ -125,7 +134,6 @@ void VarInitStatement::code_gen(Codegen &gen) {
             }
 
             // copy or move the struct, if required
-            const auto exp_type = known_type_or_err();
             if(value->requires_memcpy_ref_struct(exp_type)) {
                 const auto& name_v = name_view();
                 const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));

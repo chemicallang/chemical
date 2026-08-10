@@ -1081,8 +1081,13 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     if(value) {
         visit(value);
     }
-    if(type && value && !stmt->type->satisfies(value, false)) {
-        unsatisfied_type_err(diagnoser, allocator, value, type);
+    if(type && value) {
+        // an @implicit constructor converts the value to the variable's type,
+        // so the value itself does not need to satisfy the type
+        const auto implicit = stmt->type->implicit_constructor_for(value);
+        if(implicit == nullptr && !stmt->type->satisfies(value, false)) {
+            unsatisfied_type_err(diagnoser, allocator, value, type);
+        }
     }
     if(stmt->known_type()->kind() == BaseTypeKind::Void) {
         diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
@@ -1275,7 +1280,9 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
     // check assignment satisfies the lhs type
     switch(assign->assOp){
         case Operation::Assignment:
-            if (!lhsType->satisfies(value, true)) {
+            // an @implicit constructor converts the value to the lhs type,
+            // so the value itself does not need to satisfy the type
+            if (lhsType->implicit_constructor_for(value) == nullptr && !lhsType->satisfies(value, true)) {
                 unsatisfied_type_err(diagnoser, value, lhsType);
             }
             break;

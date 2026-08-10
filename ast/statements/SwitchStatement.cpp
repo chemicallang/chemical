@@ -251,14 +251,23 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     if(end) {
         if (all_scopes_return && last_block) {
-            end->eraseFromParent();
-            gen.destroy_current_scope = false;
-            if(!has_default_case()) {
-                if(auto_default_case && caseBlock) {
+            if(!has_default_case() && !(auto_default_case && caseBlock)) {
+                // there is no default and not every case is covered, so the
+                // switch can fall through into the `end` block (the code
+                // following the switch) — `end` is reachable and must be kept,
+                // matching the C backend where falling through simply continues
+                // after the switch statement
+                gen.SetInsertPoint(end);
+            } else {
+                // every path through the switch terminates (all cases return
+                // and the default destination is covered), so `end` is
+                // unreachable and can be removed
+                end->eraseFromParent();
+                gen.destroy_current_scope = false;
+                if(!has_default_case()) {
+                    // all variant members have a case, so the last case block
+                    // acts as the (unreachable) default destination
                     switchInst->setDefaultDest(caseBlock);
-                } else {
-                    gen.error(
-                            "A default case must be present when generating switch instruction or it must not be the last statement in the function", (ASTNode*) this);
                 }
             }
         } else {

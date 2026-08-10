@@ -1,0 +1,460 @@
+func is_ident_start(next : char) : bool {
+    return next == '_' || isalpha(next) || (next >= 0x80) || (next == '\\') || (next == '-');
+}
+
+public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
+    const provider = &mut lexer.provider;
+    // the position of the current symbol
+    const position = provider.getPosition();
+    const data_ptr = provider.current_data()
+    const c = provider.readCharacter();
+    switch(c) {
+        '\0' => {
+            return Token {
+                type : TokenType.EndOfFile as int,
+                value : view(""),
+                position : position
+            }
+        }
+        '&' => {
+            css.where_state = CSSLexerWhere.Selector;
+            return Token {
+                type : TokenType.Ampersand as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ':' => {
+            if(css.where_state == CSSLexerWhere.Declaration) {
+                css.where_state = CSSLexerWhere.Value
+                css.tokens_since_colon = 0
+                css.has_chemical_in_value = false
+            }
+            return Token {
+                type : TokenType.Colon as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ';' => {
+            if(css.where_state == CSSLexerWhere.Value) {
+                css.where_state = CSSLexerWhere.Declaration
+            }
+            css.tokens_since_colon = 0
+            css.has_chemical_in_value = false
+            return Token {
+                type : TokenType.Semicolon as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ',' => {
+            return Token {
+                type : TokenType.Comma as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '+' => {
+            return Token {
+                type : TokenType.Plus as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '-' => {
+            const next = provider.peek()
+            const next2 = provider.peek2()
+
+            if(isdigit(next) || (next == '.' && isdigit(next2))) {
+                provider.read_floating_digits()
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.Number as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            }
+
+            if (next == '-' || is_ident_start(next)) {
+                provider.read_css_id();
+                const value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                css.tokens_since_colon++;
+                if (css.where_state == CSSLexerWhere.Declaration) {
+                    return Token{
+                        type: TokenType.PropertyName as int,
+                        value: value,
+                        position: position
+                    };
+                } else {
+                    return Token{
+                        type: TokenType.Identifier as int,
+                        value: value,
+                        position: position
+                    };
+                }
+            }
+
+            return Token {
+                type : TokenType.Minus as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+
+        }
+        '.' => {
+            if(css.where_state == CSSLexerWhere.Selector || css.where_state == CSSLexerWhere.Declaration) {
+                css.where_state = CSSLexerWhere.Selector;
+                const start = provider.current_data()
+                provider.read_css_id()
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.ClassName as int,
+                    value : std::string_view(start, provider.current_data() - start),
+                    position : position
+                }
+            } else {
+                provider.read_digits()
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.Number as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            }
+        }
+        '(' => {
+            return Token {
+                type : TokenType.LParen as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ')' => {
+            return Token {
+                type : TokenType.RParen as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '@' => {
+            css.at_rule = true;
+            return Token {
+                type : TokenType.At as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '!' => {
+            provider.skip_whitespaces();
+            const start = provider.current_data()
+            provider.read_alpha();
+            if(strncmp(start, "important", provider.current_data() - start) == 0) {
+                return Token {
+                    type : TokenType.Important as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.Unexpected as int,
+                    value : view(""),
+                    position : position
+                }
+            }
+        }
+        '#' => {
+            if(css.where_state == CSSLexerWhere.Selector || css.where_state == CSSLexerWhere.Declaration) {
+                css.where_state = CSSLexerWhere.Selector;
+                const start = provider.current_data()
+                provider.read_css_id()
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.Id as int,
+                    value : std::string_view(start, provider.current_data() - start),
+                    position : position
+                }
+            } else {
+                provider.read_alpha_num()
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.HexColor as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            }
+        }
+        '%' => {
+            return Token {
+                type : TokenType.Percentage as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '*' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.ContainsSubstr as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            }  else {
+                return Token {
+                    type : TokenType.Multiply as int,
+                    value : std::string_view(data_ptr, 1),
+                    position : position
+                }
+            }
+        }
+        '^' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.StartsWith as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            }  else {
+                return Token {
+                    type : TokenType.Unexpected as int,
+                    value : view(""),
+                    position : position
+                }
+            }
+        }
+        '$' => {
+            switch(provider.peek()) {
+                '{' => {
+                    provider.readCharacter();
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.lb_count++;
+                    css.start_chemical_lb_count = css.lb_count;
+                    if(css.where_state == CSSLexerWhere.Value) {
+                        css.has_chemical_in_value = true;
+                    }
+                    return Token {
+                        type : TokenType.DollarLBrace as int,
+                        value : std::string_view(data_ptr, 2),
+                        position : position
+                    }
+                }
+                '=' => {
+                    provider.readCharacter();
+                    return Token {
+                        type : TokenType.EndsWith as int,
+                        value : std::string_view(data_ptr, 2),
+                        position : position
+                    }
+                }
+                default => {
+                    return Token {
+                        type : TokenType.Unexpected as int,
+                        value : view(""),
+                        position : position
+                    }
+                }
+            }
+        }
+        '|' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.DashSeparatedMatch as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            }  else {
+                return Token {
+                    type : TokenType.Unexpected as int,
+                    value : view(""),
+                    position : position
+                }
+            }
+        }
+        '"' => {
+            provider.read_double_quoted_value()
+            css.tokens_since_colon++;
+            return Token {
+                type : TokenType.DoubleQuotedValue as int,
+                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                position : position
+            }
+        }
+        '\'' => {
+            provider.read_single_quoted_value()
+            css.tokens_since_colon++;
+            return Token {
+                type : TokenType.SingleQuotedValue as int,
+                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                position : position
+            }
+        }
+        '~' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.ContainsWord as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.GeneralSibling as int,
+                    value : std::string_view(data_ptr, 1),
+                    position : position
+                }
+            }
+        }
+        '>' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.GreaterThanOrEqual as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.GreaterThan as int,
+                    value : std::string_view(data_ptr, 1),
+                    position : position
+                }
+            }
+        }
+        '<' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.LessThanOrEqual as int,
+                    value : std::string_view(data_ptr, 2),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.LessThan as int,
+                    value : std::string_view(data_ptr, 1),
+                    position : position
+                }
+            }
+        }
+        '/' => {
+            if(provider.peek() == '/') {
+                provider.increment()
+                const start = provider.current_data()
+                provider.read_line()
+                return Token {
+                    type : TokenType.Comment as int,
+                    value : std::string_view(start, provider.current_data() - start),
+                    position : position
+                }
+            } else if(provider.peek() == '*') {
+                provider.increment()
+                // skip multiline comment
+                while(true) {
+                    const ch = provider.readCharacter()
+                    if(ch == '\0') break;
+                    if(ch == '*' && provider.peek() == '/') {
+                        provider.increment()
+                        break;
+                    }
+                }
+                // return next token recursively
+                return getNextToken2(css, lexer)
+            } else {
+                return Token {
+                    type : TokenType.Divide as int,
+                    value : std::string_view(data_ptr, 1),
+                    position : position
+                }
+            }
+        }
+        '=' => {
+            return Token {
+                type : TokenType.Equal as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '}' => {
+            if(css.lb_count == 1) {
+                css.reset();
+                lexer.unsetUserLexer();
+            } else {
+                css.lb_count--;
+            }
+            css.tokens_since_colon = 0
+            css.has_chemical_in_value = false
+            return Token {
+                type : TokenType.RBrace as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        '{' => {
+            // here always lb_count > 0
+            css.lb_count++;
+            if(css.at_rule) {
+                css.at_rule = false;
+                css.where_state = CSSLexerWhere.Declaration;
+            } else if(css.where_state == CSSLexerWhere.Selector) {
+                css.where_state = CSSLexerWhere.Declaration;
+            } else if(css.where_state == CSSLexerWhere.Value) {
+                // has_chemical_in_value means we already entered chemical mode in this value,
+                // so this { is another chemical expression: e.g. color: {a} solid {b}
+                if(css.has_chemical_in_value) {
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.start_chemical_lb_count = css.lb_count;
+                } else if(css.tokens_since_colon == 0) {
+                    // No tokens since ':', this is a Chemical expression: color: {expr}
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.start_chemical_lb_count = css.lb_count;
+                    css.has_chemical_in_value = true;
+                } else {
+                    // Tokens were read since ':', this is a selector block: :root{...} or a:hover{...}
+                    css.where_state = CSSLexerWhere.Declaration;
+                }
+            }
+            return Token {
+                type : TokenType.LBrace as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ' ', '\t', '\n', '\r' => {
+            provider.skip_whitespaces();
+            return getNextToken2(css, lexer);
+        }
+        default => {
+            if(isdigit(c)) {
+                provider.read_floating_digits();
+                css.tokens_since_colon++;
+                return Token {
+                    type : TokenType.Number as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
+                }
+            } else {
+                provider.read_css_id()
+                var value = std::string_view(data_ptr, provider.current_data() - data_ptr)
+                css.tokens_since_colon++;
+                if(css.where_state == CSSLexerWhere.Declaration) {
+                    return Token {
+                        type : TokenType.PropertyName as int,
+                        value : value,
+                        position : position
+                    }
+                } else {
+                    return Token {
+                        type : TokenType.Identifier as int,
+                        value : value,
+                        position : position
+                    }
+                }
+            }
+        }
+    }
+}

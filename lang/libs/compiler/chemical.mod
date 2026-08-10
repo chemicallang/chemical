@@ -2,6 +2,7 @@ module compiler
 
 source "src"
 
+import cstd
 import std
 
 interface SourceProvider

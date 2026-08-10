@@ -710,6 +710,30 @@ llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::Fu
     }
 }
 
+llvm::Function* Codegen::define_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
+    // A strong definition is allowed to complete a symbol that was previously
+    // only declared: an external declaration created by an importing module
+    // (see declare_function / external_declare_nodes) or a weak stub created
+    // for a static interface method (see declare_weak_function) — the
+    // definition counterpart of declare_function.
+    // This mirrors the C backend, where a prototype is emitted first and the
+    // definition later completes the same symbol.
+    // NOTE: the definition's signature must match the declaration it completes.
+    const auto existing = module->getFunction(name);
+    if(existing != nullptr && (existing->isDeclaration() || existing->hasWeakLinkage())) {
+        // convert the declaration into a strong definition
+        existing->setLinkage(to_linkage_type(specifier));
+        // removes any stub body (weak symbols) and leaves exactly one empty
+        // entry block for body generation to fill (bare declarations have no
+        // blocks at all, so this creates the entry block for them)
+        cleanFunctionEntryBlock(existing);
+        return existing;
+    }
+    const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
+    createFunctionBlock(fn);
+    return fn;
+}
+
 void create_return_of_type(Codegen& gen, llvm::Type* retType, SourceLocation location) {
     if (retType->isVoidTy()) {
         gen.CreateRet(nullptr, location);

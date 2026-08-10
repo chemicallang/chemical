@@ -13,6 +13,7 @@ using std::string;
 @no_init @extern public struct GtkWidget {}
 @no_init @extern public struct GtkContainer {}
 @no_init @extern public struct GtkBox {}
+@no_init @extern public struct GtkFixed {}
 @no_init @extern public struct WebKitWebView {}
 @no_init @extern public struct WebKitSettings {}
 @no_init @extern public struct WebKitUserContentManager {}
@@ -45,6 +46,14 @@ const WEBKIT_LOAD_FINISHED = 4
 
 @extern public func gtk_box_new(orientation : int, spacing : int) : *mut GtkWidget
 @extern public func gtk_box_pack_start(box : *mut GtkBox, child : *mut GtkWidget, expand : int, fill : int, padding : u32)
+
+// GtkFixed: absolute-positioning container used by webview_attach to place the
+// webview in a section of an existing app window/container
+@extern public func gtk_fixed_new() : *mut GtkWidget
+@extern public func gtk_fixed_put(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
+@extern public func gtk_fixed_move(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
+@extern public func gtk_widget_show(widget : *mut GtkWidget)
+@extern public func gtk_widget_hide(widget : *mut GtkWidget)
 
 // WebKit functions
 @extern public func webkit_web_view_new() : *mut GtkWidget
@@ -86,6 +95,20 @@ public struct WebView {
     var window : *mut GtkWidget
     var web_view : *mut GtkWidget
     var box : *mut GtkWidget
+
+    // --- embed mode (webview_attach): the webview lives in a section of an
+    //     existing app window/container instead of its own top-level window.
+    //     `fixed` is a GtkFixed (added to the app's container) that holds the
+    //     webview at the section (bounds_x/y/w/h); native UI can live in the
+    //     rest of the app's window. ---
+    var attached : bool
+    var parent_widget : *mut GtkWidget
+    var fixed : *mut GtkWidget
+    var bounds_x : int
+    var bounds_y : int
+    var bounds_w : int
+    var bounds_h : int
+
     var title : string
     var width : int
     var height : int
@@ -98,6 +121,13 @@ public struct WebView {
             window : null,
             web_view : null,
             box : null,
+            attached : false,
+            parent_widget : null,
+            fixed : null,
+            bounds_x : 0,
+            bounds_y : 0,
+            bounds_w : 0,
+            bounds_h : 0,
             title : string("Chemical WebView"),
             width : 800,
             height : 600,
@@ -170,10 +200,103 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     return std.Result.Ok(std::Unit{})
 }
 
-@extern("gtk_container_add")
+// NOTE: @extern does not take a separate linkage name — the emitted C symbol
+// is the function's own name (no-mangled), which is exactly `gtk_container_add`
+// here, so a plain @extern is correct.
+@extern
 func gtk_container_add(container : *mut GtkContainer, child : *mut GtkWidget)
 
+// ===========================================================================
+// public API: embed the webview into a section of an existing app window
+// ===========================================================================
+
+// Attach the webview to an app-owned GtkWidget (a window or any container)
+// instead of creating its own top-level window. The webview occupies the
+// section (x, y, width, height) inside a GtkFixed that is added to the app's
+// container; native UI can live in the rest of the app's window. Move the
+// section with webview_set_bounds. On Linux `parent` is a *mut GtkWidget; on
+// Windows it is an HWND.
+public func webview_attach(
+    wv : *mut WebView,
+    parent : *mut GtkWidget,
+    x : int,
+    y : int,
+    width : int,
+    height : int
+) : std::Result<std::Unit, WebViewError> {
+    if(parent == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent widget is null")))
+    }
+    if(wv.attached) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
+    }
+    // NOTE: no gtk_init() here — the app must already have initialized GTK to
+    // own the parent GtkWidget, and gtk_init may only be called once per
+    // process (a second call logs a GTK warning).
+
+    wv.attached = true
+    wv.parent_widget = parent
+    wv.bounds_x = x
+    wv.bounds_y = y
+    wv.bounds_w = width
+    wv.bounds_h = height
+
+    wv.web_view = webkit_web_view_new()
+    if(wv.web_view == null) {
+        wv.attached = false
+        wv.parent_widget = null
+        return std.Result.Err(WebViewError.InitFailed(string("failed to create web view")))
+    }
+    var settings = webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView)
+    if(settings != null) {
+        webkit_settings_set_allow_file_access_from_file_urls(settings, TRUE)
+    }
+
+    // Absolute-position the webview inside a GtkFixed so it occupies its
+    // section of the app's existing window/container.
+    wv.fixed = gtk_fixed_new()
+    gtk_widget_set_size_request(wv.web_view, width, height)
+    gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
+    gtk_container_add(parent as *mut GtkContainer, wv.fixed)
+    gtk_widget_show_all(wv.fixed)
+
+    wv.initialized = true
+    return std.Result.Ok(std::Unit{})
+}
+
+// Move/resize the webview section inside the attached parent widget (in the
+// parent's coordinate space). No-op in standalone mode.
+public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+    if(!wv.attached) {
+        return
+    }
+    wv.bounds_x = x
+    wv.bounds_y = y
+    wv.bounds_w = width
+    wv.bounds_h = height
+    if(wv.fixed != null && wv.web_view != null) {
+        gtk_fixed_move(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
+        gtk_widget_set_size_request(wv.web_view, width, height)
+    }
+}
+
 public func webview_destroy(wv : *mut WebView) {
+    if(wv.attached) {
+        // embed mode: destroy only the webview + fixed container; the app owns
+        // the parent window/container.
+        if(wv.web_view != null) {
+            gtk_widget_destroy(wv.web_view)
+            wv.web_view = null
+        }
+        if(wv.fixed != null) {
+            gtk_widget_destroy(wv.fixed)
+            wv.fixed = null
+        }
+        wv.attached = false
+        wv.parent_widget = null
+        wv.initialized = false
+        return
+    }
     if(wv.web_view != null) {
         gtk_widget_destroy(wv.web_view)
         wv.web_view = null
@@ -239,13 +362,21 @@ public func webview_show(wv : *mut WebView) {
     if(wv.window != null) {
         gtk_widget_show_all(wv.window)
         wv.visible = true
+    } else if(wv.attached && wv.fixed != null) {
+        // embed mode: the app owns the parent window; just make sure the
+        // webview section itself is visible
+        gtk_widget_show_all(wv.fixed)
+        wv.visible = true
     }
 }
 
 public func webview_hide(wv : *mut WebView) {
-    // GTK doesn't have a simple hide, we use destroy and recreate pattern
-    // For simplicity, just mark as hidden
+    // GTK doesn't have a simple hide on the window, we use destroy and
+    // recreate pattern. In embed mode we can hide the webview section.
     wv.visible = false
+    if(wv.attached && wv.fixed != null) {
+        gtk_widget_hide(wv.fixed)
+    }
 }
 
 public func webview_run(wv : *mut WebView) {

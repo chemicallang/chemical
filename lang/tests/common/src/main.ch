@@ -170,6 +170,7 @@ public func run_common_tests() {
 
     test_for_in()
     test_sizeof_alignof()
+    test_offsetof()
     test_failing_code()
     test_variant_pattern_matching();
     test_pattern_match_reference_member();

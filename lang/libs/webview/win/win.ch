@@ -149,6 +149,7 @@ public comptime const ERROR_ACCESS_DENIED : DWORD = 5 as DWORD
 
 // Window messages
 public comptime const WM_NCCREATE : UINT = 0x0081 as UINT
+public comptime const WM_NCDESTROY : UINT = 0x0082 as UINT
 public comptime const WM_SIZE : UINT = 0x0005 as UINT
 public comptime const WM_DESTROY : UINT = 0x0002 as UINT
 public comptime const WM_CLOSE : UINT = 0x0010 as UINT
@@ -166,6 +167,7 @@ public comptime const WS_MAXIMIZEBOX : DWORD = 0x00010000 as DWORD
 // GetWindowLongPtrW / SetWindowLongPtrW indexes
 public comptime const GWL_STYLE : int = -16
 public comptime const GWLP_USERDATA : int = -21
+public comptime const GWLP_WNDPROC : int = -4
 
 // ShowWindow / SetWindowPos
 public comptime const SW_SHOW : int = 5
@@ -290,6 +292,13 @@ public comptime const WV_HINT_FIXED : int = 3
 @extern @stdcall @dllimport public func SetFocus(hwnd : HWND) : HWND
 @extern @stdcall @dllimport public func SetWindowPos(hwnd : HWND, hWndInsertAfter : HWND, x : int, y : int, cx : int, cy : int, uFlags : UINT) : BOOL
 @extern @stdcall @dllimport public func SetForegroundWindow(hwnd : HWND) : BOOL
+// window subclassing / properties (embed mode: webview in a section of an
+// app-owned window; the parent window is subclassed so the webview stays
+// pinned to its section across parent resizes)
+@extern @stdcall @dllimport public func CallWindowProcW(prev : WNDPROC, hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
+@extern @stdcall @dllimport public func SetPropW(hwnd : HWND, name : LPCWSTR, data : HANDLE) : BOOL
+@extern @stdcall @dllimport public func GetPropW(hwnd : HWND, name : LPCWSTR) : HANDLE
+@extern @stdcall @dllimport public func RemovePropW(hwnd : HWND, name : LPCWSTR) : HANDLE
 // NOTE: the SDK header maps LoadImage -> LoadImageW (the real user32 export).
 @extern @stdcall @dllimport public func LoadImageW(hInstance : HINSTANCE, name : LPCWSTR, type : UINT, cx : int, cy : int, fuLoad : UINT) : HANDLE
 @extern @stdcall @dllimport public func GetSystemMetrics(nIndex : int) : int
@@ -768,6 +777,16 @@ public struct WebView {
     var dpi : int
     var window_shown : int
 
+    // --- embed mode (webview_attach): the webview lives in a section of an
+    //     app-owned window instead of creating its own top-level window.
+    //     wv.window stays null; wv.widget is a child of `parent` positioned at
+    //     `bounds` in the parent's client coordinates. The parent window is
+    //     subclassed (wv_embed_proc) so the section tracks parent resizes. ---
+    var attached : bool
+    var parent : HWND
+    var parent_wndproc : LONG_PTR // original parent wndproc, restored on teardown
+    var bounds : RECT
+
     // --- cross-platform API fields (must match posix/linux.ch) ---
     var title : string
     var width : int
@@ -788,6 +807,10 @@ public struct WebView {
             maxsz : POINT { x : 0, y : 0 },
             dpi : 0,
             window_shown : 0,
+            attached : false,
+            parent : null,
+            parent_wndproc : 0,
+            bounds : RECT { left : 0, top : 0, right : 0, bottom : 0 },
             title : string("Chemical WebView"),
             width : 800,
             height : 600,
@@ -879,6 +902,75 @@ func wv_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
         }
     }
     return 0
+}
+
+// ---- embed mode: subclassing the app-owned parent window ----
+
+// Window property used to associate a WebView with the parent window it is
+// embedded into. The name must stay valid for the lifetime of the window
+// (SetPropW does not copy it), so it lives in a module-level buffer that is
+// filled once before the first attach.
+var g_embed_prop_name : [32]ushort
+var g_embed_prop_ready : int = 0
+
+func wv_ensure_embed_prop_name() {
+    if(g_embed_prop_ready == 0) {
+        widen_to_buf("chem_webview_embed", &raw mut g_embed_prop_name[0], 32)
+        g_embed_prop_ready = 1
+    }
+}
+
+// Subclass window proc installed on the embed parent window. It keeps the
+// webview widget pinned to its section (wv.bounds) when the parent is resized
+// and, on WM_NCDESTROY, restores the parent's original window proc and removes
+// the webview property before forwarding the message.
+func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
+    var wv = GetPropW(hwnd, &raw g_embed_prop_name[0]) as *mut WebView
+    if(wv == null) {
+        return DefWindowProcW(hwnd, msg, wp, lp)
+    }
+    if(msg == WM_NCDESTROY) {
+        var orig = wv.parent_wndproc
+        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, orig)
+        RemovePropW(hwnd, &raw g_embed_prop_name[0])
+        wv.attached = false
+        wv.parent = null
+        wv.parent_wndproc = 0
+        if(orig != 0) {
+            return CallWindowProcW(orig as WNDPROC, hwnd, msg, wp, lp)
+        }
+        return 0
+    }
+    switch(msg) {
+        WM_SIZE => {
+            // Re-pin the widget to the stored section. This runs before the
+            // app's own WM_SIZE handler (subclass -> CallWindowProcW), so when
+            // the app also calls webview_set_bounds the widget is moved twice
+            // per resize — the second move wins and both are idempotent.
+            if(wv.widget != null) {
+                MoveWindow(
+                    wv.widget,
+                    wv.bounds.left,
+                    wv.bounds.top,
+                    wv.bounds.right - wv.bounds.left,
+                    wv.bounds.bottom - wv.bounds.top,
+                    1
+                )
+            }
+        }
+        default => {}
+    }
+    if(wv.parent_wndproc != 0) {
+        return CallWindowProcW(wv.parent_wndproc as WNDPROC, hwnd, msg, wp, lp)
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp)
+}
+
+func wv_attach_subclass(wv : *mut WebView) {
+    wv_ensure_embed_prop_name()
+    wv.parent_wndproc = GetWindowLongPtrW(wv.parent, GWLP_WNDPROC)
+    SetPropW(wv.parent, &raw g_embed_prop_name[0], wv as HANDLE)
+    SetWindowLongPtrW(wv.parent, GWLP_WNDPROC, wv_embed_proc as LONG_PTR)
 }
 
 // ---- embed context + callbacks ----
@@ -1046,6 +1138,64 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     return std::Result.Ok(std::Unit{})
 }
 
+// ===========================================================================
+// public API: embed the webview into a section of an existing app window
+// ===========================================================================
+
+// Attach the webview to an app-owned native window instead of creating its own
+// top-level window. The webview occupies the section (x, y, width, height) in
+// the parent window's client coordinates; native UI can live in the rest of
+// the window. The parent is subclassed so the webview stays pinned to its
+// section when the parent is resized (move the section with
+// webview_set_bounds). On Windows `parent` is an HWND; on Linux it is the
+// GtkWidget* of an existing window or container.
+//
+// LIMITATION: one webview per parent window — the embed association uses a
+// single window property name shared module-wide, so attaching a second
+// webview to the same window would overwrite the first's property and break
+// its resize pinning.
+public func webview_attach(
+    wv : *mut WebView,
+    parent : HWND,
+    x : int,
+    y : int,
+    width : int,
+    height : int
+) : std::Result<std::Unit, WebViewError> {
+    if(parent == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
+    }
+    if(wv.attached) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
+    }
+    wv.attached = true
+    wv.parent = parent
+    wv.bounds = RECT { left : x, top : y, right : x + width, bottom : y + height }
+    var err = wv_init(wv, 0)
+    if(err != 0) {
+        // Clean up partial state (unsubclasses the parent, destroys the widget).
+        webview_destroy(wv)
+        var msg = string("webview attach failed with code ")
+        msg.append_integer(err as bigint)
+        return std.Result.Err(WebViewError.InitFailed(msg))
+    }
+    wv.initialized = true
+    return std.Result.Ok(std::Unit{})
+}
+
+// Move/resize the webview section inside the attached parent window (in the
+// parent's client coordinates). No-op in standalone mode.
+public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
+    if(!wv.attached) {
+        return
+    }
+    wv.bounds = RECT { left : x, top : y, right : x + width, bottom : y + height }
+    if(wv.widget != null) {
+        MoveWindow(wv.widget, x, y, width, height, 1)
+        wv_resize_webview(wv)
+    }
+}
+
 // Returns 0 on success, negative error code otherwise.
 // NOTE: `wv` is expected to be created via WebView.make(), so all fields are
 // already initialized (a memset here would wipe the title/width/height fields
@@ -1076,53 +1226,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
 
     var icon = LoadImageW(hInstance, IDI_APPLICATION, IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR) as HICON
 
-    // Top-level window.
-    var wc = zeroed<WNDCLASSEXW>()
-    wc.cbSize = sizeof(WNDCLASSEXW) as UINT
-    wc.hInstance = hInstance
-    var wc_class_name : [64]ushort
-    widen_to_buf("webview", &raw mut wc_class_name[0], 64)
-    wc.lpszClassName = &raw wc_class_name[0]
-    wc.hIcon = icon
-    wc.lpfnWndProc = wv_window_proc as WNDPROC
-    RegisterClassExW(&raw mut wc)
-
-    var empty_wide : [2]ushort
-    empty_wide[0] = 0
-    // NOTE: the SDK header defines CreateWindowW as a macro expanding to
-    // CreateWindowExW(0, ...); CreateWindowExW is the real user32 export.
-    // NOTE: the window is created at wv.width x wv.height (the make() defaults,
-    // or whatever was set before create) so that create -> show -> run works
-    // without a webview_set_size call, matching posix/linux.ch which applies
-    // wv.width/wv.height at creation time.
-    wv.window = CreateWindowExW(
-        0,
-        &raw wc_class_name[0],
-        &raw empty_wide[0],
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        wv.width,
-        wv.height,
-        null,
-        null,
-        hInstance,
-        wv as *mut void
-    )
-    if(wv.window == null) {
-        return -2
-    }
-    wv.dpi = GetDpiForWindow(wv.window) as int
-
-    // Match posix/linux.ch: a title set via make() (or a struct literal) is
-    // applied to the window at creation time too.
-    if(wv.title.size() > 0) {
-        var title_buf : [512]ushort
-        widen_to_buf(wv.title.data(), &raw mut title_buf[0], 512)
-        SetWindowTextW(wv.window, &raw title_buf[0])
-    }
-
-    // Widget window that WebView2 is embedded into.
+    // Widget window that WebView2 is embedded into (shared by both modes).
     var widget_wc = zeroed<WNDCLASSEXW>()
     widget_wc.cbSize = sizeof(WNDCLASSEXW) as UINT
     widget_wc.hInstance = hInstance
@@ -1132,22 +1236,92 @@ func wv_init(wv : *mut WebView, debug : int) : int {
     widget_wc.lpfnWndProc = wv_widget_proc as WNDPROC
     RegisterClassExW(&raw mut widget_wc)
 
-    wv.widget = CreateWindowExW(
-        WS_EX_CONTROLPARENT,
-        &raw widget_class_name[0],
-        null,
-        WS_CHILD,
-        0,
-        0,
-        0,
-        0,
-        wv.window,
-        null,
-        hInstance,
-        wv as *mut void
-    )
-    if(wv.widget == null) {
-        return -3
+    if(wv.attached) {
+        // Embed mode: the widget is a child of the app-owned parent window,
+        // occupying the section wv.bounds in the parent's client coordinates.
+        // The parent is subclassed so the section tracks parent resizes.
+        wv.widget = CreateWindowExW(
+            WS_EX_CONTROLPARENT,
+            &raw widget_class_name[0],
+            null,
+            WS_CHILD,
+            wv.bounds.left,
+            wv.bounds.top,
+            wv.bounds.right - wv.bounds.left,
+            wv.bounds.bottom - wv.bounds.top,
+            wv.parent,
+            null,
+            hInstance,
+            wv as *mut void
+        )
+        if(wv.widget == null) {
+            return -3
+        }
+        wv_attach_subclass(wv)
+    } else {
+        // Standalone mode: top-level window with the widget filling its client area.
+        var wc = zeroed<WNDCLASSEXW>()
+        wc.cbSize = sizeof(WNDCLASSEXW) as UINT
+        wc.hInstance = hInstance
+        var wc_class_name : [64]ushort
+        widen_to_buf("webview", &raw mut wc_class_name[0], 64)
+        wc.lpszClassName = &raw wc_class_name[0]
+        wc.hIcon = icon
+        wc.lpfnWndProc = wv_window_proc as WNDPROC
+        RegisterClassExW(&raw mut wc)
+
+        var empty_wide : [2]ushort
+        empty_wide[0] = 0
+        // NOTE: the SDK header defines CreateWindowW as a macro expanding to
+        // CreateWindowExW(0, ...); CreateWindowExW is the real user32 export.
+        // NOTE: the window is created at wv.width x wv.height (the make() defaults,
+        // or whatever was set before create) so that create -> show -> run works
+        // without a webview_set_size call, matching posix/linux.ch which applies
+        // wv.width/wv.height at creation time.
+        wv.window = CreateWindowExW(
+            0,
+            &raw wc_class_name[0],
+            &raw empty_wide[0],
+            WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            wv.width,
+            wv.height,
+            null,
+            null,
+            hInstance,
+            wv as *mut void
+        )
+        if(wv.window == null) {
+            return -2
+        }
+        wv.dpi = GetDpiForWindow(wv.window) as int
+
+        // Match posix/linux.ch: a title set via make() (or a struct literal) is
+        // applied to the window at creation time too.
+        if(wv.title.size() > 0) {
+            var title_buf : [512]ushort
+            widen_to_buf(wv.title.data(), &raw mut title_buf[0], 512)
+            SetWindowTextW(wv.window, &raw title_buf[0])
+        }
+
+        wv.widget = CreateWindowExW(
+            WS_EX_CONTROLPARENT,
+            &raw widget_class_name[0],
+            null,
+            WS_CHILD,
+            0,
+            0,
+            0,
+            0,
+            wv.window,
+            null,
+            hInstance,
+            wv as *mut void
+        )
+        if(wv.widget == null) {
+            return -3
+        }
     }
 
     return wv_embed(wv, debug)
@@ -1172,12 +1346,18 @@ public func webview_title(wv : *mut WebView) : string {
 public func webview_set_title(wv : *mut WebView, title : *char) {
     wv.title = string("")
     wv.title.append_char_ptr(title)
-    var wbuf : [512]ushort
-    widen_to_buf(title, &raw mut wbuf[0], 512)
-    SetWindowTextW(wv.window, &raw wbuf[0])
+    if(wv.window != null) {
+        var wbuf : [512]ushort
+        widen_to_buf(title, &raw mut wbuf[0], 512)
+        SetWindowTextW(wv.window, &raw wbuf[0])
+    }
 }
 
 func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
+    if(wv.window == null) {
+        // embed mode: the section size is managed via webview_set_bounds
+        return
+    }
     var style = GetWindowLongPtrW(wv.window, GWL_STYLE)
     if(hints == WV_HINT_FIXED) {
         style = style & ~((WS_THICKFRAME | WS_MAXIMIZEBOX) as LONG_PTR)
@@ -1225,6 +1405,12 @@ public func webview_show(wv : *mut WebView) {
         SetForegroundWindow(wv.window)
         wv.window_shown = 1
         wv.visible = true
+    } else if(wv.attached && wv.widget != null) {
+        // embed mode: the app owns the parent window; just make sure the
+        // webview section itself is visible
+        ShowWindow(wv.widget, SW_SHOW)
+        SetFocus(wv.widget)
+        wv.visible = true
     }
 }
 
@@ -1232,6 +1418,8 @@ public func webview_hide(wv : *mut WebView) {
     wv.visible = false
     if(wv.window != null) {
         ShowWindow(wv.window, 0) // SW_HIDE
+    } else if(wv.attached && wv.widget != null) {
+        ShowWindow(wv.widget, 0) // SW_HIDE — hide just the webview section
     }
 }
 
@@ -1281,6 +1469,21 @@ public func webview_destroy(wv : *mut WebView) {
     if(wv.window != null) {
         DestroyWindow(wv.window)
         wv.window = null
+    }
+    if(wv.attached) {
+        // Restore the parent's original window proc. WM_NCDESTROY normally
+        // does this, but the app may destroy the webview before the window.
+        // parent_wndproc != 0 means we actually subclassed the parent (wv_init
+        // may have failed before wv_attach_subclass ran — never clobber the
+        // parent's proc with 0 in that case).
+        if(wv.parent != null && wv.parent_wndproc != 0) {
+            wv_ensure_embed_prop_name()
+            SetWindowLongPtrW(wv.parent, GWLP_WNDPROC, wv.parent_wndproc)
+            RemovePropW(wv.parent, &raw g_embed_prop_name[0])
+        }
+        wv.attached = false
+        wv.parent = null
+        wv.parent_wndproc = 0
     }
     if(wv.loader_lib != null) {
         FreeLibrary(wv.loader_lib)

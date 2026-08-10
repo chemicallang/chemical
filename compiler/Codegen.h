@@ -414,6 +414,13 @@ public:
     llvm::Function* declare_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);
 
     /**
+     * creates a strong definition for the given symbol, completing an existing
+     * declaration / weak stub when one already exists (the definition
+     * counterpart of declare_function)
+     */
+    llvm::Function* define_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);
+
+    /**
      * get or insert a function prototype for weak symbol, is exported is required
      */
     llvm::Function* declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location);

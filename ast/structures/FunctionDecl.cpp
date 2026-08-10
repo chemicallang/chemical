@@ -340,12 +340,14 @@ void FunctionDeclaration::set_llvm_data(Codegen& gen, llvm::Function* func) {
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const chem::string_view& name) {
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(llvm::StringRef{name.data(), name.size()});
-    if(existing_func) {
+    // a pre-existing weak stub or plain external declaration is allowed to be
+    // completed by a strong definition (see Codegen::define_function)
+    if(existing_func && !existing_func->isDeclaration() && !existing_func->hasWeakLinkage()) {
         gen.error((ASTNode*) decl) << "function with name '" << name << "' already exists in the module";
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
-    auto func = gen.create_function(name.view(), func_type, decl, runtime_specifier(decl));
+    auto func = gen.define_function(name.view(), func_type, decl, runtime_specifier(decl));
     decl->llvm_attributes(func);
     decl->set_llvm_data(gen, func);
 }

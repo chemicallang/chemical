@@ -2952,6 +2952,10 @@ void SymResLinkBody::VisitAlignOfValue(AlignOfValue* value) {
     visit(value->for_type);
 }
 
+void SymResLinkBody::VisitOffsetOfValue(OffsetOfValue* value) {
+    visit(value->for_type);
+}
+
 void SymResLinkBody::VisitIfValue(IfValue* value) {
     VisitIfStmt(&value->stmt);
 

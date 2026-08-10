@@ -233,6 +233,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildermake_number_value", (void*) ASTBuildermake_number_value },
         { "compiler_ASTBuildermake_short_value", (void*) ASTBuildermake_short_value },
         { "compiler_ASTBuildermake_sizeof_value", (void*) ASTBuildermake_sizeof_value },
+        { "compiler_ASTBuildermake_offsetof_value", (void*) ASTBuildermake_offsetof_value },
         { "compiler_ASTBuildermake_string_value", (void*) ASTBuildermake_string_value },
         { "compiler_ASTBuildermake_struct_value", (void*) ASTBuildermake_struct_value },
         { "compiler_ASTBuildermake_ubigint_value", (void*) ASTBuildermake_ubigint_value },

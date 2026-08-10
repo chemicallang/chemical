@@ -355,6 +355,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitOffsetOfValue(OffsetOfValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitVariantCase(VariantCase* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -831,6 +835,9 @@ public:
             case ValueKind::AlignOfValue:
                 static_cast<Derived*>(this)->VisitAlignOfValue((AlignOfValue*) value);
                 return;
+            case ValueKind::OffsetOfValue:
+                static_cast<Derived*>(this)->VisitOffsetOfValue((OffsetOfValue*) value);
+                return;
             case ValueKind::VariantCase:
                 static_cast<Derived*>(this)->VisitVariantCase((VariantCase*) value);
                 return;
@@ -1222,6 +1229,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(AlignOfValue* value) {
         static_cast<Derived*>(this)->VisitAlignOfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(OffsetOfValue* value) {
+        static_cast<Derived*>(this)->VisitOffsetOfValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(VariantCase* value) {
         static_cast<Derived*>(this)->VisitVariantCase(value);

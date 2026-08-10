@@ -275,6 +275,8 @@ public struct ShortValue : Value {}
 
 public struct SizeOfValue : Value {}
 
+public struct OffsetOfValue : Value {}
+
 public struct StringValue : Value {
 
     func getValue(&self) : std::string_view
@@ -790,6 +792,8 @@ public struct ASTBuilder {
     func make_short_value(&self, value : short, location : ubigint) : *mut ShortValue
 
     func make_sizeof_value(&self, type : *BaseType, location : ubigint) : *mut SizeOfValue
+
+    func make_offsetof_value(&self, type : *BaseType, member_name : &string_view, location : ubigint) : *mut OffsetOfValue
 
     func make_string_value(&self, value : &string_view, location : ubigint) : *mut StringValue
 

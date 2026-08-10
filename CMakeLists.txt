@@ -363,6 +363,8 @@ set(COMMON_SOURCES
         ast/base/ASTNode.cpp
         ast/values/SizeOfValue.h
         ast/values/SizeOfValue.cpp
+        ast/values/OffsetOfValue.h
+        ast/values/OffsetOfValue.cpp
         std/chem_string.h
         ast/structures/UnionDef.h
         ast/structures/UnionDef.cpp

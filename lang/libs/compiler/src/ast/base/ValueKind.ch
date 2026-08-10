@@ -33,6 +33,7 @@ public enum ValueKind {
     UnsafeValue,
     ComptimeValue,
     AlignOfValue,
+    OffsetOfValue,
     VariantCase,
     AddrOfValue,
     ReferenceOfValue,

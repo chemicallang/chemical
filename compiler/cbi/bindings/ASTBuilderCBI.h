@@ -144,6 +144,8 @@ extern "C" {
 
     SizeOfValue* ASTBuildermake_sizeof_value(ASTBuilder* builder, BaseType* type, uint64_t location);
 
+    OffsetOfValue* ASTBuildermake_offsetof_value(ASTBuilder* builder, BaseType* type, chem::string_view* member_name, uint64_t location);
+
     StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view* value, uint64_t location);
 
     StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, ASTNode* ref, uint64_t location);

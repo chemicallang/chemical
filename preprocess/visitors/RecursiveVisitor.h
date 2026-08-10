@@ -84,6 +84,7 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/TypeInsideValue.h"
 #include "ast/values/AddrOfValue.h"
@@ -582,6 +583,10 @@ public:
     }
 
     inline void VisitAlignOfValue(AlignOfValue* value) {
+        visit_it(value->for_type);
+    }
+
+    inline void VisitOffsetOfValue(OffsetOfValue* value) {
         visit_it(value->for_type);
     }
 

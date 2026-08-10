@@ -422,6 +422,8 @@ public:
 
     void VisitAlignOfValue(AlignOfValue* value);
 
+    void VisitOffsetOfValue(OffsetOfValue* value);
+
     void VisitIfValue(IfValue* value);
 
     void VisitSwitchValue(SwitchValue* value);

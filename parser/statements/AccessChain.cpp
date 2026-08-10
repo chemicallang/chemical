@@ -211,6 +211,10 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             token++;
             return parseAlignOfValue(allocator);
         }
+        case TokenType::OffsetOfKw: {
+            token++;
+            return parseOffsetOfValue(allocator);
+        }
         case TokenType::DynKw: {
             token++;
             return parseDynamicValue(allocator);

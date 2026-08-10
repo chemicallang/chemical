@@ -94,6 +94,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "null", TokenType::NullKw },
                 { "sizeof", TokenType::SizeOfKw },
                 { "alignof", TokenType::AlignOfKw },
+                { "offsetof", TokenType::OffsetOfKw },
                 { "raw", TokenType::RawKw },
 
                 // Access Specifiers

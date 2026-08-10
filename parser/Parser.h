@@ -1073,6 +1073,11 @@ public:
     Value* parseAlignOfValue(ASTAllocator& allocator);
 
     /**
+     * parses the offset of value
+     */
+    Value* parseOffsetOfValue(ASTAllocator& allocator);
+
+    /**
      * parses address of value (represents raw x, raw mut x or with parenthesis)
      */
     Value* parseRawAddrOfValue(ASTAllocator& allocator, SourceLocation location);

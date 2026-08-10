@@ -627,6 +627,7 @@ bool Value::isValueRValueInBackend() {
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
         case ValueKind::Expression:
         case ValueKind::NullValue:
         case ValueKind::InValue:
@@ -696,6 +697,7 @@ bool Value::isValueRValueInFrontend() {
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
         case ValueKind::StructValue:
         case ValueKind::Expression:
         case ValueKind::AddrOfValue:

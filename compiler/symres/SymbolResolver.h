@@ -12,6 +12,7 @@
 #include "ChildResolver.h"
 #include "LinkSignatureAPI.h"
 #include "SymResLinkBodyAPI.h"
+#include "GenericInstantiatorPassAPI.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/CoreNodes.h"
@@ -443,6 +444,35 @@ public:
             Scope& scope,
             unsigned int fileId,
             const std::string& abs_path
+    );
+
+    /**
+     * link the signatures in the file
+     * the returned result must be passed to generic_instantiation_file
+     */
+    SymResSignatureResult link_signature_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
+
+    /**
+     * generic instantiation pass (runs after link signature, before after_link_signature_file)
+     */
+    GenInstSignatureResult generic_instantiation_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range,
+            SymResSignatureResult& sig_res
+    );
+
+    /**
+     * link the signatures in the file (runs after generic instantiation)
+     */
+    void after_link_signature_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
     );
 
     /**

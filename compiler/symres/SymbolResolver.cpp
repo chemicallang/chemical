@@ -355,6 +355,51 @@ SymbolRange SymbolResolver::tld_declare_file(
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
+SymResSignatureResult SymbolResolver::link_signature_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
+    enable_file_symbols(getSymbolTable(), range);
+    // symbol resolve the scope signatures
+    auto res = sym_res_signature(*this, &scope, range);
+    file_scope_end(scope_index);
+    return res;
+}
+
+GenInstSignatureResult SymbolResolver::generic_instantiation_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range,
+        SymResSignatureResult& sig_res
+) {
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
+    enable_file_symbols(getSymbolTable(), range);
+    // generic instantiation pass, processes the inline instantiations found in link signature
+    auto res = sym_res_generic_instantiation(*this, &scope, sig_res, range);
+    file_scope_end(scope_index);
+    return res;
+}
+
+void SymbolResolver::after_link_signature_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
+    enable_file_symbols(getSymbolTable(), range);
+    // symbol resolve the scope
+    sym_res_after_signature(*this, &scope);
+    file_scope_end(scope_index);
+}
+
 void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     const auto scope_index = file_scope_start();
     const auto start = stored_file_symbols.size();

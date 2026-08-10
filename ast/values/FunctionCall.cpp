@@ -1104,6 +1104,28 @@ default_case:
     gen.assign_store(lhs, storagePtr, chain, llvm_val, encoded_location());
 }
 
+void FunctionCall::llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) {
+    // a struct-returning call (for example an implicit constructor call that
+    // was created at codegen time) is written directly into the destination
+    // slot, matching access_chain_assign_value: the storage pointer is passed
+    // as the struct return argument. this avoids materializing the result into
+    // a temporary and then storing a pointer into the destination (which is
+    // invalid for aggregate types)
+    const auto parent_linked = parent_val->linked_node();
+    if(parent_linked && parent_linked->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = parent_linked->as_function_unsafe();
+        if(func->returnType->isStructLikeType()) {
+            std::vector<llvm::Value *> args;
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            llvm_chain_value(gen, args, destructibles, storagePtr);
+            Value::destruct(gen, destructibles);
+            return;
+        }
+    }
+    // non struct-returning calls use the default behavior
+    Value::llvm_assign_value(gen, storagePtr, lhs, lhsPtr);
+}
+
 #endif
 
 uint64_t FunctionCall::byte_size(const TargetData& target) {

@@ -73,6 +73,7 @@ public struct string {
         return %runtime_value(constructor2(value, intrinsics::size(value), false))
     }
 
+    @implicit
     @constructor
     comptime func make(expr : %expressive_string) {
         return %runtime_block_value {

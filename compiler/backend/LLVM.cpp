@@ -1729,7 +1729,40 @@ static Value* runtime_block_last_value(RuntimeBlockValue* blockVal) {
 }
 
 static void gen_RuntimeBlockValue_scope(Codegen& gen, RuntimeBlockValue* blockVal) {
-    blockVal->scope.code_gen(gen);
+    const auto destruct_begin = gen.destruct_nodes.size();
+    auto& scope = blockVal->scope;
+    const auto& nodes = scope.nodes;
+    const auto size = nodes.size();
+    // generate the block's statements except the last one: the last node holds
+    // the block's value and is materialized separately by llvm_value /
+    // llvm_allocate. generating it as a statement would queue a destructor for
+    // the returned value, and the block would destroy its own result
+    int total = size > 0 ? (int) size - 1 : 0;
+    for(int i = 0; i < total; i++) {
+        nodes[i]->code_gen(gen, &scope, i);
+    }
+    // the block's value is moved out of the block, so before the block's
+    // scope-end destructor dispatch we clear the drop flag of the returned
+    // local, mirroring the c backend's set_moved_ref_drop_flag call that runs
+    // before the block's locals are destructed. without this, the block scope
+    // destroys the very value it returns, and the caller's copy of it frees
+    // the same heap data -> double free
+    if(size > 0) {
+        const auto stmt_expr = blockVal->get_stmt_expr();
+        if(stmt_expr) {
+            const auto id = stmt_expr->get_chain_id();
+            if(id && id->linked) {
+                const auto flag = gen.find_drop_flag(id->linked);
+                if(flag) {
+                    const auto storeInst = gen.builder->CreateStore(gen.builder->getInt1(false), flag);
+                    gen.di.instr(storeInst, stmt_expr->encoded_location());
+                }
+            }
+        }
+    }
+    gen.dispatch_destruct_jobs((int) destruct_begin, blockVal->encoded_location());
+    auto itr = gen.destruct_nodes.begin() + destruct_begin;
+    gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
 }
 
 llvm::AllocaInst* RuntimeBlockValue::llvm_allocate(
@@ -2319,6 +2352,7 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
 }
 
+
 void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
     // NOT THE BEST WAY TO CHECK
     // if current function is null, it means the scope is not generating inside a function (contains top level declarations)
@@ -2410,6 +2444,14 @@ void AssignStatement::code_gen(Codegen &gen) {
     const auto pointer = lhs->llvm_pointer(gen);
     const auto lhs_type_non_canon = lhs->getType();
     const auto lhs_type = lhs_type_non_canon->canonical();
+
+    if(assOp == Operation::Assignment) {
+        // replace the value with a call to the implicit constructor if there is one
+        const auto implicit = lhs_type->implicit_constructor_for(value);
+        if (implicit) {
+            value = call_with_arg(implicit, value, lhs_type, gen.allocator, gen);
+        }
+    }
 
     if(assOp != Operation::Assignment) {
         // is operator overloaded

@@ -236,6 +236,8 @@ public:
             BaseType *expected_type
     ) final;
 
+    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) override;
+
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif

@@ -2,6 +2,13 @@ public namespace webview {
 
 using std::string;
 
+// Callback invoked with the result of webview_evaluate_js_result.
+// `result` is a JSON-encoded string (as returned by the engine — e.g. a JS
+// number arrives as "42", a JS string as "\"hello\"", an object as its JSON
+// text) and is valid only during the call. `data` is the user data passed to
+// webview_evaluate_js_result. On evaluation failure `result` is null.
+public type JsResultCallback = (data : *mut void, result : *char) => void
+
 public variant WebViewError {
     PlatformNotSupported()
     InitFailed(msg : string)

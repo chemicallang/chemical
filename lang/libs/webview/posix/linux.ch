@@ -86,23 +86,39 @@ const WEBKIT_LOAD_FINISHED = 4
 @extern public func jsc_value_to_string(value : *mut JSCValue) : *char
 @extern public func jsc_value_is_string(value : *mut JSCValue) : int
 
+// WebKit async JS result (webkit_web_view_run_javascript_finish)
+@no_init @extern public struct WebKitJavascriptResult {}
+@extern public func webkit_web_view_run_javascript_finish(web_view : *mut WebKitWebView, res : *mut void, error : *mut *mut void) : *mut WebKitJavascriptResult
+@extern public func webkit_javascript_result_get_js_value(result : *mut WebKitJavascriptResult) : *mut JSCValue
+@extern public func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult)
+
+// Per-call context for webview_evaluate_js_result (freed in the callback).
+public struct JsEvalHandler {
+    var cb : JsResultCallback
+    var user_data : *mut void
+}
+
 // ---------------------------------------------------------------------------
 // WebView struct (Linux)
 // ---------------------------------------------------------------------------
 
 @direct_init
 public struct WebView {
-    var window : *mut GtkWidget
+    // --- top-level window (standalone mode), owned by the window library
+    //     (lang/libs/window). The webview fills the window; native UI can be
+    //     mixed in through the window library. ---
+    var win : window::Window
+
     var web_view : *mut GtkWidget
     var box : *mut GtkWidget
 
     // --- embed mode (webview_attach): the webview lives in a section of an
-    //     existing app window/container instead of its own top-level window.
-    //     `fixed` is a GtkFixed (added to the app's container) that holds the
+    //     existing app window::Window instead of its own top-level window.
+    //     `fixed` is a GtkFixed (added to the app's window) that holds the
     //     webview at the section (bounds_x/y/w/h); native UI can live in the
     //     rest of the app's window. ---
     var attached : bool
-    var parent_widget : *mut GtkWidget
+    var parent_win : *mut window::Window
     var fixed : *mut GtkWidget
     var bounds_x : int
     var bounds_y : int
@@ -118,11 +134,11 @@ public struct WebView {
     @make
     func make() : WebView {
         return WebView {
-            window : null,
+            win : window::Window.make(),
             web_view : null,
             box : null,
             attached : false,
-            parent_widget : null,
+            parent_win : null,
             fixed : null,
             bounds_x : 0,
             bounds_y : 0,
@@ -147,21 +163,16 @@ func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, da
 }
 
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
-    // Initialize GTK
-    var argc : int = 0
-    var argv : *mut *mut *char = null
-    gtk_init(&raw mut argc, argv)
-
-    // Create window
-    wv.window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
-    if(wv.window == null) {
+    // The top-level window is created through the window library, so the app
+    // can mix native UI with the webview (and gets all the window features).
+    wv.win.width = wv.width
+    wv.win.height = wv.height
+    window::window_set_title(&raw mut wv.win, wv.title.data())
+    var wres = window::window_create(&raw mut wv.win)
+    if(wres is std::Result.Err) {
         return std.Result.Err(WebViewError.InitFailed(string("failed to create window")))
     }
-
-    // Set window properties
-    gtk_window_set_title(wv.window as *mut GtkWindow, wv.title.c_str())
-    gtk_window_set_default_size(wv.window as *mut GtkWindow, wv.width, wv.height)
-    gtk_window_set_position(wv.window as *mut GtkWindow, 1) // center
+    var window_widget = window::window_native_handle(&raw mut wv.win) as *mut GtkWidget
 
     // Create box layout
     wv.box = gtk_box_new(0, 0) // horizontal, no spacing
@@ -184,14 +195,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     gtk_box_pack_start(wv.box as *mut GtkBox, wv.web_view, TRUE, GTK_FILL, 0)
 
     // Add box to window
-    // gtk_container_add is essentially casting container to GtkContainer and calling add
-    gtk_container_add(wv.window as *mut GtkContainer, wv.box)
-
-    // Connect destroy signal
-    g_signal_connect_data(wv.window as *mut void, "destroy\0" as *char, linux_on_window_destroy as *mut void, null, null, 0)
-
-    // Connect navigation finished signal
-    g_signal_connect_data(wv.web_view as *mut void, "load-changed\0" as *char, linux_on_navigation_complete as *mut void, null, null, 0)
+    gtk_container_add(window_widget as *mut GtkContainer, wv.box)
 
     wv.visible = false
     wv.initialized = true
@@ -210,32 +214,34 @@ func gtk_container_add(container : *mut GtkContainer, child : *mut GtkWidget)
 // public API: embed the webview into a section of an existing app window
 // ===========================================================================
 
-// Attach the webview to an app-owned GtkWidget (a window or any container)
-// instead of creating its own top-level window. The webview occupies the
-// section (x, y, width, height) inside a GtkFixed that is added to the app's
-// container; native UI can live in the rest of the app's window. Move the
-// section with webview_set_bounds. On Linux `parent` is a *mut GtkWidget; on
-// Windows it is an HWND.
+// Attach the webview to an app-owned window::Window instead of creating its
+// own top-level window. The webview occupies the section (x, y, width, height)
+// inside a GtkFixed that is added to the app's window; native UI can live in
+// the rest of the app's window. Move the section with webview_set_bounds. The
+// parent must already be created via window::window_create.
 public func webview_attach(
     wv : *mut WebView,
-    parent : *mut GtkWidget,
+    parent : *mut window::Window,
     x : int,
     y : int,
     width : int,
     height : int
 ) : std::Result<std::Unit, WebViewError> {
     if(parent == null) {
-        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent widget is null")))
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
+    }
+    if(!window::window_is_created(parent)) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::window_create first)")))
     }
     if(wv.attached) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
     }
     // NOTE: no gtk_init() here — the app must already have initialized GTK to
-    // own the parent GtkWidget, and gtk_init may only be called once per
-    // process (a second call logs a GTK warning).
+    // own the parent window, and gtk_init may only be called once per process
+    // (a second call logs a GTK warning).
 
     wv.attached = true
-    wv.parent_widget = parent
+    wv.parent_win = parent
     wv.bounds_x = x
     wv.bounds_y = y
     wv.bounds_w = width
@@ -244,7 +250,7 @@ public func webview_attach(
     wv.web_view = webkit_web_view_new()
     if(wv.web_view == null) {
         wv.attached = false
-        wv.parent_widget = null
+        wv.parent_win = null
         return std.Result.Err(WebViewError.InitFailed(string("failed to create web view")))
     }
     var settings = webkit_web_view_get_settings(wv.web_view as *mut WebKitWebView)
@@ -253,18 +259,19 @@ public func webview_attach(
     }
 
     // Absolute-position the webview inside a GtkFixed so it occupies its
-    // section of the app's existing window/container.
+    // section of the app's existing window.
+    var parent_widget = window::window_native_handle(parent) as *mut GtkWidget
     wv.fixed = gtk_fixed_new()
     gtk_widget_set_size_request(wv.web_view, width, height)
     gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
-    gtk_container_add(parent as *mut GtkContainer, wv.fixed)
+    gtk_container_add(parent_widget as *mut GtkContainer, wv.fixed)
     gtk_widget_show_all(wv.fixed)
 
     wv.initialized = true
     return std.Result.Ok(std::Unit{})
 }
 
-// Move/resize the webview section inside the attached parent widget (in the
+// Move/resize the webview section inside the attached parent window (in the
 // parent's coordinate space). No-op in standalone mode.
 public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int, height : int) {
     if(!wv.attached) {
@@ -281,9 +288,10 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
 }
 
 public func webview_destroy(wv : *mut WebView) {
+    wv.initialized = false
     if(wv.attached) {
         // embed mode: destroy only the webview + fixed container; the app owns
-        // the parent window/container.
+        // the parent window.
         if(wv.web_view != null) {
             gtk_widget_destroy(wv.web_view)
             wv.web_view = null
@@ -293,19 +301,16 @@ public func webview_destroy(wv : *mut WebView) {
             wv.fixed = null
         }
         wv.attached = false
-        wv.parent_widget = null
-        wv.initialized = false
+        wv.parent_win = null
         return
     }
     if(wv.web_view != null) {
         gtk_widget_destroy(wv.web_view)
         wv.web_view = null
     }
-    if(wv.window != null) {
-        gtk_widget_destroy(wv.window)
-        wv.window = null
+    if(window::window_is_created(&raw mut wv.win)) {
+        window::window_destroy(&raw mut wv.win)
     }
-    wv.initialized = false
 }
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
@@ -324,6 +329,63 @@ public func webview_evaluate_js(wv : *mut WebView, script : *char) {
     if(wv.web_view != null) {
         webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null)
     }
+}
+
+// Evaluate JavaScript and receive the result through an asynchronous callback.
+// `result` is the JS value converted to a string (jsc_value_to_string — a JS
+// number arrives as "42", a JS string as "hello") and is valid only during
+// the callback call; copy it if needed. On evaluation failure `result` is
+// null. The callback runs on the GLib main loop.
+func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data : *mut void) {
+    var ctx = user_data as *mut JsEvalHandler
+    if(ctx == null || ctx.cb == null) {
+        if(ctx != null) {
+            free(ctx as *mut void)
+        }
+        return
+    }
+    var js_result = webkit_web_view_run_javascript_finish(web_view, res, null)
+    if(js_result != null) {
+        var value = webkit_javascript_result_get_js_value(js_result)
+        if(value != null) {
+            var s = jsc_value_to_string(value)
+            if(s != null) {
+                ctx.cb(ctx.user_data, s)
+            } else {
+                ctx.cb(ctx.user_data, null)
+            }
+        } else {
+            ctx.cb(ctx.user_data, null)
+        }
+        webkit_javascript_result_unref(js_result)
+    } else {
+        ctx.cb(ctx.user_data, null)
+    }
+    free(ctx as *mut void)
+}
+
+public func webview_evaluate_js_result(
+    wv : *mut WebView,
+    script : *char,
+    cb : JsResultCallback,
+    user_data : *mut void
+) {
+    if(wv.web_view == null) {
+        return
+    }
+    var ctx = malloc(sizeof(JsEvalHandler)) as *mut JsEvalHandler
+    if(ctx == null) {
+        return
+    }
+    ctx.cb = cb
+    ctx.user_data = user_data
+    webkit_web_view_run_javascript(
+        wv.web_view as *mut WebKitWebView,
+        script,
+        null,
+        linux_js_callback as *mut void,
+        ctx as *mut void
+    )
 }
 
 public func webview_title(wv : *mut WebView) : string {
@@ -345,48 +407,64 @@ public func webview_title(wv : *mut WebView) : string {
 public func webview_set_title(wv : *mut WebView, title : *char) {
     wv.title = string("")
     wv.title.append_char_ptr(title)
-    if(wv.window != null) {
-        gtk_window_set_title(wv.window as *mut GtkWindow, title)
+    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
+        window::window_set_title(&raw mut wv.win, title)
     }
 }
 
 public func webview_set_size(wv : *mut WebView, width : int, height : int) {
     wv.width = width
     wv.height = height
-    if(wv.window != null) {
-        gtk_window_set_default_size(wv.window as *mut GtkWindow, width, height)
+    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
+        window::window_set_size(&raw mut wv.win, width, height)
     }
 }
 
 public func webview_show(wv : *mut WebView) {
-    if(wv.window != null) {
-        gtk_widget_show_all(wv.window)
-        wv.visible = true
-    } else if(wv.attached && wv.fixed != null) {
+    if(wv.attached) {
         // embed mode: the app owns the parent window; just make sure the
         // webview section itself is visible
-        gtk_widget_show_all(wv.fixed)
+        if(wv.fixed != null) {
+            gtk_widget_show_all(wv.fixed)
+        }
+        wv.visible = true
+    } else if(window::window_is_created(&raw mut wv.win)) {
+        window::window_show(&raw mut wv.win)
         wv.visible = true
     }
 }
 
 public func webview_hide(wv : *mut WebView) {
-    // GTK doesn't have a simple hide on the window, we use destroy and
-    // recreate pattern. In embed mode we can hide the webview section.
     wv.visible = false
-    if(wv.attached && wv.fixed != null) {
-        gtk_widget_hide(wv.fixed)
+    if(wv.attached) {
+        if(wv.fixed != null) {
+            gtk_widget_hide(wv.fixed)
+        }
+    } else if(window::window_is_created(&raw mut wv.win)) {
+        window::window_hide(&raw mut wv.win)
     }
 }
 
 public func webview_run(wv : *mut WebView) {
-    if(wv.window != null) {
-        gtk_main()
+    if(!wv.attached) {
+        window::window_run()
     }
 }
 
 public func webview_stop(wv : *mut WebView) {
-    gtk_main_quit()
+    window::window_quit()
+}
+
+// Access the webview's underlying window (from the window library). In
+// standalone mode this is the top-level window the webview created; in embed
+// mode it is the parent window the webview was attached to. Use it to mix
+// native UI with the webview — add controls, handle callbacks, set
+// title/size, etc. — all through the window library's API.
+public func webview_window(wv : *mut WebView) : *mut window::Window {
+    if(wv.attached && wv.parent_win != null) {
+        return wv.parent_win
+    }
+    return &raw mut wv.win
 }
 
 } // end namespace webview

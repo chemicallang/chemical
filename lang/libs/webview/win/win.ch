@@ -42,12 +42,23 @@ public type REFIID = *GUID
 public type DPI_AWARENESS_CONTEXT = *mut void
 
 public type WNDPROC = (hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) => LRESULT
-public type LPCREATESTRUCTW = *mut CREATESTRUCTW
-public type LPMINMAXINFO = *mut MINMAXINFO
-public type LPRECT = *mut RECT
+
+// The Win32 structs shared with the window library (RECT/MSG/POINT/... live in
+// lang/libs/window/win/win.ch). Reusing them keeps the extern declarations of
+// the common user32 functions identical across the two modules when they are
+// compiled into the same C translation unit.
+public type LPCREATESTRUCTW = *mut window::CREATESTRUCTW
+public type LPMINMAXINFO = *mut window::MINMAXINFO
+public type LPRECT = *mut window::RECT
+public type POINT = window::POINT
+public type RECT = window::RECT
+public type MSG = window::MSG
+public type MINMAXINFO = window::MINMAXINFO
+public type CREATESTRUCTW = window::CREATESTRUCTW
+public type WNDCLASSEXW = window::WNDCLASSEXW
 
 // ===========================================================================
-// Win32 structs
+// WebView2-specific Win32 structs (not shared with the window library)
 // ===========================================================================
 
 public struct GUID {
@@ -58,65 +69,6 @@ public struct GUID {
 }
 
 public type IID = GUID
-
-public struct POINT {
-    var x : LONG
-    var y : LONG
-}
-
-public struct RECT {
-    var left : LONG
-    var top : LONG
-    var right : LONG
-    var bottom : LONG
-}
-
-public struct MSG {
-    var hwnd : HWND
-    var message : UINT
-    var wParam : WPARAM
-    var lParam : LPARAM
-    var time : DWORD
-    var pt : POINT
-}
-
-public struct MINMAXINFO {
-    var ptReserved : POINT
-    var ptMaxSize : POINT
-    var ptMaxPosition : POINT
-    var ptMinTrackSize : POINT
-    var ptMaxTrackSize : POINT
-}
-
-public struct CREATESTRUCTW {
-    var lpCreateParams : LPVOID
-    var hInstance : HINSTANCE
-    var hMenu : HMENU
-    var hwndParent : HWND
-    var cy : int
-    var cx : int
-    var y : int
-    var x : int
-    var style : LONG
-    var lpszName : LPCWSTR
-    var lpszClass : LPCWSTR
-    var dwExStyle : DWORD
-}
-
-public struct WNDCLASSEXW {
-    var cbSize : UINT
-    var style : UINT
-    var lpfnWndProc : WNDPROC
-    var cbClsExtra : int
-    var cbWndExtra : int
-    var hInstance : HINSTANCE
-    var hIcon : HICON
-    var hCursor : HCURSOR
-    var hbrBackground : HBRUSH
-    var lpszMenuName : LPCWSTR
-    var lpszClassName : LPCWSTR
-    var hIconSm : HICON
-}
 
 public struct EventRegistrationToken {
     var value : INT64
@@ -236,7 +188,7 @@ public comptime const WV_HINT_FIXED : int = 3
 
 // kernel32
 @extern @stdcall @dllimport public func LoadLibraryW(lpLibFileName : LPCWSTR) : HMODULE
-@extern @stdcall @dllimport public func GetModuleFileNameW(lpFilename : LPWSTR, nSize : DWORD) : DWORD
+@extern @stdcall @dllimport public func GetModuleFileNameW(hModule : HMODULE, lpFilename : LPWSTR, nSize : DWORD) : DWORD
 @extern @stdcall @dllimport public func GetModuleHandleW(lpModuleName : LPCWSTR) : HMODULE
 
 // ole32 (COM)
@@ -344,6 +296,19 @@ public struct ICoreWebView2PermissionRequestedEventHandlerVtbl {
 
 public struct ICoreWebView2PermissionRequestedEventHandler {
     var lpVtbl : *ICoreWebView2PermissionRequestedEventHandlerVtbl
+}
+
+// ---- ICoreWebView2ExecuteScriptCompletedHandler (evaluate_js result) ----
+
+public struct ICoreWebView2ExecuteScriptCompletedHandlerVtbl {
+    var QueryInterface : (s : *mut ICoreWebView2ExecuteScriptCompletedHandler, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut ICoreWebView2ExecuteScriptCompletedHandler) => ULONG
+    var Release : (s : *mut ICoreWebView2ExecuteScriptCompletedHandler) => ULONG
+    var Invoke : (s : *mut ICoreWebView2ExecuteScriptCompletedHandler, res : HRESULT, resultJson : LPCWSTR) => HRESULT
+}
+
+public struct ICoreWebView2ExecuteScriptCompletedHandler {
+    var lpVtbl : *ICoreWebView2ExecuteScriptCompletedHandlerVtbl
 }
 
 // ---- ICoreWebView2Environment ----
@@ -765,25 +730,26 @@ func handler_try_create_environment(h : *mut Webview2ComHandler) {
 
 @direct_init
 public struct WebView {
+    // --- top-level window (standalone mode), owned by the window library
+    //     (lang/libs/window). The webview widget fills its client area; the
+    //     app can mix native UI with the webview through this window. ---
+    var win : window::Window
+
     // --- WebView2 backend state (pure-C port) ---
-    var window : HWND
     var widget : HWND
     var webview : *mut ICoreWebView2
     var controller : *mut ICoreWebView2Controller
     var handler : *mut Webview2ComHandler
     var loader_lib : HMODULE
-    var minsz : POINT
-    var maxsz : POINT
-    var dpi : int
-    var window_shown : int
 
     // --- embed mode (webview_attach): the webview lives in a section of an
-    //     app-owned window instead of creating its own top-level window.
-    //     wv.window stays null; wv.widget is a child of `parent` positioned at
-    //     `bounds` in the parent's client coordinates. The parent window is
-    //     subclassed (wv_embed_proc) so the section tracks parent resizes. ---
+    //     app-owned window::Window instead of creating its own top-level
+    //     window. wv.win stays uncreated; wv.widget is a child of the parent's
+    //     native handle positioned at `bounds` in the parent's client
+    //     coordinates. The parent window is subclassed (wv_embed_proc) so the
+    //     section tracks parent resizes. ---
     var attached : bool
-    var parent : HWND
+    var parent : *mut window::Window
     var parent_wndproc : LONG_PTR // original parent wndproc, restored on teardown
     var bounds : RECT
 
@@ -797,16 +763,12 @@ public struct WebView {
     @make
     func make() : WebView {
         return WebView {
-            window : null,
+            win : window::Window.make(),
             widget : null,
             webview : null,
             controller : null,
             handler : null,
             loader_lib : null,
-            minsz : POINT { x : 0, y : 0 },
-            maxsz : POINT { x : 0, y : 0 },
-            dpi : 0,
-            window_shown : 0,
             attached : false,
             parent : null,
             parent_wndproc : 0,
@@ -849,59 +811,23 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
     return 0
 }
 
-func wv_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
-    var wv = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut WebView
-    if(msg == WM_NCCREATE) {
-        var cs = lp as *mut CREATESTRUCTW
-        wv = cs.lpCreateParams as *mut WebView
-        wv.window = hwnd
-        SetWindowLongPtrW(hwnd, GWLP_USERDATA, wv as LONG_PTR)
-        EnableNonClientDpiScaling(hwnd)
-        return 1
+// ---- standalone window callbacks (the top-level window lives in the window
+//      library; these keep the widget filling its client area and forward
+//      focus to the webview) ----
+
+func wv_win_resize_cb(data : *mut void, width : int, height : int) {
+    var wv = data as *mut WebView
+    if(wv != null && wv.widget != null) {
+        MoveWindow(wv.widget, 0, 0, width, height, 1)
+        wv_resize_webview(wv)
     }
-    if(wv == null) {
-        return DefWindowProcW(hwnd, msg, wp, lp)
+}
+
+func wv_win_focus_cb(data : *mut void, focused : bool) {
+    var wv = data as *mut WebView
+    if(wv != null && focused && wv.controller != null) {
+        wv.controller.lpVtbl.MoveFocus(wv.controller, MOVE_FOCUS_REASON_PROGRAMMATIC)
     }
-    switch(msg) {
-        WM_SIZE => {
-            if(wv.widget != null) {
-                var rc : RECT
-                if(GetClientRect(hwnd, &raw mut rc)) {
-                    MoveWindow(wv.widget, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 1)
-                }
-            }
-        }
-        WM_CLOSE => {
-            DestroyWindow(hwnd)
-        }
-        WM_DESTROY => {
-            wv.window = null
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0)
-            PostQuitMessage(0)
-        }
-        WM_GETMINMAXINFO => {
-            var lpmmi = lp as *mut MINMAXINFO
-            if(wv.maxsz.x > 0 && wv.maxsz.y > 0) {
-                lpmmi.ptMaxSize = wv.maxsz
-                lpmmi.ptMaxTrackSize = wv.maxsz
-            }
-            if(wv.minsz.x > 0 && wv.minsz.y > 0) {
-                lpmmi.ptMinTrackSize = wv.minsz
-            }
-        }
-        WM_ACTIVATE => {
-            var wplow = (wp as DWORD) & (0xFFFF as DWORD)
-            if(wplow != 0) { // LOWORD(wp) != WA_INACTIVE
-                if(wv.controller != null) {
-                    wv.controller.lpVtbl.MoveFocus(wv.controller, MOVE_FOCUS_REASON_PROGRAMMATIC)
-                }
-            }
-        }
-        default => {
-            return DefWindowProcW(hwnd, msg, wp, lp)
-        }
-    }
-    return 0
 }
 
 // ---- embed mode: subclassing the app-owned parent window ----
@@ -968,9 +894,10 @@ func wv_embed_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT 
 
 func wv_attach_subclass(wv : *mut WebView) {
     wv_ensure_embed_prop_name()
-    wv.parent_wndproc = GetWindowLongPtrW(wv.parent, GWLP_WNDPROC)
-    SetPropW(wv.parent, &raw g_embed_prop_name[0], wv as HANDLE)
-    SetWindowLongPtrW(wv.parent, GWLP_WNDPROC, wv_embed_proc as LONG_PTR)
+    var parent_hwnd = wv.parent.hwnd
+    wv.parent_wndproc = GetWindowLongPtrW(parent_hwnd, GWLP_WNDPROC)
+    SetPropW(parent_hwnd, &raw g_embed_prop_name[0], wv as HANDLE)
+    SetWindowLongPtrW(parent_hwnd, GWLP_WNDPROC, wv_embed_proc as LONG_PTR)
 }
 
 // ---- embed context + callbacks ----
@@ -1022,7 +949,7 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
     ec.wv = wv
 
     var currentExePath : [260]ushort
-    GetModuleFileNameW(&raw mut currentExePath[0], 260)
+    GetModuleFileNameW(null, &raw mut currentExePath[0], 260)
     var currentExeName = PathFindFileNameW(&raw currentExePath[0])
 
     var dataPath : [260]ushort
@@ -1109,6 +1036,91 @@ func wv_resize_webview(wv : *mut WebView) {
 }
 
 // ===========================================================================
+// evaluate_js result handler (ICoreWebView2ExecuteScriptCompletedHandler)
+// ===========================================================================
+
+// One-shot COM object handed to ExecuteScript for webview_evaluate_js_result.
+// The vtbl is member 0, so the interface pointer IS the struct pointer.
+public struct JsEvalHandler {
+    var vtbl : *ICoreWebView2ExecuteScriptCompletedHandlerVtbl
+    var cb : JsResultCallback
+    var user_data : *mut void
+    var ref_count : ULONG
+}
+
+func js_handler_from_iface(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : *mut JsEvalHandler {
+    return s as *mut JsEvalHandler
+}
+
+// Convert a UTF-16 result string to a malloc'd UTF-8 copy (caller frees).
+func js_result_to_utf8(wide : LPCWSTR) : *mut char {
+    if(wide == null) {
+        return null
+    }
+    var needed = WideCharToMultiByte(65001, 0, wide as *u16, -1, null, 0, null, null)
+    if(needed <= 0) {
+        return null
+    }
+    var buf = malloc((needed + 1) as size_t) as *mut char
+    if(buf == null) {
+        return null
+    }
+    WideCharToMultiByte(65001, 0, wide as *u16, -1, buf, needed, null, null)
+    return buf
+}
+
+func js_qi(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+    if(ppv == null) {
+        return E_POINTER
+    }
+    var h = js_handler_from_iface(s)
+    *ppv = s as *mut void
+    h.ref_count += 1
+    return S_OK
+}
+
+func js_addref(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : ULONG {
+    var h = js_handler_from_iface(s)
+    h.ref_count += 1
+    return h.ref_count
+}
+
+func js_release(s : *mut ICoreWebView2ExecuteScriptCompletedHandler) : ULONG {
+    var h = js_handler_from_iface(s)
+    if(h.ref_count > 1) {
+        h.ref_count -= 1
+        return h.ref_count
+    }
+    free(h as *mut void)
+    return 0
+}
+
+func js_invoke(s : *mut ICoreWebView2ExecuteScriptCompletedHandler, res : HRESULT, resultJson : LPCWSTR) : HRESULT {
+    var h = js_handler_from_iface(s)
+    if(h.cb != null) {
+        if(SUCCEEDED(res) && resultJson != null) {
+            var utf8 = js_result_to_utf8(resultJson)
+            if(utf8 != null) {
+                h.cb(h.user_data, utf8)
+                free(utf8 as *mut void)
+            } else {
+                h.cb(h.user_data, null)
+            }
+        } else {
+            h.cb(h.user_data, null)
+        }
+    }
+    return S_OK
+}
+
+public const g_js_vtbl : ICoreWebView2ExecuteScriptCompletedHandlerVtbl = ICoreWebView2ExecuteScriptCompletedHandlerVtbl {
+    QueryInterface : js_qi,
+    AddRef : js_addref,
+    Release : js_release,
+    Invoke : js_invoke
+}
+
+// ===========================================================================
 // public API (matches posix/linux.ch exactly)
 // ===========================================================================
 
@@ -1142,13 +1154,13 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // public API: embed the webview into a section of an existing app window
 // ===========================================================================
 
-// Attach the webview to an app-owned native window instead of creating its own
-// top-level window. The webview occupies the section (x, y, width, height) in
-// the parent window's client coordinates; native UI can live in the rest of
-// the window. The parent is subclassed so the webview stays pinned to its
-// section when the parent is resized (move the section with
-// webview_set_bounds). On Windows `parent` is an HWND; on Linux it is the
-// GtkWidget* of an existing window or container.
+// Attach the webview to an app-owned window::Window instead of creating its
+// own top-level window. The webview occupies the section (x, y, width, height)
+// in the parent window's client coordinates; native UI can live in the rest of
+// the window (add controls to the parent window through the window library).
+// The parent is subclassed so the webview stays pinned to its section when the
+// parent is resized (move the section with webview_set_bounds). The parent
+// must already be created via window::window_create.
 //
 // LIMITATION: one webview per parent window — the embed association uses a
 // single window property name shared module-wide, so attaching a second
@@ -1156,7 +1168,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 // its resize pinning.
 public func webview_attach(
     wv : *mut WebView,
-    parent : HWND,
+    parent : *mut window::Window,
     x : int,
     y : int,
     width : int,
@@ -1164,6 +1176,9 @@ public func webview_attach(
 ) : std::Result<std::Unit, WebViewError> {
     if(parent == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is null")))
+    }
+    if(!window::window_is_created(parent)) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_attach: parent window is not created (call window::window_create first)")))
     }
     if(wv.attached) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_attach: webview is already attached")))
@@ -1233,13 +1248,14 @@ func wv_init(wv : *mut WebView, debug : int) : int {
     var widget_class_name : [64]ushort
     widen_to_buf("webview_widget", &raw mut widget_class_name[0], 64)
     widget_wc.lpszClassName = &raw widget_class_name[0]
-    widget_wc.lpfnWndProc = wv_widget_proc as WNDPROC
+    widget_wc.lpfnWndProc = wv_widget_proc as window::WNDPROC
     RegisterClassExW(&raw mut widget_wc)
 
     if(wv.attached) {
         // Embed mode: the widget is a child of the app-owned parent window,
         // occupying the section wv.bounds in the parent's client coordinates.
         // The parent is subclassed so the section tracks parent resizes.
+        var parent_hwnd = wv.parent.hwnd
         wv.widget = CreateWindowExW(
             WS_EX_CONTROLPARENT,
             &raw widget_class_name[0],
@@ -1249,7 +1265,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
             wv.bounds.top,
             wv.bounds.right - wv.bounds.left,
             wv.bounds.bottom - wv.bounds.top,
-            wv.parent,
+            parent_hwnd,
             null,
             hInstance,
             wv as *mut void
@@ -1259,51 +1275,21 @@ func wv_init(wv : *mut WebView, debug : int) : int {
         }
         wv_attach_subclass(wv)
     } else {
-        // Standalone mode: top-level window with the widget filling its client area.
-        var wc = zeroed<WNDCLASSEXW>()
-        wc.cbSize = sizeof(WNDCLASSEXW) as UINT
-        wc.hInstance = hInstance
-        var wc_class_name : [64]ushort
-        widen_to_buf("webview", &raw mut wc_class_name[0], 64)
-        wc.lpszClassName = &raw wc_class_name[0]
-        wc.hIcon = icon
-        wc.lpfnWndProc = wv_window_proc as WNDPROC
-        RegisterClassExW(&raw mut wc)
-
-        var empty_wide : [2]ushort
-        empty_wide[0] = 0
-        // NOTE: the SDK header defines CreateWindowW as a macro expanding to
-        // CreateWindowExW(0, ...); CreateWindowExW is the real user32 export.
-        // NOTE: the window is created at wv.width x wv.height (the make() defaults,
-        // or whatever was set before create) so that create -> show -> run works
-        // without a webview_set_size call, matching posix/linux.ch which applies
-        // wv.width/wv.height at creation time.
-        wv.window = CreateWindowExW(
-            0,
-            &raw wc_class_name[0],
-            &raw empty_wide[0],
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            wv.width,
-            wv.height,
-            null,
-            null,
-            hInstance,
-            wv as *mut void
-        )
-        if(wv.window == null) {
+        // Standalone mode: the top-level window is created through the window
+        // library (lang/libs/window), and the widget fills its client area.
+        // The app can mix native UI with the webview through wv.win (it owns
+        // the window, its title/size/callbacks, etc.). Sizes are logical
+        // (96-dpi units); the window library scales them by DPI.
+        wv.win.width = wv.width
+        wv.win.height = wv.height
+        window::window_set_title(&raw mut wv.win, wv.title.data())
+        var wres = window::window_create(&raw mut wv.win)
+        if(wres is std::Result.Err) {
             return -2
         }
-        wv.dpi = GetDpiForWindow(wv.window) as int
-
-        // Match posix/linux.ch: a title set via make() (or a struct literal) is
-        // applied to the window at creation time too.
-        if(wv.title.size() > 0) {
-            var title_buf : [512]ushort
-            widen_to_buf(wv.title.data(), &raw mut title_buf[0], 512)
-            SetWindowTextW(wv.window, &raw title_buf[0])
-        }
+        window::window_set_user_data(&raw mut wv.win, wv as *mut void)
+        window::window_set_resize_callback(&raw mut wv.win, wv_win_resize_cb)
+        window::window_set_focus_callback(&raw mut wv.win, wv_win_focus_cb)
 
         wv.widget = CreateWindowExW(
             WS_EX_CONTROLPARENT,
@@ -1314,7 +1300,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
             0,
             0,
             0,
-            wv.window,
+            wv.win.hwnd,
             null,
             hInstance,
             wv as *mut void
@@ -1322,21 +1308,22 @@ func wv_init(wv : *mut WebView, debug : int) : int {
         if(wv.widget == null) {
             return -3
         }
+        // size the widget to the window's current client area
+        var rc : RECT
+        if(GetClientRect(wv.win.hwnd, &raw mut rc)) {
+            MoveWindow(wv.widget, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 1)
+        }
     }
 
     return wv_embed(wv, debug)
 }
 
 public func webview_run(wv : *mut WebView) {
-    var msg : MSG
-    while(GetMessageW(&raw mut msg, null, 0, 0) > 0) {
-        TranslateMessage(&raw mut msg)
-        DispatchMessageW(&raw mut msg)
-    }
+    window::window_run()
 }
 
 public func webview_stop(wv : *mut WebView) {
-    PostQuitMessage(0)
+    window::window_quit()
 }
 
 public func webview_title(wv : *mut WebView) : string {
@@ -1346,48 +1333,30 @@ public func webview_title(wv : *mut WebView) : string {
 public func webview_set_title(wv : *mut WebView, title : *char) {
     wv.title = string("")
     wv.title.append_char_ptr(title)
-    if(wv.window != null) {
-        var wbuf : [512]ushort
-        widen_to_buf(title, &raw mut wbuf[0], 512)
-        SetWindowTextW(wv.window, &raw wbuf[0])
+    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
+        window::window_set_title(&raw mut wv.win, title)
     }
 }
 
 func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
-    if(wv.window == null) {
+    if(wv.attached) {
         // embed mode: the section size is managed via webview_set_bounds
         return
     }
-    var style = GetWindowLongPtrW(wv.window, GWL_STYLE)
-    if(hints == WV_HINT_FIXED) {
-        style = style & ~((WS_THICKFRAME | WS_MAXIMIZEBOX) as LONG_PTR)
-    } else {
-        style = style | ((WS_THICKFRAME | WS_MAXIMIZEBOX) as LONG_PTR)
+    if(!window::window_is_created(&raw mut wv.win)) {
+        wv.win.width = width
+        wv.win.height = height
+        return
     }
-    SetWindowLongPtrW(wv.window, GWL_STYLE, style)
-
     if(hints == WV_HINT_MAX) {
-        wv.maxsz.x = width
-        wv.maxsz.y = height
+        window::window_set_max_size(&raw mut wv.win, width, height)
     } else if(hints == WV_HINT_MIN) {
-        wv.minsz.x = width
-        wv.minsz.y = height
+        window::window_set_min_size(&raw mut wv.win, width, height)
+    } else if(hints == WV_HINT_FIXED) {
+        window::window_set_min_size(&raw mut wv.win, width, height)
+        window::window_set_max_size(&raw mut wv.win, width, height)
     } else {
-        var dpi = GetDpiForWindow(wv.window) as int
-        wv.dpi = dpi
-        var scaled_w = (width * dpi) / 96
-        var scaled_h = (height * dpi) / 96
-        var r = RECT { left : 0, top : 0, right : scaled_w, bottom : scaled_h }
-        AdjustWindowRectExForDpi(&raw mut r, style as DWORD, 0, 0, dpi as UINT)
-        SetWindowPos(
-            wv.window,
-            null,
-            0,
-            0,
-            r.right - r.left,
-            r.bottom - r.top,
-            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE | SWP_FRAMECHANGED
-        )
+        window::window_set_size(&raw mut wv.win, width, height)
     }
 }
 
@@ -1398,28 +1367,29 @@ public func webview_set_size(wv : *mut WebView, width : int, height : int) {
 }
 
 public func webview_show(wv : *mut WebView) {
-    if(wv.window != null) {
-        ShowWindow(wv.window, SW_SHOW)
-        UpdateWindow(wv.window)
-        SetFocus(wv.window)
-        SetForegroundWindow(wv.window)
-        wv.window_shown = 1
-        wv.visible = true
-    } else if(wv.attached && wv.widget != null) {
+    if(wv.attached) {
         // embed mode: the app owns the parent window; just make sure the
         // webview section itself is visible
-        ShowWindow(wv.widget, SW_SHOW)
-        SetFocus(wv.widget)
+        if(wv.widget != null) {
+            ShowWindow(wv.widget, SW_SHOW)
+            SetFocus(wv.widget)
+        }
+        wv.visible = true
+    } else if(window::window_is_created(&raw mut wv.win)) {
+        window::window_show(&raw mut wv.win)
+        window::window_focus(&raw mut wv.win)
         wv.visible = true
     }
 }
 
 public func webview_hide(wv : *mut WebView) {
     wv.visible = false
-    if(wv.window != null) {
-        ShowWindow(wv.window, 0) // SW_HIDE
-    } else if(wv.attached && wv.widget != null) {
-        ShowWindow(wv.widget, 0) // SW_HIDE — hide just the webview section
+    if(wv.attached) {
+        if(wv.widget != null) {
+            ShowWindow(wv.widget, 0) // SW_HIDE — hide just the webview section
+        }
+    } else if(window::window_is_created(&raw mut wv.win)) {
+        window::window_hide(&raw mut wv.win)
     }
 }
 
@@ -1436,6 +1406,45 @@ public func webview_evaluate_js(wv : *mut WebView, js : *char) {
     widen_to_buf(js, &raw mut wbuf[0], 32768)
     if(wv.webview != null) {
         wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw wbuf[0], null)
+    }
+}
+
+// Evaluate JavaScript and receive the result through an asynchronous callback.
+// `result` is a JSON-encoded string (WebView2's ExecuteScript result — e.g. a
+// JS number arrives as "42", a JS string as "\"hello\"", an object as its
+// JSON text) and is valid only during the callback call; copy it if needed.
+// On evaluation failure `result` is null. The callback runs on the UI thread
+// (inside the message loop), so it must not block.
+public func webview_evaluate_js_result(
+    wv : *mut WebView,
+    js : *char,
+    cb : JsResultCallback,
+    user_data : *mut void
+) {
+    if(wv.webview == null) {
+        return
+    }
+    var h = malloc(sizeof(JsEvalHandler)) as *mut JsEvalHandler
+    if(h == null) {
+        return
+    }
+    h.vtbl = &raw g_js_vtbl
+    h.cb = cb
+    h.user_data = user_data
+    // ref_count starts at 0 (our implied reference). WebView2 AddRefs the
+    // handler when ExecuteScript accepts it and Releases it after Invoke; the
+    // Release that brings the count to 0 frees the struct (see js_release).
+    h.ref_count = 0
+    var wbuf : [32768]ushort
+    widen_to_buf(js, &raw mut wbuf[0], 32768)
+    var res = wv.webview.lpVtbl.ExecuteScript(
+        wv.webview,
+        &raw wbuf[0],
+        &raw h.vtbl as *mut void
+    )
+    if(FAILED(res)) {
+        // WebView2 never accepted the handler — drop our implied reference.
+        js_release(&raw h.vtbl as *mut ICoreWebView2ExecuteScriptCompletedHandler)
     }
 }
 
@@ -1466,10 +1475,6 @@ public func webview_destroy(wv : *mut WebView) {
         DestroyWindow(wv.widget)
         wv.widget = null
     }
-    if(wv.window != null) {
-        DestroyWindow(wv.window)
-        wv.window = null
-    }
     if(wv.attached) {
         // Restore the parent's original window proc. WM_NCDESTROY normally
         // does this, but the app may destroy the webview before the window.
@@ -1478,18 +1483,32 @@ public func webview_destroy(wv : *mut WebView) {
         // parent's proc with 0 in that case).
         if(wv.parent != null && wv.parent_wndproc != 0) {
             wv_ensure_embed_prop_name()
-            SetWindowLongPtrW(wv.parent, GWLP_WNDPROC, wv.parent_wndproc)
-            RemovePropW(wv.parent, &raw g_embed_prop_name[0])
+            SetWindowLongPtrW(wv.parent.hwnd, GWLP_WNDPROC, wv.parent_wndproc)
+            RemovePropW(wv.parent.hwnd, &raw g_embed_prop_name[0])
         }
         wv.attached = false
         wv.parent = null
         wv.parent_wndproc = 0
+    } else if(window::window_is_created(&raw mut wv.win)) {
+        window::window_destroy(&raw mut wv.win)
     }
     if(wv.loader_lib != null) {
         FreeLibrary(wv.loader_lib)
         wv.loader_lib = null
     }
     CoUninitialize()
+}
+
+// Access the webview's underlying window (from the window library). In
+// standalone mode this is the top-level window the webview created; in embed
+// mode it is the parent window the webview was attached to. Use it to mix
+// native UI with the webview: add controls, handle callbacks, set title/size,
+// etc. — all through the window library's API.
+public func webview_window(wv : *mut WebView) : *mut window::Window {
+    if(wv.attached && wv.parent != null) {
+        return wv.parent
+    }
+    return &raw mut wv.win
 }
 
 } // end namespace webview

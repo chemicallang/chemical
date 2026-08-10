@@ -6,6 +6,7 @@ source "posix" if !windows
 
 import cstd
 import std
+import window
 
 // Win32: pure-C WebView2 backend (lang/libs/webview/win/win.ch).
 // Reference build of the ported C:

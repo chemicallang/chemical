@@ -1,0 +1,600 @@
+
+public enum CSSPropertyKind {
+
+    Unknown,
+
+}
+
+public struct CSSProperty {
+
+    var kind : CSSPropertyKind
+
+    var name : std::string_view;
+
+}
+
+// any keyword that is being stored as a value like 'auto'
+@direct_init
+public struct CSSKeywordValueData {
+
+    var kind : CSSKeywordKind
+
+    var value : std::string_view
+
+    @make
+    func make() {
+        return { kind = CSSKeywordKind.Unknown }
+    }
+
+}
+
+@direct_init
+public struct CSSLengthValueData {
+
+    var kind : CSSLengthKind
+
+    // we store length value as string_view for printing it fast
+    // since we don't need to check the value
+    var value : std::string_view
+
+    @make
+    func make() {
+        return { kind = CSSLengthKind.Unknown }
+    }
+}
+
+@direct_init
+public struct CSSStringValueData {
+    var value : std::string_view
+}
+
+@direct_init
+public struct CSSRawValueData {
+    var value : std::string_view
+}
+
+public struct SingleLengthFuncCall {
+
+    var name : CSSKeywordValueData
+
+    var length : CSSLengthValueData
+
+}
+
+public struct CSSRGBColorData {
+
+    var red : CSSLengthValueData
+
+    var green : CSSLengthValueData
+
+    var blue : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSHSLColorData {
+
+    var hue : CSSLengthValueData
+
+    var saturation : CSSLengthValueData
+
+    var lightness : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSHWBColorData {
+
+    var hue : CSSLengthValueData
+
+    var whiteness : CSSLengthValueData
+
+    var blackness : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSLABColorData {
+
+    var lightness : CSSLengthValueData
+
+    var rgAxis : CSSLengthValueData
+
+    var byAxis : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSLCHColorData {
+
+    var lightness : CSSLengthValueData
+
+    var chroma : CSSLengthValueData
+
+    var hue : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSOKLABColorData {
+
+    var lightness : CSSLengthValueData
+
+    var aAxis : CSSLengthValueData
+
+    var bAxis : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSOKLCHColorData {
+
+    var lightness : CSSLengthValueData
+
+    var pChroma : CSSLengthValueData
+
+    var hue : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+public struct CSSColorValueData {
+
+    var kind : CSSColorKind
+
+    union {
+
+        var view : std::string_view
+
+        var rgbData : *CSSRGBColorData
+
+        var hslData : *CSSHSLColorData
+
+        var hwbData : *CSSHWBColorData
+
+        var labData : *CSSLABColorData
+
+        var lchData : *CSSLCHColorData
+
+        var oklabData : *CSSOKLABColorData
+
+        var oklchData : *CSSOKLCHColorData
+
+    } value;
+
+}
+
+public struct CSSValuePair {
+
+    var first : CSSValue
+
+    var second : CSSValue
+
+}
+
+public struct CSSMultipleValues {
+
+    var values : std::vector<CSSValue>
+
+}
+
+/**
+ * the struct used for border value
+ * value with kind Unknown is present if a single value (width / style) is NOT given
+ */
+public struct CSSBorderValueData {
+
+    var width : CSSValue
+
+    var style : CSSValue
+
+    var color : CSSValue
+
+}
+
+public struct CSSOutlineValueData {
+
+    var width : CSSValue
+
+    var style : CSSValue
+
+    var color : CSSValue
+
+}
+
+public struct CSSBorderRadiusValueData {
+
+    var first : CSSValue
+
+    var second : CSSValue
+
+    var third : CSSValue
+
+    var fourth : CSSValue
+
+    var next : *mut CSSBorderRadiusValueData
+
+}
+
+public variant CSSFontStyle {
+    None()
+    Keyword(keyword : CSSKeywordValueData)
+    Oblique(view : std::string_view)
+}
+
+public variant CSSFontWeight {
+    None();
+    Keyword(keyword : CSSKeywordValueData)
+    Absolute(view : std::string_view)
+}
+
+public struct CSSFontFamily {
+
+    var families : std::vector<std::string_view>
+
+}
+
+public struct CSSFontValueData {
+
+    var style       : CSSFontStyle
+
+    var fontVariant : CSSKeywordValueData
+
+    var weight      : CSSFontWeight
+
+    var stretch     : CSSKeywordValueData
+
+    var size        : CSSValue
+
+    var lineHeight  : CSSValue
+
+    var family      : CSSFontFamily
+
+}
+
+public struct UrlData {
+
+    var value : std::string_view
+
+    var is_source : bool = false;
+
+}
+
+@direct_init
+public struct BackgroundImageData {
+
+    var is_url : bool = true;
+
+    var url : UrlData
+
+    var gradient : GradientData
+
+    @make
+    func make() {
+        return {
+            url = UrlData()
+            gradient = GradientData()
+        }
+    }
+
+}
+
+public struct MultipleBackgroundImageData {
+
+    var images : std::vector<BackgroundImageData>
+
+}
+
+public struct CSSBackgroundLayerData {
+
+    var image : CSSValue
+
+    var positionX : CSSValue
+
+    var positionY : CSSValue
+
+    var size : CSSValue
+
+    var repeat : CSSValue
+
+    var attachment : CSSValue
+
+    var origin : CSSValue
+
+    var clip : CSSValue
+
+}
+
+public struct CSSBackgroundValueData {
+
+    var color : CSSValue
+
+    var layers : std::vector<CSSBackgroundLayerData>
+
+}
+
+public struct CSSLinearEasingPoint {
+
+    // the duration point
+    var point : CSSLengthValueData
+
+    var start : CSSLengthValueData
+
+    var stop : CSSLengthValueData
+
+    var next : *CSSLinearEasingPoint
+
+    @make
+    func make() {
+        return { next = null }
+    }
+
+}
+
+public struct CSSCubicBezierEasingData {
+
+    var x1 : CSSLengthValueData
+
+    var y1 : CSSLengthValueData
+
+    var x2 : CSSLengthValueData
+
+    var y2 : CSSLengthValueData
+
+}
+
+public struct CSSStepsEasingData {
+
+    var step : CSSLengthValueData
+
+    var position : CSSKeywordValueData
+
+}
+
+public struct CSSEasingFunction {
+
+    var kind : CSSKeywordKind
+
+    union {
+
+        var keyword : CSSKeywordValueData
+
+        var linear : *CSSLinearEasingPoint
+
+        var bezier : *CSSCubicBezierEasingData
+
+        var steps : *CSSStepsEasingData
+
+    } data;
+
+    @make
+    func make() {
+        return {
+            kind = CSSKeywordKind.Unknown,
+            data = {
+                steps : null
+            }
+        }
+    }
+
+}
+
+public struct CSSTransitionValueData {
+
+    // can be 'all', 'none', a css property name or even empty
+    var property : std::string_view
+
+    var duration : CSSLengthValueData
+
+    var easing : CSSEasingFunction
+
+    var delay : CSSLengthValueData
+
+    var behavior : CSSKeywordValueData
+
+    var next : *mut CSSTransitionValueData
+
+    @make
+    func make() {
+        return { next = null }
+    }
+
+}
+
+public struct CSSAnimationValueData {
+    var name : std::string_view
+    var duration : CSSLengthValueData
+    var easing : CSSEasingFunction
+    var delay : CSSLengthValueData
+    var iterationCount : CSSValue // Number or Keyword (infinite)
+    var direction : CSSKeywordValueData
+    var fillMode : CSSKeywordValueData
+    var playState : CSSKeywordValueData
+    var next : *mut CSSAnimationValueData
+
+    @make
+    func make() {
+        return { next = null }
+    }
+}
+
+public struct CSSListStyleValueData {
+    var type : CSSKeywordValueData
+    var position : CSSKeywordValueData
+    var image : CSSValue
+}
+
+public struct CSSTransformLengthNode {
+
+    var value : CSSValue
+
+    var next : *mut CSSTransformLengthNode
+
+    @make
+    func make() {
+        return { next = null }
+    }
+
+}
+
+public struct CSSTransformValueData {
+
+    var transformFunction : CSSKeywordValueData
+
+    var node : *mut CSSTransformLengthNode
+
+    var next : *mut CSSTransformValueData
+
+    @make
+    func make() {
+        return {
+            node = null
+            next = null
+        }
+    }
+
+}
+
+public struct CSSBoxShadowValueData {
+
+    var inset : bool;
+    var offsetX : CSSValue;
+    var offsetY : CSSValue;
+    var blurRadius : CSSValue;   // optional, default to 0 if not provided
+    var spreadRadius : CSSValue; // optional, default to 0 if not provided
+    var color : CSSValue;        // optional, can be left undefined
+
+    var next : *mut CSSBoxShadowValueData
+
+    @make
+    func empty() {
+        return {
+            inset = false;
+            next = null
+        }
+    }
+
+    func isEmpty(&self) : bool {
+        return inset == false && offsetX.isUnknown() && offsetY.isUnknown() && blurRadius.isUnknown() && spreadRadius.isUnknown() && color.isUnknown()
+    }
+
+};
+
+public struct CSSTextShadowValueData {
+
+    var offsetX : CSSValue;
+    var offsetY : CSSValue;
+    var blurRadius : CSSValue; // optional; default to 0 if not provided
+    var color : CSSValue;      // optional; if not provided, use current color
+
+    var next : *mut CSSTextShadowValueData
+
+    @make
+    func empty() {
+        return { next = null }
+    }
+
+    func isEmpty(&self) : bool {
+        return offsetX.isUnknown() && offsetY.isUnknown() && blurRadius.isUnknown() && color.isUnknown()
+    }
+
+};
+
+@direct_init
+public struct CSSBackdropFilterValueData {
+
+    var function : CSSKeywordValueData
+
+    // for now we only support single argument functions or simplified parsing
+    // similar to transform but generic
+    var arguments : std::vector<CSSValue>
+
+    var next : *mut CSSBackdropFilterValueData
+
+    @make
+    func empty() {
+        return { next = null }
+    }
+
+};
+ 
+public struct CSSTextDecorationValueData {
+ 
+    var line : CSSValue
+ 
+    var style : CSSValue
+ 
+    var color : CSSValue
+ 
+    var thickness : CSSValue
+ 
+};
+ 
+public enum CSSCalcExpressionKind {
+    Literal,
+    Operation,
+    Group
+}
+ 
+public struct CSSCalcExpression {
+    var kind : CSSCalcExpressionKind
+    var data : *mut void
+}
+ 
+public struct CSSCalcOperationData {
+    var left : CSSCalcExpression
+    var right : CSSCalcExpression
+    var op : char
+}
+ 
+public struct GridRepeatData {
+    var count : CSSValue
+    var tracks : std::vector<CSSValue>
+}
+
+public struct GridLineData {
+    var is_span : bool
+    var value : CSSValue // Number or Identifier
+}
+
+public struct CSSCalcValueData {
+    var expression : CSSCalcExpression
+};
+ 
+@direct_init
+public struct CSSValue {
+
+    var kind : CSSValueKind
+
+    var data : *mut void
+
+    @make
+    func empty() {
+        return {
+            kind = CSSValueKind.Unknown
+            data = null
+        }
+    }
+
+    func isUnknown(&self) : bool {
+        return kind == CSSValueKind.Unknown;
+    }
+
+}
+
+public struct CSSDeclaration {
+
+    var property : CSSProperty
+
+    var value : CSSValue
+
+    var important : bool
+
+}

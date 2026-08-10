@@ -44,6 +44,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/BlockScope.h"
@@ -1521,6 +1522,32 @@ llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getInt64(align.value());
 }
 
+llvm::Type* OffsetOfValue::llvm_type(Codegen &gen) {
+    return gen.builder->getInt64Ty();
+}
+
+llvm::Value* OffsetOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto node = for_type->get_direct_linked_node();
+    if(!node) {
+        gen.error("offsetof: cannot resolve the given type", encoded_location());
+        return gen.builder->getInt64(0);
+    }
+    const auto container = node->get_members_container();
+    if(!container) {
+        gen.error("offsetof: type is not a struct or a union", encoded_location());
+        return gen.builder->getInt64(0);
+    }
+    const auto index = container->variable_index(member_name, true);
+    if(index < 0) {
+        gen.error("offsetof: member was not found in the given type", encoded_location());
+        return gen.builder->getInt64(0);
+    }
+    // use the actual LLVM struct layout, so the offset always matches codegen
+    const auto struct_type = (llvm::StructType*) for_type->llvm_type(gen);
+    const auto layout = gen.module->getDataLayout().getStructLayout(struct_type);
+    return gen.builder->getInt64(layout->getElementOffset(index));
+}
+
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     auto type = values[values.size() - 1]->llvm_type(gen);
     return type;
@@ -1780,6 +1807,7 @@ inline static bool isValueKindRValue(ValueKind k) {
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
             return true;
         default:
             return false;

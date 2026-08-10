@@ -103,6 +103,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/values/NewTypedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
@@ -772,6 +773,7 @@ inline static bool isValueKindRValue(ValueKind k) {
         case ValueKind::BitwiseNot:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
         case ValueKind::Expression:
         case ValueKind::AddrOfValue:
         case ValueKind::NullValue:
@@ -6673,6 +6675,15 @@ void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("_Alignof");
     write('(');
     visit(align_of->for_type);
+    write(')');
+}
+
+void ToCAstVisitor::VisitOffsetOfValue(OffsetOfValue *offset_of) {
+    // stddef.h (with offsetof) is already included in the generated C preamble
+    write("offsetof(");
+    visit(offset_of->for_type);
+    write(", ");
+    write(offset_of->member_name);
     write(')');
 }
 

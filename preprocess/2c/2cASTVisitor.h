@@ -773,6 +773,8 @@ public:
 
     void VisitAlignOfValue(AlignOfValue* value);
 
+    void VisitOffsetOfValue(OffsetOfValue* value);
+
     void VisitVariantCase(VariantCase* value);
 
     void VisitAddrOfValue(AddrOfValue* value);

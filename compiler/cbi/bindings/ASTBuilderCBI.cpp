@@ -71,6 +71,7 @@
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/types/LinkedType.h"
@@ -394,6 +395,10 @@ IntNumValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64
 
 SizeOfValue* ASTBuildermake_sizeof_value(ASTBuilder* builder, BaseType* type, uint64_t location) {
     return new (builder->allocate<SizeOfValue>()) SizeOfValue({type, location}, builder->typeBuilder.getU64Type(), location);
+}
+
+OffsetOfValue* ASTBuildermake_offsetof_value(ASTBuilder* builder, BaseType* type, chem::string_view* member_name, uint64_t location) {
+    return new (builder->allocate<OffsetOfValue>()) OffsetOfValue({type, location}, *member_name, builder->typeBuilder.getU64Type(), location);
 }
 
 StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view* value, uint64_t location) {

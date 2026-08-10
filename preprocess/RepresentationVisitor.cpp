@@ -44,6 +44,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/values/InValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/structures/Namespace.h"
@@ -1210,6 +1211,14 @@ void RepresentationVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
 void RepresentationVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("alignof(");
     visit(align_of->for_type);
+    write(')');
+}
+
+void RepresentationVisitor::VisitOffsetOfValue(OffsetOfValue *offset_of) {
+    write("offsetof(");
+    visit(offset_of->for_type);
+    write(", ");
+    write(offset_of->member_name);
     write(')');
 }
 

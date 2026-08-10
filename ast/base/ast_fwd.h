@@ -228,6 +228,8 @@ class SizeOfValue;
 
 class AlignOfValue;
 
+class OffsetOfValue;
+
 class LambdaFunction;
 
 class TypeInsideValue;

@@ -847,6 +847,10 @@ public:
         return k == ValueKind::SizeOfValue;
     }
 
+    static constexpr inline bool isOffsetOfValue(ValueKind k) {
+        return k == ValueKind::OffsetOfValue;
+    }
+
     static constexpr inline bool isVariantCase(ValueKind k) {
         return k == ValueKind::VariantCase;
     }
@@ -957,6 +961,10 @@ public:
 
     inline SizeOfValue* as_sizeof_value() {
         return isSizeOfValue(val_kind()) ? ((SizeOfValue*) this) : nullptr;
+    }
+
+    inline OffsetOfValue* as_offset_of_value() {
+        return isOffsetOfValue(val_kind()) ? ((OffsetOfValue*) this) : nullptr;
     }
 
     inline VariantCase* as_variant_case() {
@@ -1087,6 +1095,11 @@ public:
     inline SizeOfValue* as_sizeof_value_unsafe() {
         CHECK_CAST(ValueKind::SizeOfValue);
         return ((SizeOfValue*) this);
+    }
+
+    inline OffsetOfValue* as_offset_of_value_unsafe() {
+        CHECK_CAST(ValueKind::OffsetOfValue);
+        return ((OffsetOfValue*) this);
     }
 
     inline VariantCase* as_variant_case_unsafe() {

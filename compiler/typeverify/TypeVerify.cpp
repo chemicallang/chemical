@@ -591,6 +591,7 @@ Value* getNonComptimeValueByKind(BaseType* type, Value* value) {
         case ValueKind::String:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
         case ValueKind::NullValue:
             return nullptr;
         case ValueKind::NegativeValue:
@@ -1187,6 +1188,7 @@ bool is_assignable(Value* lhs) {
         case ValueKind::LambdaFunc:
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
+        case ValueKind::OffsetOfValue:
         case ValueKind::String:
         case ValueKind::IntN:
         case ValueKind::IfValue:

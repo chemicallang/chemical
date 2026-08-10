@@ -76,6 +76,7 @@ public enum ChemicalTokenType {
     VoidKw,
     SizeOfKw,
     AlignOfKw,
+    OffsetOfKw,
     RawKw,
     ImportKw,
     ExportKw,

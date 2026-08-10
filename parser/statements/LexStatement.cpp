@@ -366,6 +366,10 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             token++;
             return parseAlignOfValue(allocator);
         }
+        case TokenType::OffsetOfKw: {
+            token++;
+            return parseOffsetOfValue(allocator);
+        }
         case TokenType::DynKw: {
             token++;
             return parseDynamicValue(allocator);

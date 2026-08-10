@@ -35,6 +35,7 @@
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
 #include "ast/values/ZeroedValue.h"
 #include "ast/values/InValue.h"
 #include "ast/types/LinkedType.h"
@@ -1068,6 +1069,45 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
         error("expected a type in alignof");
         return nullptr;
     }
+}
+
+Value* Parser::parseOffsetOfValue(ASTAllocator& allocator) {
+    const auto tok = token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        token++;
+    } else {
+        unexpected_error("expected '{' or '(' when parsing offsetof");
+        return nullptr;
+    }
+    auto type = parseTypeLoc(allocator);
+    if(!type) {
+        unexpected_error("expected a type in offsetof");
+        return nullptr;
+    }
+    if(!consumeToken(TokenType::CommaSym)) {
+        unexpected_error("expected a ',' after the type when parsing offsetof");
+        return nullptr;
+    }
+    const auto member_id = consumeIdentifier();
+    if(!member_id) {
+        unexpected_error("expected a member name after the ',' when parsing offsetof");
+        return nullptr;
+    }
+    auto last = token;
+    auto value = new (allocator.allocate<OffsetOfValue>()) OffsetOfValue(
+        type,
+        allocate_view(allocator, member_id->value),
+        typeBuilder.getU64Type(),
+        loc(tok, last)
+    );
+    const auto last_type = last->type;
+    if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+        token++;
+    } else {
+        unexpected_error("expected '}' or ')' after the member name when parsing offsetof");
+    }
+    return value;
 }
 
 Value* Parser::parseRawAddrOfValue(ASTAllocator& allocator, SourceLocation location) {

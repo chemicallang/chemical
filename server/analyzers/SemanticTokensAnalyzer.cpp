@@ -193,6 +193,7 @@ Token* SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::DeallocKw:
             case TokenType::SizeOfKw:
             case TokenType::AlignOfKw:
+            case TokenType::OffsetOfKw:
             case TokenType::FromKw:
             case TokenType::ZeroedKw:
                 put(token, TokenScope(KeywordOperator));

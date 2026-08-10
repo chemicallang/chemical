@@ -561,18 +561,16 @@ func handler_from_env(s : *mut ICoreWebView2CreateCoreWebView2EnvironmentComplet
     return s as *mut Webview2ComHandler
 }
 
-// TODO: replace with offsetof
 func handler_from_ctrl(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHandler) : *mut Webview2ComHandler {
-    // ctrl_vtbl is one pointer past the start of the handler (env_vtbl = 8 bytes on x64)
+    // the ctrl interface pointer is the address of the ctrl_vtbl field
     var base = s as *mut char
-    return (base - 8) as *mut Webview2ComHandler
+    return (base - (offsetof(Webview2ComHandler, ctrl_vtbl) as bigint)) as *mut Webview2ComHandler
 }
 
-// TODO: replace with offsetof
 func handler_from_perm(s : *mut ICoreWebView2PermissionRequestedEventHandler) : *mut Webview2ComHandler {
-    // perm_vtbl is two pointers past the start of the handler
+    // the perm interface pointer is the address of the perm_vtbl field
     var base = s as *mut char
-    return (base - 16) as *mut Webview2ComHandler
+    return (base - (offsetof(Webview2ComHandler, perm_vtbl) as bigint)) as *mut Webview2ComHandler
 }
 
 func handler_qi(h : *mut Webview2ComHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {

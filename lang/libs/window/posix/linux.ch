@@ -11,6 +11,10 @@ public namespace window {
 
 using std::string;
 
+// 32-bit unsigned, matching GDK's guint32 event fields (cstd only defines
+// DWORD on Windows; the Windows backend maps it to ulong there).
+public type DWORD = u32
+
 // ===========================================================================
 // GTK / GDK types
 // ===========================================================================
@@ -37,6 +41,15 @@ public struct GdkRectangle {
     var y : int
     var width : int
     var height : int
+}
+
+// Mirror of the Windows backend's RECT (used by the shared Window struct's
+// fullscreen-restore state; kept for layout parity across platforms).
+public struct RECT {
+    var left : int
+    var top : int
+    var right : int
+    var bottom : int
 }
 
 // First four fields of GdkGeometry (used with GDK_HINT_MIN_SIZE/MAX_SIZE).
@@ -129,16 +142,16 @@ const TRUE = 1
 const FALSE = 0
 
 // event masks (gtk_widget_add_events)
-const GDK_KEY_PRESS_MASK = 1 << 0
-const GDK_KEY_RELEASE_MASK = 1 << 1
-const GDK_POINTER_MOTION_MASK = 1 << 6
-const GDK_BUTTON_PRESS_MASK = 1 << 8
-const GDK_BUTTON_RELEASE_MASK = 1 << 9
-const GDK_SCROLL_MASK = 1 << 12
+public comptime const GDK_KEY_PRESS_MASK : int = 1 << 0
+public comptime const GDK_KEY_RELEASE_MASK : int = 1 << 1
+public comptime const GDK_POINTER_MOTION_MASK : int = 1 << 6
+public comptime const GDK_BUTTON_PRESS_MASK : int = 1 << 8
+public comptime const GDK_BUTTON_RELEASE_MASK : int = 1 << 9
+public comptime const GDK_SCROLL_MASK : int = 1 << 12
 
 // geometry hints
-const GDK_HINT_MIN_SIZE = 2 // 1 << 1
-const GDK_HINT_MAX_SIZE = 4 // 1 << 2
+public comptime const GDK_HINT_MIN_SIZE : int = 2 // 1 << 1
+public comptime const GDK_HINT_MAX_SIZE : int = 4 // 1 << 2
 
 // drag & drop
 const GTK_DEST_DEFAULT_ALL = 7
@@ -180,6 +193,11 @@ const GDK_ACTION_COPY = 2
 @extern public func gtk_widget_add_events(widget : *mut GtkWidget, events : int)
 
 @extern public func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
+
+// GObject object-data — used for the stable per-widget callback context
+// (g_object_set_data_full auto-frees the context when the widget is destroyed)
+@extern public func g_object_set_data_full(object : *mut void, key : *char, data : *mut void, destroy : *mut void)
+@extern public func g_object_get_data(object : *mut void, key : *char) : *mut void
 
 // GDK
 @extern public func gdk_display_get_default() : *mut GdkDisplay
@@ -317,46 +335,169 @@ func apply_cursor(w : *mut Window) {
 // signal handlers
 // ===========================================================================
 
+// ---------------------------------------------------------------------------
+// Stable per-widget callback context.
+//
+// GTK signal handlers must NOT capture the caller's Window* as user data:
+// the webview library embeds a window::Window inside its WebView and returns
+// the WebView by value, so the embedded Window can be relocated after
+// window_create() returns — leaving signal handlers pointing at dead stack
+// memory (SIGSEGV on the first emitted signal).
+//
+// Instead, each window_create() allocates a WindowCtx on the heap, stores the
+// current callbacks there, and attaches it to the GtkWidget via
+// g_object_set_data_full (auto-freed when the widget is destroyed). Handlers
+// look the context up by widget, so they always read the live callback set.
+// ---------------------------------------------------------------------------
+
+@direct_init
+public struct WindowCtx {
+    // The context is attached to the widget via g_object_set_data_full (keyed
+    // on the GtkWidget), so handlers look it up by widget and never need to
+    // dereference a Window* that may have been relocated by a by-value move.
+    var window : *mut Window
+    var user_data : *mut void
+    var resize_cb : ResizeCallback
+    var close_cb : CloseCallback
+    var focus_cb : FocusCallback
+    var event_cb : EventCallback
+    var drop_cb : DropCallback
+    var command_cb : CommandCallback
+
+    @make
+    func make() : WindowCtx {
+        return WindowCtx {
+            window : null,
+            user_data : null,
+            resize_cb : null,
+            close_cb : null,
+            focus_cb : null,
+            event_cb : null,
+            drop_cb : null,
+            command_cb : null
+        }
+    }
+}
+
+// Declared type-only (no initializer): the LLVM backend crashes on an empty
+// array literal at module scope (ArrayValue::element_type() returns null for
+// `[]`), while a type-only global takes the safe zero-init path in both
+// backends. The buffer is filled by win_ctx_key() on first use.
+var g_win_ctx_key : [32]char
+var g_win_ctx_key_ready : int = 0
+
+// g_object_set_data_full stores the key POINTER, not a copy, so the key
+// string must outlive the widget — keep it in a module-level buffer.
+func win_ctx_key() : *char {
+    if(g_win_ctx_key_ready == 0) {
+        var i : int = 0
+        var src = "chem_window_ctx\0" as *char
+        while(src[i] != '\0' as char && i < 31) {
+            g_win_ctx_key[i] = src[i]
+            i += 1
+        }
+        g_win_ctx_key[i] = '\0' as char
+        g_win_ctx_key_ready = 1
+    }
+    return &raw g_win_ctx_key[0]
+}
+
+func win_ctx_free(data : *mut void) {
+    if(data != null) {
+        free(data as *mut void)
+    }
+}
+
+func window_ctx_get(widget : *mut GtkWidget) : *mut WindowCtx {
+    return g_object_get_data(widget as *mut void, win_ctx_key()) as *mut WindowCtx
+}
+
+// Sync the caller's Window callback fields into the stable context (called by
+// every window_set_*_callback / window_set_user_data).
+func window_ctx_sync(w : *mut Window) {
+    if(w == null || w.widget == null) {
+        return
+    }
+    var ctx = window_ctx_get(w.widget)
+    if(ctx == null) {
+        return
+    }
+    ctx.window = w
+    ctx.user_data = w.user_data
+    ctx.resize_cb = w.resize_cb
+    ctx.close_cb = w.close_cb
+    ctx.focus_cb = w.focus_cb
+    ctx.event_cb = w.event_cb
+    ctx.drop_cb = w.drop_cb
+    ctx.command_cb = w.command_cb
+}
+
+// Set while gtk_main() is running (window_run). The destroy handler only
+// quits the loop when the loop is actually active — otherwise destroying a
+// window after window_run returned would fire a spurious gtk_main_quit
+// (Gtk-CRITICAL: main_loops != NULL).
+var g_in_main_loop : int = 0
+
+// Set when the main loop exits because a window was destroyed (user closed
+// it) rather than via window_quit(). The window library's main loop is global
+// (window_run takes no window), so a single flag is the correct granularity.
+// The webview library uses it to avoid destroying widgets that were already
+// torn down together with their window.
+var g_quit_by_destroy : int = 0
+
 func linux_on_destroy(widget : *mut GtkWidget, data : *mut void) {
-    var w = data as *mut Window
-    w.created = false
-    w.widget = null
-    gtk_main_quit()
+    // NOTE: never write through ctx.window here. webview::create() embeds a
+    // window::Window in its WebView and returns it by value, relocating the
+    // struct after window_create() — a context captured during create() then
+    // points at stack memory that has since been reused, and writing to it
+    // corrupts live data. State is cleared by the caller's own teardown:
+    // window_destroy() / webview_destroy() are guarded by g_quit_by_destroy
+    // and webview_run() clears the moved copy after the loop exits.
+    //
+    // g_quit_by_destroy is only set when the destroy happens DURING the main
+    // loop (the user closed the window, so the loop exits because of it). A
+    // direct window_destroy()/window_close() called between runs must not
+    // mark the flag — otherwise a later window_destroy() on a still-alive
+    // window would wrongly skip destroying its widget.
+    if(g_in_main_loop != 0) {
+        g_quit_by_destroy = 1
+        gtk_main_quit()
+    }
 }
 
 func linux_on_size_allocate(widget : *mut GtkWidget, alloc : *mut GtkAllocation, data : *mut void) {
-    var w = data as *mut Window
-    if(w != null && w.resize_cb != null) {
-        w.resize_cb(w.user_data, alloc.width, alloc.height)
+    var ctx = window_ctx_get(widget)
+    if(ctx != null && ctx.resize_cb != null) {
+        ctx.resize_cb(ctx.user_data, alloc.width, alloc.height)
     }
 }
 
 func linux_on_delete(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null && w.close_cb != null) {
-        w.close_cb(w.user_data)
+    var ctx = window_ctx_get(widget)
+    if(ctx != null && ctx.close_cb != null) {
+        ctx.close_cb(ctx.user_data)
     }
     return 0 // allow the window to close
 }
 
 func linux_on_focus_in(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null && w.focus_cb != null) {
-        w.focus_cb(w.user_data, true)
+    var ctx = window_ctx_get(widget)
+    if(ctx != null && ctx.focus_cb != null) {
+        ctx.focus_cb(ctx.user_data, true)
     }
     return 0
 }
 
 func linux_on_focus_out(widget : *mut GtkWidget, event : *mut void, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null && w.focus_cb != null) {
-        w.focus_cb(w.user_data, false)
+    var ctx = window_ctx_get(widget)
+    if(ctx != null && ctx.focus_cb != null) {
+        ctx.focus_cb(ctx.user_data, false)
     }
     return 0
 }
 
-func deliver_key_event(w : *mut Window, kind : int, event : *const GdkEventKey) {
-    if(w.event_cb == null) {
+func deliver_key_event(ctx : *mut WindowCtx, kind : int, event : *mut GdkEventKey) {
+    if(ctx == null || ctx.event_cb == null) {
         return
     }
     var ev = Event.make()
@@ -366,27 +507,21 @@ func deliver_key_event(w : *mut Window, kind : int, event : *const GdkEventKey) 
     if((event.state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT } // GDK_SHIFT_MASK
     if((event.state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }  // GDK_CONTROL_MASK
     if((event.state & 0x8) != 0) { ev.modifiers |= MOD_ALT }   // GDK_MOD1_MASK
-    w.event_cb(w.user_data, &raw ev)
+    ctx.event_cb(ctx.user_data, &raw mut ev)
 }
 
-func linux_on_key_press(widget : *mut GtkWidget, event : *const GdkEventKey, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null) {
-        deliver_key_event(w, EVENT_KEY_DOWN, event)
-    }
+func linux_on_key_press(widget : *mut GtkWidget, event : *mut GdkEventKey, data : *mut void) : int {
+    deliver_key_event(window_ctx_get(widget), EVENT_KEY_DOWN, event)
     return 0
 }
 
-func linux_on_key_release(widget : *mut GtkWidget, event : *const GdkEventKey, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null) {
-        deliver_key_event(w, EVENT_KEY_UP, event)
-    }
+func linux_on_key_release(widget : *mut GtkWidget, event : *mut GdkEventKey, data : *mut void) : int {
+    deliver_key_event(window_ctx_get(widget), EVENT_KEY_UP, event)
     return 0
 }
 
-func deliver_mouse_event(w : *mut Window, kind : int, x : double, y : double, button : int, state : DWORD) {
-    if(w.event_cb == null) {
+func deliver_mouse_event(ctx : *mut WindowCtx, kind : int, x : double, y : double, button : int, state : DWORD) {
+    if(ctx == null || ctx.event_cb == null) {
         return
     }
     var ev = Event.make()
@@ -398,54 +533,54 @@ func deliver_mouse_event(w : *mut Window, kind : int, x : double, y : double, bu
     if((state & 0x1) != 0) { ev.modifiers |= MOD_SHIFT }
     if((state & 0x4) != 0) { ev.modifiers |= MOD_CTRL }
     if((state & 0x8) != 0) { ev.modifiers |= MOD_ALT }
-    w.event_cb(w.user_data, &raw ev)
+    ctx.event_cb(ctx.user_data, &raw mut ev)
 }
 
-func linux_on_button_press(widget : *mut GtkWidget, event : *const GdkEventButton, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null) {
+func linux_on_button_press(widget : *mut GtkWidget, event : *mut GdkEventButton, data : *mut void) : int {
+    var ctx = window_ctx_get(widget)
+    if(ctx != null) {
         var button = MOUSE_LEFT
         if(event.button == 3) {
             button = MOUSE_RIGHT
         } else if(event.button == 2) {
             button = MOUSE_MIDDLE
         }
-        deliver_mouse_event(w, EVENT_MOUSE_DOWN, event.x, event.y, button, event.state)
+        deliver_mouse_event(ctx, EVENT_MOUSE_DOWN, event.x, event.y, button, event.state)
     }
     return 0
 }
 
-func linux_on_button_release(widget : *mut GtkWidget, event : *const GdkEventButton, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null) {
+func linux_on_button_release(widget : *mut GtkWidget, event : *mut GdkEventButton, data : *mut void) : int {
+    var ctx = window_ctx_get(widget)
+    if(ctx != null) {
         var button = MOUSE_LEFT
         if(event.button == 3) {
             button = MOUSE_RIGHT
         } else if(event.button == 2) {
             button = MOUSE_MIDDLE
         }
-        deliver_mouse_event(w, EVENT_MOUSE_UP, event.x, event.y, button, event.state)
+        deliver_mouse_event(ctx, EVENT_MOUSE_UP, event.x, event.y, button, event.state)
     }
     return 0
 }
 
-func linux_on_motion(widget : *mut GtkWidget, event : *const GdkEventMotion, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null) {
-        deliver_mouse_event(w, EVENT_MOUSE_MOVE, event.x, event.y, MOUSE_LEFT, event.state)
+func linux_on_motion(widget : *mut GtkWidget, event : *mut GdkEventMotion, data : *mut void) : int {
+    var ctx = window_ctx_get(widget)
+    if(ctx != null) {
+        deliver_mouse_event(ctx, EVENT_MOUSE_MOVE, event.x, event.y, MOUSE_LEFT, event.state)
     }
     return 0
 }
 
-func linux_on_scroll(widget : *mut GtkWidget, event : *const GdkEventScroll, data : *mut void) : int {
-    var w = data as *mut Window
-    if(w != null && w.event_cb != null) {
+func linux_on_scroll(widget : *mut GtkWidget, event : *mut GdkEventScroll, data : *mut void) : int {
+    var ctx = window_ctx_get(widget)
+    if(ctx != null && ctx.event_cb != null) {
         var ev = Event.make()
         ev.kind = EVENT_MOUSE_WHEEL
         ev.x = event.x as int
         ev.y = event.y as int
         ev.y = (event.delta_y * 100.0) as int // wheel delta (approx.)
-        w.event_cb(w.user_data, &raw ev)
+        ctx.event_cb(ctx.user_data, &raw mut ev)
     }
     return 0
 }
@@ -462,8 +597,8 @@ func linux_on_drag_data_received(
     time : DWORD,
     user_data : *mut void
 ) {
-    var w = user_data as *mut Window
-    if(w == null || w.drop_cb == null || data == null) {
+    var ctx = window_ctx_get(widget)
+    if(ctx == null || ctx.drop_cb == null || data == null) {
         return
     }
     var uris = gtk_selection_data_get_uris(data)
@@ -471,7 +606,7 @@ func linux_on_drag_data_received(
         var err : *mut GError = null
         var path = g_filename_from_uri(*uris, null, &raw mut err)
         if(path != null) {
-            w.drop_cb(w.user_data, path)
+            ctx.drop_cb(ctx.user_data, path)
             g_free(path as *mut void)
         }
     }
@@ -543,8 +678,28 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
         gtk_window_set_geometry_hints(w.widget as *mut GtkWindow, null, &raw mut geom, flags)
     }
 
+    // stable per-widget callback context: handlers look the live Window up by
+    // widget, so they survive the Window struct being relocated (e.g. by-value
+    // WebView moves in webview::create). Freed automatically at widget
+    // finalize via g_object_set_data_full.
+    var ctx = malloc(sizeof(WindowCtx)) as *mut WindowCtx
+    if(ctx == null) {
+        gtk_widget_destroy(w.widget)
+        w.widget = null
+        return std.Result.Err(WindowError.CreateFailed(string("out of memory allocating window context")))
+    }
+    ctx.window = w
+    ctx.user_data = w.user_data
+    ctx.resize_cb = w.resize_cb
+    ctx.close_cb = w.close_cb
+    ctx.focus_cb = w.focus_cb
+    ctx.event_cb = w.event_cb
+    ctx.drop_cb = w.drop_cb
+    ctx.command_cb = w.command_cb
+    g_object_set_data_full(w.widget as *mut void, win_ctx_key(), ctx as *mut void, win_ctx_free as *mut void)
+
     // signals
-    g_signal_connect_data(w.widget as *mut void, "destroy\0" as *char, linux_on_destroy as *mut void, w as *mut void, null, 0)
+    g_signal_connect_data(w.widget as *mut void, "destroy\0" as *char, linux_on_destroy as *mut void, ctx as *mut void, null, 0)
     g_signal_connect_data(w.widget as *mut void, "size-allocate\0" as *char, linux_on_size_allocate as *mut void, w as *mut void, null, 0)
     g_signal_connect_data(w.widget as *mut void, "delete-event\0" as *char, linux_on_delete as *mut void, w as *mut void, null, 0)
     g_signal_connect_data(w.widget as *mut void, "focus-in-event\0" as *char, linux_on_focus_in as *mut void, w as *mut void, null, 0)
@@ -568,6 +723,15 @@ public func window_destroy(w : *mut Window) {
     if(w == null) {
         return
     }
+    if(g_quit_by_destroy != 0) {
+        // The window was already destroyed by the user (the main loop quit
+        // because the destroy handler fired) — the widget pointer may be
+        // dangling, so do not dereference it. Just clear the state.
+        w.created = false
+        w.widget = null
+        w.visible = false
+        return
+    }
     if(w.widget != null) {
         gtk_widget_destroy(w.widget)
         w.widget = null
@@ -584,7 +748,9 @@ public func window_is_created(w : *mut Window) : bool {
 }
 
 public func window_title(w : *mut Window) : string {
-    return w.title
+    // copy() — returning w.title by value would be a shallow copy whose
+    // destructor frees the same heap buffer as w.title (double free).
+    return w.title.copy()
 }
 
 public func window_set_title(w : *mut Window, title : *char) {
@@ -811,32 +977,39 @@ public func window_monitor_scale(index : int) : double {
 
 public func window_set_user_data(w : *mut Window, data : *mut void) {
     w.user_data = data
+    window_ctx_sync(w)
 }
 
 public func window_set_resize_callback(w : *mut Window, cb : ResizeCallback) {
     w.resize_cb = cb
+    window_ctx_sync(w)
 }
 
 public func window_set_close_callback(w : *mut Window, cb : CloseCallback) {
     w.close_cb = cb
+    window_ctx_sync(w)
 }
 
 public func window_set_focus_callback(w : *mut Window, cb : FocusCallback) {
     w.focus_cb = cb
+    window_ctx_sync(w)
 }
 
 public func window_set_event_callback(w : *mut Window, cb : EventCallback) {
     w.event_cb = cb
+    window_ctx_sync(w)
 }
 
 public func window_set_drop_callback(w : *mut Window, cb : DropCallback) {
     w.drop_cb = cb
+    window_ctx_sync(w)
 }
 
 // On GTK, native menu/button activation is wired by the app through its own
 // signal handlers, so command_cb is stored for API parity but not invoked.
 public func window_set_command_callback(w : *mut Window, cb : CommandCallback) {
     w.command_cb = cb
+    window_ctx_sync(w)
 }
 
 public func window_native_handle(w : *mut Window) : *mut void {
@@ -844,11 +1017,31 @@ public func window_native_handle(w : *mut Window) : *mut void {
 }
 
 public func window_run() {
+    g_in_main_loop = 1
+    g_quit_by_destroy = 0
     gtk_main()
+    g_in_main_loop = 0
+}
+
+// Returns 1 if the last window_run() returned because a window was destroyed
+// (the user closed it) rather than because window_quit() was called. When 1,
+// every widget owned by that window — and anything packed inside it — has
+// already been finalized, so callers must not destroy them again.
+//
+// LIMITATION: the flag is global (the main loop is global), so for apps with
+// several windows it reflects "a window was destroyed during the last run".
+// After a close, call window_destroy() (guarded by this flag) before touching
+// the window again — calling other window_* APIs on a closed window would
+// dereference its dangling widget pointer.
+// (Linux-only helper; not part of the cross-platform window API.)
+public func window_quit_by_destroy() : int {
+    return g_quit_by_destroy
 }
 
 public func window_quit() {
-    gtk_main_quit()
+    if(g_in_main_loop != 0) {
+        gtk_main_quit()
+    }
 }
 
 } // end namespace window

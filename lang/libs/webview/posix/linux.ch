@@ -8,17 +8,20 @@ public namespace webview {
 
 using std::string;
 
-// GTK types (opaque pointers)
-@no_init @extern public struct GtkWindow {}
-@no_init @extern public struct GtkWidget {}
-@no_init @extern public struct GtkContainer {}
+// GTK types — reuse the window library's declarations so the two modules
+// emit ONE set of extern C declarations (duplicate declarations of the same
+// extern symbol with distinct Chemical types cause C redefinition errors).
+// GtkBox/GtkFixed are webview-only containers, declared here.
+public type GtkWindow = window::GtkWindow
+public type GtkWidget = window::GtkWidget
+public type GtkContainer = window::GtkContainer
 @no_init @extern public struct GtkBox {}
 @no_init @extern public struct GtkFixed {}
+@no_init @extern public struct GtkBin {}
 @no_init @extern public struct WebKitWebView {}
 @no_init @extern public struct WebKitSettings {}
 @no_init @extern public struct WebKitUserContentManager {}
 @no_init @extern public struct WebKitWebContext {}
-@no_init @extern public struct WebKitJavascriptResult {}
 
 // GTK constants
 const GTK_WINDOW_TOPLEVEL = 0
@@ -54,6 +57,7 @@ const WEBKIT_LOAD_FINISHED = 4
 @extern public func gtk_fixed_move(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
 @extern public func gtk_widget_show(widget : *mut GtkWidget)
 @extern public func gtk_widget_hide(widget : *mut GtkWidget)
+@extern public func gtk_bin_get_child(bin : *mut GtkBin) : *mut GtkWidget
 
 // WebKit functions
 @extern public func webkit_web_view_new() : *mut GtkWidget
@@ -153,8 +157,6 @@ public struct WebView {
     }
 }
 
-var g_webview_ref : *mut WebView = null
-
 func linux_on_window_destroy(widget : *mut GtkWidget, data : *mut void) {
     gtk_main_quit()
 }
@@ -199,7 +201,6 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
 
     wv.visible = false
     wv.initialized = true
-    g_webview_ref = wv
 
     return std.Result.Ok(std::Unit{})
 }
@@ -264,7 +265,19 @@ public func webview_attach(
     wv.fixed = gtk_fixed_new()
     gtk_widget_set_size_request(wv.web_view, width, height)
     gtk_fixed_put(wv.fixed as *mut GtkFixed, wv.web_view, x, y)
-    gtk_container_add(parent_widget as *mut GtkContainer, wv.fixed)
+    // A GtkWindow is a GtkBin: it allows ONE direct child. If the app already
+    // packed native widgets into a content container (box/grid/fixed), add the
+    // webview section INTO that container so native UI and the webview coexist
+    // in the same window; otherwise add it directly to the window. NOTE: to
+    // mix native UI with the webview, the window's sole child must be a
+    // container (e.g. a GtkBox) — a non-container child would trigger a GTK
+    // warning instead.
+    var host : *mut GtkWidget = parent_widget
+    var existing_child = gtk_bin_get_child(parent_widget as *mut GtkBin)
+    if(existing_child != null) {
+        host = existing_child
+    }
+    gtk_container_add(host as *mut GtkContainer, wv.fixed)
     gtk_widget_show_all(wv.fixed)
 
     wv.initialized = true
@@ -289,6 +302,23 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
 
 public func webview_destroy(wv : *mut WebView) {
     wv.initialized = false
+    // If the last window_run() returned because the window was destroyed (the
+    // user closed it), every widget packed into it — including this webview
+    // section and the top-level window itself — has already been finalized.
+    // Destroying them again would hit gtk_widget_destroy assertions. In the
+    // standalone by-value case the embedded wv.win may also still hold stale
+    // pointers (the struct can be relocated by webview::create), so just
+    // clear the state.
+    if(window::window_quit_by_destroy() != 0) {
+        wv.web_view = null
+        wv.fixed = null
+        wv.attached = false
+        wv.parent_win = null
+        wv.win.created = false
+        wv.win.widget = null
+        wv.win.visible = false
+        return
+    }
     if(wv.attached) {
         // embed mode: destroy only the webview + fixed container; the app owns
         // the parent window.
@@ -336,6 +366,10 @@ public func webview_evaluate_js(wv : *mut WebView, script : *char) {
 // number arrives as "42", a JS string as "hello") and is valid only during
 // the callback call; copy it if needed. On evaluation failure `result` is
 // null. The callback runs on the GLib main loop.
+//
+// NOTE: WebKitGTK fails script evaluation while a page is still loading, so
+// call this AFTER the page has finished loading (e.g. from a g_timeout_add /
+// load-completion callback), not immediately after webview_load_html.
 func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data : *mut void) {
     var ctx = user_data as *mut JsEvalHandler
     if(ctx == null || ctx.cb == null) {
@@ -401,7 +435,9 @@ public func webview_title(wv : *mut WebView) : string {
             return result
         }
     }
-    return wv.title
+    // copy() — returning wv.title by value would be a shallow copy whose
+    // destructor frees the same heap buffer as wv.title (double free).
+    return wv.title.copy()
 }
 
 public func webview_set_title(wv : *mut WebView, title : *char) {
@@ -448,6 +484,14 @@ public func webview_hide(wv : *mut WebView) {
 public func webview_run(wv : *mut WebView) {
     if(!wv.attached) {
         window::window_run()
+        if(window::window_quit_by_destroy() != 0) {
+            // The user closed the window: the webview and window are gone.
+            // Clear the stale references so webview_destroy is a no-op.
+            wv.web_view = null
+            wv.win.created = false
+            wv.win.widget = null
+            wv.win.visible = false
+        }
     }
 }
 

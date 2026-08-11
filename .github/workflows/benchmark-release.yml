@@ -89,10 +89,16 @@ jobs:
             TAG="${{ github.event.release.tag_name }}"
           fi
           if [ -z "$TAG" ]; then
-            TAG=$(curl -s "https://api.github.com/repos/chemicallang/chemical/releases?per_page=100" | jq -r '[.[] | select(.assets | length > 0)] | .[0].tag_name')
+            # authenticate (unauthenticated calls are easily rate-limited and
+            # return an error OBJECT, which breaks the .[].assets jq below),
+            # and guard the query against non-array responses (rate limit,
+            # transient 5xx). Both checks must hold before we use the result.
+            TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/chemicallang/chemical/releases?per_page=100" \
+              | jq -r 'if type == "array" then ([.[] | select(.assets | length > 0)] | .[0].tag_name) else empty end')
           fi
           if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "::error::could not resolve a release tag"
+            echo "::error::could not resolve a release tag (specify release_tag input or check the GitHub API response)"
             exit 1
           fi
           echo "TAG=$TAG" >> "$GITHUB_ENV"

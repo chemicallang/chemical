@@ -62,6 +62,15 @@ AUTH=()
 if [ -n "${GITHUB_TOKEN:-}" ]; then AUTH=(-H "Authorization: token $GITHUB_TOKEN"); fi
 RELEASE_JSON="$(curl -s "${AUTH[@]}" "$API")"
 if ! printf '%s' "$RELEASE_JSON" | jq -e '.tag_name' >/dev/null 2>&1; then
+  # GitHub API rate limits / transient failures must NOT clobber good data.
+  # If we already have a published info.json with assets for this tag, keep it
+  # (the asset inventory is the expensive part to regenerate); otherwise write
+  # an explicit unavailable record so the failure stays visible.
+  existing="$OUT/releases/$TAG/info.json"
+  if [ -f "$existing" ] && [ -n "$(jq -r '.assets // {} | length' "$existing" 2>/dev/null | grep -v '^0$')" ]; then
+    bm_warn "release $TAG not found via API, but $existing has assets — preserving existing data"
+    exit 0
+  fi
   bm_warn "release $TAG not found via API; writing unavailable record"
   REC="$(jq -n --arg tag "$TAG" --arg date "$(bm_datetime)" '{type:"release_info",tag:$tag,generated_at:$date,status:"unavailable",reason:"release not found via GitHub API",assets:{}}')"
   bm_write_json "$OUT/releases/$TAG/info.json" "$REC"
@@ -213,10 +222,13 @@ TCC_ROOT=""
 if [ -n "$REGULAR_ASSET" ] && [ -d "$EXTRACT_DIR/chemical" ]; then REGULAR_ROOT="$EXTRACT_DIR/chemical"; fi
 if [ -n "$TCC_ASSET" ] && [ -d "$EXTRACT_DIR/chemical-tcc" ]; then TCC_ROOT="$EXTRACT_DIR/chemical-tcc"; fi
 
-# binary name inside the archive (windows ships .exe)
+# binary name inside the archive (windows ships .exe). The leading ./
+# is REQUIRED: bm_run executes the binary via `timeout <cmd>` and a bare
+# name like `chemical` is looked up in PATH, not the current directory —
+# which failed with exit 127 on every release benchmark/test run.
 case "$PLATFORM" in
-  windows|windows-mingw|windows-mingw-msvcrt) RELEASE_BIN="chemical.exe" ;;
-  *) RELEASE_BIN="chemical" ;;
+  windows|windows-mingw|windows-mingw-msvcrt) RELEASE_BIN="./chemical.exe" ;;
+  *) RELEASE_BIN="./chemical" ;;
 esac
 
 # ── release-commit test sources ──────────────────────────────────────────────

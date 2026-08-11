@@ -18,7 +18,7 @@ UNAME_M_L="$(printf '%s' "$UNAME_M" | tr '[:upper:]' '[:lower:]')"
 # ---------------------------------------
 ARG_ARCH=""
 ARG_MUSL=""
-ARG_TAG="llvm18"
+ARG_TAG=""   # empty → auto-resolve the latest llvm-prebuilt release
 ARG_MINGW=false
 ARG_UCRT=false
 ARG_MSVCRT=false
@@ -136,7 +136,25 @@ ASSET_NAME="${ASSET_BASE}.${EXT}"
 echo "Detected platform asset: ${ASSET_NAME}"
 
 # ---------- Determine version/tag ----------
+# The default llvm-prebuilt tag must track the LLVM version CMakeLists.txt
+# asks for (find_package(llvm ${LLVM_VERSION})). Rather than hardcoding a
+# version here (which goes stale and breaks BUILD_COMPILER=ON configure),
+# resolve the LATEST published release automatically when --tag is not given.
 TAG="${ARG_TAG}"
+if [ -z "$TAG" ]; then
+    API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
+    if command -v jq >/dev/null 2>&1; then
+        TAG="$(curl -sSL --max-time 30 "$API" | jq -r '.tag_name // empty')"
+    else
+        # fall back to parsing the first "tag_name" without jq
+        TAG="$(curl -sSL --max-time 30 "$API" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*:"//; s/"$//')"
+    fi
+    if [ -z "$TAG" ]; then
+        echo "Error: could not resolve latest llvm-prebuilt release tag from $API" >&2
+        exit 1
+    fi
+    echo "Resolved latest llvm-prebuilt release: $TAG"
+fi
 echo "Using tag: ${TAG}"
 
 # ---------- Download and Extract ----------

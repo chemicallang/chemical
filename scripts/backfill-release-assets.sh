@@ -44,10 +44,13 @@ while :; do
     [ -z "$tag" ] || [ -z "$info_json" ] && continue
     bm_log "==> rewriting release $tag assets"
     # era-expected missing markers (explicit missing_asset, never "failed")
+    # NOTE: the reduce's `has($a)` must check the REAL asset list (.assets),
+    # not the reduce accumulator — otherwise every present asset would be
+    # wrongly marked missing_asset and (object +) would overwrite success.
     EXPECTED="$(expected_assets "$tag")"
     if [ -n "$EXPECTED" ]; then
       info_json="$(printf '%s' "$info_json" | jq -c --argjson exp "$(printf '%s' "$EXPECTED" | jq -R 'split(" ") | map(select(length>0))')" \
-        '.assets = (.assets + (reduce $exp[] as $a ({}; if has($a) then . else . + {($a): {status:"missing_asset",size_bytes:null,url:null}} end)))')"
+        '. as $rec | .assets = (.assets + (reduce $exp[] as $a ({}; if ($rec.assets | has($a)) then . else . + {($a): {status:"missing_asset",size_bytes:null,url:null}} end)))')"
     fi
     bm_write_json "$DATA_DIR/releases/$tag/info.json" "$info_json"
     echo "1" >> "$DATA_DIR/.updated"

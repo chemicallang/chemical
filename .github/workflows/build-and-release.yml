@@ -126,7 +126,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -148,7 +148,7 @@ jobs:
       - name: Check if windows-${{ matrix.arch }}.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_windows
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -169,7 +169,7 @@ jobs:
       # Upload artifacts
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_windows.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -302,7 +302,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -320,7 +320,7 @@ jobs:
       - name: Check if windows-mingw-${{ matrix.arch }}.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_windows_mingw
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -339,7 +339,7 @@ jobs:
 
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -477,7 +477,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -495,7 +495,7 @@ jobs:
       - name: Check if windows-mingw-msvcrt-x64.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_windows_mingw_msvcrt
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -514,7 +514,7 @@ jobs:
 
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw_msvcrt.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -638,7 +638,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -660,7 +660,7 @@ jobs:
       - name: Check if linux-${{ matrix.arch }}.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_linux
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -680,7 +680,7 @@ jobs:
 
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -805,7 +805,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -827,7 +827,7 @@ jobs:
       - name: Check if linux-alpine-${{ matrix.arch }}.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_linux
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -846,7 +846,7 @@ jobs:
 
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -962,7 +962,7 @@ jobs:
       - name: Get latest release info
         if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
@@ -981,7 +981,7 @@ jobs:
       - name: Check if macos-${{ matrix.arch }}.zip exists in latest release
         if: env.BUILD_CONFIG == 'Release'
         id: check_macos
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
@@ -1001,7 +1001,7 @@ jobs:
       # Upload artifacts
       - name: Upload release artifacts
         if: env.BUILD_CONFIG == 'Release' && steps.check_macos.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
@@ -1058,6 +1058,16 @@ jobs:
     if: always() && github.event_name == 'workflow_dispatch' && inputs.config != 'Release'
     runs-on: ubuntu-24.04
     steps:
+      # Fail FAST with a clear message if the PAT for chemical-debug is missing
+      # — otherwise github-script dies with a cryptic "Input required and not
+      # supplied: github-token" AFTER all platforms already built (30+ min of
+      # work wasted, exactly what happened on 2026-08-11).
+      - name: Verify CHEMICAL_DEBUG_TOKEN is configured
+        run: |
+          if [ -z "${{ secrets.CHEMICAL_DEBUG_TOKEN }}" ]; then
+            echo "::error::CHEMICAL_DEBUG_TOKEN secret is not set. Create a PAT with 'repo' scope (or fine-grained 'Contents: Read and write' on chemicallang/chemical-debug) and add it as a repository secret named CHEMICAL_DEBUG_TOKEN in chemicallang/chemical."
+            exit 1
+          fi
       - name: Download all debug artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1072,7 +1082,7 @@ jobs:
           if-no-files-found: error
 
       - name: Write commit metadata
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: commit } = await github.rest.repos.getCommit({
@@ -1091,7 +1101,7 @@ jobs:
             console.log('commit.json written for ' + sha);
 
       - name: Remove previous debug release for this commit (idempotent)
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
           script: |
@@ -1116,7 +1126,7 @@ jobs:
           echo "PUBLISHED_PLATFORMS=$(ls debug/ | sed -E 's/-debug\.zip$|-tcc-debug\.zip$//' | sort -u | paste -sd, -)" >> "$GITHUB_ENV"
 
       - name: Publish debug builds to chemical-debug
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           repository: chemicallang/chemical-debug
           token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}

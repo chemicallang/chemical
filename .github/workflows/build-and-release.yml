@@ -22,6 +22,15 @@ on:
           - Release
           - RelWithDebInfo
           - Debug
+      publish_release:
+        description: >-
+          Publish the debug release to chemicallang/chemical-debug instead of drafting it.
+          When checked, the release is automatically tagged with the latest tag of
+          chemicallang/chemical and published immediately. When unchecked (default), the
+          release is drafted and tagged with the source commit SHA.
+        required: false
+        type: boolean
+        default: false
 
 env:
   LLVM_RELEASE_TAG: "v22.1.1"
@@ -1036,12 +1045,14 @@ jobs:
   # ––– Deploy debug builds to chemicallang/chemical-debug –––
   # When a debug config (RelWithDebInfo/Debug) is selected, the platform jobs
   # upload their zips as artifacts; this job collects them, attaches the source
-  # commit metadata, and publishes them as a release in the chemical-debug repo
-  # tagged with the chemical commit SHA. The debug-tests workflow reads
-  # commit.json from that release to know which chemical commit the binaries
-  # were compiled from (and which test sources to use with them). Requires a
-  # PAT with write access to chemical-debug, stored as the CHEMICAL_DEBUG_TOKEN
-  # repository secret.
+  # commit metadata, and creates a release in the chemical-debug repo. By
+  # default the release is DRAFTED, tagged with the chemical commit SHA. If the
+  # publish_release input is checked, the release is instead tagged with the
+  # latest tag of chemicallang/chemical and PUBLISHED immediately. The
+  # debug-tests workflow reads commit.json from that release to know which
+  # chemical commit the binaries were compiled from (and which test sources to
+  # use with them). Requires a PAT with write access to chemical-debug, stored
+  # as the CHEMICAL_DEBUG_TOKEN repository secret.
   deploy-debug:
     name: Deploy debug builds to chemical-debug
     needs: [build-windows, build-windows-mingw, build-windows-mingw-msvcrt, build-linux, build-alpine, build-macos]
@@ -1100,20 +1111,60 @@ jobs:
             }, null, 2) + '\n');
             console.log('commit.json written for ' + sha);
 
-      - name: Remove previous debug release for this commit (idempotent)
+      - name: Resolve release tag (latest chemical tag when publishing)
+        id: release_tag
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const publish = !!(context.payload.inputs && context.payload.inputs.publish_release === 'true');
+            let tag = context.sha;
+            let name = 'Debug build ' + context.sha;
+            if (publish) {
+              const { data: tags } = await github.rest.repos.listTags({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+              const dated = [];
+              for (const t of tags) {
+                try {
+                  const { data: c } = await github.rest.repos.getCommit({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: t.commit.sha
+                  });
+                  dated.push({ name: t.name, date: c.commit.committer.date });
+                } catch (e) { /* skip tags that cannot be resolved */ }
+              }
+              dated.sort((a, b) => (a.date < b.date ? 1 : -1));
+              const latest = dated[0];
+              if (!latest) {
+                core.setFailed('No tags found in chemicallang/chemical. Cannot publish with the latest tag.');
+                return;
+              }
+              tag = latest.name;
+              name = 'Debug build ' + latest.name;
+            }
+            core.setOutput('tag', tag);
+            core.setOutput('name', name);
+            core.setOutput('publish', String(publish));
+            console.log('resolved release tag: ' + tag + ' (publish=' + publish + ')');
+
+      - name: Remove previous debug release for this tag (idempotent)
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
           script: |
             const owner = 'chemicallang';
             const repo = 'chemical-debug';
+            const tag = '${{ steps.release_tag.outputs.tag }}';
             try {
-              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag: context.sha });
+              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
               await github.rest.repos.deleteRelease({ owner, repo, release_id: rel.data.id });
               try {
-                await github.rest.git.deleteRef({ owner, repo, ref: 'tags/' + context.sha });
+                await github.rest.git.deleteRef({ owner, repo, ref: 'tags/' + tag });
               } catch (e) { /* tag may not exist */ }
-              console.log('removed previous debug release for ' + context.sha);
+              console.log('removed previous debug release for ' + tag);
             } catch (e) {
               console.log('no previous debug release to remove');
             }
@@ -1130,8 +1181,10 @@ jobs:
         with:
           repository: chemicallang/chemical-debug
           token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
-          tag_name: ${{ github.sha }}
-          name: Debug build ${{ github.sha }}
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ${{ steps.release_tag.outputs.name }}
+          # draft when the publish_release input is unchecked; publish otherwise
+          draft: ${{ steps.release_tag.outputs.publish != 'true' }}
           body: |
             Debug builds of [chemicallang/chemical](https://github.com/chemicallang/chemical) at commit `${{ github.sha }}`.
 

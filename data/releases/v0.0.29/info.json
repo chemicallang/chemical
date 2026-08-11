@@ -1,0 +1,81 @@
+{
+  "type": "release_info",
+  "tag": "v0.0.29",
+  "published_at": "2026-02-09T07:05:53Z",
+  "commit_sha": "main",
+  "name": "v0.0.29",
+  "generated_at": "2026-08-11T11:35:09Z",
+  "status": "success",
+  "assets": {
+    "linux-x64.zip": {
+      "size_bytes": 67484181,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-x64.zip",
+      "status": "success"
+    },
+    "linux-x64-tcc.zip": {
+      "size_bytes": 2169078,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-x64-tcc.zip",
+      "status": "success"
+    },
+    "linux-arm64.zip": {
+      "size_bytes": 65454275,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-arm64.zip",
+      "status": "success"
+    },
+    "linux-arm64-tcc.zip": {
+      "size_bytes": 2154155,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-arm64-tcc.zip",
+      "status": "success"
+    },
+    "linux-alpine-x64.zip": {
+      "size_bytes": 80348208,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-alpine-x64.zip",
+      "status": "success"
+    },
+    "linux-alpine-x64-tcc.zip": {
+      "size_bytes": 2164598,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/linux-alpine-x64-tcc.zip",
+      "status": "success"
+    },
+    "macos-x64.zip": {
+      "size_bytes": 50887520,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/macos-x64.zip",
+      "status": "success"
+    },
+    "macos-x64-tcc.zip": {
+      "size_bytes": 1515097,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/macos-x64-tcc.zip",
+      "status": "success"
+    },
+    "macos-arm64.zip": {
+      "size_bytes": 48828447,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/macos-arm64.zip",
+      "status": "success"
+    },
+    "macos-arm64-tcc.zip": {
+      "size_bytes": 1448566,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/macos-arm64-tcc.zip",
+      "status": "success"
+    },
+    "windows-x64.zip": {
+      "size_bytes": 46737413,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/windows-x64.zip",
+      "status": "success"
+    },
+    "windows-x64-tcc.zip": {
+      "size_bytes": 1677501,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/windows-x64-tcc.zip",
+      "status": "success"
+    },
+    "windows-arm64.zip": {
+      "size_bytes": 42291291,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/windows-arm64.zip",
+      "status": "success"
+    },
+    "windows-arm64-tcc.zip": {
+      "size_bytes": 1625590,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.29/windows-arm64-tcc.zip",
+      "status": "success"
+    }
+  }
+}

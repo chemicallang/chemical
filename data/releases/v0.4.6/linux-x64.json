@@ -1,110 +1,110 @@
 {
   "type": "release_platform",
-  "tag": "v0.5.7",
+  "tag": "v0.4.6",
   "platform": "linux",
   "arch": "x64",
   "libc": "glibc",
-  "generated_at": "2026-08-11T11:34:11Z",
+  "generated_at": "2026-08-11T11:34:37Z",
   "status": "success",
   "assets": {
     "linux-x64.zip": {
-      "size_bytes": 77287717,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-x64.zip",
+      "size_bytes": 76733019,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-x64.zip",
       "status": "success"
     },
     "linux-x64-tcc.zip": {
-      "size_bytes": 3024917,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-x64-tcc.zip",
+      "size_bytes": 2472323,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-x64-tcc.zip",
       "status": "success"
     },
     "linux-arm64.zip": {
-      "size_bytes": 74822079,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-arm64.zip",
+      "size_bytes": 74261827,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-arm64.zip",
       "status": "success"
     },
     "linux-arm64-tcc.zip": {
-      "size_bytes": 3010289,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-arm64-tcc.zip",
+      "size_bytes": 2455307,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-arm64-tcc.zip",
       "status": "success"
     },
     "linux-alpine-x64.zip": {
-      "size_bytes": 89702264,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-alpine-x64.zip",
+      "size_bytes": 89155863,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-alpine-x64.zip",
       "status": "success"
     },
     "linux-alpine-x64-tcc.zip": {
-      "size_bytes": 3105050,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-alpine-x64-tcc.zip",
+      "size_bytes": 2553293,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/linux-alpine-x64-tcc.zip",
       "status": "success"
     },
     "macos-x64.zip": {
-      "size_bytes": 59659779,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-x64.zip",
+      "size_bytes": 59134189,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/macos-x64.zip",
       "status": "success"
     },
     "macos-x64-tcc.zip": {
-      "size_bytes": 2343962,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-x64-tcc.zip",
+      "size_bytes": 1829513,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/macos-x64-tcc.zip",
       "status": "success"
     },
     "macos-arm64.zip": {
-      "size_bytes": 57409135,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-arm64.zip",
+      "size_bytes": 56902900,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/macos-arm64.zip",
       "status": "success"
     },
     "macos-arm64-tcc.zip": {
-      "size_bytes": 2264321,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-arm64-tcc.zip",
+      "size_bytes": 1758344,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/macos-arm64-tcc.zip",
       "status": "success"
     },
     "windows-x64.zip": {
-      "size_bytes": 55154712,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64.zip",
+      "size_bytes": 54623567,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-x64.zip",
       "status": "success"
     },
     "windows-x64-tcc.zip": {
-      "size_bytes": 2598151,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64-tcc.zip",
+      "size_bytes": 2106316,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-x64-tcc.zip",
       "status": "success"
     },
     "windows-arm64.zip": {
-      "status": "missing_asset",
-      "size_bytes": null,
-      "url": null
+      "size_bytes": 49388794,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-arm64.zip",
+      "status": "success"
     },
     "windows-arm64-tcc.zip": {
-      "status": "missing_asset",
-      "size_bytes": null,
-      "url": null
+      "size_bytes": 2030085,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-arm64-tcc.zip",
+      "status": "success"
     },
     "windows-mingw-x64.zip": {
-      "size_bytes": 61020971,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-x64.zip",
+      "size_bytes": 60429406,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-x64.zip",
       "status": "success"
     },
     "windows-mingw-x64-tcc.zip": {
-      "size_bytes": 2593717,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-x64-tcc.zip",
+      "size_bytes": 2014295,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-x64-tcc.zip",
       "status": "success"
     },
     "windows-mingw-arm64.zip": {
-      "size_bytes": 57663885,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-arm64.zip",
+      "size_bytes": 57065983,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-arm64.zip",
       "status": "success"
     },
     "windows-mingw-arm64-tcc.zip": {
-      "size_bytes": 2538343,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-arm64-tcc.zip",
+      "size_bytes": 1954979,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-arm64-tcc.zip",
       "status": "success"
     },
     "windows-mingw-msvcrt-x64.zip": {
-      "size_bytes": 60932368,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-msvcrt-x64.zip",
+      "size_bytes": 60330118,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-msvcrt-x64.zip",
       "status": "success"
     },
     "windows-mingw-msvcrt-x64-tcc.zip": {
-      "size_bytes": 2678787,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-msvcrt-x64-tcc.zip",
+      "size_bytes": 2082347,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.6/windows-mingw-msvcrt-x64-tcc.zip",
       "status": "success"
     }
   },

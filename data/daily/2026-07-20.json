@@ -1,0 +1,62 @@
+{
+  "type": "daily",
+  "date": "2026-07-20",
+  "generated_at": "2026-08-11T11:34:02Z",
+  "platform": {
+    "os": "linux",
+    "arch": "x64",
+    "libc": "glibc"
+  },
+  "commit": {
+    "sha": "304ce04bbbf7b5a7b5d2ca686f0d3900e8f50114",
+    "short": "304ce04bbbf7",
+    "subject": "add more https tests",
+    "author_date": "2026-07-21T01:27:25+05:00"
+  },
+  "compiler_version": {
+    "TCCCompiler": "n/a",
+    "Compiler": "n/a"
+  },
+  "backends": {
+    "Interpreter": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see Interpreter_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    },
+    "TCCCompiler": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see TCCCompiler_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    }
+  }
+}

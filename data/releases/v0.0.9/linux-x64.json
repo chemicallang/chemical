@@ -1,0 +1,33 @@
+{
+  "type": "release_platform",
+  "tag": "v0.0.9",
+  "platform": "linux",
+  "arch": "x64",
+  "libc": "glibc",
+  "generated_at": "2026-08-11T11:35:27Z",
+  "status": "unavailable",
+  "reason": "no expected assets for this platform",
+  "assets": {
+    "linux-x86-64.zip": {
+      "size_bytes": 106784958,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.9/linux-x86-64.zip",
+      "status": "success"
+    },
+    "linux-x86-64-tcc.zip": {
+      "size_bytes": 22310277,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.9/linux-x86-64-tcc.zip",
+      "status": "success"
+    },
+    "windows-x64.zip": {
+      "size_bytes": 54841740,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.9/windows-x64.zip",
+      "status": "success"
+    },
+    "windows-x64-tcc.zip": {
+      "size_bytes": 1673512,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.9/windows-x64-tcc.zip",
+      "status": "success"
+    }
+  },
+  "backends": {}
+}

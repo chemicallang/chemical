@@ -1,0 +1,12 @@
+{
+  "type": "release_platform",
+  "tag": "v0.0.8",
+  "platform": "linux",
+  "arch": "x64",
+  "libc": "glibc",
+  "generated_at": "2026-08-11T11:35:27Z",
+  "status": "unavailable",
+  "reason": "no expected assets for this platform",
+  "assets": {},
+  "backends": {}
+}

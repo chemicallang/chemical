@@ -1,0 +1,62 @@
+{
+  "type": "daily",
+  "date": "2026-07-16",
+  "generated_at": "2026-08-11T11:34:05Z",
+  "platform": {
+    "os": "linux",
+    "arch": "x64",
+    "libc": "glibc"
+  },
+  "commit": {
+    "sha": "fbbf15dc49d954b9af16e1595043f8cd41efebf4",
+    "short": "fbbf15dc49d9",
+    "subject": "pass 1 of the sym res link body, where we only symbol resolve bodies in generic declarations runs in parallel on each file",
+    "author_date": "2026-07-17T01:01:27+05:00"
+  },
+  "compiler_version": {
+    "TCCCompiler": "n/a",
+    "Compiler": "n/a"
+  },
+  "backends": {
+    "Interpreter": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see Interpreter_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    },
+    "TCCCompiler": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see TCCCompiler_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    }
+  }
+}

@@ -8,16 +8,12 @@ on:
         required: false
         type: string
         default: ''
-      # NOTE: there is deliberately NO skip_llvm option here. Release
-      # benchmarks only download prebuilt binaries — they never build the
-      # compiler — so both backends (TCCCompiler + LLVM Compiler) are always
-      # benchmarked. The LLVM skip only exists where we build from source
-      # (benchmark-daily / backfill), where the LLVM build is the slow part.
-      quick:
-        description: 'Quick mode — hello benchmarks only, skip test suites (default: full — runs the test suite and collects per-module benchmarks)'
-        required: false
-        type: boolean
-        default: false
+      # NOTE: there is deliberately NO skip_llvm and NO quick option here.
+      # Release benchmarks only download prebuilt binaries — they never build
+      # the compiler — so both backends (TCCCompiler + LLVM Compiler) are
+      # always benchmarked, and the full test suite always runs alongside the
+      # hello benchmarks (hello takes seconds, the test suite ~20 s; splitting
+      # them into separate workflow runs would download the compiler twice).
   release:
     types: [published]
 
@@ -35,36 +31,87 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Mirrors the build-and-release.yml platform matrix exactly, so every
+        # binary a release ships gets benchmarked + test-suite'd on the platform
+        # it was built for.
         include:
-          - name: linux
+          - name: linux-x64
             runner: ubuntu-24.04
             platform: linux
             arch: x64
+            alpine: false
             workdir: .
             deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
-          - name: alpine
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - name: alpine-x64
             runner: ubuntu-24.04
             container: alpine:3.20
             platform: linux-alpine
             arch: x64
+            alpine: true
+            workdir: tagrepo
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+          - name: alpine-arm64
+            runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: arm64
+            alpine: true
             workdir: tagrepo
             deps: apk add --no-cache bash curl jq zip unzip git coreutils
           - name: macos-arm64
             runner: macos-26
             platform: macos
             arch: arm64
+            alpine: false
             workdir: .
             deps: brew install jq || true
           - name: macos-x64
             runner: macos-15-intel
             platform: macos
             arch: x64
+            alpine: false
             workdir: .
             deps: brew install jq || true
-          - name: windows
+          - name: windows-x64
             runner: windows-2025
             platform: windows
             arch: x64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-arm64
+            runner: windows-11-arm
+            platform: windows
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-x64
+            runner: windows-2025
+            platform: windows-mingw
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-arm64
+            runner: windows-11-arm
+            platform: windows-mingw
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-msvcrt-x64
+            runner: windows-2025
+            platform: windows-mingw-msvcrt
+            arch: x64
+            alpine: false
             workdir: .
             deps: echo "jq/unzip preinstalled on windows runners"
 
@@ -76,7 +123,7 @@ jobs:
         run: ${{ matrix.deps }}
 
       - name: Checkout (default branch — scripts + full history)
-        if: ${{ matrix.name != 'alpine' }}
+        if: ${{ !matrix.alpine }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -110,7 +157,7 @@ jobs:
       #               not in release tags — the tag does not contain them)
       # Both go into SUBDIRECTORIES so they don't clobber the workspace.
       - name: Checkout (alpine — plain git, no JS actions)
-        if: ${{ matrix.name == 'alpine' }}
+        if: ${{ matrix.alpine }}
         shell: bash
         run: |
           git clone --depth 1 --branch "$TAG" "https://github.com/${{ github.repository }}.git" tagrepo
@@ -122,7 +169,7 @@ jobs:
         run: |
           # alpine runs scripts from the tooling clone; everyone else from the checkout
           TOOL_DIR="$GITHUB_WORKSPACE/scripts"
-          if [ "${{ matrix.name }}" = "alpine" ]; then
+          if [ "${{ matrix.alpine }}" = "true" ]; then
             TOOL_DIR="$GITHUB_WORKSPACE/tooling/scripts"
           fi
           ARGS="--tag ${TAG} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
@@ -131,8 +178,7 @@ jobs:
           # — never matching the upload path. Other platforms already default to
           # the workspace root (and on Windows GITHUB_WORKSPACE is a Windows-style
           # path, so do NOT use it in bash for them).
-          if [ "${{ matrix.name }}" = "alpine" ]; then ARGS="$ARGS --out $GITHUB_WORKSPACE/.bench-data"; fi
-          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
+          if [ "${{ matrix.alpine }}" = "true" ]; then ARGS="$ARGS --out $GITHUB_WORKSPACE/.bench-data"; fi
           bash "$TOOL_DIR/bench-collect-release.sh" $ARGS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

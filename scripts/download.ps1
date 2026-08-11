@@ -1,7 +1,7 @@
 # install.ps1 — usage:  .\download.ps1 [-DebugBuild]
 #   -DebugBuild   download the DEBUG build (full debug symbols, published to
 #                 chemicallang/chemical-debug by the Build & Release workflow
-#                 when deploy_debug is enabled) instead of the stable release.
+#                 with a debug config (RelWithDebInfo/Debug)) instead of the stable release.
 #                 Debug releases are tagged with the source commit SHA; set
 #                 $env:VERSION to a commit SHA to pick a specific debug build.
 # Env: VERSION, VARIANT, ARCH_OVERRIDE, DEBUG (1/true = same as -DebugBuild)
@@ -54,7 +54,7 @@ if ($VERSION -eq "latest" -or !$VERSION) {
             Write-Host "Warning: could not query $OWNER/$REPO releases: $_"
         }
         if ($VERSION -eq "latest" -or !$VERSION) {
-            Write-Error "No debug builds found in $OWNER/$REPO (was the Build & Release workflow run with deploy_debug enabled?)"
+            Write-Error "No debug builds found in $OWNER/$REPO (was the Build & Release workflow run with a debug config, e.g. RelWithDebInfo?)"
             exit 2
         }
         Write-Host "Latest debug build detected: $VERSION"

@@ -50,13 +50,13 @@ jobs:
             workdir: tagrepo
             deps: apk add --no-cache bash curl jq zip unzip git coreutils
           - name: macos-arm64
-            runner: macos-14
+            runner: macos-26
             platform: macos
             arch: arm64
             workdir: .
             deps: brew install jq || true
           - name: macos-x64
-            runner: macos-13
+            runner: macos-15-intel
             platform: macos
             arch: x64
             workdir: .

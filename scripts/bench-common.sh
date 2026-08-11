@@ -78,7 +78,7 @@ ver_ge() { # <a> <b> — true if version a >= version b
 expected_assets() { # <tag>
   local tag="$1"
   if ver_ge "$tag" "v0.0.32"; then
-    echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip windows-x64.zip windows-x64-tcc.zip windows-arm64.zip windows-arm64-tcc.zip windows-mingw-x64.zip windows-mingw-x64-tcc.zip windows-mingw-arm64.zip windows-mingw-arm64-tcc.zip windows-mingw-msvcrt-x64.zip windows-mingw-msvcrt-x64-tcc.zip"
+    echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip linux-alpine-arm64.zip linux-alpine-arm64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip windows-x64.zip windows-x64-tcc.zip windows-arm64.zip windows-arm64-tcc.zip windows-mingw-x64.zip windows-mingw-x64-tcc.zip windows-mingw-arm64.zip windows-mingw-arm64-tcc.zip windows-mingw-msvcrt-x64.zip windows-mingw-msvcrt-x64-tcc.zip"
   elif ver_ge "$tag" "v0.0.31"; then
     echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip"
   elif ver_ge "$tag" "v0.0.25"; then

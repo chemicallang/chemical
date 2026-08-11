@@ -195,6 +195,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Macro Codegen | `.agents/skills/macro_code_gen/SKILL.md` | How `#html`, `#preact`, `#react`, `#solid`, `#universal` macros generate code — server-side function generation, JS bundle emission |
 | Compiler Bindings (CBI) | `.agents/skills/compiler_bindings/SKILL.md` | How CBI works: TinyCC binding, build process, compiler API exposure, LSP integration, lifecycle |
 | Compiler Plugin API | `.agents/skills/cbi_plugin_api/SKILL.md` | Plugin development: `CompilerBinder`, `ASTBuilder` API, macro registration, individual plugin structure (html_cbi, css_cbi, etc.), debugging, testing |
+| Benchmark Dashboard | `.agents/skills/benchmark_dashboard/SKILL.md` | The benchmark/release analytics system: gh-pages data model (manifest/daily/release JSON), `bench-*.sh` collection scripts, benchmark workflows, and the static dashboard (6 views incl. Failures, shadcn-style design, stability invariants, Node test harness) |
 
 ### Web & Components
 
@@ -246,6 +247,7 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Working on web apps** | `design_web_app`, `universal` |
 | **Working on interpreter/comptime tests** | `interpreter` |
 | **Writing and organizing tests** | **`testing`** |
+| **Working on the benchmark dashboard / analytics workflows** | **`benchmark_dashboard`** |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
 | **Implementing TLS/HTTPS** | `chemical_source`, `testing`, `building` |

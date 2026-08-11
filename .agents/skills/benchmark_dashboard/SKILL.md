@@ -14,7 +14,11 @@ The dashboard tracks, historically, for every **release** and every **daily
 commit**: binary sizes per platform, hello-world compile times (bare vs std),
 test-suite results (passed/failed/failed-test names), and per-module
 compilation times — across three backends (`TCCCompiler`, `Compiler` = LLVM,
-`Interpreter`).
+`Interpreter`). The site is a shadcn-style static dashboard (light/dark
+themes) with six views — Overview, Releases, Daily / Commits, **Failures**
+(the core view: aggregates every failing/crashed/timed-out test),
+Modules, Backends — plus filters, sortable tables, CSV export, and a
+compare-two-releases tool.
 
 ---
 
@@ -26,8 +30,10 @@ main branch                              gh-pages branch (deployed site)
   .github/workflows/                     data/daily/<date>.json
     benchmark-daily.yml                  data/releases/<tag>/info.json
     benchmark-release.yml                data/releases/<tag>/<platform>-<arch>.json
-    benchmark-backfill.yml               index.html, assets/dashboard.js,
-                                         assets/styles.css,
+    benchmark-backfill.yml               index.html, assets/dashboard.js (~1550
+                                         lines, 6 views incl. Failures),
+                                         assets/styles.css (shadcn tokens,
+                                         light/dark themes),
                                          assets/vendor/chart.umd.min.js
 ```
 
@@ -164,12 +170,17 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 
 | Script | Purpose |
 |---|---|
-| `bench-collect-daily.sh` | Builds the compiler at a commit, benchmarks hello (bare/std), runs `-bm-modules -bm-files`, runs test suites per backend → `data/daily/<date>.json`. Flags: `--commit`, `--work`, `--skip-llvm`, `--backends`, `--quick`, `--out`. |
-| `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--platform`, `--arch`, `--info-only`, `--quick`, `--skip-llvm`, `--out`. **Gotchas: (1) `RELEASE_BIN` must be `./chemical` — bm_run executes via `timeout <cmd>`, and a bare `chemical` is not found in PATH → exit 127 on every release benchmark/test. (2) If the GitHub API fails/rate-limits, existing `info.json` WITH assets is PRESERVED (never clobber good data with an `unavailable` record).** |
+| `bench-collect-daily.sh` | Builds the compiler at a commit, benchmarks hello (bare/std), runs `-bm-modules -bm-files`, runs test suites per backend → `data/daily/<date>.json`. Flags: `--commit`, `--date`, `--out`, `--work`, `--skip-llvm`, `--no-build`, `--backends`, `--quick` (skip tests, hello + modules only). |
+| `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--repo`, `--platform`, `--arch`, `--out`, `--work`, `--skip-llvm`, `--quick`, `--info-only`. **Gotchas: (1) `RELEASE_BIN` must be `./chemical` — bm_run executes via `timeout <cmd>`, and a bare `chemical` is not found in PATH → exit 127 on every release benchmark/test. (2) If the GitHub API fails/rate-limits, existing `info.json` WITH assets is PRESERVED (never clobber good data with an `unavailable` record).** |
 | `scripts/llvm.sh` | Downloads the prebuilt LLVM for the host into `out/host`. **`--tag` is optional: when omitted it auto-resolves the LATEST llvm-prebuilt release via the GitHub API — never hardcode a tag in workflows** (the stale `llvm18` default broke `BUILD_COMPILER=ON` configure, which wants the LLVM version in `CMakeLists.txt`'s `find_package(llvm ${LLVM_VERSION})`). |
-| `bench-backfill.sh` | Historical backfill: iterates past days (or commits) and all releases, skipping already-collected points (resumable). Flags: `--days`, `--mode daily|commits`, `--offset-days`, `--time-budget-min`, `--limit`, `--releases-only/--no-releases`, `--skip-llvm/--no-skip-llvm`, `--quick`. |
 | `bench-push-pages.sh` | Rebuilds `data/manifest.json` from the merged data tree and pushes **only `data/`** to `gh-pages`. Site files on the branch are preserved. Flags: `--data`, `--site`, `--branch`, `--no-push`. |
 | `backfill-release-assets.sh` | One-time repair: rewrites every release's `info.json` with the complete API asset inventory. |
+
+> ℹ️ **There is NO `bench-backfill.sh` anymore.** Historical backfill logic now
+> lives INLINE in `.github/workflows/benchmark-backfill.yml` (it loops the last
+> N releases and calls `bench-collect-release.sh` per matrix cell).
+> `bench-collect-daily.sh` is used by the daily workflow; `bench-collect-release.sh`
+> is used by BOTH the release workflow and the backfill workflow.
 
 ### Key helpers in `bench-common.sh`
 - `bm_run <out_status> <out_duration_ms> <timeout_secs> <log> <cmd...>` — runs
@@ -250,12 +261,17 @@ returns 0 even when tests fail — **status must be derived from parsed counts**
    data on top of what's already published and rebuilds the manifest from the
    merged tree. An empty publish is a harmless no-op. Never replace this with
    `rm -rf` (that wiped the site's history once).
-6. **`--quick` skips test suites and module benchmarks.** Release records with
-   `build.status: "skipped"` / empty modules mean the run used quick mode.
-   Full runs are the default now (`quick: false` in the workflow inputs).
-7. **The backfill release loop is `--info-only`** because a single Linux runner
-   cannot execute macOS/Windows/Alpine binaries. Per-platform release tests
-   come from `benchmark-release.yml` (dispatched per tag on native runners).
+6. **`--quick` still exists as a SCRIPT flag** (`bench-collect-{daily,release}.sh`)
+   that skips test suites + module benchmarks, but NO workflow exposes it
+   anymore — daily, release, and backfill all run full suites. A record with
+   `build.status: "skipped"` / empty modules means a quick-mode run happened
+   some other way.
+7. **Backfill is now release-only and downloads binaries — it never builds.**
+   The old backfill (days/chunks, `--info-only` release loop, building compilers
+   per commit) was replaced by `benchmark-backfill.yml`, which loops the last
+   N releases on a platform matrix mirroring build-and-release and runs the
+   full `bench-collect-release.sh` per cell (downloads each release's zips,
+   never builds a compiler).
 8. **macOS/BSD compat:** never use GNU-only tools (`sort -V`, `date +%s%N`) in
    these scripts — use `ver_ge`/`bm_now_ms` from `bench-common.sh`.
 9. **Line endings:** `.github/workflows/*.yml` files use CRLF. Keep CRLF
@@ -279,26 +295,78 @@ returns 0 even when tests fail — **status must be derived from parsed counts**
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `benchmark-daily.yml` | schedule 03:00 UTC + manual | Builds the compiler at HEAD **in the main checkout** (NOT a worktree), runs `bench-collect-daily.sh` (all 3 backends by default), pushes to gh-pages. Inputs: `commit`, `skip_llvm` (default **false** — LLVM included), `quick`. |
-| `benchmark-release.yml` | manual (`release_tag`) + on release published | 5 parallel platform jobs (linux, **alpine** musl, macos-arm64, macos-x64, windows) download the release's assets, merge the tag's test sources, run full benchmarks + tests, publish → gh-pages. |
-| `benchmark-backfill.yml` | manual | Historical backfill: `days` (default 30), `chunks` parallel jobs, `time_budget_min` (300) to stay under the 6h runner cap. Re-dispatch to resume (collected points skipped). |
+| `benchmark-daily.yml` | schedule 03:00 UTC + manual | Builds the compiler at HEAD **in the main checkout** (NOT a worktree), runs `bench-collect-daily.sh` (all 3 backends by default), pushes to gh-pages. Inputs: `commit` (default HEAD), `skip_llvm` (default **false** — LLVM included). **No `quick` input anymore** — the test suite is ~20 s so a full run is always done. |
+| `benchmark-release.yml` | manual (`release_tag`) + on release published | Matrix of platform jobs mirroring build-and-release (linux x64/arm64, alpine x64/arm64, macos x64/arm64, windows x64/arm64, windows-mingw x64/arm64 + msvcrt). Each downloads the release's assets, merges the tag's own test sources, runs hello + module benchmarks AND the full test suite in ONE collect step (no `quick`/`skip_llvm` inputs — deliberately, to avoid a second workflow launch), then publishes → gh-pages. |
+| `benchmark-backfill.yml` | manual (`release_count`, default ~20) | Historical **release-only** backfill (NOT commits). Matrix mirrors build-and-release so every shipped binary is benchmarked + test-suite'd on its native platform. **Downloads release binaries — never builds the compiler** (that's what keeps it fast). Each cell calls `bench-collect-release.sh` for one release; missing assets, crashes, and test failures are recorded AS DATA and never fail the job. |
 | `build-and-release.yml` | manual + `releaseIt` commits | Builds release binaries for all platforms; `config` input: `Release` → `chemical` repo, `RelWithDebInfo`/`Debug` → **`chemical-debug` repo** with `-debug` suffix zips. `deploy-debug` job aggregates debug zips; it has `if: always() && ...` so one failed platform doesn't skip the whole debug publish. |
 
 ---
 
 ## 5. The dashboard (`gh-pages` branch — assets/dashboard.js)
 
-Pure static JS (~750 lines). Views: Overview, Releases, Daily/Commits, Modules,
-Backends. Key facts:
+Pure static JS (~1550 lines, no framework). **Six views**: Overview, Releases,
+Daily / Commits, **Failures**, Modules, Backends. Chart.js is vendored at
+`assets/vendor/chart.umd.min.js` — reference it exactly (a 404 there =
+`Chart is not defined`; the wrong `assets/chart.umd.min.js` path caused that
+once, don't reintroduce it).
 
+### Design system (`assets/styles.css`, ~550 lines)
+- shadcn-style HSL tokens in `:root` (light) with `.dark` overrides
+  (`--background`, `--foreground`, `--primary`, `--muted`, `--border`,
+  `--radius: 0.5rem`, …). `body` sets `background: hsl(var(--background))` and
+  the **Inter** font; `.mono` uses JetBrains Mono.
+- Components: `.card`, `.tab` (+ `.tab-badge`), `.badge-*` (success/missing/
+  timeout/unavailable/loading…), `.btn-*`, `.table-wrap` (scrollable, for
+  sortable/filtered tables), `.modal`/`.modal-backdrop`/`.modal-card`,
+  `.toast-*`, `.chart-wrap` (fixed-height chart container), `.icon-btn`,
+  `.chip` (▲ regression / ⚠ incomplete markers), `.missing` (red text),
+  `.dim`, `.mono`, `.num` (right-aligned numbers).
+- **Theme:** `#theme-toggle` in the topbar switches `.dark` on
+  `<html>`; `applyTheme()`/`toggleTheme()` read/write `localStorage`
+  `chem-theme` (default **dark**). A tiny pre-paint `<script>` in `index.html`
+  applies the saved theme before first paint (no flash). On toggle the code
+  rebuilds every chart because they read colors from CSS vars at render time.
+
+### Key facts (each one was a real bug — respect them)
 - **Lazy loading:** `init()` fetches `manifest.json`, all daily records, and
   all `info.json` files in parallel. Per-platform record files
   (`data/releases/<tag>/<platform>.json`) are fetched ONLY when needed via
   `ensurePlatformRecord(rec, pf)` — **one platform at a time**. The Releases
   charts call `ensurePlatformRecord(r, selectedPlatformKey)`, NOT
   `ensurePlatformRecords(r)` (fetching all 5 platforms of all 48 releases =
-  hundreds of fetches per chart render — the "loads too slowly" complaint).
-  `loadDailyRecord(date)` / `loadPlatformRecord(tag, pf)` cache promises.
+  hundreds of fetches per chart render — the old "loads too slowly"
+  complaint). `loadDailyRecord(date)` / `loadPlatformRecord(tag, pf)` cache
+  promises (`dailyCache` / `platformCache`).
+- **Fetch reliability:** `fetchJson(url)` aborts after 20s
+  (`FETCH_TIMEOUT_MS`) so a hung request can't leave the status badge on
+  "loading…" forever, **guarded by `typeof AbortController !== "undefined"`**
+  for old browsers/WebViews. Failed record loads return `null` instead of
+  throwing; every catch path calls `noteLoadError(what, err)` which is
+  surfaced in the status badge ("N failed"). Never swallow fetch errors
+  silently.
+- **Chart reliability:** `makeChart(id, config)` first calls
+  `ensureChartWrap(canvas)` which wraps the canvas in a fixed-height
+  `.chart-wrap` (charts previously collapsed or varied in height). All data
+  passed to Chart.js must go through `num()` / `numOrZero()` (NaN/null/
+  undefined → filtered or 0). **Never feed raw record fields to Chart.js** —
+  one bad value can blank an entire chart. Charts are cached in the `charts`
+  object and destroyed via `destroyChart(id)` before re-creating.
+- **Async race tokens:** every async chart/compare render takes
+  `const token = chartToken()` and checks `if (chartIsStale(token)) return;`
+  after each `await` — a slow fetch must never overwrite a newer render
+  (happens on rapid filter/theme switches). `renderCompare` uses `compareSeq`
+  and `openReleaseModal`'s async fill uses `modalSeq` for the same reason.
+- **Release modal opens INSTANTLY:** `openReleaseModal(tag)` renders the
+  summary + assets table + a `<div id="rel-modal-platforms">loading…</div>`
+  immediately, then `await ensurePlatformRecords(r)` and fills platform data
+  into that container, guarded by `if (!box || myModal !== modalSeq) return;`
+  (modal closed or a newer modal replaced it). Do NOT revert to awaiting all
+  platform fetches before showing the modal (old slow behavior).
+- **Sortable tables without duplicate listeners:** `bindSortable(tableEl)`
+  registers one click handler per `th.sortable` only if the element isn't
+  already in the `boundSortables` WeakSet (re-renders used to stack
+  listeners). Sort state persists per table in `state.sort`; the daily table
+  re-applies the current sort after filtering.
 - **Variant selector:** the "Binary size over time" line chart reads the SAME
   `#rel-variant-select` as the bar chart (`assetNameFor(pl, ar, variant)`). It
   was hardcoded to `"regular"` once — keep them in sync.
@@ -308,30 +376,84 @@ Backends. Key facts:
   `releasePlatformsForChart()` which reads `state.manifest.releases` (the
   manifest) — NOT `state.releases[].platforms` (those are empty until lazily
   loaded; using them broke the dropdown once).
-- **Size units:** binary sizes render in **MB** (`fmtSize`; charts use the `MB`
-  helper `b/1048576` and `barOpts("MB")`). The "All releases" table uses the
-  `.rel-table` CSS class (fixed column alignment + `MISSING` labels with
-  tooltips).
-- Helpers: `backendOf(dailyRec, backend)`, `helloOf(rec, name)` (finds a
-  benchmark by name), `assetParts(name)` (zip name → platform/arch/variant),
-  `statusBadge(status)` (explicit status rendering), `regressChip()` (▲/▼ vs
-  previous point), `testStatusBadge(t)` (success/test_failure/test_crash badge
-  for a tests object), `failedTestsHtml(t, limit)` (failed/crashed 💥/⏱
-  timed-out test list).
-- **Test results are the dashboard's primary focus.** The Overview "Latest
-  daily build", the Daily table, and both modals render test status badges,
-  the sequential-vs-runner breakdown, and the failing-test names (with crash
-  exit codes and timeout markers). Keep this emphasis when adding views — do
-  not let benchmark timings push test results out of sight.
-- Charts: `makeChart(id, config)` wraps `new Chart(...)`; Chart.js comes from
-  `assets/vendor/chart.umd.min.js` (a 404 there = `Chart is not defined`).
-- Colors: `COLORS` map for the 3 backends; `colorFor(s)` cycles for platforms.
+- **Size units:** binary sizes render in **MB** (`fmtSize`, the `MB` helper
+  `b/1048576`, `barOpts("MB")`). The "All releases" table uses the
+  `.rel-table` CSS class (fixed column alignment + MISSING labels).
+- **Prefs persist:** theme, backend selections, release variant, and compare
+  selections round-trip through `savePrefs`/`loadPrefs` under the
+  `chem-dashboard-prefs` localStorage key. New user-tweakable state should be
+  added to `state` + persisted here, not hardcoded.
+- **Test results are the dashboard's primary focus.** Overview, Daily,
+  Failures, and both modals render test status badges, the
+  sequential-vs-runner breakdown, and failing-test names (crash exit codes,
+  timeout markers). Do not let benchmark timings push test results out of
+  sight.
+
+### Views & feature inventory (all live in `assets/dashboard.js`)
+- **Overview** (`renderOverview`, `renderOverviewCharts`): stat cards
+  (releases tracked, daily points, tests run, failing tests), latest daily
+  build table, latest release sizes, hello-world compile-time charts.
+  `loadLatestReleaseTests(rel)` lazily pulls the latest release's platform
+  tests for the card.
+- **Releases** (`renderReleases`, `renderReleaseTable`, `renderReleaseCharts`,
+  `renderCompare`, `openReleaseModal`): filter bar (platform / backend /
+  variant / search), binary-size line chart, bare-vs-std hello charts,
+  release test results, the All-releases table, a **Compare two releases**
+  card (side-by-side asset sizes + TCC tests for the selected platform), and
+  the full-release modal (instant open, async platform fill).
+- **Daily / Commits** (`renderDaily`, `renderDailyTable`, `renderDailyCharts`,
+  `openDailyModal`): backend checkboxes, date-range inputs (`dailyFrom` /
+  `dailyTo`), status filter (all / any failure / success), search by
+  commit/subject. `filteredDaily()` applies all of it; the table rows open a
+  per-day modal with per-backend build/benchmark/test detail.
+- **Failures** (`collectFailures`, `renderFailures`, `filteredFailures`,
+  `renderFailureTable`, `renderFailureCharts`, `openFailureModal`): the
+  dashboard's core view. `collectFailures()` aggregates every
+  failing/crashed/timed-out test across ALL daily records into a map keyed by
+  test name (kind = failed | crash | timeout). The tab shows a live count
+  badge (`#failures-count`). Filters: backend (all/TCC/Compiler/Interpreter),
+  min-occurrence (≥1/2/3/5/10), search. Clicking a row opens a modal listing
+  every occurrence (date, backend, day status, crash exit code, day
+  pass/fail).
+- **Modules** (`renderModules`, `renderModuleChart`, `moduleNames`): per-module
+  compile times from daily records' `modules[]`; pick a module + backend →
+  trend chart.
+- **Backends** (`renderBackends`, `renderBackendCharts`): backend comparison
+  table + build/hello/test history charts.
+- **Shared helpers:** `esc(s)` (HTML-escape EVERYTHING that comes from data —
+  XSS guard), `csvEscape` + `exportTableCsv(tableEl, filename)` (CSV export on
+  every table, shows a toast), `toast(msg)`, `setStatus(text)`, `num`/
+  `numOrZero`, `fmtSize`/`fmtMs`/`fmtDate`/`fmtDateTime`, `statusBadge`,
+  `testStatusBadge(t)`, `failedTestsHtml(t, limit)`, `regressChip(current,
+  prev)` (▲/▼ vs previous point), `helloOf(rec, name)`, `backendOf(dailyRec,
+  backend)`, `assetParts(name)` (zip name → platform/arch/variant),
+  `assetNameFor(platform, arch, variant)`, `openModal`/`closeModal`,
+  `switchView(name)`, `chartColors()` (reads CSS vars → Chart.js colors),
+  `hslAlpha(hex, alpha)`, `baseOpts`/`baseLineOpts`/`barOpts`/`tooltipOpts`,
+  `hashStr(s)` (stable color cycling).
+- **Keyboard:** `/` focuses the active search box; `Esc` closes modals.
+
+### The `state` object (top of file — add new filters here)
+```js
+const state = {
+  manifest: null, daily: [], releases: [],
+  selectedBackends: new Set(BACKENDS),        // daily view
+  theme: "dark",                              // persisted
+  relPlatform: null, relBackend: "TCCCompiler", relVariant: "regular",
+  relSearch: "", relCompareA: null, relCompareB: null,
+  dailyFrom: "", dailyTo: "", dailySearch: "", dailyStatus: "all",
+  modName: null, modBackend: "TCCCompiler",
+  failBackend: "all", failSearch: "", failMin: 1,
+  sort: {},                                   // per-table sort state
+};
+```
 
 ### Editing the dashboard (site files are NOT on main)
-1. Fetch the current file: `git fetch origin gh-pages` then
+1. Fetch the current files:
+   `git fetch origin gh-pages` then
    `git show origin/gh-pages:assets/dashboard.js > /tmp/dashboard.js`
    (same for `styles.css`, `index.html`).
-2. Edit, validate with `node --check` / `python3` as appropriate.
+2. Edit, validate with `node --check` (JS) — and run the harness (below).
 3. Publish via a temp worktree (the push-pages script only pushes data, not
    site files):
    ```bash
@@ -346,6 +468,38 @@ Backends. Key facts:
    ⚠️ This does NOT create a stash, and it leaves `main` untouched. Never
    `git stash` before such operations, and never `git stash pop` afterward —
    the stash stack belongs to the user's own work.
+
+### Validation: build a Node harness against real data (do this for any change)
+The dashboard JS is pure enough to unit-test in Node. The pattern used for the
+redesign/stability passes: check out the gh-pages branch to a temp worktree
+(site + data), then run `dashboard.js` in a `vm` context with stubs for
+`document`, `localStorage`, `fetch` (read files from the worktree),
+`getComputedStyle`, `Chart`, `AbortController`, `URL`/`Blob` — then exercise
+pure functions and render functions against the REAL data files and assert on
+the produced `innerHTML`/return values. A typical harness asserts:
+- every view's render function completes without throwing (`renderOverview`,
+  `renderReleases`, `renderDaily`, `renderFailures`, `renderModules`,
+  `renderBackends`),
+- `collectFailures()` aggregates correctly; `filteredFailures()`
+  (backend/min/search) and `filteredDaily()` (date range/status/search) filter
+  correctly,
+- `csvEscape`/`exportTableCsv` escape correctly, `assetParts`/`assetNameFor`
+  map names correctly, `num()`/`numOrZero()` reject NaN/undefined,
+- `renderCompare` renders a table for two different tags, `bindSortable` adds
+  exactly one listener per header across re-renders,
+- prefs save/load round-trip.
+Harnesses live in /tmp (throwaway); the essential thing is the *pattern*:
+stub the DOM, load real data, assert on rendered output. `node --check` alone
+catches syntax, NOT strict-mode ReferenceErrors or race bugs — the harness
+caught `renderCompare`'s undeclared `html` (strict-mode crash) and the
+AbortController-missing-in-old-env crash.
+
+### Live verification
+After pushing, the GitHub Pages CDN can serve stale files for ~a minute.
+Verify with raw.githubusercontent (bypasses CDN cache) or
+`curl -s ...?cachebust` — and confirm the deployed file is byte-identical to
+what you tested (`sha256sum` both). Browser agents have flaked on stale cached
+pages; curl + the Node harness are the reliable checks.
 
 ---
 
@@ -379,7 +533,10 @@ To verify the live site: use a browser agent against
 - **New chart:** "Add a chart to the dashboard's Overview showing test pass rate
   over the last 30 daily records, one line per backend, in `renderOverviewCharts()`.
   It reads `state.daily[].backends[<backend>].tests.passed/total`. Follow the
-  existing `makeChart`/`baseLineOpts` patterns and validate with `node --check`."
+  existing `makeChart`/`baseLineOpts` patterns, wrap it in `ensureChartWrap`,
+  guard all values with `numOrZero`, take a `chartToken()` and check
+  `chartIsStale` after any await, and validate with `node --check` + the Node
+  harness."
 - **New column:** "Add a 'macOS ARM (TCC)' column to the All releases table in
   `renderReleases()` using `assetNameFor('macos','arm64','tcc')`, keeping the
   `.rel-table` column alignment, then update the manifest/backfill if the
@@ -388,10 +545,21 @@ To verify the live site: use a browser agent against
   the daily record under a new key, then surface it in the Daily view. Run
   `bash scripts/bench-collect-daily.sh --skip-llvm --quick` locally to verify
   the record shape before wiring the UI."
+- **New filter:** "Add a <X> filter to the Failures view. Add its key to
+  `state` (e.g. `failX`), wire the control in `renderFailures`, apply it in
+  `filteredFailures()`, persist it in `savePrefs`/`loadPrefs` under
+  `chem-dashboard-prefs`, and add a harness assertion for the filtered
+  output."
 - **Fix a workflow:** "In `benchmark-<x>.yml`, when the <y> job fails, the <z>
   publish job is skipped. Add `always()` to <z>'s `if:` (keep the existing
   dispatch guard), and make the artifact download fail loudly with
   `if-no-files-found: error` if nothing exists."
+- **Add a CSV column:** "Add a <X> column to the Failures table and include it
+  in the CSV export via `exportTableCsv`. Make sure the value is `esc()`-ed in
+  the HTML and `csvEscape`-ed in the CSV, and add a harness assertion."
+- **Theme-aware chart:** "Make the new <X> chart use `chartColors()`/`cssVar`
+  so it re-colors on theme toggle like the others, and rebuild it in the
+  theme-toggle handler alongside the existing charts."
 - **Full pipeline sanity:** "Verify the benchmark pipeline end to end: dispatch
   the daily workflow, then check https://chemicallang.github.io/chemical/data/
   for today's record and confirm the dashboard renders it (Overview + Daily +

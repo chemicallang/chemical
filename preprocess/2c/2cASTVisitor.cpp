@@ -3128,8 +3128,42 @@ void declare_fat_pointer(ToCAstVisitor& visitor) {
 }
 
 void ToCAstVisitor::prepare_translate() {
-    write("#include <stdbool.h>\n");
-    write("#include <stddef.h>\n");
+    // stdbool.h and stddef.h are not available in every environment the
+    // generated C must compile in (some tcc builds ship neither). The bool type
+    // is emitted as `_Bool` — a C99 keyword that needs no header — and bool
+    // values as 1/0, so only the `bool`/`true`/`false` convenience names are
+    // missing. Of the stddef.h macros, the generated C only uses `NULL` and
+    // `offsetof` (`size_t`/`wchar_t`/`va_list`/`struct FILE` are self-provided
+    // elsewhere in the output). Define them here so the generated C stays
+    // self-contained, exactly like the fixed-width integer typedefs below.
+    write("#ifndef __cplusplus\n"
+          "    #ifndef bool\n"
+          "        #define bool _Bool\n"
+          "    #endif\n"
+          "    #ifndef true\n"
+          "        #define true 1\n"
+          "    #endif\n"
+          "    #ifndef false\n"
+          "        #define false 0\n"
+          "    #endif\n"
+          "#endif\n"
+          "#ifndef __bool_true_false_are_defined\n"
+          "    #define __bool_true_false_are_defined 1\n"
+          "#endif\n"
+          "#ifndef NULL\n"
+          "    #ifdef __cplusplus\n"
+          "        #define NULL 0\n"
+          "    #else\n"
+          "        #define NULL ((void*)0)\n"
+          "    #endif\n"
+          "#endif\n"
+          // offsetof must not reference size_t — that typedef is only emitted
+          // when cstd is imported, and codegen must work without any library.
+          // uint64_t is always self-provided by the preamble below and matches
+          // the generated size_t definition (typedef uint64_t size_t).
+          "#ifndef offsetof\n"
+          "    #define offsetof(type, member) ((uint64_t)&(((type*)0)->member))\n"
+          "#endif\n");
     // Fixed-width integer types are emitted by the translation itself instead of
     // including <stdint.h>. stdint.h is not available in every environment the
     // generated C must compile in: tcc's include package ships no stdint.h and
@@ -6704,7 +6738,8 @@ void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
 }
 
 void ToCAstVisitor::VisitOffsetOfValue(OffsetOfValue *offset_of) {
-    // stddef.h (with offsetof) is already included in the generated C preamble
+    // offsetof is self-defined in the generated C preamble (stddef.h is not
+    // available in every environment the output must compile in)
     write("offsetof(");
     visit(offset_of->for_type);
     write(", ");

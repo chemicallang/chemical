@@ -142,7 +142,7 @@ collect_backend() { # <backend> <binary> <json_out_file>
     benchmarks_json="[$bm_bare,$bm_std]"
     bench_modules_and_tests "$backend" "$bin" "$backend" mods_tests "$LOGS" "$QUICK"
   else
-    mods_tests='{"modules":[],"tests":{"status":"unavailable","reason":"compiler build failed","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]},"build_ms":null,"build_status":"unavailable"}'
+    mods_tests='{"modules":[],"files":[],"tests":{"status":"unavailable","reason":"compiler build failed","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]},"build_ms":null,"build_status":"unavailable"}'
   fi
 
   local record
@@ -153,6 +153,7 @@ collect_backend() { # <backend> <binary> <json_out_file>
     '{build:{status:$build_status,reason:$build_reason},
       benchmarks:$benchmarks,
       modules:.modules,
+      files:.files,
       tests:.tests,
       tests_build_ms:.build_ms,
       tests_build_status:.build_status}')"

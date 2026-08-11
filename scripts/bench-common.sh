@@ -49,10 +49,26 @@ bm_warn() { echo "[bench] WARN: $*" >&2; }
 # ─────────────────────────────────────────────────────────────────────────────
 # version comparison + release-era asset expectations
 # ─────────────────────────────────────────────────────────────────────────────
-# NOTE: relies on GNU sort -V (coreutils). The alpine workflow installs
-# coreutils for this; do not remove it from the container deps.
-ver_ge() { # <a> <b> — true if version a >= version b (semver sort)
-  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+# NOTE: pure-bash numeric dot-separated comparison (no GNU `sort -V` — BSD /
+# macOS sort rejects -V, which would make every release record "unavailable"
+# on macos runners). Non-numeric segments are ignored; a missing segment
+# counts as 0 (so 1.0.1 > 1). v0.0.32-style tags are supported.
+ver_ge() { # <a> <b> — true if version a >= version b
+  local a="${1#v}" b="${2#v}" na nb
+  while :; do
+    na="${a%%.*}"; nb="${b%%.*}"
+    na="${na//[^0-9]/}"; nb="${nb//[^0-9]/}"
+    na="${na:-0}"; nb="${nb:-0}"
+    if [ "$na" -ne "$nb" ]; then
+      [ "$na" -gt "$nb" ]
+      return
+    fi
+    # strip the consumed segment; a side without a dot left is exhausted ("")
+    # — ${var#*.} would return the string unchanged when no dot is present
+    case "$a" in *.*) a="${a#*.}" ;; *) a="" ;; esac
+    case "$b" in *.*) b="${b#*.}" ;; *) b="" ;; esac
+    [ "$a" = "$b" ] && return 0
+  done
 }
 
 # Expected compiler zip asset names for a release tag's era.
@@ -198,10 +214,22 @@ parse_bm_output() {
 #   The command's real exit code is stored in BM_EXIT_CODE.
 # ─────────────────────────────────────────────────────────────────────────────
 BM_EXIT_CODE=0
+# Portable epoch-milliseconds: GNU `date +%s%N` gives ns (divided down to ms);
+# BSD/macOS `date` has no %N (it prints a literal %N), so fall back to seconds
+# precision — coarse but correct on every platform.
+bm_now_ms() {
+  local v
+  v="$(date +%s%N 2>/dev/null || true)"
+  case "$v" in
+    ''|*[!0-9]*) date +%s000 ;;
+    *) printf '%s' "$(( v / 1000000 ))" ;;
+  esac
+}
+
 bm_run() {
   local out_status="$1" out_duration="$2" timeout_secs="$3" log="$4"; shift 4
   local start end
-  start=$(date +%s%N)
+  start="$(bm_now_ms)"
   set +e
   if command -v timeout >/dev/null 2>&1; then
     timeout "$timeout_secs" "$@" > "$log" 2>&1
@@ -211,8 +239,8 @@ bm_run() {
     BM_EXIT_CODE=$?
   fi
   set -e
-  end=$(date +%s%N)
-  printf -v "$out_duration" "%d" $(( (end - start) / 1000000 ))
+  end="$(bm_now_ms)"
+  printf -v "$out_duration" "%d" $(( end - start ))
 
   if [ "$BM_EXIT_CODE" -eq 124 ]; then
     printf -v "$out_status" "%s" "timeout"
@@ -296,26 +324,35 @@ bench_modules_and_tests() {
   local build_log="$logdir/${log_base}_build.log"
   local test_log="$logdir/${log_base}_tests.log"
   local build_status="" build_ms=0 test_status="" test_ms=0
-  local modules_json="[]" tests_json='{"status":"unavailable","reason":"not run","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]}'
+  local modules_json="[]" files_json="[]" tests_json='{"status":"unavailable","reason":"not run","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]}'
   local exe=""
 
   if [ "$quick" = "true" ]; then
-    printf -v "$outvar" '{"modules":%s,"tests":%s,"build_ms":null,"build_status":"skipped"}' "[]" "$tests_json"
+    printf -v "$outvar" '{"modules":%s,"files":%s,"tests":%s,"build_ms":null,"build_status":"skipped"}' "[]" "[]" "$tests_json"
     return
   fi
 
+  # -bm-modules gives module-level timings (tag bm:module); -bm-files adds
+  # per-file phase timings (Lexer / Parser / SymRes:* / 2cTranslation:*) in
+  # the same output format — both are parsed below and kept separate.
   if [ "$backend" = "Interpreter" ]; then
-    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache -bm-modules
+    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache -bm-modules -bm-files
   else
     case "$backend" in
       TCCCompiler) exe="lang/tests/build/tests-tcc.exe" ;;
       Compiler)    exe="lang/tests/build/tests.exe" ;;
     esac
-    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab -o "$exe" --mode debug_quick --no-cache -bm-modules
+    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab -o "$exe" --mode debug_quick --no-cache -bm-modules -bm-files
   fi
 
   if [ "$build_status" = "success" ]; then
-    modules_json="$(parse_bm_output "$build_log")"
+    local raw_mods
+    raw_mods="$(parse_bm_output "$build_log")"
+    # split module-level entries from per-file entries; keep the slowest 50
+    # files per phase so records stay small while still surfacing regressions
+    # (a full run is files × ~10 phases, i.e. thousands of entries)
+    modules_json="$(printf '%s' "$raw_mods" | jq -c '[.[] | select(.tag == "bm:module")]')"
+    files_json="$(printf '%s' "$raw_mods" | jq -c '[.[] | select(.tag != "bm:module")] | group_by(.tag) | map(sort_by(-.nanos) | .[0:50]) | add')"
     if [ "$backend" = "Interpreter" ]; then
       # interpret mode runs the tests inside the compiler process
       bm_run test_status test_ms 900 "$test_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache
@@ -342,8 +379,8 @@ bench_modules_and_tests() {
       "$(jq_escape "test suite compilation failed with exit code $BM_EXIT_CODE")" "$build_ms")"
   fi
 
-  printf -v "$outvar" '{"modules":%s,"tests":%s,"build_ms":%s,"build_status":%s}' \
-    "$modules_json" "$tests_json" "$build_ms" "$(jq_escape "$build_status")"
+  printf -v "$outvar" '{"modules":%s,"files":%s,"tests":%s,"build_ms":%s,"build_status":%s}' \
+    "$modules_json" "$files_json" "$tests_json" "$build_ms" "$(jq_escape "$build_status")"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -372,5 +409,11 @@ bm_link_shared_tooling() {
   if [ -d "$main_root/lib/lsp-framework" ] && [ ! -e "$wt/lib/lsp-framework" ]; then
     mkdir -p "$wt/lib"
     ln -s "$main_root/lib/lsp-framework" "$wt/lib/lsp-framework"
+  fi
+  # prebuilt LLVM — only needed when the LLVM Compiler is built in the worktree
+  # (backfill --no-skip-llvm / commit collection with LLVM enabled)
+  if [ -d "$main_root/out/host" ] && [ ! -e "$wt/out/host" ]; then
+    mkdir -p "$wt/out"
+    ln -s "$main_root/out/host" "$wt/out/host"
   fi
 }

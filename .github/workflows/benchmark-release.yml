@@ -8,11 +8,11 @@ on:
         required: false
         type: string
         default: ''
-      skip_llvm:
-        description: 'Skip the LLVM backend benchmarks (fast; LLVM test runs are heavy)'
-        required: false
-        type: boolean
-        default: true
+      # NOTE: there is deliberately NO skip_llvm option here. Release
+      # benchmarks only download prebuilt binaries — they never build the
+      # compiler — so both backends (TCCCompiler + LLVM Compiler) are always
+      # benchmarked. The LLVM skip only exists where we build from source
+      # (benchmark-daily / backfill), where the LLVM build is the slow part.
       quick:
         description: 'Quick mode — hello benchmarks only, skip test suites'
         required: false
@@ -120,7 +120,6 @@ jobs:
             TOOL_DIR="$GITHUB_WORKSPACE/tooling/scripts"
           fi
           ARGS="--tag ${TAG} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
-          if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
           if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
           bash "$TOOL_DIR/bench-collect-release.sh" $ARGS
         env:
@@ -155,8 +154,10 @@ jobs:
       - name: Publish to gh-pages
         run: |
           mkdir -p .bench-data
-          if [ -d merged/releases ]; then
-            cp -r merged/releases .bench-data/
+          # collect uploads `path: .bench-data/releases/`, so the merged
+          # artifact nests the data under `.bench-data/releases/` too
+          if [ -d merged/.bench-data/releases ]; then
+            cp -r merged/.bench-data/releases .bench-data/
           fi
           bash scripts/bench-push-pages.sh
         env:

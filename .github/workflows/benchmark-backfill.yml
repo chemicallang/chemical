@@ -145,8 +145,10 @@ jobs:
       - name: Publish to gh-pages
         run: |
           mkdir -p .bench-data
-          if [ -d merged/daily ]; then cp -r merged/daily .bench-data/; fi
-          if [ -d merged/releases ]; then cp -r merged/releases .bench-data/; fi
+          # chunks upload `path: .bench-data/`, so the merged artifact nests
+          # the data under `.bench-data/` as well
+          if [ -d merged/.bench-data/daily ]; then cp -r merged/.bench-data/daily .bench-data/; fi
+          if [ -d merged/.bench-data/releases ]; then cp -r merged/.bench-data/releases .bench-data/; fi
           bash scripts/bench-push-pages.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

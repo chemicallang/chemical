@@ -1045,7 +1045,10 @@ jobs:
   deploy-debug:
     name: Deploy debug builds to chemical-debug
     needs: [build-windows, build-windows-mingw, build-windows-mingw-msvcrt, build-linux, build-alpine, build-macos]
-    if: env.BUILD_CONFIG != 'Release'
+    # NOTE: the `env` context is NOT available in job-level `if:` — use the
+    # inputs directly. Only a manual workflow_dispatch with a non-Release
+    # config deploys debug builds (push/releaseIt runs are always Release).
+    if: github.event_name == 'workflow_dispatch' && inputs.config != 'Release'
     runs-on: ubuntu-24.04
     steps:
       - name: Download all debug artifacts

@@ -552,10 +552,16 @@ async function renderReleaseCharts() {
 const fmtDateTime = (s) => (s ? s.replace("T", " ").replace(/Z$/, " UTC") : "—");
 
 async function openReleaseModal(tag) {
-  const r = state.releases.find((x) => x.info.tag === tag);
+  const r = state.releases.find((x) => x.info && x.info.tag === tag);
   if (!r) return;
-  // lazily fetch this release's platform benchmark records
-  await ensurePlatformRecords(r);
+  // lazily fetch this release's platform benchmark records (non-fatal: if the
+  // fetch fails we still render the release summary + assets table)
+  try {
+    await ensurePlatformRecords(r);
+  } catch (e) {
+    console.warn("failed to load platform records for " + tag, e);
+    r.platforms = r.platforms || {};
+  }
 
   const assets = r.info.assets || {};
   const assetEntries = Object.entries(assets);
@@ -612,14 +618,14 @@ async function openReleaseModal(tag) {
   // in the record's `runs` array — newest last, deduped by generated_at)
   const runPlats = pkeys.filter((pk) => {
     const pf = r.platforms[pk];
-    return Array.isArray(pf.runs) && pf.runs.length > 1;
+    return Array.isArray(pf.runs) && pf.runs.length >= 1;
   });
   if (runPlats.length) {
     html += `<h3>Run history <span class="hint">every benchmark/test run recorded for this release</span></h3>`;
     for (const pk of runPlats) {
       const pf = r.platforms[pk];
       const runs = pf.runs.slice().reverse(); // newest first
-      html += `<h4>${esc(pk)} — ${runs.length} runs</h4><table><thead><tr><th>Run time</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} pass/fail</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
+      html += `<h4>${esc(pk)} — ${runs.length} run${runs.length > 1 ? "s" : ""}</h4><table><thead><tr><th>Run time</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} pass/fail</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
       for (const run of runs) {
         html += `<tr><td class="dim">${esc(fmtDateTime(run.generated_at))}</td>`;
         for (const b of BACKENDS) {

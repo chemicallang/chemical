@@ -583,7 +583,7 @@ bm_link_shared_tooling() {
     fi
   fi
   # prebuilt LLVM — only needed when the LLVM Compiler is built in the worktree
-  # (backfill --no-skip-llvm / commit collection with LLVM enabled)
+  # (--no-skip-llvm / commit collection with LLVM enabled)
   if [ -d "$main_root/out/host" ] && [ ! -e "$wt/out/host" ]; then
     mkdir -p "$wt/out"
     ln -s "$main_root/out/host" "$wt/out/host"

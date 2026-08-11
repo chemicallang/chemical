@@ -1,6 +1,6 @@
 ---
 name: Benchmark Dashboard
-description: The Chemical compiler benchmark & release analytics system — how the static GitHub Pages dashboard works, the JSON data model (manifest/daily/release records), the bash collection scripts (bench-*.sh), the GitHub Actions workflows (benchmark-daily/release/backfill), and the critical pitfalls (hidden upload dirs, worktree submodules, gh-pages-only data). Load when working on the dashboard, benchmark collection, or analytics workflows.
+description: The Chemical compiler benchmark & release analytics system — how the static GitHub Pages dashboard works, the JSON data model (manifest/daily/release records), the bash collection scripts (bench-*.sh), the GitHub Actions workflows (benchmark-daily/release), and the critical pitfalls (hidden upload dirs, worktree submodules, gh-pages-only data). Load when working on the dashboard, benchmark collection, or analytics workflows.
 ---
 
 # Benchmark & Release Analytics Dashboard — Skill
@@ -30,7 +30,7 @@ main branch                              gh-pages branch (deployed site)
   .github/workflows/                     data/daily/<date>.json
     benchmark-daily.yml                  data/releases/<tag>/info.json
     benchmark-release.yml                data/releases/<tag>/<platform>-<arch>.json
-    benchmark-backfill.yml               index.html, assets/dashboard.js (~1550
+                                         index.html, assets/dashboard.js (~1550
                                          lines, 6 views incl. Failures),
                                          assets/styles.css (shadcn tokens,
                                          light/dark themes),
@@ -174,13 +174,11 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 | `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--repo`, `--platform`, `--arch`, `--out`, `--work`, `--skip-llvm`, `--quick`, `--info-only`. **Gotchas: (1) `RELEASE_BIN` must be `./chemical` — bm_run executes via `timeout <cmd>`, and a bare `chemical` is not found in PATH → exit 127 on every release benchmark/test. (2) If the GitHub API fails/rate-limits, existing `info.json` WITH assets is PRESERVED (never clobber good data with an `unavailable` record).** |
 | `scripts/llvm.sh` | Downloads the prebuilt LLVM for the host into `out/host`. **`--tag` is optional: when omitted it auto-resolves the LATEST llvm-prebuilt release via the GitHub API — never hardcode a tag in workflows** (the stale `llvm18` default broke `BUILD_COMPILER=ON` configure, which wants the LLVM version in `CMakeLists.txt`'s `find_package(llvm ${LLVM_VERSION})`). |
 | `bench-push-pages.sh` | Rebuilds `data/manifest.json` from the merged data tree and pushes **only `data/`** to `gh-pages`. Site files on the branch are preserved. Flags: `--data`, `--site`, `--branch`, `--no-push`. |
-| `backfill-release-assets.sh` | One-time repair: rewrites every release's `info.json` with the complete API asset inventory. |
 
-> ℹ️ **There is NO `bench-backfill.sh` anymore.** Historical backfill logic now
-> lives INLINE in `.github/workflows/benchmark-backfill.yml` (it loops the last
-> N releases and calls `bench-collect-release.sh` per matrix cell).
-> `bench-collect-daily.sh` is used by the daily workflow; `bench-collect-release.sh`
-> is used by BOTH the release workflow and the backfill workflow.
+> ℹ️ **There is no backfill workflow anymore** (`.github/workflows/benchmark-backfill.yml`
+> was removed — historical release backfilling is no longer needed; the data is
+> already collected). `bench-collect-daily.sh` is used by the daily workflow;
+> `bench-collect-release.sh` is used by the release workflow.
 
 ### Key helpers in `bench-common.sh`
 - `bm_run <out_status> <out_duration_ms> <timeout_secs> <log> <cmd...>` — runs
@@ -247,31 +245,25 @@ returns 0 even when tests fail — **status must be derived from parsed counts**
 2. **Hidden directories are dropped by `upload-artifact@v4`.** The staging dir
    `.bench-data` starts with a dot; without `include-hidden-files: true` on
    every upload, the artifact contains NOTHING ("No files were found") and the
-   site stays empty while the workflow "succeeds". Both `benchmark-backfill.yml`
-   and `benchmark-release.yml` uploads must keep `include-hidden-files: true`.
+   site stays empty while the workflow "succeeds". Every upload in
+   `benchmark-release.yml` must keep `include-hidden-files: true`.
 3. **upload-artifact strips the search-path prefix.** Uploading
    `path: .bench-data/` produces an artifact whose root IS `.bench-data/`'s
    contents (`daily/`, `releases/` at root — NOT `.bench-data/daily`). The
    publish jobs copy `merged/daily` + `merged/releases` accordingly. If you
    change the upload path, you MUST update the publish copy paths to match.
 4. **The same-commit rule.** A compiler built at commit X can only compile the
-   test sources of commit X. Daily/backfill build inside a checkout/worktree at
-   the target commit; release benchmarks use `git archive <tag> lang/tests`.
+   test sources of commit X. Daily builds inside a checkout/worktree at the
+   target commit; release benchmarks use `git archive <tag> lang/tests`.
 5. **`bench-push-pages.sh` is an OVERLAY, never a wipe.** It copies the local
    data on top of what's already published and rebuilds the manifest from the
    merged tree. An empty publish is a harmless no-op. Never replace this with
    `rm -rf` (that wiped the site's history once).
 6. **`--quick` still exists as a SCRIPT flag** (`bench-collect-{daily,release}.sh`)
    that skips test suites + module benchmarks, but NO workflow exposes it
-   anymore — daily, release, and backfill all run full suites. A record with
+   anymore — daily and release both run full suites. A record with
    `build.status: "skipped"` / empty modules means a quick-mode run happened
    some other way.
-7. **Backfill is now release-only and downloads binaries — it never builds.**
-   The old backfill (days/chunks, `--info-only` release loop, building compilers
-   per commit) was replaced by `benchmark-backfill.yml`, which loops the last
-   N releases on a platform matrix mirroring build-and-release and runs the
-   full `bench-collect-release.sh` per cell (downloads each release's zips,
-   never builds a compiler).
 8. **macOS/BSD compat:** never use GNU-only tools (`sort -V`, `date +%s%N`) in
    these scripts — use `ver_ge`/`bm_now_ms` from `bench-common.sh`.
 9. **Line endings:** `.github/workflows/*.yml` files use CRLF. Keep CRLF
@@ -297,7 +289,6 @@ returns 0 even when tests fail — **status must be derived from parsed counts**
 |---|---|---|
 | `benchmark-daily.yml` | schedule 03:00 UTC + manual | Builds the compiler at HEAD **in the main checkout** (NOT a worktree), runs `bench-collect-daily.sh` (all 3 backends by default), pushes to gh-pages. Inputs: `commit` (default HEAD), `skip_llvm` (default **false** — LLVM included). **No `quick` input anymore** — the test suite is ~20 s so a full run is always done. |
 | `benchmark-release.yml` | manual (`release_tag`) + on release published | Matrix of platform jobs mirroring build-and-release (linux x64/arm64, alpine x64/arm64, macos x64/arm64, windows x64/arm64, windows-mingw x64/arm64 + msvcrt). Each downloads the release's assets, merges the tag's own test sources, runs hello + module benchmarks AND the full test suite in ONE collect step (no `quick`/`skip_llvm` inputs — deliberately, to avoid a second workflow launch), then publishes → gh-pages. |
-| `benchmark-backfill.yml` | manual (`release_count`, default ~20) | Historical **release-only** backfill (NOT commits). Matrix mirrors build-and-release so every shipped binary is benchmarked + test-suite'd on its native platform. **Downloads release binaries — never builds the compiler** (that's what keeps it fast). Each cell calls `bench-collect-release.sh` for one release; missing assets, crashes, and test failures are recorded AS DATA and never fail the job. |
 | `build-and-release.yml` | manual + `releaseIt` commits | Builds release binaries for all platforms; `config` input: `Release` → `chemical` repo, `RelWithDebInfo`/`Debug` → **`chemical-debug` repo** with `-debug` suffix zips. `deploy-debug` job aggregates debug zips; it has `if: always() && ...` so one failed platform doesn't skip the whole debug publish. |
 
 ---
@@ -539,7 +530,7 @@ To verify the live site: use a browser agent against
   harness."
 - **New column:** "Add a 'macOS ARM (TCC)' column to the All releases table in
   `renderReleases()` using `assetNameFor('macos','arm64','tcc')`, keeping the
-  `.rel-table` column alignment, then update the manifest/backfill if the
+  `.rel-table` column alignment, then update the manifest if the
   expected-asset list needs it."
 - **New data source:** "Collect <X> in `bench-collect-daily.sh` and store it on
   the daily record under a new key, then surface it in the Daily view. Run

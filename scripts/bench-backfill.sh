@@ -100,7 +100,12 @@ collect_one_commit() { # <date> <sha>
   if [ ! -f "$wt/cmake-build-debug/CMakeCache.txt" ]; then
     ( cd "$wt" && cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=OFF >/dev/null 2>&1 || true )
   fi
-  if bash "$SCRIPT_DIR/bench-collect-daily.sh" --commit "$sha" --date "$date" --out "$OUT" --work "$wt" --skip-llvm --backends tcc,interpret $( [ "$QUICK" = true ] && echo --quick ); then
+  # commit collection BUILDS the compiler → the LLVM skip check applies here
+  local backends="tcc,interpret"
+  [ "$SKIP_LLVM" = false ] && backends="tcc,llvm,interpret"
+  if bash "$SCRIPT_DIR/bench-collect-daily.sh" --commit "$sha" --date "$date" --out "$OUT" --work "$wt" \
+       $( [ "$SKIP_LLVM" = true ] && echo --skip-llvm ) --backends "$backends" \
+       $( [ "$QUICK" = true ] && echo --quick ); then
     bm_log "==> [$date] collected"
   else
     bm_warn "[$date] collect_daily failed — recording failure record"
@@ -177,7 +182,9 @@ if [ "$RELEASES" = true ]; then
         continue
       fi
       bm_log "==> collecting release $tag"
-      if bash "$SCRIPT_DIR/bench-collect-release.sh" --tag "$tag" --out "$OUT" --repo "$REPO" --skip-llvm $( [ "$QUICK" = true ] && echo --quick ); then
+      # release collection only DOWNLOADS prebuilt binaries (no compiler build)
+      # → never skip the LLVM backend here
+      if bash "$SCRIPT_DIR/bench-collect-release.sh" --tag "$tag" --out "$OUT" --repo "$REPO" $( [ "$QUICK" = true ] && echo --quick ); then
         bm_log "==> release $tag collected"
       else
         bm_warn "release $tag collection failed"

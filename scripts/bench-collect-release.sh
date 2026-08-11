@@ -240,7 +240,7 @@ collect_backend_release() { # <backend> <release_root> <binary> <json_out>
   if [ ! -f "$root/$bin" ]; then
     REC="$(jq -n --arg backend "$backend" \
       '{build:{status:"unavailable",reason:"binary not present in release asset"},
-        benchmarks:[],modules:[],tests:{status:"unavailable",reason:"binary not present in release asset","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]},
+        benchmarks:[],modules:[],files:[],tests:{status:"unavailable",reason:"binary not present in release asset","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]},
         tests_build_ms:null,tests_build_status:"unavailable"}')"
     bm_write_json "$out_file" "$REC"
     return
@@ -279,6 +279,7 @@ collect_backend_release() { # <backend> <release_root> <binary> <json_out>
     '{build:{status:$build_status,reason:$build_reason},
       benchmarks:$benchmarks,
       modules:.modules,
+      files:.files,
       tests:.tests,
       tests_build_ms:.build_ms,
       tests_build_status:.build_status}')"

@@ -119,35 +119,131 @@ strip_ansi() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parsing test output.
-# The test framework prints lines like:
-#   Test 12 [name] succeeded        /  Test 13 [name] failed
-# and a summary from print_test_stats():
-#   Total 523 Passed 520 Failed 3
-# (with ANSI colour codes interleaved in both compiled and interpret modes).
-# Parses a log file and prints JSON: {"total":N,"passed":N,"failed":N,
-#  "succeeded":N,"failed_tests":[...]}
+#
+# The test executable prints TWO independent sections (this is how
+# scripts/test.sh's compiled mode is structured, verified against its real
+# output):
+#
+#   1) SEQUENTIAL inline tests — printed by test()/print_test_stats():
+#        Test 12 [name] succeeded        /  Test 13 [name] failed
+#        Total 523 Passed 520 Failed 3
+#
+#   2) @test RUNNER section — every @test function runs in its OWN child
+#      process via posix_spawn + socketpair IPC (lang/libs/test/posix/launch.ch)
+#      and the parent prints, per test:
+#        Test run summary
+#          Total: 523 | Passed: 517 | Failed: 6
+#        Group: (no-group)
+#          - test_name 1073741823
+#            PASS                       <- or FAIL / [exitcode] FAIL
+#        Summary: 523 tests - 517 passed, 6 failed
+#
+#      A non-zero exit code bracket ([139] FAIL) means the child process did
+#      not exit cleanly (crash / SIGKILL on timeout). A "Test timed out after
+#      10s" log line accompanies timeouts.
+#
+# The two sections are NOT additive in the output — the final "Total N Passed N
+# Failed N" line only counts the SEQUENTIAL tests (runner results live in
+# child processes and never reach print_test_stats). A parser that only read
+# that line therefore MISSED every runner failure. This parser combines both.
+#
+# Prints JSON:
+#   {"total":N,"passed":N,"failed":N,"succeeded":N,"complete":true|false,
+#    "sequential":{"total":N,"passed":N,"failed":N},
+#    "runner":{"total":N,"passed":N,"failed":N},
+#    "failed_tests":["name",...],
+#    "crashed_tests":[{"name":"...","exit_code":N}],
+#    "timed_out_tests":["name",...]}
+#   complete=false means no summary line was found (truncated / crashed run).
 # ─────────────────────────────────────────────────────────────────────────────
 parse_test_output() {
   local log="$1"
-  local total=0 passed=0 failed=0
-  local line name
-  local -a failed_names=()
+  local line
+  # sequential counters
+  local seq_total=0 seq_passed=0 seq_failed=0
+  # runner counters (per-test lines; Summary: line is authoritative)
+  local run_total=0 run_passed=0 run_failed=0
+  local -a failed_names=()        # both sections
+  local -a crashed_tests=()       # JSON objects
+  local -a timed_out=()
+  local complete=true
+  local saw_seq_summary=false saw_run_summary=false
+  # runner state machine
+  local cur_test="" cur_block=""
 
   # one sed pass strips ANSI + CR (per-line subprocess spawns are far too slow
-  # on multi-thousand-line logs), then pure-bash regex matching
-  while IFS= read -r line; do
+  # on multi-thousand-line logs), then pure-bash regex matching. Note: the
+  # final "Total N Passed N Failed N" line from print_test_stats has NO
+  # trailing newline, so the loop must process a last unterminated line too.
+  while IFS= read -r line || [ -n "$line" ]; do
+    # ── sequential section ──────────────────────────────────────────────────
     if [[ "$line" =~ ^Test[[:space:]]+[0-9]+[[:space:]]+\[(.*)\][[:space:]]+succeeded[[:space:]]*$ ]]; then
-      total=$((total + 1)); passed=$((passed + 1))
+      seq_total=$((seq_total + 1)); seq_passed=$((seq_passed + 1))
     elif [[ "$line" =~ ^Test[[:space:]]+[0-9]+[[:space:]]+\[(.*)\][[:space:]]+failed[[:space:]]*$ ]]; then
-      total=$((total + 1)); failed=$((failed + 1))
+      seq_total=$((seq_total + 1)); seq_failed=$((seq_failed + 1))
       failed_names+=("${BASH_REMATCH[1]}")
     elif [[ "$line" =~ ^Total[[:space:]]+([0-9]+)[[:space:]]+Passed[[:space:]]+([0-9]+)[[:space:]]+Failed[[:space:]]+([0-9]+) ]]; then
-      # summary line from print_test_stats — authoritative
-      total="${BASH_REMATCH[1]}"
-      passed="${BASH_REMATCH[2]}"
-      failed="${BASH_REMATCH[3]}"
+      # sequential summary line from print_test_stats — authoritative for the
+      # sequential section ONLY (never overwrites runner counts)
+      seq_total="${BASH_REMATCH[1]}"
+      seq_passed="${BASH_REMATCH[2]}"
+      seq_failed="${BASH_REMATCH[3]}"
+      saw_seq_summary=true
+    # ── runner section: header line ─────────────────────────────────────────
+    elif [[ "$line" =~ ^Test[[:space:]]+run[[:space:]]+summary ]]; then
+      : # section marker
+    elif [[ "$line" =~ ^[[:space:]]*Total:[[:space:]]+([0-9]+)[[:space:]]+\|[[:space:]]*Passed:[[:space:]]+([0-9]+)[[:space:]]+\|[[:space:]]*Failed:[[:space:]]+([0-9]+) ]]; then
+      # Display header only — do NOT seed the counters here. Per-test PASS/FAIL
+      # lines increment them and the final "Summary:" line is authoritative.
+      # Seeding from the header AND incrementing would double-count (and show
+      # inflated numbers in a truncated/crashed run where Summary never prints).
+      :
+    # ── runner section: "  - test_name 1073741823" test header ──────────────
+    elif [[ "$line" =~ ^[[:space:]]*-[[:space:]]+([^[:space:]].*)[[:space:]]+[0-9]+[[:space:]]*$ ]]; then
+      cur_test="${BASH_REMATCH[1]}"
+      cur_block=""
+    # ── runner section: per-test result "    PASS" / "    FAIL" / "    [139] FAIL" ──
+    elif [[ "$line" =~ ^[[:space:]]*(\[[0-9]+\])?[[:space:]]*(PASS|FAIL)[[:space:]]*$ ]] && [ -n "$cur_test" ]; then
+      local exit_code="${BASH_REMATCH[1]#[}"; exit_code="${exit_code%]}"; [ -z "$exit_code" ] && exit_code=0
+      if [ "${BASH_REMATCH[2]}" = "PASS" ]; then
+        run_total=$((run_total + 1)); run_passed=$((run_passed + 1))
+      else
+        run_total=$((run_total + 1)); run_failed=$((run_failed + 1))
+        failed_names+=("$cur_test")
+        if [[ "$cur_block" == *"timed out"* ]]; then
+          timed_out+=("$cur_test")
+        elif [ "$exit_code" -ne 0 ]; then
+          crashed_tests+=("{\"name\":$(jq_escape "$cur_test"),\"exit_code\":$exit_code}")
+        fi
+      fi
+      cur_test=""
+    # ── runner section: final "Summary: 523 tests - 517 passed, 6 failed" ────
+    elif [[ "$line" =~ ^Summary:[[:space:]]+([0-9]+)[[:space:]]+tests[[:space:]]+-[[:space:]]+([0-9]+)[[:space:]]+passed[[:space:]]*,[[:space:]]*([0-9]+)[[:space:]]+failed ]]; then
+      run_total="${BASH_REMATCH[1]}"; run_passed="${BASH_REMATCH[2]}"; run_failed="${BASH_REMATCH[3]}"
+      saw_run_summary=true
     fi
+    # accumulate runner block text (between test header and result) to detect
+    # "timed out" log messages
+    [ -n "$cur_test" ] && cur_block+="$line|"
   done < <(sed -e $'s/\x1b\[[0-9;]*m//g' -e 's/\r$//' "$log")
+
+  local total=$((seq_total + run_total))
+  local passed=$((seq_passed + run_passed))
+  local failed=$((seq_failed + run_failed))
+
+  # A run is only "complete" if every section that produced test lines also
+  # produced its authoritative summary line. A truncated/crashed run (process
+  # died mid-print) shows test lines but no Total / Summary — record it as
+  # incomplete so the dashboard reports a crash instead of silent data loss.
+  if [ "$seq_total" -gt 0 ] && [ "$saw_seq_summary" = false ]; then
+    complete=false
+  fi
+  if [ "$run_total" -gt 0 ] && [ "$saw_run_summary" = false ]; then
+    complete=false
+  fi
+  if [ "$total" -eq 0 ] && grep -aqE 'Test run summary|Summary: [0-9]+ tests' "$log"; then
+    complete=false
+  fi
 
   local failed_json="[]"
   if [ "${#failed_names[@]}" -gt 0 ]; then
@@ -160,8 +256,31 @@ parse_test_output() {
     failed_json+="]"
   fi
 
-  printf '{"total":%s,"passed":%s,"failed":%s,"succeeded":%s,"failed_tests":%s}' \
-    "$total" "$passed" "$failed" "$passed" "$failed_json"
+  local crashed_json="[]"
+  if [ "${#crashed_tests[@]}" -gt 0 ]; then
+    crashed_json="["
+    for i in "${!crashed_tests[@]}"; do
+      [ "$i" -gt 0 ] && crashed_json+=","
+      crashed_json+="${crashed_tests[$i]}"
+    done
+    crashed_json+="]"
+  fi
+
+  local timedout_json="[]"
+  if [ "${#timed_out[@]}" -gt 0 ]; then
+    timedout_json="["
+    for i in "${!timed_out[@]}"; do
+      [ "$i" -gt 0 ] && timedout_json+=","
+      timedout_json+="$(jq_escape "${timed_out[$i]}")"
+    done
+    timedout_json+="]"
+  fi
+
+  printf '{"total":%s,"passed":%s,"failed":%s,"succeeded":%s,"complete":%s,"sequential":{"total":%s,"passed":%s,"failed":%s},"runner":{"total":%s,"passed":%s,"failed":%s},"failed_tests":%s,"crashed_tests":%s,"timed_out_tests":%s}' \
+    "$total" "$passed" "$failed" "$passed" "$complete" \
+    "$seq_total" "$seq_passed" "$seq_failed" \
+    "$run_total" "$run_passed" "$run_failed" \
+    "$failed_json" "$crashed_json" "$timedout_json"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -368,15 +487,61 @@ bench_modules_and_tests() {
     if [ -f "$test_log" ]; then
       local counts
       counts="$(parse_test_output "$test_log")"
-      local status="success"
-      [ "$test_status" != "success" ] && status="test_failure"
-      tests_json="$(printf '%s' "$counts" | jq --arg st "$status" --argjson ms "$test_ms" '{status:$st,total:.total,passed:.passed,failed:.failed,duration_ms:$ms,failed_tests:.failed_tests}')"
+      # NOTE: the test executable's main() always returns 0 even when tests
+      # fail (verified in lang/tests/src/tests.ch), so the process exit code
+      # can NOT determine pass/fail. Status is derived from the parsed counts
+      # and the crash/timeout signals instead.
+      local status="success" reason="null"
+      local n_failed n_crashed n_timed
+      n_failed="$(printf '%s' "$counts" | jq -r '.failed // 0' 2>/dev/null || echo 0)"
+      n_crashed="$(printf '%s' "$counts" | jq -r '.crashed_tests | length' 2>/dev/null || echo 0)"
+      n_timed="$(printf '%s' "$counts" | jq -r '.timed_out_tests | length' 2>/dev/null || echo 0)"
+      if [ "$test_status" = "timeout" ]; then
+        status="timeout"
+        reason="$(jq_escape "test suite timed out after 900s")"
+      elif [ "$test_status" != "success" ]; then
+        # the test executable itself died (signal / non-zero exit)
+        status="test_crash"
+        reason="$(jq_escape "test executable crashed with exit code $BM_EXIT_CODE")"
+      elif [ "$(printf '%s' "$counts" | jq -r '.complete // "false"' 2>/dev/null || echo false)" != "true" ]; then
+        status="test_crash"
+        reason="$(jq_escape "test run did not complete (output truncated); possible crash mid-run")"
+      elif [ "$n_failed" -gt 0 ]; then
+        status="test_failure"
+        reason="$(jq_escape "$n_failed test(s) failed")"
+      fi
+      local extra=""
+      [ "$n_crashed" -gt 0 ] && extra+="$n_crashed crashed; "
+      [ "$n_timed" -gt 0 ] && extra+="$n_timed timed out; "
+      if [ -n "$extra" ]; then
+        extra="${extra%, }"
+        if [ "$status" = "success" ]; then status="test_failure"; fi
+        if [ "$reason" = "null" ]; then
+          reason="$(jq_escape "$extra")"
+        else
+          reason="$(printf '%s' "$reason" | jq -c --arg e "$extra" '. + " — " + $e' 2>/dev/null || echo "$reason")"
+        fi
+      fi
+      tests_json="$(printf '%s' "$counts" | jq --arg st "$status" --argjson reason "$reason" --argjson ms "$test_ms" \
+        '{status:$st,reason:$reason,total:.total,passed:.passed,failed:.failed,succeeded:.succeeded,duration_ms:$ms,complete:.complete,sequential:.sequential,runner:.runner,failed_tests:.failed_tests,crashed_tests:.crashed_tests,timed_out_tests:.timed_out_tests}')"
     else
-      tests_json="$(printf '{"status":"failed","reason":"no test output","total":null,"passed":null,"failed":null,"duration_ms":%s,"failed_tests":[]}' "$test_ms")"
+      tests_json="$(printf '{"status":"test_crash","reason":"no test output","total":null,"passed":null,"failed":null,"succeeded":null,"duration_ms":%s,"complete":false,"sequential":null,"runner":null,"failed_tests":[],"crashed_tests":[],"timed_out_tests":[]}' "$test_ms")"
     fi
   else
-    tests_json="$(printf '{"status":"build_failure","reason":%s,"total":null,"passed":null,"failed":null,"duration_ms":%s,"failed_tests":[]}' \
-      "$(jq_escape "test suite compilation failed with exit code $BM_EXIT_CODE")" "$build_ms")"
+    # compiler build of the test suite failed — surface the tail of the build
+    # log so compiler crashes / errors are visible instead of a bare status
+    local build_tail=""
+    if [ -f "$build_log" ]; then
+      build_tail="$(tail -3 "$build_log" | grep -aE 'error|Error|crash|signal|Segmentation|assert' | tail -1 || true)"
+    fi
+    local build_reason
+    if [ -n "$build_tail" ]; then
+      build_reason="$(jq_escape "test suite compilation failed (exit $BM_EXIT_CODE): $build_tail")"
+    else
+      build_reason="$(jq_escape "test suite compilation failed with exit code $BM_EXIT_CODE")"
+    fi
+    tests_json="$(printf '{"status":"build_failure","reason":%s,"total":null,"passed":null,"failed":null,"succeeded":null,"duration_ms":%s,"complete":false,"sequential":null,"runner":null,"failed_tests":[],"crashed_tests":[],"timed_out_tests":[]}' \
+      "$build_reason" "$build_ms")"
   fi
 
   printf -v "$outvar" '{"modules":%s,"files":%s,"tests":%s,"build_ms":%s,"build_status":%s}' \

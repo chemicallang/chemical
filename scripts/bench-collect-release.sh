@@ -322,7 +322,10 @@ if [ "$SKIP_LLVM" = false ] && [ -n "$REGULAR_ROOT" ] && [ -f "$REGULAR_ROOT/$RE
   BACKENDS_JSON="$(printf '%s' "$BACKENDS_JSON" | jq --slurpfile bf "$WORK/backend_llvm.json" '. + {Compiler: $bf[0]}')"
 fi
 
-PLAT_REC="$(jq -n \
+# Same E2BIG guard as bench-collect-daily.sh: the backends blob (module +
+# per-file timings) can exceed the ~128 KB per-argument limit, so pipe it
+# through stdin instead of --argjson.
+PLAT_REC="$(printf '%s' "$BACKENDS_JSON" | jq \
   --arg type "release_platform" \
   --arg tag "$TAG" \
   --arg platform "$PLATFORM" \
@@ -330,7 +333,6 @@ PLAT_REC="$(jq -n \
   --arg libc "$(bm_libc)" \
   --arg generated_at "$(bm_datetime)" \
   --argjson assets "$ASSETS_JSON" \
-  --argjson backends "$BACKENDS_JSON" \
-  '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"success",assets:$assets,backends:$backends}')"
+  '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"success",assets:$assets,backends:.}')"
 bm_write_json "$OUT/releases/$TAG/$PLATFORM-$ARCH.json" "$PLAT_REC"
 bm_log "==> Done: $OUT/releases/$TAG/$PLATFORM-$ARCH.json"

@@ -202,7 +202,11 @@ done
 COMPILER_VERSION_TCC="$( [ -f "$TCC_BIN" ] && "$TCC_BIN" --version 2>/dev/null | head -1 | tr -d '\r' || echo "n/a" )"
 COMPILER_VERSION_LLVM="$( [ -f "$LLVM_BIN" ] && "$LLVM_BIN" --version 2>/dev/null | head -1 | tr -d '\r' || echo "n/a" )"
 
-RECORD="$(jq -n \
+# The backends blob can be large (module + per-file timings from every
+# backend); passing it via --argjson would exceed the ~128 KB per-argument
+# limit (E2BIG: "Argument list too long"). Pipe it through stdin instead and
+# reference it as the input (`.`), which has no size limit.
+RECORD="$(printf '%s' "$BACKENDS_JSON" | jq \
   --arg type "daily" \
   --arg date "$DATE" \
   --arg generated_at "$(bm_datetime)" \
@@ -215,12 +219,11 @@ RECORD="$(jq -n \
   --arg author_date "$AUTHOR_DATE" \
   --arg tcc_ver "$COMPILER_VERSION_TCC" \
   --arg llvm_ver "$COMPILER_VERSION_LLVM" \
-  --argjson backends "$BACKENDS_JSON" \
   '{type:$type,date:$date,generated_at:$generated_at,
     platform:{os:$platform,arch:$arch,libc:$libc},
     commit:{sha:$sha,short:$short,subject:$subject,author_date:$author_date},
     compiler_version:{TCCCompiler:$tcc_ver,Compiler:$llvm_ver},
-    backends:$backends}')"
+    backends:.}')"
 
 OUT_FILE="$OUT/daily/$DATE.json"
 bm_write_json "$OUT_FILE" "$RECORD"

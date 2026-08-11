@@ -1,46 +1,24 @@
-name: Benchmark Backfill
+name: Benchmark Backfill (Releases)
+
+# Historical release backfill: for the last N releases, download the shipped
+# compiler binaries and run hello + module benchmarks + the FULL test suite on
+# every platform build-and-release ships. No compiler is ever built here — the
+# binaries come straight from the release assets.
+#
+# Fault tolerance is built in: a missing asset, a compiler that crashes, or a
+# test suite that fails is recorded AS DATA (bench-collect-release.sh writes
+# missing_asset / benchmark_failure / test_failure records) — the job never
+# fails because one release is broken. With ~10-20 releases and many of them
+# missing assets, the whole backfill stays quick.
 
 on:
   workflow_dispatch:
     inputs:
-      days:
-        description: 'Days of commit history to backfill (one point per day). ~1500 commits ≈ last 1500 days.'
+      release_count:
+        description: 'Number of most recent releases to backfill (newest first)'
         required: false
         type: number
-        default: 30
-      mode:
-        description: 'daily = one compiler build per day (recommended). commits = one per commit. NOTE: chunking is day-based, so use daily mode when chunks > 1.'
-        required: false
-        type: choice
-        options:
-          - daily
-          - commits
-        default: daily
-      chunks:
-        description: 'Parallel jobs to split the range across. Each job gets days/chunks and stops at the time budget — stay under the 6h runner limit.'
-        required: false
-        type: number
-        default: 1
-      limit:
-        description: 'Maximum number of points to collect per chunk (0 = unlimited)'
-        required: false
-        type: number
-        default: 0
-      time_budget_min:
-        description: 'Stop a chunk job after this many minutes so the runner never kills it. Re-dispatch to resume (collected points are skipped).'
-        required: false
-        type: number
-        default: 300
-      releases:
-        description: 'Also collect release info + benchmarks (only chunk 0 does this)'
-        required: false
-        type: boolean
-        default: true
-      quick:
-        description: 'Quick mode — hello + module benchmarks only, skip test suites'
-        required: false
-        type: boolean
-        default: false
+        default: 20
 
 permissions:
   contents: write
@@ -51,96 +29,213 @@ concurrency:
 
 jobs:
   prepare:
-    name: Prepare chunk list
+    name: Resolve release list
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
-      chunks: ${{ steps.gen.outputs.chunks }}
+      tags: ${{ steps.list.outputs.tags }}
     steps:
-      - id: gen
-        run: |
-          C="${{ inputs.chunks }}"
-          [ "$C" -lt 1 ] && C=1
-          echo "chunks=$(python3 -c "import json,sys;print(json.dumps([str(i) for i in range(int(sys.argv[1]))]))" "$C")" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-  backfill:
-    name: Backfill chunk ${{ matrix.chunk }}
+      - name: Fetch the last N release tags
+        id: list
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COUNT="${{ inputs.release_count }}"
+          [ "$COUNT" -lt 1 ] && COUNT=1
+          TAGS="$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            | jq -r --argjson n "$COUNT" \
+              '[.[] | select(.draft == false and .prerelease == false)] | sort_by(.published_at) | reverse | .[0:$n] | .[].tag_name' \
+            | paste -sd, -)"
+          if [ -z "$TAGS" ]; then
+            echo "::error::could not resolve any release tags from the GitHub API"
+            exit 1
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "Resolved $COUNT releases: $TAGS"
+
+  collect:
+    name: Backfill ${{ matrix.name }}
     needs: prepare
-    runs-on: ubuntu-24.04
-    # A standard runner kills jobs after 6h. Each chunk builds at most
-    # days/chunks points (~15-20 min each) and obeys --time-budget-min, so a
-    # single job always finishes well before the hard cap.
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    # Release jobs download prebuilt binaries (no compiler build); the test
+    # suite is ~20 s per backend, so even 20 releases fit easily. The cap is a
+    # safety net only.
     timeout-minutes: 360
     strategy:
       fail-fast: false
+      # Mirrors the build-and-release.yml platform matrix exactly, so every
+      # binary a release ships gets benchmarked + test-suite'd on the platform
+      # it was built for.
       matrix:
-        chunk: ${{ fromJSON(needs.prepare.outputs.chunks) }}
+        include:
+          - name: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - name: alpine-x64
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            alpine: true
+            workdir: tooling
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+          - name: alpine-arm64
+            runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: arm64
+            alpine: true
+            workdir: tooling
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+          - name: macos-arm64
+            runner: macos-26
+            platform: macos
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: brew install jq || true
+          - name: macos-x64
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: brew install jq || true
+          - name: windows-x64
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-arm64
+            runner: windows-11-arm
+            platform: windows
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-x64
+            runner: windows-2025
+            platform: windows-mingw
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-arm64
+            runner: windows-11-arm
+            platform: windows-mingw
+            arch: arm64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - name: windows-mingw-msvcrt-x64
+            runner: windows-2025
+            platform: windows-mingw-msvcrt
+            arch: x64
+            alpine: false
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+
     steps:
-      - name: Checkout (default branch — scripts + full history)
+      - name: Install dependencies
+        # No `shell:` key here: the alpine container has no bash until this
+        # step installs it, so the runner falls back to the container's sh
+        # (same pattern as build-and-release.yml's alpine job).
+        run: ${{ matrix.deps }}
+
+      - name: Checkout (default branch — scripts + full history, all tags)
+        if: ${{ !matrix.alpine }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      # Alpine containers have no node (musl), so JS actions like
+      # actions/checkout cannot run there. Clone with plain git instead — a
+      # FULL clone (no depth) so every release tag is present locally, which
+      # bench-collect-release.sh needs to extract each release's own test
+      # sources (a compiler from release X can only compile tests of release X).
+      - name: Checkout (alpine — plain git, full history for tags)
+        if: ${{ matrix.alpine }}
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake jq zip unzip
+          git clone --quiet "https://github.com/${{ github.repository }}.git" tooling
 
-      - name: Setup (download libtcc + prebuilt LLVM, submodules)
-        run: ./scripts/setup.sh --with-llvm
-
-      - name: Run backfill chunk
+      - name: Collect release benchmarks
+        shell: bash
+        working-directory: ${{ matrix.workdir }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DAYS="${{ inputs.days }}"
-          CHUNKS="${{ inputs.chunks }}"
-          [ "$CHUNKS" -lt 1 ] && CHUNKS=1
-          CHUNK="${{ matrix.chunk }}"
-          # chunk c covers days [c*size, (c+1)*size) — offset-days skips the
-          # newest days so parallel jobs never overlap. The last chunk is
-          # clamped so the total never exceeds the requested DAYS.
-          SIZE=$(( (DAYS + CHUNKS - 1) / CHUNKS ))
-          OFFSET=$(( CHUNK * SIZE ))
-          # chunks beyond the requested range would be no-ops — skip them
-          if [ "$OFFSET" -ge "$DAYS" ]; then
-            echo "chunk $CHUNK starts beyond days=$DAYS; nothing to do"
-            exit 0
+          # alpine runs scripts from the tooling clone; everyone else from the checkout
+          TOOL_DIR="$GITHUB_WORKSPACE/scripts"
+          if [ "${{ matrix.alpine }}" = "true" ]; then
+            TOOL_DIR="$GITHUB_WORKSPACE/tooling/scripts"
           fi
-          if [ $(( OFFSET + SIZE )) -gt "$DAYS" ]; then SIZE=$(( DAYS - OFFSET )); fi
-          # clamp the budget so budget + one in-flight point (~30 min) always
-          # fits inside the 360 min runner cap
-          BUDGET="${{ inputs.time_budget_min }}"
-          [ "$BUDGET" -lt 1 ] && BUDGET=300
-          [ "$BUDGET" -gt 330 ] && BUDGET=330
-          ARGS="--days $SIZE --offset-days $OFFSET --mode ${{ inputs.mode }} --time-budget-min $BUDGET"
-          if [ "${{ inputs.limit }}" != "0" ]; then ARGS="$ARGS --limit ${{ inputs.limit }}"; fi
-          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
-          # only chunk 0 collects releases (they are shared, not per-date)
-          if [ "$CHUNK" != "0" ] || [ "${{ inputs.releases }}" != "true" ]; then ARGS="$ARGS --no-releases"; fi
-          bash scripts/bench-backfill.sh $ARGS
+          # alpine only: the collect runs in the tooling working-directory with
+          # scripts from tooling/, which would default OUT to tooling/.bench-data
+          # — never matching the upload path. Other platforms already default to
+          # the workspace root (and on Windows GITHUB_WORKSPACE is a Windows-style
+          # path, so do NOT use it in bash for them).
+          OUT_ARGS=""
+          if [ "${{ matrix.alpine }}" = "true" ]; then OUT_ARGS="--out $GITHUB_WORKSPACE/.bench-data"; fi
+          IFS=',' read -ra TAGS <<< "${{ needs.prepare.outputs.tags }}"
+          for TAG in "${TAGS[@]}"; do
+            [ -z "$TAG" ] && continue
+            echo "==> Backfilling release $TAG on ${{ matrix.platform }}/${{ matrix.arch }}"
+            # bench-collect-release.sh never exits nonzero for recorded failures
+            # (missing asset, download/extract failure, test crash); the `||`
+            # guards against unexpected script errors so one broken release can
+            # never kill the whole backfill job.
+            bash "$TOOL_DIR/bench-collect-release.sh" \
+              --tag "$TAG" \
+              --platform "${{ matrix.platform }}" \
+              --arch "${{ matrix.arch }}" \
+              $OUT_ARGS \
+              || echo "WARN: release $TAG failed unexpectedly on ${{ matrix.platform }}/${{ matrix.arch }} — continuing"
+          done
 
-      - name: Upload chunk data
+      - name: Upload release data
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bench-backfill-${{ matrix.chunk }}
+          name: bench-backfill-${{ matrix.name }}
           path: .bench-data/
           # `.bench-data` is a hidden directory (leading dot); upload-artifact
           # silently skips hidden paths unless explicitly included — without
-          # this every chunk uploads nothing ('No files were found')
+          # this every platform uploads nothing
           include-hidden-files: true
           if-no-files-found: ignore
 
   publish:
     name: Publish to gh-pages
-    needs: [backfill]
+    needs: [collect]
     if: always()
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout (default branch — scripts)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download all chunk data
+      - name: Download all release data
         uses: actions/download-artifact@v4
         with:
           path: merged
@@ -149,9 +244,8 @@ jobs:
       - name: Publish to gh-pages
         run: |
           mkdir -p .bench-data
-          # chunks upload `path: .bench-data/` (include-hidden-files), so the
-          # artifact root IS the contents of .bench-data/ (daily/ + releases/)
-          if [ -d merged/daily ]; then cp -r merged/daily .bench-data/; fi
+          # collect uploads `path: .bench-data/` (include-hidden-files), so the
+          # artifact root IS the contents of .bench-data/ (releases/ here)
           if [ -d merged/releases ]; then cp -r merged/releases .bench-data/; fi
           bash scripts/bench-push-pages.sh
         env:

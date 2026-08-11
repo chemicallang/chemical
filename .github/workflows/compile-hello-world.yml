@@ -1,50 +1,214 @@
 name: Test Hello World On Latest Release
 
+# Compiles a "hello world" program with the compilers shipped in a chosen
+# release and runs the resulting binary, on EVERY platform/arch the Build and
+# Release workflow produces (regular LLVM compiler + TCC compiler variants).
+#
+# MANUAL ONLY — never runs automatically. Pick the release version to test via
+# the `release_tag` input (leave empty to use the latest release).
+#
+# The `import_std` manual input switches the test from a self-contained
+# main.ch (printf declared via @extern) to a chemical.mod that imports std —
+# the hello world then calls printf WITHOUT declaring it, forcing the compiler
+# to compile the std library first (a stronger test of the release package).
+
 on:
-  schedule:
-    - cron: '0 */12 * * *'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release version to test (e.g. v0.5.7). Leave empty to test the latest release.'
+        required: false
+        type: string
+        default: ''
+      import_std:
+        description: 'Import std: write a chemical.mod with "import std" and call printf without declaring it (forces the compiler to compile the std library first)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test-release:
+    name: Hello world — ${{ matrix.asset }}
+    runs-on: ${{ matrix.runner }}
+    # alpine entries run inside an alpine container (musl) so the alpine
+    # release binaries execute natively; all other entries run on the host
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            asset: linux-x86-64-tcc.zip
+          # ––– linux (glibc) –––
+          - runner: ubuntu-24.04
+            asset: linux-x64.zip
             chemical_executable: chemical
             binary_name: helloworld
-          - os: ubuntu-latest
-            asset: linux-x86-64.zip
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - runner: ubuntu-24.04
+            asset: linux-x64-tcc.zip
             chemical_executable: chemical
             binary_name: helloworld
-          - os: windows-latest
-            asset: windows-x64-tcc.zip
-            chemical_executable: chemical.exe
-            binary_name: main.exe
-          - os: windows-latest
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - runner: ubuntu-24.04-arm
+            asset: linux-arm64.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - runner: ubuntu-24.04-arm
+            asset: linux-arm64-tcc.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+
+          # ––– linux alpine (musl) –––
+          - runner: ubuntu-24.04
+            container: alpine:3.20
+            asset: linux-alpine-x64.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: apk add --no-cache bash curl jq zip unzip
+          - runner: ubuntu-24.04
+            container: alpine:3.20
+            asset: linux-alpine-x64-tcc.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: apk add --no-cache bash curl jq zip unzip
+          - runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            asset: linux-alpine-arm64.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: apk add --no-cache bash curl jq zip unzip
+          - runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            asset: linux-alpine-arm64-tcc.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: apk add --no-cache bash curl jq zip unzip
+
+          # ––– macos –––
+          - runner: macos-15-intel
+            asset: macos-x64.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: brew install jq || true
+          - runner: macos-15-intel
+            asset: macos-x64-tcc.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: brew install jq || true
+          - runner: macos-26
+            asset: macos-arm64.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: brew install jq || true
+          - runner: macos-26
+            asset: macos-arm64-tcc.zip
+            chemical_executable: chemical
+            binary_name: helloworld
+            deps: brew install jq || true
+
+          # ––– windows (msvc) –––
+          - runner: windows-2025
             asset: windows-x64.zip
             chemical_executable: chemical.exe
             binary_name: main.exe
-    runs-on: ${{ matrix.os }}
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-2025
+            asset: windows-x64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-11-arm
+            asset: windows-arm64.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-11-arm
+            asset: windows-arm64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+
+          # ––– windows (mingw ucrt) –––
+          - runner: windows-2025
+            asset: windows-mingw-x64.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-2025
+            asset: windows-mingw-x64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-11-arm
+            asset: windows-mingw-arm64.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-11-arm
+            asset: windows-mingw-arm64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+
+          # ––– windows (mingw msvcrt) –––
+          - runner: windows-2025
+            asset: windows-mingw-msvcrt-x64.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+          - runner: windows-2025
+            asset: windows-mingw-msvcrt-x64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+            deps: echo "jq/unzip preinstalled on windows runners"
+
     steps:
-      - name: Create main.ch source file (Linux)
+      - name: Install dependencies
+        # No `shell:` key: on the alpine container the runner falls back to sh
+        # (bash doesn't exist yet). bash is installed here before later bash
+        # steps run — same pattern as the other alpine jobs in this repo.
+        run: ${{ matrix.deps }}
+
+      - name: Create source files (non-Windows)
         if: runner.os != 'Windows'
         run: |
-          echo "@extern" > main.ch
-          echo "public func printf(format : *char, _ : any...)" >> main.ch
-          echo "public func main() : int {" >> main.ch
-          echo "    printf(\"hello world\")" >> main.ch
-          echo "    return 0;" >> main.ch
-          echo "}" >> main.ch
+          if [ "${{ inputs.import_std == 'true' }}" = "true" ]; then
+            # import std: printf comes from the std library (not declared here),
+            # so compiling forces the compiler to build std first
+            mkdir -p src
+            printf 'application helloworld\nsource "src"\nimport std\n' > chemical.mod
+            printf 'public func main() : int {\n    printf("hello world")\n    return 0\n}\n' > src/main.ch
+            echo "ENTRY_FILE=chemical.mod" >> "$GITHUB_ENV"
+          else
+            echo "@extern" > main.ch
+            echo "public func printf(format : *char, _ : any...)" >> main.ch
+            echo "public func main() : int {" >> main.ch
+            echo "    printf(\"hello world\")" >> main.ch
+            echo "    return 0;" >> main.ch
+            echo "}" >> main.ch
+            echo "ENTRY_FILE=main.ch" >> "$GITHUB_ENV"
+          fi
         shell: bash
 
-      - name: Create main.ch source file (Windows)
+      - name: Create source files (Windows)
         if: runner.os == 'Windows'
         run: |
-          # Only create main.ch if it doesn't already exist
-          if (!(Test-Path -Path main.ch)) {
+          if ("${{ inputs.import_std == 'true' }}" -eq "true") {
+            New-Item -ItemType Directory -Path src -Force | Out-Null
+            Set-Content -Path chemical.mod -Value @(
+              'application helloworld',
+              'source "src"',
+              'import std'
+            )
+            Set-Content -Path src\main.ch -Value @(
+              'public func main() : int {',
+              '    printf("hello world")',
+              '    return 0',
+              '}'
+            )
+            Add-Content -Path $env:GITHUB_ENV -Value 'ENTRY_FILE=chemical.mod'
+          } else {
             Set-Content -Path main.ch -Value @(
               '@extern',
               'public func printf(format : *char, _ : any...)',
@@ -53,19 +217,28 @@ jobs:
               '    return 0;',
               '}'
             )
+            Add-Content -Path $env:GITHUB_ENV -Value 'ENTRY_FILE=main.ch'
           }
         shell: pwsh
 
-      - name: Download release asset (Linux)
+      - name: Download release asset (non-Windows)
         if: runner.os != 'Windows'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching release information (including pre-releases)..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("${{ matrix.asset }}"))] | .[0].assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using specified release tag: $TAG"
+            ASSET_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+              | jq -r '.assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+          else
+            echo "Fetching release information (including pre-releases)..."
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+            ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("${{ matrix.asset }}"))] | .[0].assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+          fi
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${{ matrix.asset }} not found in any release."
+            echo "Error: Asset ${{ matrix.asset }} not found."
             exit 1
           fi
           echo "Downloading asset from $ASSET_URL"
@@ -77,12 +250,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          Write-Host "Fetching release information (including pre-releases)..."
-          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
           $assetName = "${{ matrix.asset }}"
-          $release = $releases | Where-Object { $_.assets -and ($_.assets | Where-Object { $_.name -eq $assetName }) } | Select-Object -First 1
+          if ("${{ inputs.release_tag }}" -ne "") {
+            Write-Host "Using specified release tag: ${{ inputs.release_tag }}"
+            # Invoke-RestMethod throws on a 404 (nonexistent tag) — catch it so
+            # a bad release_tag fails with a friendly message instead of a raw
+            # HTTP exception (matches the bash path's graceful handling).
+            try {
+              $release = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases/tags/${{ inputs.release_tag }}" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+            } catch {
+              $release = $null
+            }
+          } else {
+            Write-Host "Fetching release information (including pre-releases)..."
+            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+            $release = $releases | Where-Object { $_.assets -and ($_.assets | Where-Object { $_.name -eq $assetName }) } | Select-Object -First 1
+          }
           if (-not $release) {
-            Write-Error "Error: Asset $assetName not found in any release."
+            Write-Error "Error: release not found for asset $assetName."
             exit 1
           }
           $asset = $release.assets | Where-Object { $_.name -eq $assetName }
@@ -94,7 +279,7 @@ jobs:
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile asset.zip
         shell: pwsh
 
-      - name: Extract asset (Linux)
+      - name: Extract asset (non-Windows)
         if: runner.os != 'Windows'
         run: |
           unzip -o -q asset.zip || true
@@ -103,56 +288,69 @@ jobs:
       - name: Extract asset (Windows)
         if: runner.os == 'Windows'
         run: |
-          Expand-Archive -Path asset.zip -DestinationPath .
+          Expand-Archive -Path asset.zip -DestinationPath . -Force
         shell: pwsh
 
-      - name: Compile source code (Linux)
+      - name: Compile source code (non-Windows)
         if: runner.os != 'Windows'
         run: |
-          # Determine the release root
-          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
-          if [ -z "$release_root" ]; then
-            echo "Error: No release directory found."
-          exit 1
+          # release zips extract to a top-level dir: chemical (regular) or
+          # chemical-tcc (tcc variant) — derive it from the asset name
+          if [[ "${{ matrix.asset }}" == *-tcc.zip ]]; then
+            release_root="chemical-tcc"
+          else
+            release_root="chemical"
+          fi
+          if [ ! -d "$release_root" ]; then
+            echo "Error: expected release root '$release_root' not found after extraction."
+            ls -la
+            exit 1
           fi
           echo "Using release root: $release_root"
-          # Copy main.ch if not present.
-          if [ ! -f "$release_root/main.ch" ]; then
-            cp main.ch "$release_root/"
+          cp "$ENTRY_FILE" "$release_root/"
+          if [ "$ENTRY_FILE" = "chemical.mod" ]; then
+            cp -r src "$release_root/"
           fi
           pushd "$release_root"
           # Run compiler command and capture its output.
-          ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v | tee compile_output.txt
+          ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v | tee compile_output.txt
           popd
         shell: bash
 
       - name: Compile source code (Windows)
         if: runner.os == 'Windows'
         run: |
-          $releaseRoot = "."
-          $dirs = Get-ChildItem -Directory -Path .
-          if ($dirs.Count -eq 1) {
-            $releaseRoot = $dirs[0].FullName
+          if ("${{ matrix.asset }}" -like "*-tcc.zip") {
+            $releaseRoot = ".\chemical-tcc"
+          } else {
+            $releaseRoot = ".\chemical"
+          }
+          if (-not (Test-Path -Path $releaseRoot)) {
+            Write-Error "Error: expected release root '$releaseRoot' not found after extraction."
+            Get-ChildItem
+            exit 1
           }
           Write-Host "Using release root: $releaseRoot"
-          # Copy main.ch if not present.
-          if (-not (Test-Path -Path "$releaseRoot\main.ch")) {
-            Copy-Item -Path main.ch -Destination $releaseRoot
+          Copy-Item -Path $env:ENTRY_FILE -Destination $releaseRoot
+          if ($env:ENTRY_FILE -eq "chemical.mod") {
+            Copy-Item -Path src -Destination $releaseRoot -Recurse
           }
           Push-Location $releaseRoot
-          # Run compiler command and capture its output.
-          .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
+          # Run compiler command and capture its output. pwsh does NOT propagate
+          # a native command's exit code through a pipeline, so check it
+          # explicitly — a failed compile must fail the job.
+          .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Pop-Location
         shell: pwsh
 
-      - name: Run compiled program and capture combined output (Linux)
+      - name: Run compiled program and capture combined output (non-Windows)
         if: runner.os != 'Windows'
         run: |
-          # Determine the release root
-          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
-          if [ -z "$release_root" ]; then
-            echo "Error: No release directory found."
-          exit 1
+          if [[ "${{ matrix.asset }}" == *-tcc.zip ]]; then
+            release_root="chemical-tcc"
+          else
+            release_root="chemical"
           fi
           echo "Using release root: $release_root"
           pushd "$release_root"
@@ -166,10 +364,10 @@ jobs:
       - name: Run compiled program and capture combined output (Windows)
         if: runner.os == 'Windows'
         run: |
-          $releaseRoot = "."
-          $dirs = Get-ChildItem -Directory -Path .
-          if ($dirs.Count -eq 1) {
-            $releaseRoot = $dirs[0].FullName
+          if ("${{ matrix.asset }}" -like "*-tcc.zip") {
+            $releaseRoot = ".\chemical-tcc"
+          } else {
+            $releaseRoot = ".\chemical"
           }
           Write-Host "Using release root: $releaseRoot"
           Push-Location $releaseRoot
@@ -177,11 +375,7 @@ jobs:
           Add-Content -Path compile_output.txt -Value "EXECUTABLE OUTPUT"
           .\${{ matrix.binary_name }} | Out-File -Append compile_output.txt
           Pop-Location
-          if ($releaseRoot -eq $env:GITHUB_WORKSPACE) {
-              Rename-Item -Path "$releaseRoot\compile_output.txt" -NewName "${{ matrix.asset }}-output.txt"
-          } else {
-              Copy-Item -Path "$releaseRoot\compile_output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
-          }
+          Copy-Item -Path "$releaseRoot\compile_output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
         shell: pwsh
 
       - name: Upload output artifact

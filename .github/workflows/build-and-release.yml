@@ -1049,10 +1049,11 @@ jobs:
   # default the release is DRAFTED, tagged with the chemical commit SHA. If the
   # publish_release input is checked, the release is instead tagged with the
   # latest tag of chemicallang/chemical and PUBLISHED immediately. The
-  # debug-tests workflow reads commit.json from that release to know which
-  # chemical commit the binaries were compiled from (and which test sources to
-  # use with them). Requires a PAT with write access to chemical-debug, stored
-  # as the CHEMICAL_DEBUG_TOKEN repository secret.
+  # Build Compiler Tests workflow (compile-tests.yml, debug mode) reads
+  # commit.json from that release to know which chemical commit the binaries
+  # were compiled from (and which test sources to use with them). Requires a
+  # PAT with write access to chemical-debug, stored as the
+  # CHEMICAL_DEBUG_TOKEN repository secret.
   deploy-debug:
     name: Deploy debug builds to chemical-debug
     needs: [build-windows, build-windows-mingw, build-windows-mingw-msvcrt, build-linux, build-alpine, build-macos]

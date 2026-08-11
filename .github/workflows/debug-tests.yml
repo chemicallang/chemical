@@ -1,0 +1,206 @@
+name: Debug Compiler Tests
+
+# Runs the DEBUG builds of the compiler (published to chemicallang/chemical-debug
+# by the Build and Release workflow when deploy_debug is enabled) against the
+# test sources of the exact chemical commit they were compiled from.
+#
+# Every debug release ships a commit.json recording the source commit SHA; the
+# test sources are downloaded from chemicallang/chemical at that SHA, because a
+# compiler built at commit X can only compile the test sources of commit X.
+#
+# The compiler runs under gdb (where available) so that a crash in CI produces
+# a backtrace — the whole point of shipping debug-symbol builds.
+
+on:
+  schedule:
+    # daily at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Which debug build variant to test (tcc / regular / both)'
+        required: false
+        type: choice
+        options:
+          - tcc
+          - regular
+          - both
+        default: tcc
+
+permissions:
+  contents: read
+
+env:
+  DEBUG_REPO: chemicallang/chemical-debug
+  SOURCE_REPO: chemicallang/chemical
+
+jobs:
+  test:
+    name: Debug tests — ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb
+          - name: alpine-x64
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils
+          - name: macos-arm64
+            runner: macos-14
+            platform: macos
+            arch: arm64
+            deps: brew install jq || true
+          - name: macos-x64
+            runner: macos-13
+            platform: macos
+            arch: x64
+            deps: brew install jq || true
+          - name: windows-x64
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            deps: echo "jq/tar preinstalled on windows runners"
+
+    env:
+      PLATFORM: ${{ matrix.platform }}
+      ARCH: ${{ matrix.arch }}
+
+    steps:
+      - name: Install dependencies
+        # No shell key: on the alpine container the runner falls back to sh
+        # (bash doesn't exist yet), exactly like the proven compile-tests.yml
+        # alpine job. bash is installed here before later bash steps run.
+        run: ${{ matrix.deps }}
+
+      - name: Resolve latest debug build
+        shell: bash
+        run: |
+          rel=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases?per_page=10")
+          TAG=$(echo "$rel" | jq -r '[.[] | select(.assets | length > 0)] | .[0].tag_name')
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::no debug builds found in ${{ env.DEBUG_REPO }} — run Build and Release with deploy_debug enabled"
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Latest debug build: $TAG"
+
+      - name: Get source commit from commit.json
+        shell: bash
+        run: |
+          curl -sL -o commit.json "https://github.com/${{ env.DEBUG_REPO }}/releases/download/${TAG}/commit.json"
+          SHA=$(jq -r '.sha' commit.json 2>/dev/null)
+          if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
+            echo "::error::commit.json missing a sha — debug release $TAG is incomplete"
+            exit 1
+          fi
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          MSG=$(jq -r '.message // ""' commit.json)
+          echo "Debug compiler built from ${{ env.SOURCE_REPO }} @ ${SHA}: ${MSG}"
+          echo "::notice::Debug compiler from commit $SHA (${MSG})"
+
+      - name: Download test sources at the source commit
+        shell: bash
+        run: |
+          curl -sL -o tests.tar.gz "https://github.com/${{ env.SOURCE_REPO }}/archive/${SHA}.tar.gz"
+          tar -xzf tests.tar.gz
+          mv "chemical-${SHA}/lang/tests" lang_tests
+          echo "test sources downloaded from ${SHA}: $(ls lang_tests | wc -l) entries"
+
+      - name: Run debug compiler
+        shell: bash
+        run: |
+          set -uo pipefail
+          : > compile_output.txt
+          echo "debug compiler from ${{ env.SOURCE_REPO }} @ ${SHA}" >> compile_output.txt
+
+          run_variant() {
+            local asset="$1" exe_root="$2"
+            local url status
+            echo "== variant: $asset ==" | tee -a compile_output.txt
+            url=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases/tags/${TAG}" \
+              | jq -r ".assets[] | select(.name == \"$asset\") | .browser_download_url")
+            if [ -z "$url" ] || [ "$url" = "null" ]; then
+              echo "asset $asset not found in debug release ${TAG}; skipping" | tee -a compile_output.txt
+              return 0
+            fi
+            curl -sL -o "$asset" "$url"
+            rm -rf variant_work
+            mkdir -p variant_work
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -o -q "$asset" -d variant_work
+            elif command -v tar >/dev/null 2>&1; then
+              tar -xf "$asset" -C variant_work
+            else
+              python3 -m zipfile -e "$asset" variant_work
+            fi
+            if [ ! -d "variant_work/$exe_root" ]; then
+              echo "extracted package missing expected root '$exe_root'" | tee -a compile_output.txt
+              ls variant_work >> compile_output.txt
+              return 1
+            fi
+            mkdir -p "variant_work/$exe_root/lang"
+            cp -r lang_tests "variant_work/$exe_root/lang/tests"
+            echo "== running: ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete ==" | tee -a compile_output.txt
+            local log=/tmp/variant_run.log
+            (
+              cd "variant_work/$exe_root"
+              ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete
+            ) > "$log" 2>&1
+            status=$?
+            cat "$log" | tee -a compile_output.txt
+            if [ "$status" -ne 0 ] && command -v gdb >/dev/null 2>&1; then
+              # the compiler crashed/failed — re-run under gdb so the debug
+              # symbols produce a backtrace in the log (the point of debug builds)
+              echo "== exit $status; capturing backtrace with gdb ==" | tee -a compile_output.txt
+              (
+                cd "variant_work/$exe_root"
+                gdb -batch -ex run -ex "bt 40" --args ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete
+              ) 2>&1 | tail -60 | tee -a compile_output.txt
+            fi
+            echo "== $asset exit code: $status ==" | tee -a compile_output.txt
+            return $status
+          }
+
+          VARIANT="${{ inputs.variant }}"
+          rc=0
+          if [ "$VARIANT" = "regular" ] || [ "$VARIANT" = "both" ]; then
+            run_variant "${PLATFORM}-${ARCH}-debug.zip" "chemical" || rc=1
+          fi
+          if [ "$VARIANT" = "tcc" ] || [ "$VARIANT" = "both" ]; then
+            run_variant "${PLATFORM}-${ARCH}-tcc-debug.zip" "chemical-tcc" || rc=1
+          fi
+          # aggregate: any failing variant makes the job red, but all variants
+          # still run (failures stay visible in compile_output.txt + backtrace)
+          exit $rc
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-tests-${{ matrix.name }}
+          path: compile_output.txt
+          if-no-files-found: ignore
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Debug compiler tests — ${{ matrix.name }}"
+            echo ""
+            echo "**Compiler commit:** \`${SHA}\`"
+            echo "**Debug release:** \`${TAG}\`"
+            echo ""
+            echo '```'
+            tail -25 compile_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

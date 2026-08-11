@@ -1,0 +1,67 @@
+name: Benchmark Daily
+
+on:
+  schedule:
+    # once per day at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit SHA to benchmark (default: HEAD of the default branch)'
+        required: false
+        type: string
+        default: ''
+      skip_llvm:
+        description: 'Skip the LLVM backend (fast; LLVM build + test run is very heavy)'
+        required: false
+        type: boolean
+        default: true
+      quick:
+        description: 'Quick mode — hello + module benchmarks only, skip test suites'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmark-daily
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Daily benchmark
+    runs-on: ubuntu-24.04
+    # Standard runners cap a job at 6h; a TCCCompiler build is ~15 min and the
+    # LLVM Compiler ~20 min, so a single daily point stays well inside this.
+    timeout-minutes: 360
+    steps:
+      - name: Checkout (default branch — scripts + full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake jq zip unzip
+
+      - name: Setup (download libtcc, submodules)
+        run: ./scripts/setup.sh
+
+      - name: Collect daily benchmark
+        run: |
+          TARGET="${{ inputs.commit }}"
+          if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi
+          ARGS="--commit $TARGET --work .bench-work"
+          if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
+          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
+          bash scripts/bench-collect-daily.sh $ARGS
+          git worktree remove --force .bench-work >/dev/null 2>&1 || rm -rf .bench-work
+
+      - name: Publish to gh-pages
+        # Only ever writes data/ to the gh-pages branch — never to main.
+        run: bash scripts/bench-push-pages.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

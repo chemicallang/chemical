@@ -1,0 +1,163 @@
+name: Benchmark Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to benchmark (e.g. v0.5.7). Leave empty to use the latest published release.'
+        required: false
+        type: string
+        default: ''
+      skip_llvm:
+        description: 'Skip the LLVM backend benchmarks (fast; LLVM test runs are heavy)'
+        required: false
+        type: boolean
+        default: true
+      quick:
+        description: 'Quick mode — hello benchmarks only, skip test suites'
+        required: false
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    name: Collect ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    # Release jobs download prebuilt binaries (no compiler build), so they are
+    # fast; the cap is only a safety net for long test suites.
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            workdir: .
+            deps: sudo apt-get update && sudo apt-get install -y jq zip unzip
+          - name: alpine
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            workdir: tagrepo
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+          - name: macos-arm64
+            runner: macos-14
+            platform: macos
+            arch: arm64
+            workdir: .
+            deps: brew install jq || true
+          - name: macos-x64
+            runner: macos-13
+            platform: macos
+            arch: x64
+            workdir: .
+            deps: brew install jq || true
+          - name: windows
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            workdir: .
+            deps: echo "jq/unzip preinstalled on windows runners"
+
+    steps:
+      - name: Install dependencies
+        # No `shell:` key here: the alpine container has no bash until this
+        # step installs it, so the runner falls back to the container's sh
+        # (same pattern as compile-tests.yml's alpine job).
+        run: ${{ matrix.deps }}
+
+      - name: Checkout (default branch — scripts + full history)
+        if: ${{ matrix.name != 'alpine' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [ -z "$TAG" ] && [ -n "${{ github.event.release.tag_name }}" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -s "https://api.github.com/repos/chemicallang/chemical/releases?per_page=100" | jq -r '[.[] | select(.assets | length > 0)] | .[0].tag_name')
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::could not resolve a release tag"
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      # Alpine containers have no node (musl), so JS actions like
+      # actions/checkout cannot run there. Clone with plain git instead:
+      #   - tagrepo : the release tag (for `git archive <tag> lang/tests`)
+      #   - tooling : the DEFAULT branch (collection scripts live in scripts/,
+      #               not in release tags — the tag does not contain them)
+      # Both go into SUBDIRECTORIES so they don't clobber the workspace.
+      - name: Checkout (alpine — plain git, no JS actions)
+        if: ${{ matrix.name == 'alpine' }}
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$TAG" "https://github.com/${{ github.repository }}.git" tagrepo
+          git clone --depth 1 "https://github.com/${{ github.repository }}.git" tooling
+
+      - name: Collect release benchmarks
+        shell: bash
+        working-directory: ${{ matrix.workdir }}
+        run: |
+          # alpine runs scripts from the tooling clone; everyone else from the checkout
+          TOOL_DIR="$GITHUB_WORKSPACE/scripts"
+          if [ "${{ matrix.name }}" = "alpine" ]; then
+            TOOL_DIR="$GITHUB_WORKSPACE/tooling/scripts"
+          fi
+          ARGS="--tag ${TAG} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
+          if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
+          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
+          bash "$TOOL_DIR/bench-collect-release.sh" $ARGS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-release-${{ matrix.name }}
+          path: .bench-data/releases/
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish to gh-pages
+    needs: [collect]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (default branch — scripts)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all release data
+        uses: actions/download-artifact@v4
+        with:
+          path: merged
+          merge-multiple: true
+
+      - name: Publish to gh-pages
+        run: |
+          mkdir -p .bench-data
+          if [ -d merged/releases ]; then
+            cp -r merged/releases .bench-data/
+          fi
+          bash scripts/bench-push-pages.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

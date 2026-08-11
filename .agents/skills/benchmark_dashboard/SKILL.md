@@ -165,7 +165,8 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 | Script | Purpose |
 |---|---|
 | `bench-collect-daily.sh` | Builds the compiler at a commit, benchmarks hello (bare/std), runs `-bm-modules -bm-files`, runs test suites per backend → `data/daily/<date>.json`. Flags: `--commit`, `--work`, `--skip-llvm`, `--backends`, `--quick`, `--out`. |
-| `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--platform`, `--arch`, `--info-only`, `--quick`, `--skip-llvm`, `--out`. |
+| `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--platform`, `--arch`, `--info-only`, `--quick`, `--skip-llvm`, `--out`. **Gotchas: (1) `RELEASE_BIN` must be `./chemical` — bm_run executes via `timeout <cmd>`, and a bare `chemical` is not found in PATH → exit 127 on every release benchmark/test. (2) If the GitHub API fails/rate-limits, existing `info.json` WITH assets is PRESERVED (never clobber good data with an `unavailable` record).** |
+| `scripts/llvm.sh` | Downloads the prebuilt LLVM for the host into `out/host`. **`--tag` is optional: when omitted it auto-resolves the LATEST llvm-prebuilt release via the GitHub API — never hardcode a tag in workflows** (the stale `llvm18` default broke `BUILD_COMPILER=ON` configure, which wants the LLVM version in `CMakeLists.txt`'s `find_package(llvm ${LLVM_VERSION})`). |
 | `bench-backfill.sh` | Historical backfill: iterates past days (or commits) and all releases, skipping already-collected points (resumable). Flags: `--days`, `--mode daily|commits`, `--offset-days`, `--time-budget-min`, `--limit`, `--releases-only/--no-releases`, `--skip-llvm/--no-skip-llvm`, `--quick`. |
 | `bench-push-pages.sh` | Rebuilds `data/manifest.json` from the merged data tree and pushes **only `data/`** to `gh-pages`. Site files on the branch are preserved. Flags: `--data`, `--site`, `--branch`, `--no-push`. |
 | `backfill-release-assets.sh` | One-time repair: rewrites every release's `info.json` with the complete API asset inventory. |
@@ -293,10 +294,16 @@ Backends. Key facts:
 - **Lazy loading:** `init()` fetches `manifest.json`, all daily records, and
   all `info.json` files in parallel. Per-platform record files
   (`data/releases/<tag>/<platform>.json`) are fetched ONLY when needed via
-  `ensurePlatformRecords(rec)` (Releases charts + release modal).
+  `ensurePlatformRecord(rec, pf)` — **one platform at a time**. The Releases
+  charts call `ensurePlatformRecord(r, selectedPlatformKey)`, NOT
+  `ensurePlatformRecords(r)` (fetching all 5 platforms of all 48 releases =
+  hundreds of fetches per chart render — the "loads too slowly" complaint).
   `loadDailyRecord(date)` / `loadPlatformRecord(tag, pf)` cache promises.
-  Do NOT revert to eager-loading all platform records (that was the "loads too
-  slowly" complaint).
+- **Variant selector:** the "Binary size over time" line chart reads the SAME
+  `#rel-variant-select` as the bar chart (`assetNameFor(pl, ar, variant)`). It
+  was hardcoded to `"regular"` once — keep them in sync.
+- **Status labels:** `STATUS_LABEL` maps raw statuses (`missing_asset`, etc.)
+  to human text so the UI says "missing asset", not cryptic "failed".
 - **Platform list source:** the Releases `<select>` options come from
   `releasePlatformsForChart()` which reads `state.manifest.releases` (the
   manifest) — NOT `state.releases[].platforms` (those are empty until lazily

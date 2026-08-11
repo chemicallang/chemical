@@ -48,11 +48,16 @@ jobs:
           sudo apt-get install -y cmake jq zip unzip
 
       - name: Setup (download libtcc + prebuilt LLVM, submodules)
+        # llvm.sh auto-resolves the latest llvm-prebuilt release tag (matching
+        # CMakeLists' find_package(llvm ${LLVM_VERSION})); no version is
+        # hardcoded here, so setup stays in sync with the repo's LLVM requirement.
         run: ./scripts/setup.sh --with-llvm
 
       - name: Configure cmake (TCC + LLVM Compiler targets)
         run: |
-          cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          timeout 600 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON || true
+          # If the LLVM configure failed, bench-collect-daily.sh re-configures
+          # with BUILD_COMPILER=OFF and still collects TCC + Interpreter data.
 
       - name: Collect daily benchmark
         run: |

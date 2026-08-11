@@ -4,7 +4,7 @@
   "published_at": "2026-05-19T09:48:10Z",
   "commit_sha": "main",
   "name": "v0.4.5",
-  "generated_at": "2026-08-11T13:06:44Z",
+  "generated_at": "2026-08-11T19:54:06Z",
   "status": "success",
   "assets": {
     "linux-alpine-x64-tcc.zip": {
@@ -151,6 +151,16 @@
       "size_bytes": 54610582,
       "url": "https://github.com/chemicallang/chemical/releases/download/v0.4.5/windows-x64.zip",
       "status": "success"
+    },
+    "linux-alpine-arm64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "linux-alpine-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     }
   }
 }

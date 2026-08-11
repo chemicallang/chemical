@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-11T15:00:01Z",
+  "generated_at": "2026-08-11T19:57:34Z",
   "daily": [
     "2026-08-11",
     "2026-08-10",
@@ -98,19 +98,43 @@
       "linux-x64"
     ],
     "v0.0.29": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.0.3": [
       "linux-x64"
     ],
     "v0.0.30": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.0.31": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.0.32": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.0.4": [
       "linux-x64"
@@ -131,49 +155,165 @@
       "linux-x64"
     ],
     "v0.3.3": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.3.4": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.0": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.1": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.2": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.3": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.5": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.4.6": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.0": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.1": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.2": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.3": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.4": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.5": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.6": [
-      "linux-x64"
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64"
     ],
     "v0.5.7": [
       "linux-alpine-x64",

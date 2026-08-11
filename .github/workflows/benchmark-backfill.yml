@@ -45,10 +45,13 @@ jobs:
         run: |
           COUNT="${{ inputs.release_count }}"
           [ "$COUNT" -lt 1 ] && COUNT=1
+          # NOTE: all chemical releases are published with prerelease=true
+          # (the build-and-release workflow sets it), so only drafts are
+          # excluded — filtering prereleases would drop every release.
           TAGS="$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             | jq -r --argjson n "$COUNT" \
-              '[.[] | select(.draft == false and .prerelease == false)] | sort_by(.published_at) | reverse | .[0:$n] | .[].tag_name' \
+              '[.[] | select(.draft == false)] | sort_by(.published_at) | reverse | .[0:$n] | .[].tag_name' \
             | paste -sd, -)"
           if [ -z "$TAGS" ]; then
             echo "::error::could not resolve any release tags from the GitHub API"

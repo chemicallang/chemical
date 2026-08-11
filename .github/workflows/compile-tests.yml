@@ -14,10 +14,13 @@ on:
         type: boolean
         default: false
       use_debug_builds:
-        description: 'Test the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug instead of the stable releases. The compiler runs under gdb/lldb so a crash produces a full backtrace. If the test suite crashes/fails, a crash-dump zip with all collected data is uploaded as an artifact; on success no data is uploaded, only logs. Test sources are taken from the source commit recorded in the debug release.'
+        description: 'Build mode. "release" (default) tests the stable releases published to chemicallang/chemical. "debug" tests the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug instead: the compiler runs under gdb/lldb so a crash produces a full backtrace. If the test suite crashes/fails, a crash-dump zip with all collected data is uploaded as an artifact; on success no data is uploaded, only logs. Test sources are taken from the source commit recorded in the debug release.'
         required: false
-        type: boolean
-        default: false
+        type: choice
+        default: release
+        options:
+          - release
+          - debug
       deadlock_timeout_minutes:
         description: 'Minutes before a running test suite is assumed to be DEADLOCKED (default 10; the suite never takes this long). On timeout, the process is attached with a debugger and full diagnostics are collected (all-thread backtraces, registers, /proc data) and uploaded.'
         required: false
@@ -30,24 +33,24 @@ jobs:
   # job's name shows the raw "${{ matrix.* }}" template (GitHub renders skipped
   # matrix job names literally), which looks like a bug.
   setup:
-    name: "Mode (${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }})"
+    name: "Mode (${{ inputs.use_debug_builds }})"
     runs-on: ubuntu-latest
     steps:
       - name: Print active mode
         run: |
-          MODE=${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }}
+          MODE=${{ inputs.use_debug_builds }}
           echo "=================================="
           echo "  Build Compiler Tests mode: $MODE"
           echo "=================================="
           if [ "$MODE" = "debug" ]; then
             echo "::notice::Running DEBUG build tests against chemicallang/chemical-debug. The release test jobs are skipped."
           else
-            echo "::notice::Running RELEASE build tests against chemicallang/chemical. Check the 'use_debug_builds' input to test debug builds instead."
+            echo "::notice::Running RELEASE build tests against chemicallang/chemical. Set the 'use_debug_builds' input to 'debug' to test debug builds instead."
           fi
 
   test-linux:
     name: Test on Linux (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -194,7 +197,7 @@ jobs:
 
   test-alpine:
     name: Test on Alpine Linux (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     container:
       image: alpine:3.20
@@ -345,7 +348,7 @@ jobs:
 
   test-macos:
     name: Test on macOS (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -491,7 +494,7 @@ jobs:
 
   test-windows:
     name: Test on Windows (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -659,7 +662,7 @@ jobs:
   # visible in the run.
   test-debug:
     name: Debug build tests — ${{ matrix.name }}
-    if: ${{ inputs.use_debug_builds == 'true' }}
+    if: ${{ inputs.use_debug_builds == 'debug' }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     strategy:

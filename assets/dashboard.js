@@ -62,6 +62,38 @@ function statusBadge(status, label) {
   return `<span class="badge badge-${esc(s)}">${esc(label || s)}</span>`;
 }
 
+/* test-result helpers — the dashboard's primary focus is test results: which
+ * tests failed, crashed or timed out. Each backend record carries:
+ *   tests: {status,total,passed,failed,complete,sequential:{..},runner:{..},
+ *           failed_tests:[names],crashed_tests:[{name,exit_code}],timed_out_tests:[names]}
+ * A non-zero exit code (e.g. 139) means the child process crashed. */
+function testStatusBadge(t) {
+  if (!t) return `<span class="badge badge-unavailable">no tests</span>`;
+  let label = t.status || "unavailable";
+  if (t.failed > 0 && (t.status === "success" || !t.status)) label = "test_failure";
+  const cls = label === "success" ? "success" : label;
+  return `<span class="badge badge-${esc(cls)}" title="${esc(t.reason || "")}">${esc(label)}</span>`;
+}
+
+function failedTestsHtml(t, limit) {
+  if (!t) return "";
+  const items = [];
+  for (const f of (t.failed_tests || [])) {
+    const crash = (t.crashed_tests || []).find((c) => c.name === f);
+    const timed = (t.timed_out_tests || []).includes(f);
+    const tag = crash ? ` <span class="chip up" title="exit code ${esc(crash.exit_code)}">💥 ${esc(crash.exit_code)}</span>`
+      : timed ? ` <span class="chip up" title="timed out after 10s">⏱ timed out</span>`
+      : "";
+    items.push(`<li class="missing">${esc(f)}${tag}</li>`);
+  }
+  if (!items.length) return "";
+  let html = `<ul class="flat">${items.join("")}</ul>`;
+  if (limit && items.length > limit) {
+    html += `<details class="dim"><summary>${items.length} failing tests…</summary><ul class="flat">${items.slice(limit).map((x) => x).join("")}</ul></details>`;
+  }
+  return html;
+}
+
 function regressChip(current, prev, inverse) {
   if (current == null || prev == null || prev === 0) return "";
   const diff = ((current - prev) / prev) * 100;
@@ -208,21 +240,23 @@ function renderOverview() {
   if (latest) {
     html += `<div class="section"><h2>Latest daily build — <span class="mono">${esc(latest.date)}</span> <span class="dim">${esc(latest.commit && latest.commit.subject)}</span></h2>`;
     html += `<div class="card"><table>
-      <thead><tr><th>Backend</th><th class="num">Build</th><th class="num">Hello bare</th><th class="num">Hello std</th><th class="num">Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
+      <thead><tr><th>Backend</th><th>Build</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
     for (const b of BACKENDS) {
       const rec = backendOf(latest, b);
-      if (!rec) { html += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="7" class="dim">no data</td></tr>`; continue; }
-      const hb = helloOf(rec, "hello_bare"), hs = helloOf(rec, "hello_std");
+      if (!rec) { html += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="5" class="dim">no data</td></tr>`; continue; }
       const t = rec.tests || {};
       html += `<tr>
-        <td>${esc(BACKEND_LABEL[b])} ${statusBadge(rec.build.status, "")}</td>
-        <td class="num">${hb ? fmtMs(hb.duration_ms) : "—"}</td>
-        <td class="num">${hs ? fmtMs(hs.duration_ms) : "—"}</td>
-        <td class="num">${t.total != null ? t.total : "—"}</td>
+        <td><b>${esc(BACKEND_LABEL[b])}</b></td>
+        <td>${statusBadge(rec.build.status, "")}</td>
+        <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
         <td class="num">${t.passed != null ? t.passed : "—"}</td>
         <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
         <td class="num">${fmtMs(t.duration_ms)}</td>
       </tr>`;
+      const fh = failedTestsHtml(t, 12);
+      if (fh) {
+        html += `<tr class="sub-row"><td></td><td colspan="5" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
+      }
     }
     html += `</tbody></table></div></div>`;
   }
@@ -430,19 +464,20 @@ async function openReleaseModal(tag) {
   html += `</tbody></table>`;
 
   for (const [pk, pf] of Object.entries(r.platforms || {})) {
-    html += `<h3>Benchmarks — ${esc(pk)}</h3><table><thead><tr><th>Backend</th><th class="num">Hello bare</th><th class="num">Hello std</th><th class="num">Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
+    html += `<h3>Test results — ${esc(pk)}</h3><table><thead><tr><th>Backend</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
     for (const b of BACKENDS) {
       const rec = pf.backends && pf.backends[b];
       if (!rec) continue;
-      const hb = helloOf(rec, "hello_bare"), hs = helloOf(rec, "hello_std");
       const t = rec.tests || {};
-      html += `<tr><td>${esc(BACKEND_LABEL[b])} ${statusBadge(rec.build.status, "")}</td>
-        <td class="num">${hb && hb.status === "success" ? fmtMs(hb.duration_ms) : "—"}</td>
-        <td class="num">${hs && hs.status === "success" ? fmtMs(hs.duration_ms) : "—"}</td>
-        <td class="num">${t.total != null ? t.total : "—"}</td>
+      html += `<tr><td><b>${esc(BACKEND_LABEL[b])}</b> ${statusBadge(rec.build.status, "")}</td>
+        <td>${testStatusBadge(t)}${t.complete === false ? " <span class='missing'>⚠ incomplete</span>" : ""}</td>
         <td class="num">${t.passed != null ? t.passed : "—"}</td>
         <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
         <td class="num">${fmtMs(t.duration_ms)}</td></tr>`;
+      const fh = failedTestsHtml(t, 20);
+      if (fh) {
+        html += `<tr class="sub-row"><td></td><td colspan="4" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
+      }
     }
     html += `</tbody></table>`;
     if (pf.status && pf.status !== "success") html += `<div class="note">${esc(pf.status)}: ${esc(pf.reason || "")}</div>`;
@@ -469,7 +504,7 @@ function renderDaily() {
   </div>`;
 
   html += `<div class="section"><h2>Daily records <span class="hint">▲/▼ = change vs previous point (time: up = regression)</span></h2><div class="card" style="overflow-x:auto"><table>
-    <thead><tr><th>Date</th><th>Commit</th><th>Subject</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} bare</th><th class="num">tests p/f</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
+    <thead><tr><th>Date</th><th>Commit</th><th>Subject</th>${BACKENDS.map((b) => `<th>${esc(BACKEND_LABEL[b])} tests</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
   const rows = state.daily.slice().reverse();
   rows.forEach((d, ri) => {
     const prevD = rows[ri + 1] || null;
@@ -478,14 +513,17 @@ function renderDaily() {
     for (const b of BACKENDS) {
       const rec = backendOf(d, b);
       const prevRec = prevD && backendOf(prevD, b);
-      const hb = rec && helloOf(rec, "hello_bare");
-      const prevHb = prevRec && helloOf(prevRec, "hello_bare");
       const t = rec && rec.tests;
-      const chip = (hb && prevHb && hb.status === "success" && prevHb.status === "success")
-        ? regressChip(hb.duration_ms, prevHb.duration_ms, false)
-        : "";
-      html += `<td class="num">${hb && hb.status === "success" ? fmtMs(hb.duration_ms) : "—"} ${chip}</td>`;
-      html += `<td class="num">${t && t.passed != null ? `<span class="${t.failed > 0 ? "missing" : ""}">${t.passed}/${t.failed}</span>` : "—"}</td>`;
+      const chip = "";
+      if (t) {
+        const prevT = prevRec && prevRec.tests;
+        if (prevT && t.failed != null && prevT.failed != null && t.duration_ms != null && prevT.duration_ms != null) {
+          chip = regressChip(t.duration_ms, prevT.duration_ms, false);
+        }
+      }
+      html += `<td>${t && t.passed != null
+        ? `${testStatusBadge(t)} <span class="num ${t.failed > 0 ? "missing" : ""}">${t.passed}/${t.failed}</span> ${chip}`
+        : "—"}</td>`;
     }
     html += `<td>${statusBadge(d.status || "success", "")}</td></tr>`;
   });
@@ -561,9 +599,13 @@ function openDailyModal(date) {
       html += `<tr><td>${esc(h.name)}</td><td>${h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status) + " " + esc(h.reason || "")}</td></tr>`;
     }
     const t = rec.tests || {};
-    html += `<tr><td>Tests</td><td>${statusBadge(t.status)} total <b>${t.total ?? "—"}</b> passed <b class="${t.failed > 0 ? "missing" : ""}">${t.passed ?? "—"}</b> failed <b>${t.failed ?? "—"}</b> duration ${fmtMs(t.duration_ms)}</td></tr>`;
-    if (t.failed_tests && t.failed_tests.length) {
-      html += `<tr><td>Failed tests</td><td><ul class="flat">${t.failed_tests.map((f) => `<li class="missing">${esc(f)}</li>`).join("")}</ul></td></tr>`;
+    html += `<tr><td>Tests</td><td>${testStatusBadge(t)} total <b>${t.total ?? "—"}</b> passed <b class="${t.failed > 0 ? "missing" : ""}">${t.passed ?? "—"}</b> failed <b>${t.failed ?? "—"}</b> duration ${fmtMs(t.duration_ms)}${t.complete === false ? " <span class='missing'>⚠ run incomplete — possible crash</span>" : ""}</td></tr>`;
+    if (t.sequential && t.runner && (t.sequential.total > 0 || t.runner.total > 0)) {
+      html += `<tr><td>Breakdown</td><td class="dim">sequential ${t.sequential.total} (${t.sequential.failed} failed) · @test runner ${t.runner.total} (${t.runner.failed} failed)</td></tr>`;
+    }
+    const fh = failedTestsHtml(t);
+    if (fh) {
+      html += `<tr><td>Failed tests</td><td>${fh}</td></tr>`;
     }
     if (rec.modules && rec.modules.length) {
       html += `<tr><td>Modules (${rec.modules.length})</td><td class="dim">see Modules view</td></tr>`;

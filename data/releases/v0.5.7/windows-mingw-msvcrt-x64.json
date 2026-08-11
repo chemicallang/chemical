@@ -4,7 +4,7 @@
   "platform": "windows-mingw-msvcrt",
   "arch": "x64",
   "libc": "glibc",
-  "generated_at": "2026-08-11T14:32:27Z",
+  "generated_at": "2026-08-11T14:47:12Z",
   "status": "benchmark_failure",
   "reason": "release asset extraction failed",
   "assets": {

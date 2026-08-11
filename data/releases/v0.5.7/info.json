@@ -4,138 +4,38 @@
   "published_at": "2026-08-10T14:36:48Z",
   "commit_sha": "main",
   "name": "v0.5.7",
-  "generated_at": "2026-08-11T14:32:03Z",
+  "generated_at": "2026-08-11T14:46:53Z",
   "status": "success",
   "assets": {
-    "linux-alpine-x64-tcc.zip": {
-      "size_bytes": 3105050,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-alpine-x64-tcc.zip",
-      "status": "success"
-    },
-    "linux-alpine-x64.zip": {
-      "size_bytes": 89702264,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-alpine-x64.zip",
-      "status": "success"
-    },
-    "linux-arm64-lsp.zip": {
-      "size_bytes": 3456614,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-arm64-lsp.zip",
-      "status": "success"
-    },
-    "linux-arm64-tcc.zip": {
-      "size_bytes": 3010289,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-arm64-tcc.zip",
-      "status": "success"
-    },
-    "linux-arm64.zip": {
-      "size_bytes": 74822079,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-arm64.zip",
-      "status": "success"
-    },
-    "linux-x64-lsp.zip": {
-      "size_bytes": 3578808,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-x64-lsp.zip",
-      "status": "success"
+    "linux-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
     "linux-x64-tcc.zip": {
-      "size_bytes": 3024917,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-x64-tcc.zip",
-      "status": "success"
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
-    "linux-x64.zip": {
-      "size_bytes": 77287717,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/linux-x64.zip",
-      "status": "success"
+    "linux-arm64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
-    "macos-arm64-lsp.zip": {
-      "size_bytes": 2794396,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-arm64-lsp.zip",
-      "status": "success"
+    "linux-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
-    "macos-arm64-tcc.zip": {
-      "size_bytes": 2264321,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-arm64-tcc.zip",
-      "status": "success"
+    "linux-alpine-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
-    "macos-arm64.zip": {
-      "size_bytes": 57409135,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-arm64.zip",
-      "status": "success"
-    },
-    "macos-x64-lsp.zip": {
-      "size_bytes": 2910326,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-x64-lsp.zip",
-      "status": "success"
-    },
-    "macos-x64-tcc.zip": {
-      "size_bytes": 2343962,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-x64-tcc.zip",
-      "status": "success"
-    },
-    "macos-x64.zip": {
-      "size_bytes": 59659779,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/macos-x64.zip",
-      "status": "success"
-    },
-    "windows-mingw-arm64-lsp.zip": {
-      "size_bytes": 3111630,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-arm64-lsp.zip",
-      "status": "success"
-    },
-    "windows-mingw-arm64-tcc.zip": {
-      "size_bytes": 2538343,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-arm64-tcc.zip",
-      "status": "success"
-    },
-    "windows-mingw-arm64.zip": {
-      "size_bytes": 57663885,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-arm64.zip",
-      "status": "success"
-    },
-    "windows-mingw-msvcrt-x64-lsp.zip": {
-      "size_bytes": 3301196,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-msvcrt-x64-lsp.zip",
-      "status": "success"
-    },
-    "windows-mingw-msvcrt-x64-tcc.zip": {
-      "size_bytes": 2678787,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-msvcrt-x64-tcc.zip",
-      "status": "success"
-    },
-    "windows-mingw-msvcrt-x64.zip": {
-      "size_bytes": 60932368,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-msvcrt-x64.zip",
-      "status": "success"
-    },
-    "windows-mingw-x64-lsp.zip": {
-      "size_bytes": 3216937,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-x64-lsp.zip",
-      "status": "success"
-    },
-    "windows-mingw-x64-tcc.zip": {
-      "size_bytes": 2593717,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-x64-tcc.zip",
-      "status": "success"
-    },
-    "windows-mingw-x64.zip": {
-      "size_bytes": 61020971,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-mingw-x64.zip",
-      "status": "success"
-    },
-    "windows-x64-lsp.zip": {
-      "size_bytes": 2893308,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64-lsp.zip",
-      "status": "success"
-    },
-    "windows-x64-tcc.zip": {
-      "size_bytes": 2598151,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64-tcc.zip",
-      "status": "success"
-    },
-    "windows-x64.zip": {
-      "size_bytes": 55154712,
-      "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64.zip",
-      "status": "success"
+    "linux-alpine-x64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
     },
     "linux-alpine-arm64.zip": {
       "status": "missing_asset",
@@ -147,12 +47,72 @@
       "size_bytes": null,
       "url": null
     },
+    "macos-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "macos-x64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "macos-arm64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "macos-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-x64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
     "windows-arm64.zip": {
       "status": "missing_asset",
       "size_bytes": null,
       "url": null
     },
     "windows-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-x64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-arm64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-msvcrt-x64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "windows-mingw-msvcrt-x64-tcc.zip": {
       "status": "missing_asset",
       "size_bytes": null,
       "url": null

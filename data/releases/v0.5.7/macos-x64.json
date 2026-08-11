@@ -4,7 +4,7 @@
   "platform": "macos",
   "arch": "x64",
   "libc": "glibc",
-  "generated_at": "2026-08-11T14:32:13Z",
+  "generated_at": "2026-08-11T14:46:54Z",
   "status": "success",
   "assets": {
     "linux-alpine-x64-tcc.zip": {
@@ -169,13 +169,13 @@
           "name": "hello_bare",
           "status": "success",
           "reason": null,
-          "duration_ms": 122
+          "duration_ms": 131
         },
         {
           "name": "hello_std",
           "status": "failed",
           "reason": "compiler exited with code 1",
-          "duration_ms": 63
+          "duration_ms": 80
         }
       ],
       "modules": [],
@@ -187,7 +187,7 @@
         "passed": null,
         "failed": null,
         "succeeded": null,
-        "duration_ms": 98,
+        "duration_ms": 84,
         "complete": false,
         "sequential": null,
         "runner": null,
@@ -195,7 +195,7 @@
         "crashed_tests": [],
         "timed_out_tests": []
       },
-      "tests_build_ms": 98,
+      "tests_build_ms": 84,
       "tests_build_status": "failed"
     },
     "Interpreter": {
@@ -226,7 +226,7 @@
         "passed": null,
         "failed": null,
         "succeeded": null,
-        "duration_ms": 116,
+        "duration_ms": 77,
         "complete": false,
         "sequential": null,
         "runner": null,
@@ -234,7 +234,7 @@
         "crashed_tests": [],
         "timed_out_tests": []
       },
-      "tests_build_ms": 116,
+      "tests_build_ms": 77,
       "tests_build_status": "failed"
     },
     "Compiler": {
@@ -247,13 +247,13 @@
           "name": "hello_bare",
           "status": "failed",
           "reason": "compiler exited with code 1",
-          "duration_ms": 2026
+          "duration_ms": 1458
         },
         {
           "name": "hello_std",
           "status": "failed",
           "reason": "compiler exited with code 1",
-          "duration_ms": 127
+          "duration_ms": 238
         }
       ],
       "modules": [],
@@ -265,7 +265,7 @@
         "passed": null,
         "failed": null,
         "succeeded": null,
-        "duration_ms": 190,
+        "duration_ms": 154,
         "complete": false,
         "sequential": null,
         "runner": null,
@@ -273,7 +273,7 @@
         "crashed_tests": [],
         "timed_out_tests": []
       },
-      "tests_build_ms": 190,
+      "tests_build_ms": 154,
       "tests_build_status": "failed"
     }
   }

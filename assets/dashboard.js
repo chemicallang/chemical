@@ -268,9 +268,12 @@ function renderOverviewCharts() {
 /* ══ Releases ══════════════════════════════════════════════════ */
 
 function releasePlatformsForChart() {
-  // union of platform-arch keys seen across releases
+  // union of platform-arch keys across ALL releases. Sourced from the manifest
+  // (not state.releases[].platforms — those are lazily loaded on demand).
   const set = new Set();
-  for (const r of state.releases) for (const k of Object.keys(r.platforms || {})) set.add(k);
+  for (const pf of Object.values(state.manifest.releases || {})) {
+    for (const k of pf) set.add(k);
+  }
   return Array.from(set).sort();
 }
 

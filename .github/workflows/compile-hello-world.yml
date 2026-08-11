@@ -7,6 +7,11 @@ name: Test Hello World On Latest Release
 # MANUAL ONLY — never runs automatically. Pick the release version to test via
 # the `release_tag` input (leave empty to use the latest release).
 #
+# The job VERIFIES the binary: it runs the compiled executable and asserts its
+# output is exactly "hello world". A match prints a PASS line (per platform),
+# a mismatch fails that specific matrix job — no artifacts are uploaded. This
+# shows which platforms successfully produce a working binary for the release.
+#
 # The `import_std` manual input switches the test from a self-contained
 # main.ch (printf declared via @extern) to a chemical.mod that imports std —
 # the hello world then calls printf WITHOUT declaring it, forcing the compiler
@@ -344,7 +349,7 @@ jobs:
           Pop-Location
         shell: pwsh
 
-      - name: Run compiled program and capture combined output (non-Windows)
+      - name: Run executable and verify hello world output (non-Windows)
         if: runner.os != 'Windows'
         run: |
           if [[ "${{ matrix.asset }}" == *-tcc.zip ]]; then
@@ -354,14 +359,25 @@ jobs:
           fi
           echo "Using release root: $release_root"
           pushd "$release_root"
-          # Append marker and executable output to compile_output.txt.
-          echo "EXECUTABLE OUTPUT" >> compile_output.txt
-          ./${{ matrix.binary_name }} >> compile_output.txt
+          # Run the compiled binary and capture its output + exit code. The
+          # hello world program prints "hello world" with no trailing newline.
+          # set +e: the default bash shell runs with -e, which would abort
+          # before we can read $? for a crashing binary.
+          set +e
+          OUTPUT=$(./${{ matrix.binary_name }} 2>&1)
+          RC=$?
+          set -e
           popd
-          cp "$release_root/compile_output.txt" "${{ matrix.asset }}-output.txt"
+          echo "Executable output: '${OUTPUT}' (exit code ${RC})"
+          if [ "$OUTPUT" = "hello world" ]; then
+            echo "PASS: ${{ matrix.asset }} — executable output matches expected 'hello world'"
+          else
+            echo "FAIL: ${{ matrix.asset }} — expected 'hello world' but got '${OUTPUT}' (exit code ${RC})"
+            exit 1
+          fi
         shell: bash
 
-      - name: Run compiled program and capture combined output (Windows)
+      - name: Run executable and verify hello world output (Windows)
         if: runner.os == 'Windows'
         run: |
           if ("${{ matrix.asset }}" -like "*-tcc.zip") {
@@ -371,15 +387,16 @@ jobs:
           }
           Write-Host "Using release root: $releaseRoot"
           Push-Location $releaseRoot
-          # Append marker and executable output to compile_output.txt.
-          Add-Content -Path compile_output.txt -Value "EXECUTABLE OUTPUT"
-          .\${{ matrix.binary_name }} | Out-File -Append compile_output.txt
+          # Run the compiled binary and capture its output + exit code. The
+          # hello world program prints "hello world" with no trailing newline.
+          $output = (& .\${{ matrix.binary_name }} 2>&1 | Out-String).Trim()
+          $rc = $LASTEXITCODE
           Pop-Location
-          Copy-Item -Path "$releaseRoot\compile_output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
+          Write-Host "Executable output: '$output' (exit code $rc)"
+          if ($output -eq "hello world") {
+            Write-Host "PASS: ${{ matrix.asset }} — executable output matches expected 'hello world'"
+          } else {
+            Write-Host "FAIL: ${{ matrix.asset }} — expected 'hello world' but got '$output' (exit code $rc)"
+            exit 1
+          }
         shell: pwsh
-
-      - name: Upload output artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.asset }}-output
-          path: ${{ matrix.asset }}-output.txt

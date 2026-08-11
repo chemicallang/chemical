@@ -85,10 +85,16 @@ objects, because those are lazily loaded).
                                     "nanos": 0, "micros": 0, "millis": 12,
                                     "secs": 0 } ],
                      "files": [ { "tag": "Lexer", "name": "some.ch", ... } ],
-                     "tests": { "status": "success|test_failure",
-                                "total": 500, "passed": 498, "failed": 2,
-                                "duration_ms": 42000,
-                                "failed_tests": ["name of failed test"] },
+                     "tests": { "status": "success|test_failure|test_crash|timeout|build_failure",
+                                "reason": "...",
+                                "total": 2589, "passed": 2583, "failed": 6,
+                                "succeeded": 2583, "duration_ms": 42000,
+                                "complete": true,
+                                "sequential": { "total": 2066, "passed": 2066, "failed": 0 },
+                                "runner": { "total": 523, "passed": 517, "failed": 6 },
+                                "failed_tests": ["name of failed test"],
+                                "crashed_tests": [ { "name": "...", "exit_code": 139 } ],
+                                "timed_out_tests": ["name"] },
                      "tests_build_ms": 12345,
                      "tests_build_status": "success" },
     "Compiler": { ... }, "Interpreter": { ... }
@@ -140,6 +146,7 @@ objects, because those are lazily loaded).
 |---|---|
 | `success` | measurement completed |
 | `test_failure` | tests ran but some failed (still real data) |
+| `test_crash` | the test executable crashed / run did not complete (truncated output) |
 | `build_failure` | compiler/test suite failed to build |
 | `benchmark_failure` | benchmark couldn't complete |
 | `timeout` | exceeded the time budget |
@@ -171,8 +178,10 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 - `bench_modules_and_tests <backend> <bin> <log_base> <outvar> <logdir> <quick>`
   — compiles `lang/tests/build.lab` with `-bm-modules -bm-files`, then runs the
   test executable (compiled) or `--arg-interpret` (interpreter).
-- `parse_test_output <log>` — parses `Test N [name] succeeded/failed` lines and
-  the `Total N Passed N Failed N` summary → counts + `failed_tests[]`.
+- `parse_test_output <log>` — parses BOTH test sections (see the critical
+  parsing note below) → counts, per-section breakdown, `failed_tests[]`,
+  `crashed_tests[]` (non-zero exit codes), `timed_out_tests[]`, `complete`.
+  **This is the single most important function in the whole system.**
 - `parse_bm_output <log>` — parses `[bm:module] 'name' completed [nano:N]...`
   lines → JSON array (tag/name/nanos/micros/millis/secs).
 - `expected_assets <tag>` — era-based expected zip name list (used only for
@@ -182,6 +191,37 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 - `bm_link_shared_tooling <worktree> <main_root>` — links `lib/` and `out/host`
   from the main checkout into a worktree (see Pitfalls).
 - `bm_write_json <file> <json>` — atomic write (tmp + mv).
+
+### ⚠️ Test output has TWO sections (the #1 data-integrity trap)
+
+The test executable prints two INDEPENDENT sections, and a parser that reads
+only one of them silently drops real failures:
+
+1. **Sequential inline tests** — `test()`/`print_test_stats()` print
+   `Test N [name] succeeded/failed` lines and finally `Total N Passed N Failed N`.
+2. **`@test` runner** — every `@test` function runs in its OWN child process
+   (posix_spawn + socketpair IPC, `lang/libs/test/posix/launch.ch`). The parent
+   prints `Test run summary`, `  Total: N | Passed: N | Failed: N`,
+   `  - test_name <id>` + `PASS` / `FAIL` / `[exit_code] FAIL`, then
+   `Summary: N tests - X passed, Y failed`.
+
+The final `Total N Passed N Failed N` line only counts the SEQUENTIAL section
+(runner results live in child processes and never reach `print_test_stats`).
+A parser that treats that line as authoritative therefore MISSES every runner
+failure — the real run had 2066 sequential tests passing AND 523 runner tests
+with 6 failures, but the old parser reported `failed: 0`. **Never replace the
+sequential totals with the combined total; ADD the two sections.**
+
+Also: the `Total ...` summary line has **no trailing newline** — the reader
+loop must use `while IFS= read -r line || [ -n "$line" ]` or the last line is
+silently dropped (that was a real bug: `complete` flipped to false).
+
+Crash semantics (from `launch.ch`): `state.exitCode` is the raw waitpid status;
+a non-zero bracket `[139] FAIL` = child crashed (128+signal) or was SIGKILLed on
+timeout (which also logs "Test timed out after 10s"). The parser records these
+as `crashed_tests`/`timed_out_tests`. The test executable's `main()` ALWAYS
+returns 0 even when tests fail — **status must be derived from parsed counts**
+(`failed > 0` → `test_failure`), never from the process exit code.
 
 ### ⚠️ Pitfalls (learned the hard way — respect these)
 
@@ -268,7 +308,14 @@ Backends. Key facts:
 - Helpers: `backendOf(dailyRec, backend)`, `helloOf(rec, name)` (finds a
   benchmark by name), `assetParts(name)` (zip name → platform/arch/variant),
   `statusBadge(status)` (explicit status rendering), `regressChip()` (▲/▼ vs
-  previous point).
+  previous point), `testStatusBadge(t)` (success/test_failure/test_crash badge
+  for a tests object), `failedTestsHtml(t, limit)` (failed/crashed 💥/⏱
+  timed-out test list).
+- **Test results are the dashboard's primary focus.** The Overview "Latest
+  daily build", the Daily table, and both modals render test status badges,
+  the sequential-vs-runner breakdown, and the failing-test names (with crash
+  exit codes and timeout markers). Keep this emphasis when adding views — do
+  not let benchmark timings push test results out of sight.
 - Charts: `makeChart(id, config)` wraps `new Chart(...)`; Chart.js comes from
   `assets/vendor/chart.umd.min.js` (a 404 there = `Chart is not defined`).
 - Colors: `COLORS` map for the 3 backends; `colorFor(s)` cycles for platforms.

@@ -113,6 +113,22 @@ INFO_REC="$(jq -n \
   --arg generated_at "$(bm_datetime)" \
   --argjson assets "$ASSETS_JSON" \
   '{type:$type,tag:$tag,published_at:$published_at,commit_sha:$commit_sha,name:$name,generated_at:$generated_at,status:"success",assets:$assets}')"
+# Anti-clobber guard: a transient/rate-limited GitHub API response can return
+# a release object with an EMPTY or truncated assets array. Overwriting a
+# published info.json that already has real success assets with an all-missing
+# version destroys data (happened to v0.0.1 and v0.5.7). When the API is
+# degraded we preserve the existing info.json AND skip the whole run (no
+# platform records are written either — the download source is empty anyway,
+# and a benchmark_failure platform record would overwrite good test results).
+NEW_SUCCESS_COUNT="$(printf '%s' "$ASSETS_JSON" | jq '[.[] | select(.status=="success")] | length')"
+EXISTING_GOOD=0
+if [ -f "$OUT/releases/$TAG/info.json" ]; then
+  EXISTING_GOOD="$(jq -r '[.assets[]? | select(.status=="success")] | length' "$OUT/releases/$TAG/info.json" 2>/dev/null || echo 0)"
+fi
+if [ "$NEW_SUCCESS_COUNT" -lt "$EXISTING_GOOD" ]; then
+  bm_warn "API returned $NEW_SUCCESS_COUNT success assets for $TAG but existing info.json has $EXISTING_GOOD — preserving existing data and skipping run (transient API failure?)"
+  exit 0
+fi
 bm_write_json "$OUT/releases/$TAG/info.json" "$INFO_REC"
 bm_log "==> wrote $OUT/releases/$TAG/info.json"
 

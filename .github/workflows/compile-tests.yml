@@ -1,9 +1,18 @@
 name: Build Compiler Tests
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test against (e.g. v0.9.0). Leave empty to use the latest release.'
+        required: false
+        type: string
+        default: ''
+      use_latest_tests:
+        description: 'Use test sources from the latest commit instead of the selected release commit.'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test-linux:
@@ -31,6 +40,26 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve release tag
+        id: resolve-tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using user-specified release tag: $TAG"
+          else
+            echo "Resolving latest release tag..."
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: no release found with asset ${ASSET_REGULAR}."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Using release tag: $TAG"
+
       - name: Clean repository, Keep only lang/tests
         run: |
           echo "Cleaning repository: Removing all directories except 'lang'"
@@ -44,12 +73,20 @@ jobs:
       - name: Create output directory
         run: mkdir -p output
 
+      - name: Checkout release test sources
+        if: ${{ !inputs.use_latest_tests }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+          path: release-tests
+          fetch-depth: 1
+
       - name: Process Linux Regular Variant
         run: |
           echo "== Processing Linux Regular Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_REGULAR} not found."
             exit 1
@@ -67,7 +104,11 @@ jobs:
           # If the asset does not already include the tests module, copy it from the repository.
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           echo "Running compile command for Linux Regular Variant:"
@@ -82,7 +123,7 @@ jobs:
           echo "== Processing Linux TCC Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_TCC} not found."
             exit 1
@@ -99,7 +140,11 @@ jobs:
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           rm -rf lang/tests/build
@@ -139,12 +184,32 @@ jobs:
       ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
       - name: Install dependencies
-        run: apk add --no-cache bash curl jq zip unzip
+        run: apk add --no-cache bash curl jq zip unzip git
 
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+
+      - name: Resolve release tag
+        id: resolve-tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using user-specified release tag: $TAG"
+          else
+            echo "Resolving latest release tag..."
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: no release found with asset ${ASSET_REGULAR}."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Using release tag: $TAG"
 
       - name: Clean repository, Keep only lang/tests
         run: |
@@ -159,12 +224,20 @@ jobs:
       - name: Create output directory
         run: mkdir -p output
 
+      - name: Checkout release test sources
+        if: ${{ !inputs.use_latest_tests }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+          path: release-tests
+          fetch-depth: 1
+
       - name: Process Alpine Regular Variant
         run: |
           echo "== Processing Alpine Regular Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_REGULAR} not found."
             exit 1
@@ -181,7 +254,11 @@ jobs:
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           echo "Running compile command for Alpine Regular Variant:"
@@ -196,7 +273,7 @@ jobs:
           echo "== Processing Alpine TCC Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_TCC} not found."
             exit 1
@@ -213,7 +290,11 @@ jobs:
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           rm -rf lang/tests/build
@@ -255,6 +336,26 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve release tag
+        id: resolve-tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using user-specified release tag: $TAG"
+          else
+            echo "Resolving latest release tag..."
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: no release found with asset ${ASSET_REGULAR}."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Using release tag: $TAG"
+
       - name: Clean repository, Keep only lang/tests
         run: |
           echo "Cleaning repository: Removing all directories except 'lang'"
@@ -268,12 +369,20 @@ jobs:
       - name: Create output directory
         run: mkdir -p output
 
+      - name: Checkout release test sources
+        if: ${{ !inputs.use_latest_tests }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+          path: release-tests
+          fetch-depth: 1
+
       - name: Process macOS Regular Variant
         run: |
           echo "== Processing macOS Regular Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_REGULAR} not found."
             exit 1
@@ -290,7 +399,11 @@ jobs:
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           echo "Running compile command for macOS Regular Variant:"
@@ -305,7 +418,7 @@ jobs:
           echo "== Processing macOS TCC Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
             echo "Error: Asset ${ASSET_TCC} not found."
             exit 1
@@ -322,7 +435,11 @@ jobs:
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
             mkdir -p "$release_root/lang"
-            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+            else
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+            fi
           fi
           pushd "$release_root"
           rm -rf lang/tests/build
@@ -364,6 +481,26 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve release tag
+        id: resolve-tag
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using user-specified release tag: $TAG"
+          else
+            echo "Resolving latest release tag..."
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "Error: no release found with asset ${ASSET_REGULAR}."
+              exit 1
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Using release tag: $TAG"
+
       - name: Clean repository, Keep only lang/tests (Windows)
         run: |
           Write-Host "Cleaning repository: Removing all directories except 'lang'"
@@ -378,14 +515,23 @@ jobs:
         run: New-Item -ItemType Directory -Path output -Force
         shell: pwsh
 
+      - name: Checkout release test sources
+        if: ${{ !inputs.use_latest_tests }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+          path: release-tests
+          fetch-depth: 1
+
       - name: Process Windows Regular Variant
         run: |
           Write-Host "== Processing Windows Regular Variant =="
           New-Item -ItemType Directory -Path variant-regular -Force | Out-Null
           Set-Location variant-regular
           Write-Host "Fetching asset URL for $env:ASSET_REGULAR..."
-          $assetUrl = (Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | 
-                        ForEach-Object { $_.assets } | Where-Object { $_.name -eq $env:ASSET_REGULAR } | Select-Object -First 1).browser_download_url
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | Where-Object { $_.tag_name -eq $env:TARGET_TAG } | Select-Object -First 1
+          if (-not $release) { Write-Error "Error: release $env:TARGET_TAG not found."; exit 1 }
+          $assetUrl = ($release.assets | Where-Object { $_.name -eq $env:ASSET_REGULAR } | Select-Object -First 1).browser_download_url
           if (-not $assetUrl) {
               Write-Error "Error: Asset $env:ASSET_REGULAR not found."
               exit 1
@@ -402,7 +548,9 @@ jobs:
           }
           Write-Host "Using release root: $releaseRoot"
           if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {
-              Copy-Item -Path ..\lang\tests -Destination "$releaseRoot\lang\tests" -Recurse
+              $testsSrc = "..\release-tests\lang\tests"
+              if (-not (Test-Path -Path $testsSrc)) { $testsSrc = "..\lang\tests" }
+              Copy-Item -Path $testsSrc -Destination "$releaseRoot\lang\tests" -Recurse
           }
           Set-Location $releaseRoot
           Write-Host "Running compile command for Windows Regular Variant:"
@@ -417,8 +565,9 @@ jobs:
           New-Item -ItemType Directory -Path variant-tcc -Force | Out-Null
           Set-Location variant-tcc
           Write-Host "Fetching asset URL for $env:ASSET_TCC..."
-          $assetUrl = (Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | 
-                        ForEach-Object { $_.assets } | Where-Object { $_.name -eq $env:ASSET_TCC } | Select-Object -First 1).browser_download_url
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | Where-Object { $_.tag_name -eq $env:TARGET_TAG } | Select-Object -First 1
+          if (-not $release) { Write-Error "Error: release $env:TARGET_TAG not found."; exit 1 }
+          $assetUrl = ($release.assets | Where-Object { $_.name -eq $env:ASSET_TCC } | Select-Object -First 1).browser_download_url
           if (-not $assetUrl) {
               Write-Error "Error: Asset $env:ASSET_TCC not found."
               exit 1
@@ -435,7 +584,9 @@ jobs:
           }
           Write-Host "Using release root: $releaseRoot"
           if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {
-              Copy-Item -Path ..\lang\tests -Destination "$releaseRoot\lang\tests" -Recurse
+              $testsSrc = "..\release-tests\lang\tests"
+              if (-not (Test-Path -Path $testsSrc)) { $testsSrc = "..\lang\tests" }
+              Copy-Item -Path $testsSrc -Destination "$releaseRoot\lang\tests" -Recurse
           }
           Set-Location $releaseRoot
           if (Test-Path "$releaseRoot\lang\tests\build") { Remove-Item "$releaseRoot\lang\tests\build" -Recurse -Force }

@@ -137,6 +137,40 @@ if [ "$INFO_ONLY" = true ]; then
   exit 0
 fi
 
+# ── run-history writer ───────────────────────────────────────────────────────
+# Platform records keep their LATEST run at the top level (backends/assets/
+# status — everything the charts read) plus a `runs` array with a COMPACT
+# summary of every historical run (hello benchmarks + test results, without
+# the huge modules/files arrays). This gives the dashboard a "all history for
+# every run" view per release instead of silently overwriting old results.
+bm_write_platform_run() { # <file> <new_record_json>
+  local file="$1" new_rec="$2"
+  local runs prev_run run
+  runs="[]"
+  if [ -f "$file" ]; then
+    runs="$(jq -c '.runs // []' "$file" 2>/dev/null || echo '[]')"
+    # migrate a legacy record (no runs array yet) by capturing its top-level
+    # run so history starts from the previously collected data
+    if [ "$(printf '%s' "$runs" | jq 'length' 2>/dev/null || echo 0)" = "0" ]; then
+      prev_run="$(jq -c 'select(.generated_at != null) | {generated_at,status,reason,
+        backends:(.backends | to_entries | map({key:.key, value:(.value | {build,benchmarks,tests,tests_build_ms,tests_build_status})}) | from_entries)}' "$file" 2>/dev/null || echo '')"
+      if [ -n "$prev_run" ] && [ "$prev_run" != "null" ]; then
+        runs="[$prev_run]"
+      fi
+    fi
+  fi
+  run="$(printf '%s' "$new_rec" | jq -c '{generated_at,status,reason,
+    backends:(.backends | to_entries | map({key:.key, value:(.value | {build,benchmarks,tests,tests_build_ms,tests_build_status})}) | from_entries)}')"
+  # dedupe by generated_at (idempotent re-runs), keep chronological order
+  runs="$(printf '%s\n%s' "$runs" "$run" | jq -s '.[0] + [.[1]] | unique_by(.generated_at)')"
+  printf '%s' "$new_rec" | jq -c --argjson runs "$runs" '. + {runs: $runs}'
+}
+
+write_platform_record() { # <record_json>
+  local rec="$1" file="$OUT/releases/$TAG/$PLATFORM-$ARCH.json"
+  bm_write_json "$file" "$(bm_write_platform_run "$file" "$rec")"
+}
+
 # ── pick the assets for this platform ────────────────────────────────────────
 pick_asset_name() { # <variant: regular|tcc>
   local variant="$1"
@@ -162,7 +196,7 @@ if [ -z "$REGULAR_ASSET" ] && [ -z "$TCC_ASSET" ]; then
     --arg libc "$(bm_libc)" --arg generated_at "$(bm_datetime)" \
     --argjson assets "$ASSETS_JSON" \
     '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"unavailable",reason:"no expected assets for this platform",assets:$assets,backends:{}}')"
-  bm_write_json "$OUT/releases/$TAG/$PLATFORM-$ARCH.json" "$PLAT_REC"
+  write_platform_record "$PLAT_REC"
   exit 0
 fi
 
@@ -207,7 +241,7 @@ if [ "$DL_STATUS" != "success" ]; then
     --arg libc "$(bm_libc)" --arg generated_at "$(bm_datetime)" \
     --argjson assets "$ASSETS_JSON" \
     '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"benchmark_failure",reason:"release asset download failed",assets:$assets,backends:{}}')"
-  bm_write_json "$OUT/releases/$TAG/$PLATFORM-$ARCH.json" "$PLAT_REC"
+  write_platform_record "$PLAT_REC"
   exit 0
 fi
 
@@ -228,7 +262,7 @@ if [ "$DL_STATUS" != "success" ]; then
     --arg libc "$(bm_libc)" --arg generated_at "$(bm_datetime)" \
     --argjson assets "$ASSETS_JSON" \
     '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"benchmark_failure",reason:"release asset extraction failed",assets:$assets,backends:{}}')"
-  bm_write_json "$OUT/releases/$TAG/$PLATFORM-$ARCH.json" "$PLAT_REC"
+  write_platform_record "$PLAT_REC"
   exit 0
 fi
 
@@ -350,5 +384,5 @@ PLAT_REC="$(printf '%s' "$BACKENDS_JSON" | jq \
   --arg generated_at "$(bm_datetime)" \
   --argjson assets "$ASSETS_JSON" \
   '{type:$type,tag:$tag,platform:$platform,arch:$arch,libc:$libc,generated_at:$generated_at,status:"success",assets:$assets,backends:.}')"
-bm_write_json "$OUT/releases/$TAG/$PLATFORM-$ARCH.json" "$PLAT_REC"
+write_platform_record "$PLAT_REC"
 bm_log "==> Done: $OUT/releases/$TAG/$PLATFORM-$ARCH.json"

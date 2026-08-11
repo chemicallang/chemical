@@ -25,6 +25,26 @@ on:
         default: 10
 
 jobs:
+  # Always runs first; makes the selected mode (debug vs release) visible in the
+  # "All jobs" list and via a notice annotation. Without it, the skipped matrix
+  # job's name shows the raw "${{ matrix.* }}" template (GitHub renders skipped
+  # matrix job names literally), which looks like a bug.
+  setup:
+    name: "Mode (${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }})"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print active mode
+        run: |
+          MODE=${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }}
+          echo "=================================="
+          echo "  Build Compiler Tests mode: $MODE"
+          echo "=================================="
+          if [ "$MODE" = "debug" ]; then
+            echo "::notice::Running DEBUG build tests against chemicallang/chemical-debug. The release test jobs are skipped."
+          else
+            echo "::notice::Running RELEASE build tests against chemicallang/chemical. Check the 'use_debug_builds' input to test debug builds instead."
+          fi
+
   test-linux:
     name: Test on Linux (${{ matrix.arch }})
     if: ${{ inputs.use_debug_builds != 'true' }}

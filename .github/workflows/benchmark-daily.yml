@@ -12,12 +12,7 @@ on:
         type: string
         default: ''
       skip_llvm:
-        description: 'Skip the LLVM backend (fast; LLVM build + test run is very heavy)'
-        required: false
-        type: boolean
-        default: false
-      quick:
-        description: 'Quick mode — hello + module benchmarks only, skip test suites'
+        description: 'Skip the LLVM backend — build + benchmark + test TCCCompiler and Interpreter only (LLVM build is the heavy part)'
         required: false
         type: boolean
         default: false
@@ -64,8 +59,10 @@ jobs:
           TARGET="${{ inputs.commit }}"
           if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi
           ARGS="--commit $TARGET"
+          # Building is the expensive part (15-20 min); the test suite takes ~20 s,
+          # so we always run hello + module benchmarks + test suite after a build.
+          # The only skip is the LLVM backend.
           if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
-          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
           bash scripts/bench-collect-daily.sh $ARGS
 
       - name: Publish to gh-pages

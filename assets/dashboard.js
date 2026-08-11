@@ -348,15 +348,18 @@ function regressChip(current, prev) {
   return `<span class="chip ${cls}" title="${esc(p.toFixed(2))} → ${esc(c.toFixed(2))}">${icon} ${sign}${diff.toFixed(1)}%</span>`;
 }
 
-/* asset-name → (platform, arch, variant) — mirrors scripts/common.sh */
+/* asset-name → (platform, arch, variant) — mirrors scripts/bench-common.sh */
 function assetParts(name) {
   let base = name.replace(/\.zip$/, "");
   let variant = "regular";
   if (base.endsWith("-tcc")) { variant = "tcc"; base = base.slice(0, -4); }
+  else if (base.endsWith("-lsp")) { variant = "lsp"; base = base.slice(0, -4); }
+  else if (base.endsWith("-debug")) { variant = "debug"; base = base.slice(0, -6); }
   let platform = "", arch = "";
   if (base.startsWith("linux-alpine-")) { platform = "linux-alpine"; arch = base.slice(13); }
   else if (base.startsWith("linux-")) { platform = "linux"; arch = base.slice(6); }
   else if (base.startsWith("macos-")) { platform = "macos"; arch = base.slice(6); }
+  else if (base.startsWith("windows-mingw-msvcrt-")) { platform = "windows-mingw-msvcrt"; arch = base.slice(21); }
   else if (base.startsWith("windows-mingw-")) { platform = "windows-mingw"; arch = base.slice(14); }
   else if (base.startsWith("windows-")) { platform = "windows"; arch = base.slice(8); }
   return { platform, arch, variant };
@@ -365,11 +368,118 @@ function assetNameFor(platform, arch, variant) {
   return `${platform}-${arch}${variant === "tcc" ? "-tcc" : ""}.zip`;
 }
 
+/* asset zip name → platform record key ("windows-mingw-msvcrt-x64-tcc.zip"
+   → "windows-mingw-msvcrt-x64") — matches the record filenames in the manifest */
+function recordKeyForAsset(name) {
+  return String(name).replace(/\.zip$/, "").replace(/-(tcc|lsp|debug)$/, "");
+}
+
 const PLATFORM_LABEL = {
   linux: "Linux", "linux-alpine": "Alpine", macos: "macOS",
   windows: "Windows", "windows-mingw": "Windows (MinGW)",
+  "windows-mingw-msvcrt": "Windows (MinGW msvcrt)",
 };
 const BACKEND_LABEL = { TCCCompiler: "TCC", Compiler: "LLVM", Interpreter: "Interpreter" };
+
+/* ── per-asset test-data coverage (release modal) ────────────── */
+
+/* backend verdict: ok=true → tests pass, ok=false → something failed at some
+   stage, ok=null → no tests recorded. note explains why. */
+function backendHealth(rec) {
+  if (!rec) return { ok: null, note: "no data" };
+  const t = rec.tests || {};
+  if (t.status === "build_failure") return { ok: false, note: "test suite failed to build" };
+  if (rec.build && rec.build.status === "failed") return { ok: false, note: "build failed" };
+  if (num(t.failed) > 0) return { ok: false, note: t.failed + " test(s) failed" };
+  if (t.status === "test_crash") return { ok: false, note: "test executable crashed" };
+  if (t.status === "timeout") return { ok: false, note: "tests timed out" };
+  if (t.status === "test_failure") return { ok: false, note: "test failure" };
+  if (t.status === "success" || (num(t.total) > 0 && num(t.failed) === 0)) return { ok: true, note: "all tests passed" };
+  if (rec.build && rec.build.status === "success") return { ok: null, note: "benchmarked, no test results" };
+  return { ok: null, note: "no test results" };
+}
+
+/* per-asset data availability for a release: missing asset (no binary),
+   not benchmarked (LSP bundle), no record for the platform, record without
+   results, or real benchmark/test data. */
+function assetCoverage(rel, name, assetInfo) {
+  const p = assetParts(name);
+  if (assetInfo && assetInfo.status === "missing_asset") return { kind: "missing_asset", p };
+  if (p.variant === "lsp") return { kind: "not_benchmarked", p };
+  const key = recordKeyForAsset(name);
+  const pf = (rel.platforms || {})[key];
+  if (!pf) return { kind: "no_record", key, p };
+  const hasAny = BACKENDS.some((b) => (pf.backends || {})[b]);
+  if (!hasAny) return { kind: "no_backends", key, pf, p };
+  return { kind: "data", key, pf, p };
+}
+
+/* compact "Test data" cell for the assets table */
+function assetDataSummary(cov) {
+  if (cov.kind === "missing_asset") return `<span class="dim">—</span>`;
+  if (cov.kind === "not_benchmarked") return `<span class="dim" title="LSP bundles are not part of the benchmark/test suite">not benchmarked</span>`;
+  if (cov.kind === "no_record") return `<span class="missing" title="no benchmark/test data collected for platform ${esc(cov.key)}">no data</span>`;
+  if (cov.kind === "no_backends") {
+    const why = cov.pf && cov.pf.reason ? " — " + esc(cov.pf.reason) : "";
+    return `<span class="missing" title="record exists but no benchmark/test results">no data${why}</span>`;
+  }
+  const badges = [];
+  for (const b of BACKENDS) {
+    const rec = (cov.pf.backends || {})[b];
+    if (!rec) continue;
+    const t = rec.tests || {};
+    const h = backendHealth(rec);
+    const cls = h.ok === true ? "badge-success" : h.ok === false ? "badge-test_failure" : "badge-neutral";
+    const txt = num(t.failed) != null ? `${num(t.passed)}/${num(t.failed)}` : h.ok === true ? "✓" : h.ok === false ? "✗" : "—";
+    badges.push(`<span class="badge ${cls}" title="${esc(BACKEND_LABEL[b])}: ${esc(h.note)}">${esc(BACKEND_LABEL[b])} ${esc(txt)}</span>`);
+  }
+  return badges.join(" ") || `<span class="dim">—</span>`;
+}
+
+/* stage-by-stage detail (or a "no data" error) for one platform record */
+function platformDetailHtml(key, pf, assetNames) {
+  const bks = pf.backends || {};
+  const hasAny = BACKENDS.some((b) => bks[b]);
+  const coveredBy = assetNames.length ? (assetNames.length === 1 ? assetNames[0] : assetNames.length + " assets") : "";
+  let html = `<h4>${esc(key)}${coveredBy ? ` <span class="dim">— ${esc(coveredBy)}</span>` : ""} ${statusBadge(pf.status, "")}</h4>`;
+  if (pf.generated_at) html += `<div class="dim">benchmarked ${esc(fmtDateTime(pf.generated_at))}</div>`;
+  if (!hasAny) {
+    const why = pf.reason ? ` — <b>${esc(pf.reason)}</b>` : "";
+    html += `<div class="note error">No test results for this platform${why}. Run the <b>benchmark-release</b> workflow (or the release backfill) for <span class="mono">${esc(key)}</span> to collect benchmark &amp; test data.</div>`;
+    return html;
+  }
+  html += `<div class="table-wrap"><table><thead><tr><th>Backend</th><th>Build</th><th>Test build</th><th>Benchmarks</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
+  for (const b of BACKENDS) {
+    const rec = bks[b];
+    if (!rec) { html += `<tr><td><b>${esc(BACKEND_LABEL[b])}</b></td><td colspan="7" class="dim">no data</td></tr>`; continue; }
+    const t = rec.tests || {};
+    const h = backendHealth(rec);
+    const bench = (rec.benchmarks || []).map((x) =>
+      x.status === "success" ? `${esc(x.name)} ${fmtMs(x.duration_ms)}` : `${esc(x.name)} ${statusBadge(x.status, "")}`).join(" · ") || "—";
+    const stageNotes = [];
+    if (rec.build && rec.build.status !== "success" && rec.build.reason) stageNotes.push("build: " + rec.build.reason);
+    if (rec.tests_build_status && rec.tests_build_status !== "success" && rec.tests_build_status !== "failed") stageNotes.push("test build: " + rec.tests_build_status);
+    if (t.reason) stageNotes.push("tests: " + t.reason);
+    for (const x of (rec.benchmarks || [])) if (x.status !== "success" && x.reason) stageNotes.push(`${x.name}: ${x.reason}`);
+    html += `<tr class="${h.ok === false ? "fail-row" : ""}">
+      <td><b>${esc(BACKEND_LABEL[b])}</b></td>
+      <td>${statusBadge(rec.build.status, "")}</td>
+      <td>${rec.tests_build_status ? statusBadge(rec.tests_build_status, "") + (num(rec.tests_build_ms) != null ? ` <span class="dim">${fmtMs(rec.tests_build_ms)}</span>` : "") : `<span class="dim">—</span>`}</td>
+      <td class="dim">${bench}</td>
+      <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
+      <td class="num">${t.passed != null ? t.passed : "—"}</td>
+      <td class="num ${num(t.failed) > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
+      <td class="num">${fmtMs(t.duration_ms)}</td>
+    </tr>`;
+    const fh = failedTestsHtml(t, 20);
+    const notes = stageNotes.map((n) => `<div>${esc(n)}</div>`).join("");
+    if (fh || notes) {
+      html += `<tr class="sub-row"><td></td><td colspan="7"><div class="dim">${notes}</div>${fh ? `<b>Failed:</b> ${fh}` : ""}</td></tr>`;
+    }
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
 
 /* ── data access ────────────────────────────────────────────── */
 function backendOf(dailyRec, backend) {
@@ -910,16 +1020,25 @@ async function openReleaseModal(tag) {
   const okCount = assetEntries.filter(([, a]) => a.status === "success").length;
   const missCount = assetEntries.filter(([, a]) => a.status === "missing_asset").length;
   const otherCount = assetEntries.length - okCount - missCount;
+  const missingAssets = assetEntries.filter(([, a]) => a.status === "missing_asset").map(([n]) => n);
 
   let html = `<h2>${esc(tag)}</h2>
     <div class="modal-sub">${esc(r.info.name || "")} · published ${esc(fmtDateTime(r.info.published_at))} · commit <span class="mono">${esc(r.info.commit_sha || "—")}</span></div>
     <div class="note">Assets collected ${esc(fmtDateTime(r.info.generated_at))} · ${assetEntries.length} assets total (${okCount} available, ${missCount} missing${otherCount ? `, ${otherCount} other` : ""})</div>`;
 
-  html += `<h3>Assets (${assetEntries.length})</h3><div class="table-wrap"><table><thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Status</th></tr></thead><tbody>`;
+  if (missingAssets.length) {
+    html += `<div class="note warn"><b>Not published for this release:</b> ${missingAssets.map((n) => `<span class="mono">${esc(n)}</span>`).join(", ")}</div>`;
+  }
+
+  html += `<h3>Assets &amp; test coverage (${assetEntries.length})</h3><div class="table-wrap"><table>
+    <thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Asset status</th><th>Test data</th></tr></thead>
+    <tbody id="rel-assets-tbody">`;
   for (const [name, a] of assetEntries) {
     const p = assetParts(name);
-    html += `<tr><td>${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
-      <td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : "—"}</td><td>${statusBadge(a.status, a.status === "missing_asset" ? "missing asset" : "")}</td></tr>`;
+    html += `<tr><td class="mono">${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
+      <td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : "—"}</td>
+      <td>${statusBadge(a.status, a.status === "missing_asset" ? "missing asset" : "")}</td>
+      <td class="coverage-cell" data-asset="${esc(name)}"><span class="dim">checking…</span></td></tr>`;
   }
   html += `</tbody></table></div>`;
 
@@ -937,39 +1056,61 @@ async function openReleaseModal(tag) {
   const box = document.getElementById("rel-modal-platforms");
   if (!box || myModal !== modalSeq) return; // modal closed or replaced while loading
 
-  let phtml = "";
-  const pkeys = Object.keys(r.platforms || {}).sort();
-  for (const pk of pkeys) {
-    const pf = r.platforms[pk];
-    const bks = pf.backends || {};
-    const hasAny = BACKENDS.some((b) => bks[b]);
-    phtml += `<h3>${esc(pk)} <span class="dim">${esc(pf.libc || "")}</span> ${statusBadge(pf.status, "")}</h3>`;
-    if (pf.generated_at) phtml += `<div class="dim">benchmarked ${esc(fmtDateTime(pf.generated_at))}${pf.reason ? ` · ${esc(pf.reason)}` : ""}</div>`;
-    if (!hasAny) { phtml += `<div class="note">no benchmark/test data for this platform</div>`; continue; }
-    phtml += `<div class="table-wrap"><table><thead><tr><th>Backend</th><th>Build</th><th class="num">Hello bare</th><th class="num">Hello std</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
-    for (const b of BACKENDS) {
-      const rec = bks[b];
-      if (!rec) { phtml += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="7" class="dim">no data</td></tr>`; continue; }
-      const t = rec.tests || {};
-      const hb = helloOf(rec, "hello_bare");
-      const hs = helloOf(rec, "hello_std");
-      const helloCell = (h) => h ? (h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status)) : "—";
-      phtml += `<tr class="${num(t.failed) > 0 ? "fail-row" : ""}">
-        <td><b>${esc(BACKEND_LABEL[b])}</b></td>
-        <td>${statusBadge(rec.build.status, "")}</td>
-        <td class="num">${helloCell(hb)}</td>
-        <td class="num">${helloCell(hs)}</td>
-        <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
-        <td class="num">${t.passed != null ? t.passed : "—"}</td>
-        <td class="num ${num(t.failed) > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
-        <td class="num">${fmtMs(t.duration_ms)}</td>
-      </tr>`;
-      const fh = failedTestsHtml(t, 20);
-      if (fh) phtml += `<tr class="sub-row"><td></td><td colspan="7" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
-    }
-    phtml += `</tbody></table></div>`;
+  // per-asset coverage is now authoritative (records are loaded)
+  const coverage = new Map();
+  let withData = 0, withoutData = 0, notPublished = 0, notBenchmarked = 0;
+  for (const [name, a] of assetEntries) {
+    const cov = assetCoverage(r, name, a);
+    coverage.set(name, cov);
+    if (cov.kind === "data") withData++;
+    else if (cov.kind === "missing_asset") notPublished++;
+    else if (cov.kind === "not_benchmarked") notBenchmarked++;
+    else withoutData++;
+  }
+  const tbody = document.getElementById("rel-assets-tbody");
+  if (tbody) {
+    tbody.querySelectorAll(".coverage-cell").forEach((td) => {
+      const cov = coverage.get(td.dataset.asset);
+      if (cov) td.innerHTML = assetDataSummary(cov);
+    });
   }
 
+  let phtml = `<div class="mini-stats">
+    <div class="mini-stat"><div class="v ${withData ? "good" : ""}">${withData}</div><div class="l">assets with test data</div></div>
+    <div class="mini-stat"><div class="v ${withoutData ? "bad" : ""}">${withoutData}</div><div class="l">assets without data</div></div>
+    <div class="mini-stat"><div class="v">${notPublished}</div><div class="l">not published</div></div>
+    <div class="mini-stat"><div class="v">${notBenchmarked}</div><div class="l">LSP (not benchmarked)</div></div>
+  </div>`;
+
+  // group assets by the platform record they map to; keep manifest records
+  // that no asset references so every collected platform stays visible
+  const byKey = new Map();
+  const uncovered = [];
+  for (const [name, cov] of coverage) {
+    if (cov.kind === "missing_asset" || cov.kind === "not_benchmarked") continue;
+    if (cov.kind === "no_record") { uncovered.push({ name, cov }); continue; }
+    if (!byKey.has(cov.key)) byKey.set(cov.key, { pf: cov.pf, assets: [] });
+    byKey.get(cov.key).assets.push(name);
+  }
+  for (const pk of Object.keys(r.platforms || {})) {
+    if (!byKey.has(pk)) byKey.set(pk, { pf: r.platforms[pk], assets: [] });
+  }
+
+  phtml += `<h3>Test results per platform <span class="hint">build → test build → benchmarks → tests</span></h3>`;
+  for (const key of Array.from(byKey.keys()).sort()) {
+    const { pf, assets: names } = byKey.get(key);
+    phtml += platformDetailHtml(key, pf, names);
+  }
+  for (const { name, cov } of uncovered) {
+    phtml += `<h4><span class="mono">${esc(name)}</span> <span class="badge badge-missing_asset">no data</span></h4>
+      <div class="note error">No test data available for this asset — no benchmark/test results are published for platform <span class="mono">${esc(cov.key)}</span> in this release. Run the <b>benchmark-release</b> workflow (or the release <b>backfill</b>) for <span class="mono">${esc(cov.key)}</span> to collect it.</div>`;
+  }
+  const lspNames = assetEntries.filter(([n, a]) => coverage.get(n).kind === "not_benchmarked").map(([n]) => n);
+  if (lspNames.length) {
+    phtml += `<div class="note"><b>Not benchmarked:</b> ${lspNames.map((n) => `<span class="mono">${esc(n)}</span>`).join(", ")} — LSP bundles are not part of the benchmark/test suite.</div>`;
+  }
+
+  const pkeys = Object.keys(r.platforms || {}).sort();
   const runPlats = pkeys.filter((pk) => {
     const pf = r.platforms[pk];
     return Array.isArray(pf.runs) && pf.runs.length >= 1;

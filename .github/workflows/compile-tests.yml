@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to test against (e.g. v0.9.0). Leave empty to use the latest release.'
+        description: 'Release tag to test against (e.g. v0.9.0). Leave empty to use the latest release. For debug builds this is the debug release tag (commit SHA or chemical tag).'
         required: false
         type: string
         default: ''
@@ -13,10 +13,21 @@ on:
         required: false
         type: boolean
         default: false
+      use_debug_builds:
+        description: 'Test the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug instead of the stable releases. The compiler runs under gdb/lldb so a crash produces a full backtrace. If the test suite crashes/fails, a crash-dump zip with all collected data is uploaded as an artifact; on success no data is uploaded, only logs. Test sources are taken from the source commit recorded in the debug release.'
+        required: false
+        type: boolean
+        default: false
+      deadlock_timeout_minutes:
+        description: 'Minutes before a running test suite is assumed to be DEADLOCKED (default 10; the suite never takes this long). On timeout, the process is attached with a debugger and full diagnostics are collected (all-thread backtraces, registers, /proc data) and uploaded.'
+        required: false
+        type: number
+        default: 10
 
 jobs:
   test-linux:
     name: Test on Linux (${{ matrix.arch }})
+    if: ${{ inputs.use_debug_builds != 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -163,6 +174,7 @@ jobs:
 
   test-alpine:
     name: Test on Alpine Linux (${{ matrix.arch }})
+    if: ${{ inputs.use_debug_builds != 'true' }}
     runs-on: ${{ matrix.runner }}
     container:
       image: alpine:3.20
@@ -313,6 +325,7 @@ jobs:
 
   test-macos:
     name: Test on macOS (${{ matrix.arch }})
+    if: ${{ inputs.use_debug_builds != 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -458,6 +471,7 @@ jobs:
 
   test-windows:
     name: Test on Windows (${{ matrix.arch }})
+    if: ${{ inputs.use_debug_builds != 'true' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -601,3 +615,474 @@ jobs:
         with:
           name: windows-${{ matrix.arch }}-tests-output
           path: output
+
+  # ––– Debug build tests –––
+  # Runs the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug
+  # by the Build and Release workflow with a debug config (RelWithDebInfo/Debug). Debug
+  # releases ship a commit.json recording the source commit; test sources are taken from
+  # that exact chemical commit, because a compiler built at commit X can only compile the
+  # test sources of commit X.
+  #
+  # The compiler always runs, and when a variant exits non-zero the exact same command is
+  # re-run under a debugger (gdb on linux/alpine/windows, lldb on macOS) to capture a full
+  # backtrace (all threads, registers, disassembly at $pc) — the point of shipping debug
+  # symbols. Each variant is also watched by a deadlock watchdog: the suite never takes
+  # more than deadlock_timeout_minutes (default 10); if a run is still alive past that it
+  # is assumed to be DEADLOCKED and a full diagnostic set is captured by attaching the
+  # debugger (modeled on scripts/capture_deadlock.sh): all-thread backtraces, registers,
+  # /proc status/limits/maps/fds/per-thread wait-channels, executable & system info.
+  # All collected data (debugger output, deadlock diagnostics, full logs, system info,
+  # commit.json) is zipped and uploaded ONLY when something crashed/failed/deadlocked.
+  # On success nothing is uploaded; the logs (with the Total/Passed/Failed summary) stay
+  # visible in the run.
+  test-debug:
+    name: Debug build tests — ${{ matrix.name }}
+    if: ${{ inputs.use_debug_builds == 'true' }}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            debugger: gdb
+            deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            debugger: gdb
+            deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
+          - name: alpine-x64
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            debugger: gdb
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+          - name: alpine-arm64
+            runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: arm64
+            debugger: gdb
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+          - name: macos-arm64
+            runner: macos-26
+            platform: macos
+            arch: arm64
+            debugger: lldb
+            deps: brew install jq || true
+          - name: macos-x64
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            debugger: lldb
+            deps: brew install jq || true
+          - name: windows-x64
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            debugger: gdb
+            deps: choco install gdb -y --no-progress || true
+          - name: windows-arm64
+            runner: windows-11-arm
+            platform: windows
+            arch: arm64
+            debugger: gdb
+            deps: choco install gdb -y --no-progress || true
+
+    env:
+      DEBUG_REPO: chemicallang/chemical-debug
+      SOURCE_REPO: chemicallang/chemical
+      PLATFORM: ${{ matrix.platform }}
+      ARCH: ${{ matrix.arch }}
+      DEADLOCK_TIMEOUT_MINUTES: ${{ inputs.deadlock_timeout_minutes || 10 }}
+
+    steps:
+      - name: Install dependencies
+        # No shell key: on the alpine container the runner falls back to sh
+        # (bash doesn't exist yet). bash is installed here before later bash
+        # steps run, exactly like the other alpine jobs in this workflow.
+        run: ${{ matrix.deps }}
+
+      - name: Resolve debug release
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+            echo "Using user-specified debug release tag: $TAG"
+          else
+            echo "Resolving latest debug build from ${{ env.DEBUG_REPO }}..."
+            rel=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases?per_page=10")
+            TAG=$(echo "$rel" | jq -r '[.[] | select(.assets | length > 0)] | .[0].tag_name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "::error::no debug builds found in ${{ env.DEBUG_REPO }} — run the Build and Release workflow with a debug config (RelWithDebInfo or Debug)"
+              exit 1
+            fi
+            echo "Latest debug build: $TAG"
+          fi
+          echo "DEBUG_TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Get source commit and test sources from commit.json
+        shell: bash
+        run: |
+          curl -sL -o commit.json "https://github.com/${{ env.DEBUG_REPO }}/releases/download/${DEBUG_TAG}/commit.json"
+          SHA=$(jq -r '.sha' commit.json 2>/dev/null)
+          if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
+            echo "::error::commit.json missing a sha — debug release ${DEBUG_TAG} is incomplete"
+            exit 1
+          fi
+          echo "SOURCE_SHA=$SHA" >> "$GITHUB_ENV"
+          MSG=$(jq -r '.message // ""' commit.json)
+          echo "Debug compiler from ${{ env.SOURCE_REPO }} @ ${SHA}: ${MSG}"
+          echo "::notice::Debug compiler from commit $SHA (${MSG})"
+          curl -sL -o tests.tar.gz "https://github.com/${{ env.SOURCE_REPO }}/archive/${SHA}.tar.gz"
+          tar -xzf tests.tar.gz
+          mv "chemical-${SHA}/lang/tests" lang_tests
+          echo "test sources downloaded from ${SHA}: $(ls lang_tests | wc -l) entries"
+
+      - name: Run debug compiler under debugger
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          : > compile_output.txt
+          mkdir -p crash-dump
+          echo "debug compiler from ${{ env.SOURCE_REPO }} @ ${SOURCE_SHA} (debug release ${DEBUG_TAG})" | tee -a compile_output.txt
+
+          capture_crash() {
+            if [ "${{ matrix.debugger }}" = "lldb" ] && command -v lldb >/dev/null 2>&1; then
+              lldb -b \
+                -o "run" \
+                -o "thread list" \
+                -o "thread backtrace all" \
+                -o "register read" \
+                -o "disassemble --frame" \
+                -- $1
+            elif command -v gdb >/dev/null 2>&1; then
+              gdb -batch \
+                -ex "set pagination off" \
+                -ex "run" \
+                -ex "echo \n=== INFO THREADS ===\n" \
+                -ex "info threads" \
+                -ex "echo \n=== THREAD APPLY ALL BT FULL ===\n" \
+                -ex "thread apply all bt full" \
+                -ex "echo \n=== INFO REGISTERS ===\n" \
+                -ex "info registers" \
+                -ex "echo \n=== DISASSEMBLY AT PC ===\n" \
+                -ex "x/32i \$pc" \
+                -ex "echo \n=== BT FULL ===\n" \
+                -ex "bt full" \
+                --args $1
+            elif command -v lldb >/dev/null 2>&1; then
+              lldb -b \
+                -o "run" \
+                -o "thread list" \
+                -o "thread backtrace all" \
+                -o "register read" \
+                -- $1
+            else
+              echo "no debugger (gdb/lldb) available; running directly"
+              eval "$1"
+            fi
+          }
+
+          # Attach to a still-running (deadlocked) process and collect the maximum
+          # diagnostics possible — modeled on scripts/capture_deadlock.sh.
+          capture_deadlock() {
+            local pid="$1" asset="$2"
+            local outdir="crash-dump/deadlock-${asset}"
+            mkdir -p "$outdir"
+
+            if command -v gdb >/dev/null 2>&1; then
+              gdb -q -nx -batch -p "$pid" \
+                -ex "set pagination off" \
+                -ex "echo \n===== GDB VERSION =====\n" \
+                -ex "show version" \
+                -ex "echo \n===== INFO THREADS =====\n" \
+                -ex "info threads" \
+                -ex "echo \n===== THREAD APPLY ALL BT =====\n" \
+                -ex "thread apply all bt" \
+                -ex "echo \n===== THREAD APPLY ALL BT FULL =====\n" \
+                -ex "thread apply all bt full" \
+                -ex "echo \n===== THREAD APPLY ALL INFO REGISTERS =====\n" \
+                -ex "thread apply all info registers" \
+                -ex "echo \n===== THREAD APPLY ALL INFO FRAME =====\n" \
+                -ex "thread apply all info frame" \
+                -ex "echo \n===== CURRENT THREAD =====\n" \
+                -ex "thread" \
+                -ex "echo \n===== SHARED LIBRARIES =====\n" \
+                -ex "info sharedlibrary" \
+                -ex "echo \n===== INFO PROC =====\n" \
+                -ex "info proc" \
+                -ex "echo \n===== INFO PROC MAPPINGS =====\n" \
+                -ex "info proc mappings" \
+                -ex "echo \n===== INFO PROC STATUS =====\n" \
+                -ex "info proc status" \
+                -ex "echo \n===== INFO FILES =====\n" \
+                -ex "info files" \
+                -ex "detach" \
+                -ex "quit" \
+                > "$outdir/gdb_report.txt" 2>&1 || true
+              grep -Ei 'error|warning|cannot|unable|no symbol|not available|optimized out|unknown' \
+                "$outdir/gdb_report.txt" > "$outdir/gdb_warnings.txt" 2>/dev/null || true
+            elif command -v lldb >/dev/null 2>&1; then
+              lldb -p "$pid" -b \
+                -o "thread list" \
+                -o "thread backtrace all" \
+                -o "register read" \
+                -o "image list" \
+                > "$outdir/lldb_report.txt" 2>&1 || true
+            else
+              echo "no debugger (gdb/lldb) available for deadlock capture" > "$outdir/NO_DEBUGGER.txt"
+            fi
+
+            # /proc collection (Linux only)
+            if [ -d "/proc/$pid" ]; then
+              {
+                echo "===== PROCESS STATUS ====="
+                cat "/proc/$pid/status" 2>/dev/null || true
+                echo
+                echo "===== COMMAND LINE ====="
+                tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true
+                echo
+                echo "===== EXECUTABLE ====="
+                readlink -f "/proc/$pid/exe" 2>/dev/null || true
+              } > "$outdir/process.txt"
+              cat "/proc/$pid/limits" > "$outdir/limits.txt" 2>/dev/null || true
+              cat "/proc/$pid/maps"   > "$outdir/memory_maps.txt" 2>/dev/null || true
+              cat "/proc/$pid/smaps"  > "$outdir/memory_smaps.txt" 2>/dev/null || true
+              {
+                echo "===== OPEN FILE DESCRIPTORS ====="
+                for FD in /proc/"$pid"/fd/*; do
+                  [ -e "$FD" ] && printf "%s -> %s\n" "$FD" "$(readlink "$FD" 2>/dev/null || true)"
+                done
+              } > "$outdir/file_descriptors.txt"
+              mkdir -p "$outdir/threads"
+              for TASK in /proc/"$pid"/task/*; do
+                TID="$(basename "$TASK")"
+                {
+                  echo "===== THREAD $TID ====="
+                  echo "--- STATUS ---"; cat "$TASK/status" 2>/dev/null || true
+                  echo; echo "--- SCHED ---"; cat "$TASK/sched" 2>/dev/null || true
+                  echo; echo "--- WCHAN ---"; cat "$TASK/wchan" 2>/dev/null || true
+                  echo; echo "--- KERNEL STACK ---"; cat "$TASK/stack" 2>/dev/null || true
+                  echo; echo "--- SYSCALL ---"; cat "$TASK/syscall" 2>/dev/null || true
+                } > "$outdir/threads/thread_${TID}.txt"
+              done
+              {
+                echo "===== THREAD SUMMARY (wait channels) ====="
+                for TASK in /proc/"$pid"/task/*; do
+                  [ -d "$TASK" ] || continue
+                  TID="$(basename "$TASK")"
+                  printf "TID %-10s %s\n" "$TID" "$(cat "$TASK/wchan" 2>/dev/null || echo unknown)"
+                done
+              } > "$outdir/thread_summary.txt"
+              EXE="$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)"
+              if [ -n "$EXE" ] && [ -f "$EXE" ]; then
+                {
+                  echo "path: $EXE"
+                  file "$EXE" 2>/dev/null || true
+                  echo "--- ELF HEADER ---"
+                  readelf -h "$EXE" 2>/dev/null || true
+                  echo "--- BUILD ID ---"
+                  readelf -n "$EXE" 2>/dev/null | grep -A2 -i 'Build ID' || true
+                } > "$outdir/executable.txt"
+              fi
+            fi
+
+            {
+              echo "===== SYSTEM INFO ====="
+              uname -a 2>/dev/null || true
+              [ -f /etc/os-release ] && cat /etc/os-release
+              echo "platform: ${PLATFORM}-${ARCH}"
+              echo "debug release: ${DEBUG_TAG}"
+              echo "source commit: ${SOURCE_SHA}"
+              echo "deadlock timeout: ${DEADLOCK_TIMEOUT_MINUTES} min"
+              echo "asset: $asset"
+            } > "$outdir/system.txt"
+
+            {
+              echo "DEADLOCK DIAGNOSTIC REPORT"
+              echo "=========================="
+              echo "asset: $asset"
+              echo "pid: $pid"
+              echo "generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+              echo
+              echo "Collected files:"
+              ls -la "$outdir"
+            } > "$outdir/README.txt"
+
+            echo "deadlock diagnostics saved to $outdir" | tee -a compile_output.txt
+          }
+
+          run_variant() {
+            local asset="$1" exe_root="$2"
+            local url status
+            echo "== variant: $asset ==" | tee -a compile_output.txt
+            url=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases/tags/${DEBUG_TAG}" \
+              | jq -r ".assets[] | select(.name == \"$asset\") | .browser_download_url")
+            if [ -z "$url" ] || [ "$url" = "null" ]; then
+              echo "asset $asset not found in debug release ${DEBUG_TAG}; skipping" | tee -a compile_output.txt
+              return 0
+            fi
+            curl -sL -o "$asset" "$url"
+            rm -rf variant_work
+            mkdir -p variant_work
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -o -q "$asset" -d variant_work
+            elif command -v tar >/dev/null 2>&1; then
+              tar -xf "$asset" -C variant_work
+            else
+              python3 -m zipfile -e "$asset" variant_work
+            fi
+            if [ ! -d "variant_work/$exe_root" ]; then
+              echo "extracted package missing expected root '$exe_root'" | tee -a compile_output.txt
+              ls variant_work >> compile_output.txt
+              return 1
+            fi
+            mkdir -p "variant_work/$exe_root/lang"
+            cp -r lang_tests "variant_work/$exe_root/lang/tests"
+            if [ -f "variant_work/$exe_root/chemical.exe" ]; then
+              local exe="./chemical.exe"
+            else
+              local exe="./chemical"
+            fi
+            local cmd="$exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+            local log=/tmp/variant_run.log
+            local deadline=$((DEADLOCK_TIMEOUT_MINUTES * 60))
+            echo "== running: $cmd (deadlock timeout ${DEADLOCK_TIMEOUT_MINUTES} min) ==" | tee -a compile_output.txt
+            # Run in the background so a watchdog can detect a deadlock. `exec`
+            # replaces the subshell so $pid is the compiler process itself.
+            (
+              cd "variant_work/$exe_root"
+              exec $cmd
+            ) > "$log" 2>&1 &
+            local pid=$!
+            local start_time=$(date +%s)
+            while kill -0 "$pid" 2>/dev/null; do
+              local elapsed=$(( $(date +%s) - start_time ))
+              if [ "$elapsed" -ge "$deadline" ]; then
+                echo "== TIMEOUT after ${DEADLOCK_TIMEOUT_MINUTES} min (${elapsed}s) — assuming DEADLOCK, capturing diagnostics ==" | tee -a compile_output.txt
+                capture_deadlock "$pid" "$asset"
+                DEADLOCKED=1
+                CRASHED=1
+                cp "$log" "crash-dump/${asset}.log.txt"
+                cp compile_output.txt crash-dump/compile_output.txt
+                kill -9 "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+                status=124
+                break
+              fi
+              sleep 5
+            done
+            if [ "$status" != "124" ]; then
+              wait "$pid"
+              status=$?
+            fi
+            cat "$log" | tee -a compile_output.txt
+            # a deadlock was already fully diagnosed (and the process killed) by
+            # the watchdog — re-running under gdb would hang again, so skip it
+            if [ "$status" -ne 0 ] && [ "$DEADLOCKED" != "1" ]; then
+              # the suite crashed/failed — re-run the exact command under the
+              # debugger and keep everything for the crash dump
+              echo "== exit $status; capturing full crash data with ${{ matrix.debugger }} ==" | tee -a compile_output.txt
+              local dbgout="crash-dump/${asset}.debugger.txt"
+              (
+                cd "variant_work/$exe_root"
+                capture_crash "$cmd"
+              ) > "$dbgout" 2>&1
+              cat "$dbgout" | tee -a compile_output.txt
+              cp "$log" "crash-dump/${asset}.log.txt"
+              cp compile_output.txt crash-dump/compile_output.txt
+              CRASHED=1
+            fi
+            echo "== $asset exit code: $status ==" | tee -a compile_output.txt
+            return $status
+          }
+
+          CRASHED=0
+          DEADLOCKED=0
+          rc=0
+          run_variant "${PLATFORM}-${ARCH}-debug.zip" "chemical" || rc=1
+          run_variant "${PLATFORM}-${ARCH}-tcc-debug.zip" "chemical-tcc" || rc=1
+
+          # system info for the crash dump (no secrets)
+          {
+            echo "=== SYSTEM INFO ==="
+            uname -a 2>/dev/null || true
+            if [ -f /etc/os-release ]; then cat /etc/os-release; fi
+            echo "platform: ${PLATFORM}-${ARCH}"
+            echo "debug release: ${DEBUG_TAG}"
+            echo "source commit: ${SOURCE_SHA}"
+            echo "debugger: $(command -v gdb || command -v lldb || echo none)"
+            echo "commands:"
+            echo "  ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+          } > crash-dump/system-info.txt
+
+          echo "CRASHED=$CRASHED" >> "$GITHUB_ENV"
+          echo "TESTS_RC=$rc" >> "$GITHUB_ENV"
+          if [ "$CRASHED" = "1" ]; then
+            if [ "$DEADLOCKED" = "1" ]; then
+              echo "test suite DEADLOCKED — packaging crash dump with deadlock diagnostics"
+            else
+              echo "test suite crashed/failed — packaging crash dump"
+            fi
+          else
+            rm -rf crash-dump
+            echo "test suite completed successfully — no crash data uploaded"
+          fi
+          exit 0
+
+      - name: Package crash dump
+        if: env.CRASHED == '1'
+        shell: bash
+        run: |
+          cp commit.json crash-dump/ 2>/dev/null || true
+          cp compile_output.txt crash-dump/ 2>/dev/null || true
+          if command -v zip >/dev/null 2>&1; then
+            zip -r crash-dump.zip crash-dump
+          else
+            tar -czf crash-dump.zip crash-dump
+          fi
+          ls -la crash-dump.zip
+
+      - name: Upload crash dump
+        if: env.CRASHED == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-crash-${{ matrix.name }}
+          path: crash-dump.zip
+          if-no-files-found: error
+
+      - name: Mark job failed if tests crashed/failed
+        if: env.TESTS_RC != '0'
+        shell: bash
+        run: |
+          echo "::error::test suite crashed, failed, or deadlocked on ${{ matrix.name }} — see debug-crash-${{ matrix.name }} artifact"
+          exit 1
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Debug compiler tests — ${{ matrix.name }}"
+            echo ""
+            echo "**Compiler commit:** \`${SOURCE_SHA}\`"
+            echo "**Debug release:** \`${DEBUG_TAG}\`"
+            echo ""
+            echo "**Test results:**"
+            echo '```'
+            grep -E "Total [0-9]+ Passed" compile_output.txt || echo "(no Total/Passed/Failed summary found in output)"
+            echo '```'
+            echo ""
+            echo "**Tail of output:**"
+            echo '```'
+            tail -30 compile_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

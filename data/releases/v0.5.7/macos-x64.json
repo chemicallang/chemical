@@ -4,7 +4,7 @@
   "platform": "macos",
   "arch": "x64",
   "libc": "glibc",
-  "generated_at": "2026-08-11T12:22:16Z",
+  "generated_at": "2026-08-11T14:32:13Z",
   "status": "success",
   "assets": {
     "linux-alpine-x64-tcc.zip": {
@@ -137,6 +137,16 @@
       "url": "https://github.com/chemicallang/chemical/releases/download/v0.5.7/windows-x64.zip",
       "status": "success"
     },
+    "linux-alpine-arm64.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
+    "linux-alpine-arm64-tcc.zip": {
+      "status": "missing_asset",
+      "size_bytes": null,
+      "url": null
+    },
     "windows-arm64.zip": {
       "status": "missing_asset",
       "size_bytes": null,
@@ -157,29 +167,35 @@
       "benchmarks": [
         {
           "name": "hello_bare",
-          "status": "failed",
-          "reason": "compiler exited with code 127",
-          "duration_ms": 12
+          "status": "success",
+          "reason": null,
+          "duration_ms": 122
         },
         {
           "name": "hello_std",
           "status": "failed",
-          "reason": "compiler exited with code 127",
-          "duration_ms": 14
+          "reason": "compiler exited with code 1",
+          "duration_ms": 63
         }
       ],
       "modules": [],
       "files": [],
       "tests": {
         "status": "build_failure",
-        "reason": "test suite compilation failed with exit code 127",
+        "reason": "test suite compilation failed (exit 1): [lab] error: couldn't compile 'build.lab' at 'lang/tests/build.lab', written to 'lang/tests/build/lab/chemical.lab/build.lab.c'",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": 12,
-        "failed_tests": []
+        "succeeded": null,
+        "duration_ms": 98,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
       },
-      "tests_build_ms": 12,
+      "tests_build_ms": 98,
       "tests_build_status": "failed"
     },
     "Interpreter": {
@@ -205,14 +221,20 @@
       "files": [],
       "tests": {
         "status": "build_failure",
-        "reason": "test suite compilation failed with exit code 127",
+        "reason": "test suite compilation failed (exit 1): [lab] error: couldn't compile 'build.lab' at 'lang/tests/build.lab', written to 'lang/tests/build/lab/chemical.lab/build.lab.c'",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": 11,
-        "failed_tests": []
+        "succeeded": null,
+        "duration_ms": 116,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
       },
-      "tests_build_ms": 11,
+      "tests_build_ms": 116,
       "tests_build_status": "failed"
     },
     "Compiler": {
@@ -224,28 +246,34 @@
         {
           "name": "hello_bare",
           "status": "failed",
-          "reason": "compiler exited with code 127",
-          "duration_ms": 12
+          "reason": "compiler exited with code 1",
+          "duration_ms": 2026
         },
         {
           "name": "hello_std",
           "status": "failed",
-          "reason": "compiler exited with code 127",
-          "duration_ms": 16
+          "reason": "compiler exited with code 1",
+          "duration_ms": 127
         }
       ],
       "modules": [],
       "files": [],
       "tests": {
         "status": "build_failure",
-        "reason": "test suite compilation failed with exit code 127",
+        "reason": "test suite compilation failed (exit 1): [lab] error: couldn't compile 'build.lab' at 'lang/tests/build.lab', written to 'lang/tests/build/lab/chemical.lab/build.lab.c'",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": 14,
-        "failed_tests": []
+        "succeeded": null,
+        "duration_ms": 190,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
       },
-      "tests_build_ms": 14,
+      "tests_build_ms": 190,
       "tests_build_status": "failed"
     }
   }

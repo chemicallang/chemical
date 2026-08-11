@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-11T14:34:13Z",
+  "generated_at": "2026-08-11T14:41:27Z",
   "daily": [
     "2026-08-11",
     "2026-08-10",
@@ -180,6 +180,10 @@
       "linux-x64",
       "macos-arm64",
       "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64",
       "windows-x64"
     ]
   }

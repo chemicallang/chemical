@@ -72,15 +72,24 @@ PUBLISHED_AT="$(printf '%s' "$RELEASE_JSON" | jq -r '.published_at // ""')"
 TARGET_COMMIT="$(printf '%s' "$RELEASE_JSON" | jq -r '.target_commitish // ""')"
 RELEASE_NAME="$(printf '%s' "$RELEASE_JSON" | jq -r '.name // ""')"
 
-# ── assets: expected vs actual ───────────────────────────────────────────────
+# ── assets: actual (from the API) + expected missing markers ─────────────────
+# Every asset the release ACTUALLY published is recorded (old releases used
+# different naming conventions and must not end up with empty asset lists).
 ASSETS_JSON="{}"
+while IFS= read -r name; do
+  [ -z "$name" ] && continue
+  info="$(printf '%s' "$RELEASE_JSON" | jq -c --arg a "$name" '.assets[]? | select(.name==$a) | {size_bytes:.size,url:.browser_download_url}')"
+  [ -z "$info" ] && continue
+  ASSETS_JSON="$(printf '%s' "$ASSETS_JSON" | jq --arg a "$name" --argjson info "$info" '. + {($a): ($info + {status:"success"})}')"
+done < <(printf '%s' "$RELEASE_JSON" | jq -r '.assets[].name')
+# Then mark expected assets that are missing as missing_asset (explicit, not
+# "failed"). expected_assets() is era-based and empty for very old releases —
+# that is fine: those releases simply have no expected list, only actual assets.
 EXPECTED="$(expected_assets "$TAG")"
 if [ -n "$EXPECTED" ]; then
   for asset in $EXPECTED; do
-    info="$(printf '%s' "$RELEASE_JSON" | jq -c --arg a "$asset" '.assets[]? | select(.name==$a) | {size_bytes:.size,url:.browser_download_url}')"
-    if [ -n "$info" ]; then
-      ASSETS_JSON="$(printf '%s' "$ASSETS_JSON" | jq --arg a "$asset" --argjson info "$info" '. + {($a): ($info + {status:"success"})}')"
-    else
+    has="$(printf '%s' "$ASSETS_JSON" | jq --arg a "$asset" 'has($a)')"
+    if [ "$has" != "true" ]; then
       ASSETS_JSON="$(printf '%s' "$ASSETS_JSON" | jq --arg a "$asset" '. + {($a): {status:"missing_asset",size_bytes:null,url:null}}')"
     fi
   done

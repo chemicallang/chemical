@@ -85,8 +85,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake jq zip unzip
 
-      - name: Setup (download libtcc, submodules)
-        run: ./scripts/setup.sh
+      - name: Setup (download libtcc + prebuilt LLVM, submodules)
+        run: ./scripts/setup.sh --with-llvm
 
       - name: Run backfill chunk
         run: |

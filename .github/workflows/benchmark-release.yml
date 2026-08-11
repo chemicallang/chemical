@@ -14,7 +14,7 @@ on:
       # benchmarked. The LLVM skip only exists where we build from source
       # (benchmark-daily / backfill), where the LLVM build is the slow part.
       quick:
-        description: 'Quick mode — hello benchmarks only, skip test suites'
+        description: 'Quick mode — hello benchmarks only, skip test suites (default: full — runs the test suite and collects per-module benchmarks)'
         required: false
         type: boolean
         default: false

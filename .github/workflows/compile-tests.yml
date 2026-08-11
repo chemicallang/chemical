@@ -14,10 +14,13 @@ on:
         type: boolean
         default: false
       use_debug_builds:
-        description: 'Test the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug instead of the stable releases. The compiler runs under gdb/lldb so a crash produces a full backtrace. If the test suite crashes/fails, a crash-dump zip with all collected data is uploaded as an artifact; on success no data is uploaded, only logs. Test sources are taken from the source commit recorded in the debug release.'
+        description: 'Build mode. "release" (default) tests the stable releases published to chemicallang/chemical. "debug" tests the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug instead: the compiler runs under gdb/lldb so a crash produces a full backtrace. If the test suite crashes/fails, a crash-dump zip with all collected data is uploaded as an artifact; on success no data is uploaded, only logs. Test sources are taken from the source commit recorded in the debug release.'
         required: false
-        type: boolean
-        default: false
+        type: choice
+        default: release
+        options:
+          - release
+          - debug
       deadlock_timeout_minutes:
         description: 'Minutes before a running test suite is assumed to be DEADLOCKED (default 10; the suite never takes this long). On timeout, the process is attached with a debugger and full diagnostics are collected (all-thread backtraces, registers, /proc data) and uploaded.'
         required: false
@@ -30,24 +33,24 @@ jobs:
   # job's name shows the raw "${{ matrix.* }}" template (GitHub renders skipped
   # matrix job names literally), which looks like a bug.
   setup:
-    name: "Mode (${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }})"
+    name: "Mode (${{ inputs.use_debug_builds }})"
     runs-on: ubuntu-latest
     steps:
       - name: Print active mode
         run: |
-          MODE=${{ inputs.use_debug_builds == 'true' && 'debug' || 'release' }}
+          MODE=${{ inputs.use_debug_builds }}
           echo "=================================="
           echo "  Build Compiler Tests mode: $MODE"
           echo "=================================="
           if [ "$MODE" = "debug" ]; then
             echo "::notice::Running DEBUG build tests against chemicallang/chemical-debug. The release test jobs are skipped."
           else
-            echo "::notice::Running RELEASE build tests against chemicallang/chemical. Check the 'use_debug_builds' input to test debug builds instead."
+            echo "::notice::Running RELEASE build tests against chemicallang/chemical. Set the 'use_debug_builds' input to 'debug' to test debug builds instead."
           fi
 
   test-linux:
     name: Test on Linux (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -194,7 +197,7 @@ jobs:
 
   test-alpine:
     name: Test on Alpine Linux (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     container:
       image: alpine:3.20
@@ -345,7 +348,7 @@ jobs:
 
   test-macos:
     name: Test on macOS (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -491,7 +494,7 @@ jobs:
 
   test-windows:
     name: Test on Windows (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds != 'true' }}
+    if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -659,7 +662,7 @@ jobs:
   # visible in the run.
   test-debug:
     name: Debug build tests — ${{ matrix.name }}
-    if: ${{ inputs.use_debug_builds == 'true' }}
+    if: ${{ inputs.use_debug_builds == 'debug' }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     strategy:
@@ -942,9 +945,82 @@ jobs:
             echo "deadlock diagnostics saved to $outdir" | tee -a compile_output.txt
           }
 
+          # Run a single phase (compile or run) with a deadlock watchdog. If it
+          # exits non-zero the exact command is re-run under gdb for a full
+          # backtrace. `label` is the component we report as crashed: COMPILER
+          # (phase 1, building build.lab -> exe) or TEST SUITE (phase 2, running
+          # the compiled exe).
+          run_phase() {
+            local label="$1" cmd="$2" exe_root="$3" asset="$4" phase="$5"
+            local log=/tmp/${phase}_run.log
+            local deadline=$((DEADLOCK_TIMEOUT_MINUTES * 60))
+            local status=0
+            echo "== [$phase] $label: $cmd (deadlock timeout ${DEADLOCK_TIMEOUT_MINUTES} min) ==" | tee -a compile_output.txt
+            # Run in the background so a watchdog can detect a deadlock. `exec`
+            # replaces the subshell so $pid is the actual process.
+            (
+              cd "variant_work/$exe_root"
+              exec $cmd
+            ) > "$log" 2>&1 &
+            local pid=$!
+            local start_time=$(date +%s)
+            while kill -0 "$pid" 2>/dev/null; do
+              local elapsed=$(( $(date +%s) - start_time ))
+              if [ "$elapsed" -ge "$deadline" ]; then
+                echo "== [$phase] TIMEOUT after ${DEADLOCK_TIMEOUT_MINUTES} min (${elapsed}s) — the $label appears DEADLOCKED; capturing diagnostics ==" | tee -a compile_output.txt
+                capture_deadlock "$pid" "${asset}-${phase}"
+                DEADLOCKED=1
+                CRASHED=1
+                cp "$log" "crash-dump/${asset}-${phase}.log.txt"
+                cp compile_output.txt crash-dump/compile_output.txt
+                kill -9 "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+                status=124
+                break
+              fi
+              sleep 5
+            done
+            if [ "$status" != "124" ]; then
+              wait "$pid"
+              status=$?
+            fi
+            cat "$log" | tee -a compile_output.txt
+            # a deadlock was already fully diagnosed (and the process killed) by
+            # the watchdog — re-running under gdb would hang again, so skip it
+            if [ "$status" -ne 0 ] && [ "$DEADLOCKED" != "1" ]; then
+              # crash/failure — re-run the exact command under the debugger and
+              # keep everything for the crash dump
+              echo "== [$phase] exit $status — the $label CRASHED/FAILED; re-running under ${{ matrix.debugger }} for a backtrace ==" | tee -a compile_output.txt
+              local dbgout="crash-dump/${asset}-${phase}.debugger.txt"
+              (
+                cd "variant_work/$exe_root"
+                capture_crash "$cmd"
+              ) > "$dbgout" 2>&1
+              cat "$dbgout" | tee -a compile_output.txt
+              cp "$log" "crash-dump/${asset}-${phase}.log.txt"
+              cp compile_output.txt crash-dump/compile_output.txt
+              CRASHED=1
+            fi
+            if [ "$status" -ne 0 ]; then
+              echo "================================================================" | tee -a compile_output.txt
+              echo " CRASH IDENTIFICATION: the $label crashed" | tee -a compile_output.txt
+              echo "   phase : $phase" | tee -a compile_output.txt
+              echo "   cmd   : $cmd" | tee -a compile_output.txt
+              if [ "$DEADLOCKED" = "1" ]; then
+                echo "   cause : DEADLOCK (still running after ${DEADLOCK_TIMEOUT_MINUTES} min)" | tee -a compile_output.txt
+              else
+                echo "   cause : crashed/failed with exit code $status" | tee -a compile_output.txt
+              fi
+              echo "================================================================" | tee -a compile_output.txt
+            else
+              echo "== [$phase] $label completed successfully ==" | tee -a compile_output.txt
+            fi
+            return $status
+          }
+
           run_variant() {
             local asset="$1" exe_root="$2"
-            local url status
+            local url
             echo "== variant: $asset ==" | tee -a compile_output.txt
             url=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases/tags/${DEBUG_TAG}" \
               | jq -r ".assets[] | select(.name == \"$asset\") | .browser_download_url")
@@ -974,57 +1050,37 @@ jobs:
             else
               local exe="./chemical"
             fi
-            local cmd="$exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-            local log=/tmp/variant_run.log
-            local deadline=$((DEADLOCK_TIMEOUT_MINUTES * 60))
-            echo "== running: $cmd (deadlock timeout ${DEADLOCK_TIMEOUT_MINUTES} min) ==" | tee -a compile_output.txt
-            # Run in the background so a watchdog can detect a deadlock. `exec`
-            # replaces the subshell so $pid is the compiler process itself.
-            (
-              cd "variant_work/$exe_root"
-              exec $cmd
-            ) > "$log" 2>&1 &
-            local pid=$!
-            local start_time=$(date +%s)
-            while kill -0 "$pid" 2>/dev/null; do
-              local elapsed=$(( $(date +%s) - start_time ))
-              if [ "$elapsed" -ge "$deadline" ]; then
-                echo "== TIMEOUT after ${DEADLOCK_TIMEOUT_MINUTES} min (${elapsed}s) — assuming DEADLOCK, capturing diagnostics ==" | tee -a compile_output.txt
-                capture_deadlock "$pid" "$asset"
-                DEADLOCKED=1
-                CRASHED=1
-                cp "$log" "crash-dump/${asset}.log.txt"
-                cp compile_output.txt crash-dump/compile_output.txt
-                kill -9 "$pid" 2>/dev/null || true
-                wait "$pid" 2>/dev/null || true
-                status=124
-                break
-              fi
-              sleep 5
-            done
-            if [ "$status" != "124" ]; then
-              wait "$pid"
-              status=$?
+            local test_exe="chemical-tests"
+            local compile_cmd="$exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o $test_exe"
+            local run_cmd="./$test_exe"
+
+            echo "##############################################################" | tee -a compile_output.txt
+            echo "# PHASE 1/2 — COMPILING the test suite into $test_exe" | tee -a compile_output.txt
+            echo "# this phase exercises the COMPILER (build.lab -> executable)" | tee -a compile_output.txt
+            echo "##############################################################" | tee -a compile_output.txt
+            local phase1_status=0
+            run_phase "COMPILER" "$compile_cmd" "$exe_root" "$asset" "compile"
+            phase1_status=$?
+
+            echo "##############################################################" | tee -a compile_output.txt
+            echo "# PHASE 2/2 — RUNNING the compiled test suite executable" | tee -a compile_output.txt
+            echo "# this phase exercises the TEST SUITE (the produced $test_exe)" | tee -a compile_output.txt
+            echo "##############################################################" | tee -a compile_output.txt
+            local phase2_status=0
+            if [ "$phase1_status" -eq 0 ] && [ -f "variant_work/$exe_root/$test_exe" ]; then
+              run_phase "TEST SUITE" "$run_cmd" "$exe_root" "$asset" "run"
+              phase2_status=$?
+            else
+              echo "== skipping phase 2: phase 1 did not produce $test_exe (COMPILER failed)" | tee -a compile_output.txt
+              phase2_status=1
             fi
-            cat "$log" | tee -a compile_output.txt
-            # a deadlock was already fully diagnosed (and the process killed) by
-            # the watchdog — re-running under gdb would hang again, so skip it
-            if [ "$status" -ne 0 ] && [ "$DEADLOCKED" != "1" ]; then
-              # the suite crashed/failed — re-run the exact command under the
-              # debugger and keep everything for the crash dump
-              echo "== exit $status; capturing full crash data with ${{ matrix.debugger }} ==" | tee -a compile_output.txt
-              local dbgout="crash-dump/${asset}.debugger.txt"
-              (
-                cd "variant_work/$exe_root"
-                capture_crash "$cmd"
-              ) > "$dbgout" 2>&1
-              cat "$dbgout" | tee -a compile_output.txt
-              cp "$log" "crash-dump/${asset}.log.txt"
-              cp compile_output.txt crash-dump/compile_output.txt
-              CRASHED=1
+
+            if [ "$phase1_status" -eq 0 ] && [ "$phase2_status" -eq 0 ]; then
+              echo "== $asset: COMPILER and TEST SUITE both completed successfully ==" | tee -a compile_output.txt
+              return 0
             fi
-            echo "== $asset exit code: $status ==" | tee -a compile_output.txt
-            return $status
+            echo "== $asset: FAILED (compiler phase=$phase1_status, test-suite phase=$phase2_status) ==" | tee -a compile_output.txt
+            return 1
           }
 
           CRASHED=0
@@ -1043,12 +1099,16 @@ jobs:
             echo "source commit: ${SOURCE_SHA}"
             echo "debugger: $(command -v gdb || command -v lldb || echo none)"
             echo "commands:"
-            echo "  ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+            echo "  phase1 (compiler): ./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
+            echo "  phase2 (tests):   ./chemical-tests"
           } > crash-dump/system-info.txt
 
           echo "CRASHED=$CRASHED" >> "$GITHUB_ENV"
           echo "TESTS_RC=$rc" >> "$GITHUB_ENV"
           if [ "$CRASHED" = "1" ]; then
+            echo "== final crash identification =="
+            grep -E "CRASH IDENTIFICATION: the .* crashed" compile_output.txt || true
+            grep -E "   cause : .*" compile_output.txt || true
             if [ "$DEADLOCKED" = "1" ]; then
               echo "test suite DEADLOCKED — packaging crash dump with deadlock diagnostics"
             else

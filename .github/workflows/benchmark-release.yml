@@ -120,6 +120,12 @@ jobs:
             TOOL_DIR="$GITHUB_WORKSPACE/tooling/scripts"
           fi
           ARGS="--tag ${TAG} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
+          # alpine only: the collect runs in the tagrepo working-directory with
+          # scripts from tooling/, which would default OUT to tooling/.bench-data
+          # — never matching the upload path. Other platforms already default to
+          # the workspace root (and on Windows GITHUB_WORKSPACE is a Windows-style
+          # path, so do NOT use it in bash for them).
+          if [ "${{ matrix.name }}" = "alpine" ]; then ARGS="$ARGS --out $GITHUB_WORKSPACE/.bench-data"; fi
           if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
           bash "$TOOL_DIR/bench-collect-release.sh" $ARGS
         env:
@@ -130,7 +136,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-release-${{ matrix.name }}
-          path: .bench-data/releases/
+          path: .bench-data/
+          # `.bench-data` is a hidden directory (leading dot); upload-artifact
+          # silently skips hidden paths unless explicitly included — without
+          # this every platform uploads nothing
+          include-hidden-files: true
           if-no-files-found: ignore
 
   publish:
@@ -154,11 +164,10 @@ jobs:
       - name: Publish to gh-pages
         run: |
           mkdir -p .bench-data
-          # collect uploads `path: .bench-data/releases/`, so the merged
-          # artifact nests the data under `.bench-data/releases/` too
-          if [ -d merged/.bench-data/releases ]; then
-            cp -r merged/.bench-data/releases .bench-data/
-          fi
+          # collect uploads `path: .bench-data/` (include-hidden-files), so the
+          # artifact root IS the contents of .bench-data/ (releases/ here)
+          if [ -d merged/daily ]; then cp -r merged/daily .bench-data/; fi
+          if [ -d merged/releases ]; then cp -r merged/releases .bench-data/; fi
           bash scripts/bench-push-pages.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

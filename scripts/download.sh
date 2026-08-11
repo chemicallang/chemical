@@ -5,14 +5,30 @@
 
 set -euo pipefail
 
-# Usage: ./install-chemical.sh
+# Usage: ./download.sh [--debug]
+#   --debug   download the DEBUG build (full debug symbols, published to
+#             chemicallang/chemical-debug by the Build & Release workflow
+#             when deploy_debug is enabled) instead of the stable release.
+#             Debug releases are tagged with the source commit SHA.
 # Env vars:
-#   VERSION (default v0.0.32)
+#   VERSION (default latest; a commit SHA selects a specific debug build)
 #   RELEASE_PLATFORM (optional: e.g. linux, linux-alpine, macos, windows)
 #   VARIANT (empty OR tcc OR lsp)
 #   ARCH_OVERRIDE (optional: amd64 | arm64 | x64 etc)
 #   GITHUB_OWNER (default chemicallang)
-#   GITHUB_REPO (default chemical)
+#   GITHUB_REPO (default chemical; chemical-debug with --debug)
+#   DEBUG (1/true) — same as --debug
+
+DEBUG="${DEBUG:-}"
+for arg in "$@"; do
+  case "$arg" in
+    --debug) DEBUG=1 ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      exit 2
+      ;;
+  esac
+done
 
 VERSION="${VERSION:-latest}"
 RELEASE_PLATFORM="${RELEASE_PLATFORM:-}"
@@ -20,25 +36,65 @@ VARIANT="${VARIANT:-}"
 ARCH_OVERRIDE="${ARCH_OVERRIDE:-}"
 
 GITHUB_OWNER="${GITHUB_OWNER:-chemicallang}"
-GITHUB_REPO="${GITHUB_REPO:-chemical}"
+if [ -n "$DEBUG" ]; then
+  GITHUB_REPO="${GITHUB_REPO:-chemical-debug}"
+else
+  GITHUB_REPO="${GITHUB_REPO:-chemical}"
+fi
 
 # Fetch latest version if requested
 if [[ "$VERSION" == "latest" || -z "$VERSION" ]]; then
-  echo "Checking for latest stable release..."
-  # Use git ls-remote to find the latest tag (sorted by version)
-  # This avoids dependancy on GitHub CLI or API rate limits
-  if command -v git >/dev/null 2>&1; then
-    LATEST_TAG=$(git ls-remote --tags --sort="v:refname" "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git" | tail -n1 | awk '{print $2}' | cut -d/ -f3)
-    if [ -n "$LATEST_TAG" ]; then
-      VERSION="$LATEST_TAG"
-      echo "Latest version detected: $VERSION"
+  if [ -n "$DEBUG" ]; then
+    echo "Checking for latest debug build..."
+    # Debug releases are tagged with commit SHAs (not version tags), so we
+    # ask the GitHub API for releases newest-first and take the first one
+    # that actually has assets.
+    if command -v curl >/dev/null 2>&1; then
+      RELEASES_JSON=$(curl -sf "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=10" 2>/dev/null || true)
+      LATEST_TAG=""
+      if [ -n "$RELEASES_JSON" ]; then
+        if command -v jq >/dev/null 2>&1; then
+          LATEST_TAG=$(printf '%s' "$RELEASES_JSON" | jq -r '[.[] | select(.assets | length > 0)][0].tag_name // empty' 2>/dev/null || true)
+        elif command -v python3 >/dev/null 2>&1; then
+          LATEST_TAG=$(printf '%s' "$RELEASES_JSON" | python3 -c "import sys,json
+try:
+  rels=json.load(sys.stdin)
+  print(next((r['tag_name'] for r in rels if r.get('assets')), ''))
+except Exception:
+  print('')" 2>/dev/null || true)
+        elif command -v grep >/dev/null 2>&1; then
+          # naive fallback: first "tag_name" that appears before an asset block
+          LATEST_TAG=$(printf '%s' "$RELEASES_JSON" | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)"/\1/' 2>/dev/null || true)
+        fi
+      fi
+      if [ -n "$LATEST_TAG" ]; then
+        VERSION="$LATEST_TAG"
+        echo "Latest debug build detected: $VERSION"
+      else
+        echo "Warning: no debug builds found in ${GITHUB_OWNER}/${GITHUB_REPO} (was the Build & Release workflow run with deploy_debug enabled?)" >&2
+        exit 2
+      fi
     else
-      VERSION="v0.0.32"
-      echo "Warning: No tags found, falling back to $VERSION"
+      echo "ERROR: curl required to resolve the latest debug build" >&2
+      exit 2
     fi
   else
-    VERSION="v0.0.32"
-    echo "Warning: git not found, falling back to $VERSION"
+    echo "Checking for latest stable release..."
+    # Use git ls-remote to find the latest tag (sorted by version)
+    # This avoids dependancy on GitHub CLI or API rate limits
+    if command -v git >/dev/null 2>&1; then
+      LATEST_TAG=$(git ls-remote --tags --sort="v:refname" "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git" | tail -n1 | awk '{print $2}' | cut -d/ -f3)
+      if [ -n "$LATEST_TAG" ]; then
+        VERSION="$LATEST_TAG"
+        echo "Latest version detected: $VERSION"
+      else
+        VERSION="v0.0.32"
+        echo "Warning: No tags found, falling back to $VERSION"
+      fi
+    else
+      VERSION="v0.0.32"
+      echo "Warning: git not found, falling back to $VERSION"
+    fi
   fi
 fi
 
@@ -126,25 +182,44 @@ if [ -z "${RELEASE_PLATFORM:-}" ]; then
 fi
 
 # Build candidate asset names (tries variant-specific first then non-variant)
+# In --debug mode every asset is suffixed with -debug (e.g. linux-x64-tcc-debug.zip)
+# and lives in the chemical-debug repo.
 candidates=()
 
-if [ -n "$VARIANT" ]; then
-  candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}-${VARIANT}.zip")
+if [ -n "$DEBUG" ]; then
+  if [ -n "$VARIANT" ]; then
+    candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}-${VARIANT}-debug.zip")
+  fi
+  candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}-debug.zip")
+else
+  if [ -n "$VARIANT" ]; then
+    candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}-${VARIANT}.zip")
+  fi
+  candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}.zip")
 fi
-candidates+=("${RELEASE_PLATFORM}-${ARCH_TOKEN}.zip")
 
 # fallback to x64 if arch-specific not present
 if [ "$ARCH_TOKEN" != "x64" ]; then
-  if [ -n "$VARIANT" ]; then
-    candidates+=("${RELEASE_PLATFORM}-x64-${VARIANT}.zip")
+  if [ -n "$DEBUG" ]; then
+    if [ -n "$VARIANT" ]; then
+      candidates+=("${RELEASE_PLATFORM}-x64-${VARIANT}-debug.zip")
+    fi
+    candidates+=("${RELEASE_PLATFORM}-x64-debug.zip")
+  else
+    if [ -n "$VARIANT" ]; then
+      candidates+=("${RELEASE_PLATFORM}-x64-${VARIANT}.zip")
+    fi
+    candidates+=("${RELEASE_PLATFORM}-x64.zip")
   fi
-  candidates+=("${RELEASE_PLATFORM}-x64.zip")
 fi
 
 BASE_URL="https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/${VERSION}"
 
 echo "Installation settings:"
 echo "  VERSION= $VERSION"
+echo "  DEBUG= ${DEBUG:-no}"
+echo "  GITHUB_OWNER= $GITHUB_OWNER"
+echo "  GITHUB_REPO= $GITHUB_REPO"
 echo "  RELEASE_PLATFORM= $RELEASE_PLATFORM"
 echo "  DETECTED_PLATFORM= $DETECTED_PLATFORM"
 echo "  VARIANT= $VARIANT"

@@ -8,6 +8,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_debug:
+        description: 'Also build debug builds (full debug symbols) and deploy them to chemicallang/chemical-debug'
+        required: false
+        type: boolean
+        default: false
 
 env:
   LLVM_RELEASE_TAG: "v22.1.1"
@@ -90,6 +96,37 @@ jobs:
           mv chemical/out/release/windows.zip chemical/out/release/windows-${{ matrix.arch }}.zip
           mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
           mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
+
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        working-directory: chemical
+        shell: pwsh
+        run: |
+          cmake -S . -B out\build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
+          cmake --build out\build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out\build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Expand-Archive -Path "chemical\out\release\windows-${{ matrix.arch }}.zip" -DestinationPath dbg_regular -Force
+          Copy-Item "chemical\out\build-debug\Compiler.exe" "dbg_regular\chemical\chemical.exe" -Force
+          Compress-Archive -Path "dbg_regular\*" -DestinationPath "chemical\out\release\windows-${{ matrix.arch }}-debug.zip" -Force
+          Expand-Archive -Path "chemical\out\release\windows-${{ matrix.arch }}-tcc.zip" -DestinationPath dbg_tcc -Force
+          Copy-Item "chemical\out\build-debug\TCCCompiler.exe" "dbg_tcc\chemical-tcc\chemical.exe" -Force
+          Compress-Archive -Path "dbg_tcc\*" -DestinationPath "chemical\out\release\windows-${{ matrix.arch }}-tcc-debug.zip" -Force
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-windows-${{ matrix.arch }}
+          path: |
+            chemical/out/release/windows-${{ matrix.arch }}-debug.zip
+            chemical/out/release/windows-${{ matrix.arch }}-tcc-debug.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
@@ -251,6 +288,32 @@ jobs:
           mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
           mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
 
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        working-directory: chemical
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B out/build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        shell: msys2 {0}
+        run: |
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler.exe chemical/out/release/windows-mingw-${{ matrix.arch }}-debug.zip chemical/chemical.exe
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler.exe chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical.exe
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-windows-mingw-${{ matrix.arch }}
+          path: |
+            chemical/out/release/windows-mingw-${{ matrix.arch }}-debug.zip
+            chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc-debug.zip
+
       - name: Get latest release info
         id: get_latest_release
         uses: actions/github-script@v6
@@ -409,6 +472,39 @@ jobs:
           mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
           mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-msvcrt-x64-lsp.zip
 
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        shell: bash
+        run: |
+          LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64"
+          export PATH="$HOME/${LLVM_MINGW_NAME}/bin:$PATH"
+          export CC=clang
+          export CXX=clang++
+          cd chemical
+          mkdir -p out/build-debug
+          cmake -S . -B out/build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        shell: bash
+        run: |
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-msvcrt-x64.zip chemical/out/build-debug/Compiler.exe chemical/out/release/windows-mingw-msvcrt-x64-debug.zip chemical/chemical.exe
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip chemical/out/build-debug/TCCCompiler.exe chemical/out/release/windows-mingw-msvcrt-x64-tcc-debug.zip chemical-tcc/chemical.exe
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-windows-mingw-msvcrt-x64
+          path: |
+            chemical/out/release/windows-mingw-msvcrt-x64-debug.zip
+            chemical/out/release/windows-mingw-msvcrt-x64-tcc-debug.zip
+
       - name: Get latest release info
         id: get_latest_release
         uses: actions/github-script@v6
@@ -551,6 +647,30 @@ jobs:
           mv chemical/out/release/linux.zip chemical/out/release/linux-${{ matrix.arch }}.zip
           mv chemical/out/release/linux-tcc.zip chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
           mv chemical/out/release/linux-lsp.zip chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
+
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        working-directory: chemical
+        run: |
+          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        run: |
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/linux-${{ matrix.arch }}-debug.zip chemical/chemical
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/linux-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-linux-${{ matrix.arch }}
+          path: |
+            chemical/out/release/linux-${{ matrix.arch }}-debug.zip
+            chemical/out/release/linux-${{ matrix.arch }}-tcc-debug.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
@@ -704,6 +824,30 @@ jobs:
           mv chemical/out/release/linux-alpine.zip chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
           mv chemical/out/release/linux-alpine-tcc.zip chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
 
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        working-directory: chemical
+        run: |
+          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        run: |
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-alpine-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/linux-alpine-${{ matrix.arch }}-debug.zip chemical/chemical
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-linux-alpine-${{ matrix.arch }}
+          path: |
+            chemical/out/release/linux-alpine-${{ matrix.arch }}-debug.zip
+            chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc-debug.zip
+
       - name: Get latest release info
         id: get_latest_release
         uses: actions/github-script@v6
@@ -843,6 +987,30 @@ jobs:
           mv chemical/out/release/macos-tcc.zip chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
           mv chemical/out/release/macos-lsp.zip chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
 
+      # ––– Debug builds (only when deploy_debug is enabled) –––
+      - name: Build debug binaries (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        working-directory: chemical
+        run: |
+          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
+          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
+
+      - name: Package debug zips (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        run: |
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/macos-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/macos-${{ matrix.arch }}-debug.zip chemical/chemical
+          bash chemical/scripts/make-debug-zip.sh chemical/out/release/macos-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/macos-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
+
+      - name: Upload debug zips as artifact (deploy_debug)
+        if: inputs.deploy_debug == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-macos-${{ matrix.arch }}
+          path: |
+            chemical/out/release/macos-${{ matrix.arch }}-debug.zip
+            chemical/out/release/macos-${{ matrix.arch }}-tcc-debug.zip
+
       # Get latest release info
       - name: Get latest release info
         id: get_latest_release
@@ -915,3 +1083,82 @@ jobs:
         with:
           name: macos-${{ matrix.arch }}-lsp.zip
           path: chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+
+  # ––– Deploy debug builds to chemicallang/chemical-debug –––
+  # Collects the debug zips built by every platform job (when deploy_debug is
+  # enabled), attaches the source commit metadata, and publishes them as a
+  # release in the chemical-debug repo tagged with the chemical commit SHA.
+  # The debug-tests workflow reads commit.json from that release to know which
+  # chemical commit the binaries were compiled from (and which test sources to
+  # use with them). Requires a PAT with write access to chemical-debug,
+  # stored as the CHEMICAL_DEBUG_TOKEN repository secret.
+  deploy-debug:
+    name: Deploy debug builds to chemical-debug
+    needs: [build-windows, build-windows-mingw, build-windows-mingw-msvcrt, build-linux, build-alpine, build-macos]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_debug == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all debug artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: debug
+          # only the debug-* artifacts (the platform jobs also upload saved
+          # release zips like windows-x64.zip as artifacts — we must not
+          # re-upload those as duplicate assets on the debug release)
+          pattern: debug-*
+          merge-multiple: true
+
+      - name: Write commit metadata
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            const sha = context.sha;
+            require('fs').writeFileSync('commit.json', JSON.stringify({
+              sha: sha,
+              short: sha.slice(0, 12),
+              date: commit.commit.committer.date,
+              message: commit.commit.message.split('\n')[0],
+              url: commit.html_url
+            }, null, 2) + '\n');
+            console.log('commit.json written for ' + sha);
+
+      - name: Remove previous debug release for this commit (idempotent)
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
+          script: |
+            const owner = 'chemicallang';
+            const repo = 'chemical-debug';
+            try {
+              const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag: context.sha });
+              await github.rest.repos.deleteRelease({ owner, repo, release_id: rel.data.id });
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: 'tags/' + context.sha });
+              } catch (e) { /* tag may not exist */ }
+              console.log('removed previous debug release for ' + context.sha);
+            } catch (e) {
+              console.log('no previous debug release to remove');
+            }
+
+      - name: Publish debug builds to chemical-debug
+        uses: softprops/action-gh-release@v1
+        with:
+          repository: chemicallang/chemical-debug
+          token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
+          tag_name: ${{ github.sha }}
+          name: Debug build ${{ github.sha }}
+          body: |
+            Debug builds of [chemicallang/chemical](https://github.com/chemicallang/chemical) at commit `${{ github.sha }}`.
+
+            - Read `commit.json` for the exact source commit metadata.
+            - Binary names follow the release naming with a `-debug` suffix:
+              `<platform>-<arch>-debug.zip` (LLVM Compiler) and
+              `<platform>-<arch>-tcc-debug.zip` (TCCCompiler).
+          files: |
+            debug/*.zip
+            commit.json

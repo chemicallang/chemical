@@ -1,0 +1,376 @@
+#!/usr/bin/env bash
+# Copyright (c) Chemical Language Foundation 2025.
+#
+# Shared helpers for the Chemical benchmark / release analytics collection.
+# Sources of truth: the raw JSON data lives in the gh-pages branch under data/.
+# Every failure is recorded as an individual data point with a status — never
+# aborts the whole collection.
+set -euo pipefail
+
+BENCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"  # repo root (scripts live in scripts/)
+# Local staging dir for collected data (gitignored; only the gh-pages branch
+# ever carries data). The dashboard site lives on the gh-pages branch itself.
+DATA_ROOT="${DATA_ROOT:-$BENCH_ROOT/.bench-data}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# dates / environment
+# ─────────────────────────────────────────────────────────────────────────────
+bm_date_utc()  { date -u +%Y-%m-%d; }
+bm_datetime()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+bm_platform() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
+    Darwin*)              echo "macos" ;;
+    Linux*)               echo "linux" ;;
+    *)                    echo "unknown" ;;
+  esac
+}
+
+bm_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "x64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "$(uname -m)" ;;
+  esac
+}
+
+# musl (alpine) detection — used to record the libc flavour in the environment
+bm_libc() {
+  if [ -f /etc/alpine-release ]; then echo "musl"; else echo "glibc"; fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# logging
+# ─────────────────────────────────────────────────────────────────────────────
+bm_log()  { echo "[bench] $*"; }
+bm_warn() { echo "[bench] WARN: $*" >&2; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# version comparison + release-era asset expectations
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: relies on GNU sort -V (coreutils). The alpine workflow installs
+# coreutils for this; do not remove it from the container deps.
+ver_ge() { # <a> <b> — true if version a >= version b (semver sort)
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+}
+
+# Expected compiler zip asset names for a release tag's era.
+# Derived from the actual asset lists published per release (checked against
+# the GitHub API). lsp assets are intentionally excluded (not compilers).
+# A missing asset is recorded as missing_asset — the dashboard surfaces it.
+expected_assets() { # <tag>
+  local tag="$1"
+  if ver_ge "$tag" "v0.0.32"; then
+    echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip windows-x64.zip windows-x64-tcc.zip windows-arm64.zip windows-arm64-tcc.zip windows-mingw-x64.zip windows-mingw-x64-tcc.zip windows-mingw-arm64.zip windows-mingw-arm64-tcc.zip windows-mingw-msvcrt-x64.zip windows-mingw-msvcrt-x64-tcc.zip"
+  elif ver_ge "$tag" "v0.0.31"; then
+    echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip"
+  elif ver_ge "$tag" "v0.0.25"; then
+    echo "linux-x64.zip linux-x64-tcc.zip linux-arm64.zip linux-arm64-tcc.zip linux-alpine-x64.zip linux-alpine-x64-tcc.zip macos-x64.zip macos-x64-tcc.zip macos-arm64.zip macos-arm64-tcc.zip windows-x64.zip windows-x64-tcc.zip windows-arm64.zip windows-arm64-tcc.zip"
+  elif ver_ge "$tag" "v0.0.9"; then
+    echo "linux-x86-64.zip linux-x86-64-tcc.zip windows-x64.zip windows-x64-tcc.zip"
+  fi
+}
+
+# asset_parts <asset-name> — prints "platform arch variant" (variant: regular|tcc)
+asset_parts() {
+  local name="$1" base="${1%.zip}" platform="" arch="" variant="regular"
+  case "$base" in
+    *-tcc) variant="tcc"; base="${base%-tcc}" ;;
+  esac
+  case "$base" in
+    linux-alpine-*)        platform="linux-alpine";        arch="${base#linux-alpine-}" ;;
+    linux-*)               platform="linux";               arch="${base#linux-}" ;;
+    macos-*)               platform="macos";               arch="${base#macos-}" ;;
+    windows-mingw-msvcrt-*) platform="windows-mingw-msvcrt"; arch="${base#windows-mingw-msvcrt-}" ;;
+    windows-mingw-*)       platform="windows-mingw";       arch="${base#windows-mingw-}" ;;
+    windows-*)             platform="windows";             arch="${base#windows-}" ;;
+  esac
+  echo "$platform $arch $variant"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON helpers (jq required)
+# ─────────────────────────────────────────────────────────────────────────────
+jq_escape() { printf '%s' "$1" | jq -Rs .; }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ANSI stripping (works on GNU + BSD sed via bash $'..')
+# ─────────────────────────────────────────────────────────────────────────────
+strip_ansi() {
+  sed -e $'s/\x1b\[[0-9;]*m//g' -e 's/\r$//'
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parsing test output.
+# The test framework prints lines like:
+#   Test 12 [name] succeeded        /  Test 13 [name] failed
+# and a summary from print_test_stats():
+#   Total 523 Passed 520 Failed 3
+# (with ANSI colour codes interleaved in both compiled and interpret modes).
+# Parses a log file and prints JSON: {"total":N,"passed":N,"failed":N,
+#  "succeeded":N,"failed_tests":[...]}
+# ─────────────────────────────────────────────────────────────────────────────
+parse_test_output() {
+  local log="$1"
+  local total=0 passed=0 failed=0
+  local line name
+  local -a failed_names=()
+
+  # one sed pass strips ANSI + CR (per-line subprocess spawns are far too slow
+  # on multi-thousand-line logs), then pure-bash regex matching
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^Test[[:space:]]+[0-9]+[[:space:]]+\[(.*)\][[:space:]]+succeeded[[:space:]]*$ ]]; then
+      total=$((total + 1)); passed=$((passed + 1))
+    elif [[ "$line" =~ ^Test[[:space:]]+[0-9]+[[:space:]]+\[(.*)\][[:space:]]+failed[[:space:]]*$ ]]; then
+      total=$((total + 1)); failed=$((failed + 1))
+      failed_names+=("${BASH_REMATCH[1]}")
+    elif [[ "$line" =~ ^Total[[:space:]]+([0-9]+)[[:space:]]+Passed[[:space:]]+([0-9]+)[[:space:]]+Failed[[:space:]]+([0-9]+) ]]; then
+      # summary line from print_test_stats — authoritative
+      total="${BASH_REMATCH[1]}"
+      passed="${BASH_REMATCH[2]}"
+      failed="${BASH_REMATCH[3]}"
+    fi
+  done < <(sed -e $'s/\x1b\[[0-9;]*m//g' -e 's/\r$//' "$log")
+
+  local failed_json="[]"
+  if [ "${#failed_names[@]}" -gt 0 ]; then
+    failed_json="["
+    local i n
+    for i in "${!failed_names[@]}"; do
+      [ "$i" -gt 0 ] && failed_json+=","
+      failed_json+="$(jq_escape "${failed_names[$i]}")"
+    done
+    failed_json+="]"
+  fi
+
+  printf '{"total":%s,"passed":%s,"failed":%s,"succeeded":%s,"failed_tests":%s}' \
+    "$total" "$passed" "$failed" "$passed" "$failed_json"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parsing compiler benchmark output (-bm / -bm-modules).
+# Emitted lines look like:
+#   [bm:module] 'main' completed [nano:12345] [micro:12] [milli:1] [sec:0]
+# Prints a JSON array: [{"tag":"bm:module","name":"main","nanos":..,"millis":..},..]
+# ─────────────────────────────────────────────────────────────────────────────
+parse_bm_output() {
+  local log="$1"
+  local line tag name nano micro milli sec
+  local -a items=()
+
+  # one sed pass strips ANSI + CR; then pure-bash ERE per line (unquoted
+  # regex fragments — quoting makes them literal in [[ =~ ]]). Emits one JSON
+  # object per "[tag] 'name' completed [nano:N] [micro:N] [milli:N] [sec:N]"
+  # line; name is optional.
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^\[([^]]+)\][[:space:]]+\'(.*)\'[[:space:]]+completed[[:space:]]+\[nano:([0-9]+)\][[:space:]]+\[micro:([0-9]+)\][[:space:]]+\[milli:([0-9]+)\][[:space:]]+\[sec:([0-9]+)\]$ ]]; then
+      tag="${BASH_REMATCH[1]}"; name="${BASH_REMATCH[2]}"
+      nano="${BASH_REMATCH[3]}"; micro="${BASH_REMATCH[4]}"
+      milli="${BASH_REMATCH[5]}"; sec="${BASH_REMATCH[6]}"
+      items+=("{\"tag\":$(jq_escape "$tag"),\"name\":$(jq_escape "$name"),\"nanos\":$nano,\"micros\":$micro,\"millis\":$milli,\"secs\":$sec}")
+    elif [[ "$line" =~ ^\[([^]]+)\][[:space:]]+completed[[:space:]]+\[nano:([0-9]+)\][[:space:]]+\[micro:([0-9]+)\][[:space:]]+\[milli:([0-9]+)\][[:space:]]+\[sec:([0-9]+)\]$ ]]; then
+      tag="${BASH_REMATCH[1]}"
+      nano="${BASH_REMATCH[2]}"; micro="${BASH_REMATCH[3]}"
+      milli="${BASH_REMATCH[4]}"; sec="${BASH_REMATCH[5]}"
+      items+=("{\"tag\":$(jq_escape "$tag"),\"name\":null,\"nanos\":$nano,\"micros\":$micro,\"millis\":$milli,\"secs\":$sec}")
+    fi
+  done < <(sed -e $'s/\x1b\[[0-9;]*m//g' -e 's/\r$//' "$log")
+
+  if [ "${#items[@]}" -eq 0 ]; then
+    echo "[]"
+  else
+    local out="["
+    local i
+    for i in "${!items[@]}"; do
+      [ "$i" -gt 0 ] && out+=","
+      out+="${items[$i]}"
+    done
+    out+="]"
+    echo "$out"
+  fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Run a command with a timeout, tee to a log, and produce a status.
+# usage: bm_run <out_status> <out_duration_ms> <timeout_secs> <log> <cmd...>
+#   out_status receives: success | timeout | failed
+#   The command's real exit code is stored in BM_EXIT_CODE.
+# ─────────────────────────────────────────────────────────────────────────────
+BM_EXIT_CODE=0
+bm_run() {
+  local out_status="$1" out_duration="$2" timeout_secs="$3" log="$4"; shift 4
+  local start end
+  start=$(date +%s%N)
+  set +e
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$timeout_secs" "$@" > "$log" 2>&1
+    BM_EXIT_CODE=$?
+  else
+    "$@" > "$log" 2>&1
+    BM_EXIT_CODE=$?
+  fi
+  set -e
+  end=$(date +%s%N)
+  printf -v "$out_duration" "%d" $(( (end - start) / 1000000 ))
+
+  if [ "$BM_EXIT_CODE" -eq 124 ]; then
+    printf -v "$out_status" "%s" "timeout"
+  elif [ "$BM_EXIT_CODE" -eq 0 ]; then
+    printf -v "$out_status" "%s" "success"
+  else
+    printf -v "$out_status" "%s" "failed"
+  fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hello-world benchmarks.
+# usage: bench_hello <backend> <bin> <bare|std> <bench_name> <outvar> <logdir>
+# Measures the *compilation* time of the program (the thing the compilers do).
+# The interpreter cannot run a standalone file (it needs a build.lab
+# interpretation job) so its hello benchmark is recorded as "unavailable".
+# ─────────────────────────────────────────────────────────────────────────────
+bench_hello() {
+  local backend="$1" bin="$2" kind="$3" bench_name="$4" outvar="$5" logdir="$6"
+  local work=".bench_tmp/hello_$kind"
+  rm -rf "$work"
+  mkdir -p "$work"
+
+  if [ "$kind" = "bare" ]; then
+    cat > "$work/main.ch" <<'EOF'
+@extern public func printf(format : *char, _ : any...) : int
+public func main() : int {
+    printf("hello world")
+    return 0
+}
+EOF
+    local hello_src="$work/main.ch"
+  else
+    mkdir -p "$work/src"
+    cat > "$work/chemical.mod" <<'EOF'
+application hello_std
+source "src"
+import std
+EOF
+    cat > "$work/src/main.ch" <<'EOF'
+public func main() : int {
+    println(`hello from chemical`)
+    return 0
+}
+EOF
+    hello_src="$work/chemical.mod"
+  fi
+
+  local log="$logdir/${backend}_hello_${kind}.log"
+  local status="" dur_ms=0
+
+  if [ "$backend" = "Interpreter" ]; then
+    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI","duration_ms":null}' "$(jq_escape "$bench_name")"
+    return
+  fi
+  if [ ! -f "$bin" ]; then
+    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"compiler binary not built","duration_ms":null}' "$(jq_escape "$bench_name")"
+    return
+  fi
+
+  local out_exe="$work/hello_$kind.exe"
+  bm_run status dur_ms 600 "$log" "$bin" "$hello_src" -o "$out_exe" --mode debug_quick --no-cache
+
+  local reason="null"
+  [ "$status" != "success" ] && reason=$(jq_escape "compiler exited with code $BM_EXIT_CODE")
+  printf -v "$outvar" '{"name":%s,"status":%s,"reason":%s,"duration_ms":%s}' \
+    "$(jq_escape "$bench_name")" "$(jq_escape "$status")" "$reason" "$dur_ms"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Module benchmarks + test suite for one backend.
+# usage: bench_modules_and_tests <backend> <bin> <log_base> <outvar> <logdir> <quick>
+#   1) compiles lang/tests/build.lab with -bm-modules (yields per-module
+#      timings + the test executable for compiled backends)
+#   2) runs the test suite (compiled: run the exe; interpreter: --arg-interpret)
+# Emits JSON: {"modules":[...],"tests":{...},"build_ms":N,"build_status":"..."}
+# The caller must already be inside the repo/checkout that owns the test sources.
+# ─────────────────────────────────────────────────────────────────────────────
+bench_modules_and_tests() {
+  local backend="$1" bin="$2" log_base="$3" outvar="$4" logdir="$5" quick="$6"
+  local build_log="$logdir/${log_base}_build.log"
+  local test_log="$logdir/${log_base}_tests.log"
+  local build_status="" build_ms=0 test_status="" test_ms=0
+  local modules_json="[]" tests_json='{"status":"unavailable","reason":"not run","total":null,"passed":null,"failed":null,"duration_ms":null,"failed_tests":[]}'
+  local exe=""
+
+  if [ "$quick" = "true" ]; then
+    printf -v "$outvar" '{"modules":%s,"tests":%s,"build_ms":null,"build_status":"skipped"}' "[]" "$tests_json"
+    return
+  fi
+
+  if [ "$backend" = "Interpreter" ]; then
+    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache -bm-modules
+  else
+    case "$backend" in
+      TCCCompiler) exe="lang/tests/build/tests-tcc.exe" ;;
+      Compiler)    exe="lang/tests/build/tests.exe" ;;
+    esac
+    bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab -o "$exe" --mode debug_quick --no-cache -bm-modules
+  fi
+
+  if [ "$build_status" = "success" ]; then
+    modules_json="$(parse_bm_output "$build_log")"
+    if [ "$backend" = "Interpreter" ]; then
+      # interpret mode runs the tests inside the compiler process
+      bm_run test_status test_ms 900 "$test_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache
+    else
+      if [ -f "$exe" ]; then
+        bm_run test_status test_ms 900 "$test_log" "$exe"
+      else
+        test_status="failed"
+        test_ms=0
+      fi
+    fi
+
+    if [ -f "$test_log" ]; then
+      local counts
+      counts="$(parse_test_output "$test_log")"
+      local status="success"
+      [ "$test_status" != "success" ] && status="test_failure"
+      tests_json="$(printf '%s' "$counts" | jq --arg st "$status" --argjson ms "$test_ms" '{status:$st,total:.total,passed:.passed,failed:.failed,duration_ms:$ms,failed_tests:.failed_tests}')"
+    else
+      tests_json="$(printf '{"status":"failed","reason":"no test output","total":null,"passed":null,"failed":null,"duration_ms":%s,"failed_tests":[]}' "$test_ms")"
+    fi
+  else
+    tests_json="$(printf '{"status":"build_failure","reason":%s,"total":null,"passed":null,"failed":null,"duration_ms":%s,"failed_tests":[]}' \
+      "$(jq_escape "test suite compilation failed with exit code $BM_EXIT_CODE")" "$build_ms")"
+  fi
+
+  printf -v "$outvar" '{"modules":%s,"tests":%s,"build_ms":%s,"build_status":%s}' \
+    "$modules_json" "$tests_json" "$build_ms" "$(jq_escape "$build_status")"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Write a JSON file atomically (tmp + mv)
+# ─────────────────────────────────────────────────────────────────────────────
+bm_write_json() { # <file> <json>
+  local tmp
+  tmp="$(mktemp)"
+  printf '%s\n' "$2" > "$tmp"
+  mkdir -p "$(dirname "$1")"
+  mv "$tmp" "$1"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Link shared tooling (libtcc + the lsp submodule) from the main checkout into
+# a worktree checked out at an older commit. Old commits do not contain
+# lib/tcc or the submodule, but the compiler build needs them to link.
+# usage: bm_link_shared_tooling <worktree_root> <main_root>
+# ─────────────────────────────────────────────────────────────────────────────
+bm_link_shared_tooling() {
+  local wt="$1" main_root="$2"
+  if [ -d "$main_root/lib/tcc" ] && [ ! -e "$wt/lib/tcc" ]; then
+    mkdir -p "$wt/lib"
+    ln -s "$main_root/lib/tcc" "$wt/lib/tcc"
+  fi
+  if [ -d "$main_root/lib/lsp-framework" ] && [ ! -e "$wt/lib/lsp-framework" ]; then
+    mkdir -p "$wt/lib"
+    ln -s "$main_root/lib/lsp-framework" "$wt/lib/lsp-framework"
+  fi
+}

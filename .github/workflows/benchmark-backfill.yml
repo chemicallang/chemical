@@ -1,0 +1,152 @@
+name: Benchmark Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Days of commit history to backfill (one point per day). ~1500 commits ≈ last 1500 days.'
+        required: false
+        type: number
+        default: 30
+      mode:
+        description: 'daily = one compiler build per day (recommended). commits = one per commit. NOTE: chunking is day-based, so use daily mode when chunks > 1.'
+        required: false
+        type: choice
+        options:
+          - daily
+          - commits
+        default: daily
+      chunks:
+        description: 'Parallel jobs to split the range across. Each job gets days/chunks and stops at the time budget — stay under the 6h runner limit.'
+        required: false
+        type: number
+        default: 1
+      limit:
+        description: 'Maximum number of points to collect per chunk (0 = unlimited)'
+        required: false
+        type: number
+        default: 0
+      time_budget_min:
+        description: 'Stop a chunk job after this many minutes so the runner never kills it. Re-dispatch to resume (collected points are skipped).'
+        required: false
+        type: number
+        default: 300
+      releases:
+        description: 'Also collect release info + benchmarks (only chunk 0 does this)'
+        required: false
+        type: boolean
+        default: true
+      quick:
+        description: 'Quick mode — hello + module benchmarks only, skip test suites'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmark-backfill
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare chunk list
+    runs-on: ubuntu-24.04
+    outputs:
+      chunks: ${{ steps.gen.outputs.chunks }}
+    steps:
+      - id: gen
+        run: |
+          C="${{ inputs.chunks }}"
+          [ "$C" -lt 1 ] && C=1
+          echo "chunks=$(python3 -c "import json,sys;print(json.dumps([str(i) for i in range(int(sys.argv[1]))]))" "$C")" >> "$GITHUB_OUTPUT"
+
+  backfill:
+    name: Backfill chunk ${{ matrix.chunk }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    # A standard runner kills jobs after 6h. Each chunk builds at most
+    # days/chunks points (~15-20 min each) and obeys --time-budget-min, so a
+    # single job always finishes well before the hard cap.
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJSON(needs.prepare.outputs.chunks) }}
+    steps:
+      - name: Checkout (default branch — scripts + full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake jq zip unzip
+
+      - name: Setup (download libtcc, submodules)
+        run: ./scripts/setup.sh
+
+      - name: Run backfill chunk
+        run: |
+          DAYS="${{ inputs.days }}"
+          CHUNKS="${{ inputs.chunks }}"
+          [ "$CHUNKS" -lt 1 ] && CHUNKS=1
+          CHUNK="${{ matrix.chunk }}"
+          # chunk c covers days [c*size, (c+1)*size) — offset-days skips the
+          # newest days so parallel jobs never overlap. The last chunk is
+          # clamped so the total never exceeds the requested DAYS.
+          SIZE=$(( (DAYS + CHUNKS - 1) / CHUNKS ))
+          OFFSET=$(( CHUNK * SIZE ))
+          # chunks beyond the requested range would be no-ops — skip them
+          if [ "$OFFSET" -ge "$DAYS" ]; then
+            echo "chunk $CHUNK starts beyond days=$DAYS; nothing to do"
+            exit 0
+          fi
+          if [ $(( OFFSET + SIZE )) -gt "$DAYS" ]; then SIZE=$(( DAYS - OFFSET )); fi
+          # clamp the budget so budget + one in-flight point (~30 min) always
+          # fits inside the 360 min runner cap
+          BUDGET="${{ inputs.time_budget_min }}"
+          [ "$BUDGET" -lt 1 ] && BUDGET=300
+          [ "$BUDGET" -gt 330 ] && BUDGET=330
+          ARGS="--days $SIZE --offset-days $OFFSET --mode ${{ inputs.mode }} --time-budget-min $BUDGET"
+          if [ "${{ inputs.limit }}" != "0" ]; then ARGS="$ARGS --limit ${{ inputs.limit }}"; fi
+          if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
+          # only chunk 0 collects releases (they are shared, not per-date)
+          if [ "$CHUNK" != "0" ] || [ "${{ inputs.releases }}" != "true" ]; then ARGS="$ARGS --no-releases"; fi
+          bash scripts/bench-backfill.sh $ARGS
+
+      - name: Upload chunk data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-backfill-${{ matrix.chunk }}
+          path: .bench-data/
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish to gh-pages
+    needs: [backfill]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout (default branch — scripts)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all chunk data
+        uses: actions/download-artifact@v4
+        with:
+          path: merged
+          merge-multiple: true
+
+      - name: Publish to gh-pages
+        run: |
+          mkdir -p .bench-data
+          if [ -d merged/daily ]; then cp -r merged/daily .bench-data/; fi
+          if [ -d merged/releases ]; then cp -r merged/releases .bench-data/; fi
+          bash scripts/bench-push-pages.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

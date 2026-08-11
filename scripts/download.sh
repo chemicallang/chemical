@@ -8,7 +8,7 @@ set -euo pipefail
 # Usage: ./download.sh [--debug]
 #   --debug   download the DEBUG build (full debug symbols, published to
 #             chemicallang/chemical-debug by the Build & Release workflow
-#             when deploy_debug is enabled) instead of the stable release.
+#             with a debug config (RelWithDebInfo/Debug)) instead of the stable release.
 #             Debug releases are tagged with the source commit SHA.
 # Env vars:
 #   VERSION (default latest; a commit SHA selects a specific debug build)
@@ -71,7 +71,7 @@ except Exception:
         VERSION="$LATEST_TAG"
         echo "Latest debug build detected: $VERSION"
       else
-        echo "Warning: no debug builds found in ${GITHUB_OWNER}/${GITHUB_REPO} (was the Build & Release workflow run with deploy_debug enabled?)" >&2
+        echo "Warning: no debug builds found in ${GITHUB_OWNER}/${GITHUB_REPO} (was the Build & Release workflow run with a debug config, e.g. RelWithDebInfo?)" >&2
         exit 2
       fi
     else

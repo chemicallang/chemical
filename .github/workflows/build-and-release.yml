@@ -9,14 +9,24 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      deploy_debug:
-        description: 'Also build debug builds (full debug symbols) and deploy them to chemicallang/chemical-debug'
+      config:
+        description: >-
+          Build configuration. 'Release' = optimized binaries published to chemicallang/chemical
+          (default). 'RelWithDebInfo' (recommended for debugging: symbols + optimization) or
+          'Debug' = binaries with full debug symbols, published to chemicallang/chemical-debug
+          instead.
         required: false
-        type: boolean
-        default: false
+        type: choice
+        default: Release
+        options:
+          - Release
+          - RelWithDebInfo
+          - Debug
 
 env:
   LLVM_RELEASE_TAG: "v22.1.1"
+  # Effective build config. On push (no dispatch inputs) this falls back to Release.
+  BUILD_CONFIG: ${{ inputs.config || 'Release' }}
 
 jobs:
   build-windows:
@@ -69,7 +79,7 @@ jobs:
           subst X: $PWD
           cd X:\chemical
           mkdir out\build
-          cmake -S . -B out\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
+          cmake -S . -B out\build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
 
       # Run the configure script to configure the project
       - name: Run configure script (Windows)
@@ -80,9 +90,9 @@ jobs:
       - name: Build Compiler Targets
         working-directory: chemical
         run: |
-          cmake --build out\build --config Release --target Compiler
-          cmake --build out\build --config Release --target TCCCompiler
-          cmake --build out\build --config Release --target ChemicalLsp
+          cmake --build out\build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out\build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
+          cmake --build out\build --config ${{ env.BUILD_CONFIG }} --target ChemicalLsp
 
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
@@ -93,43 +103,28 @@ jobs:
       - name: Rename Windows release files
         shell: bash
         run: |
-          mv chemical/out/release/windows.zip chemical/out/release/windows-${{ matrix.arch }}.zip
-          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
-          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/windows.zip chemical/out/release/windows-${{ matrix.arch }}${SUFFIX}.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-${{ matrix.arch }}-tcc${SUFFIX}.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-${{ matrix.arch }}-lsp${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        working-directory: chemical
-        shell: pwsh
-        run: |
-          cmake -S . -B out\build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
-          cmake --build out\build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out\build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Expand-Archive -Path "chemical\out\release\windows-${{ matrix.arch }}.zip" -DestinationPath dbg_regular -Force
-          Copy-Item "chemical\out\build-debug\Compiler.exe" "dbg_regular\chemical\chemical.exe" -Force
-          Compress-Archive -Path "dbg_regular\*" -DestinationPath "chemical\out\release\windows-${{ matrix.arch }}-debug.zip" -Force
-          Expand-Archive -Path "chemical\out\release\windows-${{ matrix.arch }}-tcc.zip" -DestinationPath dbg_tcc -Force
-          Copy-Item "chemical\out\build-debug\TCCCompiler.exe" "dbg_tcc\chemical-tcc\chemical.exe" -Force
-          Compress-Archive -Path "dbg_tcc\*" -DestinationPath "chemical\out\release\windows-${{ matrix.arch }}-tcc-debug.zip" -Force
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-windows-${{ matrix.arch }}
           path: |
             chemical/out/release/windows-${{ matrix.arch }}-debug.zip
             chemical/out/release/windows-${{ matrix.arch }}-tcc-debug.zip
+            chemical/out/release/windows-${{ matrix.arch }}-lsp-debug.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -151,6 +146,7 @@ jobs:
 
       # ––– we check whether it is already attached –––
       - name: Check if windows-${{ matrix.arch }}.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_windows
         uses: actions/github-script@v6
         with:
@@ -172,7 +168,7 @@ jobs:
 
       # Upload artifacts
       - name: Upload release artifacts
-        if: steps.check_windows.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -184,21 +180,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save windows-${{ matrix.arch }}.zip as artifact if already exists
-        if: steps.check_windows.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}.zip
           path: chemical/out/release/windows-${{ matrix.arch }}.zip
 
       - name: Save windows-${{ matrix.arch }}-tcc.zip as artifact if already exists
-        if: steps.check_windows.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}-tcc.zip
           path: chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
 
       - name: Save windows-${{ matrix.arch }}-lsp.zip as artifact if already exists
-        if: steps.check_windows.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}-lsp.zip
@@ -259,7 +255,7 @@ jobs:
         run: |
           cd chemical
           mkdir -p out/build
-          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       - name: Run configure script
         shell: msys2 {0}
@@ -271,9 +267,9 @@ jobs:
         shell: msys2 {0}
         run: |
           cd chemical
-          cmake --build out/build --config Release --target Compiler
-          cmake --build out/build --config Release --target TCCCompiler
-          cmake --build out/build --config Release --target ChemicalLsp
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target ChemicalLsp
 
       - name: Run release packaging
         shell: msys2 {0}
@@ -284,37 +280,27 @@ jobs:
       - name: Rename Windows MinGW release files
         shell: msys2 {0}
         run: |
-          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-${{ matrix.arch }}.zip
-          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
-          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-${{ matrix.arch }}${SUFFIX}.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc${SUFFIX}.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        working-directory: chemical
-        shell: msys2 {0}
-        run: |
-          cmake -S . -B out/build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        shell: msys2 {0}
-        run: |
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler.exe chemical/out/release/windows-mingw-${{ matrix.arch }}-debug.zip chemical/chemical.exe
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler.exe chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical.exe
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-windows-mingw-${{ matrix.arch }}
           path: |
             chemical/out/release/windows-mingw-${{ matrix.arch }}-debug.zip
             chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc-debug.zip
+            chemical/out/release/windows-mingw-${{ matrix.arch }}-lsp-debug.zip
 
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -332,6 +318,7 @@ jobs:
             core.setOutput("id", latestRelease.id);
 
       - name: Check if windows-mingw-${{ matrix.arch }}.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_windows_mingw
         uses: actions/github-script@v6
         with:
@@ -351,7 +338,7 @@ jobs:
             core.setOutput("exists", exists.toString());
 
       - name: Upload release artifacts
-        if: steps.check_windows_mingw.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -363,21 +350,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save windows-mingw-${{ matrix.arch }}.zip as artifact if already exists
-        if: steps.check_windows_mingw.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-${{ matrix.arch }}.zip
           path: chemical/out/release/windows-mingw-${{ matrix.arch }}.zip
 
       - name: Save windows-mingw-${{ matrix.arch }}-tcc.zip as artifact if already exists
-        if: steps.check_windows_mingw.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-${{ matrix.arch }}-tcc.zip
           path: chemical/out/release/windows-mingw-${{ matrix.arch }}-tcc.zip
 
       - name: Save windows-mingw-${{ matrix.arch }}-lsp.zip as artifact if already exists
-        if: steps.check_windows_mingw.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-${{ matrix.arch }}-lsp.zip
@@ -438,7 +425,7 @@ jobs:
           export CXX=clang++
           cd chemical
           mkdir -p out/build
-          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          cmake -S . -B out/build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} \
             -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
@@ -455,9 +442,9 @@ jobs:
           export CC=clang
           export CXX=clang++
           cd chemical
-          cmake --build out/build --config Release --target Compiler
-          cmake --build out/build --config Release --target TCCCompiler
-          cmake --build out/build --config Release --target ChemicalLsp
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target ChemicalLsp
 
       - name: Run release packaging
         shell: bash
@@ -468,44 +455,27 @@ jobs:
       - name: Rename Windows MinGW MSVCRT release files
         shell: bash
         run: |
-          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-msvcrt-x64.zip
-          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
-          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-msvcrt-x64-lsp.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/windows.zip chemical/out/release/windows-mingw-msvcrt-x64${SUFFIX}.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-mingw-msvcrt-x64-tcc${SUFFIX}.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-mingw-msvcrt-x64-lsp${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        shell: bash
-        run: |
-          LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64"
-          export PATH="$HOME/${LLVM_MINGW_NAME}/bin:$PATH"
-          export CC=clang
-          export CXX=clang++
-          cd chemical
-          mkdir -p out/build-debug
-          cmake -S . -B out/build-debug -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        shell: bash
-        run: |
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-msvcrt-x64.zip chemical/out/build-debug/Compiler.exe chemical/out/release/windows-mingw-msvcrt-x64-debug.zip chemical/chemical.exe
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip chemical/out/build-debug/TCCCompiler.exe chemical/out/release/windows-mingw-msvcrt-x64-tcc-debug.zip chemical-tcc/chemical.exe
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-windows-mingw-msvcrt-x64
           path: |
             chemical/out/release/windows-mingw-msvcrt-x64-debug.zip
             chemical/out/release/windows-mingw-msvcrt-x64-tcc-debug.zip
+            chemical/out/release/windows-mingw-msvcrt-x64-lsp-debug.zip
 
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -523,6 +493,7 @@ jobs:
             core.setOutput("id", latestRelease.id);
 
       - name: Check if windows-mingw-msvcrt-x64.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_windows_mingw_msvcrt
         uses: actions/github-script@v6
         with:
@@ -542,7 +513,7 @@ jobs:
             core.setOutput("exists", exists.toString());
 
       - name: Upload release artifacts
-        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw_msvcrt.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -554,21 +525,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save windows-mingw-msvcrt-x64.zip as artifact if already exists
-        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-msvcrt-x64.zip
           path: chemical/out/release/windows-mingw-msvcrt-x64.zip
 
       - name: Save windows-mingw-msvcrt-x64-tcc.zip as artifact if already exists
-        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-msvcrt-x64-tcc.zip
           path: chemical/out/release/windows-mingw-msvcrt-x64-tcc.zip
 
       - name: Save windows-mingw-msvcrt-x64-lsp.zip as artifact if already exists
-        if: steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_windows_mingw_msvcrt.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-msvcrt-x64-lsp.zip
@@ -618,7 +589,7 @@ jobs:
         working-directory: chemical
         run: |
           mkdir -p out/build
-          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Configure project dependencies using configuration script
       - name: Run configure script
@@ -630,9 +601,9 @@ jobs:
       - name: Build Compiler Targets
         working-directory: chemical
         run: |
-          cmake --build out/build --config Release --target Compiler
-          cmake --build out/build --config Release --target TCCCompiler
-          cmake --build out/build --config Release --target ChemicalLsp
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target ChemicalLsp
 
       - name: Run release packaging
         working-directory: chemical
@@ -644,36 +615,28 @@ jobs:
       - name: Rename Linux release files
         shell: bash
         run: |
-          mv chemical/out/release/linux.zip chemical/out/release/linux-${{ matrix.arch }}.zip
-          mv chemical/out/release/linux-tcc.zip chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
-          mv chemical/out/release/linux-lsp.zip chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/linux.zip chemical/out/release/linux-${{ matrix.arch }}${SUFFIX}.zip
+          mv chemical/out/release/linux-tcc.zip chemical/out/release/linux-${{ matrix.arch }}-tcc${SUFFIX}.zip
+          mv chemical/out/release/linux-lsp.zip chemical/out/release/linux-${{ matrix.arch }}-lsp${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        working-directory: chemical
-        run: |
-          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        run: |
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/linux-${{ matrix.arch }}-debug.zip chemical/chemical
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/linux-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-linux-${{ matrix.arch }}
           path: |
             chemical/out/release/linux-${{ matrix.arch }}-debug.zip
             chemical/out/release/linux-${{ matrix.arch }}-tcc-debug.zip
+            chemical/out/release/linux-${{ matrix.arch }}-lsp-debug.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -695,6 +658,7 @@ jobs:
 
       # ––– Check and (conditionally) upload Linux archives –––
       - name: Check if linux-${{ matrix.arch }}.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_linux
         uses: actions/github-script@v6
         with:
@@ -715,7 +679,7 @@ jobs:
             core.setOutput("exists", exists.toString());
 
       - name: Upload release artifacts
-        if: steps.check_linux.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -727,21 +691,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save linux-${{ matrix.arch }}.zip as artifact if already exists
-        if: steps.check_linux.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}.zip
           path: chemical/out/release/linux-${{ matrix.arch }}.zip
 
       - name: Save linux-${{ matrix.arch }}-tcc.zip as artifact if already exists
-        if: steps.check_linux.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-tcc.zip
           path: chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
 
       - name: Save linux-${{ matrix.arch }}-lsp.zip as artifact if already exists
-        if: steps.check_linux.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-lsp.zip
@@ -796,7 +760,7 @@ jobs:
         working-directory: chemical
         run: |
           mkdir -p out/build
-          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Configure project dependencies using configuration script
       - name: Run configure script
@@ -808,8 +772,8 @@ jobs:
       - name: Build Compiler Targets
         working-directory: chemical
         run: |
-          cmake --build out/build --config Release --target Compiler
-          cmake --build out/build --config Release --target TCCCompiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
 
       - name: Run release packaging
         working-directory: chemical
@@ -821,26 +785,16 @@ jobs:
       - name: Rename Linux Alpine release files
         shell: bash
         run: |
-          mv chemical/out/release/linux-alpine.zip chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
-          mv chemical/out/release/linux-alpine-tcc.zip chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/linux-alpine.zip chemical/out/release/linux-alpine-${{ matrix.arch }}${SUFFIX}.zip
+          mv chemical/out/release/linux-alpine-tcc.zip chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        working-directory: chemical
-        run: |
-          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        run: |
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-alpine-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/linux-alpine-${{ matrix.arch }}-debug.zip chemical/chemical
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-linux-alpine-${{ matrix.arch }}
@@ -849,6 +803,7 @@ jobs:
             chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc-debug.zip
 
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -870,6 +825,7 @@ jobs:
 
       # ––– Check and (conditionally) upload Linux archives –––
       - name: Check if linux-alpine-${{ matrix.arch }}.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_linux
         uses: actions/github-script@v6
         with:
@@ -889,7 +845,7 @@ jobs:
             core.setOutput("exists", exists.toString());
 
       - name: Upload release artifacts
-        if: steps.check_linux.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -900,14 +856,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Save linux-alpine-${{ matrix.arch }}.zip as artifact if already exists
-        if: steps.check_linux.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-alpine-${{ matrix.arch }}.zip
           path: chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
 
       - name: Save linux-alpine-${{ matrix.arch }}-tcc.zip as artifact if already exists
-        if: steps.check_linux.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-alpine-${{ matrix.arch }}-tcc.zip
@@ -955,7 +911,7 @@ jobs:
         working-directory: chemical
         run: |
           mkdir -p out/build
-          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Run configure script
       - name: Run configure script
@@ -968,9 +924,9 @@ jobs:
       - name: Build Compiler Targets
         working-directory: chemical
         run: |
-          cmake --build out/build --config Release --target Compiler
-          cmake --build out/build --config Release --target TCCCompiler
-          cmake --build out/build --config Release --target ChemicalLsp
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target Compiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target TCCCompiler
+          cmake --build out/build --config ${{ env.BUILD_CONFIG }} --target ChemicalLsp
 
       # Run release packaging
       - name: Run release packaging
@@ -983,36 +939,28 @@ jobs:
       - name: Rename macOS release files
         shell: bash
         run: |
-          mv chemical/out/release/macos.zip chemical/out/release/macos-${{ matrix.arch }}.zip
-          mv chemical/out/release/macos-tcc.zip chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
-          mv chemical/out/release/macos-lsp.zip chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+          # debug configs get a -debug suffix so the chemical-debug release
+          # (and the download scripts) can tell them apart from release zips
+          SUFFIX=""
+          if [ "${{ env.BUILD_CONFIG }}" != "Release" ]; then SUFFIX="-debug"; fi
+          mv chemical/out/release/macos.zip chemical/out/release/macos-${{ matrix.arch }}${SUFFIX}.zip
+          mv chemical/out/release/macos-tcc.zip chemical/out/release/macos-${{ matrix.arch }}-tcc${SUFFIX}.zip
+          mv chemical/out/release/macos-lsp.zip chemical/out/release/macos-${{ matrix.arch }}-lsp${SUFFIX}.zip
 
-      # ––– Debug builds (only when deploy_debug is enabled) –––
-      - name: Build debug binaries (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        working-directory: chemical
-        run: |
-          cmake -S . -B out/build-debug -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-          cmake --build out/build-debug --config RelWithDebInfo --target Compiler
-          cmake --build out/build-debug --config RelWithDebInfo --target TCCCompiler
-
-      - name: Package debug zips (deploy_debug)
-        if: inputs.deploy_debug == 'true'
-        run: |
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/macos-${{ matrix.arch }}.zip chemical/out/build-debug/Compiler chemical/out/release/macos-${{ matrix.arch }}-debug.zip chemical/chemical
-          bash chemical/scripts/make-debug-zip.sh chemical/out/release/macos-${{ matrix.arch }}-tcc.zip chemical/out/build-debug/TCCCompiler chemical/out/release/macos-${{ matrix.arch }}-tcc-debug.zip chemical-tcc/chemical
-
-      - name: Upload debug zips as artifact (deploy_debug)
-        if: inputs.deploy_debug == 'true'
+      # ––– Debug config: upload zips as artifacts for the chemical-debug publish job –––
+      - name: Upload debug zips as artifact
+        if: env.BUILD_CONFIG != 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: debug-macos-${{ matrix.arch }}
           path: |
             chemical/out/release/macos-${{ matrix.arch }}-debug.zip
             chemical/out/release/macos-${{ matrix.arch }}-tcc-debug.zip
+            chemical/out/release/macos-${{ matrix.arch }}-lsp-debug.zip
 
       # Get latest release info
       - name: Get latest release info
+        if: env.BUILD_CONFIG == 'Release'
         id: get_latest_release
         uses: actions/github-script@v6
         with:
@@ -1031,6 +979,7 @@ jobs:
 
       # Check and (conditionally) upload macOS archives
       - name: Check if macos-${{ matrix.arch }}.zip exists in latest release
+        if: env.BUILD_CONFIG == 'Release'
         id: check_macos
         uses: actions/github-script@v6
         with:
@@ -1051,7 +1000,7 @@ jobs:
 
       # Upload artifacts
       - name: Upload release artifacts
-        if: steps.check_macos.outputs.exists == 'false'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_macos.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
@@ -1064,38 +1013,39 @@ jobs:
 
       # Save as artifact if already exists
       - name: Save macos-${{ matrix.arch }}.zip as artifact if already exists
-        if: steps.check_macos.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_macos.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}.zip
           path: chemical/out/release/macos-${{ matrix.arch }}.zip
 
       - name: Save macos-${{ matrix.arch }}-tcc.zip as artifact if already exists
-        if: steps.check_macos.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_macos.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-tcc.zip
           path: chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
 
       - name: Save macos-${{ matrix.arch }}-lsp.zip as artifact if already exists
-        if: steps.check_macos.outputs.exists == 'true'
+        if: env.BUILD_CONFIG == 'Release' && steps.check_macos.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-lsp.zip
           path: chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
 
   # ––– Deploy debug builds to chemicallang/chemical-debug –––
-  # Collects the debug zips built by every platform job (when deploy_debug is
-  # enabled), attaches the source commit metadata, and publishes them as a
-  # release in the chemical-debug repo tagged with the chemical commit SHA.
-  # The debug-tests workflow reads commit.json from that release to know which
-  # chemical commit the binaries were compiled from (and which test sources to
-  # use with them). Requires a PAT with write access to chemical-debug,
-  # stored as the CHEMICAL_DEBUG_TOKEN repository secret.
+  # When a debug config (RelWithDebInfo/Debug) is selected, the platform jobs
+  # upload their zips as artifacts; this job collects them, attaches the source
+  # commit metadata, and publishes them as a release in the chemical-debug repo
+  # tagged with the chemical commit SHA. The debug-tests workflow reads
+  # commit.json from that release to know which chemical commit the binaries
+  # were compiled from (and which test sources to use with them). Requires a
+  # PAT with write access to chemical-debug, stored as the CHEMICAL_DEBUG_TOKEN
+  # repository secret.
   deploy-debug:
     name: Deploy debug builds to chemical-debug
     needs: [build-windows, build-windows-mingw, build-windows-mingw-msvcrt, build-linux, build-alpine, build-macos]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_debug == 'true'
+    if: env.BUILD_CONFIG != 'Release'
     runs-on: ubuntu-24.04
     steps:
       - name: Download all debug artifacts

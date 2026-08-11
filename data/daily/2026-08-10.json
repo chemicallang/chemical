@@ -1,7 +1,7 @@
 {
   "type": "daily",
   "date": "2026-08-10",
-  "generated_at": "2026-08-11T13:11:13Z",
+  "generated_at": "2026-08-11T14:38:20Z",
   "status": "benchmark_failure",
   "reason": "collect_daily failed",
   "commit": {

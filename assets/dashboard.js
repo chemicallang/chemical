@@ -548,39 +548,91 @@ async function renderReleaseCharts() {
   });
 }
 
+/* full timestamp like 2026-08-11T14:47:40Z → 2026-08-11 14:47 UTC */
+const fmtDateTime = (s) => (s ? s.replace("T", " ").replace(/Z$/, " UTC") : "—");
+
 async function openReleaseModal(tag) {
   const r = state.releases.find((x) => x.info.tag === tag);
   if (!r) return;
   // lazily fetch this release's platform benchmark records
   await ensurePlatformRecords(r);
-  let html = `<h2>${esc(tag)}</h2><div class="modal-sub">published ${esc(r.info.published_at || "—")} · commit <span class="mono">${esc(r.info.commit_sha || "—")}</span></div>`;
 
-  html += `<h3>Assets</h3><table><thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Status</th></tr></thead><tbody>`;
-  for (const [name, a] of Object.entries(r.info.assets || {})) {
-    const p = assetParts(name);      html += `<tr><td>${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
+  const assets = r.info.assets || {};
+  const assetEntries = Object.entries(assets);
+  const okCount = assetEntries.filter(([, a]) => a.status === "success").length;
+  const missCount = assetEntries.filter(([, a]) => a.status === "missing_asset").length;
+  const otherCount = assetEntries.length - okCount - missCount;
+
+  let html = `<h2>${esc(tag)}</h2>
+    <div class="modal-sub">${esc(r.info.name || "")} · published ${esc(fmtDateTime(r.info.published_at))} · commit <span class="mono">${esc(r.info.commit_sha || "—")}</span></div>
+    <div class="note">Assets collected ${esc(fmtDateTime(r.info.generated_at))} · ${assetEntries.length} assets total (${okCount} available, ${missCount} missing${otherCount ? `, ${otherCount} other` : ""})</div>`;
+
+  html += `<h3>Assets (${assetEntries.length})</h3><table><thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Status</th></tr></thead><tbody>`;
+  for (const [name, a] of assetEntries) {
+    const p = assetParts(name);
+    html += `<tr><td>${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
       <td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : "—"}</td><td>${statusBadge(a.status, a.status === "missing_asset" ? "missing asset" : "")}</td></tr>`;
   }
   html += `</tbody></table>`;
 
-  for (const [pk, pf] of Object.entries(r.platforms || {})) {
-    html += `<h3>Test results — ${esc(pk)}</h3><table><thead><tr><th>Backend</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
+  // per-platform: benchmarks (hello bare/std) + test results + when it ran
+  const pkeys = Object.keys(r.platforms || {}).sort();
+  for (const pk of pkeys) {
+    const pf = r.platforms[pk];
+    const bks = pf.backends || {};
+    const hasAny = BACKENDS.some((b) => bks[b]);
+    html += `<h3>${esc(pk)} <span class="dim">${esc(pf.libc || "")}</span> ${statusBadge(pf.status, "")}</h3>`;
+    if (pf.generated_at) html += `<div class="dim">benchmarked ${esc(fmtDateTime(pf.generated_at))}${pf.reason ? ` · ${esc(pf.reason)}` : ""}</div>`;
+    if (!hasAny) { html += `<div class="note">no benchmark/test data for this platform</div>`; continue; }
+    html += `<table><thead><tr><th>Backend</th><th>Build</th><th class="num">Hello bare</th><th class="num">Hello std</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
     for (const b of BACKENDS) {
-      const rec = pf.backends && pf.backends[b];
-      if (!rec) continue;
+      const rec = bks[b];
+      if (!rec) { html += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="7" class="dim">no data</td></tr>`; continue; }
       const t = rec.tests || {};
-      html += `<tr><td><b>${esc(BACKEND_LABEL[b])}</b> ${statusBadge(rec.build.status, "")}</td>
-        <td>${testStatusBadge(t)}${t.complete === false ? " <span class='missing'>⚠ incomplete</span>" : ""}</td>
+      const hb = helloOf(rec, "hello_bare");
+      const hs = helloOf(rec, "hello_std");
+      const helloCell = (h) => h ? (h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status)) : "—";
+      html += `<tr>
+        <td><b>${esc(BACKEND_LABEL[b])}</b></td>
+        <td>${statusBadge(rec.build.status, "")}</td>
+        <td class="num">${helloCell(hb)}</td>
+        <td class="num">${helloCell(hs)}</td>
+        <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
         <td class="num">${t.passed != null ? t.passed : "—"}</td>
         <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
-        <td class="num">${fmtMs(t.duration_ms)}</td></tr>`;
+        <td class="num">${fmtMs(t.duration_ms)}</td>
+      </tr>`;
       const fh = failedTestsHtml(t, 20);
-      if (fh) {
-        html += `<tr class="sub-row"><td></td><td colspan="4" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
-      }
+      if (fh) html += `<tr class="sub-row"><td></td><td colspan="7" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
     }
     html += `</tbody></table>`;
-    if (pf.status && pf.status !== "success") html += `<div class="note">${esc(pf.status)}: ${esc(pf.reason || "")}</div>`;
   }
+
+  // run history: every previous run of this platform (kept by the collector
+  // in the record's `runs` array — newest last, deduped by generated_at)
+  const runPlats = pkeys.filter((pk) => {
+    const pf = r.platforms[pk];
+    return Array.isArray(pf.runs) && pf.runs.length > 1;
+  });
+  if (runPlats.length) {
+    html += `<h3>Run history <span class="hint">every benchmark/test run recorded for this release</span></h3>`;
+    for (const pk of runPlats) {
+      const pf = r.platforms[pk];
+      const runs = pf.runs.slice().reverse(); // newest first
+      html += `<h4>${esc(pk)} — ${runs.length} runs</h4><table><thead><tr><th>Run time</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} pass/fail</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
+      for (const run of runs) {
+        html += `<tr><td class="dim">${esc(fmtDateTime(run.generated_at))}</td>`;
+        for (const b of BACKENDS) {
+          const rb = run.backends && run.backends[b];
+          const rt = rb && rb.tests;
+          html += `<td class="num">${rt && rt.passed != null ? `${rt.passed}<span class="${rt.failed > 0 ? "missing" : ""}">/${rt.failed}</span>` : "—"}</td>`;
+        }
+        html += `<td>${statusBadge(run.status, "")}${run.reason ? ` <span class="dim">${esc(run.reason)}</span>` : ""}</td></tr>`;
+      }
+      html += `</tbody></table>`;
+    }
+  }
+
   openModal(html);
 }
 

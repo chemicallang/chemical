@@ -59,8 +59,21 @@ function esc(s) {
 
 function statusBadge(status, label) {
   const s = status || "unavailable";
-  return `<span class="badge badge-${esc(s)}">${esc(label || s)}</span>`;
+  return `<span class="badge badge-${esc(s)}">${esc(label || STATUS_LABEL[s] || s)}</span>`;
 }
+
+/* human-readable labels for machine statuses (cryptic "failed" → "missing asset") */
+const STATUS_LABEL = {
+  success: "success",
+  missing_asset: "missing asset",
+  unavailable: "unavailable",
+  test_failure: "test failure",
+  test_crash: "test crash",
+  build_failure: "build failure",
+  benchmark_failure: "benchmark failure",
+  timeout: "timeout",
+  failed: "failed",
+};
 
 /* test-result helpers — the dashboard's primary focus is test results: which
  * tests failed, crashed or timed out. Each backend record carries:
@@ -72,7 +85,7 @@ function testStatusBadge(t) {
   let label = t.status || "unavailable";
   if (t.failed > 0 && (t.status === "success" || !t.status)) label = "test_failure";
   const cls = label === "success" ? "success" : label;
-  return `<span class="badge badge-${esc(cls)}" title="${esc(t.reason || "")}">${esc(label)}</span>`;
+  return `<span class="badge badge-${esc(cls)}" title="${esc(t.reason || "")}">${esc(STATUS_LABEL[label] || label)}</span>`;
 }
 
 function failedTestsHtml(t, limit) {
@@ -151,6 +164,16 @@ async function ensurePlatformRecords(rec) {
     loadPlatformRecord(rec.info.tag, pf).then((r) => ({ pf, r }))));
   for (const { pf, r } of results) if (r) rec.platforms[pf] = r;
   return rec;
+}
+
+/* load only ONE platform's record for a release — the charts only need the
+ * selected platform, so we must not fetch all platforms of all releases
+ * (48 releases × 5 platforms = hundreds of fetches on every chart render). */
+async function ensurePlatformRecord(rec, pf) {
+  if (rec.platforms[pf]) return rec.platforms[pf];
+  const r = await loadPlatformRecord(rec.info.tag, pf);
+  if (r) rec.platforms[pf] = r;
+  return r;
 }
 
 /* ── data loading ────────────────────────────────────────────── */
@@ -276,6 +299,9 @@ function renderOverview() {
   if (state.daily.length > 1) {
     html += `<div class="section"><h2>Hello world compile time (daily trend)</h2><div class="card"><canvas id="ov-hello"></canvas></div></div>`;
   }
+  if (state.releases.length > 1) {
+    html += `<div class="section"><h2>Hello world compile time per release <span class="hint">(std-lib hello — spot release regressions)</span></h2><div class="card"><canvas id="ov-rel-hello"></canvas></div></div>`;
+  }
 
   el.innerHTML = html;
   el.classList.contains("active") && renderOverviewCharts();
@@ -297,6 +323,27 @@ function renderOverviewCharts() {
     data: { labels, datasets },
     options: baseLineOpts("compilation ms"),
   });
+
+  // release std-lib hello across ALL releases (Linux x64 / TCC + LLVM where
+  // available) — a quick way to see whether a new release regressed compile time
+  if (state.releases.length > 1) {
+    const pk = "linux-x64";
+    // platform records are lazy; load only the one platform, then draw
+    Promise.all(state.releases.map((r) => ensurePlatformRecord(r, pk))).then(() => {
+      const relTags = state.releases.map((x) => x.info.tag);
+      const fresh = [];
+      for (const b of BACKENDS) {
+        const data = state.releases.map((r) => {
+          const pf = r.platforms && r.platforms[pk];
+          const rec = pf && pf.backends && pf.backends[b];
+          const h = helloOf(rec, "hello_std");
+          return h && h.status === "success" ? h.duration_ms : null;
+        });
+        if (data.some((v) => v != null)) fresh.push({ label: BACKEND_LABEL[b] + " std", data, borderColor: colorOf(b), backgroundColor: colorOf(b), spanGaps: false, tension: 0.2, pointRadius: 2 });
+      }
+      if (fresh.length) makeChart("ov-rel-hello", { type: "line", data: { labels: relTags, datasets: fresh }, options: baseLineOpts("compilation ms") });
+    });
+  }
 }
 
 /* ══ Releases ══════════════════════════════════════════════════ */
@@ -324,9 +371,9 @@ function renderReleases() {
   </div>`;
 
   html += `<div class="section"><h2>Binary size by release <span class="hint">(choose platform + variant)</span></h2><div class="card"><canvas id="rel-size-bar"></canvas></div></div>`;
-  html += `<div class="section"><h2>Binary size over time — all platforms <span class="hint">(regular)</span></h2><div class="card"><canvas id="rel-size-line"></canvas></div></div>`;
+  html += `<div class="section"><h2>Binary size over time — all platforms <span class="hint">(respects the variant selector above)</span></h2><div class="card"><canvas id="rel-size-line"></canvas></div></div>`;
   html += `<div class="section"><h2>Hello world compile time per release <span class="hint">(bare vs std)</span></h2><div class="card"><canvas id="rel-hello"></canvas></div></div>`;
-  html += `<div class="section"><h2>Release test results</h2><div class="card"><canvas id="rel-tests"></canvas></div></div>`;
+  html += `<div class="section"><h2>Release test results <span class="hint">(selected platform + backend)</span></h2><div class="card"><canvas id="rel-tests"></canvas></div></div>`;
 
   html += `<div class="section"><h2>All releases <span class="hint">sizes in MB · missing assets marked MISSING</span></h2><div class="card" style="overflow-x:auto"><table class="rel-table">
     <thead><tr><th>Version</th><th>Published</th><th>Windows x64</th><th>Linux x64</th><th>Alpine x64</th><th>macOS ARM</th><th>macOS x64</th></tr></thead><tbody>`;
@@ -346,7 +393,7 @@ function renderReleases() {
     for (const c of cols) {
       const name = assetNameFor(c.pf, c.arch, "regular");
       const a = r.info.assets && r.info.assets[name];
-      if (a) html += `<td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : `<span class="missing" title="${esc(a.status)} — this asset was not published for ${tag}">MISSING</span>`}</td>`;
+      if (a) html += `<td class="num" ${a.status === "missing_asset" ? `title="this asset was not published for ${tag}"` : ""}>${a.status === "success" ? fmtSize(a.size_bytes) : a.status === "missing_asset" ? `<span class="missing">MISSING</span>` : `<span class="missing" title="${esc(STATUS_LABEL[a.status] || a.status)}">${esc(STATUS_LABEL[a.status] || a.status)}</span>`}</td>`;
       else html += `<td class="num dim">—</td>`;
     }
     html += `</tr>`;
@@ -384,8 +431,9 @@ async function renderReleaseCharts() {
   else { platform = pp[0]; arch = pp[1]; }
   const assetName = assetNameFor(platform, arch, variant);
 
-  // lazily load the platform benchmark records needed by the charts below
-  await Promise.all(state.releases.map((r) => ensurePlatformRecords(r)));
+  // lazily load ONLY the selected platform's records (not every platform of
+  // every release — that caused the slow initial load / empty charts)
+  await Promise.all(state.releases.map((r) => ensurePlatformRecord(r, platformKey)));
 
   const tags = state.releases.map((r) => r.info.tag);
   const sizes = state.releases.map((r) => {
@@ -399,18 +447,18 @@ async function renderReleaseCharts() {
     options: barOpts("MB"),
   });
 
-  // line: all platforms regular
+  // line: all platforms, variant follows the selector (was hardcoded regular)
   const lineSets = [];
   for (const pk of releasePlatformsForChart()) {
     const p = pk.split("-");
     const pl = p[0] === "linux-alpine" ? "linux-alpine" : p[0] === "windows-mingw" ? "windows-mingw" : p[0];
     const ar = p[0] === "linux-alpine" || p[0] === "windows-mingw" ? p[1] : p[1];
-    const an = assetNameFor(pl, ar, "regular");
+    const an = assetNameFor(pl, ar, variant);
     const data = state.releases.map((r) => {
       const a = r.info.assets && r.info.assets[an];
       return a && a.status === "success" ? MB(a.size_bytes) : null;
     });
-    if (data.some((v) => v != null)) lineSets.push({ label: pk, data, borderColor: colorFor(pk), spanGaps: false, tension: 0.2, pointRadius: 2 });
+    if (data.some((v) => v != null)) lineSets.push({ label: pk + " (" + variant + ")", data, borderColor: colorFor(pk), spanGaps: false, tension: 0.2, pointRadius: 2 });
   }
   makeChart("rel-size-line", { type: "line", data: { labels: tags, datasets: lineSets }, options: baseLineOpts("MB") });
 
@@ -457,9 +505,8 @@ async function openReleaseModal(tag) {
 
   html += `<h3>Assets</h3><table><thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Status</th></tr></thead><tbody>`;
   for (const [name, a] of Object.entries(r.info.assets || {})) {
-    const p = assetParts(name);
-    html += `<tr><td>${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
-      <td class="num">${fmtSize(a.size_bytes)}</td><td>${statusBadge(a.status)}</td></tr>`;
+    const p = assetParts(name);      html += `<tr><td>${esc(name)}</td><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)}</td><td>${esc(p.arch)}</td><td>${esc(p.variant)}</td>
+      <td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : "—"}</td><td>${statusBadge(a.status, a.status === "missing_asset" ? "missing asset" : "")}</td></tr>`;
   }
   html += `</tbody></table>`;
 

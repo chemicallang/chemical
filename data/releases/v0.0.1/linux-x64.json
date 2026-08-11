@@ -1,12 +1,1 @@
-{
-  "type": "release_platform",
-  "tag": "v0.0.1",
-  "platform": "linux",
-  "arch": "x64",
-  "libc": "glibc",
-  "generated_at": "2026-08-11T11:35:28Z",
-  "status": "unavailable",
-  "reason": "no expected assets for this platform",
-  "assets": {},
-  "backends": {}
-}
+{"type":"release_platform","tag":"v0.0.1","platform":"linux","arch":"x64","libc":"glibc","generated_at":"2026-08-11T11:35:28Z","status":"unavailable","reason":"no expected assets for this platform","assets":{},"backends":{},"runs":[{"generated_at":"2026-08-11T11:35:28Z","status":"unavailable","reason":"no expected assets for this platform","backends":{}}]}

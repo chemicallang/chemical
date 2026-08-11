@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chemical — Compiler Benchmark & Release Dashboard</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚗️</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">⚗️</span>
+    <div>
+      <h1>Chemical Compiler Analytics</h1>
+      <p class="subtitle">release binaries · benchmarks · test suites · all backends</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="data-status" class="badge badge-loading">loading data…</span>
+    <a id="raw-data-link" class="btn btn-ghost" href="data/manifest.json" target="_blank">raw data</a>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-view="overview">Overview</button>
+  <button class="tab" data-view="releases">Releases</button>
+  <button class="tab" data-view="daily">Daily / Commits</button>
+  <button class="tab" data-view="modules">Modules</button>
+  <button class="tab" data-view="backends">Backends</button>
+</nav>
+
+<main id="app">
+  <section id="view-overview" class="view active"></section>
+  <section id="view-releases" class="view"></section>
+  <section id="view-daily" class="view"></section>
+  <section id="view-modules" class="view"></section>
+  <section id="view-backends" class="view"></section>
+</main>
+
+<!-- release / commit detail modal -->
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <button class="modal-close" data-close>×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <p>Data is collected by GitHub Actions and stored as raw JSON in the <code>gh-pages</code> branch (<code>data/</code>). Failures and missing measurements are preserved as data points, never hidden.</p>
+</footer>
+
+<script src="assets/chart.umd.min.js"></script>
+<script src="assets/dashboard.js"></script>
+</body>
+</html>

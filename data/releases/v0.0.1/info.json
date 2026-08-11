@@ -1,8 +1,1 @@
-{
-  "type": "release_info",
-  "tag": "v0.0.1",
-  "generated_at": "2026-08-11T13:06:55Z",
-  "status": "unavailable",
-  "reason": "release not found via GitHub API",
-  "assets": {}
-}
+{"type":"release_info","tag":"v0.0.1","published_at":"2025-05-30T11:54:03Z","commit_sha":"main","name":"v0.0.1","generated_at":"2026-08-11T14:07:13Z","status":"success","assets":{"linux-x64.zip":{"size_bytes":68838542,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.1/linux-x64.zip","status":"success"},"linux-x86-64-tcc.zip":{"size_bytes":3026269,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.1/linux-x86-64-tcc.zip","status":"success"},"windows-x64-tcc.zip":{"size_bytes":2505067,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.1/windows-x64-tcc.zip","status":"success"},"windows-x64.zip":{"size_bytes":46059646,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.1/windows-x64.zip","status":"success"}}}

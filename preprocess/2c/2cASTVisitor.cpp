@@ -3130,7 +3130,32 @@ void declare_fat_pointer(ToCAstVisitor& visitor) {
 void ToCAstVisitor::prepare_translate() {
     write("#include <stdbool.h>\n");
     write("#include <stddef.h>\n");
-    write("#include <stdint.h>\n");
+    // Fixed-width integer types are emitted by the translation itself instead of
+    // including <stdint.h>. stdint.h is not available in every environment the
+    // generated C must compile in: tcc's include package ships no stdint.h and
+    // falls back to the system one, which a default Alpine install doesn't have,
+    // and glibc's stdint.h requires multiarch include paths that tcc doesn't
+    // search. The typedefs below match the standard definitions for the target
+    // ABI so the generated C stays self-contained.
+    const auto& target = comptime_scope.target_data;
+    // int64_t/uint64_t are `long` on LP64 targets (linux/macos 64-bit) and
+    // `long long` on LLP64 (windows x64) and ILP32 (32-bit) targets. `long long`
+    // is ABI-compatible with `long` on 64-bit targets, so a misdetected target
+    // is harmless.
+    const char* int64_type = (target.is64Bit && !target.win64) ? "long" : "long long";
+    const char* uint64_type = (target.is64Bit && !target.win64) ? "unsigned long" : "unsigned long long";
+    write("typedef signed char int8_t;\n"
+          "typedef unsigned char uint8_t;\n"
+          "typedef short int16_t;\n"
+          "typedef unsigned short uint16_t;\n"
+          "typedef int int32_t;\n"
+          "typedef unsigned int uint32_t;\n"
+          "typedef ");
+    write(int64_type);
+    write(" int64_t;\n"
+          "typedef ");
+    write(uint64_type);
+    write(" uint64_t;\n");
     // declaring a fat pointer
     declare_fat_pointer(*this);
     // declaring malloc function

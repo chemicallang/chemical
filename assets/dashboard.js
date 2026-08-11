@@ -87,9 +87,9 @@ function failedTestsHtml(t, limit) {
     items.push(`<li class="missing">${esc(f)}${tag}</li>`);
   }
   if (!items.length) return "";
-  let html = `<ul class="flat">${items.join("")}</ul>`;
+  let html = `<ul class="flat">${items.slice(0, limit).join("")}</ul>`;
   if (limit && items.length > limit) {
-    html += `<details class="dim"><summary>${items.length} failing tests…</summary><ul class="flat">${items.slice(limit).map((x) => x).join("")}</ul></details>`;
+    html += `<details class="dim"><summary>${items.length} failing tests…</summary><ul class="flat">${items.slice(limit).join("")}</ul></details>`;
   }
   return html;
 }

@@ -10,9 +10,15 @@ const BACKENDS = ["TCCCompiler", "Compiler", "Interpreter"];
 const state = {
   manifest: null,
   daily: [],
+  dailyLoaded: false,
   releases: [],
+  releasesLoaded: false,
   selectedBackends: new Set(BACKENDS),
 };
+
+/* lazy caches: platform records are only fetched when a view needs them */
+const platformCache = {};  // "tag/platform" → Promise<record>
+const dailyCache = {};     // date → Promise<record>
 
 const charts = {};
 
@@ -102,6 +108,19 @@ function tagDate(tag) {
   return r && r.info.published_at ? r.info.published_at : tag;
 }
 
+/* Lazily ensure a release's platform records are loaded (fetched from the
+ * manifest's platform list on first use, then cached). Used by the Releases
+ * charts and the release modal — keeps the initial page load light. */
+async function ensurePlatformRecords(rec) {
+  const manifestPlatforms = (state.manifest.releases || {})[rec.info.tag] || [];
+  const missing = manifestPlatforms.filter((pf) => !rec.platforms[pf]);
+  if (!missing.length) return rec;
+  const results = await Promise.all(missing.map((pf) =>
+    loadPlatformRecord(rec.info.tag, pf).then((r) => ({ pf, r }))));
+  for (const { pf, r } of results) if (r) rec.platforms[pf] = r;
+  return rec;
+}
+
 /* ── data loading ────────────────────────────────────────────── */
 
 async function fetchJson(url) {
@@ -110,32 +129,50 @@ async function fetchJson(url) {
   return r.json();
 }
 
+/* data loading — the manifest is small and always fetched first; daily
+ * records and release info are fetched in the background; per-platform
+ * benchmark records are fetched LAZILY when a view/modal needs them. */
+
+function loadDailyRecord(date) {
+  if (!dailyCache[date]) {
+    dailyCache[date] = fetchJson("data/daily/" + date + ".json").catch((e) => { console.warn("missing daily", date); return null; });
+  }
+  return dailyCache[date];
+}
+
+function loadPlatformRecord(tag, pf) {
+  const key = tag + "/" + pf;
+  if (!platformCache[key]) {
+    platformCache[key] = fetchJson(`data/releases/${tag}/${pf}.json`).catch((e) => { console.warn("missing platform", key); return null; });
+  }
+  return platformCache[key];
+}
+
 async function init() {
   try {
     state.manifest = await fetchJson("data/manifest.json");
+    setStatus("loading…");
+    // background: daily records + release info (small-ish; parallel)
+    const tasks = [];
     for (const d of state.manifest.daily || []) {
-      try { state.daily.push(await fetchJson("data/daily/" + d + ".json")); }
-      catch (e) { console.warn("missing daily", d); }
+      tasks.push(loadDailyRecord(d).then((rec) => { if (rec) state.daily.push(rec); }));
     }
-    state.daily.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-
-    for (const [tag, platforms] of Object.entries(state.manifest.releases || {})) {
-      try {
-        const info = await fetchJson(`data/releases/${tag}/info.json`);
+    for (const [tag] of Object.entries(state.manifest.releases || {})) {
+      tasks.push(fetchJson(`data/releases/${tag}/info.json`).then((info) => {
         const rec = { info, platforms: {} };
-        for (const pf of platforms) {
-          try { rec.platforms[pf] = await fetchJson(`data/releases/${tag}/${pf}.json`); }
-          catch (e) { /* keep platform missing */ }
-        }
+        // platform records are NOT fetched here — see loadPlatformRecord
         state.releases.push(rec);
-      } catch (e) { console.warn("missing release", tag); }
+      }).catch((e) => { console.warn("missing release", tag); }));
     }
+    await Promise.all(tasks);
+    state.daily.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     state.releases.sort((a, b) => {
       const da = a.info.published_at || "", db = b.info.published_at || "";
       if (da && db) return da < db ? -1 : 1;
       return a.info.tag < b.info.tag ? -1 : 1;
     });
-
+    state.dailyLoaded = true;
+    state.releasesLoaded = true;
     setStatus("loaded");
     render();
   } catch (e) {
@@ -254,8 +291,8 @@ function renderReleases() {
   html += `<div class="section"><h2>Hello world compile time per release <span class="hint">(bare vs std)</span></h2><div class="card"><canvas id="rel-hello"></canvas></div></div>`;
   html += `<div class="section"><h2>Release test results</h2><div class="card"><canvas id="rel-tests"></canvas></div></div>`;
 
-  html += `<div class="section"><h2>All releases</h2><div class="card" style="overflow-x:auto"><table>
-    <thead><tr><th>Version</th><th>Published</th><th>Windows</th><th>Linux</th><th>Alpine</th><th>macOS ARM</th><th>macOS x64</th><th>Status</th></tr></thead><tbody>`;
+  html += `<div class="section"><h2>All releases <span class="hint">sizes in MB · missing assets marked MISSING</span></h2><div class="card" style="overflow-x:auto"><table class="rel-table">
+    <thead><tr><th>Version</th><th>Published</th><th>Windows x64</th><th>Linux x64</th><th>Alpine x64</th><th>macOS ARM</th><th>macOS x64</th></tr></thead><tbody>`;
 
   const cols = [
     { pf: "windows", arch: "x64" },
@@ -272,10 +309,10 @@ function renderReleases() {
     for (const c of cols) {
       const name = assetNameFor(c.pf, c.arch, "regular");
       const a = r.info.assets && r.info.assets[name];
-      if (a) html += `<td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : `<span class="missing">MISSING</span>`}</td>`;
+      if (a) html += `<td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : `<span class="missing" title="${esc(a.status)} — this asset was not published for ${tag}">MISSING</span>`}</td>`;
       else html += `<td class="num dim">—</td>`;
     }
-    html += `<td>${statusBadge(r.info.status, "ok")}</td></tr>`;
+    html += `</tr>`;
   }
   html += `</tbody></table></div></div>`;
   el.innerHTML = html;
@@ -285,7 +322,7 @@ function renderReleases() {
   });
   ["rel-platform-select", "rel-backend-select", "rel-variant-select"].forEach((id) => {
     const s = document.getElementById(id);
-    s && s.addEventListener("change", renderReleaseCharts);
+    s && s.addEventListener("change", () => renderReleaseCharts());
   });
   renderReleaseCharts();
 }
@@ -295,7 +332,10 @@ function assetNameFor(platform, arch, variant) {
   return `${pf}-${arch}${variant === "tcc" ? "-tcc" : ""}.zip`;
 }
 
-function renderReleaseCharts() {
+/* binary sizes on the y axis are reported in MB (bytes are unwieldy) */
+const MB = (b) => (b == null ? null : b / 1048576);
+
+async function renderReleaseCharts() {
   const ps = $("#rel-platform-select"), bs = $("#rel-backend-select"), vs = $("#rel-variant-select");
   if (!ps || !bs || !vs) return;
   const platformKey = ps.value, backend = bs.value, variant = vs.value;
@@ -307,16 +347,19 @@ function renderReleaseCharts() {
   else { platform = pp[0]; arch = pp[1]; }
   const assetName = assetNameFor(platform, arch, variant);
 
+  // lazily load the platform benchmark records needed by the charts below
+  await Promise.all(state.releases.map((r) => ensurePlatformRecords(r)));
+
   const tags = state.releases.map((r) => r.info.tag);
   const sizes = state.releases.map((r) => {
     const a = r.info.assets && r.info.assets[assetName];
-    return a && a.status === "success" ? a.size_bytes : null;
+    return a && a.status === "success" ? MB(a.size_bytes) : null;
   });
 
   makeChart("rel-size-bar", {
     type: "bar",
     data: { labels: tags, datasets: [{ label: platformKey + " " + variant, data: sizes, backgroundColor: "#58a6ff99" }] },
-    options: barOpts("bytes"),
+    options: barOpts("MB"),
   });
 
   // line: all platforms regular
@@ -328,11 +371,11 @@ function renderReleaseCharts() {
     const an = assetNameFor(pl, ar, "regular");
     const data = state.releases.map((r) => {
       const a = r.info.assets && r.info.assets[an];
-      return a && a.status === "success" ? a.size_bytes : null;
+      return a && a.status === "success" ? MB(a.size_bytes) : null;
     });
     if (data.some((v) => v != null)) lineSets.push({ label: pk, data, borderColor: colorFor(pk), spanGaps: false, tension: 0.2, pointRadius: 2 });
   }
-  makeChart("rel-size-line", { type: "line", data: { labels: tags, datasets: lineSets }, options: baseLineOpts("bytes") });
+  makeChart("rel-size-line", { type: "line", data: { labels: tags, datasets: lineSets }, options: baseLineOpts("MB") });
 
   // hello world per release (from the selected platform record)
   const helloSets = [];
@@ -368,9 +411,11 @@ function renderReleaseCharts() {
   });
 }
 
-function openReleaseModal(tag) {
+async function openReleaseModal(tag) {
   const r = state.releases.find((x) => x.info.tag === tag);
   if (!r) return;
+  // lazily fetch this release's platform benchmark records
+  await ensurePlatformRecords(r);
   let html = `<h2>${esc(tag)}</h2><div class="modal-sub">published ${esc(r.info.published_at || "—")} · commit <span class="mono">${esc(r.info.commit_sha || "—")}</span></div>`;
 
   html += `<h3>Assets</h3><table><thead><tr><th>Asset</th><th>Platform</th><th>Arch</th><th>Variant</th><th class="num">Size</th><th>Status</th></tr></thead><tbody>`;
@@ -685,7 +730,7 @@ function switchView(name) {
   $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
   $$(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
   if (name === "overview") renderOverviewCharts();
-  if (name === "releases") renderReleaseCharts();
+  if (name === "releases") renderReleaseCharts(); // async — platform records load lazily
   if (name === "daily") renderDailyCharts();
   if (name === "modules") renderModuleChart();
   if (name === "backends") renderBackendCharts();

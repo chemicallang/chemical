@@ -139,6 +139,17 @@ tbody tr.clickable:hover { background: var(--bg-3); }
 td.num, th.num { text-align: right; }
 .empty-row td { color: var(--text-dim); text-align: center; padding: 24px; font-family: inherit; }
 
+/* releases table — keep every column aligned under its header (no stray
+   margins / pushed columns); size cells get a fixed width so values line up */
+table.rel-table th, table.rel-table td {
+  padding: 8px 12px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+table.rel-table th:last-child, table.rel-table td:last-child { border-right: none; }
+table.rel-table td.num { width: 110px; }
+table.rel-table tbody tr:hover { background: var(--bg-2); }
+
 /* ── badges ─────────────────────────────────────────────── */
 .badge {
   display: inline-flex;

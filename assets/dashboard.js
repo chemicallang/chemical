@@ -149,6 +149,7 @@ function makeChart(id, config, emptyNote) {
 let chartSeq = 0;
 function chartToken() { return ++chartSeq; }
 function chartIsStale(token) { return token !== chartSeq; }
+let modalSeq = 0; // guards the async platform-fill in openReleaseModal
 
 /* ── theme ──────────────────────────────────────────────────── */
 function applyTheme() {
@@ -902,6 +903,7 @@ let compareSeq = 0;
 async function openReleaseModal(tag) {
   const r = state.releases.find((x) => x.info && x.info.tag === tag);
   if (!r) return;
+  const myModal = ++modalSeq;
 
   const assets = r.info.assets || {};
   const assetEntries = Object.entries(assets);
@@ -933,7 +935,7 @@ async function openReleaseModal(tag) {
     r.platforms = r.platforms || {};
   }
   const box = document.getElementById("rel-modal-platforms");
-  if (!box) return; // modal closed while loading
+  if (!box || myModal !== modalSeq) return; // modal closed or replaced while loading
 
   let phtml = "";
   const pkeys = Object.keys(r.platforms || {}).sort();

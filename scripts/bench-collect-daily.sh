@@ -65,10 +65,16 @@ fi
 cd "$REPO_ROOT"
 
 # ── cmake configure (TCC-only by default; the LLVM workflow configures itself) ──
+# When run from the main checkout (daily workflow), cmake-build-debug is
+# configured by the workflow with BUILD_COMPILER=ON so both backends build.
+# Worktrees (backfill) configure themselves here; failures are surfaced in the
+# build log instead of silently hiding the reason.
 if [ ! -f cmake-build-debug/CMakeCache.txt ]; then
   bm_log "configuring cmake (BUILD_COMPILER=OFF)..."
-  cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=OFF >/dev/null 2>&1 \
-    || bm_warn "cmake configure failed; builds will be recorded as failures"
+  mkdir -p "$OUT/logs/$DATE"
+  if ! cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=OFF > "$OUT/logs/$DATE/cmake_configure.log" 2>&1; then
+    bm_warn "cmake configure failed — see cmake_configure.log; builds will be recorded as failures"
+  fi
 fi
 
 # ── commit metadata ──────────────────────────────────────────────────────────

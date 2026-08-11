@@ -1048,7 +1048,14 @@ jobs:
     # NOTE: the `env` context is NOT available in job-level `if:` — use the
     # inputs directly. Only a manual workflow_dispatch with a non-Release
     # config deploys debug builds (push/releaseIt runs are always Release).
-    if: github.event_name == 'workflow_dispatch' && inputs.config != 'Release'
+    #
+    # `always()` is REQUIRED: GitHub Actions auto-skips any job whose `needs`
+    # contains a failed job. A single platform that fails to build (e.g. alpine
+    # arm64) must NOT prevent the debug builds that DID succeed from being
+    # published — each artifact is independent. If no debug artifacts exist at
+    # all (all builds failed), the download step below fails the job instead of
+    # publishing an empty release.
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.config != 'Release'
     runs-on: ubuntu-24.04
     steps:
       - name: Download all debug artifacts
@@ -1060,6 +1067,9 @@ jobs:
           # re-upload those as duplicate assets on the debug release)
           pattern: debug-*
           merge-multiple: true
+          # if every platform build failed there is nothing to publish — fail
+          # loudly rather than creating an empty debug release
+          if-no-files-found: error
 
       - name: Write commit metadata
         uses: actions/github-script@v6
@@ -1098,6 +1108,13 @@ jobs:
               console.log('no previous debug release to remove');
             }
 
+      - name: List published platforms
+        run: |
+          # surface which platforms actually made it into this (possibly
+          # partial) debug release — a failed platform build must not silently
+          # hide the ones that succeeded
+          echo "PUBLISHED_PLATFORMS=$(ls debug/ | sed -E 's/-debug\.zip$|-tcc-debug\.zip$//' | sort -u | paste -sd, -)" >> "$GITHUB_ENV"
+
       - name: Publish debug builds to chemical-debug
         uses: softprops/action-gh-release@v1
         with:
@@ -1112,6 +1129,9 @@ jobs:
             - Binary names follow the release naming with a `-debug` suffix:
               `<platform>-<arch>-debug.zip` (LLVM Compiler) and
               `<platform>-<arch>-tcc-debug.zip` (TCCCompiler).
+            - Platforms published in this release: `${{ env.PUBLISHED_PLATFORMS }}`
+              (a platform missing from this list means that platform's build
+              failed — the rest are unaffected).
           files: |
             debug/*.zip
             commit.json

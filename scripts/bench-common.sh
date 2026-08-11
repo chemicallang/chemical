@@ -402,13 +402,20 @@ bm_write_json() { # <file> <json>
 # ─────────────────────────────────────────────────────────────────────────────
 bm_link_shared_tooling() {
   local wt="$1" main_root="$2"
-  if [ -d "$main_root/lib/tcc" ] && [ ! -e "$wt/lib/tcc" ]; then
-    mkdir -p "$wt/lib"
-    ln -s "$main_root/lib/tcc" "$wt/lib/tcc"
-  fi
-  if [ -d "$main_root/lib/lsp-framework" ] && [ ! -e "$wt/lib/lsp-framework" ]; then
-    mkdir -p "$wt/lib"
-    ln -s "$main_root/lib/lsp-framework" "$wt/lib/lsp-framework"
+  # git worktrees do NOT materialize submodules: lib/lsp-framework (and any
+  # other submodule) appears as an EMPTY directory stub, which makes cmake
+  # configure fail ("does not contain a CMakeLists.txt") and every compiler
+  # build record a failure. Link the whole lib/ tree from the main checkout
+  # instead of individual entries: the stub dir must be removed first or the
+  # `ln -s` target already exists (broken/empty).
+  if [ -d "$main_root/lib" ]; then
+    if [ -e "$wt/lib" ] && [ ! -L "$wt/lib" ]; then
+      rm -rf "$wt/lib"
+    fi
+    if [ ! -e "$wt/lib" ]; then
+      mkdir -p "$(dirname "$wt/lib")"
+      ln -s "$main_root/lib" "$wt/lib"
+    fi
   fi
   # prebuilt LLVM — only needed when the LLVM Compiler is built in the worktree
   # (backfill --no-skip-llvm / commit collection with LLVM enabled)

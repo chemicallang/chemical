@@ -15,7 +15,7 @@ on:
         description: 'Skip the LLVM backend (fast; LLVM build + test run is very heavy)'
         required: false
         type: boolean
-        default: true
+        default: false
       quick:
         description: 'Quick mode — hello + module benchmarks only, skip test suites'
         required: false
@@ -47,18 +47,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake jq zip unzip
 
-      - name: Setup (download libtcc, submodules)
-        run: ./scripts/setup.sh
+      - name: Setup (download libtcc + prebuilt LLVM, submodules)
+        run: ./scripts/setup.sh --with-llvm
+
+      - name: Configure cmake (TCC + LLVM Compiler targets)
+        run: |
+          cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       - name: Collect daily benchmark
         run: |
           TARGET="${{ inputs.commit }}"
           if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi
-          ARGS="--commit $TARGET --work .bench-work"
+          ARGS="--commit $TARGET"
           if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
           if [ "${{ inputs.quick }}" = "true" ]; then ARGS="$ARGS --quick"; fi
           bash scripts/bench-collect-daily.sh $ARGS
-          git worktree remove --force .bench-work >/dev/null 2>&1 || rm -rf .bench-work
 
       - name: Publish to gh-pages
         # Only ever writes data/ to the gh-pages branch — never to main.

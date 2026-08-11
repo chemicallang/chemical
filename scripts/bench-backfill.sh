@@ -95,10 +95,20 @@ collect_one_commit() { # <date> <sha>
     FAILURES=$((FAILURES + 1))
     return 0
   fi
-  # the compiler build needs the downloaded tcc package + the lsp submodule
+  # the compiler build needs the downloaded tcc package + the lsp submodule;
+  # worktrees do NOT materialize submodules, so lib/ (with lsp-framework) is
+  # linked from the main checkout — without this cmake configure fails and
+  # every build records a failure.
   bm_link_shared_tooling "$wt" "$MAIN_ROOT"
   if [ ! -f "$wt/cmake-build-debug/CMakeCache.txt" ]; then
-    ( cd "$wt" && cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=OFF >/dev/null 2>&1 || true )
+    mkdir -p "$OUT/logs/$date" 2>/dev/null || true
+    # LLVM Compiler backends need BUILD_COMPILER=ON (configured against the
+    # prebuilt LLVM linked from out/host)
+    local cfg_builder="OFF"
+    [ "$SKIP_LLVM" = false ] && cfg_builder="ON"
+    if ! ( cd "$wt" && cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=$cfg_builder > "$OUT/logs/$date/cmake_configure.log" 2>&1 ); then
+      bm_warn "[$date] cmake configure failed — see cmake_configure.log"
+    fi
   fi
   # commit collection BUILDS the compiler → the LLVM skip check applies here
   local backends="tcc,interpret"
@@ -181,10 +191,13 @@ if [ "$RELEASES" = true ]; then
         bm_log "==> release $tag already collected, skipping"
         continue
       fi
-      bm_log "==> collecting release $tag"
-      # release collection only DOWNLOADS prebuilt binaries (no compiler build)
-      # → never skip the LLVM backend here
-      if bash "$SCRIPT_DIR/bench-collect-release.sh" --tag "$tag" --out "$OUT" --repo "$REPO" $( [ "$QUICK" = true ] && echo --quick ); then
+      bm_log "==> collecting release $tag (info + assets)"
+      # info-only: the backfill runs on a single Linux runner and cannot
+      # execute macOS/Windows/Alpine binaries, so it collects the release
+      # metadata + asset inventory only. Per-platform benchmarks + tests are
+      # collected by the Benchmark Release workflow on each platform's own
+      # runner (benchmark-release.yml) — dispatch it with the tag.
+      if bash "$SCRIPT_DIR/bench-collect-release.sh" --tag "$tag" --out "$OUT" --repo "$REPO" --info-only; then
         bm_log "==> release $tag collected"
       else
         bm_warn "release $tag collection failed"

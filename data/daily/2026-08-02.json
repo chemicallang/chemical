@@ -1,7 +1,7 @@
 {
   "type": "daily",
   "date": "2026-08-02",
-  "generated_at": "2026-08-11T12:36:16Z",
+  "generated_at": "2026-08-11T13:58:35Z",
   "platform": {
     "os": "linux",
     "arch": "x64",
@@ -37,19 +37,2852 @@
           "duration_ms": null
         }
       ],
-      "modules": [],
-      "files": [],
+      "modules": [
+        {
+          "tag": "bm:module",
+          "name": "cstd",
+          "nanos": 10967213,
+          "micros": 10967,
+          "millis": 10,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "core",
+          "nanos": 1434743,
+          "micros": 1434,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "std",
+          "nanos": 26996968,
+          "micros": 26996,
+          "millis": 26,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "lab",
+          "nanos": 8868417,
+          "micros": 8868,
+          "millis": 8,
+          "secs": 0
+        }
+      ],
+      "files": [
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 157944,
+          "micros": 157,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 128630,
+          "micros": 128,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 104855,
+          "micros": 104,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 89436,
+          "micros": 89,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 83145,
+          "micros": 83,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 73898,
+          "micros": 73,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 58399,
+          "micros": 58,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 42770,
+          "micros": 42,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 39374,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 37420,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 34625,
+          "micros": 34,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 31309,
+          "micros": 31,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 27171,
+          "micros": 27,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 22031,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 21961,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 20007,
+          "micros": 20,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 18895,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 18295,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 17894,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 17161,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 15809,
+          "micros": 15,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 13014,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 12453,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 11902,
+          "micros": 11,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 11021,
+          "micros": 11,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 10430,
+          "micros": 10,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9468,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9298,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9117,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 8856,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 8206,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 8196,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7755,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7424,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6783,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6492,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6462,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6422,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6271,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5781,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5420,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5330,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5150,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4869,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4718,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4238,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 3988,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 3968,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 3907,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 3867,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "lang/tests/build.lab",
+          "nanos": 2098288,
+          "micros": 2098,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string.ch",
+          "nanos": 1171032,
+          "micros": 1171,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/lab/src/lab.ch",
+          "nanos": 860573,
+          "micros": 860,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string_view.ch",
+          "nanos": 746440,
+          "micros": 746,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/u16_string.ch",
+          "nanos": 595769,
+          "micros": 595,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/universal_cbi/build.lab",
+          "nanos": 486076,
+          "micros": 486,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/time/types.ch",
+          "nanos": 477830,
+          "micros": 477,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/js_cbi/build.lab",
+          "nanos": 366814,
+          "micros": 366,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/concurrency/threadpool.ch",
+          "nanos": 361883,
+          "micros": 361,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/html_cbi/build.lab",
+          "nanos": 359269,
+          "micros": 359,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/md_cbi/build.lab",
+          "nanos": 348269,
+          "micros": 348,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/css_cbi/build.lab",
+          "nanos": 346254,
+          "micros": 346,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/chemical.mod",
+          "nanos": 296702,
+          "micros": 296,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/chemical.mod",
+          "nanos": 283759,
+          "micros": 283,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/compiler/chemical.mod",
+          "nanos": 275594,
+          "micros": 275,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/net/chemical.mod",
+          "nanos": 267969,
+          "micros": 267,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/fs/chemical.mod",
+          "nanos": 261507,
+          "micros": 261,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/test/chemical.mod",
+          "nanos": 259113,
+          "micros": 259,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/bcrypt/chemical.mod",
+          "nanos": 248363,
+          "micros": 248,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/atomic/build.lab",
+          "nanos": 237963,
+          "micros": 237,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/chemical.mod",
+          "nanos": 231461,
+          "micros": 231,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/alloc.ch",
+          "nanos": 223987,
+          "micros": 223,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/stream.ch",
+          "nanos": 202256,
+          "micros": 202,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/tls/chemical.mod",
+          "nanos": 193430,
+          "micros": 193,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/mutex.ch",
+          "nanos": 193049,
+          "micros": 193,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/condvar.ch",
+          "nanos": 189884,
+          "micros": 189,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/submod3/chemical.mod",
+          "nanos": 187549,
+          "micros": 187,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/uuid/chemical.mod",
+          "nanos": 185355,
+          "micros": 185,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/ide/chemical.mod",
+          "nanos": 180105,
+          "micros": 180,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/submod2/build.lab",
+          "nanos": 178412,
+          "micros": 178,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/recursive_mutex.ch",
+          "nanos": 177891,
+          "micros": 177,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/md_ide/chemical.mod",
+          "nanos": 175106,
+          "micros": 175,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/font/chemical.mod",
+          "nanos": 160319,
+          "micros": 160,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/html/chemical.mod",
+          "nanos": 159477,
+          "micros": 159,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/universal/chemical.mod",
+          "nanos": 158956,
+          "micros": 158,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/universal_ide/chemical.mod",
+          "nanos": 156291,
+          "micros": 156,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/external_common/chemical.mod",
+          "nanos": 155409,
+          "micros": 155,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/html_ide/chemical.mod",
+          "nanos": 155069,
+          "micros": 155,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/js/chemical.mod",
+          "nanos": 152334,
+          "micros": 152,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/css/chemical.mod",
+          "nanos": 151412,
+          "micros": 151,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/css_ide/chemical.mod",
+          "nanos": 150300,
+          "micros": 150,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/js_ide/chemical.mod",
+          "nanos": 150200,
+          "micros": 150,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/md/chemical.mod",
+          "nanos": 148457,
+          "micros": 148,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/http/chemical.mod",
+          "nanos": 140782,
+          "micros": 140,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/chemical.mod",
+          "nanos": 140412,
+          "micros": 140,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/runner/chemical.mod",
+          "nanos": 138578,
+          "micros": 138,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/archive/chemical.mod",
+          "nanos": 137356,
+          "micros": 137,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/audio/chemical.mod",
+          "nanos": 135873,
+          "micros": 135,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/json/chemical.mod",
+          "nanos": 134921,
+          "micros": 134,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/image/chemical.mod",
+          "nanos": 134741,
+          "micros": 134,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2683127,
+          "micros": 2683,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2611785,
+          "micros": 2611,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2519382,
+          "micros": 2519,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2348884,
+          "micros": 2348,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2130778,
+          "micros": 2130,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1802397,
+          "micros": 1802,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1783251,
+          "micros": 1783,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1762553,
+          "micros": 1762,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1546781,
+          "micros": 1546,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1477301,
+          "micros": 1477,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1334215,
+          "micros": 1334,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1234569,
+          "micros": 1234,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1120106,
+          "micros": 1120,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1092144,
+          "micros": 1092,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1084420,
+          "micros": 1084,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1077647,
+          "micros": 1077,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1029818,
+          "micros": 1029,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1023056,
+          "micros": 1023,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 991887,
+          "micros": 991,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 976789,
+          "micros": 976,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 964056,
+          "micros": 964,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 958515,
+          "micros": 958,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 943107,
+          "micros": 943,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 917448,
+          "micros": 917,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 885729,
+          "micros": 885,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 880350,
+          "micros": 880,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 853540,
+          "micros": 853,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 837660,
+          "micros": 837,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 793458,
+          "micros": 793,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 764524,
+          "micros": 764,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 724079,
+          "micros": 724,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 700936,
+          "micros": 700,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 633650,
+          "micros": 633,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 633409,
+          "micros": 633,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 607972,
+          "micros": 607,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 592233,
+          "micros": 592,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 550255,
+          "micros": 550,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 546869,
+          "micros": 546,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 523254,
+          "micros": 523,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 516442,
+          "micros": 516,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 515691,
+          "micros": 515,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 486787,
+          "micros": 486,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 477278,
+          "micros": 477,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 451692,
+          "micros": 451,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 429399,
+          "micros": 429,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 417327,
+          "micros": 417,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 415474,
+          "micros": 415,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 410504,
+          "micros": 410,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 408752,
+          "micros": 408,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 402861,
+          "micros": 402,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 5788101,
+          "micros": 5788,
+          "millis": 5,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 4847894,
+          "micros": 4847,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3846404,
+          "micros": 3846,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3753621,
+          "micros": 3753,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3684102,
+          "micros": 3684,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3442642,
+          "micros": 3442,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3070719,
+          "micros": 3070,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2876072,
+          "micros": 2876,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2639036,
+          "micros": 2639,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2611785,
+          "micros": 2611,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2456426,
+          "micros": 2456,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2221968,
+          "micros": 2221,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2161657,
+          "micros": 2161,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2079142,
+          "micros": 2079,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1997781,
+          "micros": 1997,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1919245,
+          "micros": 1919,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1861717,
+          "micros": 1861,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1857290,
+          "micros": 1857,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1833976,
+          "micros": 1833,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1832994,
+          "micros": 1832,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1790364,
+          "micros": 1790,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1780005,
+          "micros": 1780,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1767843,
+          "micros": 1767,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1691230,
+          "micros": 1691,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1616701,
+          "micros": 1616,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1308817,
+          "micros": 1308,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1280084,
+          "micros": 1280,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1274213,
+          "micros": 1274,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1250539,
+          "micros": 1250,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1236764,
+          "micros": 1236,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1189605,
+          "micros": 1189,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1128772,
+          "micros": 1128,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1071686,
+          "micros": 1071,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1044606,
+          "micros": 1044,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1034096,
+          "micros": 1034,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1032233,
+          "micros": 1032,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1010983,
+          "micros": 1010,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 988992,
+          "micros": 988,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 986197,
+          "micros": 986,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 984714,
+          "micros": 984,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 981648,
+          "micros": 981,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 974480,
+          "micros": 974,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 974024,
+          "micros": 974,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 929581,
+          "micros": 929,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 914032,
+          "micros": 914,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 910346,
+          "micros": 910,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 890068,
+          "micros": 890,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 857697,
+          "micros": 857,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 842830,
+          "micros": 842,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 837851,
+          "micros": 837,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/lab/src/lab.ch",
+          "nanos": 44974,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/primitive_impl.ch",
+          "nanos": 30457,
+          "micros": 30,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/core/structural_ops_arith_bin.ch",
+          "nanos": 29956,
+          "micros": 29,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/external_common/src/interface/primitive_impl.ch",
+          "nanos": 27340,
+          "micros": 27,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/hashing/compare_impl.ch",
+          "nanos": 24767,
+          "micros": 24,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/core/primitive_ops_arith_bin.ch",
+          "nanos": 23984,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/core/primitive_single_assignment.ch",
+          "nanos": 22552,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/generic/basic.ch",
+          "nanos": 22412,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/nodes.ch",
+          "nanos": 21139,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/core/structural_single_assignment.ch",
+          "nanos": 19056,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/variants/basic.ch",
+          "nanos": 17583,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/hashing/hash_impl.ch",
+          "nanos": 17553,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/struct.ch",
+          "nanos": 17483,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/core/unary_arithmetic.ch",
+          "nanos": 13495,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/static.ch",
+          "nanos": 12724,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string.ch",
+          "nanos": 12674,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/stream.ch",
+          "nanos": 11401,
+          "micros": 11,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/basic.ch",
+          "nanos": 9317,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/ops.ch",
+          "nanos": 8746,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/functions/extension_func.ch",
+          "nanos": 8726,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/ops.ch",
+          "nanos": 8115,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/generic_static.ch",
+          "nanos": 8095,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/std.ch",
+          "nanos": 7885,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/basic.ch",
+          "nanos": 7704,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/var_init.ch",
+          "nanos": 7433,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/call_destruction.ch",
+          "nanos": 7424,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/math/math.ch",
+          "nanos": 6081,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/functions/name_hiding.ch",
+          "nanos": 5982,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/functions/constructors.ch",
+          "nanos": 5711,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/inheritance.ch",
+          "nanos": 5400,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/concurrency/stdatomic.ch",
+          "nanos": 5380,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/generic/instantiation.ch",
+          "nanos": 5350,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string_view.ch",
+          "nanos": 5149,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/constructors_init.ch",
+          "nanos": 4798,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/generic/generic_dispatch.ch",
+          "nanos": 4538,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/dynamic.ch",
+          "nanos": 4408,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/posix/diagnostics/errno.ch",
+          "nanos": 3717,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/posix/bits/socket.ch",
+          "nanos": 3146,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/external_common/src/generic_non_public.ch",
+          "nanos": 3105,
+          "micros": 3,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/semantics/moves.ch",
+          "nanos": 2885,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/serialization.ch",
+          "nanos": 2826,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/concurrency/threadpool.ch",
+          "nanos": 2775,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/math/complex.ch",
+          "nanos": 2534,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/auto_generated.ch",
+          "nanos": 2524,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/references/basic.ch",
+          "nanos": 2474,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/utils.ch",
+          "nanos": 2455,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/char/wchar.ch",
+          "nanos": 2334,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/common/integer_types.ch",
+          "nanos": 2285,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/iterable.ch",
+          "nanos": 2284,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/common/std_types.ch",
+          "nanos": 2274,
+          "micros": 2,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/posix/bits/socket.ch",
+          "nanos": 98794,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/lab/src/lab.ch",
+          "nanos": 84487,
+          "micros": 84,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/math/math.ch",
+          "nanos": 78377,
+          "micros": 78,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/common/integer_types.ch",
+          "nanos": 69220,
+          "micros": 69,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/concurrency/threadpool.ch",
+          "nanos": 64530,
+          "micros": 64,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string.ch",
+          "nanos": 62367,
+          "micros": 62,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/unordered_map2.ch",
+          "nanos": 61074,
+          "micros": 61,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/posix/diagnostics/errno.ch",
+          "nanos": 60773,
+          "micros": 60,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/ops.ch",
+          "nanos": 55684,
+          "micros": 55,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/generic/basic.ch",
+          "nanos": 53720,
+          "micros": 53,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/ops.ch",
+          "nanos": 52578,
+          "micros": 52,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/io/stdlib.ch",
+          "nanos": 51075,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/common/std_types.ch",
+          "nanos": 49783,
+          "micros": 49,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/serialization.ch",
+          "nanos": 48721,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/time/types.ch",
+          "nanos": 46386,
+          "micros": 46,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/semantics/moves.ch",
+          "nanos": 46025,
+          "micros": 46,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/struct.ch",
+          "nanos": 44002,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/os_string.ch",
+          "nanos": 39493,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/ordered_map.ch",
+          "nanos": 37760,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/generic/instantiation.ch",
+          "nanos": 37169,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/nodes.ch",
+          "nanos": 35987,
+          "micros": 35,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/lab/src/target_data.ch",
+          "nanos": 35856,
+          "micros": 35,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/math/complex.ch",
+          "nanos": 32140,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/string_view.ch",
+          "nanos": 31489,
+          "micros": 31,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/u16_string.ch",
+          "nanos": 30707,
+          "micros": 30,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/basic.ch",
+          "nanos": 29505,
+          "micros": 29,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/alloc.ch",
+          "nanos": 28984,
+          "micros": 28,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/auto_generated.ch",
+          "nanos": 28433,
+          "micros": 28,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/references/basic.ch",
+          "nanos": 26379,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/variants/basic.ch",
+          "nanos": 26338,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/io/sys_stat.ch",
+          "nanos": 26258,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/nodes/var_init.ch",
+          "nanos": 24666,
+          "micros": 24,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/span.ch",
+          "nanos": 23965,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/destructors/call_destruction.ch",
+          "nanos": 22983,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/comptime/basic.ch",
+          "nanos": 22813,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/functions/constructors.ch",
+          "nanos": 22582,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/vector.ch",
+          "nanos": 22282,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/deque.ch",
+          "nanos": 21631,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/condvar.ch",
+          "nanos": 21630,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/locale/locale.ch",
+          "nanos": 18925,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/recursive_mutex.ch",
+          "nanos": 18735,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/iterable.ch",
+          "nanos": 18724,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/iterable.ch",
+          "nanos": 18524,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/mutex.ch",
+          "nanos": 18334,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/char/wchar.ch",
+          "nanos": 18224,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/posix/time.ch",
+          "nanos": 17683,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/src/function.ch",
+          "nanos": 17323,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/src/decls/interfaces/static.ch",
+          "nanos": 17042,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/io/stdio.ch",
+          "nanos": 16951,
+          "micros": 16,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/src/common/time_types.ch",
+          "nanos": 16732,
+          "micros": 16,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "lang/tests/build.lab",
+          "nanos": 1294341,
+          "micros": 1294,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/universal_cbi/build.lab",
+          "nanos": 258401,
+          "micros": 258,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/html_cbi/build.lab",
+          "nanos": 216694,
+          "micros": 216,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/css_cbi/build.lab",
+          "nanos": 215031,
+          "micros": 215,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/js_cbi/build.lab",
+          "nanos": 201816,
+          "micros": 201,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/md_cbi/build.lab",
+          "nanos": 191286,
+          "micros": 191,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/tls/chemical.mod",
+          "nanos": 187048,
+          "micros": 187,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/core/chemical.mod",
+          "nanos": 159116,
+          "micros": 159,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/std/chemical.mod",
+          "nanos": 157112,
+          "micros": 157,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/fs/chemical.mod",
+          "nanos": 128429,
+          "micros": 128,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/universal/chemical.mod",
+          "nanos": 116627,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/html/chemical.mod",
+          "nanos": 116096,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/js/chemical.mod",
+          "nanos": 113601,
+          "micros": 113,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/net/chemical.mod",
+          "nanos": 112990,
+          "micros": 112,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/html_ide/chemical.mod",
+          "nanos": 112629,
+          "micros": 112,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/cstd/chemical.mod",
+          "nanos": 111087,
+          "micros": 111,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/bcrypt/chemical.mod",
+          "nanos": 110776,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/image/chemical.mod",
+          "nanos": 110296,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/css/chemical.mod",
+          "nanos": 109815,
+          "micros": 109,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/css_ide/chemical.mod",
+          "nanos": 106509,
+          "micros": 106,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/compiler/chemical.mod",
+          "nanos": 106238,
+          "micros": 106,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/test/chemical.mod",
+          "nanos": 105807,
+          "micros": 105,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/submod3/chemical.mod",
+          "nanos": 103994,
+          "micros": 103,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/js_ide/chemical.mod",
+          "nanos": 103593,
+          "micros": 103,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/universal_ide/chemical.mod",
+          "nanos": 103062,
+          "micros": 103,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/md_ide/chemical.mod",
+          "nanos": 102872,
+          "micros": 102,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/atomic/build.lab",
+          "nanos": 101589,
+          "micros": 101,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/uuid/chemical.mod",
+          "nanos": 100758,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/path/chemical.mod",
+          "nanos": 100377,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/md/chemical.mod",
+          "nanos": 98353,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/http/chemical.mod",
+          "nanos": 93705,
+          "micros": 93,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/tls/build.lab",
+          "nanos": 91019,
+          "micros": 91,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/common/chemical.mod",
+          "nanos": 89807,
+          "micros": 89,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/minlsp/chemical.mod",
+          "nanos": 89506,
+          "micros": 89,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/audio/chemical.mod",
+          "nanos": 87132,
+          "micros": 87,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/ide/chemical.mod",
+          "nanos": 85820,
+          "micros": 85,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/docgen/chemical.mod",
+          "nanos": 84127,
+          "micros": 84,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/md/chemical.mod",
+          "nanos": 82984,
+          "micros": 82,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/process/chemical.mod",
+          "nanos": 82734,
+          "micros": 82,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/html_comp/chemical.mod",
+          "nanos": 82674,
+          "micros": 82,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/font/chemical.mod",
+          "nanos": 82504,
+          "micros": 82,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/archive/chemical.mod",
+          "nanos": 81923,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/common/chemical.mod",
+          "nanos": 80500,
+          "micros": 80,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/compiler_plugins/runner/chemical.mod",
+          "nanos": 79939,
+          "micros": 79,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/compression/chemical.mod",
+          "nanos": 79798,
+          "micros": 79,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/submod2/build.lab",
+          "nanos": 79539,
+          "micros": 79,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/crypto/chemical.mod",
+          "nanos": 79247,
+          "micros": 79,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/json/chemical.mod",
+          "nanos": 78817,
+          "micros": 78,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/tests/submod3/submod_mod/chemical.mod",
+          "nanos": 78416,
+          "micros": 78,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "/tmp/tmp.QopO1Recy9/2026-08-02/lang/libs/test_env/chemical.mod",
+          "nanos": 77946,
+          "micros": 77,
+          "millis": 0,
+          "secs": 0
+        }
+      ],
       "tests": {
-        "status": "unavailable",
-        "reason": "not run",
-        "total": null,
-        "passed": null,
-        "failed": null,
-        "duration_ms": null,
+        "status": "success",
+        "total": 1672,
+        "passed": 1672,
+        "failed": 0,
+        "duration_ms": 235,
         "failed_tests": []
       },
-      "tests_build_ms": null,
-      "tests_build_status": "skipped"
+      "tests_build_ms": 239,
+      "tests_build_status": "success"
     },
     "TCCCompiler": {
       "build": {
@@ -67,22 +2900,22 @@
           "name": "hello_std",
           "status": "success",
           "reason": null,
-          "duration_ms": 130
+          "duration_ms": 129
         }
       ],
       "modules": [],
       "files": [],
       "tests": {
-        "status": "unavailable",
-        "reason": "not run",
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 124",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": null,
+        "duration_ms": 1800006,
         "failed_tests": []
       },
-      "tests_build_ms": null,
-      "tests_build_status": "skipped"
+      "tests_build_ms": 1800006,
+      "tests_build_status": "timeout"
     }
   }
 }

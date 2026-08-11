@@ -1,1 +1,31 @@
-{"type":"release_info","tag":"v0.0.3","published_at":"2025-05-30T11:53:14Z","commit_sha":"main","name":"v0.0.3","generated_at":"2026-08-11T12:11:07Z","status":"success","assets":{"linux-x86-64-tcc.zip":{"size_bytes":1002550,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.3/linux-x86-64-tcc.zip","status":"success"},"linux-x86-64.zip":{"size_bytes":68737023,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.3/linux-x86-64.zip","status":"success"},"windows-x64-tcc.zip":{"size_bytes":1086352,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.3/windows-x64-tcc.zip","status":"success"},"windows-x64.zip":{"size_bytes":46624204,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.3/windows-x64.zip","status":"success"}}}
+{
+  "type": "release_info",
+  "tag": "v0.0.3",
+  "published_at": "2025-05-30T11:53:14Z",
+  "commit_sha": "main",
+  "name": "v0.0.3",
+  "generated_at": "2026-08-11T13:06:55Z",
+  "status": "success",
+  "assets": {
+    "linux-x86-64-tcc.zip": {
+      "size_bytes": 1002550,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.3/linux-x86-64-tcc.zip",
+      "status": "success"
+    },
+    "linux-x86-64.zip": {
+      "size_bytes": 68737023,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.3/linux-x86-64.zip",
+      "status": "success"
+    },
+    "windows-x64-tcc.zip": {
+      "size_bytes": 1086352,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.3/windows-x64-tcc.zip",
+      "status": "success"
+    },
+    "windows-x64.zip": {
+      "size_bytes": 46624204,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.3/windows-x64.zip",
+      "status": "success"
+    }
+  }
+}

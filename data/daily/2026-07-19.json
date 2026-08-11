@@ -1,7 +1,7 @@
 {
   "type": "daily",
   "date": "2026-07-19",
-  "generated_at": "2026-08-11T11:34:03Z",
+  "generated_at": "2026-08-11T12:56:44Z",
   "platform": {
     "os": "linux",
     "arch": "x64",
@@ -14,21 +14,34 @@
     "author_date": "2026-07-19T19:39:59+05:00"
   },
   "compiler_version": {
-    "TCCCompiler": "n/a",
+    "TCCCompiler": "Chemical v0.5.6",
     "Compiler": "n/a"
   },
   "backends": {
     "Interpreter": {
       "build": {
-        "status": "failed",
-        "reason": "compiler build failed; see Interpreter_build.log"
+        "status": "success",
+        "reason": null
       },
-      "benchmarks": [],
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null
+        },
+        {
+          "name": "hello_std",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null
+        }
+      ],
       "modules": [],
       "files": [],
       "tests": {
         "status": "unavailable",
-        "reason": "compiler build failed",
+        "reason": "not run",
         "total": null,
         "passed": null,
         "failed": null,
@@ -36,19 +49,32 @@
         "failed_tests": []
       },
       "tests_build_ms": null,
-      "tests_build_status": "unavailable"
+      "tests_build_status": "skipped"
     },
     "TCCCompiler": {
       "build": {
-        "status": "failed",
-        "reason": "compiler build failed; see TCCCompiler_build.log"
+        "status": "success",
+        "reason": null
       },
-      "benchmarks": [],
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 8
+        },
+        {
+          "name": "hello_std",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 125
+        }
+      ],
       "modules": [],
       "files": [],
       "tests": {
         "status": "unavailable",
-        "reason": "compiler build failed",
+        "reason": "not run",
         "total": null,
         "passed": null,
         "failed": null,
@@ -56,7 +82,7 @@
         "failed_tests": []
       },
       "tests_build_ms": null,
-      "tests_build_status": "unavailable"
+      "tests_build_status": "skipped"
     }
   }
 }

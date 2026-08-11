@@ -1,1 +1,41 @@
-{"type":"release_info","tag":"v0.0.12","published_at":"2025-06-15T11:14:49Z","commit_sha":"main","name":"v0.0.12","generated_at":"2026-08-11T12:11:07Z","status":"success","assets":{"linux-x86-64-lsp.zip":{"size_bytes":36996965,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.12/linux-x86-64-lsp.zip","status":"success"},"linux-x86-64-tcc.zip":{"status":"missing_asset","size_bytes":null,"url":null},"linux-x86-64.zip":{"status":"missing_asset","size_bytes":null,"url":null},"windows-x64-lsp.zip":{"size_bytes":2449567,"url":"https://github.com/chemicallang/chemical/releases/download/v0.0.12/windows-x64-lsp.zip","status":"success"},"windows-x64-tcc.zip":{"status":"missing_asset","size_bytes":null,"url":null},"windows-x64.zip":{"status":"missing_asset","size_bytes":null,"url":null}}}
+{
+  "type": "release_info",
+  "tag": "v0.0.12",
+  "published_at": "2025-06-15T11:14:49Z",
+  "commit_sha": "main",
+  "name": "v0.0.12",
+  "generated_at": "2026-08-11T13:06:53Z",
+  "status": "success",
+  "assets": {
+    "linux-x86-64-lsp.zip": {
+      "size_bytes": 36996965,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/linux-x86-64-lsp.zip",
+      "status": "success"
+    },
+    "linux-x86-64-tcc.zip": {
+      "size_bytes": 22471271,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/linux-x86-64-tcc.zip",
+      "status": "success"
+    },
+    "linux-x86-64.zip": {
+      "size_bytes": 106961461,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/linux-x86-64.zip",
+      "status": "success"
+    },
+    "windows-x64-lsp.zip": {
+      "size_bytes": 2449567,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/windows-x64-lsp.zip",
+      "status": "success"
+    },
+    "windows-x64-tcc.zip": {
+      "size_bytes": 1686891,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/windows-x64-tcc.zip",
+      "status": "success"
+    },
+    "windows-x64.zip": {
+      "size_bytes": 54841541,
+      "url": "https://github.com/chemicallang/chemical/releases/download/v0.0.12/windows-x64.zip",
+      "status": "success"
+    }
+  }
+}

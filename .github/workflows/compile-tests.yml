@@ -632,7 +632,9 @@ jobs:
   # debugger (modeled on scripts/capture_deadlock.sh): all-thread backtraces, registers,
   # /proc status/limits/maps/fds/per-thread wait-channels, executable & system info.
   # All collected data (debugger output, deadlock diagnostics, full logs, system info,
-  # commit.json) is zipped and uploaded ONLY when something crashed/failed/deadlocked.
+  # commit.json) is zipped and uploaded ONLY when something crashed/failed/deadlocked,
+  # as a workflow artifact in THIS repo (chemical). chemical-debug is only ever READ
+  # (binary + commit.json downloads); its releases are never written to or polluted.
   # On success nothing is uploaded; the logs (with the Total/Passed/Failed summary) stay
   # visible in the run.
   test-debug:
@@ -1051,6 +1053,11 @@ jobs:
           fi
           ls -la crash-dump.zip
 
+      # Crash/deadlock data is uploaded ONLY to this repo's workflow-run
+      # artifacts (Actions → artifact debug-crash-<platform>). Nothing is ever
+      # written back to chemicallang/chemical-debug — that repo is used strictly
+      # read-only (downloading the debug binaries and commit.json) so its release
+      # listing stays clean for the download scripts.
       - name: Upload crash dump
         if: env.CRASHED == '1'
         uses: actions/upload-artifact@v4

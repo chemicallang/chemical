@@ -31,10 +31,13 @@ on:
         description: 'Import std: write a chemical.mod with "import std" and call printf without declaring it (forces the compiler to compile the std library first)'
         required: false
         type: choice
-        default: no
+        # quoted to avoid YAML 1.1 boolean coercion (bare no/yes can parse as
+        # false/true in stricter parsers — the same class of bug as the
+        # boolean input we're replacing)
+        default: 'no'
         options:
-          - no
-          - yes
+          - 'no'
+          - 'yes'
 
 jobs:
   test-release:

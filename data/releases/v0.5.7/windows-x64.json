@@ -4,7 +4,7 @@
   "platform": "windows",
   "arch": "x64",
   "libc": "glibc",
-  "generated_at": "2026-08-11T12:22:18Z",
+  "generated_at": "2026-08-11T12:22:45Z",
   "status": "success",
   "assets": {
     "linux-x64.zip": {
@@ -111,41 +111,41 @@
   "backends": {
     "TCCCompiler": {
       "build": {
-        "status": "skipped",
-        "reason": "test suite build status: skipped"
+        "status": "failed",
+        "reason": "test suite build status: failed"
       },
       "benchmarks": [
         {
           "name": "hello_bare",
           "status": "failed",
           "reason": "compiler exited with code 127",
-          "duration_ms": 93
+          "duration_ms": 120
         },
         {
           "name": "hello_std",
           "status": "failed",
           "reason": "compiler exited with code 127",
-          "duration_ms": 70
+          "duration_ms": 92
         }
       ],
       "modules": [],
       "files": [],
       "tests": {
-        "status": "unavailable",
-        "reason": "not run",
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 127",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": null,
+        "duration_ms": 70,
         "failed_tests": []
       },
-      "tests_build_ms": null,
-      "tests_build_status": "skipped"
+      "tests_build_ms": 70,
+      "tests_build_status": "failed"
     },
     "Interpreter": {
       "build": {
-        "status": "skipped",
-        "reason": "test suite build status: skipped"
+        "status": "failed",
+        "reason": "test suite build status: failed"
       },
       "benchmarks": [
         {
@@ -164,49 +164,49 @@
       "modules": [],
       "files": [],
       "tests": {
-        "status": "unavailable",
-        "reason": "not run",
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 127",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": null,
+        "duration_ms": 69,
         "failed_tests": []
       },
-      "tests_build_ms": null,
-      "tests_build_status": "skipped"
+      "tests_build_ms": 69,
+      "tests_build_status": "failed"
     },
     "Compiler": {
       "build": {
-        "status": "skipped",
-        "reason": "test suite build status: skipped"
+        "status": "failed",
+        "reason": "test suite build status: failed"
       },
       "benchmarks": [
         {
           "name": "hello_bare",
           "status": "failed",
           "reason": "compiler exited with code 127",
-          "duration_ms": 73
+          "duration_ms": 68
         },
         {
           "name": "hello_std",
           "status": "failed",
           "reason": "compiler exited with code 127",
-          "duration_ms": 72
+          "duration_ms": 68
         }
       ],
       "modules": [],
       "files": [],
       "tests": {
-        "status": "unavailable",
-        "reason": "not run",
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 127",
         "total": null,
         "passed": null,
         "failed": null,
-        "duration_ms": null,
+        "duration_ms": 75,
         "failed_tests": []
       },
-      "tests_build_ms": null,
-      "tests_build_status": "skipped"
+      "tests_build_ms": 75,
+      "tests_build_status": "failed"
     }
   }
 }

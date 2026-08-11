@@ -293,7 +293,11 @@ function renderOverview() {
       html += `<tr><td>${esc(PLATFORM_LABEL[p.platform] || p.platform)} ${esc(p.arch)} <span class="dim">(${esc(asset)})</span></td>
         <td class="num">${a.status === "success" ? fmtSize(a.size_bytes) : `<span class="missing">${esc(a.status)}</span>`}</td></tr>`;
     }
-    html += `</tbody></table></div></div>`;
+    html += `</tbody></table></div>`;
+    // test results for the latest release (most-covered platform, e.g.
+    // linux-x64) — the dashboard's primary concern is test pass/fail data
+    html += `<div class="card" id="ov-rel-tests"><div class="note">loading test results…</div></div></div>`;
+    loadLatestReleaseTests(lastRel);
   }
 
   if (state.daily.length > 1) {
@@ -305,6 +309,37 @@ function renderOverview() {
 
   el.innerHTML = html;
   el.classList.contains("active") && renderOverviewCharts();
+}
+
+/* load the latest release's platform record (most-covered platform) and show
+ * its test results directly on the Overview — test results are the primary
+ * dashboard focus, so the latest release's pass/fail data must be visible
+ * without opening a modal. */
+async function loadLatestReleaseTests(rel) {
+  const box = document.getElementById("ov-rel-tests");
+  if (!box) return;
+  const pk = mostCoveredPlatform();
+  if (!pk) { box.innerHTML = `<div class="note">no platform records available</div>`; return; }
+  const rec = await ensurePlatformRecord(rel, pk);
+  if (!rec || !rec.backends) { box.innerHTML = `<div class="note">no test results recorded for ${esc(pk)}</div>`; return; }
+  let rows = "";
+  for (const b of BACKENDS) {
+    const r = rec.backends[b];
+    if (!r) continue;
+    const t = r.tests || {};
+    rows += `<tr>
+      <td><b>${esc(BACKEND_LABEL[b])}</b> ${statusBadge(r.build.status, "")}</td>
+      <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
+      <td class="num">${t.passed != null ? t.passed : "—"}</td>
+      <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
+      <td class="num">${fmtMs(t.duration_ms)}</td>
+    </tr>`;
+    const fh = failedTestsHtml(t, 8);
+    if (fh) rows += `<tr class="sub-row"><td></td><td colspan="4" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
+  }
+  if (!rows) { box.innerHTML = `<div class="note">no test results for ${esc(pk)}</div>`; return; }
+  box.innerHTML = `<h3>Test results — ${esc(pk)}</h3><table>
+    <thead><tr><th>Backend</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderOverviewCharts() {
@@ -358,14 +393,31 @@ function releasePlatformsForChart() {
   return Array.from(set).sort();
 }
 
+/* the platform with benchmark records in the MOST releases (e.g. linux-x64) —
+ * used as the default selection so the release charts show data immediately
+ * instead of the alphabetically-first platform (which has records for only a
+ * single release and therefore renders every chart empty). */
+function mostCoveredPlatform() {
+  const counts = {};
+  for (const pf of Object.values(state.manifest.releases || {})) {
+    for (const k of pf) counts[k] = (counts[k] || 0) + 1;
+  }
+  let best = null, bestCount = -1;
+  for (const [k, c] of Object.entries(counts)) {
+    if (c > bestCount) { best = k; bestCount = c; }
+  }
+  return best;
+}
+
 function renderReleases() {
   const el = $("#view-releases");
   if (!state.releases.length) { el.innerHTML = `<div class="note">No release data yet.</div>`; return; }
 
   const platforms = releasePlatformsForChart();
 
+  const defPlatform = mostCoveredPlatform();
   let html = `<div class="filters">
-    <label>Platform <select id="rel-platform-select">${platforms.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("")}</select></label>
+    <label>Platform <select id="rel-platform-select">${platforms.map((p) => `<option value="${esc(p)}"${p === defPlatform ? " selected" : ""}>${esc(p)}</option>`).join("")}</select></label>
     <label>Backend <select id="rel-backend-select">${BACKENDS.map((b) => `<option value="${esc(b)}">${esc(BACKEND_LABEL[b])}</option>`).join("")}</select></label>
     <label>Variant <select id="rel-variant-select"><option value="regular">regular</option><option value="tcc">tcc</option></select></label>
   </div>`;

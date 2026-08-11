@@ -78,17 +78,77 @@ function loadPrefs() {
 const platformCache = {};  // "tag/platform" → Promise<record>
 const dailyCache = {};     // date → Promise<record>
 
+/* load-failure bookkeeping — failures are data, never silently dropped */
+const loadErrors = [];
+function noteLoadError(what, err) {
+  const msg = what + (err && err.message ? " — " + err.message : "");
+  if (!loadErrors.includes(msg)) loadErrors.push(msg);
+  console.warn("load error:", msg);
+}
+
 const charts = {};
 function destroyChart(id) {
   if (charts[id]) { charts[id].destroy(); delete charts[id]; }
 }
-function makeChart(id, config) {
+
+/* chart containers need a deterministic height or Chart.js sizing is flaky
+   (can collapse to 0 or vary between renders). Wrap every canvas in a
+   fixed-height .chart-wrap on first use. */
+function ensureChartWrap(canvas) {
+  const parent = canvas.parentElement;
+  if (!parent || parent.classList.contains("chart-wrap")) return;
+  const wrap = document.createElement("div");
+  wrap.className = "chart-wrap";
+  parent.insertBefore(wrap, canvas);
+  wrap.appendChild(canvas);
+}
+
+/* safe access to a canvas's parent (makeChart can be called with a detached
+   element in edge cases; never let that throw) */
+function canvasParent(canvas) {
+  return canvas.parentElement || (canvas.parentNode) || null;
+}
+
+/* does any dataset in the config have a non-null value? */
+function chartHasData(config) {
+  const sets = (config.data && config.data.datasets) || [];
+  return sets.some((ds) => (ds.data || []).some((v) => v != null && isFinite(v)));
+}
+
+function makeChart(id, config, emptyNote) {
   destroyChart(id);
   const canvas = document.getElementById(id);
   if (!canvas) return;
+  ensureChartWrap(canvas);
+  const parent = canvasParent(canvas);
+  // all-null data → show an honest note instead of an empty axes box
+  if (!chartHasData(config)) {
+    canvas.style.display = "none";
+    if (parent) {
+      let note = parent.querySelector(".chart-empty");
+      if (!note) {
+        note = document.createElement("div");
+        note.className = "note chart-empty";
+        note.textContent = emptyNote || "no data for the current selection";
+        parent.appendChild(note);
+      }
+    }
+    return;
+  }
+  canvas.style.display = "";
+  if (parent) {
+    const stale = parent.querySelector(".chart-empty");
+    if (stale) stale.remove();
+  }
   try { charts[id] = new Chart(canvas.getContext("2d"), config); }
   catch (e) { console.warn("chart failed", id, e); }
 }
+
+/* async chart renders can race (rapid filter/theme changes). Each render
+   captures a token; stale renders must not overwrite newer ones. */
+let chartSeq = 0;
+function chartToken() { return ++chartSeq; }
+function chartIsStale(token) { return token !== chartSeq; }
 
 /* ── theme ──────────────────────────────────────────────────── */
 function applyTheme() {
@@ -139,13 +199,28 @@ function setStatus(text) {
   el.textContent = text;
   el.className = "badge " + (text === "loaded" ? "badge-ok" : "badge-loading");
   if (text !== "loaded") el.textContent = "⚠ " + text;
+  if (text === "loaded" && loadErrors.length) {
+    el.textContent = `loaded · ${loadErrors.length} record${loadErrors.length > 1 ? "s" : ""} unavailable`;
+    el.title = loadErrors.join("\n");
+  }
 }
 
-const fmtSize = (b) =>
-  b == null ? "—" : b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : (b / 1024).toFixed(1) + " KB";
+/* numeric guards: NaN/Infinity/non-numeric strings from bad data must never
+   reach charts or formatters (they break axis scales and show "NaN MB") */
+function num(v) { return (typeof v === "number" && isFinite(v)) ? v : null; }
+function numOrZero(v) { const n = num(v); return n == null ? 0 : n; }
 
-const fmtMs = (ms) =>
-  ms == null ? "—" : ms >= 60000 ? (ms / 60000).toFixed(1) + " min" : ms >= 1000 ? (ms / 1000).toFixed(2) + " s" : ms + " ms";
+const fmtSize = (b) => {
+  const n = num(b);
+  if (n == null) return "—";
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : (n / 1024).toFixed(1) + " KB";
+};
+
+const fmtMs = (ms) => {
+  const n = num(ms);
+  if (n == null) return "—";
+  return n >= 60000 ? (n / 60000).toFixed(1) + " min" : n >= 1000 ? (n / 1000).toFixed(2) + " s" : n + " ms";
+};
 
 const fmtDate = (s) => (s ? s.slice(0, 10) : "—");
 const fmtDateTime = (s) => (s ? s.replace("T", " ").replace(/Z$/, " UTC") : "—");
@@ -263,12 +338,13 @@ function failedTestsHtml(t, limit) {
 }
 
 function regressChip(current, prev) {
-  if (current == null || prev == null || prev === 0) return "";
-  const diff = ((current - prev) / prev) * 100;
+  const c = num(current), p = num(prev);
+  if (c == null || p == null || p === 0) return "";
+  const diff = ((c - p) / p) * 100;
   const cls = Math.abs(diff) < 0.5 ? "flat" : diff > 0 ? "up" : "down";
   const sign = diff > 0 ? "+" : "";
   const icon = cls === "flat" ? "•" : cls === "up" ? "▲" : "▼";
-  return `<span class="chip ${cls}" title="${esc(prev.toFixed(2))} → ${esc(current.toFixed(2))}">${icon} ${sign}${diff.toFixed(1)}%</span>`;
+  return `<span class="chip ${cls}" title="${esc(p.toFixed(2))} → ${esc(c.toFixed(2))}">${icon} ${sign}${diff.toFixed(1)}%</span>`;
 }
 
 /* asset-name → (platform, arch, variant) — mirrors scripts/common.sh */
@@ -304,22 +380,38 @@ function helloOf(rec, name) {
 }
 function testsOf(rec) { return (rec && rec.tests) || null; }
 
+/* fetches must time out — a hung request would otherwise leave the status
+   badge on "loading…" forever. Abort after FETCH_TIMEOUT_MS. */
+const FETCH_TIMEOUT_MS = 20000;
 async function fetchJson(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(url + " → " + r.status);
-  return r.json();
+  const hasAbort = typeof AbortController !== "undefined";
+  const ctrl = hasAbort ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
+  try {
+    const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+    if (!r.ok) throw new Error(url + " → " + r.status);
+    return await r.json();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function loadDailyRecord(date) {
   if (!dailyCache[date]) {
-    dailyCache[date] = fetchJson("data/daily/" + date + ".json").catch((e) => { console.warn("missing daily", date); return null; });
+    dailyCache[date] = fetchJson("data/daily/" + date + ".json").catch((e) => {
+      noteLoadError("daily " + date, e);
+      return null;
+    });
   }
   return dailyCache[date];
 }
 function loadPlatformRecord(tag, pf) {
   const key = tag + "/" + pf;
   if (!platformCache[key]) {
-    platformCache[key] = fetchJson(`data/releases/${tag}/${pf}.json`).catch((e) => { console.warn("missing platform", key); return null; });
+    platformCache[key] = fetchJson(`data/releases/${tag}/${pf}.json`).catch((e) => {
+      noteLoadError("platform " + key, e);
+      return null;
+    });
   }
   return platformCache[key];
 }
@@ -493,12 +585,13 @@ async function loadLatestReleaseTests(rel) {
 }
 
 function renderOverviewCharts() {
+  const token = chartToken();
   const labels = state.daily.map((d) => d.date);
   const datasets = [];
   for (const b of BACKENDS) {
     const data = state.daily.map((d) => {
       const h = helloOf(backendOf(d, b), "hello_bare");
-      return h && h.status === "success" ? h.duration_ms : null;
+      return h && h.status === "success" ? num(h.duration_ms) : null;
     });
     if (data.some((v) => v != null)) datasets.push({ label: BACKEND_LABEL[b], data, borderColor: colorOf(b), backgroundColor: colorOf(b), spanGaps: true, tension: 0.25, pointRadius: 2 });
   }
@@ -506,20 +599,23 @@ function renderOverviewCharts() {
 
   if (state.releases.length > 1) {
     const pk = "linux-x64";
-    Promise.all(state.releases.map((r) => ensurePlatformRecord(r, pk))).then(() => {
-      const relTags = state.releases.map((x) => x.info.tag);
-      const fresh = [];
-      for (const b of BACKENDS) {
-        const data = state.releases.map((r) => {
-          const pf = r.platforms && r.platforms[pk];
-          const rec = pf && pf.backends && pf.backends[b];
-          const h = helloOf(rec, "hello_std");
-          return h && h.status === "success" ? h.duration_ms : null;
-        });
-        if (data.some((v) => v != null)) fresh.push({ label: BACKEND_LABEL[b] + " std", data, borderColor: colorOf(b), backgroundColor: colorOf(b), spanGaps: false, tension: 0.2, pointRadius: 2 });
-      }
-      if (fresh.length) makeChart("ov-rel-hello", { type: "line", data: { labels: relTags, datasets: fresh }, options: baseLineOpts("compilation ms") });
-    });
+    Promise.all(state.releases.map((r) => ensurePlatformRecord(r, pk).catch(() => null)))
+      .catch((e) => noteLoadError("overview release data", e))
+      .then(() => {
+        if (chartIsStale(token)) return;
+        const relTags = state.releases.map((x) => x.info.tag);
+        const fresh = [];
+        for (const b of BACKENDS) {
+          const data = state.releases.map((r) => {
+            const pf = r.platforms && r.platforms[pk];
+            const rec = pf && pf.backends && pf.backends[b];
+            const h = helloOf(rec, "hello_std");
+            return h && h.status === "success" ? num(h.duration_ms) : null;
+          });
+          if (data.some((v) => v != null)) fresh.push({ label: BACKEND_LABEL[b] + " std", data, borderColor: colorOf(b), backgroundColor: colorOf(b), spanGaps: false, tension: 0.2, pointRadius: 2 });
+        }
+        if (fresh.length) makeChart("ov-rel-hello", { type: "line", data: { labels: relTags, datasets: fresh }, options: baseLineOpts("compilation ms") });
+      });
   }
 }
 
@@ -654,9 +750,10 @@ function renderReleaseTable() {
   }
 }
 
-const MB = (b) => (b == null ? null : b / 1048576);
+const MB = (b) => { const n = num(b); return n == null ? null : n / 1048576; };
 
 async function renderReleaseCharts() {
+  const token = chartToken();
   const ps = $("#rel-platform-select"), bs = $("#rel-backend-select"), vs = $("#rel-variant-select");
   if (!ps || !bs || !vs) return;
   const platformKey = ps.value, backend = bs.value, variant = vs.value;
@@ -670,20 +767,26 @@ async function renderReleaseCharts() {
   const loading = $("#rel-loading");
   if (loading) loading.style.display = "inline";
 
-  await Promise.all(state.releases.map((r) => ensurePlatformRecord(r, platformKey)));
+  try {
+    await Promise.all(state.releases.map((r) => ensurePlatformRecord(r, platformKey)));
+  } catch (e) {
+    noteLoadError("release platform data", e);
+  }
   if (loading) loading.style.display = "none";
+  if (chartIsStale(token)) return; // a newer selection superseded this render
 
+  if (chartIsStale(token)) return;
   const tags = state.releases.map((r) => r.info.tag);
   const sizes = state.releases.map((r) => {
     const a = r.info.assets && r.info.assets[assetName];
-    return a && a.status === "success" ? MB(a.size_bytes) : null;
+    return a && a.status === "success" ? num(MB(a.size_bytes)) : null;
   });
 
   makeChart("rel-size-bar", {
     type: "bar",
     data: { labels: tags, datasets: [{ label: platformKey + " " + variant, data: sizes, backgroundColor: hslAlpha(colorOf("Compiler"), 0.55), borderRadius: 4 }] },
     options: barOpts("MB"),
-  });
+  }, "no binary-size data for " + platformKey);
 
   const lineSets = [];
   for (const pk of releasePlatformsForChart()) {
@@ -692,10 +795,11 @@ async function renderReleaseCharts() {
     const an = assetNameFor(pl, p[1], variant);
     const data = state.releases.map((r) => {
       const a = r.info.assets && r.info.assets[an];
-      return a && a.status === "success" ? MB(a.size_bytes) : null;
+      return a && a.status === "success" ? num(MB(a.size_bytes)) : null;
     });
     if (data.some((v) => v != null)) lineSets.push({ label: pk + " (" + variant + ")", data, borderColor: colorFor(pk), spanGaps: false, tension: 0.2, pointRadius: 2 });
   }
+  if (chartIsStale(token)) return;
   makeChart("rel-size-line", { type: "line", data: { labels: tags, datasets: lineSets }, options: baseLineOpts("MB") });
 
   const helloSets = [];
@@ -704,18 +808,19 @@ async function renderReleaseCharts() {
       const pf = r.platforms && r.platforms[platformKey];
       const rec = pf && pf.backends && pf.backends[backend];
       const h = helloOf(rec, kind);
-      return h && h.status === "success" ? h.duration_ms : null;
+      return h && h.status === "success" ? num(h.duration_ms) : null;
     });
     helloSets.push({ label: kind === "hello_bare" ? "bare" : "std", data, borderColor: kind === "hello_bare" ? colorOf("TCCCompiler") : colorOf("Interpreter"), spanGaps: false, tension: 0.2, pointRadius: 2 });
   }
+  if (chartIsStale(token)) return;
   makeChart("rel-hello", { type: "line", data: { labels: tags, datasets: helloSets }, options: baseLineOpts("compilation ms") });
 
   const passSets = [], failSets = [];
   for (const r of state.releases) {
     const pf = r.platforms && r.platforms[platformKey];
     const t = pf && pf.backends && pf.backends[backend] && pf.backends[backend].tests;
-    passSets.push(t && t.passed != null ? t.passed : null);
-    failSets.push(t && t.failed != null ? t.failed : null);
+    passSets.push(t ? num(t.passed) : null);
+    failSets.push(t ? num(t.failed) : null);
   }
   makeChart("rel-tests", {
     type: "bar",
@@ -727,7 +832,7 @@ async function renderReleaseCharts() {
       ],
     },
     options: barOpts("tests"),
-  });
+  }, "no test results for " + backend + " on " + platformKey);
 }
 
 /* convert #rrggbb → hsl() with alpha (for theme-independent chart fills) */
@@ -752,7 +857,10 @@ async function renderCompare() {
   const mySeq = ++compareSeq;
   box.innerHTML = `<div class="note">loading…</div>`;
   const pk = state.relPlatform || mostCoveredPlatform();
-  const [pa, pb] = await Promise.all([ensurePlatformRecord(ra, pk).catch(() => null), ensurePlatformRecord(rb, pk).catch(() => null)]);
+  const [pa, pb] = await Promise.all([
+    ensurePlatformRecord(ra, pk).catch(() => null),
+    ensurePlatformRecord(rb, pk).catch(() => null),
+  ]);
   if (mySeq !== compareSeq) return; // a newer selection superseded this one
 
   // assets side by side (regular variant only, union of names)
@@ -786,15 +894,14 @@ async function renderCompare() {
  * must not overwrite the pair after a newer selection) */
 let compareSeq = 0;
 
+
+/* open the release modal IMMEDIATELY with the release summary + assets table,
+   then fetch and fill in the per-platform benchmark/test sections asynchronously.
+   Previously the modal waited for every platform record before appearing — on a
+   slow connection the click appeared to do nothing. */
 async function openReleaseModal(tag) {
   const r = state.releases.find((x) => x.info && x.info.tag === tag);
   if (!r) return;
-  try {
-    await ensurePlatformRecords(r);
-  } catch (e) {
-    console.warn("failed to load platform records for " + tag, e);
-    r.platforms = r.platforms || {};
-  }
 
   const assets = r.info.assets || {};
   const assetEntries = Object.entries(assets);
@@ -814,36 +921,51 @@ async function openReleaseModal(tag) {
   }
   html += `</tbody></table></div>`;
 
+  html += `<div id="rel-modal-platforms"><div class="note">loading benchmark &amp; test data…</div></div>`;
+  openModal(html);
+
+  // fill platform sections asynchronously; if the modal was closed meanwhile,
+  // the write is a no-op (the container is gone)
+  try {
+    await ensurePlatformRecords(r);
+  } catch (e) {
+    noteLoadError("platform records for " + tag, e);
+    r.platforms = r.platforms || {};
+  }
+  const box = document.getElementById("rel-modal-platforms");
+  if (!box) return; // modal closed while loading
+
+  let phtml = "";
   const pkeys = Object.keys(r.platforms || {}).sort();
   for (const pk of pkeys) {
     const pf = r.platforms[pk];
     const bks = pf.backends || {};
     const hasAny = BACKENDS.some((b) => bks[b]);
-    html += `<h3>${esc(pk)} <span class="dim">${esc(pf.libc || "")}</span> ${statusBadge(pf.status, "")}</h3>`;
-    if (pf.generated_at) html += `<div class="dim">benchmarked ${esc(fmtDateTime(pf.generated_at))}${pf.reason ? ` · ${esc(pf.reason)}` : ""}</div>`;
-    if (!hasAny) { html += `<div class="note">no benchmark/test data for this platform</div>`; continue; }
-    html += `<div class="table-wrap"><table><thead><tr><th>Backend</th><th>Build</th><th class="num">Hello bare</th><th class="num">Hello std</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
+    phtml += `<h3>${esc(pk)} <span class="dim">${esc(pf.libc || "")}</span> ${statusBadge(pf.status, "")}</h3>`;
+    if (pf.generated_at) phtml += `<div class="dim">benchmarked ${esc(fmtDateTime(pf.generated_at))}${pf.reason ? ` · ${esc(pf.reason)}` : ""}</div>`;
+    if (!hasAny) { phtml += `<div class="note">no benchmark/test data for this platform</div>`; continue; }
+    phtml += `<div class="table-wrap"><table><thead><tr><th>Backend</th><th>Build</th><th class="num">Hello bare</th><th class="num">Hello std</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
     for (const b of BACKENDS) {
       const rec = bks[b];
-      if (!rec) { html += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="7" class="dim">no data</td></tr>`; continue; }
+      if (!rec) { phtml += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="7" class="dim">no data</td></tr>`; continue; }
       const t = rec.tests || {};
       const hb = helloOf(rec, "hello_bare");
       const hs = helloOf(rec, "hello_std");
       const helloCell = (h) => h ? (h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status)) : "—";
-      html += `<tr class="${t.failed > 0 ? "fail-row" : ""}">
+      phtml += `<tr class="${num(t.failed) > 0 ? "fail-row" : ""}">
         <td><b>${esc(BACKEND_LABEL[b])}</b></td>
         <td>${statusBadge(rec.build.status, "")}</td>
         <td class="num">${helloCell(hb)}</td>
         <td class="num">${helloCell(hs)}</td>
         <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
         <td class="num">${t.passed != null ? t.passed : "—"}</td>
-        <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
+        <td class="num ${num(t.failed) > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
         <td class="num">${fmtMs(t.duration_ms)}</td>
       </tr>`;
       const fh = failedTestsHtml(t, 20);
-      if (fh) html += `<tr class="sub-row"><td></td><td colspan="7" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
+      if (fh) phtml += `<tr class="sub-row"><td></td><td colspan="7" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
     }
-    html += `</tbody></table></div>`;
+    phtml += `</tbody></table></div>`;
   }
 
   const runPlats = pkeys.filter((pk) => {
@@ -851,25 +973,25 @@ async function openReleaseModal(tag) {
     return Array.isArray(pf.runs) && pf.runs.length >= 1;
   });
   if (runPlats.length) {
-    html += `<h3>Run history <span class="hint">every benchmark/test run recorded for this release</span></h3>`;
+    phtml += `<h3>Run history <span class="hint">every benchmark/test run recorded for this release</span></h3>`;
     for (const pk of runPlats) {
       const pf = r.platforms[pk];
       const runs = pf.runs.slice().reverse();
-      html += `<h4>${esc(pk)} — ${runs.length} run${runs.length > 1 ? "s" : ""}</h4><div class="table-wrap"><table><thead><tr><th>Run time</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} pass/fail</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
+      phtml += `<h4>${esc(pk)} — ${runs.length} run${runs.length > 1 ? "s" : ""}</h4><div class="table-wrap"><table><thead><tr><th>Run time</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])} pass/fail</th>`).join("")}<th>Status</th></tr></thead><tbody>`;
       for (const run of runs) {
-        html += `<tr><td class="dim">${esc(fmtDateTime(run.generated_at))}</td>`;
+        phtml += `<tr><td class="dim">${esc(fmtDateTime(run.generated_at))}</td>`;
         for (const b of BACKENDS) {
           const rb = run.backends && run.backends[b];
           const rt = rb && rb.tests;
-          html += `<td class="num">${rt && rt.passed != null ? `${rt.passed}<span class="${rt.failed > 0 ? "missing" : ""}">/${rt.failed}</span>` : "—"}</td>`;
+          phtml += `<td class="num">${rt && rt.passed != null ? `${rt.passed}<span class="${rt.failed > 0 ? "missing" : ""}">/${rt.failed}</span>` : "—"}</td>`;
         }
-        html += `<td>${statusBadge(run.status, "")}${run.reason ? ` <span class="dim">${esc(run.reason)}</span>` : ""}</td></tr>`;
+        phtml += `<td>${statusBadge(run.status, "")}${run.reason ? ` <span class="dim">${esc(run.reason)}</span>` : ""}</td></tr>`;
       }
-      html += `</tbody></table></div>`;
+      phtml += `</tbody></table></div>`;
     }
   }
 
-  openModal(html);
+  box.innerHTML = phtml || `<div class="note">no benchmark/test data recorded for this release</div>`;
 }
 
 /* ══ Daily / commits ═══════════════════════════════════════════ */
@@ -996,7 +1118,7 @@ function renderDailyCharts() {
       label: BACKEND_LABEL[b], borderColor: colorOf(b), backgroundColor: colorOf(b),
       data: filteredDaily().map((d) => {
         const h = helloOf(backendOf(d, b), kind);
-        return h && h.status === "success" ? h.duration_ms : null;
+        return h && h.status === "success" ? num(h.duration_ms) : null;
       }),
       spanGaps: false, tension: 0.2, pointRadius: 2,
     })).filter((s) => s.data.some((v) => v != null));
@@ -1009,7 +1131,7 @@ function renderDailyCharts() {
       labels,
       datasets: bks.map((b) => ({
         label: BACKEND_LABEL[b], borderColor: colorOf(b),
-        data: filteredDaily().map((d) => { const t = backendOf(d, b) && backendOf(d, b).tests; return t && t.duration_ms != null ? t.duration_ms : null; }),
+        data: filteredDaily().map((d) => { const t = backendOf(d, b) && backendOf(d, b).tests; return t ? num(t.duration_ms) : null; }),
         spanGaps: false, tension: 0.2, pointRadius: 2,
       })).filter((s) => s.data.some((v) => v != null)),
     },
@@ -1022,7 +1144,7 @@ function renderDailyCharts() {
       labels,
       datasets: bks.map((b) => ({
         label: BACKEND_LABEL[b], backgroundColor: hslAlpha(colorOf(b), 0.7), borderRadius: 3,
-        data: filteredDaily().map((d) => { const t = backendOf(d, b) && backendOf(d, b).tests; return t && t.failed != null ? t.failed : null; }),
+        data: filteredDaily().map((d) => { const t = backendOf(d, b) && backendOf(d, b).tests; return t ? num(t.failed) : null; }),
       })).filter((s) => s.data.some((v) => v != null)),
     },
     options: barOpts("failed tests"),
@@ -1188,7 +1310,7 @@ function renderFailureCharts() {
       labels: list.map((e) => e.test),
       datasets: [{
         label: "occurrences",
-        data: list.map((e) => e.count),
+        data: list.map((e) => numOrZero(e.count)),
         backgroundColor: list.map((e) => e.crashed ? hslAlpha(colorOf("Interpreter"), 0.75) : hslAlpha(colorOf("TCCCompiler"), 0.6)),
         borderRadius: 4,
       }],
@@ -1269,7 +1391,7 @@ function renderModules() {
     for (const b of BACKENDS) {
       const rec = latest && backendOf(latest, b);
       const m = rec && rec.modules && rec.modules.find((x) => x.name === n);
-      html += `<td class="num">${m && m.millis != null ? m.millis.toFixed ? m.millis.toFixed(1) : m.millis : "—"}</td>`;
+      html += `<td class="num">${m ? (num(m.millis) != null ? num(m.millis).toFixed(1) : "—") : "—"}</td>`;
     }
     html += `</tr>`;
   }
@@ -1290,13 +1412,13 @@ function renderModuleChart() {
   const data = state.daily.map((d) => {
     const rec = backendOf(d, backend);
     const m = rec && rec.modules && rec.modules.find((x) => x.name === name);
-    return m && m.millis != null ? m.millis : null;
+    return m ? num(m.millis) : null;
   });
   makeChart("mod-trend", {
     type: "line",
     data: { labels: state.daily.map((d) => d.date), datasets: [{ label: name + " (" + BACKEND_LABEL[backend] + ")", data, borderColor: colorOf(backend), spanGaps: false, tension: 0.2, pointRadius: 2 }] },
     options: baseLineOpts("ms"),
-  });
+  }, "no module timing data");
 }
 
 /* ══ Backends ══════════════════════════════════════════════════ */
@@ -1351,11 +1473,11 @@ function renderBackendCharts() {
     spanGaps: false, tension: 0.2, pointRadius: 2,
   })).filter((s) => s.data.some((v) => v != null));
 
-  makeChart("be-hello", { type: "line", data: { labels, datasets: mk((r) => { const h = helloOf(r, "hello_bare"); return h && h.status === "success" ? h.duration_ms : null; }) }, options: baseLineOpts("ms") });
-  makeChart("be-dur", { type: "line", data: { labels, datasets: mk((r) => r && r.tests && r.tests.duration_ms != null ? r.tests.duration_ms : null) }, options: baseLineOpts("ms") });
+  makeChart("be-hello", { type: "line", data: { labels, datasets: mk((r) => { const h = helloOf(r, "hello_bare"); return h && h.status === "success" ? num(h.duration_ms) : null; }) }, options: baseLineOpts("ms") });
+  makeChart("be-dur", { type: "line", data: { labels, datasets: mk((r) => (r && r.tests ? num(r.tests.duration_ms) : null)) }, options: baseLineOpts("ms") });
   makeChart("be-passrate", {
     type: "line",
-    data: { labels, datasets: mk((r) => r && r.tests && r.tests.total ? +(100 * r.tests.passed / r.tests.total).toFixed(1) : null) },
+    data: { labels, datasets: mk((r) => (r && r.tests && num(r.tests.total) ? +((numOrZero(r.tests.passed) / numOrZero(r.tests.total)) * 100).toFixed(1) : null)) },
     options: baseLineOpts("%"),
   });
 }

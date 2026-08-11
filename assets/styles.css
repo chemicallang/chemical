@@ -243,7 +243,12 @@ main { padding: 24px 24px 56px; max-width: 1440px; margin: 0 auto; }
 }
 .card:hover { border-color: hsl(var(--border)); }
 .card h3 { font-size: 13px; font-weight: 600; color: hsl(var(--muted-foreground)); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-.card canvas { max-height: 320px; }
+/* charts get a deterministic height via the .chart-wrap wrapper created by
+   makeChart — Chart.js sizing becomes unreliable when the container height
+   depends on the canvas itself (collapse / varying sizes) */
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap canvas { max-height: none; }
+.chart-wrap .chart-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
 .card-hover:hover { border-color: hsl(var(--ring) / 0.4); box-shadow: var(--shadow-md); }
 
 /* ── stat cards ──────────────────────────────────────────────── */

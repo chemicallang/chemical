@@ -3,9 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chemical — Compiler Benchmark & Release Dashboard</title>
+<title>Chemical — Compiler Benchmark &amp; Release Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚗️</text></svg>">
+<script>
+  // apply saved theme before first paint (avoids flash)
+  (function () {
+    try {
+      var t = localStorage.getItem("chem-theme");
+      if (t === "light") document.documentElement.classList.remove("dark");
+      else document.documentElement.classList.add("dark");
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -18,14 +31,16 @@
   </div>
   <div class="topbar-right">
     <span id="data-status" class="badge badge-loading">loading data…</span>
-    <a id="raw-data-link" class="btn btn-ghost" href="data/manifest.json" target="_blank">raw data</a>
+    <button id="theme-toggle" class="icon-btn" title="Toggle light / dark theme" aria-label="Toggle theme">🌙</button>
+    <a id="raw-data-link" class="btn btn-ghost" href="data/manifest.json" target="_blank" rel="noopener">raw data</a>
   </div>
 </header>
 
-<nav class="tabs" id="tabs">
+<nav class="tabs" id="tabs" aria-label="Views">
   <button class="tab active" data-view="overview">Overview</button>
   <button class="tab" data-view="releases">Releases</button>
   <button class="tab" data-view="daily">Daily / Commits</button>
+  <button class="tab" data-view="failures">Failures<span class="tab-badge" id="failures-count" hidden>0</span></button>
   <button class="tab" data-view="modules">Modules</button>
   <button class="tab" data-view="backends">Backends</button>
 </nav>
@@ -34,18 +49,21 @@
   <section id="view-overview" class="view active"></section>
   <section id="view-releases" class="view"></section>
   <section id="view-daily" class="view"></section>
+  <section id="view-failures" class="view"></section>
   <section id="view-modules" class="view"></section>
   <section id="view-backends" class="view"></section>
 </main>
 
-<!-- release / commit detail modal -->
-<div id="modal" class="modal hidden">
+<!-- detail modal -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-card">
-    <button class="modal-close" data-close>×</button>
+    <button class="modal-close" data-close aria-label="Close">✕</button>
     <div id="modal-body"></div>
   </div>
 </div>
+
+<div id="toast-root" aria-live="polite"></div>
 
 <footer class="footer">
   <p>Data is collected by GitHub Actions and stored as raw JSON in the <code>gh-pages</code> branch (<code>data/</code>). Failures and missing measurements are preserved as data points, never hidden.</p>

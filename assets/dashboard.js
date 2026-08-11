@@ -178,6 +178,7 @@ function exportTableCsv(tableEl, filename) {
 }
 
 /* generic sortable-table wiring: <th data-sort="key"> or data-sort-num */
+const boundSortables = new WeakSet(); // prevent duplicate listeners on re-render
 function sortTable(tableEl, key, numeric, dir) {
   const tbody = tableEl.querySelector("tbody");
   if (!tbody) return;
@@ -197,6 +198,8 @@ function sortTable(tableEl, key, numeric, dir) {
   rows.forEach((r) => tbody.appendChild(r));
 }
 function bindSortable(tableEl) {
+  if (boundSortables.has(tableEl)) return; // bound once per table element
+  boundSortables.add(tableEl);
   tableEl.querySelectorAll("th.sortable").forEach((th) => {
     th.addEventListener("click", () => {
       const key = th.dataset.sort;
@@ -547,6 +550,10 @@ function renderReleases() {
 
   const platforms = releasePlatformsForChart();
   if (!state.relPlatform || !platforms.includes(state.relPlatform)) state.relPlatform = mostCoveredPlatform();
+  // validate persisted compare tags against releases that still exist
+  const validTags = new Set(state.releases.map((r) => r.info.tag));
+  if (state.relCompareA && !validTags.has(state.relCompareA)) state.relCompareA = null;
+  if (state.relCompareB && !validTags.has(state.relCompareB)) state.relCompareB = null;
 
   // platform record loading indicator
   let html = `<div class="filters">
@@ -742,9 +749,11 @@ async function renderCompare() {
   const ra = state.releases.find((x) => x.info.tag === aTag);
   const rb = state.releases.find((x) => x.info.tag === bTag);
   if (!ra || !rb) return;
+  const mySeq = ++compareSeq;
   box.innerHTML = `<div class="note">loading…</div>`;
   const pk = state.relPlatform || mostCoveredPlatform();
   const [pa, pb] = await Promise.all([ensurePlatformRecord(ra, pk).catch(() => null), ensurePlatformRecord(rb, pk).catch(() => null)]);
+  if (mySeq !== compareSeq) return; // a newer selection superseded this one
 
   // assets side by side (regular variant only, union of names)
   const assetNames = new Set([...Object.keys(ra.info.assets || {}), ...Object.keys(rb.info.assets || {})]);
@@ -762,7 +771,7 @@ async function renderCompare() {
     const t = rec.backends.TCCCompiler.tests || {};
     return `${testStatusBadge(t)} <span class="num">${t.passed != null ? t.passed + "/" + t.failed : "—"}</span> <span class="dim">${fmtMs(t.duration_ms)}</span>`;
   };
-  html = `<div class="table-wrap"><table>
+  const html = `<div class="table-wrap"><table>
     <thead><tr><th></th><th class="num">${esc(aTag)}</th><th class="num">${esc(bTag)}</th></tr></thead>
     <tbody>
       <tr><td><b>Assets</b></td><td colspan="2" class="dim">${regularAssets.length} regular-platform assets each</td></tr>
@@ -772,6 +781,10 @@ async function renderCompare() {
     <div class="note">hello benchmarks + per-backend details: open each release's full report (click its row in All releases).</div>`;
   box.innerHTML = html;
 }
+
+/* sequence token so rapid compare-select changes can't race (stale response
+ * must not overwrite the pair after a newer selection) */
+let compareSeq = 0;
 
 async function openReleaseModal(tag) {
   const r = state.releases.find((x) => x.info && x.info.tag === tag);
@@ -966,6 +979,12 @@ function renderDailyTable() {
     tr.addEventListener("click", () => openDailyModal(tr.dataset.date));
   });
   bindSortable(tableEl);
+  // re-apply the current sort after re-rendering (same as the releases table)
+  const sortedKey = Object.keys(state.sort).find((k) => tableEl.querySelector(`th[data-sort="${k}"]`));
+  if (sortedKey) {
+    const th = tableEl.querySelector(`th[data-sort="${sortedKey}"]`);
+    sortTable(tableEl, sortedKey, th.dataset.sortNum === "1", state.sort[sortedKey]);
+  }
 }
 
 function renderDailyCharts() {

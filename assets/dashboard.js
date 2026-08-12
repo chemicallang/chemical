@@ -32,9 +32,12 @@ const state = {
   dailyTo: "",
   dailySearch: "",
   dailyStatus: "all",
+  dailyPlatform: "all",
   // modules
   modName: null,
   modBackend: "TCCCompiler",
+  // backends view: platform whose latest record is compared
+  bePlatform: null,
   // failures view
   failBackend: "all",
   failSearch: "",
@@ -56,6 +59,8 @@ function savePrefs() {
       modBackend: state.modBackend,
       failBackend: state.failBackend,
       failMin: state.failMin,
+      dailyPlatform: state.dailyPlatform,
+      bePlatform: state.bePlatform,
     }));
   } catch (e) { /* private mode etc. */ }
 }
@@ -71,6 +76,8 @@ function loadPrefs() {
     if (BACKENDS.includes(p.modBackend)) state.modBackend = p.modBackend;
     if (p.failBackend === "all" || BACKENDS.includes(p.failBackend)) state.failBackend = p.failBackend;
     if (typeof p.failMin === "number") state.failMin = p.failMin;
+    if (typeof p.dailyPlatform === "string") state.dailyPlatform = p.dailyPlatform;
+    if (typeof p.bePlatform === "string") state.bePlatform = p.bePlatform;
   } catch (e) { /* ignore */ }
 }
 
@@ -297,6 +304,7 @@ function sortableHeader(label, key, numeric) {
 /* ── labels ─────────────────────────────────────────────────── */
 const STATUS_LABEL = {
   success: "success",
+  partial: "partial",
   missing_asset: "missing asset",
   unavailable: "unavailable",
   test_failure: "test failure",
@@ -305,6 +313,7 @@ const STATUS_LABEL = {
   benchmark_failure: "benchmark failure",
   timeout: "timeout",
   failed: "failed",
+  skipped: "skipped",
 };
 
 function statusBadge(status, label) {
@@ -380,6 +389,101 @@ const PLATFORM_LABEL = {
   "windows-mingw-msvcrt": "Windows (MinGW msvcrt)",
 };
 const BACKEND_LABEL = { TCCCompiler: "TCC", Compiler: "LLVM", Interpreter: "Interpreter" };
+
+/* ── daily records are per-platform: the daily workflow runs a platform matrix
+      and writes one record per <date>-<platform>-<arch>. These helpers treat a
+      record's platform/arch as first-class so the UI can group by date and
+      compare platforms side by side. ─────────────────────────────────────── */
+const EXPECTED_DAILY_PLATFORMS = [
+  "linux-x64", "linux-arm64",
+  "linux-alpine-x64", "linux-alpine-arm64",
+  "macos-x64", "macos-arm64",
+  "windows-x64", "windows-arm64",
+  "windows-mingw-x64", "windows-mingw-arm64",
+  "windows-mingw-msvcrt-x64",
+];
+const DAILY_PLATFORM_LABEL = {
+  linux: "Linux", "linux-alpine": "Alpine", macos: "macOS",
+  windows: "Windows", "windows-mingw": "Windows MinGW",
+  "windows-mingw-msvcrt": "Windows MinGW msvcrt",
+};
+/* "linux-alpine-x64" -> { os: "linux-alpine", arch: "x64" } */
+function dailyPlatformFromKey(pk) {
+  const idx = String(pk).lastIndexOf("-");
+  return idx > 0 ? { os: pk.slice(0, idx), arch: pk.slice(idx + 1) } : { os: pk, arch: "" };
+}
+function dailyPlatformKey(d) {
+  const p = d.platform || {};
+  if (p.os) return p.os + "-" + (p.arch || "");
+  const id = d.id || "";
+  if (id) {
+    // id looks like "2026-08-12-linux-alpine-x64": skip the date's two dashes
+    const i1 = id.indexOf("-");
+    const i2 = i1 >= 0 ? id.indexOf("-", i1 + 1) : -1;
+    const i3 = i2 >= 0 ? id.indexOf("-", i2 + 1) : -1;
+    return i3 >= 0 ? id.slice(i3 + 1) : id;
+  }
+  return d.date || "";
+}
+function dailyPlatformLabelFromKey(pk) {
+  const p = dailyPlatformFromKey(pk);
+  return (DAILY_PLATFORM_LABEL[p.os] || p.os) + (p.arch ? " " + p.arch : "");
+}
+function dailyPlatformLabel(d) {
+  const p = d.platform || {};
+  let label = (DAILY_PLATFORM_LABEL[p.os] || p.os || "unknown") + (p.arch ? " " + p.arch : "");
+  if (p.libc && (p.libc === "musl" || p.libc === "ucrt" || p.libc === "msvcrt")) label += ` <span class="dim">(${esc(p.libc)})</span>`;
+  return label;
+}
+function dailyRecordId(d) { return d.id || (d.date + "-" + dailyPlatformKey(d)); }
+/* overall run status for one platform record: success / partial / failed.
+   Old records (pre-matrix) have no status field -> derived from backends. */
+function dailyRunStatus(d) {
+  if (d.status) return d.status;
+  const recs = BACKENDS.map((b) => backendOf(d, b)).filter(Boolean);
+  if (!recs.length) return "failed";
+  const ok = recs.some((r) => r.build && r.build.status === "success");
+  const bad = recs.some((r) => r.build && r.build.status === "failed");
+  if (ok && !bad) return "success";
+  return ok ? "partial" : "failed";
+}
+function dailyStatusLabel(s) { return STATUS_LABEL[s] || s || "unknown"; }
+/* first backend with a hello result (TCC preferred) for a platform record */
+function platformHello(d, kind) {
+  for (const b of BACKENDS) {
+    const h = helloOf(backendOf(d, b), kind);
+    if (h) return h;
+  }
+  return null;
+}
+/* compact cell: compile time + run verification (✓ runs / ✗ run failed) */
+function helloSummaryCell(h) {
+  if (!h) return `<span class="dim">—</span>`;
+  if (h.status === "success") {
+    const ms = `<span class="num">${fmtMs(h.duration_ms)}</span>`;
+    if (h.run) {
+      const run = h.run.status === "success"
+        ? `<span class="badge badge-success" title="compiles, runs and prints 'hello world'">✓ runs</span>`
+        : `<span class="badge badge-failed" title="${esc(h.run.reason || "")}">✗ run failed</span>`;
+      return ms + " " + run;
+    }
+    return ms;
+  }
+  return statusBadge(h.status, "") + (h.reason ? ` <span class="dim" title="${esc(h.reason)}">ⓘ</span>` : "");
+}
+function testsDuration(d) {
+  for (const b of BACKENDS) {
+    const t = backendOf(d, b) && backendOf(d, b).tests;
+    if (t && num(t.duration_ms) != null) return t.duration_ms;
+  }
+  return null;
+}
+function latestRecordForPlatform(pk) {
+  for (let i = state.daily.length - 1; i >= 0; i--) {
+    if (dailyPlatformKey(state.daily[i]) === pk) return state.daily[i];
+  }
+  return null;
+}
 
 /* ── per-asset test-data coverage (release modal) ────────────── */
 
@@ -558,7 +662,10 @@ async function init() {
       }).catch((e) => { console.warn("missing release", tag); }));
     }
     await Promise.all(tasks);
-    state.daily.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    state.daily.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return dailyPlatformKey(a) < dailyPlatformKey(b) ? -1 : 1;
+    });
     state.releases.sort((a, b) => {
       const da = a.info.published_at || "", db = b.info.published_at || "";
       if (da && db) return da < db ? -1 : 1;
@@ -598,8 +705,9 @@ function renderChartsForCurrentView() {
 
 function renderOverview() {
   const el = $("#view-overview");
-  const latest = state.daily[state.daily.length - 1] || null;
   const lastRel = state.releases[state.releases.length - 1] || null;
+  const dates = Array.from(new Set(state.daily.map((d) => d.date))).sort();
+  const latestDate = dates.length ? dates[dates.length - 1] : null;
 
   // overall pass rate across all daily records (any backend with results)
   let allPassed = 0, allTotal = 0, allFailed = 0;
@@ -613,29 +721,50 @@ function renderOverview() {
 
   let html = `<div class="grid grid-4 section">
     <div class="stat"><div class="label">Releases tracked</div><div class="value">${state.releases.length}</div><div class="sub">${lastRel ? "latest " + esc(lastRel.info.tag) : ""}</div></div>
-    <div class="stat"><div class="label">Daily points</div><div class="value">${state.daily.length}</div><div class="sub">${latest ? "latest " + esc(latest.date) : ""}</div></div>
+    <div class="stat"><div class="label">Daily runs</div><div class="value">${state.daily.length}</div><div class="sub">${dates.length} date${dates.length === 1 ? "" : "s"}${latestDate ? " · latest " + esc(latestDate) : ""}</div></div>
     <div class="stat"><div class="label">Tests run</div><div class="value ${allFailed > 0 ? "bad" : "good"}">${allTotal ? allTotal.toLocaleString() : "—"}</div><div class="sub">${passRate != null ? passRate + "% pass rate across all runs" : ""}</div></div>
     <div class="stat"><div class="label">Failing tests</div><div class="value ${allFailed > 0 ? "bad" : "good"}">${allFailed}</div><div class="sub">across all daily runs</div></div>
   </div>`;
 
-  if (latest) {
-    html += `<div class="section"><h2>Latest daily build — <span class="mono">${esc(latest.date)}</span> <span class="dim">${esc(latest.commit && latest.commit.subject)}</span></h2>`;
+  if (latestDate) {
+    const todays = state.daily.filter((d) => d.date === latestDate);
+    const byKey = {};
+    for (const d of todays) byKey[dailyPlatformKey(d)] = d;
+    const reported = EXPECTED_DAILY_PLATFORMS.filter((pk) => byKey[pk]);
+    const extra = Object.keys(byKey).filter((pk) => !EXPECTED_DAILY_PLATFORMS.includes(pk));
+    const anyBad = todays.some((d) => dailyRunStatus(d) !== "success");
+    const subj = (todays[0] && todays[0].commit && todays[0].commit.subject) || "";
+
+    html += `<div class="section"><h2>Latest daily run — <span class="mono">${esc(latestDate)}</span> <span class="dim">${esc(subj)}</span> <span class="${anyBad ? "missing" : ""}">${reported.length}/${EXPECTED_DAILY_PLATFORMS.length} platforms reported</span></h2>`;
     html += `<div class="card"><div class="table-wrap"><table>
-      <thead><tr><th>Backend</th><th>Build</th><th>Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Duration</th></tr></thead><tbody>`;
-    for (const b of BACKENDS) {
-      const rec = backendOf(latest, b);
-      if (!rec) { html += `<tr><td>${esc(BACKEND_LABEL[b])}</td><td colspan="5" class="dim">no data</td></tr>`; continue; }
-      const t = rec.tests || {};
-      html += `<tr class="${t.failed > 0 ? "fail-row" : ""}">
-        <td><b>${esc(BACKEND_LABEL[b])}</b></td>
-        <td>${statusBadge(rec.build.status, "")}</td>
-        <td>${testStatusBadge(t)}${t.complete === false ? ` <span class="chip up" title="run ended before summary — possible crash">⚠ incomplete</span>` : ""}</td>
-        <td class="num">${t.passed != null ? t.passed : "—"}</td>
-        <td class="num ${t.failed > 0 ? "missing" : ""}">${t.failed != null ? t.failed : "—"}</td>
-        <td class="num">${fmtMs(t.duration_ms)}</td>
+      <thead><tr><th>Platform</th><th>Hello (bare)</th><th>Hello (std)</th><th>Test results (TCC / LLVM / Interp)</th><th>Collection</th></tr></thead><tbody>`;
+    for (const pk of EXPECTED_DAILY_PLATFORMS) {
+      const d = byKey[pk];
+      if (!d) {
+        html += `<tr class="fail-row"><td><b>${esc(dailyPlatformLabelFromKey(pk))}</b></td><td colspan="4" class="missing">no data — platform did not report today</td></tr>`;
+        continue;
+      }
+      const status = dailyRunStatus(d);
+      const tBadges = BACKENDS.map((b) => {
+        const rec = backendOf(d, b);
+        const t = rec && rec.tests;
+        if (!t || t.total == null) return `<span class="badge badge-neutral" title="no test data for ${esc(BACKEND_LABEL[b])}">${esc(BACKEND_LABEL[b])} —</span>`;
+        const ok = num(t.failed) === 0;
+        const why = t.reason ? " — " + t.reason : "";
+        return `<span class="badge ${ok ? "badge-success" : "badge-test_failure"}" title="${esc(BACKEND_LABEL[b])}${esc(why)}">${esc(BACKEND_LABEL[b])} ${num(t.passed)}/${num(t.failed)}</span>`;
+      }).join(" ");
+      const dur = testsDuration(d);
+      html += `<tr class="${status !== "success" ? "fail-row" : ""}">
+        <td><b>${dailyPlatformLabel(d)}</b> ${statusBadge(status, dailyStatusLabel(status))}${d.duration_ms != null ? ` <span class="dim" title="total collection time">${fmtMs(d.duration_ms)}</span>` : ""}</td>
+        <td>${helloSummaryCell(platformHello(d, "hello_bare"))}</td>
+        <td>${helloSummaryCell(platformHello(d, "hello_std"))}</td>
+        <td>${tBadges}${dur ? ` <span class="dim">(${fmtMs(dur)})</span>` : ""}</td>
+        <td>${status === "success" ? `<span class="badge badge-success">✓ collected</span>` : `<span class="badge badge-test_failure" title="${esc(d.status_reason || "")}">${esc(d.status_reason || "partial / failed")}</span>`}</td>
       </tr>`;
-      const fh = failedTestsHtml(t, 12);
-      if (fh) html += `<tr class="sub-row"><td></td><td colspan="5" class="dim"><b>Failed:</b> ${fh}</td></tr>`;
+    }
+    for (const pk of extra) {
+      const d = byKey[pk];
+      html += `<tr><td><b>${dailyPlatformLabel(d)}</b> ${statusBadge(dailyRunStatus(d), "")}</td><td colspan="4" class="dim">extra platform (outside the daily matrix)</td></tr>`;
     }
     html += `</tbody></table></div></div></div>`;
   }
@@ -697,7 +826,7 @@ async function loadLatestReleaseTests(rel) {
 
 function renderOverviewCharts() {
   const token = chartToken();
-  const labels = state.daily.map((d) => d.date);
+  const labels = state.daily.map((d) => dailyRecordId(d));
   const datasets = [];
   for (const b of BACKENDS) {
     const data = state.daily.map((d) => {
@@ -1143,19 +1272,22 @@ function filteredDaily() {
   let list = state.daily;
   if (state.dailyFrom) list = list.filter((d) => d.date >= state.dailyFrom);
   if (state.dailyTo) list = list.filter((d) => d.date <= state.dailyTo);
+  if (state.dailyPlatform !== "all") list = list.filter((d) => dailyPlatformKey(d) === state.dailyPlatform);
   if (state.dailySearch) {
     const q = state.dailySearch.toLowerCase();
     list = list.filter((d) =>
       (d.date || "").includes(q) ||
+      dailyPlatformLabelFromKey(dailyPlatformKey(d)).toLowerCase().includes(q) ||
       ((d.commit && d.commit.subject) || "").toLowerCase().includes(q) ||
       ((d.commit && d.commit.short) || "").toLowerCase().includes(q));
   }
   if (state.dailyStatus !== "all") {
     list = list.filter((d) => {
       if (state.dailyStatus === "failure") {
-        return BACKENDS.some((b) => { const t = testsOf(backendOf(d, b)); return t && t.failed > 0; });
+        return dailyRunStatus(d) !== "success" ||
+          BACKENDS.some((b) => { const t = testsOf(backendOf(d, b)); return t && t.failed > 0; });
       }
-      return (d.status || "") === state.dailyStatus;
+      return dailyRunStatus(d) === state.dailyStatus;
     });
   }
   return list;
@@ -1173,12 +1305,17 @@ function renderDaily() {
     <label class="filter-label"><input type="checkbox" class="bk-check" value="Interpreter" ${state.selectedBackends.has("Interpreter") ? "checked" : ""}> Interpreter</label>
     <label class="filter-label">From <input type="date" id="daily-from" value="${esc(state.dailyFrom)}" min="${esc(minDate)}" max="${esc(maxDate)}"></label>
     <label class="filter-label">To <input type="date" id="daily-to" value="${esc(state.dailyTo)}" min="${esc(minDate)}" max="${esc(maxDate)}"></label>
+    <label class="filter-label">Platform <select id="daily-platform">
+      <option value="all"${state.dailyPlatform === "all" ? " selected" : ""}>all platforms</option>
+      ${EXPECTED_DAILY_PLATFORMS.map((pk) => `<option value="${esc(pk)}"${state.dailyPlatform === pk ? " selected" : ""}>${esc(dailyPlatformLabelFromKey(pk))}</option>`).join("")}
+    </select></label>
     <label class="filter-label">Status <select id="daily-status">
       <option value="all"${state.dailyStatus === "all" ? " selected" : ""}>all</option>
       <option value="failure"${state.dailyStatus === "failure" ? " selected" : ""}>any failure</option>
       <option value="success"${state.dailyStatus === "success" ? " selected" : ""}>success</option>
+      <option value="partial"${state.dailyStatus === "partial" ? " selected" : ""}>partial</option>
     </select></label>
-    <div class="search-box"><input type="search" id="daily-search" placeholder="Search commit / subject…" value="${esc(state.dailySearch)}" aria-label="Search daily records"></div>
+    <div class="search-box"><input type="search" id="daily-search" placeholder="Search commit / subject / platform…" value="${esc(state.dailySearch)}" aria-label="Search daily records"></div>
     <button class="btn btn-sm" id="daily-export">⬇ CSV</button>
   </div>`;
 
@@ -1191,7 +1328,7 @@ function renderDaily() {
 
   html += `<div class="section"><h2>Daily records <span class="hint">▲/▼ = change vs previous point (time: up = regression)</span></h2>
     <div class="table-wrap"><table id="daily-table">
-    <thead><tr>${sortableHeader("Date", "date", false)}${sortableHeader("Commit", "commit", false)}${sortableHeader("Subject", "subject", false)}${BACKENDS.map((b) => sortableHeader(BACKEND_LABEL[b] + " tests", "tests_" + b, true)).join("")}${sortableHeader("Status", "status", false)}</tr></thead>
+    <thead><tr>${sortableHeader("Date", "date", false)}${sortableHeader("Platform", "platform", false)}${sortableHeader("Commit", "commit", false)}${sortableHeader("Subject", "subject", false)}${BACKENDS.map((b) => sortableHeader(BACKEND_LABEL[b] + " tests", "tests_" + b, true)).join("")}${sortableHeader("Status", "status", false)}</tr></thead>
     <tbody></tbody></table></div></div>`;
   el.innerHTML = html;
 
@@ -1202,7 +1339,8 @@ function renderDaily() {
     renderDailyCharts();
     renderFailures();
   }));
-  const df = $("#daily-from"), dt = $("#daily-to"), ds = $("#daily-status"), dse = $("#daily-search");
+  const dp = $("#daily-platform"), df = $("#daily-from"), dt = $("#daily-to"), ds = $("#daily-status"), dse = $("#daily-search");
+  dp.addEventListener("change", () => { state.dailyPlatform = dp.value; savePrefs(); renderDailyTable(); renderDailyCharts(); });
   df.addEventListener("change", () => { state.dailyFrom = df.value; renderDailyTable(); renderDailyCharts(); });
   dt.addEventListener("change", () => { state.dailyTo = dt.value; renderDailyTable(); renderDailyCharts(); });
   ds.addEventListener("change", () => { state.dailyStatus = ds.value; renderDailyTable(); renderDailyCharts(); });
@@ -1221,13 +1359,15 @@ function renderDailyTable() {
   let html = "";
   rows.forEach((d, ri) => {
     const prevD = rows[ri + 1] || null;
-    let anyFail = false;
-    for (const b of BACKENDS) { const t = testsOf(backendOf(d, b)); if (t && t.failed > 0) anyFail = true; }
-    html += `<tr class="clickable${anyFail ? " fail-row" : ""}" data-date="${esc(d.date)}">`;
-    html += `<td><b>${esc(d.date)}</b></td><td class="mono">${esc((d.commit && d.commit.short) || "—")}</td><td class="dim" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.commit && d.commit.subject)}">${esc(d.commit && d.commit.subject)}</td>`;
+    const status = dailyRunStatus(d);
+    const anyFail = status !== "success" || BACKENDS.some((b) => { const t = testsOf(backendOf(d, b)); return t && t.failed > 0; });
+    html += `<tr class="clickable${anyFail ? " fail-row" : ""}" data-id="${esc(dailyRecordId(d))}">`;
+    html += `<td><b>${esc(d.date)}</b></td><td>${dailyPlatformLabel(d)}</td><td class="mono">${esc((d.commit && d.commit.short) || "—")}</td><td class="dim" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.commit && d.commit.subject)}">${esc(d.commit && d.commit.subject)}</td>`;
     for (const b of BACKENDS) {
       const rec = backendOf(d, b);
-      const prevRec = prevD && backendOf(prevD, b);
+      // only compare regressions against the SAME platform (adjacent rows may
+      // be a different platform on the same date)
+      const prevRec = prevD && dailyPlatformKey(prevD) === dailyPlatformKey(d) ? backendOf(prevD, b) : null;
       const t = rec && rec.tests;
       let chip = "";
       if (t && prevRec && prevRec.tests) {
@@ -1237,11 +1377,11 @@ function renderDailyTable() {
         ? `${testStatusBadge(t)} <span class="${t.failed > 0 ? "missing" : ""}">${t.passed}/${t.failed}</span> ${chip}`
         : "—"}</td>`;
     }
-    html += `<td>${statusBadge(d.status || "success", "")}</td></tr>`;
+    html += `<td>${statusBadge(status, dailyStatusLabel(status))}</td></tr>`;
   });
   tbody.innerHTML = html || `<tr class="empty-row"><td colspan="${5 + BACKENDS.length}">No daily records match the filters</td></tr>`;
   tbody.querySelectorAll("tr.clickable").forEach((tr) => {
-    tr.addEventListener("click", () => openDailyModal(tr.dataset.date));
+    tr.addEventListener("click", () => openDailyModal(tr.dataset.id));
   });
   bindSortable(tableEl);
   // re-apply the current sort after re-rendering (same as the releases table)
@@ -1253,7 +1393,7 @@ function renderDailyTable() {
 }
 
 function renderDailyCharts() {
-  const labels = filteredDaily().map((d) => d.date);
+  const labels = filteredDaily().map((d) => dailyRecordId(d));
   const bks = BACKENDS.filter((b) => state.selectedBackends.has(b));
 
   for (const [id, kind] of [["daily-hello-bare", "hello_bare"], ["daily-hello-std", "hello_std"]]) {
@@ -1294,11 +1434,11 @@ function renderDailyCharts() {
   });
 }
 
-function openDailyModal(date) {
-  const d = state.daily.find((x) => x.date === date);
+function openDailyModal(id) {
+  const d = state.daily.find((x) => dailyRecordId(x) === id);
   if (!d) return;
-  let html = `<h2>${esc(d.date)}</h2><div class="modal-sub">commit <span class="mono">${esc(d.commit && d.commit.sha)}</span> · ${esc(d.commit && d.commit.author_date)}</div>`;
-  html += `<div class="note">${esc(d.commit && d.commit.subject)}</div>`;
+  let html = `<h2>${esc(d.date)} — ${dailyPlatformLabel(d)}</h2><div class="modal-sub">commit <span class="mono">${esc(d.commit && d.commit.sha)}</span> · ${esc(d.commit && d.commit.author_date)}</div>`;
+  html += `<div class="note">${esc(d.commit && d.commit.subject)}${d.status ? ` · run ${statusBadge(d.status, dailyStatusLabel(d.status))}` : ""}${d.status_reason ? ` — <span class="missing">${esc(d.status_reason)}</span>` : ""}</div>`;
 
   for (const b of BACKENDS) {
     const rec = backendOf(d, b);
@@ -1306,7 +1446,13 @@ function openDailyModal(date) {
     html += `<h3>${esc(BACKEND_LABEL[b])}</h3><div class="table-wrap"><table><tbody>
       <tr><td>Build</td><td>${statusBadge(rec.build.status)} ${rec.build.reason ? `<span class="dim">${esc(rec.build.reason)}</span>` : ""}</td></tr>`;
     for (const h of rec.benchmarks || []) {
-      html += `<tr><td>${esc(h.name)}</td><td>${h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status) + " " + esc(h.reason || "")}</td></tr>`;
+      let cell = h.status === "success" ? fmtMs(h.duration_ms) : statusBadge(h.status) + " " + esc(h.reason || "");
+      if (h.run) {
+        cell += h.run.status === "success"
+          ? ` <span class="badge badge-success" title="output: ${esc(h.run.output || "")}">✓ runs</span>`
+          : ` <span class="badge badge-failed" title="${esc(h.run.reason || "")}">✗ ${esc(h.run.status)}</span>`;
+      }
+      html += `<tr><td>${esc(h.name)}</td><td>${cell}</td></tr>`;
     }
     const t = rec.tests || {};
     html += `<tr><td>Tests</td><td>${testStatusBadge(t)} total <b>${t.total ?? "—"}</b> passed <b class="${t.failed > 0 ? "missing" : ""}">${t.passed ?? "—"}</b> failed <b>${t.failed ?? "—"}</b> duration ${fmtMs(t.duration_ms)}${t.complete === false ? " <span class='missing'>⚠ run incomplete — possible crash</span>" : ""}</td></tr>`;
@@ -1489,14 +1635,14 @@ function openFailureModal(testName) {
       const timed = (t.timed_out_tests || []).includes(testName);
       const failed = (t.failed_tests || []).includes(testName);
       if (!failed && !crash && !timed) continue;
-      rows += `<tr><td class="mono">${esc(d.date)}</td><td>${esc(BACKEND_LABEL[b])}</td><td>${statusBadge(d.status || "success", "")}</td>
+      rows += `<tr><td class="mono">${esc(d.date)}</td><td>${dailyPlatformLabel(d)}</td><td>${esc(BACKEND_LABEL[b])}</td><td>${statusBadge(dailyRunStatus(d), dailyStatusLabel(dailyRunStatus(d)))}</td>
         <td>${crash ? `<span class="chip up">💥 exit ${esc(crash.exit_code)}</span>` : timed ? `<span class="chip up">⏱ timeout</span>` : `<span class="chip flat">assertion</span>`}</td>
         <td class="num">${t.passed != null ? t.passed + "/" + t.failed : "—"}</td></tr>`;
     }
   }
   let html = `<h2 class="mono">${esc(testName)}</h2>
     <div class="modal-sub">${e.count} occurrence${e.count > 1 ? "s" : ""} · seen on ${e.dates.length} date${e.dates.length > 1 ? "s" : ""} · first ${esc(e.dates[0])} · last ${esc(e.dates[e.dates.length - 1])}</div>`;
-  html += `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Backend</th><th>Day status</th><th>Kind</th><th class="num">Day pass/fail</th></tr></thead><tbody>${rows || `<tr class="empty-row"><td colspan="5">no occurrences</td></tr>`}</tbody></table></div>`;
+  html += `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Platform</th><th>Backend</th><th>Run status</th><th>Kind</th><th class="num">Day pass/fail</th></tr></thead><tbody>${rows || `<tr class="empty-row"><td colspan="6">no occurrences</td></tr>`}</tbody></table></div>`;
   openModal(html);
 }
 
@@ -1559,7 +1705,7 @@ function renderModuleChart() {
   });
   makeChart("mod-trend", {
     type: "line",
-    data: { labels: state.daily.map((d) => d.date), datasets: [{ label: name + " (" + BACKEND_LABEL[backend] + ")", data, borderColor: colorOf(backend), spanGaps: false, tension: 0.2, pointRadius: 2 }] },
+    data: { labels: state.daily.map((d) => dailyRecordId(d)), datasets: [{ label: name + " (" + BACKEND_LABEL[backend] + ")", data, borderColor: colorOf(backend), spanGaps: false, tension: 0.2, pointRadius: 2 }] },
     options: baseLineOpts("ms"),
   }, "no module timing data");
 }
@@ -1568,15 +1714,22 @@ function renderModuleChart() {
 
 function renderBackends() {
   const el = $("#view-backends");
-  const latest = state.daily[state.daily.length - 1];
-  if (!latest) { el.innerHTML = `<div class="note">No data yet.</div>`; return; }
+  if (!state.daily.length) { el.innerHTML = `<div class="note">No data yet.</div>`; return; }
+  const platforms = Array.from(new Set(state.daily.map((d) => dailyPlatformKey(d)))).sort();
+  if (!state.bePlatform || !platforms.includes(state.bePlatform)) {
+    state.bePlatform = platforms.includes("linux-x64") ? "linux-x64" : (platforms[0] || null);
+  }
+  const latest = latestRecordForPlatform(state.bePlatform) || state.daily[state.daily.length - 1];
 
   let html = `<div class="filters">
     ${BACKENDS.map((b) => `<label class="filter-label"><input type="checkbox" class="be-check" value="${esc(b)}" ${state.selectedBackends.has(b) ? "checked" : ""}> ${esc(BACKEND_LABEL[b])}</label>`).join("")}
+    <label class="filter-label">Platform <select id="be-platform">
+      ${platforms.map((pk) => `<option value="${esc(pk)}"${pk === state.bePlatform ? " selected" : ""}>${esc(dailyPlatformLabelFromKey(pk))}</option>`).join("")}
+    </select></label>
     <span class="dim">backend comparison across all daily records</span>
   </div>`;
 
-  html += `<div class="section"><h2>Latest daily comparison — <span class="mono">${esc(latest.date)}</span></h2><div class="card"><div class="table-wrap"><table>
+  html += `<div class="section"><h2>Latest daily comparison — <span class="mono">${esc(latest.date)}</span> ${esc(dailyPlatformLabel(latest))}</h2><div class="card"><div class="table-wrap"><table>
     <thead><tr><th>Metric</th>${BACKENDS.map((b) => `<th class="num">${esc(BACKEND_LABEL[b])}</th>`).join("")}</tr></thead><tbody>`;
   const metrics = [
     ["Build", (r) => r ? statusBadge(r.build.status, "") : "—"],
@@ -1604,6 +1757,8 @@ function renderBackends() {
     savePrefs();
     renderBackendCharts();
   }));
+  const bps = $("#be-platform");
+  bps.addEventListener("change", () => { state.bePlatform = bps.value; savePrefs(); renderBackends(); });
   renderBackendCharts();
 }
 

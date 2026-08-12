@@ -97,7 +97,22 @@ if [ -n "${ARG_MUSL_L}" ]; then
   esac
 else
   MUSL=false
-  if [ -r /etc/os-release ]; then
+  # Detect musl by its dynamic loader instead of /etc/os-release: container
+  # tooling (e.g. laverdet/alpine-arm64 on ARM runners) rewrites ID=alpine in
+  # /etc/os-release, which previously made alpine builds pick the glibc asset.
+  case "$UNAME_M_L" in
+    x86_64|x86-64|amd64|x64) MUSL_LOADER="/lib/ld-musl-x86_64.so.1" ;;
+    aarch64|arm64)           MUSL_LOADER="/lib/ld-musl-aarch64.so.1" ;;
+    armv7l|armv7|armv6l|arm) MUSL_LOADER="/lib/ld-musl-arm*.so.1" ;;
+    i386|i486|i586|i686|x86) MUSL_LOADER="/lib/ld-musl-i386.so.1" ;;
+    riscv64)                 MUSL_LOADER="/lib/ld-musl-riscv64.so.1" ;;
+    *)                       MUSL_LOADER="" ;;
+  esac
+  if [ -n "$MUSL_LOADER" ] && ls $MUSL_LOADER >/dev/null 2>&1; then
+    MUSL=true
+  elif command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl; then
+    MUSL=true
+  elif [ -r /etc/os-release ]; then
     if grep -qiE '^id=alpine' /etc/os-release 2>/dev/null || grep -qiE '^id_like=.*alpine' /etc/os-release 2>/dev/null; then
       MUSL=true
     fi

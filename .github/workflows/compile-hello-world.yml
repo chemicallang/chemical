@@ -101,25 +101,25 @@ jobs:
             asset: linux-alpine-x64.zip
             chemical_executable: chemical
             binary_name: helloworld
-            deps: apk add --no-cache bash curl jq zip unzip
+            deps: apk add --no-cache bash curl jq zip unzip build-base
           - runner: ubuntu-24.04
             container: alpine:3.20
             asset: linux-alpine-x64-tcc.zip
             chemical_executable: chemical
             binary_name: helloworld
-            deps: apk add --no-cache bash curl jq zip unzip
+            deps: apk add --no-cache bash curl jq zip unzip build-base
           - runner: ubuntu-24.04-arm
             container: alpine:3.20
             asset: linux-alpine-arm64.zip
             chemical_executable: chemical
             binary_name: helloworld
-            deps: apk add --no-cache bash curl jq zip unzip
+            deps: apk add --no-cache bash curl jq zip unzip build-base
           - runner: ubuntu-24.04-arm
             container: alpine:3.20
             asset: linux-alpine-arm64-tcc.zip
             chemical_executable: chemical
             binary_name: helloworld
-            deps: apk add --no-cache bash curl jq zip unzip
+            deps: apk add --no-cache bash curl jq zip unzip build-base
 
           # ––– macos –––
           - runner: macos-15-intel

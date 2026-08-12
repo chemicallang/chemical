@@ -26,8 +26,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     # Release jobs download prebuilt binaries (no compiler build), so they are
-    # fast; the cap is only a safety net for long test suites.
-    timeout-minutes: 360
+    # fast (sibling jobs finish in ~1 min). Each benchmark/test phase already
+    # has its own watchdog cap inside bm_run (bench-common.sh); this job cap
+    # only bounds the pathological case so a hung phase can never burn hours
+    # of runner time - 60 min is ~30-60x the normal run.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -56,7 +59,7 @@ jobs:
             arch: x64
             alpine: true
             workdir: tagrepo
-            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base
           - name: alpine-arm64
             runner: ubuntu-24.04-arm
             container: alpine:3.20
@@ -64,7 +67,7 @@ jobs:
             arch: arm64
             alpine: true
             workdir: tagrepo
-            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base
           - name: macos-arm64
             runner: macos-26
             platform: macos
@@ -116,6 +119,16 @@ jobs:
             deps: echo "jq/unzip preinstalled on windows runners"
 
     steps:
+      # Alpine arm64 containers cannot run JS actions (upload-artifact below)
+      # natively. This composite action installs a tweaked gcompat so the
+      # runner's glibc node binary works, and masks /etc/os-release so GHA no
+      # longer detects Alpine. No-op on x64; must run before any JS action
+      # (same pattern as build-and-release.yml). Guarded to alpine entries —
+      # on the non-alpine matrix jobs apk does not exist.
+      - name: Enable JavaScript actions in Alpine containers
+        if: ${{ matrix.alpine }}
+        uses: laverdet/alpine-arm64@v1
+
       - name: Install dependencies
         # No `shell:` key here: the alpine container has no bash until this
         # step installs it, so the runner falls back to the container's sh

@@ -27,7 +27,7 @@ compare-two-releases tool.
 ```
 main branch                              gh-pages branch (deployed site)
   scripts/bench-*.sh   ──collect──▶  data/manifest.json
-  .github/workflows/                     data/daily/<date>.json
+  .github/workflows/                     data/daily/<date>-<platform>-<arch>.json
     benchmark-daily.yml                  data/releases/<tag>/info.json
     benchmark-release.yml                data/releases/<tag>/<platform>-<arch>.json
                                          index.html, assets/dashboard.js (~1550
@@ -62,7 +62,8 @@ data is staged in a gitignored `.bench-data/` directory.
 ```json
 {
   "generated_at": "2026-08-11T11:35:41Z",
-  "daily": ["2026-08-11", "2026-08-10", "..."],
+  "daily": ["2026-08-13-linux-x64", "2026-08-13-windows-x64",
+            "2026-08-12-linux-x64", "..."],
   "releases": { "v0.5.7": ["linux-x64", "linux-alpine-x64", "macos-arm64",
                             "macos-x64", "windows-x64"], "v0.0.1": ["linux-x64"] }
 }
@@ -72,10 +73,21 @@ exist for it. **This is the source of truth for which platform records exist**
 — the dashboard derives its platform selector from this (NOT from record
 objects, because those are lazily loaded).
 
-### `data/daily/<date>.json` — one build+test point per day
+`daily` is a flat list of per-platform record **file basenames**
+(`<date>-<platform>-<arch>`). The dashboard loads each as
+`data/daily/<basename>.json`; the date is the first three `-`-separated parts
+and the platform key is everything after them (see `dailyPlatformKey`).
+Pre-matrix legacy records (single `linux-x64` record per day, id = date only)
+still load fine — their `platform` field identifies them.
+
+### `data/daily/<date>-<platform>-<arch>.json` — one build+test point per platform per day
 ```json
 {
-  "type": "daily", "date": "2026-08-11", "generated_at": "...",
+  "type": "daily", "date": "2026-08-11", "id": "2026-08-11-linux-x64",
+  "generated_at": "...",
+  "status": "success|partial|failed",       // overall run status (guard records: failed/partial)
+  "status_reason": "...",                    // why it failed/partial (set on guard records)
+  "duration_ms": 420000,                      // total collection wall time for this platform
   "platform": { "os": "linux", "arch": "x64", "libc": "glibc" },
   "commit": { "sha": "...", "short": "69355469bf12", "subject": "fix workflows",
               "author_date": "..." },
@@ -170,7 +182,7 @@ helpers, and pure-bash versions of GNU utilities for macOS/BSD compat — e.g.
 
 | Script | Purpose |
 |---|---|
-| `bench-collect-daily.sh` | Builds the compiler at a commit, benchmarks hello (bare/std), runs `-bm-modules -bm-files`, runs test suites per backend → `data/daily/<date>.json`. Flags: `--commit`, `--date`, `--out`, `--work`, `--skip-llvm`, `--no-build`, `--backends`, `--quick` (skip tests, hello + modules only). |
+| `bench-collect-daily.sh` | Builds the compiler at a commit (in the workflow checkout), benchmarks hello (bare/std) WITH run-verification, runs `-bm-modules -bm-files`, runs test suites per backend → `data/daily/<date>-<platform>-<arch>.json`. Flags: `--commit`, `--date`, `--platform`, `--arch`, `--out`, `--work`, `--skip-llvm`, `--no-build`, `--backends`, `--quick` (skip tests, hello + modules only). The libc is derived from the platform name via `bm_libc_for` (musl/ucrt/msvcrt/msvc). On MSVC jobs sources `scripts/msvc_env.sh` for the build tools. Any crash/timeout/failed build writes a **guard record** with `status: failed|partial` + `status_reason` so the dashboard always sees a run for every platform. |
 | `bench-collect-release.sh` | Fetches release + assets from GitHub API, downloads the platform's zips, merges the **release's own test sources** (`git archive <tag> lang/tests`), benchmarks + tests with the release binaries → `data/releases/<tag>/...`. Flags: `--tag` (required), `--repo`, `--platform`, `--arch`, `--out`, `--work`, `--skip-llvm`, `--quick`, `--info-only`. **Gotchas: (1) `RELEASE_BIN` must be `./chemical` — bm_run executes via `timeout <cmd>`, and a bare `chemical` is not found in PATH → exit 127 on every release benchmark/test. (2) If the GitHub API fails/rate-limits, existing `info.json` WITH assets is PRESERVED (never clobber good data with an `unavailable` record).** |
 | `scripts/llvm.sh` | Downloads the prebuilt LLVM for the host into `out/host`. **`--tag` is optional: when omitted it auto-resolves the LATEST llvm-prebuilt release via the GitHub API — never hardcode a tag in workflows** (the stale `llvm18` default broke `BUILD_COMPILER=ON` configure, which wants the LLVM version in `CMakeLists.txt`'s `find_package(llvm ${LLVM_VERSION})`). |
 | `bench-push-pages.sh` | Rebuilds `data/manifest.json` from the merged data tree and pushes **only `data/`** to `gh-pages`. Site files on the branch are preserved. Flags: `--data`, `--site`, `--branch`, `--no-push`. |
@@ -287,7 +299,7 @@ returns 0 even when tests fail — **status must be derived from parsed counts**
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `benchmark-daily.yml` | schedule 03:00 UTC + manual | Builds the compiler at HEAD **in the main checkout** (NOT a worktree), runs `bench-collect-daily.sh` (all 3 backends by default), pushes to gh-pages. Inputs: `commit` (default HEAD), `skip_llvm` (default **false** — LLVM included). **No `quick` input anymore** — the test suite is ~20 s so a full run is always done. |
+| `benchmark-daily.yml` | schedule 03:00 UTC + manual | **11-platform matrix** mirroring `build-and-release.yml` (linux/macos/windows × x64/arm64 + alpine + mingw/msvcrt variants). Each job builds BOTH targets (TCCCompiler + LLVM Compiler; `skip_llvm` input defaults **false** and the schedule **always** builds LLVM), then runs `bench-collect-daily.sh` with that job's `--platform`/`--arch` (all 3 backends incl. interpreter), uploading a per-platform record artifact. A final `publish` job (`if: always()`, `fail-fast: false`, `actions/download-artifact` with `if-no-files-found: ignore`) merges all records, rebuilds `data/manifest.json`, and pushes to gh-pages — **one platform failing never blocks the others or the publish**. Inputs: `commit` (default HEAD), `skip_llvm`. |
 | `benchmark-release.yml` | manual (`release_tag`) + on release published | Matrix of platform jobs mirroring build-and-release (linux x64/arm64, alpine x64/arm64, macos x64/arm64, windows x64/arm64, windows-mingw x64/arm64 + msvcrt). Each downloads the release's assets, merges the tag's own test sources, runs hello + module benchmarks AND the full test suite in ONE collect step (no `quick`/`skip_llvm` inputs — deliberately, to avoid a second workflow launch), then publishes → gh-pages. |
 | `build-and-release.yml` | manual + `releaseIt` commits | Builds release binaries for all platforms; `config` input: `Release` → `chemical` repo, `RelWithDebInfo`/`Debug` → **`chemical-debug` repo** with `-debug` suffix zips. `deploy-debug` job aggregates debug zips; it has `if: always() && ...` so one failed platform doesn't skip the whole debug publish. |
 

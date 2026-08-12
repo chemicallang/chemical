@@ -11,8 +11,10 @@ on:
         required: false
         type: string
         default: ''
+      # default false -> SCHEDULED runs always build + test the LLVM Compiler
+      # backend too (skip_llvm only affects manual dispatch runs)
       skip_llvm:
-        description: 'Skip the LLVM backend — build + benchmark + test TCCCompiler and Interpreter only (LLVM build is the heavy part)'
+        description: 'Skip the LLVM backend — build + benchmark + test TCCCompiler and Interpreter only (LLVM build is the heavy part). Scheduled runs always include LLVM.'
         required: false
         type: boolean
         default: false
@@ -24,49 +26,354 @@ concurrency:
   group: benchmark-daily
   cancel-in-progress: false
 
+env:
+  # matches CMakeLists.txt's find_package(llvm 22) — the prebuilt LLVM release
+  # the manual downloads below pull (linux + macOS go through setup.sh/llvm.sh
+  # which auto-resolves the latest llvm-prebuilt tag)
+  LLVM_RELEASE_TAG: "v22.1.1"
+
 jobs:
-  benchmark:
-    name: Daily benchmark
-    runs-on: ubuntu-24.04
-    # Standard runners cap a job at 6h; a TCCCompiler build is ~15 min and the
-    # LLVM Compiler ~20 min, so a single daily point stays well inside this.
+  # ───────────────────────────────────────────────────────────────────────────
+  # One job per platform/arch — mirrors the build-and-release.yml matrix so the
+  # compiler is built from source and benchmarked + test-suite'd everywhere the
+  # project ships binaries. Each job is fully independent (fail-fast: false):
+  # a platform that crashes/fails still uploads its (possibly partial) data and
+  # must never block the others.
+  # ───────────────────────────────────────────────────────────────────────────
+  collect:
+    name: Collect ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    # Standard runners cap a job at 6h; building TCCCompiler (~15 min) + the
+    # LLVM Compiler (~20 min) + test suites stays well inside this per platform.
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ––– linux (glibc) –––
+          - name: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            alpine: false
+            variant: ''
+            deps: sudo apt-get update && sudo apt-get install -y cmake jq zip unzip
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            alpine: false
+            variant: ''
+            deps: sudo apt-get update && sudo apt-get install -y cmake jq zip unzip
+
+          # ––– linux alpine (musl) — runs inside an alpine container –––
+          - name: alpine-x64
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            alpine: true
+            variant: ''
+            llvm_asset: linux-alpine-x64.tar.gz
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base cmake ninja musl-dev linux-headers
+          - name: alpine-arm64
+            runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: arm64
+            alpine: true
+            variant: ''
+            llvm_asset: linux-alpine-arm64.tar.gz
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base cmake ninja musl-dev linux-headers
+
+          # ––– macos –––
+          - name: macos-x64
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            alpine: false
+            variant: ''
+            deps: brew install cmake ninja jq || true
+          - name: macos-arm64
+            runner: macos-26
+            platform: macos
+            arch: arm64
+            alpine: false
+            variant: ''
+            deps: brew install cmake ninja jq || true
+
+          # ––– windows (msvc) –––
+          - name: windows-x64
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            alpine: false
+            variant: msvc
+            llvm_asset: windows-x64.zip
+            deps: echo "tools preinstalled on windows runners"
+          - name: windows-arm64
+            runner: windows-11-arm
+            platform: windows
+            arch: arm64
+            alpine: false
+            variant: msvc
+            llvm_asset: windows-arm64.zip
+            deps: echo "tools preinstalled on windows runners"
+
+          # ––– windows (mingw ucrt, MSYS2) –––
+          - name: windows-mingw-x64
+            runner: windows-2025
+            platform: windows-mingw
+            arch: x64
+            alpine: false
+            variant: mingw
+            msystem: CLANG64
+            msys_env: clang-x86_64
+            llvm_asset: windows-mingw-ucrt-x64.zip
+            deps: echo "tools preinstalled on windows runners"
+          - name: windows-mingw-arm64
+            runner: windows-11-arm
+            platform: windows-mingw
+            arch: arm64
+            alpine: false
+            variant: mingw
+            msystem: CLANGARM64
+            msys_env: clang-aarch64
+            llvm_asset: windows-mingw-ucrt-arm64.zip
+            deps: echo "tools preinstalled on windows runners"
+
+          # ––– windows (mingw msvcrt, llvm-mingw toolchain) –––
+          - name: windows-mingw-msvcrt-x64
+            runner: windows-2025
+            platform: windows-mingw-msvcrt
+            arch: x64
+            alpine: false
+            variant: msvcrt
+            llvm_asset: windows-mingw-msvcrt-x64.zip
+            deps: echo "tools preinstalled on windows runners"
+
     steps:
+      - name: Install dependencies
+        # No `shell:` key: on the alpine container the runner falls back to sh
+        # (bash doesn't exist yet). bash is installed here before later bash
+        # steps run — same pattern as the other alpine jobs in this repo.
+        run: ${{ matrix.deps }}
+
       - name: Checkout (default branch — scripts + full history)
+        if: ${{ !matrix.alpine }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Checkout (alpine — plain git, no JS actions)
+        if: ${{ matrix.alpine }}
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake jq zip unzip
+          # alpine containers have no node (musl), so JS actions like
+          # actions/checkout cannot run; clone the default branch directly
+          # (scripts + full source, we build at HEAD).
+          git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
 
-      - name: Setup (download libtcc + prebuilt LLVM, submodules)
-        # llvm.sh auto-resolves the latest llvm-prebuilt release tag (matching
-        # CMakeLists' find_package(llvm ${LLVM_VERSION})); no version is
-        # hardcoded here, so setup stays in sync with the repo's LLVM requirement.
+      # ––– toolchain setup (mirrors build-and-release.yml) –––
+      - name: Set up MSVC environment
+        if: ${{ matrix.variant == 'msvc' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Set up MSYS2 (MinGW)
+        if: ${{ matrix.variant == 'mingw' }}
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            base-devel
+            git
+            zip
+            unzip
+            mingw-w64-${{ matrix.msys_env }}-toolchain
+            mingw-w64-${{ matrix.msys_env }}-cmake
+            mingw-w64-${{ matrix.msys_env }}-ninja
+
+      - name: Set up llvm-mingw MSVCRT toolchain
+        if: ${{ matrix.variant == 'msvcrt' }}
+        shell: bash
+        env:
+          LLVM_MINGW_VER: "20260224"
+        run: |
+          LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64"
+          curl -L -o llvm-mingw.zip "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/${LLVM_MINGW_NAME}.zip"
+          7z x llvm-mingw.zip -o"$HOME"
+          echo "$HOME/${LLVM_MINGW_NAME}/bin" >> $GITHUB_PATH
+          choco install ninja cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+
+      # ––– prebuilt LLVM download –––
+      # linux + macOS: handled by setup.sh --with-llvm below (llvm.sh
+      # auto-resolves the latest llvm-prebuilt release). Windows and alpine
+      # download their variant explicitly (llvm.sh doesn't cover mingw/musl).
+      - name: Download prebuilt LLVM (Windows MSVC)
+        if: ${{ matrix.variant == 'msvc' }}
+        shell: bash
+        run: |
+          curl -sSL -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          unzip -o -q llvm.zip -d .
+
+      - name: Download prebuilt LLVM (MinGW)
+        if: ${{ matrix.variant == 'mingw' }}
+        shell: msys2 {0}
+        run: |
+          url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          curl -sSL -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
+          unzip -o -q llvm.zip -d .
+
+      - name: Download prebuilt LLVM (MinGW msvcrt)
+        if: ${{ matrix.variant == 'msvcrt' }}
+        shell: bash
+        run: |
+          url="https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          curl -sSL -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$url"
+          unzip -o -q llvm.zip -d .
+
+      - name: Download prebuilt LLVM (Alpine)
+        if: ${{ matrix.alpine }}
+        shell: bash
+        run: |
+          # llvm.sh has no musl variant; resolve the latest llvm-prebuilt tag
+          # at runtime so this stays in sync with the repo's LLVM requirement.
+          TAG="$(curl -s https://api.github.com/repos/chemicallang/llvm-prebuilt/releases/latest | jq -r .tag_name)"
+          curl -sSL -o llvm.tar.gz -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com/chemicallang/llvm-prebuilt/releases/download/$TAG/${{ matrix.llvm_asset }}"
+          tar -xzf llvm.tar.gz -C .
+
+      # ––– setup (submodules + libtcc [+ LLVM]) –––
+      - name: Setup (linux — submodules + libtcc + LLVM)
+        if: ${{ !matrix.alpine && runner.os == 'Linux' }}
         run: ./scripts/setup.sh --with-llvm
 
-      - name: Configure cmake (TCC + LLVM Compiler targets)
-        run: |
-          timeout 600 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON || true
-          # If the LLVM configure failed, bench-collect-daily.sh re-configures
-          # with BUILD_COMPILER=OFF and still collects TCC + Interpreter data.
+      - name: Setup (alpine — submodules + musl libtcc; LLVM downloaded above)
+        if: ${{ matrix.alpine }}
+        shell: bash
+        run: ./scripts/setup.sh
 
+      - name: Setup (macOS — submodules + libtcc + LLVM)
+        if: ${{ runner.os == 'macOS' }}
+        run: ./scripts/setup.sh --with-llvm --arch ${{ matrix.arch }}
+
+      - name: Setup (Windows MSVC — submodules + libtcc; LLVM downloaded above)
+        if: ${{ matrix.variant == 'msvc' }}
+        run: bash ./scripts/setup.sh --arch ${{ matrix.arch }}
+
+      - name: Setup (MinGW — submodules + libtcc; LLVM downloaded above)
+        if: ${{ matrix.variant == 'mingw' }}
+        shell: msys2 {0}
+        run: ./scripts/setup.sh --arch ${{ matrix.arch }} --mingw --ucrt
+
+      - name: Setup (MinGW msvcrt — submodules + libtcc; LLVM downloaded above)
+        if: ${{ matrix.variant == 'msvcrt' }}
+        shell: bash
+        run: ./scripts/setup.sh --arch x64 --mingw --msvcrt
+
+      # ––– cmake configure (BUILD_COMPILER=ON → both Compiler targets) –––
+      # If the LLVM configure fails we do NOT want to abort the whole job:
+      # bench-collect-daily.sh re-configures with BUILD_COMPILER=OFF and still
+      # collects TCC + Interpreter data (LLVM is recorded as a failure).
+      - name: Configure cmake (Linux/macOS/alpine)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        run: |
+          cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON || true
+
+      - name: Configure cmake (Windows MSVC — Ninja + response files + short path)
+        if: ${{ matrix.variant == 'msvc' }}
+        shell: pwsh
+        run: |
+          # Long command lines / deep paths break clang/cl on Windows; map the
+          # workspace to X: (same trick as build-and-release.yml) so the Ninja
+          # build stays well under the path limit. The mapping persists for the
+          # rest of the job.
+          subst X: $PWD
+          cd X:\
+          cmake -S . -B cmake-build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
+          if ($LASTEXITCODE -ne 0) { Write-Host "::warning::cmake configure failed — collection will fall back to TCC + Interpreter" }
+
+      - name: Configure cmake (MinGW)
+        if: ${{ matrix.variant == 'mingw' }}
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B cmake-build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON || true
+
+      - name: Configure cmake (MinGW msvcrt)
+        if: ${{ matrix.variant == 'msvcrt' }}
+        shell: bash
+        env:
+          LLVM_MINGW_VER: "20260224"
+        run: |
+          export PATH="$HOME/llvm-mingw-${LLVM_MINGW_VER}-msvcrt-x86_64/bin:$PATH"
+          cmake -S . -B cmake-build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_COMPILER=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON || true
+
+      # ––– collect (builds both targets, benchmarks hello bare/std + runs the
+      #      binaries, runs the test suite for all 3 backends, writes one
+      #      data/daily/<date>-<platform>-<arch>.json record) –––
+      # Failure is recorded as data (per-backend statuses + a guard record if
+      # collection aborts) — a failing step must never prevent the artifact
+      # upload below.
       - name: Collect daily benchmark
+        shell: ${{ matrix.variant == 'mingw' && 'msys2 {0}' || 'bash' }}
         run: |
           TARGET="${{ inputs.commit }}"
           if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi
-          ARGS="--commit $TARGET"
-          # Building is the expensive part (15-20 min); the test suite takes ~20 s,
-          # so we always run hello + module benchmarks + test suite after a build.
-          # The only skip is the LLVM backend.
+          ARGS="--commit $TARGET --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
           if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
           bash scripts/bench-collect-daily.sh $ARGS
 
+      - name: Upload daily data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-daily-${{ matrix.name }}
+          path: .bench-data/
+          # `.bench-data` is a hidden directory (leading dot); upload-artifact
+          # silently skips hidden paths unless explicitly included — without
+          # this every platform uploads nothing
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Merge every platform's data and publish data/ to gh-pages. `always()` is
+  # REQUIRED: a platform that failed (or never uploaded) must not skip the
+  # publish — the surviving platforms' data is still published.
+  # ───────────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish to gh-pages
+    needs: [collect]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (default branch — scripts)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all daily data
+        uses: actions/download-artifact@v4
+        with:
+          path: merged
+          pattern: bench-daily-*
+          merge-multiple: true
+          # a run where every platform failed still shouldn't hard-fail the
+          # publish (bench-push-pages.sh turns an empty overlay into a
+          # harmless no-op publish)
+          if-no-files-found: ignore
+
       - name: Publish to gh-pages
-        # Only ever writes data/ to the gh-pages branch — never to main.
-        run: bash scripts/bench-push-pages.sh
+        run: |
+          mkdir -p .bench-data
+          # collect uploads `path: .bench-data/` (include-hidden-files), so the
+          # artifact root IS the contents of .bench-data/ (daily/ here)
+          if [ -d merged/daily ]; then cp -r merged/daily .bench-data/; fi
+          bash scripts/bench-push-pages.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

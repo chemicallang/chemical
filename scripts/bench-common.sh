@@ -35,9 +35,39 @@ bm_arch() {
   esac
 }
 
-# musl (alpine) detection — used to record the libc flavour in the environment
+# musl / CRT detection — used to record the libc flavour in the environment.
+# Auto-detection only (Windows Git Bash: assume MSVC; macOS/glibc Linux: glibc).
 bm_libc() {
-  if [ -f /etc/alpine-release ]; then echo "musl"; else echo "glibc"; fi
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) echo "msvc" ;;
+    Linux*) [ -f /etc/alpine-release ] && echo "musl" || echo "glibc" ;;
+    *) echo "glibc" ;;
+  esac
+}
+
+# libc for a canonical platform NAME (used when --platform is passed explicitly
+# by a workflow matrix — containers report the HOST OS, so uname alone can't
+# distinguish alpine from glibc linux, or msvc from mingw builds)
+bm_libc_for() { # <platform>
+  case "$1" in
+    linux-alpine)          echo "musl" ;;
+    windows-mingw-msvcrt)  echo "msvcrt" ;;
+    windows-mingw)         echo "ucrt" ;;
+    windows)               echo "msvc" ;;
+    *) echo "glibc" ;;
+  esac
+}
+
+# parallel build jobs: nproc (Linux / Git Bash) -> sysctl hw.ncpu (macOS/BSD)
+# -> 4. macOS has no nproc; without this fallback builds run on 2 cores.
+bm_jobs() {
+  local n
+  n="$(nproc 2>/dev/null || true)"
+  if [ -z "$n" ] || [ -n "${n//[0-9]/}" ]; then
+    n="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+  fi
+  if [ -z "$n" ] || [ -n "${n//[0-9]/}" ]; then n=4; fi
+  echo "$n"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -401,7 +431,7 @@ import std
 EOF
     cat > "$work/src/main.ch" <<'EOF'
 public func main() : int {
-    println(`hello from chemical`)
+    println(`hello world`)
     return 0
 }
 EOF
@@ -410,13 +440,14 @@ EOF
 
   local log="$logdir/${backend}_hello_${kind}.log"
   local status="" dur_ms=0
+  local run_json="null"
 
   if [ "$backend" = "Interpreter" ]; then
-    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI","duration_ms":null}' "$(jq_escape "$bench_name")"
+    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI","duration_ms":null,"run":null}' "$(jq_escape "$bench_name")"
     return
   fi
   if [ ! -f "$bin" ]; then
-    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"compiler binary not built","duration_ms":null}' "$(jq_escape "$bench_name")"
+    printf -v "$outvar" '{"name":%s,"status":"unavailable","reason":"compiler binary not built","duration_ms":null,"run":null}' "$(jq_escape "$bench_name")"
     return
   fi
 
@@ -425,8 +456,39 @@ EOF
 
   local reason="null"
   [ "$status" != "success" ] && reason=$(jq_escape "compiler exited with code $BM_EXIT_CODE")
-  printf -v "$outvar" '{"name":%s,"status":%s,"reason":%s,"duration_ms":%s}' \
-    "$(jq_escape "$bench_name")" "$(jq_escape "$status")" "$reason" "$dur_ms"
+
+  # ── run the produced executable and verify its output ──────────────────────
+  # A successful compile must also produce a working binary: run it (with a
+  # timeout where available) and assert the output is exactly "hello world".
+  # A run failure (missing runtime DLL, segfault, wrong output) is recorded as
+  # run.status=failed with the actual output — a visible data point, never a
+  # silent skip. Interpreter has no standalone hello -> run stays null.
+  if [ "$status" = "success" ]; then
+    local out rc normalized
+    set +e
+    if command -v timeout >/dev/null 2>&1; then
+      out="$(timeout 30 "$out_exe" 2>&1)"
+      rc=$?
+    else
+      out="$("$out_exe" 2>&1)"
+      rc=$?
+    fi
+    set -e
+    if [ "$rc" -eq 124 ]; then
+      run_json="{\"status\":\"failed\",\"reason\":$(jq_escape "hello world run timed out after 30s"),\"output\":null,\"expected\":\"hello world\"}"
+    else
+      # strip trailing CR/LF/whitespace (printf has no newline; println adds one)
+      normalized="$(printf '%s' "$out" | tr -d '\r' | sed 's/[[:space:]]*$//')"
+      if [ "$rc" -eq 0 ] && [ "$normalized" = "hello world" ]; then
+        run_json="{\"status\":\"success\",\"reason\":null,\"output\":$(jq_escape "$normalized"),\"expected\":\"hello world\"}"
+      else
+        run_json="{\"status\":\"failed\",\"reason\":$(jq_escape "expected 'hello world', got '$normalized' (exit $rc)"),\"output\":$(jq_escape "$out"),\"expected\":\"hello world\"}"
+      fi
+    fi
+  fi
+
+  printf -v "$outvar" '{"name":%s,"status":%s,"reason":%s,"duration_ms":%s,"run":%s}' \
+    "$(jq_escape "$bench_name")" "$(jq_escape "$status")" "$reason" "$dur_ms" "$run_json"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

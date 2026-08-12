@@ -434,9 +434,13 @@ jobs:
             # backtrace (all threads, registers, disassembly at $pc) — the
             # point of shipping debug symbols. set +e: the default bash shell
             # runs with -e, which would abort before we can read $?.
+            # tee: print the compiler output to the log AND capture it for the
+            # crash-dump artifact — no download needed to see what happened.
+            # After a pipe, $? is tee's exit — read the compiler's via
+            # ${PIPESTATUS[0]}.
             set +e
-            ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v > compile_output.txt 2>&1
-            RC=$?
+            ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v 2>&1 | tee compile_output.txt
+            RC=${PIPESTATUS[0]}
             set -e
             echo "compiler exit code: $RC"
             if [ $RC -ne 0 ]; then
@@ -512,7 +516,11 @@ jobs:
           if ("${{ inputs.use_debug_builds }}" -eq "debug") {
             # DEBUG MODE — run the compiler directly first; on failure re-run
             # under gdb (choco-installed above) for a full backtrace.
-            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > compile_output.txt 2>&1
+            # Tee-Object: print the compiler output to the log AND capture it
+            # for the crash-dump artifact — no download needed to see what
+            # happened. $LASTEXITCODE still reflects the native command's
+            # exit code in pwsh, even through the pipeline.
+            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v 2>&1 | Tee-Object -FilePath compile_output.txt
             $rc = $LASTEXITCODE
             Write-Host "compiler exit code: $rc"
             if ($rc -ne 0) {

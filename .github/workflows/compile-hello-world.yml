@@ -513,6 +513,17 @@ jobs:
           }
           New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\crash-dump" -Force | Out-Null
           Push-Location $releaseRoot
+          # The bare hello world (no `import std`) declares printf via @extern
+          # and links no libraries. On windows-msvc the UCRT header provides
+          # printf as an inline wrapper, so libucrt.lib has no out-of-line
+          # printf symbol (windows-arm64 fails to resolve it); linking the
+          # CRT's legacy out-of-line stdio definitions fixes that — the same
+          # library cstd's chemical.mod links for `import std` builds. tcc
+          # builds resolve printf from msvcrt.dll and must not receive -l.
+          $linkArgs = @()
+          if ($env:ENTRY_FILE -eq "main.ch" -and "${{ matrix.asset }}" -notlike "*-tcc*") {
+            $linkArgs = @("-l", "legacy_stdio_definitions")
+          }
           if ("${{ inputs.use_debug_builds }}" -eq "debug") {
             # DEBUG MODE — run the compiler directly first; on failure re-run
             # under gdb (choco-installed above) for a full backtrace.
@@ -520,7 +531,7 @@ jobs:
             # for the crash-dump artifact — no download needed to see what
             # happened. $LASTEXITCODE still reflects the native command's
             # exit code in pwsh, even through the pipeline.
-            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v 2>&1 | Tee-Object -FilePath compile_output.txt
+            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE @linkArgs -o ${{ matrix.binary_name }} -v 2>&1 | Tee-Object -FilePath compile_output.txt
             $rc = $LASTEXITCODE
             Write-Host "compiler exit code: $rc"
             if ($rc -ne 0) {
@@ -532,9 +543,9 @@ jobs:
                   # timeout guard: a hung gdb must not stall the job
                   $tmo = Get-Command timeout -ErrorAction SilentlyContinue
                   if ($tmo) {
-                    & timeout 300 gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
+                    & timeout 300 gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE @linkArgs -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
                   } else {
-                    & gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
+                    & gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE @linkArgs -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
                   }
                 } catch {
                   Write-Warning "gdb run failed: $_"
@@ -554,7 +565,7 @@ jobs:
             # does NOT propagate a native command's exit code through a
             # pipeline, so check it explicitly — a failed compile must fail
             # the job.
-            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
+            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE @linkArgs -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           Pop-Location

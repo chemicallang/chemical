@@ -119,6 +119,16 @@ jobs:
             deps: echo "jq/unzip preinstalled on windows runners"
 
     steps:
+      # Alpine arm64 containers cannot run JS actions (upload-artifact below)
+      # natively. This composite action installs a tweaked gcompat so the
+      # runner's glibc node binary works, and masks /etc/os-release so GHA no
+      # longer detects Alpine. No-op on x64; must run before any JS action
+      # (same pattern as build-and-release.yml). Guarded to alpine entries —
+      # on the non-alpine matrix jobs apk does not exist.
+      - name: Enable JavaScript actions in Alpine containers
+        if: ${{ matrix.alpine }}
+        uses: laverdet/alpine-arm64@v1
+
       - name: Install dependencies
         # No `shell:` key here: the alpine container has no bash until this
         # step installs it, so the runner falls back to the container's sh

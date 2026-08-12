@@ -26,8 +26,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     # Release jobs download prebuilt binaries (no compiler build), so they are
-    # fast; the cap is only a safety net for long test suites.
-    timeout-minutes: 360
+    # fast (sibling jobs finish in ~1 min). Each benchmark/test phase already
+    # has its own watchdog cap inside bm_run (bench-common.sh); this job cap
+    # only bounds the pathological case so a hung phase can never burn hours
+    # of runner time - 60 min is ~30-60x the normal run.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

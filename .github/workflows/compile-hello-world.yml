@@ -16,6 +16,14 @@ name: Test Hello World On Latest Release
 # main.ch (printf declared via @extern) to a chemical.mod that imports std —
 # the hello world then calls printf WITHOUT declaring it, forcing the compiler
 # to compile the std library first (a stronger test of the release package).
+#
+# The `use_debug_builds` input switches to the DEBUG builds (full debug
+# symbols) published to chemicallang/chemical-debug by the Build and Release
+# workflow with a debug config. The compiler is then run under a debugger
+# (gdb on linux/alpine/windows, lldb on macOS) so a crash yields a full
+# backtrace; on failure a crash-dump zip (backtrace, logs, commit metadata,
+# system info) is uploaded as an artifact in THIS repo. Debug asset names are
+# the release names with a -debug suffix (linux-x64.zip -> linux-x64-debug.zip).
 
 on:
   workflow_dispatch:
@@ -38,6 +46,21 @@ on:
         options:
           - 'no'
           - 'yes'
+      # release (default): test the stable releases published to
+      # chemicallang/chemical. debug: test the DEBUG builds (full debug
+      # symbols) published to chemicallang/chemical-debug instead, running the
+      # compiler under gdb/lldb so a crash produces a full backtrace that is
+      # uploaded as a crash-dump artifact in THIS repo on failure. Note the
+      # debug release must be PUBLISHED (publish_release checked in the Build
+      # and Release workflow) for its assets to be resolvable here.
+      use_debug_builds:
+        description: 'Build mode. release (default) = stable chemicallang/chemical releases. debug = DEBUG builds from chemicallang/chemical-debug, compiler run under gdb/lldb, crash dumps uploaded as artifacts on failure.'
+        required: false
+        type: choice
+        default: release
+        options:
+          - release
+          - debug
 
 jobs:
   test-release:
@@ -183,6 +206,31 @@ jobs:
         # steps run — same pattern as the other alpine jobs in this repo.
         run: ${{ matrix.deps }}
 
+      # Debug mode runs the compiler under a debugger (gdb on linux/alpine/
+      # windows, lldb on macOS). lldb ships with macOS runners; gdb must be
+      # installed. Only runs in debug mode — release mode is untouched.
+      - name: Install debugger (debug mode only)
+        if: ${{ inputs.use_debug_builds == 'debug' }}
+        run: |
+          case "${{ runner.os }}" in
+            macOS)
+              echo "lldb is preinstalled on macOS runners — nothing to install"
+              ;;
+            Windows)
+              choco install gdb -y --no-progress || true
+              ;;
+            Linux)
+              # alpine container has no apt — install via apk; host linux uses
+              # apt. `command -v apk` distinguishes the two at runtime.
+              if command -v apk >/dev/null 2>&1; then
+                apk add --no-cache gdb
+              else
+                sudo apt-get update && sudo apt-get install -y gdb
+              fi
+              ;;
+          esac
+        shell: bash
+
       - name: Create source files (non-Windows)
         if: runner.os != 'Windows'
         run: |
@@ -239,23 +287,51 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # debug builds live in chemicallang/chemical-debug and their asset
+          # names carry a -debug suffix (linux-x64.zip -> linux-x64-debug.zip);
+          # release builds come from this repo with the plain asset name.
+          if [ "${{ inputs.use_debug_builds }}" = "debug" ]; then
+            REPO="chemicallang/chemical-debug"
+            ASSET="${{ matrix.asset }}"
+            ASSET="${ASSET%.zip}-debug.zip"
+            echo "DEBUG mode: downloading $ASSET from $REPO"
+          else
+            REPO="${GITHUB_REPOSITORY}"
+            ASSET="${{ matrix.asset }}"
+          fi
           if [ -n "${{ inputs.release_tag }}" ]; then
             TAG="${{ inputs.release_tag }}"
             echo "Using specified release tag: $TAG"
             ASSET_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
-              | jq -r '.assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+              "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" \
+              | jq -r --arg a "$ASSET" '.assets[] | select(.name==$a) | .browser_download_url')
           else
             echo "Fetching release information (including pre-releases)..."
-            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-            ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("${{ matrix.asset }}"))] | .[0].assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${REPO}/releases")
+            # the release that carries this asset (first match, newest first) —
+            # its tag names the commit.json metadata file below
+            ASSET_RELEASE=$(echo "$releases" | jq -r --arg a "$ASSET" '[.[] | select(.assets | map(.name) | index($a))] | .[0]')
+            ASSET_URL=$(echo "$ASSET_RELEASE" | jq -r --arg a "$ASSET" '.assets[] | select(.name==$a) | .browser_download_url')
+            TAG=$(echo "$ASSET_RELEASE" | jq -r '.tag_name')
           fi
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${{ matrix.asset }} not found."
+            if [ "${{ inputs.use_debug_builds }}" = "debug" ]; then
+              echo "::warning::No debug build published for $ASSET in $REPO yet — skipping this platform (see the Build and Release workflow's deploy-debug job)."
+              echo "::notice::SKIPPED ${{ matrix.asset }} in debug mode — no matching -debug.zip in chemical-debug"
+              echo "SKIPPED=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "Error: Asset $ASSET not found in $REPO."
             exit 1
           fi
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
+          # debug releases ship commit.json — the source commit the binaries
+          # were built from (bundled into crash dumps on failure)
+          if [ "${{ inputs.use_debug_builds }}" = "debug" ]; then
+            curl -sL -o commit.json "https://github.com/chemicallang/chemical-debug/releases/download/${TAG}/commit.json" || true
+            if [ -s commit.json ]; then echo "commit metadata: $(head -c 120 commit.json)"; fi
+          fi
         shell: bash
 
       - name: Download release asset (Windows)
@@ -263,23 +339,38 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $assetName = "${{ matrix.asset }}"
+          if ("${{ inputs.use_debug_builds }}" -eq "debug") {
+            $repo = "chemicallang/chemical-debug"
+            $assetName = "${{ matrix.asset }}"
+            $assetName = $assetName.Substring(0, $assetName.Length - 4) + "-debug.zip"
+            Write-Host "DEBUG mode: downloading $assetName from $repo"
+          } else {
+            $repo = $env:GITHUB_REPOSITORY
+            $assetName = "${{ matrix.asset }}"
+          }
           if ("${{ inputs.release_tag }}" -ne "") {
             Write-Host "Using specified release tag: ${{ inputs.release_tag }}"
             # Invoke-RestMethod throws on a 404 (nonexistent tag) — catch it so
             # a bad release_tag fails with a friendly message instead of a raw
             # HTTP exception (matches the bash path's graceful handling).
             try {
-              $release = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases/tags/${{ inputs.release_tag }}" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+              $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/${{ inputs.release_tag }}" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
             } catch {
               $release = $null
             }
+            $tagName = "${{ inputs.release_tag }}"
           } else {
             Write-Host "Fetching release information (including pre-releases)..."
-            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
             $release = $releases | Where-Object { $_.assets -and ($_.assets | Where-Object { $_.name -eq $assetName }) } | Select-Object -First 1
+            $tagName = if ($release) { $release.tag_name } else { "" }
           }
           if (-not $release) {
+            if ("${{ inputs.use_debug_builds }}" -eq "debug") {
+              Write-Warning "No debug build published for $assetName in $repo yet — skipping this platform (see the Build and Release workflow's deploy-debug job)."
+              Add-Content -Path $env:GITHUB_ENV -Value 'SKIPPED=1'
+              exit 0
+            }
             Write-Error "Error: release not found for asset $assetName."
             exit 1
           }
@@ -290,26 +381,36 @@ jobs:
           }
           Write-Host "Downloading asset from $($asset.browser_download_url)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile asset.zip
+          if ("${{ inputs.use_debug_builds }}" -eq "debug" -and $tagName) {
+            try {
+              Invoke-WebRequest -Uri "https://github.com/chemicallang/chemical-debug/releases/download/$tagName/commit.json" -OutFile commit.json
+              Write-Host "commit metadata downloaded"
+            } catch { }
+          }
         shell: pwsh
 
       - name: Extract asset (non-Windows)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && env.SKIPPED != '1'
         run: |
           unzip -o -q asset.zip || true
         shell: bash
 
       - name: Extract asset (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && env.SKIPPED != '1'
         run: |
           Expand-Archive -Path asset.zip -DestinationPath . -Force
         shell: pwsh
 
       - name: Compile source code (non-Windows)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && env.SKIPPED != '1'
+        # In debug mode a compiler crash does NOT fail this step (exit code is
+        # captured, CRASHED=1 is set, and the crash-dump steps below handle
+        # it). Genuine setup failures (missing release root, missing entry
+        # file) still fail the job immediately.
         run: |
-          # release zips extract to a top-level dir: chemical (regular) or
-          # chemical-tcc (tcc variant) — derive it from the asset name
-          if [[ "${{ matrix.asset }}" == *-tcc.zip ]]; then
+          # release/debug zips extract to a top-level dir: chemical (regular)
+          # or chemical-tcc (tcc variant) — derive it from the asset name
+          if [[ "${{ matrix.asset }}" == *-tcc.zip || "${{ matrix.asset }}" == *-tcc-debug.zip ]]; then
             release_root="chemical-tcc"
           else
             release_root="chemical"
@@ -324,16 +425,74 @@ jobs:
           if [ "$ENTRY_FILE" = "chemical.mod" ]; then
             cp -r src "$release_root/"
           fi
+          # crash dumps land at the workspace root (outside release_root)
+          mkdir -p "$GITHUB_WORKSPACE/crash-dump"
           pushd "$release_root"
-          # Run compiler command and capture its output.
-          ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v | tee compile_output.txt
-          popd
+          if [ "${{ inputs.use_debug_builds }}" = "debug" ]; then
+            # DEBUG MODE — run the compiler directly first; on a crash/failure
+            # re-run the EXACT command under the debugger to capture a full
+            # backtrace (all threads, registers, disassembly at $pc) — the
+            # point of shipping debug symbols. set +e: the default bash shell
+            # runs with -e, which would abort before we can read $?.
+            set +e
+            ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v > compile_output.txt 2>&1
+            RC=$?
+            set -e
+            echo "compiler exit code: $RC"
+            if [ $RC -ne 0 ]; then
+              echo "== compiler failed (exit $RC) — capturing diagnostics under debugger =="
+              cp compile_output.txt "$GITHUB_WORKSPACE/crash-dump/compile_output.txt"
+              # timeout guard: a hung debugger must not stall the job for
+              # hours. macOS lacks coreutils `timeout` — run without it there.
+              TIMEOUT=""
+              if command -v timeout >/dev/null 2>&1; then
+                TIMEOUT="timeout 300"
+              fi
+              if [ "$(uname -s)" = "Darwin" ]; then
+                $TIMEOUT lldb -b \
+                  -o "run" \
+                  -o "thread list" \
+                  -o "thread backtrace all" \
+                  -o "register read" \
+                  -o "disassemble --frame" \
+                  -- ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v > "$GITHUB_WORKSPACE/crash-dump/debugger.txt" 2>&1 || true
+              else
+                $TIMEOUT gdb -batch \
+                  -ex "set pagination off" \
+                  -ex "run" \
+                  -ex "echo \n=== INFO THREADS ===\n" \
+                  -ex "info threads" \
+                  -ex "echo \n=== THREAD APPLY ALL BT FULL ===\n" \
+                  -ex "thread apply all bt full" \
+                  -ex "echo \n=== INFO REGISTERS ===\n" \
+                  -ex "info registers" \
+                  -ex "echo \n=== DISASSEMBLY AT PC ===\n" \
+                  -ex "x/32i \$pc" \
+                  -ex "echo \n=== BT FULL ===\n" \
+                  -ex "bt full" \
+                  --args ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v > "$GITHUB_WORKSPACE/crash-dump/debugger.txt" 2>&1 || true
+              fi
+              echo "CRASHED=1" >> "$GITHUB_ENV"
+              echo "COMPILER_RC=$RC" >> "$GITHUB_ENV"
+            else
+              echo "== debug compiler completed successfully =="
+            fi
+            popd
+          else
+            # RELEASE MODE — run compiler command and capture its output.
+            ./${{ matrix.chemical_executable }} "$ENTRY_FILE" -o ${{ matrix.binary_name }} -v | tee compile_output.txt
+            popd
+          fi
         shell: bash
 
       - name: Compile source code (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && env.SKIPPED != '1'
+        # In debug mode a compiler crash does NOT fail this step (exit code is
+        # captured, CRASHED=1 is set, and the crash-dump steps below handle
+        # it). Genuine setup failures (missing release root, missing entry
+        # file) still fail the job immediately.
         run: |
-          if ("${{ matrix.asset }}" -like "*-tcc.zip") {
+          if ("${{ matrix.asset }}" -like "*-tcc.zip" -or "${{ matrix.asset }}" -like "*-tcc-debug.zip") {
             $releaseRoot = ".\chemical-tcc"
           } else {
             $releaseRoot = ".\chemical"
@@ -348,19 +507,105 @@ jobs:
           if ($env:ENTRY_FILE -eq "chemical.mod") {
             Copy-Item -Path src -Destination $releaseRoot -Recurse
           }
+          New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\crash-dump" -Force | Out-Null
           Push-Location $releaseRoot
-          # Run compiler command and capture its output. pwsh does NOT propagate
-          # a native command's exit code through a pipeline, so check it
-          # explicitly — a failed compile must fail the job.
-          .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ("${{ inputs.use_debug_builds }}" -eq "debug") {
+            # DEBUG MODE — run the compiler directly first; on failure re-run
+            # under gdb (choco-installed above) for a full backtrace.
+            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > compile_output.txt 2>&1
+            $rc = $LASTEXITCODE
+            Write-Host "compiler exit code: $rc"
+            if ($rc -ne 0) {
+              Write-Host "== compiler failed (exit $rc) — capturing backtrace under gdb =="
+              Copy-Item -Path compile_output.txt -Destination "$env:GITHUB_WORKSPACE\crash-dump\compile_output.txt"
+              $gdb = Get-Command gdb -ErrorAction SilentlyContinue
+              if ($gdb) {
+                try {
+                  # timeout guard: a hung gdb must not stall the job
+                  $tmo = Get-Command timeout -ErrorAction SilentlyContinue
+                  if ($tmo) {
+                    & timeout 300 gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
+                  } else {
+                    & gdb -batch -ex "set pagination off" -ex "run" -ex "info threads" -ex "thread apply all bt full" -ex "info registers" -ex "bt full" --args .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v > "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" 2>&1
+                  }
+                } catch {
+                  Write-Warning "gdb run failed: $_"
+                  Set-Content -Path "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" -Value "gdb run failed: $_"
+                }
+              } else {
+                Write-Warning "gdb not available — skipping backtrace capture (install failed?)"
+                Set-Content -Path "$env:GITHUB_WORKSPACE\crash-dump\debugger.txt" -Value "gdb not available on this runner"
+              }
+              "CRASHED=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+              "COMPILER_RC=$rc" | Out-File -FilePath $env:GITHUB_ENV -Append
+            } else {
+              Write-Host "== debug compiler completed successfully =="
+            }
+          } else {
+            # RELEASE MODE — Run compiler command and capture its output. pwsh
+            # does NOT propagate a native command's exit code through a
+            # pipeline, so check it explicitly — a failed compile must fail
+            # the job.
+            .\${{ matrix.chemical_executable }} $env:ENTRY_FILE -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           Pop-Location
         shell: pwsh
 
-      - name: Run executable and verify hello world output (non-Windows)
-        if: runner.os != 'Windows'
+      # ––– Debug mode crash dump –––
+      # When the debug compiler crashed, bundle the backtrace + logs + commit
+      # metadata + system info into a zip and upload it as an artifact in THIS
+      # repo (chemical). Nothing is ever written back to chemical-debug. The
+      # job then fails with a pointer to the artifact. On success nothing is
+      # uploaded and the run proceeds to verify the binary below.
+      - name: Package crash dump (debug mode)
+        if: ${{ inputs.use_debug_builds == 'debug' && env.CRASHED == '1' }}
+        shell: bash
         run: |
-          if [[ "${{ matrix.asset }}" == *-tcc.zip ]]; then
+          {
+            echo "=== SYSTEM INFO ==="
+            uname -a 2>/dev/null || true
+            [ -f /etc/os-release ] && cat /etc/os-release
+            echo "platform: ${{ matrix.asset }}"
+            echo "debug mode: yes"
+            echo "compiler exit code: ${COMPILER_RC}"
+            echo "compiler command: ${{ matrix.chemical_executable }} $ENTRY_FILE -o ${{ matrix.binary_name }} -v"
+            echo "debugger: $(command -v gdb || command -v lldb || echo none)"
+          } > crash-dump/system-info.txt
+          cp commit.json crash-dump/ 2>/dev/null || true
+          cp compile_output.txt crash-dump/ 2>/dev/null || true
+          if command -v zip >/dev/null 2>&1; then
+            zip -r -q crash-dump.zip crash-dump || tar -czf crash-dump.zip crash-dump || true
+          else
+            tar -czf crash-dump.zip crash-dump || true
+          fi
+          ls -la crash-dump.zip
+
+      - name: Upload crash dump (debug mode)
+        if: ${{ inputs.use_debug_builds == 'debug' && env.CRASHED == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-crash-${{ matrix.asset }}
+          path: crash-dump.zip
+          if-no-files-found: error
+
+      - name: Mark job failed (debug compiler crashed)
+        if: ${{ inputs.use_debug_builds == 'debug' && env.CRASHED == '1' }}
+        shell: bash
+        run: |
+          # distinguish a real crash (signal in the debugger output) from a
+          # plain nonzero exit (compile error) so the report is honest
+          KIND="failed"
+          if grep -qi "signal\|SIGSEGV\|SIGABRT\|Segmentation\|Abort" crash-dump/debugger.txt 2>/dev/null; then
+            KIND="crashed"
+          fi
+          echo "::error::debug compiler ${KIND} on ${{ matrix.asset }} (exit ${COMPILER_RC}) — see the debug-crash-${{ matrix.asset }} artifact for the backtrace"
+          exit 1
+
+      - name: Run executable and verify hello world output (non-Windows)
+        if: ${{ runner.os != 'Windows' && env.CRASHED != '1' && env.SKIPPED != '1' }}
+        run: |
+          if [[ "${{ matrix.asset }}" == *-tcc.zip || "${{ matrix.asset }}" == *-tcc-debug.zip ]]; then
             release_root="chemical-tcc"
           else
             release_root="chemical"
@@ -386,9 +631,9 @@ jobs:
         shell: bash
 
       - name: Run executable and verify hello world output (Windows)
-        if: runner.os == 'Windows'
+        if: ${{ runner.os == 'Windows' && env.CRASHED != '1' && env.SKIPPED != '1' }}
         run: |
-          if ("${{ matrix.asset }}" -like "*-tcc.zip") {
+          if ("${{ matrix.asset }}" -like "*-tcc.zip" -or "${{ matrix.asset }}" -like "*-tcc-debug.zip") {
             $releaseRoot = ".\chemical-tcc"
           } else {
             $releaseRoot = ".\chemical"

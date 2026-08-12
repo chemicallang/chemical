@@ -319,8 +319,23 @@ jobs:
       # Failure is recorded as data (per-backend statuses + a guard record if
       # collection aborts) — a failing step must never prevent the artifact
       # upload below.
+      # NOTE: the shell must be selected via `if:` (NOT an expression in the
+      # `shell:` key — the matrix context is unavailable there). The MinGW
+      # jobs need the msys2 shell so the msys2-installed cmake/ninja are on
+      # PATH; every other platform uses plain bash.
+      - name: Collect daily benchmark (MinGW)
+        if: ${{ matrix.variant == 'mingw' }}
+        shell: msys2 {0}
+        run: |
+          TARGET="${{ inputs.commit }}"
+          if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi
+          ARGS="--commit $TARGET --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}"
+          if [ "${{ inputs.skip_llvm }}" = "true" ]; then ARGS="$ARGS --skip-llvm"; fi
+          bash scripts/bench-collect-daily.sh $ARGS
+
       - name: Collect daily benchmark
-        shell: ${{ matrix.variant == 'mingw' && 'msys2 {0}' || 'bash' }}
+        if: ${{ matrix.variant != 'mingw' }}
+        shell: bash
         run: |
           TARGET="${{ inputs.commit }}"
           if [ -z "$TARGET" ]; then TARGET="${{ github.sha }}"; fi

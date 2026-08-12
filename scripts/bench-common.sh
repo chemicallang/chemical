@@ -75,6 +75,12 @@ bm_jobs() {
 # ─────────────────────────────────────────────────────────────────────────────
 bm_log()  { echo "[bench] $*"; }
 bm_warn() { echo "[bench] WARN: $*" >&2; }
+# Progress markers on STDERR: bench-collect-release.sh pipes a subshell's
+# STDOUT into backend_out.json (parsed as JSON later), so phase progress must
+# never touch stdout. stderr lines show up in the workflow step log, which
+# keeps a long/hung collection diagnosable (the phases themselves write to
+# log files and print nothing).
+bm_progress() { echo "[bench] $*" >&2; }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # version comparison + release-era asset expectations
@@ -380,9 +386,45 @@ bm_run() {
   local start end
   start="$(bm_now_ms)"
   set +e
-  if command -v timeout >/dev/null 2>&1; then
+  # On POSIX (linux/macOS runners) GNU coreutils `timeout` reliably kills the
+  # child. On Windows Git Bash / MSYS it CANNOT always terminate a NATIVE
+  # Windows child (MSYS signal emulation is unreliable for native processes),
+  # so a hung compiler/test could outlive its cap and stall the whole
+  # collection. Windows uses a background + poll watchdog that kills the
+  # entire process tree via taskkill, and still reports exit code 124
+  # (timeout) so the existing status logic works unchanged.
+  local is_win=false
+  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) is_win=true ;; esac
+  if [ "$is_win" = false ] && command -v timeout >/dev/null 2>&1; then
     timeout "$timeout_secs" "$@" > "$log" 2>&1
     BM_EXIT_CODE=$?
+  elif [ "$is_win" = true ]; then
+    "$@" > "$log" 2>&1 &
+    local pid=$! waited=0
+    while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$timeout_secs" ]; do
+      sleep 5
+      waited=$((waited + 5))
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+      bm_warn "command did not exit within ${timeout_secs}s; killing process tree (pid $pid)"
+      # Git Bash: $! is the MSYS pid, not the Windows pid that taskkill needs;
+      # resolve the mapping (MSYS2 exposes /proc/<pid>/winpid) so the TREE
+      # (grandchildren spawned by the compiler/test) can be killed too. The
+      # `kill -9` backstop afterwards is REQUIRED: MSYS kill reliably terminates
+      # native children it spawned, guaranteeing the direct child dies and the
+      # `wait` below returns instead of blocking forever.
+      local winpid
+      winpid="$(cat "/proc/$pid/winpid" 2>/dev/null || echo "$pid")"
+      if command -v taskkill >/dev/null 2>&1; then
+        taskkill //F //T //PID "$winpid" >/dev/null 2>&1
+      fi
+      kill -9 "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null
+      BM_EXIT_CODE=124
+    else
+      wait "$pid"
+      BM_EXIT_CODE=$?
+    fi
   else
     "$@" > "$log" 2>&1
     BM_EXIT_CODE=$?
@@ -439,7 +481,7 @@ EOF
   fi
 
   local log="$logdir/${backend}_hello_${kind}.log"
-  local status="" dur_ms=0
+  local status="" dur_ms=0 run_status="" run_ms=0
   local run_json="null"
 
   if [ "$backend" = "Interpreter" ]; then
@@ -452,28 +494,27 @@ EOF
   fi
 
   local out_exe="$work/hello_$kind.exe"
+  bm_progress "==> $backend $bench_name: compiling"
   bm_run status dur_ms 600 "$log" "$bin" "$hello_src" -o "$out_exe" --mode debug_quick --no-cache
+  bm_progress "==> $backend $bench_name: compile ${status} in ${dur_ms}ms"
 
   local reason="null"
   [ "$status" != "success" ] && reason=$(jq_escape "compiler exited with code $BM_EXIT_CODE")
 
   # ── run the produced executable and verify its output ──────────────────────
   # A successful compile must also produce a working binary: run it (with a
-  # timeout where available) and assert the output is exactly "hello world".
-  # A run failure (missing runtime DLL, segfault, wrong output) is recorded as
-  # run.status=failed with the actual output — a visible data point, never a
-  # silent skip. Interpreter has no standalone hello -> run stays null.
+  # watchdog-capped timeout via bm_run) and assert the output is exactly
+  # "hello world". A run failure (missing runtime DLL, segfault, wrong output)
+  # is recorded as run.status=failed with the actual output — a visible data
+  # point, never a silent skip. Interpreter has no standalone hello -> run
+  # stays null.
   if [ "$status" = "success" ]; then
     local out rc normalized
-    set +e
-    if command -v timeout >/dev/null 2>&1; then
-      out="$(timeout 30 "$out_exe" 2>&1)"
-      rc=$?
-    else
-      out="$("$out_exe" 2>&1)"
-      rc=$?
-    fi
-    set -e
+    local run_log="$logdir/${backend}_hello_${kind}_run.log"
+    bm_progress "==> $backend $bench_name: running"
+    bm_run run_status run_ms 30 "$run_log" "$out_exe"
+    rc=$BM_EXIT_CODE
+    out="$(cat "$run_log" 2>/dev/null || true)"
     if [ "$rc" -eq 124 ]; then
       run_json="{\"status\":\"failed\",\"reason\":$(jq_escape "hello world run timed out after 30s"),\"output\":null,\"expected\":\"hello world\"}"
     else
@@ -485,6 +526,7 @@ EOF
         run_json="{\"status\":\"failed\",\"reason\":$(jq_escape "expected 'hello world', got '$normalized' (exit $rc)"),\"output\":$(jq_escape "$out"),\"expected\":\"hello world\"}"
       fi
     fi
+    bm_progress "==> $backend $bench_name: run $(printf '%s' "$run_json" | jq -r '.status') (exit $rc)"
   fi
 
   printf -v "$outvar" '{"name":%s,"status":%s,"reason":%s,"duration_ms":%s,"run":%s}' \
@@ -516,6 +558,7 @@ bench_modules_and_tests() {
   # -bm-modules gives module-level timings (tag bm:module); -bm-files adds
   # per-file phase timings (Lexer / Parser / SymRes:* / 2cTranslation:*) in
   # the same output format — both are parsed below and kept separate.
+  bm_progress "==> $backend: compiling lang/tests/build.lab"
   if [ "$backend" = "Interpreter" ]; then
     bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache -bm-modules -bm-files
   else
@@ -525,6 +568,7 @@ bench_modules_and_tests() {
     esac
     bm_run build_status build_ms 1800 "$build_log" "$bin" lang/tests/build.lab -o "$exe" --mode debug_quick --no-cache -bm-modules -bm-files
   fi
+  bm_progress "==> $backend: build ${build_status} in ${build_ms}ms"
 
   if [ "$build_status" = "success" ]; then
     local raw_mods
@@ -536,15 +580,18 @@ bench_modules_and_tests() {
     files_json="$(printf '%s' "$raw_mods" | jq -c '[.[] | select(.tag != "bm:module")] | group_by(.tag) | map(sort_by(-.nanos) | .[0:50]) | add')"
     if [ "$backend" = "Interpreter" ]; then
       # interpret mode runs the tests inside the compiler process
+      bm_progress "==> $backend: running test suite (interpreter in-process)"
       bm_run test_status test_ms 900 "$test_log" "$bin" lang/tests/build.lab --mode debug_quick --arg-interpret --no-cache
     else
       if [ -f "$exe" ]; then
+        bm_progress "==> $backend: running test suite ($exe)"
         bm_run test_status test_ms 900 "$test_log" "$exe"
       else
         test_status="failed"
         test_ms=0
       fi
     fi
+    bm_progress "==> $backend: tests ${test_status} in ${test_ms}ms"
 
     if [ -f "$test_log" ]; then
       local counts

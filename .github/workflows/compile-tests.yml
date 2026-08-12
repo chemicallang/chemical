@@ -218,8 +218,16 @@ jobs:
       ASSET_REGULAR: "linux-alpine-${{ matrix.asset_suffix }}.zip"
       ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
+      # Alpine arm64 containers cannot run JS actions (checkout + upload-artifact
+      # below) natively. This composite action installs a tweaked gcompat so the
+      # runner's glibc node binary works, and masks /etc/os-release so GHA no
+      # longer detects Alpine. No-op on x64; must run before any JS action
+      # (same pattern as build-and-release.yml's build-alpine job).
+      - name: Enable JavaScript actions in Alpine containers
+        uses: laverdet/alpine-arm64@v1
+
       - name: Install dependencies
-        run: apk add --no-cache bash curl jq zip unzip git
+        run: apk add --no-cache bash curl jq zip unzip git build-base
 
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
@@ -687,14 +695,14 @@ jobs:
             platform: linux-alpine
             arch: x64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
           - name: alpine-arm64
             runner: ubuntu-24.04-arm
             container: alpine:3.20
             platform: linux-alpine
             arch: arm64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
           - name: macos-arm64
             runner: macos-26
             platform: macos
@@ -728,6 +736,15 @@ jobs:
       DEADLOCK_TIMEOUT_MINUTES: ${{ inputs.deadlock_timeout_minutes || 10 }}
 
     steps:
+      # Alpine arm64 containers cannot run JS actions (upload-artifact below)
+      # natively. This composite action installs a tweaked gcompat so the
+      # runner's glibc node binary works, and masks /etc/os-release so GHA no
+      # longer detects Alpine. No-op on x64. Guarded to the alpine matrix
+      # entries — on host/macos/windows jobs apk does not exist.
+      - name: Enable JavaScript actions in Alpine containers
+        if: ${{ matrix.platform == 'linux-alpine' }}
+        uses: laverdet/alpine-arm64@v1
+
       - name: Install dependencies
         # No shell key: on the alpine container the runner falls back to sh
         # (bash doesn't exist yet). bash is installed here before later bash

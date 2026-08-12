@@ -34,6 +34,18 @@ on:
 
 env:
   LLVM_RELEASE_TAG: "v22.1.1"
+  # Node 24 actions (actions/github-script, softprops/action-gh-release, ...)
+  # intermittently fail with "HttpError: self-signed certificate; ... try
+  # running Node.js with --use-system-ca" on hosted runners: their api.github.com
+  # calls can route through GitHub's runner egress proxy, whose root CA lives only
+  # in the runner's OS trust store, not in Node's bundled store. --use-system-ca
+  # makes Node consult the OS store as well, fixing the flaky release-check steps
+  # (see run 31575861448, job 94047706398).
+  # Requires Node >= 22.10 (--use-system-ca). All JS actions now run on Node 24
+  # on hosted runners; if Node 20 is ever re-enabled
+  # (ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION) or on pre-migration self-hosted
+  # runners, remove this line.
+  NODE_OPTIONS: --use-system-ca
   # Effective build config. On push (no dispatch inputs) this falls back to Release.
   BUILD_CONFIG: ${{ inputs.config || 'Release' }}
 
@@ -59,7 +71,7 @@ jobs:
 
       # Checkout chemical repository
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -137,6 +149,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -159,6 +172,7 @@ jobs:
         id: check_windows
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -231,7 +245,7 @@ jobs:
             llvm_asset: windows-mingw-ucrt-arm64.zip
     steps:
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -313,6 +327,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -331,6 +346,7 @@ jobs:
         id: check_windows_mingw
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -390,7 +406,7 @@ jobs:
       LLVM_MINGW_NAME: "llvm-mingw-20260224-msvcrt-x86_64"
     steps:
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -488,6 +504,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -506,6 +523,7 @@ jobs:
         id: check_windows_mingw_msvcrt
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -561,6 +579,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, 'releaseIt')
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x64
@@ -573,7 +592,7 @@ jobs:
 
       # Checkout chemical repository
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -649,6 +668,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -671,6 +691,7 @@ jobs:
         id: check_linux
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -750,7 +771,7 @@ jobs:
 
       # Checkout chemical repository
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -816,6 +837,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -838,6 +860,7 @@ jobs:
         id: check_linux
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -885,6 +908,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, 'releaseIt')
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x64
@@ -901,7 +925,7 @@ jobs:
           brew install cmake ninja git
 
       - name: Checkout chemical repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -973,6 +997,7 @@ jobs:
         id: get_latest_release
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
@@ -992,6 +1017,7 @@ jobs:
         id: check_macos
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const tag = '${{ steps.get_latest_release.outputs.tag }}';
             const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -1096,6 +1122,7 @@ jobs:
       - name: Write commit metadata
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const { data: commit } = await github.rest.repos.getCommit({
               owner: context.repo.owner,
@@ -1116,6 +1143,7 @@ jobs:
         id: release_tag
         uses: actions/github-script@v9
         with:
+          retries: 5
           script: |
             const publish = !!(context.payload.inputs && context.payload.inputs.publish_release === 'true');
             let tag = context.sha;
@@ -1154,6 +1182,7 @@ jobs:
       - name: Remove previous debug release for this tag (idempotent)
         uses: actions/github-script@v9
         with:
+          retries: 5
           github-token: ${{ secrets.CHEMICAL_DEBUG_TOKEN }}
           script: |
             const owner = 'chemicallang';

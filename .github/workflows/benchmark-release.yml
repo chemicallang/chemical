@@ -59,7 +59,7 @@ jobs:
             arch: x64
             alpine: true
             workdir: tagrepo
-            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base
           - name: alpine-arm64
             runner: ubuntu-24.04-arm
             container: alpine:3.20
@@ -67,7 +67,7 @@ jobs:
             arch: arm64
             alpine: true
             workdir: tagrepo
-            deps: apk add --no-cache bash curl jq zip unzip git coreutils
+            deps: apk add --no-cache bash curl jq zip unzip git coreutils build-base
           - name: macos-arm64
             runner: macos-26
             platform: macos

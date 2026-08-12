@@ -219,7 +219,7 @@ jobs:
       ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
       - name: Install dependencies
-        run: apk add --no-cache bash curl jq zip unzip git
+        run: apk add --no-cache bash curl jq zip unzip git build-base
 
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
@@ -687,14 +687,14 @@ jobs:
             platform: linux-alpine
             arch: x64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
           - name: alpine-arm64
             runner: ubuntu-24.04-arm
             container: alpine:3.20
             platform: linux-alpine
             arch: arm64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip binutils file
+            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
           - name: macos-arm64
             runner: macos-26
             platform: macos

@@ -284,7 +284,7 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
 
     var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
     var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    var ct_hex : [65]char; test_bytes_to_hex(&raw ct_buf[5], (ct_len-5) as size_t, &raw mut ct_hex[0])
+    var ct_hex : [250]char; test_bytes_to_hex(&raw ct_buf[5], (ct_len-5) as size_t, &raw mut ct_hex[0])
     var aad_hex : [11]char; test_bytes_to_hex(&raw ct_buf[0], 5, &raw mut aad_hex[0])
 
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0

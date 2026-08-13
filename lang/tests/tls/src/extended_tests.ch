@@ -823,6 +823,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 32)!=32){env.error("sk");return}else{}
     test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 32)
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
+    var px_hexstr : [65]char; test_bytes_to_hex(&raw px_hex[0], 32, &raw mut px_hexstr[0])
+    var py_hexstr : [65]char; test_bytes_to_hex(&raw py_hex[0], 32, &raw mut py_hexstr[0])
     var hash : [32]u8; test_random_bytes(&raw mut hash[0], 32)
     var h_hex : [65]char; test_bytes_to_hex(&raw hash[0], 32, &raw mut h_hex[0])
     var ctx : ECDSAContext; ecdsa_init(&raw mut ctx); ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
@@ -832,9 +834,9 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     script[0]=0; sp=0; si=0
     hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.EllipticCurvePublicNumbers(int.from_bytes(bytes.fromhex('" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    si=0; while(px_hex[si]!=0){script[sp]=px_hex[si] as u8; sp+=1; si+=1}
+    si=0; while(px_hexstr[si]!=0){script[sp]=px_hexstr[si] as u8; sp+=1; si+=1}
     var l = "'),'big'),int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    si=0; while(py_hex[si]!=0){script[sp]=py_hex[si] as u8; sp+=1; si+=1}
+    si=0; while(py_hexstr[si]!=0){script[sp]=py_hexstr[si] as u8; sp+=1; si+=1}
     l = "'),'big'),ec.SECP256R1()).public_key(backend=None)\ntry:\n key.verify(bytes.fromhex('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     si=0; while(sig_hex[si]!=0){script[sp]=sig_hex[si] as u8; sp+=1; si+=1}
@@ -1008,7 +1010,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_mpi_mod_inv_vs_py(env : &mut TestEnv) {
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "import random\na=random.getrandbits(128)+1\nmod=random.getrandbits(128)+1\nprint('A='+format(a,'032x'))\nprint('M='+format(mod,'032x'))\n" as *char; si=0
+    var hdr = "import random\nimport math\na=random.getrandbits(128)+1\nmod=random.getrandbits(128)+1\nwhile math.gcd(a,mod)!=1:\n    mod=random.getrandbits(128)+1\nprint('A='+format(a,'032x'))\nprint('M='+format(mod,'032x'))\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_inv"))
     var a_hex : [32]u8; var m_hex : [32]u8
@@ -1096,7 +1098,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
     var data : [16384]u8; test_random_bytes(&raw mut data[0], 16384)
-    var enc : [16400]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw data[0], 16384, &raw mut enc[0], 16400)
+    var enc : [16410]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw data[0], 16384, &raw mut enc[0], 16410)
     if(elen < 0){env.error("large encrypt");return}else{}
     ctx.in_hdr[0]=enc[0];ctx.in_hdr[1]=enc[1];ctx.in_hdr[2]=enc[2];ctx.in_hdr[3]=enc[3];ctx.in_hdr[4]=enc[4]
     var dec_buf : [16400]u8; var inner_ct : u8 = 0
@@ -1228,7 +1230,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_compound_sha256_then_rsa(env : &mut TestEnv) {
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa\nkey=rsa.generate_private_key(65537,2048)\nn=key.public_key().public_numbers().n\ne=key.public_numbers().e\n" as *char
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa\nkey=rsa.generate_private_key(65537,2048)\nn=key.public_key().public_numbers().n\ne=key.public_key().public_numbers().e\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "print('N='+format(n,'0512x'))\nprint('E='+format(e,'x'))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}

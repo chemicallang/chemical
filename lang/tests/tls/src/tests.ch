@@ -2655,21 +2655,40 @@ public func tls13_key_update_send_key_update_builds_message(env : &mut TestEnv) 
 }
 
 // ═══════════════════════════════════════════════════════════════
-// RSA gen_key (stub — intentional, not a bug)
+// RSA gen_key
 // ═══════════════════════════════════════════════════════════════
 
 @test
 public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
-    // rsa_gen_key is intentionally not implemented.
-    // Users should use rsa_import_privkey to import keys.
+    // rsa_gen_key generates a real RSA-2048 key pair.
     var ctx : tls::RSAContext
     tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
     var ret = tls::rsa_gen_key(&raw mut ctx, 2048, 65537u32)
-    if(ret == 0) {
-        env.error("rsa_gen_key should return error (not implemented)")
+    if(ret != 0) {
+        env.error("rsa_gen_key should succeed")
+        return
     }
-    if(ret != tls::ERR_RSA_KEY_GEN_FAILED) {
-        env.error("rsa_gen_key should return ERR_RSA_KEY_GEN_FAILED")
+    if(ctx.len != 256) {
+        env.error("rsa_gen_key should set key length to 256 bytes")
+        return
+    }
+    var pt : [16]u8; var i : size_t = 0; while(i < 16) { pt[i] = (i + 1) as u8; i += 1 }
+    var ct : [256]u8
+    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 16, &raw mut ct[0])
+    if(ret < 0) {
+        env.error("rsa_pkcs1_encrypt with generated key failed")
+        return
+    }
+    var dec : [256]u8; var dec_len : size_t = 256
+    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx, &raw ct[0], 256, &raw mut dec[0], &raw mut dec_len, 256)
+    if(ret < 0) {
+        env.error("rsa_pkcs1_decrypt with generated key failed")
+        return
+    }
+    i = 0; var ok = true
+    while(i < 16) { if(dec[i] != pt[i]) { ok = false } else {}; i += 1 }
+    if(!ok) {
+        env.error("RSA encrypt/decrypt roundtrip with generated key mismatch")
     }
 }
 

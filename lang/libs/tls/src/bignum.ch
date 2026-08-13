@@ -418,14 +418,36 @@ public namespace tls {
             i += 1
         }
 
-        // Result is now in x[0..n.n-1] after n shifts
-        x.n = n.n
-        var rj : size_t = n.n
-        while(rj < work_limbs) {
-            x.p[rj] = 0
-            rj += 1
+        // After the n shifts, T occupies x[0..n.n] (n.n+1 limbs) with
+        // x[n.n] being the carry limb (T may be >= R = 2^(32*n.n)).
+        // Per mbedTLS mpi_core_montmul: compute X = T - N over n.n limbs,
+        // track borrow, and select the result as follows:
+        //   carry=1 or borrow=0  -> result is X (= T - N)
+        //   carry=0 and borrow=1 -> result is T (T < N)
+        var carry : u64 = x.p[n.n] as u64
+        var X : Mpi; mpi_init(&raw mut X)
+        var borrow : u64 = 0
+        var j : size_t = 0
+        while(j < n.n) {
+            var av = x.p[j] as u64
+            var bv = n.p[j] as u64
+            var diff : u64 = 0
+            if(av >= bv + borrow) { diff = av - bv - borrow; borrow = 0 }
+            else { diff = (av + 0x100000000u64) - bv - borrow; borrow = 1 }
+            X.p[j] = (diff & 0xFFFFFFFFu64) as u32
+            j += 1
         }
-        if(mpi_cmp_abs(x, n) >= 0) { mpi_sub_abs(x, x, n) }
+        X.n = n.n; X.s = 1
+        var take_x : bool = false
+        if(carry != 0) { take_x = true }
+        else {
+            if(borrow == 0) { take_x = true }
+            else { take_x = false }
+        }
+        if(take_x) { mpi_copy(x, &raw mut X) }
+        else {
+            x.n = n.n
+        }
         mpi_trim(x); return 0
     }
 
@@ -540,50 +562,54 @@ public namespace tls {
         return 0
     }
 
-    // ─── Modular Inverse (Binary Extended GCD) ───────────────────────────
+    // ─── Modular Inverse (Extended Euclidean) ────────────────────────────
 
+    // Computes x = a^-1 mod n via the extended Euclidean algorithm
+    // (division-based). Unlike the binary extended GCD, this works for any
+    // modulus (odd or even) and for any a coprime to n.
     public func mpi_mod_inv(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
         if(mpi_cmp_int(n, 1) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
-        var A : Mpi; mpi_init(&raw mut A)
-        var B : Mpi; mpi_init(&raw mut B)
-        var U : Mpi; mpi_init(&raw mut U)
-        var V : Mpi; mpi_init(&raw mut V)
 
-        mpi_mod(&raw mut A, a, n)
-        mpi_copy(&raw mut B, n)
-        mpi_lset(&raw mut U, 1); mpi_lset(&raw mut V, 0)
+        // r0 = n, r1 = a mod n
+        var r0 : Mpi; mpi_init(&raw mut r0)
+        var r1 : Mpi; mpi_init(&raw mut r1)
+        mpi_copy(&raw mut r0, n)
+        var ret = mpi_mod(&raw mut r1, a, n)
+        if(ret < 0) { return ret }
 
-        while(!mpi_is_zero(&raw mut A)) {
-            if((A.p[0] & 1) == 0) {
-                var ret = mpi_shift_r(&raw mut A, 1)
-                if(ret < 0) { return ret }
-                if((U.p[0] & 1) != 0) { var ret2 = mpi_add(&raw mut U, &raw mut U, n); if(ret2 < 0) { return ret2 } }
-                var ret3 = mpi_shift_r(&raw mut U, 1)
-                if(ret3 < 0) { return ret3 }
-            } else if((B.p[0] & 1) == 0) {
-                var ret = mpi_shift_r(&raw mut B, 1)
-                if(ret < 0) { return ret }
-                if((V.p[0] & 1) != 0) { var ret2 = mpi_add(&raw mut V, &raw mut V, n); if(ret2 < 0) { return ret2 } }
-                var ret3 = mpi_shift_r(&raw mut V, 1)
-                if(ret3 < 0) { return ret3 }
-            } else {
-                if(mpi_cmp_abs(&raw mut A, &raw mut B) >= 0) {
-                    var ret = mpi_sub_abs(&raw mut A, &raw mut A, &raw mut B)
-                    if(ret < 0) { return ret }
-                    if(mpi_cmp(&raw mut U, &raw mut V) < 0) { var ret2 = mpi_add(&raw mut U, &raw mut U, n); if(ret2 < 0) { return ret2 } }
-                    var ret3 = mpi_sub(&raw mut U, &raw mut U, &raw mut V)
-                    if(ret3 < 0) { return ret3 }
-                } else {
-                    var ret = mpi_sub_abs(&raw mut B, &raw mut B, &raw mut A)
-                    if(ret < 0) { return ret }
-                    if(mpi_cmp(&raw mut V, &raw mut U) < 0) { var ret2 = mpi_add(&raw mut V, &raw mut V, n); if(ret2 < 0) { return ret2 } }
-                    var ret3 = mpi_sub(&raw mut V, &raw mut V, &raw mut U)
-                    if(ret3 < 0) { return ret3 }
-                }
-            }
+        // t0 = 0, t1 = 1  (Bezout coefficients for r0 and r1)
+        var t0 : Mpi; mpi_init(&raw mut t0); mpi_lset(&raw mut t0, 0)
+        var t1 : Mpi; mpi_init(&raw mut t1); mpi_lset(&raw mut t1, 1)
+
+        while(!mpi_is_zero(&raw mut r1)) {
+            // q = r0 / r1, r2 = r0 mod r1
+            var q : Mpi; mpi_init(&raw mut q)
+            var r2 : Mpi; mpi_init(&raw mut r2)
+            ret = mpi_div(&raw mut q, &raw mut r2, &raw mut r0, &raw mut r1)
+            if(ret < 0) { return ret }
+
+            // t2 = t0 - q * t1
+            var qt : Mpi; mpi_init(&raw mut qt)
+            ret = mpi_mul(&raw mut qt, &raw mut q, &raw mut t1)
+            if(ret < 0) { return ret }
+            var t2 : Mpi; mpi_init(&raw mut t2)
+            ret = mpi_sub(&raw mut t2, &raw mut t0, &raw mut qt)
+            if(ret < 0) { return ret }
+
+            // Shift: r0 = r1, r1 = r2; t0 = t1, t1 = t2
+            mpi_copy(&raw mut r0, &raw mut r1)
+            mpi_copy(&raw mut r1, &raw mut r2)
+            mpi_copy(&raw mut t0, &raw mut t1)
+            mpi_copy(&raw mut t1, &raw mut t2)
         }
-        if(mpi_cmp_int(&raw mut B, 1) != 0) { return ERR_MPI_BAD_INPUT_DATA }
-        mpi_mod(x, &raw mut V, n)
+
+        // r0 = gcd(a, n). If it's not 1, no inverse exists.
+        if(mpi_cmp_int(&raw mut r0, 1) != 0) {
+            return ERR_MPI_BAD_INPUT_DATA
+        }
+
+        // t0 is the inverse (may be negative); reduce mod n
+        mpi_mod(x, &raw mut t0, n)
         return 0
     }
 
@@ -593,19 +619,22 @@ public namespace tls {
         if(m.n == 0 || count == 0) { return 0 }
         var limb_shift = count / BITS_PER_LIMB
         var bit_shift = count % BITS_PER_LIMB
+        var old_n = m.n
         // Grow to accommodate the shift
-        var new_n = m.n + limb_shift + 1
+        var new_n = old_n + limb_shift + 1
         var ret = mpi_grow(m, new_n)
         if(ret < 0) { return ret }
-        // Shift whole limbs left
+        // Shift whole limbs left (copy from high to low so source limbs
+        // are not clobbered), then zero the vacated low limbs.
         if(limb_shift > 0) {
-            var i = m.n
-            while(i > 0) { i -= 1
-                m.p[i + limb_shift] = m.p[i]
+            var i = new_n
+            while(i > limb_shift) {
+                i -= 1
+                m.p[i] = m.p[i - limb_shift]
             }
             var j : size_t = 0
             while(j < limb_shift) { m.p[j] = 0; j += 1 }
-            m.n += limb_shift
+            m.n = old_n + limb_shift
         }
         // Shift bits within limbs
         if(bit_shift > 0) {

@@ -171,7 +171,7 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     i = 0; while(i < 16) { tr_dec.key_dec[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr_dec.base_iv_dec[i] = iv[i]; i += 1 }
     var dec_out : [64]u8
-    var dec_ret = tls12_decrypt_record(&raw mut tr_dec, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[8], 32, &raw mut dec_out[0], 64)
+    var dec_ret = tls12_decrypt_record(&raw mut tr_dec, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[0], enc_len as size_t, &raw mut dec_out[0], 64)
     if(dec_ret < 0) { env.error("tls12_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record Chemical decrypt mismatch"); return }
 }

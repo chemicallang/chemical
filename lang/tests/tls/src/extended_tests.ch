@@ -758,11 +758,15 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_x25519_rfc7748_testvec(env : &mut TestEnv) {
+    // RFC 7748 Section 5.2 test vector: X25519(9, 9)
     var scalar : [32]u8; scalar[0]=9; var i:size_t=1;while(i<32){scalar[i]=0;i+=1}
     var u_coord : [32]u8; u_coord[0]=9; i=1;while(i<32){u_coord[i]=0;i+=1}
     var out : [32]u8; x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0])
-    if(out[0]!=0x20||out[31]!=0x08){env.error("x25519 rfc7748");return}else{}
-    i=1;while(i<31){if(out[i]!=0){env.error("x25519 zero");return}else{}i+=1}
+    // Expected: 422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079
+    var expect : [32]u8 = [
+        0x42, 0x2c, 0x8e, 0x7a, 0x62, 0x27, 0xd7, 0xbc, 0xa1, 0x35, 0x0b, 0x3e, 0x2b, 0xb7, 0x27, 0x9f,
+        0x78, 0x97, 0xb8, 0x7b, 0xb6, 0x85, 0x4b, 0x78, 0x3c, 0x60, 0xe8, 0x03, 0x11, 0xae, 0x30, 0x79]
+    i=0; while(i<32){if(out[i]!=expect[i]){env.error("x25519 rfc7748");return}else{}i+=1}
 }
 
 // ============================================================
@@ -811,7 +815,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_ecdsa_sign_py_verify(env : &mut TestEnv) {
-    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP256R1())\nn=key.public_key().public_numbers()\nprint('PX='+format(n.x,'064x'))\nprint('PY='+format(n.y,'064x'))\nprint('SK='+format(key.private_numbers().private_value,'064x'))\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_st"))

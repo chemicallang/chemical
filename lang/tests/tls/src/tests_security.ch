@@ -461,6 +461,8 @@ public func x25519_rejects_all_zero_peer(env : &mut TestEnv) {
     x25519_generate_keypair(&raw mut priv[0], &raw mut pub[0])
 
     var zero_peer : [32]u8
+    var zpi : size_t = 0
+    while(zpi < 32) { zero_peer[zpi] = 0; zpi += 1 }
     var shared : [32]u8
     var r = x25519_compute_shared(&raw priv[0], &raw zero_peer[0], &raw mut shared[0])
     if(r >= 0) {

@@ -109,13 +109,13 @@ public func INT_ecdsa_verify_py_signature_tls(env : &mut TestEnv) {
     var hash_hex : [65]char; test_bytes_to_hex(&raw hash_val[0], 32, &raw mut hash_hex[0])
 
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
-    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nfrom cryptography.hazmat.primitives import hashes\n" as *char; si=0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "from cryptography.hazmat.primitives.serialization import Encoding,PublicFormat\nkey=ec.generate_private_key(ec.SECP256R1())\npub=key.public_key()\npub_enc=pub.public_bytes(Encoding.X962,PublicFormat.UncompressedPoint)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "hash_data=bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     si=0; while(hash_hex[si]!=0){script[sp]=hash_hex[si] as u8; sp+=1; si+=1}
-    l = "')\nsig=key.sign(hash_data,ec.ECDSA(hashes.SHA256()))\n" as *char; si=0
+    l = "')\nsig=key.sign(hash_data,ec.ECDSA(utils.Prehashed(hashes.SHA256())))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "print('PUB='+pub_enc.hex())\nprint('SIG='+sig.hex())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}

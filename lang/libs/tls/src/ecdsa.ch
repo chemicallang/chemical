@@ -374,7 +374,12 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // R = R1 + R2
+        // ecp_add_jac is a mixed Jacobian-affine addition and requires the
+        // second operand to be in affine coordinates (Z = 1). R2 is the
+        // un-normalized Jacobian result of ecp_mul, so normalize it first.
         var R : ECPPoint; ecp_point_init(&raw mut R)
+        ret = ecp_normalize_jac(&raw mut R2)
+        if(ret < 0) { return ret }
         ret = ecp_add_jac(&raw mut R, &raw mut R1, &raw mut R2)
         if(ret < 0) { return ret }
 

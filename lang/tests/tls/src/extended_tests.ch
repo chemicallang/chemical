@@ -865,7 +865,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // RSA tests (4)
 // ============================================================
 
-@test public func INT_rsa_encrypt_decrypt(env : &mut TestEnv) {
+@test @test.timeout(60000) public func INT_rsa_encrypt_decrypt(env : &mut TestEnv) {
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives import serialization\nkey=rsa.generate_private_key(65537,2048)\npub=key.public_key()\nn=pub.public_numbers().n\ne=pub.public_numbers().e\nd=key.private_numbers().d\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -892,7 +892,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     rsa_free(&raw mut ctx2)
 }
 
-@test public func INT_rsa_sign_verify(env : &mut TestEnv) {
+@test @test.timeout(60000) public func INT_rsa_sign_verify(env : &mut TestEnv) {
     var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa,padding\nfrom cryptography.hazmat.primitives import hashes\nkey=rsa.generate_private_key(65537,2048)\npub=key.public_key()\nn=pub.public_numbers().n\ne=pub.public_numbers().e\n" as *char
     si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}

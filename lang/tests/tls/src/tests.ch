@@ -2659,6 +2659,7 @@ public func tls13_key_update_send_key_update_builds_message(env : &mut TestEnv) 
 // ═══════════════════════════════════════════════════════════════
 
 @test
+@test.timeout(60000)
 public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     // rsa_gen_key generates a real RSA-2048 key pair.
     var ctx : tls::RSAContext
@@ -2690,6 +2691,177 @@ public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     if(!ok) {
         env.error("RSA encrypt/decrypt roundtrip with generated key mismatch")
     }
+}
+
+@test
+@test.timeout(60000)
+public func tls_rsa_gen_key_math_invariants(env : &mut TestEnv) {
+    // Verify the mathematical invariants of a real generated RSA-2048 key:
+    //   N = P*Q, gcd(E, phi)=1, D*E ≡ 1 (mod phi), CRT params DP/DQ/QP correct,
+    //   and correct bit lengths. Uses the public mpi API to re-derive each value.
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(&raw mut ctx, 2048, 65537u32)
+    if(ret != 0) { env.error("rsa_gen_key should succeed"); return }
+
+    // N bit length must be exactly 2048, ctx.len = 256 bytes
+    if(tls::mpi_bitlen(&raw mut ctx.N) != 2048) { env.error("N bitlen != 2048"); return }
+    if(ctx.len != 256) { env.error("ctx.len != 256"); return }
+
+    // P and Q must each be 1024 bits, and distinct
+    if(tls::mpi_bitlen(&raw mut ctx.P) != 1024) { env.error("P bitlen != 1024"); return }
+    if(tls::mpi_bitlen(&raw mut ctx.Q) != 1024) { env.error("Q bitlen != 1024"); return }
+    if(tls::mpi_cmp(&raw mut ctx.P, &raw mut ctx.Q) == 0) { env.error("P == Q"); return }
+
+    // N == P * Q
+    var n_calc : tls::Mpi; tls::mpi_init(&raw mut n_calc)
+    ret = tls::mpi_mul(&raw mut n_calc, &raw mut ctx.P, &raw mut ctx.Q)
+    if(ret < 0) { env.error("mpi_mul P*Q failed"); return }
+    if(tls::mpi_cmp(&raw mut n_calc, &raw mut ctx.N) != 0) { env.error("N != P*Q"); return }
+
+    // E == 65537
+    var e_calc : tls::Mpi; tls::mpi_init(&raw mut e_calc); tls::mpi_lset(&raw mut e_calc, 65537)
+    if(tls::mpi_cmp(&raw mut e_calc, &raw mut ctx.E) != 0) { env.error("E != 65537"); return }
+
+    // phi = (P-1)*(Q-1); gcd(E, phi) must be 1
+    var one : tls::Mpi; tls::mpi_init(&raw mut one); tls::mpi_lset(&raw mut one, 1)
+    var p1 : tls::Mpi; tls::mpi_init(&raw mut p1)
+    var q1 : tls::Mpi; tls::mpi_init(&raw mut q1)
+    var phi : tls::Mpi; tls::mpi_init(&raw mut phi)
+    var g : tls::Mpi; tls::mpi_init(&raw mut g)
+    ret = tls::mpi_sub(&raw mut p1, &raw mut ctx.P, &raw mut one)
+    ret = tls::mpi_sub(&raw mut q1, &raw mut ctx.Q, &raw mut one)
+    if(ret < 0) { env.error("mpi_sub failed"); return }
+    ret = tls::mpi_mul(&raw mut phi, &raw mut p1, &raw mut q1)
+    if(ret < 0) { env.error("mpi_mul phi failed"); return }
+    ret = tls::mpi_gcd(&raw mut g, &raw mut ctx.E, &raw mut phi)
+    if(ret < 0) { env.error("mpi_gcd failed"); return }
+    if(tls::mpi_cmp_int(&raw mut g, 1) != 0) { env.error("gcd(E, phi) != 1"); return }
+
+    // D * E ≡ 1 (mod phi)
+    var de : tls::Mpi; tls::mpi_init(&raw mut de)
+    ret = tls::mpi_mul(&raw mut de, &raw mut ctx.D, &raw mut ctx.E)
+    if(ret < 0) { env.error("mpi_mul D*E failed"); return }
+    var de_mod : tls::Mpi; tls::mpi_init(&raw mut de_mod)
+    ret = tls::mpi_mod(&raw mut de_mod, &raw mut de, &raw mut phi)
+    if(ret < 0) { env.error("mpi_mod D*E failed"); return }
+    if(tls::mpi_cmp_int(&raw mut de_mod, 1) != 0) { env.error("(D*E) mod phi != 1"); return }
+
+    // DP == D mod (P-1), DQ == D mod (Q-1)
+    var dp_calc : tls::Mpi; tls::mpi_init(&raw mut dp_calc)
+    var dq_calc : tls::Mpi; tls::mpi_init(&raw mut dq_calc)
+    ret = tls::mpi_mod(&raw mut dp_calc, &raw mut ctx.D, &raw mut p1)
+    if(ret < 0) { env.error("mpi_mod DP failed"); return }
+    ret = tls::mpi_mod(&raw mut dq_calc, &raw mut ctx.D, &raw mut q1)
+    if(ret < 0) { env.error("mpi_mod DQ failed"); return }
+    if(tls::mpi_cmp(&raw mut dp_calc, &raw mut ctx.DP) != 0) { env.error("DP != D mod (P-1)"); return }
+    if(tls::mpi_cmp(&raw mut dq_calc, &raw mut ctx.DQ) != 0) { env.error("DQ != D mod (Q-1)"); return }
+
+    // Q * QP ≡ 1 (mod P)
+    var q_qp : tls::Mpi; tls::mpi_init(&raw mut q_qp)
+    ret = tls::mpi_mul(&raw mut q_qp, &raw mut ctx.Q, &raw mut ctx.QP)
+    if(ret < 0) { env.error("mpi_mul Q*QP failed"); return }
+    var q_qp_mod : tls::Mpi; tls::mpi_init(&raw mut q_qp_mod)
+    ret = tls::mpi_mod(&raw mut q_qp_mod, &raw mut q_qp, &raw mut ctx.P)
+    if(ret < 0) { env.error("mpi_mod Q*QP failed"); return }
+    if(tls::mpi_cmp_int(&raw mut q_qp_mod, 1) != 0) { env.error("(Q*QP) mod P != 1"); return }
+
+    // QP must be < P and DP < P-1, DQ < Q-1, D < phi (standard invariants)
+    if(tls::mpi_cmp(&raw mut ctx.QP, &raw mut ctx.P) >= 0) { env.error("QP >= P"); return }
+    if(tls::mpi_cmp(&raw mut ctx.DP, &raw mut p1) >= 0) { env.error("DP >= P-1"); return }
+    if(tls::mpi_cmp(&raw mut ctx.DQ, &raw mut q1) >= 0) { env.error("DQ >= Q-1"); return }
+    if(tls::mpi_cmp(&raw mut ctx.D, &raw mut phi) >= 0) { env.error("D >= phi"); return }
+
+    // A raw exponentiation roundtrip: (x^E)^D mod N == x  (via mpi_exp_mod directly)
+    var x : tls::Mpi; tls::mpi_init(&raw mut x); tls::mpi_lset(&raw mut x, 424242)
+    var xe : tls::Mpi; tls::mpi_init(&raw mut xe)
+    var xed : tls::Mpi; tls::mpi_init(&raw mut xed)
+    ret = tls::mpi_exp_mod(&raw mut xe, &raw mut x, &raw mut ctx.E, &raw mut ctx.N)
+    if(ret < 0) { env.error("mpi_exp_mod E failed"); return }
+    ret = tls::mpi_exp_mod(&raw mut xed, &raw mut xe, &raw mut ctx.D, &raw mut ctx.N)
+    if(ret < 0) { env.error("mpi_exp_mod D failed"); return }
+    if(tls::mpi_cmp(&raw mut xed, &raw mut x) != 0) { env.error("(x^E)^D mod N != x"); return }
+}
+
+@test
+@test.timeout(60000)
+public func tls_rsa_gen_key_distinct_keys(env : &mut TestEnv) {
+    // Two consecutive keygens must produce different primes/moduli (guards
+    // against a deterministic/constant random source).
+    var ctx1 : tls::RSAContext
+    tls::rsa_init(&raw mut ctx1, tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(&raw mut ctx1, 1024, 65537u32)
+    if(ret != 0) { env.error("rsa_gen_key #1 failed"); return }
+
+    var ctx2 : tls::RSAContext
+    tls::rsa_init(&raw mut ctx2, tls::RSA_PKCS_V15, 0)
+    ret = tls::rsa_gen_key(&raw mut ctx2, 1024, 65537u32)
+    if(ret != 0) { env.error("rsa_gen_key #2 failed"); return }
+
+    if(tls::mpi_cmp(&raw mut ctx1.P, &raw mut ctx2.P) == 0) { env.error("P identical across keygens"); return }
+    if(tls::mpi_cmp(&raw mut ctx1.Q, &raw mut ctx2.Q) == 0) { env.error("Q identical across keygens"); return }
+    if(tls::mpi_cmp(&raw mut ctx1.N, &raw mut ctx2.N) == 0) { env.error("N identical across keygens"); return }
+    if(tls::mpi_cmp(&raw mut ctx1.D, &raw mut ctx2.D) == 0) { env.error("D identical across keygens"); return }
+}
+
+@test
+public func tls_rsa_gen_key_rejects_bad_nbits(env : &mut TestEnv) {
+    // nbits below 256 and non-multiples of 8 must be rejected up front.
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+
+    var ret = tls::rsa_gen_key(&raw mut ctx, 255, 65537u32)
+    if(ret == 0) { env.error("rsa_gen_key(255) should fail"); return }
+
+    ret = tls::rsa_gen_key(&raw mut ctx, 257, 65537u32)
+    if(ret == 0) { env.error("rsa_gen_key(257) should fail"); return }
+
+    ret = tls::rsa_gen_key(&raw mut ctx, 1020, 65537u32)
+    if(ret == 0) { env.error("rsa_gen_key(1020) should fail"); return }
+
+    ret = tls::rsa_gen_key(&raw mut ctx, 128, 65537u32)
+    if(ret == 0) { env.error("rsa_gen_key(128) should fail"); return }
+
+    // Valid boundary: 256 bits is allowed and yields 32-byte keys
+    ret = tls::rsa_gen_key(&raw mut ctx, 256, 65537u32)
+    if(ret != 0) { env.error("rsa_gen_key(256) should succeed"); return }
+    if(ctx.len != 32) { env.error("256-bit key len != 32"); return }
+}
+
+@test
+@test.timeout(60000)
+public func tls_rsa_gen_key_1024_roundtrip(env : &mut TestEnv) {
+    // RSA-1024 (128-byte modulus) full encrypt/decrypt roundtrip.
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(&raw mut ctx, 1024, 65537u32)
+    if(ret != 0) { env.error("rsa_gen_key(1024) failed"); return }
+    if(ctx.len != 128) { env.error("1024-bit key len != 128"); return }
+    if(tls::mpi_bitlen(&raw mut ctx.N) != 1024) { env.error("N bitlen != 1024"); return }
+
+    var pt : [48]u8; var i : size_t = 0; while(i < 48) { pt[i] = (i * 7) as u8; i += 1 }
+    var ct : [128]u8
+    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 48, &raw mut ct[0])
+    if(ret < 0) { env.error("rsa_pkcs1_encrypt (1024) failed"); return }
+    var dec : [128]u8; var dec_len : size_t = 128
+    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx, &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
+    if(ret < 0) { env.error("rsa_pkcs1_decrypt (1024) failed"); return }
+    i = 0; var ok = true
+    while(i < 48) { if(dec[i] != pt[i]) { ok = false } else {}; i += 1 }
+    if(!ok) { env.error("RSA-1024 roundtrip mismatch"); return }
+
+    // A different public exponent (3) must also generate a usable key
+    var ctx3 : tls::RSAContext
+    tls::rsa_init(&raw mut ctx3, tls::RSA_PKCS_V15, 0)
+    ret = tls::rsa_gen_key(&raw mut ctx3, 1024, 3u32)
+    if(ret != 0) { env.error("rsa_gen_key(1024, e=3) failed"); return }
+    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx3, &raw pt[0], 48, &raw mut ct[0])
+    if(ret < 0) { env.error("rsa_pkcs1_encrypt (e=3) failed"); return }
+    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx3, &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
+    if(ret < 0) { env.error("rsa_pkcs1_decrypt (e=3) failed"); return }
+    i = 0; ok = true
+    while(i < 48) { if(dec[i] != pt[i]) { ok = false } else {}; i += 1 }
+    if(!ok) { env.error("RSA-1024 e=3 roundtrip mismatch"); return }
 }
 
 // ═══════════════════════════════════════════════════════════════

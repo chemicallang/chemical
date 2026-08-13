@@ -187,6 +187,7 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
 }
 
 @test
+@test.timeout(60000)
 public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
@@ -292,6 +293,100 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     if(pt_len != 32 || !test_bytes_eq(&raw py_pt[0], &raw pt_msg[0], 32)) {
         env.error("Python cannot decrypt Chemical RSA ciphertext")
     } else {}
+}
+
+@test
+@test.timeout(60000)
+public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
+    // Real-world cross-check: generate a key with Chemical, then use the
+    // private exponent D to produce a PKCS#1 v1.5 SHA-256 signature that
+    // Python (pyca/cryptography) verifies. This exercises the generated key
+    // in the signing direction that real servers/clients depend on.
+    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
+    if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
+
+    // 1. Message + SHA-256 digest
+    var msg : [48]u8; test_random_bytes(&raw mut msg[0], 48)
+    var digest : [32]u8; sha256_hash(&raw msg[0], 48, &raw mut digest[0])
+
+    // 2. Build EM = 0x00 0x01 0xFF..0xFF 0x00 || DigestInfo(SHA-256) || digest
+    var em : [256]u8; var i : size_t = 0
+    var prefix : [19]u8 = [
+        0x30 as u8, 0x31 as u8, 0x30 as u8, 0x0D as u8, 0x06 as u8, 0x09 as u8,
+        0x60 as u8, 0x86 as u8, 0x48 as u8, 0x01 as u8, 0x65 as u8, 0x03 as u8,
+        0x04 as u8, 0x02 as u8, 0x01 as u8, 0x05 as u8, 0x00 as u8, 0x04 as u8,
+        0x20 as u8
+    ]
+    em[0] = 0x00 as u8; em[1] = 0x01 as u8
+    // 202 padding bytes of 0xFF between em[2] and em[203], separator at em[204]
+    while(i < 202) { em[2 + i] = 0xFF as u8; i += 1 }
+    em[204] = 0x00 as u8
+    i = 0
+    while(i < 19) { em[205 + i] = prefix[i]; i += 1 }
+    i = 0
+    while(i < 32) { em[224 + i] = digest[i]; i += 1 }
+
+    // 3. Signature = EM^D mod N using the generated private exponent
+    var sig_mpi : Mpi; mpi_init(&raw mut sig_mpi)
+    var em_mpi : Mpi; mpi_init(&raw mut em_mpi)
+    ret = mpi_read_binary(&raw mut em_mpi, &raw em[0], 256)
+    if(ret < 0) { env.error("mpi_read_binary EM failed"); return } else {}
+    ret = mpi_exp_mod(&raw mut sig_mpi, &raw mut em_mpi, &raw mut rsa_ctx.D, &raw mut rsa_ctx.N)
+    if(ret < 0) { env.error("mpi_exp_mod sign failed"); return } else {}
+    var sig_buf : [256]u8
+    ret = mpi_write_binary(&raw mut sig_mpi, &raw mut sig_buf[0], 256)
+    if(ret < 0) { env.error("mpi_write_binary sig failed"); return } else {}
+
+    // 4. Export N, E, sig, msg to Python; Python verifies with PKCS1v15+SHA256.
+    var n_buf : [256]u8; var e_buf : [4]u8
+    mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_buf[0], 256)
+    mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_buf[0], 4)
+    var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], 256, &raw mut n_hex[0])
+    var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
+    var sig_hex : [513]char; test_bytes_to_hex(&raw sig_buf[0], 256, &raw mut sig_hex[0])
+    var msg_hex : [97]char; test_bytes_to_hex(&raw msg[0], 48, &raw mut msg_hex[0])
+
+    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa, padding\nfrom cryptography.hazmat.primitives import hashes\n" as *char; si=0
+    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var l = "n=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    si=0; while(n_hex[si]!=0){script[sp]=n_hex[si] as u8; sp+=1; si+=1}
+    l = "'),'big')\ne=int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    si=0; while(e_hex[si]!=0){script[sp]=e_hex[si] as u8; sp+=1; si+=1}
+    l = "'),'big')\npub=rsa.RSAPublicNumbers(e,n).public_key()\nmsg=bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    si=0; while(msg_hex[si]!=0){script[sp]=msg_hex[si] as u8; sp+=1; si+=1}
+    l = "')\nsig=bytes.fromhex('" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    si=0; while(sig_hex[si]!=0){script[sp]=sig_hex[si] as u8; sp+=1; si+=1}
+    l = "')\npub.verify(sig,msg,padding.PKCS1v15(),hashes.SHA256())\nprint('VERIFIED_OK')\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("rsa_sign_py.py"))
+    var pr : size_t = 0; var ok = false
+    while(pr + 10 < py_out.size()) {
+        // look for the marker line "VERIFIED_OK"
+        if(py_out.get(pr) == 'V') {
+            var k : size_t = 0
+            var marker = "VERIFIED_OK" as *char
+            var match = true
+            while(marker[k] != 0) { if(py_out.get(pr + k) != marker[k] as u8) { match = false }; k += 1 }
+            if(match) { ok = true }
+        }
+        pr += 1
+    }
+    if(!ok) { env.error("Python rejected Chemical signature with generated key"); return } else {}
+
+    // 5. Reverse: Python signs with the same public key numbers won't work;
+    //    instead Python DER encodes the public key, Chemical imports it, and
+    //    Chemical verifies a Python-produced signature — already covered by
+    //    INT_rsa_sign_verify. Here we additionally verify the signature with
+    //    Chemical's own rsa_pkcs1_verify for a self-consistency roundtrip.
+    var verify_ctx : RSAContext; rsa_init(&raw mut verify_ctx, RSA_PKCS_V15, 0)
+    rsa_import_pubkey(&raw mut verify_ctx, &raw n_buf[0], 256, &raw e_buf[0], 4)
+    ret = rsa_pkcs1_verify(&raw mut verify_ctx, &raw digest[0], 32, &raw sig_buf[0], 256)
+    if(ret < 0) { env.error("rsa_pkcs1_verify of own signature failed"); return } else {}
 }
 
 @test

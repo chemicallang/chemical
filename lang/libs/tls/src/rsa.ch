@@ -516,13 +516,29 @@ public namespace tls {
         while(attempt < 16) {
             ret = rsa_gen_prime(&raw mut ctx.P, p_bits, mr_rounds)
             if(ret < 0) { return ret }
-            ret = rsa_gen_prime(&raw mut ctx.Q, q_bits, mr_rounds)
-            if(ret < 0) { return ret }
-            if(mpi_cmp(&raw mut ctx.P, &raw mut ctx.Q) == 0) { attempt += 1; continue }
 
-            // N = P * Q
-            ret = mpi_mul(&raw mut ctx.N, &raw mut ctx.P, &raw mut ctx.Q)
-            if(ret < 0) { return ret }
+            // Inner loop: keep P, regenerate only Q until the modulus is wide.
+            // A fresh Q that makes P*Q land at nbits bits is ~50/50, so this
+            // avoids paying a full new P search on every rejection.
+            var q_attempt : size_t = 0
+            var modulus_ok = false
+            while(q_attempt < 16 && !modulus_ok) {
+                ret = rsa_gen_prime(&raw mut ctx.Q, q_bits, mr_rounds)
+                if(ret < 0) { return ret }
+                if(mpi_cmp(&raw mut ctx.P, &raw mut ctx.Q) == 0) { q_attempt += 1; continue }
+
+                // N = P * Q
+                ret = mpi_mul(&raw mut ctx.N, &raw mut ctx.P, &raw mut ctx.Q)
+                if(ret < 0) { return ret }
+
+                // The modulus must have exactly nbits bits. When both primes land
+                // just above 2^(nbits/2 - 1), P*Q can be nbits-1 bits wide, which
+                // real-world consumers (and mbedTLS) reject. Regenerate Q here.
+                if(mpi_bitlen(&raw mut ctx.N) == nbits) { modulus_ok = true }
+                q_attempt += 1
+            }
+            if(!modulus_ok) { attempt += 1; continue }
+
             // E = exponent
             mpi_lset(&raw mut ctx.E, exponent as i64)
 

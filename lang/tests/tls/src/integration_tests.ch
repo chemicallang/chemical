@@ -238,25 +238,60 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
 
     var chem_ct_hex : [513]char; test_bytes_to_hex(&raw chem_ct[0], n_len, &raw mut chem_ct_hex[0])
 
-    var script2 : [1024]u8; var sp2 : size_t = 0; si = 0
-    hdr = "from cryptography.hazmat.primitives.asymmetric import rsa, padding\nfrom cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateNumbers\n" as *char; si=0
+    // Cross check: Chemical encrypts, then Python DECRYPTS with the private key.
+    // (Python re-encrypting the same plaintext cannot match: PKCS#1 v1.5 padding is randomized.)
+    var p_buf : [256]u8; var q_buf : [256]u8; var d_buf : [256]u8
+    var dp_buf : [256]u8; var dq_buf : [256]u8; var qp_buf : [256]u8
+    mpi_write_binary(&raw mut rsa_ctx.P, &raw mut p_buf[0], n_len / 2)
+    mpi_write_binary(&raw mut rsa_ctx.Q, &raw mut q_buf[0], n_len / 2)
+    mpi_write_binary(&raw mut rsa_ctx.D, &raw mut d_buf[0], n_len)
+    mpi_write_binary(&raw mut rsa_ctx.DP, &raw mut dp_buf[0], n_len / 2)
+    mpi_write_binary(&raw mut rsa_ctx.DQ, &raw mut dq_buf[0], n_len / 2)
+    mpi_write_binary(&raw mut rsa_ctx.QP, &raw mut qp_buf[0], n_len / 2)
+    var p_hex : [257]char; test_bytes_to_hex(&raw p_buf[0], n_len / 2, &raw mut p_hex[0])
+    var q_hex : [257]char; test_bytes_to_hex(&raw q_buf[0], n_len / 2, &raw mut q_hex[0])
+    var d_hex : [513]char; test_bytes_to_hex(&raw d_buf[0], n_len, &raw mut d_hex[0])
+    var dp_hex : [257]char; test_bytes_to_hex(&raw dp_buf[0], n_len / 2, &raw mut dp_hex[0])
+    var dq_hex : [257]char; test_bytes_to_hex(&raw dq_buf[0], n_len / 2, &raw mut dq_hex[0])
+    var qp_hex : [257]char; test_bytes_to_hex(&raw qp_buf[0], n_len / 2, &raw mut qp_hex[0])
+
+    var script2 : [4096]u8; var sp2 : size_t = 0; si = 0
+    hdr = "from cryptography.hazmat.primitives.asymmetric import rsa, padding\nfrom cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateNumbers, RSAPublicNumbers\n" as *char; si=0
     while(hdr[si]!=0){script2[sp2]=hdr[si] as u8; sp2+=1; si+=1}
     l = "n=int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
     si=0; while(n_hex[si]!=0){script2[sp2]=n_hex[si] as u8; sp2+=1; si+=1}
     l = "'),'big')\ne=int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
     si=0; while(e_hex[si]!=0){script2[sp2]=e_hex[si] as u8; sp2+=1; si+=1}
-    l = "'),'big')\nct=bytes.fromhex('" as *char; si=0; while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
-    si=0; while(chem_ct_hex[si]!=0){script2[sp2]=chem_ct_hex[si] as u8; sp2+=1; si+=1}
-    l = "')\n# We verify by having Python encrypt the same data and check our ct matches\npub=rsa.RSAPublicNumbers(e,n).public_key()\nref_ct=pub.encrypt(bytes.fromhex('" as *char; si=0
+    l = "'),'big')\np=int.from_bytes(bytes.fromhex('" as *char; si=0
     while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
-    si=0; while(pt_hex[si]!=0){script2[sp2]=pt_hex[si] as u8; sp2+=1; si+=1}
-    l = "'),padding.PKCS1v15())\nprint('MATCH=1' if ct==ref_ct else 'MATCH=0')\n" as *char; si=0
+    si=0; while(p_hex[si]!=0){script2[sp2]=p_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\nq=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(q_hex[si]!=0){script2[sp2]=q_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\nd=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(d_hex[si]!=0){script2[sp2]=d_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\ndmp1=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(dp_hex[si]!=0){script2[sp2]=dp_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\ndmq1=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(dq_hex[si]!=0){script2[sp2]=dq_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\niqmp=int.from_bytes(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(qp_hex[si]!=0){script2[sp2]=qp_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),'big')\nct=bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(chem_ct_hex[si]!=0){script2[sp2]=chem_ct_hex[si] as u8; sp2+=1; si+=1}
+    l = "')\npriv=RSAPrivateNumbers(p,q,d,dmp1,dmq1,iqmp,RSAPublicNumbers(e,n)).private_key()\npt=priv.decrypt(ct,padding.PKCS1v15())\nprint('PT='+pt.hex())\n" as *char; si=0
     while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
 
     var py_out2 = test_python_run_script(&raw script2[0], sp2, string_view("rsa_enc2_py.py"))
-    var py_match : [4]u8
-    var match_len = test_parse_py_hex_label(&raw mut py_out2, string_view("MATCH="), &raw mut py_match[0], 1)
-    if(match_len != 1 || py_match[0] != 1) { env.error("Chemical RSA encryption does not match Python"); return } else {}
+    var py_pt : [64]u8
+    var pt_len = test_parse_py_hex_label(&raw mut py_out2, string_view("PT="), &raw mut py_pt[0], 32)
+    if(pt_len != 32 || !test_bytes_eq(&raw py_pt[0], &raw pt_msg[0], 32)) {
+        env.error("Python cannot decrypt Chemical RSA ciphertext")
+    } else {}
 }
 
 @test

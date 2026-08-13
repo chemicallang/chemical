@@ -80,8 +80,10 @@ public func https_tls13_server_handshake_is_not_implemented(env : &mut TestEnv) 
 }
 
 // ─── Hostname verification (no OpenSSL at runtime) ──────────────────────────
-func write_cn_cert_fixture(env : &mut TestEnv) : bool {
-    const path = "/tmp/https_test_cn_cert.pem" as *char;
+// Each @test runs in its own process, and tests run in parallel, so every
+// fixture file must use a unique path to avoid write/read races on a shared
+// /tmp path.
+func write_cn_cert_fixture(env : &mut TestEnv, path : *char) : bool {
     var w = fs::write_text_file(path, CN_MATCH_CERT_PEM as *u8, string_view(CN_MATCH_CERT_PEM).size());
     if(w is Result.Err) { env.error("failed to write cert fixture"); return false }
     return true;
@@ -89,8 +91,9 @@ func write_cn_cert_fixture(env : &mut TestEnv) : bool {
 
 @test
 public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) {
-    if(!write_cn_cert_fixture(env)) { return }
-    var cert = tls::x509_crt_load_pem_file("/tmp/https_test_cn_cert.pem" as *char);
+    const path = "/tmp/https_test_cn_cert_match.pem" as *char;
+    if(!write_cn_cert_fixture(env, path)) { return }
+    var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
     if(rc != 0) { env.error("hostname matching CN should verify"); return }
@@ -98,8 +101,9 @@ public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) 
 
 @test
 public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv) {
-    if(!write_cn_cert_fixture(env)) { return }
-    var cert = tls::x509_crt_load_pem_file("/tmp/https_test_cn_cert.pem" as *char);
+    const path = "/tmp/https_test_cn_cert_san.pem" as *char;
+    if(!write_cn_cert_fixture(env, path)) { return }
+    var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // SAN == CN here, so a SAN-aware or CN-aware check must accept.
     var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
@@ -108,8 +112,9 @@ public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv)
 
 @test
 public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
-    if(!write_cn_cert_fixture(env)) { return }
-    var cert = tls::x509_crt_load_pem_file("/tmp/https_test_cn_cert.pem" as *char);
+    const path = "/tmp/https_test_cn_cert_wrong.pem" as *char;
+    if(!write_cn_cert_fixture(env, path)) { return }
+    var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     var rc = tls::x509_verify_hostname(cert, "other.example.com" as *char);
     if(rc == 0) { env.error("hostname mismatch must be rejected"); return }
@@ -117,8 +122,9 @@ public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
 
 @test
 public func https_hostname_verification_rejects_wrong_host_ip(env : &mut TestEnv) {
-    if(!write_cn_cert_fixture(env)) { return }
-    var cert = tls::x509_crt_load_pem_file("/tmp/https_test_cn_cert.pem" as *char);
+    const path = "/tmp/https_test_cn_cert_wrong_ip.pem" as *char;
+    if(!write_cn_cert_fixture(env, path)) { return }
+    var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // CN is a DNS name, not an IP; verifying against an IP literal must fail.
     var rc = tls::x509_verify_hostname(cert, "127.0.0.1" as *char);

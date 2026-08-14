@@ -151,6 +151,301 @@ public func INT_tls12_client(env : &mut TestEnv) {
     system("fuser -k 19877/tcp 2>/dev/null")
 }
 
+// ─── TLS 1.3 KeyUpdate round-trip ──────────────────────────────────────────
+// The Chemical client updates its send keys (KeyUpdate request_response=1) and
+// exchanges app data. The Python/OpenSSL server must decrypt the KeyUpdate and
+// the following record (both under the correct key generation), respond with
+// its own KeyUpdate, and the client must decrypt the "OK" after rotating its
+// receive keys.
+@test
+@test.timeout(60000)
+public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19910/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem localhost ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_hostname(&raw mut ctx, "localhost")
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19910u)
+    if(ret < 0) {
+        env.error("TLS13 KeyUpdate: connect failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // Send KeyUpdate requesting the peer to rotate too.
+    ret = tls13_send_key_update(&raw mut ctx, true)
+    if(ret < 0) {
+        env.error("TLS13 KeyUpdate: send failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // Send app data protected with the NEW send keys.
+    var req = "GET / HTTP/1.0\r\n\r\n"
+    ret = ssl_write(&raw mut ctx, req as *u8, 18)
+    if(ret < 0) {
+        env.error("TLS13 KeyUpdate: write failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // The server responds with its own KeyUpdate (update_not_requested) and
+    // then "OK" under its NEW send keys. ssl_read must process the KeyUpdate
+    // (rotate receive keys) before decrypting "OK".
+    var buf : [512]u8
+    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+        env.error("TLS13 KeyUpdate: app-data mismatch after key update")
+        ssl_free(&raw mut ctx); return
+    }
+
+    ssl_close_notify(&raw mut ctx)
+    ssl_free(&raw mut ctx)
+    system("fuser -k 19910/tcp 2>/dev/null")
+}
+
+// ─── TLS 1.3 peer certificate population ───────────────────────────────────
+// After a handshake, ssl.peer_cert must hold the server's certificate (a
+// stable, library-owned copy) and hostname verification against it must pass.
+@test
+@test.timeout(60000)
+public func INT_tls13_peer_cert(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19911/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem localhost ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_hostname(&raw mut ctx, "localhost")
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19911u)
+    if(ret < 0) {
+        env.error("TLS13 peer_cert: connect failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    if(ctx.peer_cert == null) {
+        env.error("TLS13 peer_cert: peer_cert not populated")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // The Python server cert has CN=localhost; verification must succeed.
+    var hret = x509_verify_hostname(ctx.peer_cert, "localhost")
+    if(hret != 0) {
+        env.error("TLS13 peer_cert: hostname verification failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    ssl_close_notify(&raw mut ctx)
+    ssl_free(&raw mut ctx)
+    system("fuser -k 19911/tcp 2>/dev/null")
+}
+
+// ─── TLS 1.3 NewSessionTicket storage ──────────────────────────────────────
+// The server's post-handshake NewSessionTicket must be stored in ssl.session
+// (ticket + derived resumption key) as it flows through ssl_read.
+@test
+@test.timeout(60000)
+public func INT_tls13_session_ticket(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19912/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem localhost ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_hostname(&raw mut ctx, "localhost")
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19912u)
+    if(ret < 0) {
+        env.error("TLS13 ticket: connect failed")
+        ssl_free(&raw mut ctx); return
+    }
+
+    if(ctx.session == null) {
+        env.error("TLS13 ticket: session not allocated")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // The server sends NewSessionTicket(s) before its "OK" app data.
+    var req = "GET / HTTP/1.0\r\n\r\n"
+    ssl_write(&raw mut ctx, req as *u8, 18)
+    var buf : [512]u8
+    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+        env.error("TLS13 ticket: app-data mismatch")
+        ssl_free(&raw mut ctx); return
+    }
+
+    // ssl_read processes the NewSessionTicket internally — verify storage.
+    if(ctx.session.ticket == null || ctx.session.ticket_len == 0) {
+        env.error("TLS13 ticket: NewSessionTicket not stored")
+        ssl_free(&raw mut ctx); return
+    }
+    if(ctx.session.resumption_key_len != 32) {
+        env.error("TLS13 ticket: resumption key not derived")
+        ssl_free(&raw mut ctx); return
+    }
+
+    ssl_close_notify(&raw mut ctx)
+    ssl_free(&raw mut ctx)
+    system("fuser -k 19912/tcp 2>/dev/null")
+}
+
+// ─── TLS 1.3 session resumption ────────────────────────────────────────────
+// Connection 1 performs a full handshake and stores the server's
+// NewSessionTicket + resumption PSK. Connection 2 offers the ticket via
+// pre_shared_key (with a correct binder) against the SAME server process;
+// the server resumes, skipping the certificate exchange.
+@test
+@test.timeout(60000)
+public func INT_tls13_session_resumption(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19913/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem localhost ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv2 /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem 19913 2>/dev/null &")
+    system("sleep 1")
+
+    // ── Connection 1: full handshake + ticket acquisition ───────────
+    var ctx1 : SSLContext; ssl_init(&raw mut ctx1)
+    var cfg1 = ssl_config_init(SSL_IS_CLIENT)
+    cfg1.authmode = SSL_VERIFY_NONE
+    cfg1.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx1, &raw mut cfg1)
+    ssl_set_hostname(&raw mut ctx1, "localhost")
+
+    var ret = tls_connect(&raw mut ctx1, "127.0.0.1", 19913u)
+    if(ret < 0) {
+        env.error("resumption: conn1 connect failed")
+        ssl_free(&raw mut ctx1); return
+    }
+    if(ctx1.peer_cert == null) {
+        env.error("resumption: conn1 should present a peer certificate")
+        ssl_free(&raw mut ctx1); return
+    }
+
+    var req = "GET / HTTP/1.0\r\n\r\n"
+    ssl_write(&raw mut ctx1, req as *u8, 18)
+    var buf : [512]u8
+    var n = ssl_read(&raw mut ctx1, &raw mut buf[0], 512)
+    if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+        env.error("resumption: conn1 app-data mismatch")
+        ssl_free(&raw mut ctx1); return
+    }
+    if(ctx1.session == null || ctx1.session.ticket == null || ctx1.session.ticket_len == 0) {
+        env.error("resumption: conn1 did not receive a session ticket")
+        ssl_free(&raw mut ctx1); return
+    }
+    if(ctx1.session.resumption_key_len != 32) {
+        env.error("resumption: conn1 did not derive a resumption key")
+        ssl_free(&raw mut ctx1); return
+    }
+    ssl_close_notify(&raw mut ctx1)
+
+    // ── Connection 2: offer the ticket for resumption ────────────────
+    var ctx2 : SSLContext; ssl_init(&raw mut ctx2)
+    var cfg2 = ssl_config_init(SSL_IS_CLIENT)
+    cfg2.authmode = SSL_VERIFY_NONE
+    cfg2.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx2, &raw mut cfg2)
+    ssl_set_hostname(&raw mut ctx2, "localhost")
+
+    // Copy the session (ticket + resumption PSK) from conn1 into ctx2.
+    var tkt_copy = malloc(ctx1.session.ticket_len) as *mut u8
+    if(tkt_copy != null) {
+        var ci : size_t = 0
+        while(ci < ctx1.session.ticket_len) {
+            tkt_copy[ci] = ctx1.session.ticket[ci]
+            ci += 1
+        }
+        if(ctx2.session != null) {
+            ctx2.session.ticket = tkt_copy
+            ctx2.session.ticket_len = ctx1.session.ticket_len
+            ctx2.session.resumption_key_len = ctx1.session.resumption_key_len
+            var ki : size_t = 0
+            while(ki < 32) {
+                ctx2.session.resumption_key[ki] = ctx1.session.resumption_key[ki]
+                ki += 1
+            }
+        }
+    }
+
+    ret = tls_connect(&raw mut ctx2, "127.0.0.1", 19913u)
+    if(ret < 0) {
+        env.error("resumption: conn2 connect failed")
+        ssl_free(&raw mut ctx1)
+        ssl_free(&raw mut ctx2); return
+    }
+
+    // Resumption was accepted: the server did not send a Certificate, so
+    // peer_cert stays null and psk_accepted is set.
+    var resumed : bool = (ctx2.peer_cert == null)
+    if(ctx2.handshake != null && ctx2.handshake.psk_accepted) { resumed = true }
+    if(!resumed) {
+        env.error("resumption: server did not resume (fell back to full handshake)")
+        ssl_free(&raw mut ctx1)
+        ssl_free(&raw mut ctx2); return
+    }
+
+    var req2 = "GET / HTTP/1.0\r\n\r\n"
+    ssl_write(&raw mut ctx2, req2 as *u8, 18)
+    var buf2 : [512]u8
+    var n2 = ssl_read(&raw mut ctx2, &raw mut buf2[0], 512)
+    if(n2 != 2 || buf2[0] != 79 || buf2[1] != 75) {
+        env.error("resumption: conn2 app-data mismatch after resume")
+        ssl_free(&raw mut ctx1)
+        ssl_free(&raw mut ctx2); return
+    }
+
+    ssl_close_notify(&raw mut ctx2)
+    ssl_free(&raw mut ctx1)
+    ssl_free(&raw mut ctx2)
+    system("fuser -k 19913/tcp 2>/dev/null")
+}
+
+// ─── ssl_free / delete cleanup ─────────────────────────────────────────────
+// `delete ssl` must run the same full cleanup as ssl_free (via the @delete
+// destructor), and mixing ssl_free + delete must not double-free.
+@test
+public func INT_ssl_delete_cleanup(env : &mut TestEnv) {
+    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    if(ssl_mem == null) { env.error("alloc failed"); return }
+    ssl_init(ssl_mem)
+
+    // Attach resources so the destructor has something to release.
+    var tr : Transform; transform_init(&raw mut tr)
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform
+    *tr_out = tr
+    ssl_mem.transform_out = tr_out
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform
+    *tr_in = tr
+    ssl_mem.transform_in = tr_in
+
+    // Path 1: delete alone -> destructor calls ssl_free.
+    delete ssl_mem
+
+    // Path 2: explicit ssl_free then delete must be safe (idempotent cleanup).
+    var ssl_mem2 = malloc(sizeof(SSLContext)) as *mut SSLContext
+    if(ssl_mem2 == null) { env.error("alloc2 failed"); return }
+    ssl_init(ssl_mem2)
+    ssl_free(ssl_mem2)
+    delete ssl_mem2
+}
+
 @test
 public func INT_system_ca_bundle(env : &mut TestEnv) {
     var ca = load_system_ca_bundle()
@@ -182,7 +477,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     var server_sock = net::listen_addr("127.0.0.1", 19880u)
     if(server_sock == 0 as net::Socket) {
         cert_free(cert); unsafe { dealloc cert }
-        unsafe { dealloc priv_key }
+        ecdsa_context_free(priv_key)
         env.error("listen failed"); return
     }
 
@@ -200,7 +495,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     if(client_sock == 0 as net::Socket) {
         env.error("no client connected")
         cert_free(cert); unsafe { dealloc cert }
-        unsafe { dealloc priv_key }
+        ecdsa_context_free(priv_key)
         net::close_socket(server_sock)
         return
     }
@@ -236,7 +531,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    unsafe { dealloc priv_key }
+    ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
     system("fuser -k 19880/tcp 2>/dev/null")
 }
@@ -260,7 +555,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     var server_sock = net::listen_addr("127.0.0.1", 19882u)
     if(server_sock == 0 as net::Socket) {
         cert_free(cert); unsafe { dealloc cert }
-        unsafe { dealloc priv_key }
+        ecdsa_context_free(priv_key)
         env.error("listen failed"); return
     }
 
@@ -278,7 +573,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     if(client_sock == 0 as net::Socket) {
         env.error("no client")
         cert_free(cert); unsafe { dealloc cert }
-        unsafe { dealloc priv_key }
+        ecdsa_context_free(priv_key)
         net::close_socket(server_sock)
         return
     }
@@ -311,7 +606,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     unsafe { dealloc ssl_mem }
     cert_free(cert)
     unsafe { dealloc cert }
-    unsafe { dealloc priv_key }
+    ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
     system("fuser -k 19882/tcp 2>/dev/null")
 }

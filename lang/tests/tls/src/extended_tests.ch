@@ -1084,7 +1084,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 32, &raw mut inner_ct)
     if(dlen < 0){env.error("empty decrypt");return}else{}
     if(inner_ct != SSL_MSG_APPLICATION_DATA as u8){env.error("inner ct");return}else{}
-    unsafe { dealloc tr_out; dealloc tr_in }
+    // transforms are freed by the SSLContext destructor (ssl_free)
 }
 
 @test public func INT_tls13_record_large(env : &mut TestEnv) {
@@ -1105,7 +1105,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 16400, &raw mut inner_ct)
     if(dlen < 0){env.error("large decrypt");return}else{}
     if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 16384)){env.error("large data");return}else{}
-    unsafe { dealloc tr_out; dealloc tr_in }
+    // transforms are freed by the SSLContext destructor (ssl_free)
 }
 
 @test public func INT_tls13_record_handshake_ct(env : &mut TestEnv) {
@@ -1127,7 +1127,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(dlen < 0){env.error("hs decrypt");return}else{}
     if(inner_ct != SSL_MSG_HANDSHAKE as u8){env.error("hs inner ct");return}else{}
     if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 32)){env.error("hs data");return}else{}
-    unsafe { dealloc tr_out; dealloc tr_in }
+    // transforms are freed by the SSLContext destructor (ssl_free)
 }
 
 // ============================================================

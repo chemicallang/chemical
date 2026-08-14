@@ -662,10 +662,6 @@ public namespace tls {
     // Send a KeyUpdate message (TLS 1.3)
     // request_response: if true, requests the peer to also send a KeyUpdate
     public func tls13_send_key_update(ssl : *mut SSLContext, request_response : bool) : int {
-        // Update our send keys first
-        var ret = tls13_update_send_keys(ssl)
-        if(ret < 0) { return ret }
-
         // Build KeyUpdate message: key_update_request (1 byte)
         var ku_body : [1]u8
         if(request_response) {
@@ -674,7 +670,14 @@ public namespace tls {
             ku_body[0] = 0 as u8
         }
 
-        ret = send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
+        // RFC 8446 §4.6.3: "After sending a KeyUpdate message, the sender SHALL
+        // send all its traffic using the next generation of keys." The KeyUpdate
+        // message itself is protected under the OLD keys (the peer only updates
+        // its receive keys after processing it), so send FIRST, then rotate.
+        var ret = send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
+        if(ret < 0) { return ret }
+
+        ret = tls13_update_send_keys(ssl)
         return ret
     }
 
@@ -1807,44 +1810,19 @@ public namespace tls {
             buf[alpn_len_pos + 1] = (alpn_data_len & 0xFF) as u8
         }
 
-        // pre_shared_key + PSK key exchange modes extensions (TLS 1.3)
-        // Only send these when a session ticket is available for resumption
-        if(ssl.session != null && ssl.session.ticket != null &&
-           ssl.session.ticket_len > 0 && ssl.session.ticket_len < 65535) {
-            buf[pos] = ((TLS_EXT_PRE_SHARED_KEY >> 8) & 0xFF) as u8; pos += 1
-            buf[pos] = (TLS_EXT_PRE_SHARED_KEY & 0xFF) as u8; pos += 1
-            var psk_ext_len_pos = pos
-            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
-
-            // PskIdentity
-            var psk_ident_len_pos = pos
-            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
-            write_u16_be(ssl.session.ticket_len as u16, &raw mut buf[pos]); pos += 2
-            var ti : size_t = 0
-            while(ti < ssl.session.ticket_len) {
-                buf[pos] = ssl.session.ticket[ti]
-                pos += 1
-                ti += 1
-            }
-            // obfuscated_ticket_age (4 bytes)
-            buf[pos] = 0 as u8; pos += 1
-            buf[pos] = 0 as u8; pos += 1
-            buf[pos] = 0 as u8; pos += 1
-            buf[pos] = 0 as u8; pos += 1
-            var ident_len = 2 + ssl.session.ticket_len + 4
-            buf[psk_ident_len_pos] = ((ident_len >> 8) & 0xFF) as u8
-            buf[psk_ident_len_pos + 1] = (ident_len & 0xFF) as u8
-
-            // PskBinderList (empty for now)
-            var psk_binder_len_pos = pos
-            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
-            var psk_binder_data_len = 0
-            buf[psk_binder_len_pos] = ((psk_binder_data_len >> 8) & 0xFF) as u8
-            buf[psk_binder_len_pos + 1] = (psk_binder_data_len & 0xFF) as u8
-
-            var psk_data_len = 2 + ident_len + 2 + psk_binder_data_len
-            buf[psk_ext_len_pos] = ((psk_data_len >> 8) & 0xFF) as u8
-            buf[psk_ext_len_pos + 1] = (psk_data_len & 0xFF) as u8
+        // psk_key_exchange_modes (TLS 1.3 resumption). The pre_shared_key
+        // extension itself is appended AFTER key_share, since it MUST be the
+        // last extension (RFC 8446 §4.2.11). Only offered when a session
+        // ticket + resumption PSK is available.
+        var offering_psk : bool = (ssl.session != null && ssl.session.ticket != null &&
+                                   ssl.session.ticket_len > 0 && ssl.session.ticket_len < 65535 &&
+                                   ssl.handshake != null && ssl.handshake.psk_len > 0)
+        if(offering_psk) {
+            buf[pos] = ((TLS_EXT_PSK_KEY_EXCHANGE_MODES >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_PSK_KEY_EXCHANGE_MODES & 0xFF) as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 2 as u8; pos += 1  // ext data length
+            buf[pos] = 1 as u8; pos += 1   // list length: 1 mode
+            buf[pos] = 1 as u8; pos += 1   // psk_dhe_ke
         }
 
         // Extension: key_share (TLS 1.3) — includes both P-256 and x25519
@@ -1891,6 +1869,56 @@ public namespace tls {
                 buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
                 buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
             }
+        }
+
+        // pre_shared_key extension — MUST be the last extension (RFC 8446 §4.2.11).
+        // The binder is a 32-byte zero placeholder; the caller fills in the
+        // computed binder after build_client_hello returns.
+        if(offering_psk) {
+            buf[pos] = ((TLS_EXT_PRE_SHARED_KEY >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_PRE_SHARED_KEY & 0xFF) as u8; pos += 1
+            var psk_ext_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+
+            // identities vector
+            var psk_ident_len_pos = pos
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+            // identity: opaque ticket<1..2^16-1>
+            write_u16_be(ssl.session.ticket_len as u16, &raw mut buf[pos]); pos += 2
+            var ti : size_t = 0
+            while(ti < ssl.session.ticket_len) {
+                buf[pos] = ssl.session.ticket[ti]
+                pos += 1
+                ti += 1
+            }
+            // obfuscated_ticket_age (4 bytes)
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1
+            var ident_len = 2 + ssl.session.ticket_len + 4
+            buf[psk_ident_len_pos] = ((ident_len >> 8) & 0xFF) as u8
+            buf[psk_ident_len_pos + 1] = (ident_len & 0xFF) as u8
+
+            // binders vector: one PskBinderEntry. Each entry is itself
+            // length-prefixed (opaque<32..255>), so the vector length is
+            // 1 (entry length byte) + 32 = 33. Zero placeholder for now.
+            var psk_binder_len_pos = pos
+            // The binder transcript covers the ClientHello up to the END of the
+            // identities field (= here), NOT the binders list (RFC 8446 §4.2.11.2).
+            ssl.handshake.psk_partial_len = psk_binder_len_pos as u16
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1
+            var psk_binder_data_len = 33
+            buf[psk_binder_len_pos] = ((psk_binder_data_len >> 8) & 0xFF) as u8
+            buf[psk_binder_len_pos + 1] = (psk_binder_data_len & 0xFF) as u8
+            buf[pos] = 32 as u8; pos += 1  // PskBinderEntry length (SHA-256)
+            var binder_i : size_t = 0
+            while(binder_i < 32) { buf[pos] = 0 as u8; pos += 1; binder_i += 1 }
+            ssl.handshake.psk_binder_off = (pos - 32) as u16
+
+            var psk_data_len = 2 + ident_len + 2 + psk_binder_data_len
+            buf[psk_ext_len_pos] = ((psk_data_len >> 8) & 0xFF) as u8
+            buf[psk_ext_len_pos + 1] = (psk_data_len & 0xFF) as u8
         }
 
         var ext_len = pos - ext_start - 2
@@ -2625,25 +2653,37 @@ public namespace tls {
                 if(3 + cert_list_len <= hs_len as size_t && cert_list_len >= 7) {
                     var first_cert_len = read_u24(&raw hs_buf[7]) as size_t
                     if(3 + first_cert_len <= cert_list_len && first_cert_len >= 4) {
-                        var cert : X509Cert
-                        x509_cert_init(&raw mut cert)
-                        var ret2 = parse_cert_der(&raw mut cert, &raw hs_buf[10], first_cert_len)
-                        if(ret2 == 0) {
-                            // Try to extract RSA public key
-                            rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-                            var ret3 = x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
-                            if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
-                                has_rsa_key = true
-                                ssl.peer_cert = &raw mut cert
-                                // Run certificate chain verification if CA chain is configured
-                                if(ssl.conf != null && ssl.conf.ca_chain != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
-                                    var chain_ret = x509_verify_chain(&raw mut cert, ssl.conf.ca_chain,
-                                                                        ssl.hostname)
-                                    if(chain_ret != 0) {
-                                        // Cert verification failed — reject the connection
-                                        return ERR_SSL_CERT_VERIFY_FAILED
+                        // Heap-allocate the peer cert: it outlives the handshake
+                        // (peer_cert is freed by ssl_free), and the parser's
+                        // borrowed DER pointers are rebased onto its own copy.
+                        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
+                        if(cert_mem != null) {
+                            x509_cert_init(cert_mem)
+                            var ret2 = parse_cert_der(cert_mem, &raw hs_buf[10], first_cert_len)
+                            if(ret2 == 0) {
+                                // Try to extract RSA public key
+                                rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+                                var ret3 = x509_extract_rsa_pubkey(cert_mem, &raw mut rsa_ctx)
+                                if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
+                                    has_rsa_key = true
+                                    ssl.peer_cert = cert_mem
+                                    // Run certificate chain verification if CA chain is configured
+                                    if(ssl.conf != null && ssl.conf.ca_chain != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
+                                        var chain_ret = x509_verify_chain(cert_mem, ssl.conf.ca_chain,
+                                                                            ssl.hostname)
+                                        if(chain_ret != 0) {
+                                            // Cert verification failed — reject the connection.
+                                            // peer_cert stays attached; ssl_free cleans it up.
+                                            return ERR_SSL_CERT_VERIFY_FAILED
+                                        }
                                     }
+                                } else {
+                                    cert_free(cert_mem)
+                                    unsafe { dealloc cert_mem }
                                 }
+                            } else {
+                                cert_free(cert_mem)
+                                unsafe { dealloc cert_mem }
                             }
                         }
                     }
@@ -2836,6 +2876,68 @@ public namespace tls {
     // Client Handshake - TLS 1.3
     // ============================================================================
 
+    // Compute and fill the PSK binder into the ClientHello buffer. Called after
+    // build_client_hello (which left a 32-byte zero placeholder at
+    // handshake.psk_binder_off) and BEFORE the ClientHello is hashed into the
+    // transcript / sent. RFC 8446 §4.2.11.2 / §7.1.
+    func tls13_fill_psk_binder(ssl : *mut SSLContext, ch_buf : *mut u8, ch_len : size_t,
+                               ch_hdr : *u8) : int {
+        if(ssl.handshake == null || ssl.handshake.psk_binder_off == 0) { return 0 }
+        if(ssl.handshake.psk_len == 0) { return 0 }
+
+        // Partial ClientHello hash: covers everything up to the END of the
+        // identities field (psk_partial_len), NOT the binders list
+        // (RFC 8446 §4.2.11.2). The length fields already reflect the full
+        // ClientHello including the binders.
+        var partial_len : size_t = ssl.handshake.psk_partial_len as size_t
+        if(partial_len == 0 || partial_len > ch_len) { return 0 }
+        var bc : crypto::Sha256Context
+        crypto::sha256_init(&raw mut bc)
+        crypto::sha256_update(&raw mut bc, ch_hdr, 4)
+        crypto::sha256_update(&raw mut bc, ch_buf, partial_len)
+        var partial_hash : [32]u8
+        crypto::sha256_final(&raw mut bc, &raw mut partial_hash[0])
+
+        // early_secret = HKDF-Extract(0, PSK)
+        var zeros32 : [32]u8
+        var zi : size_t = 0
+        while(zi < 32) { zeros32[zi] = 0; zi += 1 }
+        var binder_early : [32]u8
+        tls13_hkdf_extract(&raw zeros32[0], 32, &raw ssl.handshake.psk[0],
+                           ssl.handshake.psk_len as size_t, &raw mut binder_early[0])
+
+        // binder_key = Derive-Secret(early_secret, "res binder", "") ->
+        //   context = Transcript-Hash("") = SHA256("")
+        var empty_hash : [32]u8
+        var ectx : crypto::Sha256Context
+        crypto::sha256_init(&raw mut ectx)
+        crypto::sha256_final(&raw mut ectx, &raw mut empty_hash[0])
+        var binder_key : [32]u8
+        var binder_label = "res binder\0" as *char
+        tls13_hkdf_expand_label(&raw binder_early[0], 32, binder_label, 10,
+                                &raw empty_hash[0], 32, &raw mut binder_key[0], 32)
+
+        // finished_key = HKDF-Expand-Label(binder_key, "finished", "", 32)
+        var fin_key : [32]u8
+        var fin_label = "finished\0" as *char
+        var empty_c : [1]u8 = [0]
+        tls13_hkdf_expand_label(&raw binder_key[0], 32, fin_label, 8,
+                                &raw empty_c[0], 0, &raw mut fin_key[0], 32)
+
+        // binder = HMAC(finished_key, partial_hash)
+        var binder : [32]u8
+        crypto::hmac_sha256(&raw fin_key[0], 32, &raw partial_hash[0], 32, &raw mut binder[0])
+
+        // Overwrite the placeholder.
+        var bo : size_t = ssl.handshake.psk_binder_off as size_t
+        var bi : size_t = 0
+        while(bi < 32) {
+            ch_buf[bo + bi] = binder[bi]
+            bi += 1
+        }
+        return 0
+    }
+
     func do_tls13_client_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
@@ -2909,6 +3011,7 @@ public namespace tls {
 
         var ch_buf : [2048]u8
         var ch_len = build_client_hello(ssl, &raw mut ch_buf[0], 2048)
+        if(ch_len < 0) { return ch_len }
 
         // Hash the ClientHello body for the transcript
         var transcript : crypto::Sha256Context
@@ -2916,6 +3019,11 @@ public namespace tls {
         var ch_hdr : [4]u8
         ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
         write_u24(ch_len as u32, &raw mut ch_hdr[1])
+
+        // Fill the PSK binder (if offering resumption) BEFORE hashing/sending.
+        ret = tls13_fill_psk_binder(ssl, &raw mut ch_buf[0], ch_len as size_t, &raw ch_hdr[0])
+        if(ret < 0) { return ret }
+
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
         crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
 
@@ -3038,6 +3146,8 @@ public namespace tls {
                     var ch2_hdr : [4]u8
                     ch2_hdr[0] = SSL_HS_CLIENT_HELLO as u8
                     write_u24(ch2_len as u32, &raw mut ch2_hdr[1])
+                    ret = tls13_fill_psk_binder(ssl, &raw mut ch2_buf[0], ch2_len as size_t, &raw ch2_hdr[0])
+                    if(ret < 0) { return ret }
                     crypto::sha256_update(&raw mut transcript, &raw ch2_hdr[0], 4)
                     crypto::sha256_update(&raw mut transcript, &raw ch2_buf[0], ch2_len as size_t)
 
@@ -3110,6 +3220,11 @@ public namespace tls {
                     }
                     found_key_share = true
                 }
+            } else if(ext_type == TLS_EXT_PRE_SHARED_KEY as u16 && ext_data_len >= 2) {
+                // Server selected our offered identity (selected_identity = 0).
+                if(ssl.handshake != null && ssl.handshake.psk_len > 0) {
+                    ssl.handshake.psk_accepted = true
+                }
             }
 
             sh_pos += ext_data_len
@@ -3141,10 +3256,19 @@ public namespace tls {
         crypto::sha256_final(&raw mut sh_transcript_copy, &raw mut sh_hash[0])
 
         // ── Derive handshake traffic keys ────────────────────────────
-        ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
-                                           &raw sh_hash[0],
-                                           &raw ssl.handshake.psk[0],
-                                           ssl.handshake.psk_len as size_t)
+        // Only use the PSK when the server actually accepted it; otherwise a
+        // full (certificate) handshake was performed and keys come from ECDHE.
+        var use_psk : bool = (ssl.handshake != null && ssl.handshake.psk_accepted &&
+                              ssl.handshake.psk_len > 0)
+        if(use_psk) {
+            ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
+                                               &raw sh_hash[0],
+                                               &raw ssl.handshake.psk[0],
+                                               ssl.handshake.psk_len as size_t)
+        } else {
+            ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
+                                               &raw sh_hash[0])
+        }
         if(ret < 0) { return ret }
 
         // ── Read encrypted server messages ───────────────────────────
@@ -3252,31 +3376,44 @@ public namespace tls {
                             pos2 += 3
                             if(pos2 + cert_data_len <= 4 + msg_body_len2 as size_t) {
                                 var cert_der = &raw msg_buf[pos2]
-                                var x509_cert : X509Cert
-                                x509_cert_init(&raw mut x509_cert)
-                                var parse_ret = parse_cert_der(&raw mut x509_cert, cert_der, cert_data_len)
-                                if(parse_ret == 0) {
-                                    if(x509_cert.pk_type == PK_RSA as u8) {
-                                        rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
-                                        var ext_ret = x509_extract_rsa_pubkey(&raw mut x509_cert, &raw mut server_rsa_ctx)
-                                        if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
-                                            has_server_rsa = true
+                                // Heap-allocate the peer cert (freed by ssl_free);
+                                // borrowed DER pointers are rebased onto its own copy.
+                                var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
+                                if(cert_mem != null) {
+                                    x509_cert_init(cert_mem)
+                                    var parse_ret = parse_cert_der(cert_mem, cert_der, cert_data_len)
+                                    if(parse_ret == 0) {
+                                        if(cert_mem.pk_type == PK_RSA as u8) {
+                                            rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
+                                            var ext_ret = x509_extract_rsa_pubkey(cert_mem, &raw mut server_rsa_ctx)
+                                            if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
+                                                has_server_rsa = true
+                                            }
+                                        } else if(cert_mem.pk_type == PK_ECKEY as u8) {
+                                            ecdsa_init(&raw mut server_ecdsa_ctx)
+                                            var ext_ret = x509_extract_ecdsa_pubkey(cert_mem, &raw mut server_ecdsa_ctx)
+                                            if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
+                                                has_server_ecdsa = true
+                                            }
                                         }
-                                    } else if(x509_cert.pk_type == PK_ECKEY as u8) {
-                                        ecdsa_init(&raw mut server_ecdsa_ctx)
-                                        var ext_ret = x509_extract_ecdsa_pubkey(&raw mut x509_cert, &raw mut server_ecdsa_ctx)
-                                        if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
-                                            has_server_ecdsa = true
+                                        if(has_server_rsa || has_server_ecdsa) {
+                                            ssl.peer_cert = cert_mem
+                                            if(ssl.conf != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
+                                                // Verify the certificate chain
+                                                var ca = ssl.conf.ca_chain
+                                                var chain_ret = x509_verify_chain(cert_mem, ca, ssl.hostname)
+                                                if(chain_ret != 0) {
+                                                    // peer_cert stays attached; ssl_free cleans it up.
+                                                    return ERR_SSL_CERT_VERIFY_FAILED
+                                                }
+                                            }
+                                        } else {
+                                            cert_free(cert_mem)
+                                            unsafe { dealloc cert_mem }
                                         }
-                                    }
-                                    if((has_server_rsa || has_server_ecdsa) && 
-                                        ssl.conf != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
-                                        // Verify the certificate chain
-                                        var ca = ssl.conf.ca_chain
-                                        var chain_ret = x509_verify_chain(&raw mut x509_cert, ca, ssl.hostname)
-                                        if(chain_ret != 0) {
-                                            return ERR_SSL_CERT_VERIFY_FAILED
-                                        }
+                                    } else {
+                                        cert_free(cert_mem)
+                                        unsafe { dealloc cert_mem }
                                     }
                                 }
                             }
@@ -3577,6 +3714,13 @@ public namespace tls {
         var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], 32, TLS_GROUP_SECP256R1 as u16)
         if(ret < 0) { unsafe { dealloc ctx }; return null }
         return ctx
+    }
+
+    // Free an ECDSA private-key context returned by ec_privkey_load_hex_file.
+    // ECDSAContext is stack-only (no internal heap), so this just releases the
+    // struct itself.
+    public func ecdsa_context_free(ctx : *mut ECDSAContext) {
+        if(ctx != null) { unsafe { dealloc ctx } }
     }
 
     // ─── CA Trust Store ───────────────────────────────────────────────────
@@ -4468,6 +4612,78 @@ public namespace tls {
         }
     }
 
+    // Process a single NewSessionTicket message (buf points at the handshake
+    // header, len = full message including the 4-byte header). Stores the ticket
+    // and derives the resumption key into ssl.session.
+    func ssl_process_new_session_ticket(ssl : *mut SSLContext, buf : *u8, len : size_t) {
+        if(ssl.session == null) { return }
+        var msg_len = read_u24(&raw buf[1]) as size_t
+        if(msg_len < 11 || 4 + msg_len > len) { return }
+
+        var nst_pos : size_t = 4
+        var lifetime = read_u32_be(&raw buf[nst_pos]); nst_pos += 4
+        nst_pos += 4  // skip age_add
+        var nonce_len = buf[nst_pos] as size_t
+        var nonce_pos : size_t = nst_pos + 1
+        nst_pos += 1 + nonce_len
+        var ticket_len = read_u16_be(&raw buf[nst_pos]) as size_t; nst_pos += 2
+
+        if(ticket_len > 0 && ticket_len < 4096 && nst_pos + ticket_len <= 4 + msg_len as size_t) {
+            if(ssl.session.ticket != null) {
+                unsafe { dealloc ssl.session.ticket }
+            }
+            var tkt_mem = malloc(ticket_len) as *mut u8
+            if(tkt_mem == null) { return }
+            var ti : size_t = 0
+            while(ti < ticket_len) {
+                tkt_mem[ti] = buf[nst_pos + ti]
+                ti += 1
+            }
+            ssl.session.ticket = tkt_mem
+            ssl.session.ticket_len = ticket_len
+            ssl.session.ticket_lifetime = lifetime
+
+            // Resumption PSK per RFC 8446 §4.6.1:
+            //   PSK = HKDF-Expand-Label(resumption_master_secret, "resumption",
+            //                           ticket_nonce, Hash.length)
+            var res_label = "resumption\0" as *char
+            var bounded_nonce : size_t = nonce_len
+            if(bounded_nonce > 32) { bounded_nonce = 32 }
+            tls13_hkdf_expand_label(&raw ssl.tls13_keys.resumption_master_secret[0], 32,
+                                    res_label, 10, &raw buf[nonce_pos], bounded_nonce,
+                                    &raw mut ssl.session.resumption_key[0], 32)
+            ssl.session.resumption_key_len = 32 as u8
+        }
+    }
+
+    // Process post-handshake handshake messages in a decrypted record payload.
+    // Handles NewSessionTicket and KeyUpdate (RFC 8446 §4.6.3: on
+    // update_requested, update receive keys and respond with our own KeyUpdate).
+    func ssl_handle_post_handshake(ssl : *mut SSLContext, buf : *u8, msglen : i32) : int {
+        var pos : i32 = 0
+        while(pos + 4 <= msglen) {
+            var mtype = buf[pos]
+            var mlen = read_u24(&raw buf[pos + 1]) as i32
+            if(mlen < 0 || pos + 4 + mlen > msglen) { break }
+
+            if(mtype == SSL_HS_NEW_SESSION_TICKET as u8) {
+                ssl_process_new_session_ticket(ssl, &raw buf[pos], (4 + mlen) as size_t)
+            } else if(mtype == SSL_HS_KEY_UPDATE as u8) {
+                var upd_req : u8 = 0
+                if(mlen >= 1) { upd_req = buf[pos + 4] }
+                var ur = tls13_update_recv_keys(ssl)
+                if(ur < 0) { return ur }
+                if(upd_req == 1) {
+                    // Must respond with our own KeyUpdate (update_not_requested)
+                    var sr = tls13_send_key_update(ssl, false)
+                    if(sr < 0) { return sr }
+                }
+            }
+            pos += 4 + mlen
+        }
+        return 0
+    }
+
     // Read application data
     public func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
@@ -4482,7 +4698,9 @@ public namespace tls {
 
                 // Post-handshake handshake messages (NewSessionTicket, KeyUpdate, ...)
                 if(inner_ct == SSL_MSG_HANDSHAKE as u8) {
+                    var ph_ret = ssl_handle_post_handshake(ssl, &raw ssl.in_buf[5], ssl.in_msglen)
                     ssl_consume_record(ssl)
+                    if(ph_ret < 0) { return ph_ret }
                     continue
                 }
                 // Legacy ChangeCipherSpec (ignored in TLS 1.3)
@@ -4578,6 +4796,12 @@ public namespace tls {
             unsafe { dealloc ssl.alpn_negotiated }
             ssl.alpn_negotiated = null
         }
+        if(ssl.peer_cert != null) {
+            // Peer cert is heap-allocated and owned by the library
+            cert_free(ssl.peer_cert)
+            unsafe { dealloc ssl.peer_cert }
+            ssl.peer_cert = null
+        }
         if(ssl.conf_owned && ssl.conf != null) {
             // Config was heap-allocated by the library (tls_accept); caller-owned
             // stack configs (ssl_set_config with &raw cfg) are never freed here.
@@ -4638,39 +4862,7 @@ public namespace tls {
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
 
-        var msg_len = read_u24(&raw msg_buf[1])
-        if(msg_len < 11) { return 0 }
-
-        var nst_pos : size_t = 4
-        var lifetime = read_u32_be(&raw msg_buf[nst_pos]); nst_pos += 4
-        nst_pos += 4  // skip age_add
-        var nonce_len = msg_buf[nst_pos] as size_t; nst_pos += 1 + nonce_len
-        var ticket_len = read_u16_be(&raw msg_buf[nst_pos]) as size_t; nst_pos += 2
-
-        if(ticket_len > 0 && ticket_len < 4096 && nst_pos + ticket_len <= 4 + msg_len as size_t) {
-            if(ssl.session == null) { return 0 }
-            if(ssl.session.ticket != null) {
-                unsafe { dealloc ssl.session.ticket }
-            }
-            var tkt_mem = malloc(ticket_len) as *mut u8
-            if(tkt_mem == null) { return 0 }
-            var ti : size_t = 0
-            while(ti < ticket_len) {
-                tkt_mem[ti] = msg_buf[nst_pos + ti]
-                ti += 1
-            }
-            ssl.session.ticket = tkt_mem
-            ssl.session.ticket_len = ticket_len
-            ssl.session.ticket_lifetime = lifetime
-
-            // Derive resumption key
-            var res_label = "resumption\0" as *char
-            var empty_c : [1]u8 = [0]
-            tls13_hkdf_expand_label(&raw ssl.tls13_keys.resumption_master_secret[0], 32,
-                                    res_label, 10, &raw empty_c[0], 0,
-                                    &raw mut ssl.session.resumption_key[0], 32)
-            ssl.session.resumption_key_len = 32 as u8
-        }
+        ssl_process_new_session_ticket(ssl, &raw msg_buf[0], msg_payload as size_t)
         return 0
     }
 

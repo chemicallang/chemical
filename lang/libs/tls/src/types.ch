@@ -521,19 +521,26 @@ public namespace tls {
         // Early data
         var early_data_status : u8
 
-        // Destructor: close socket if connected
+        // Destructor: full cleanup so `delete ssl` is safe (same as ssl_free).
+        // ssl_free is idempotent, so calling it here does not double-free even
+        // if ssl_free() was already invoked explicitly.
         @delete
-        func destruct(&self) {
-            if(self.transport_connected) {
-                net::close_socket(self.transport_socket)
-            }
+        func destruct(&mut self) {
+            ssl_free(&raw mut self)
         }
     }
 
     public func ssl_context_init(ssl : *mut SSLContext) {
         ssl.conf = null
         ssl.conf_owned = false
-        ssl.session = null
+        var sess_mem = malloc(sizeof(Session)) as *mut Session
+        if(sess_mem != null) {
+            // Null the destructor-relevant pointer BEFORE the move-assign so the
+            // generated destructor call on the uninitialized target is a no-op.
+            sess_mem.ticket = null
+            *sess_mem = Session()
+        }
+        ssl.session = sess_mem
         ssl.state = SSLState.HELLO_REQUEST()
         ssl.in_msglen = 0
         ssl.in_left = 0
@@ -667,6 +674,9 @@ public namespace tls {
         var psk_len : u8
         var psk_identity : *mut u8
         var psk_identity_len : u16
+        var psk_accepted : bool        // server accepted the offered pre_shared_key
+        var psk_binder_off : u16       // byte offset of the 32-byte binder placeholder in ClientHello
+        var psk_partial_len : u16      // byte offset where the binders list starts (= end of identities)
 
         // Certificate verify
         var sni_authmode : u8
@@ -709,6 +719,9 @@ public namespace tls {
         hs.psk_len = 0
         hs.psk_identity = null
         hs.psk_identity_len = 0
+        hs.psk_accepted = false
+        hs.psk_binder_off = 0
+        hs.psk_partial_len = 0
         hs.sni_authmode = 0
         hs.extended_ms = 1
         i = 0

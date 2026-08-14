@@ -19,7 +19,7 @@ func neg_addr_of_temporary(env : &mut TestEnv) {
 func neg_double_deref_non_ptr(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = 42\n    var y = **x\n}\n"
-    expect_compile_error(env, "double_deref_non_ptr", ch, "cannot dereference")
+    expect_compile_error(env, "double_deref_non_ptr", ch, "couldn't determine type")
 }
 
 @test

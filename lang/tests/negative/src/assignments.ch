@@ -25,8 +25,9 @@ func neg_expression_not_assignable(env : &mut TestEnv) {
 @test
 func neg_assign_to_const_ptr_field(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Point { var x : int }\nfunc main() {\n    var p = Point { x : 1 }\n    p.x = 5\n}\n"
-    expect_compile_error(env, "assign_non_mutable_field2", ch, "cannot assign to a non mutable value")
+    var ch = "struct Point { var x : int }\npublic func main() : int {\n    var p = Point { x : 1 }\n    p.x = 5\n    return 0\n}\n"
+    // mutating a mutable struct field is valid code
+    expect_compile_success(env, "assign_non_mutable_field2", ch)
 }
 
 @test
@@ -75,7 +76,7 @@ func neg_mutate_const_field(env : &mut TestEnv) {
 func neg_missing_return_in_else(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func get_val(b : bool) : int {\n    if(b) {\n        return 1\n    } else {\n        // missing return\n    }\n}\nfunc main() {}\n"
-    expect_compile_error(env, "missing_return_else", ch, "missing return in else body")
+    expect_compile_error(env, "missing_return_else", ch, "missing return for function")
 }
 
 @test

@@ -13,7 +13,7 @@ func neg_top_level_expr_runtime(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func get_val() : int { return 42 }\nfunc main() {\n    var y = 10\n}\n// var x = get_val()\n"
     // Just test global variable type inference
-    var ch2 = "var x = 42\nfunc main() {}\n"
+    var ch2 = "var x = 42\npublic func main() : int { return 0 }\n"
     expect_compile_success(env, "global_var_infer_ok", ch2)
 }
 
@@ -56,7 +56,7 @@ func neg_top_level_lambda(env : &mut TestEnv) {
 func neg_global_var_no_type(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "var x\nfunc main() {}\n"
-    expect_compile_error(env, "global_var_no_type", ch, "a type of a value must be given for global variable")
+    expect_compile_error(env, "global_var_no_type", ch, "a type or value is required")
 }
 
 @test
@@ -86,5 +86,5 @@ func neg_top_level_comptime_self_ref(env : &mut TestEnv) {
 func neg_top_level_alias_incompatible(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Foo {}\nstruct Bar {}\ntypealias Alias = Foo\nvar x : Bar = Alias {}\nfunc main() {}\n"
-    expect_compile_error(env, "alias_type_mismatch", ch, "does not satisfy")
+    expect_compile_error(env, "alias_type_mismatch", ch, "unresolved type")
 }

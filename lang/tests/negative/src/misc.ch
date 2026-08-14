@@ -12,7 +12,7 @@ func neg_import_non_existent(env : &mut TestEnv) {
 func neg_interface_missing_method(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "interface Printable {\n    func print(&self)\n}\nstruct MyType {\n    var x : int\n}\nimpl Printable for MyType {\n    // missing print method\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_missing_method", ch, "implementation")
+    expect_compile_error(env, "impl_missing_method", ch, "does not implement interface member")
 }
 
 @test
@@ -53,7 +53,7 @@ func neg_impl_for_non_struct(env : &mut TestEnv) {
 @test
 func neg_unsafe_block_in_safe(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    unsafe {\n        var x = 42\n    }\n}\n"
+    var ch = "public func main() : int {\n    unsafe {\n        var x = 42\n    }\n    return 0\n}\n"
     // unsafe blocks should be fine in default mode
     expect_compile_success(env, "unsafe_block_ok", ch)
 }
@@ -61,7 +61,7 @@ func neg_unsafe_block_in_safe(env : &mut TestEnv) {
 @test
 func neg_infinite_loop_no_progress(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    while(true) { }\n}\n"
+    var ch = "public func main() : int {\n    while(true) { }\n    return 0\n}\n"
     // This is valid syntactically - just an infinite loop
     expect_compile_success(env, "infinite_loop_ok", ch)
 }

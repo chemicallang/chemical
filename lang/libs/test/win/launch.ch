@@ -3,6 +3,11 @@
 @stdcall
 public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 
+@dllimport
+@extern
+@stdcall
+public func PeekNamedPipe(hPipe : HANDLE, lpBuffer : *void, nBufferSize : DWORD, lpBytesRead : *mut DWORD, lpTotalBytesAvail : *mut DWORD, lpBytesLeftThisMessage : *mut DWORD) : BOOL;
+
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
     var si : STARTUPINFOA
@@ -75,29 +80,47 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     var buffer : [2048]char;
     var bytesRead : DWORD;
-    // Named pipe handles are waitable objects: WaitForSingleObject(hPipe, ms)
-    // returns when a message is available or the pipe is broken. Poll it with a
-    // short timeout so the overall test timeout is enforced while the child is
-    // alive but silent (mirrors the posix poll() read loop). Without this, a
-    // hung child would block ReadFile forever and hang the whole test run.
+    // Poll the pipe for incoming messages with PeekNamedPipe and enforce the
+    // overall test timeout at the top of every iteration (mirrors the posix
+    // poll() read loop). WaitForSingleObject on a message-mode pipe can report
+    // signaled right after the client connects even when no message is pending,
+    // which made ReadFile block forever when the child stalled (e.g. a compiler
+    // invocation that hangs), so the timeout was never reached and the whole
+    // test run hung. PeekNamedPipe never blocks, so the timeout always fires.
     var start_time = std::chrono::Instant::now()
     var timed_out = false
     while(true) {
-        var wait_res = WaitForSingleObject(hPipe, 100);
-        if(wait_res == 258 as DWORD) { // WAIT_TIMEOUT
-            var now = std::chrono::Instant::now()
-            var elapsed_ms = now.duration_since(&start_time).as_millis()
-            if(elapsed_ms >= timeout_ms as i64) {
-                TerminateProcess(pi.hProcess, 1)
-                var l = TestLog()
-                l.type = LogType.Error
-                l.message.append_view("Test timed out after 10s")
-                state.logs.push(l)
-                state.has_failed = true
-                state.exitCode = 1 // dummy exit code for timeout
-                timed_out = true
-                break
+        // enforce the timeout even when the child is alive but silent
+        var now = std::chrono::Instant::now()
+        var elapsed_ms = now.duration_since(&start_time).as_millis()
+        if(elapsed_ms >= timeout_ms as i64) {
+            TerminateProcess(pi.hProcess, 1)
+            var l = TestLog()
+            l.type = LogType.Error
+            l.message.append_view("Test timed out after 10s")
+            state.logs.push(l)
+            state.has_failed = true
+            state.exitCode = 1 // dummy exit code for timeout
+            timed_out = true
+            break
+        }
+
+        // check how many bytes are queued without blocking
+        var total_avail : DWORD = 0
+        var left_this_msg : DWORD = 0
+        var peek_ok = PeekNamedPipe(hPipe, null, 0, null, &raw mut total_avail, &raw mut left_this_msg)
+        if(!peek_ok) {
+            var perr = GetLastError();
+            if (perr == ERROR_BROKEN_PIPE) {
+                // closed by the client
+                break;
             }
+            // transient error: sleep briefly and retry
+            Sleep(50)
+            continue
+        }
+        if(total_avail == 0) {
+            Sleep(50)
             continue
         }
 

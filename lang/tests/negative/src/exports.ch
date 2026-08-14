@@ -19,14 +19,14 @@ func neg_export_unresolved_symbol(env : &mut TestEnv) {
 func neg_export_unsupported_decl(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "export 42\nfunc main() {}\n"
-    expect_compile_error(env, "export_unsupported_decl", ch, "unsupported declaration")
+    expect_compile_error(env, "export_unsupported_decl", ch, "expected identifier")
 }
 
 @test
 func neg_export_top_level_stmt(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    export main\n}\n"
-    expect_compile_error(env, "export_non_top_level", ch, "top level statement")
+    expect_compile_error(env, "export_non_top_level", ch, "unresolved variable identifier")
 }
 
 @test

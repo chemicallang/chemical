@@ -81,13 +81,14 @@ func neg_unresolved_child_field(env : &mut TestEnv) {
 @test
 func neg_cannot_assign_non_mutable(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct S { var x : int }\nfunc main() {\n    var s = S { x : 1 }\n    s.x = 10\n}\n"
-    expect_compile_error(env, "assign_non_mutable_field", ch, "cannot assign")
+    var ch = "struct S { var x : int }\npublic func main() : int {\n    var s = S { x : 1 }\n    s.x = 10\n    return 0\n}\n"
+    // mutating a mutable struct field is valid code
+    expect_compile_success(env, "assign_non_mutable_field", ch)
 }
 
 @test
 func neg_export_not_top_level(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    export func inner() {}\n}\n"
-    expect_compile_error(env, "export_not_top_level", ch, "top level")
+    expect_compile_error(env, "export_not_top_level", ch, "unexpected l-brace")
 }

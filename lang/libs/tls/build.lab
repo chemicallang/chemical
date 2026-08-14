@@ -26,6 +26,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     var srcPath = lab::rel_path_to("src")
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 6));
 
+    comptime if(def.windows) {
+        var winPath = lab::rel_path_to("win")
+        ctx.add_path(module, winPath.to_view())
+        ctx.link_system_lib(user_job, "bcrypt", module)
+    }
+
     ctx.set_cached(user_job, &curr_file_path, module)
     return module;
 }

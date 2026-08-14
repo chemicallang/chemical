@@ -37,8 +37,111 @@ func test_random_bytes(buf : *mut u8, len : size_t) {
     tls::random_fill(buf, len)
 }
 
+// -- Cross-platform shell helpers --
+// On Windows, native executables (MSVCRT) and Python both resolve the POSIX
+// path "/tmp/x" to "<current-drive>:\tmp\x". Ensure that directory exists so
+// the tests' literal "/tmp/..." paths work unchanged on both platforms.
+func test_ensure_tmp_dir() {
+    comptime if(def.windows) {
+        system("if not exist \\tmp mkdir \\tmp")
+    }
+}
+
+// Python interpreter name (the tests were written against `python3`; Windows
+// Python installs only provide `python`).
+func test_py_interp() : string {
+    comptime if(def.windows) {
+        return string("python ")
+    } else {
+        return string("python3 ")
+    }
+}
+
+// stderr redirect suffix for shell commands.
+func test_redir() : string {
+    comptime if(def.windows) {
+        return string(" 2>nul")
+    } else {
+        return string(" 2>/dev/null")
+    }
+}
+
+// Builds: <interp> /tmp/tls_utils.py <args> <redir>
+func test_py_cmd(args : string_view) : string {
+    var cmd = test_py_interp()
+    cmd.append_view("/tmp/tls_utils.py")
+    cmd.append_view(" ")
+    cmd.append_view(&args)
+    var redir = test_redir()
+    cmd.append_view(redir.to_view())
+    return cmd
+}
+
+// Run a python tls_utils.py command in the foreground. Keeps the command string
+// alive in a local before system() reads it (passing a temporary's .data()
+// directly dangles the SSO buffer on Windows).
+func test_py_run_foreground(args : string_view) {
+    var cmd = test_py_cmd(args)
+    system(cmd.data())
+}
+
+// Run a python tls_utils.py command in the background (same lifetime care).
+func test_py_run_background(args : string_view) {
+    var cmd = test_py_cmd(args)
+    test_run_bg(cmd.data())
+}
+
+// Kill whatever is listening on `port` (POSIX only; Windows background python
+// servers exit on their own after a short timeout).
+func test_kill_port(port : int) {
+    comptime if(!def.windows) {
+        var cmd = string("fuser -k ")
+        cmd.append_integer(port)
+        cmd.append_view("/tcp 2>/dev/null")
+        system(cmd.data())
+    }
+}
+
+// Print a file to stdout (used to surface python client stderr in e2e tests).
+func test_cat_file(path : string_view) {
+    comptime if(def.windows) {
+        var cmd = string("type ")
+        cmd.append_view(&path)
+        system(cmd.data())
+    } else {
+        var cmd = string("cat ")
+        cmd.append_view(&path)
+        cmd.append_view(" 2>/dev/null")
+        system(cmd.data())
+    }
+}
+
+// Wait ~1s for a background python server to come up.
+func test_server_wait() {
+    comptime if(def.windows) {
+        system("ping -n 2 127.0.0.1 >nul")
+    } else {
+        system("sleep 1")
+    }
+}
+
+// Run a command (already fully formed, including redirects) in the background.
+func test_run_bg(cmd : *char) {
+    comptime if(def.windows) {
+        var full = string("start /b ")
+        full.append_view(string_view(cmd))
+        system(full.data())
+    } else {
+        var full = string("setsid ")
+        full.append_view(string_view(cmd))
+        full.append_view(" &")
+        system(full.data())
+    }
+}
+
 // -- Cross-platform Python script runner --
 func test_python_run_script(script : *u8, len : size_t, script_name : string_view) : vector<u8> {
+    test_ensure_tmp_dir()
     var path = test_temp_path(script_name)
     if(!test_write_file(path.data(), script, len)) { return vector<u8>() } else {}
     return test_python_run_script_file(path.data())
@@ -50,14 +153,14 @@ func test_python_run_script_file(py_path : *char) : vector<u8> {
     out_path.append_view(".out")
 
     comptime if(def.windows) {
-        var cmd = string("python3 ")
+        var cmd = test_py_interp()
         cmd.append_view(string_view(py_path))
         cmd.append_view(" > ")
         cmd.append_view(out_path.to_view())
         cmd.append_view(" 2>nul")
         system(cmd.data())
     } else {
-        var cmd = string("python3 ")
+        var cmd = test_py_interp()
         cmd.append_view(string_view(py_path))
         cmd.append_view(" > ")
         cmd.append_view(out_path.to_view())
@@ -206,6 +309,7 @@ func test_parse_n_d_hex_file(path : *char, n_out : *mut u8, n_max : size_t, n_le
 }
 
 func write_tls_python_utils() {
+    test_ensure_tmp_dir()
     var py = std::string()
     py.append_view("import sys,ssl,socket,datetime,time\n")
     py.append_view("from cryptography import x509\n")

@@ -189,7 +189,10 @@ public func https_post_to_closed_port_fails_gracefully(env : &mut TestEnv) {
     if(res is Result.Ok) { env.error("POST to closed port should fail"); return }
 }
 
+// Each failed connect to a closed port takes ~2s on Windows, so 20 requests
+// need more than the 10s default timeout.
 @test
+@test.timeout(120000)
 public func https_many_distinct_ports_no_crash(env : &mut TestEnv) {
     var client = http::Client();
     // Exercise many distinct closed ports to stress socket/TLS teardown paths.

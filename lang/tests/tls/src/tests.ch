@@ -2011,6 +2011,7 @@ public func https_tls_handshake_on_plain_server_fails(env : &mut TestEnv) {
 }
 
 @test
+@test.timeout(60000)
 public func https_error_does_not_crash(env : &mut TestEnv) {
     // Make multiple failed HTTPS requests to ensure no crash or memory leak
     var client = http::Client()
@@ -2099,6 +2100,7 @@ public func https_mixed_http_and_https_requests_work(env : &mut TestEnv) {
 }
 
 @test
+@test.timeout(60000)
 public func https_repeated_failures_no_crash(env : &mut TestEnv) {
     // Make multiple HTTPS requests in sequence to ensure no crash
     var client = http::Client()

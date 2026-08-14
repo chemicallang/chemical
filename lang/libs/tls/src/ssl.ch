@@ -3666,6 +3666,25 @@ public namespace tls {
             "/etc/pki/tls/cert.pem\0" as *char
         ]
 
+        comptime if(def.windows) {
+            // Windows has no built-in PEM bundle; check the bundles shipped by
+            // Git for Windows (mingw64 and MSYS2 layouts) and a few common tools.
+            var win_paths : [6]*char = [
+                "C:\\Program Files\\Git\\mingw64\\etc\\ssl\\certs\\ca-bundle.crt\0" as *char,
+                "C:\\Program Files\\Git\\mingw64\\ssl\\certs\\ca-bundle.crt\0" as *char,
+                "C:\\Program Files\\Git\\usr\\ssl\\certs\\ca-bundle.crt\0" as *char,
+                "C:\\msys64\\mingw64\\etc\\ssl\\certs\\ca-bundle.crt\0" as *char,
+                "C:\\msys64\\usr\\ssl\\certs\\ca-bundle.crt\0" as *char,
+                "C:\\Program Files\\cURL\\bin\\curl-ca-bundle.crt\0" as *char
+            ]
+            var wi : size_t = 0
+            while(wi < 6) {
+                var ca = x509_crt_load_pem_file(win_paths[wi])
+                if(ca != null) { return ca }
+                wi += 1
+            }
+        }
+
         var i : size_t = 0
         while(i < 4) {
             var ca = x509_crt_load_pem_file(paths[i])

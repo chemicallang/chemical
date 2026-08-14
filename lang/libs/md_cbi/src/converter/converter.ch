@@ -48,8 +48,18 @@ func (converter : &mut MdConverter) put_chain_in() {
 
 func (converter : &mut MdConverter) put_wrapped_chemical_value_in(value : *mut Value) {
     if(converter.support.pageNode == null) return;
+    if(value == null) {
+        printf("[md-crash-guard] interpolation value is null\n");
+        fflush(null);
+        return;
+    }
     
     const type = value.getType()
+    if(type == null) {
+        printf("[md-crash-guard] interpolation value type is null\n");
+        fflush(null);
+        return;
+    }
     var call : *mut FunctionCallNode = null;
     
     switch(type.getKind()) {

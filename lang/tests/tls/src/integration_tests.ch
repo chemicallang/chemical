@@ -42,10 +42,7 @@ public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
     si=0; while(th_hex[si]!=0){script[sp]=th_hex[si] as u8; sp+=1; si+=1}
     l = "'),32)\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
-    l = "d2=hkdf_expand_label(hs,b'derived',bytes.fromhex('" as *char; si=0
-    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    si=0; while(th_hex[si]!=0){script[sp]=th_hex[si] as u8; sp+=1; si+=1}
-    l = "'),32)\nms=hkdf_extract(d2,bytes(32))\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "d2=hkdf_expand_label(hs,b'derived',hashlib.sha256(b'').digest(),32)\nms=hkdf_extract(d2,bytes(32))\n" as *char; si=0; while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     l = "cats=hkdf_expand_label(ms,b'c ap traffic',bytes.fromhex('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}

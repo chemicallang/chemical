@@ -50,7 +50,12 @@ public func INT_tls13_client(env : &mut TestEnv) {
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
         var buf : [512]u8
-        ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+            // Expected the Python server's literal "OK" response, proving the
+            // application-data decrypt path round-trips the real payload.
+            env.error("TLS13: app-data response mismatch")
+        }
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
@@ -136,7 +141,10 @@ public func INT_tls12_client(env : &mut TestEnv) {
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
         var buf : [512]u8
-        ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+            env.error("TLS12: app-data response mismatch")
+        }
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
@@ -200,7 +208,13 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
         env.error("TLS 1.3 server handshake failed against Python client")
     } else {
         var buf : [512]u8
-        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        // The Python client sends "GET / HTTP/1.0\r\n\r\n"; verify the decrypted bytes.
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) { if(buf[mi] != expect[mi] as u8) { match = false }; mi += 1 }
+        if(!match) { env.error("TLS13 server: client request mismatch") }
         var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
         ssl_write(ssl_mem, resp as *u8, 19)
         ssl_close_notify(ssl_mem)
@@ -255,7 +269,12 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
         env.error("ECDSA cert + x25519 server handshake failed")
     } else {
         var buf : [512]u8
-        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) { if(buf[mi] != expect[mi] as u8) { match = false }; mi += 1 }
+        if(!match) { env.error("ECDSA server: client request mismatch") }
         var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
         ssl_write(ssl_mem, resp as *u8, 19)
         ssl_close_notify(ssl_mem)
@@ -396,7 +415,12 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
         env.error("tls_accept server handshake failed against Python TLS 1.2 client")
     } else {
         var buf : [512]u8
-        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) { if(buf[mi] != expect[mi] as u8) { match = false }; mi += 1 }
+        if(!match) { env.error("tls_accept server: client request mismatch") }
         var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
         ssl_write(ssl_mem, resp as *u8, 19)
         ssl_close_notify(ssl_mem)
@@ -406,4 +430,175 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 
     net::close_socket(server_sock)
     system("fuser -k 19885/tcp 2>/dev/null")
+}
+
+// ─── TLS 1.2 server with the CBC-HMAC cipher path ──────────────────────────
+// tls_accept normally pins TLS_RSA_WITH_AES_128_GCM_SHA256. Passing a CBC
+// suite exercises the server's CBC record layer (MAC key swap, CBC encrypt/
+// decrypt with seq_num MAC) end-to-end against a real OpenSSL client.
+@test
+@test.timeout(60000)
+public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19886/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19886_cert.pem /tmp/tls_19886_key.pem localhost rsa 2>/dev/null")
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19886_key.pem /tmp/tls_19886_priv.txt 2>/dev/null")
+
+    var cert = x509_crt_load_pem_file("/tmp/tls_19886_cert.pem")
+    if(cert == null) { env.error("failed to load RSA server cert"); return }
+
+    var n_buf : [512]u8
+    var d_buf : [512]u8
+    var n_len : size_t = 0
+    var d_len : size_t = 0
+    test_parse_n_d_hex_file("/tmp/tls_19886_priv.txt\0" as *char,
+                            &raw mut n_buf[0], 512, &raw mut n_len,
+                            &raw mut d_buf[0], 512, &raw mut d_len)
+    if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
+
+    var rsa_ctx : RSAContext
+    rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
+    if(kret < 0) { env.error("failed to import RSA private key"); return }
+
+    var server_sock = net::listen_addr("127.0.0.1", 19886u)
+    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // OpenSSL 3 disables RSA key exchange by default; re-enable it client-side.
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19886 1.2 AES128-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err_cbc.txt &")
+    system("sleep 1")
+    system("cat /tmp/tls_cli_err_cbc.txt 2>/dev/null")
+
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var accept_attempts = 0
+    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock)
+        accept_attempts += 1
+    }
+    if(client_sock == 0 as net::Socket) {
+        env.error("no client connected")
+        net::close_socket(server_sock)
+        return
+    }
+
+    var ssl_mem = tls_accept(client_sock, cert, &raw mut rsa_ctx, TLS_RSA_WITH_AES_128_CBC_SHA256)
+    if(ssl_mem == null) {
+        env.error("tls_accept CBC server handshake failed against Python TLS 1.2 client")
+    } else {
+        if(ssl_mem.negotiated_ciphersuite != TLS_RSA_WITH_AES_128_CBC_SHA256 as u16) {
+            env.error("tls_accept CBC: wrong negotiated ciphersuite")
+        }
+        var buf : [512]u8
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) { if(buf[mi] != expect[mi] as u8) { match = false }; mi += 1 }
+        if(!match) { env.error("tls_accept CBC server: client request mismatch") }
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
+        ssl_close_notify(ssl_mem)
+        ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+    }
+
+    net::close_socket(server_sock)
+    system("fuser -k 19886/tcp 2>/dev/null")
+}
+
+// ─── TLS 1.2 client negotiating the CBC-HMAC path ──────────────────────────
+// The Python server is restricted to TLS_RSA_WITH_AES_128_CBC_SHA256 and the
+// Chemical client config offers only that suite, so the client's CBC record
+// path (server_write MAC verify, CBC decrypt) is exercised end-to-end.
+@test
+@test.timeout(60000)
+public func INT_tls12_client_cbc(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19887/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem test.example.com rsa 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_2
+    config.ciphersuite_list[0] = TLS_RSA_WITH_AES_128_CBC_SHA256 as u16
+    config.ciphersuite_count = 1
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19887u)
+    if(ret < 0) {
+        env.error("TLS12 CBC client handshake failed against Python server")
+    } else {
+        if(ctx.negotiated_ciphersuite != TLS_RSA_WITH_AES_128_CBC_SHA256 as u16) {
+            env.error("TLS12 CBC client: wrong negotiated ciphersuite")
+        }
+        var req = "GET / HTTP/1.0\r\n\r\n"
+        ssl_write(&raw mut ctx, req as *u8, 18)
+        var buf : [512]u8
+        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        if(n != 2 || buf[0] != 79 || buf[1] != 75) {
+            env.error("TLS12 CBC client: app-data response mismatch")
+        }
+        ssl_close_notify(&raw mut ctx)
+    }
+    ssl_free(&raw mut ctx)
+    system("fuser -k 19887/tcp 2>/dev/null")
+}
+
+// ─── Large multi-record live transfer ──────────────────────────────────────
+// A real TLS 1.3 connection transfers 128KB from a Python server. This
+// exercises record fragmentation, sequencing, and TCP reassembly across many
+// ssl_read calls (each returning one decrypted record).
+@test
+@test.timeout(60000)
+public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19888/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem test.example.com ec 2>/dev/null")
+    system("setsid python3 /tmp/tls_utils.py bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072 2>/dev/null &")
+    system("sleep 1")
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19888u)
+    if(ret < 0) {
+        env.error("large transfer: handshake failed against Python server")
+        ssl_free(&raw mut ctx)
+        system("fuser -k 19888/tcp 2>/dev/null")
+        return
+    }
+
+    var req = "GET / HTTP/1.0\r\n\r\n"
+    ssl_write(&raw mut ctx, req as *u8, 18)
+
+    var total : size_t = 0
+    var bad = false
+    var buf : [17400]u8
+    while(total < 131072) {
+        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 17400)
+        if(n <= 0) { bad = true; break }
+        var i : size_t = 0
+        while(i < n as size_t) {
+            var expected = (total % 251) as u8
+            if(buf[i] != expected) { bad = true; break }
+            total += 1
+            i += 1
+        }
+        if(bad) { break }
+    }
+    if(bad || total != 131072) {
+        env.error("large transfer: payload mismatch or incomplete")
+    }
+
+    ssl_close_notify(&raw mut ctx)
+    ssl_free(&raw mut ctx)
+    system("fuser -k 19888/tcp 2>/dev/null")
 }

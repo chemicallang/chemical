@@ -40,7 +40,7 @@ func neg_comptime_unreachable(env : &mut TestEnv) {
 func neg_const_with_runtime_init(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func get_val() : int { return 42 }\nconst GLOBAL = get_val()\nfunc main() {}\n"
-    expect_compile_error(env, "const_runtime_init", ch, "comptime")
+    expect_compile_error(env, "const_runtime_init", ch, "cannot call a runtime function")
 }
 
 @test

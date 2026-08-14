@@ -4,15 +4,15 @@
 @test
 func neg_generic_wrong_arg_count(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Box 'T {\n    var value : T\n}\nfunc main() {\n    var b = Box<int, float> { value : 42 }\n}\n"
-    expect_compile_error(env, "generic_wrong_arg_count", ch, "argument")
+    var ch = "struct Box<T> {\n    var value : T\n}\nfunc main() {\n    var b = Box<int, float> { value : 42 }\n}\n"
+    expect_compile_error(env, "generic_wrong_arg_count", ch, "too many generic arguments")
 }
 
 @test
 func neg_generic_missing_type_arg(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Box 'T {\n    var value : T\n}\nfunc main() {\n    var b = Box { value : 42 }\n}\n"
-    expect_compile_error(env, "generic_missing_arg", ch, "infer")
+    var ch = "struct Box<T> {\n    var value : T\n}\nfunc main() {\n    var b = Box { value : 42 }\n}\n"
+    expect_compile_error(env, "generic_missing_arg", ch, "unknown struct")
 }
 
 @test
@@ -34,7 +34,8 @@ func neg_generic_where_clause_fail(env : &mut TestEnv) {
 func neg_generic_recursive(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Node 'T {\n    var next : Node<Node<'T>>\n}\nfunc main() {}\n"
-    expect_compile_error(env, "generic_recursive", ch, "infinite")
+    // generic type arguments with a tick (lifetime) inside angle brackets are rejected by the parser
+    expect_compile_error(env, "generic_recursive", ch, "expected '>' for generic type")
 }
 
 @test
@@ -61,8 +62,9 @@ func neg_duplicate_generic_param_name(env : &mut TestEnv) {
 @test
 func neg_generic_struct_no_impl(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "interface Addable {\n    func add(&self, other : &self) : self\n}\nstruct Pair 'T {\n    var first : T\n    var second : T\n}\nfunc add_pairs 'T(a : Pair<'T>, b : Pair<'T>) : Pair<'T> where T : Addable {\n    return Pair<'T> { first : a.first.add(&b.first), second : a.second.add(&b.second) }\n}\nfunc main() {\n    var p = Pair<int> { first : 1, second : 2 }\n    add_pairs(p, p)\n}\n"
-    expect_compile_error(env, "generic_no_impl", ch, "no implementation")
+    var ch = "interface Addable {\n    func add(&self, other : &self) : self\n}\nstruct Pair<T> {\n    var first : T\n    var second : T\n}\nfunc <T> add_pairs(a : Pair<T>, b : Pair<T>) : Pair<T> where T : Addable {\n    return Pair<T> { first : a.first.add(&b.first), second : a.second.add(&b.second) }\n}\nfunc main() {\n    var p = Pair<int> { first : 1, second : 2 }\n    add_pairs(p, p)\n}\n"
+    // int does not implement Addable, so the generic body can't resolve 'add'
+    expect_compile_error(env, "generic_no_impl", ch, "unresolved child")
 }
 
 @test

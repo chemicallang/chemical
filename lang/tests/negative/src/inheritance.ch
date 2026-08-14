@@ -26,21 +26,21 @@ func neg_interface_inherit_non_interface(env : &mut TestEnv) {
 func neg_interface_missing_method_full(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "interface Printable {\n    func print(&self)\n}\nstruct MyType {}\nimpl Printable for MyType {}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_missing_method_full", ch, "no implementation of interface")
+    expect_compile_error(env, "impl_missing_method_full", ch, "does not implement interface member")
 }
 
 @test
 func neg_impl_wrong_method_sig_full(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "interface Printable {\n    func print(&self) : int\n}\nstruct MyType {}\nimpl Printable for MyType {\n    func print(&self) : float { return 1.0 }\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_wrong_ret_type", ch, "does not implement interface member")
+    expect_compile_error(env, "impl_wrong_ret_type", ch, "does not satisfy")
 }
 
 @test
 func neg_impl_missing_method_name(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "interface HasSize {\n    func size(&self) : int\n}\nstruct MyType {}\nimpl HasSize for MyType {}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_missing_method_name2", ch, "no implementation of interface")
+    expect_compile_error(env, "impl_missing_method_name2", ch, "does not implement interface member")
 }
 
 @test

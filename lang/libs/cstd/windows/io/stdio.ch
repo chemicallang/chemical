@@ -36,3 +36,18 @@ public func get_stderr() : *mut FILE {
     }
     return _err;
 }
+
+// popen/pclose on Windows are named _popen/_pclose in the CRT.
+// We expose the POSIX names for cross-platform parity (see posix/io/stdio.ch).
+@extern public func _popen(__command : *char, __modes : *char) : *mut FILE;
+@extern public func _pclose(__stream : *mut FILE) : int;
+
+/* Create a new stream connected to a pipe running the given command. */
+public func popen(__command : *char, __modes : *char) : *mut FILE {
+    return _popen(__command, __modes);
+}
+
+/* Close a stream opened by popen and return the status of its child. */
+public func pclose(__stream : *mut FILE) : int {
+    return _pclose(__stream);
+}

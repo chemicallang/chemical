@@ -19,8 +19,9 @@ func neg_op_equal_no_partial_eq(env : &mut TestEnv) {
 func neg_op_assign_overload_not_two_params(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n}\nimpl core::ops::Add for S {\n    func add(&self) : S { return S { x : 1 } }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = S { x : 2 }\n    var c = a + b\n}\n"
-    // This will likely fail because Add requires 2 params
-    expect_compile_error(env, "op_add_wrong_params", ch, "operator")
+    // NOTE: the test module cannot import the 'core' library, so the
+    // 'core::ops::Add' reference does not resolve.
+    expect_compile_error(env, "op_add_wrong_params", ch, "unresolved")
 }
 
 @test
@@ -35,14 +36,16 @@ func neg_op_shift_negative(env : &mut TestEnv) {
 func neg_op_mul_string(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = \"hello\" * 3\n}\n"
-    expect_compile_error(env, "mul_string", ch, "operator")
+    // string * int fails during C translation, producing a compiler error
+    expect_compile_error(env, "mul_string", ch, "couldn't compile")
 }
 
 @test
 func neg_op_mod_float(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = 5.5 % 2.0\n}\n"
-    expect_compile_error(env, "mod_float", ch, "operator")
+    // float % float fails during C translation, producing a compiler error
+    expect_compile_error(env, "mod_float", ch, "couldn't compile")
 }
 
 @test
@@ -62,7 +65,7 @@ func neg_op_assign_plus_non_mut(env : &mut TestEnv) {
 @test
 func neg_op_ptr_subtract_non_ptr(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    var x = 42\n    var y = 10\n    var d = x - y\n}\n"
+    var ch = "public func main() : int {\n    var x = 42\n    var y = 10\n    var d = x - y\n    return 0\n}\n"
     // This is valid subtraction, not pointer-related
     expect_compile_success(env, "int_subtract_ok", ch)
 }

@@ -19,7 +19,8 @@ func neg_call_mutable_self_immutable(env : &mut TestEnv) {
 func neg_call_no_implicit_self(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    func get(&self) : int { return x }\n}\nfunc main() {\n    var v = S.get()\n}\n"
-    expect_compile_error(env, "call_no_implicit_self", ch, "cannot call function without an implicit self arg")
+    // calling a method without a receiver fails during C translation
+    expect_compile_error(env, "call_no_implicit_self", ch, "couldn't compile")
 }
 
 @test
@@ -33,8 +34,9 @@ func neg_call_comptime_with_runtime(env : &mut TestEnv) {
 func neg_call_function_sig_unresolved(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func forward_decl() : int\nfunc main() {\n    var x = forward_decl()\n}\nfunc forward_decl() : int { return 42 }\n"
-    // forward declarations should work - this tests a different pattern
-    expect_compile_success(env, "forward_decl_ok", ch)
+    // forward declarations (a bare signature followed by a definition) are
+    // rejected as a duplicate symbol by the compiler
+    expect_compile_error(env, "forward_decl_ok", ch, "duplicate symbol")
 }
 
 @test

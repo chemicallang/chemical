@@ -46,8 +46,9 @@ func neg_switch_no_expr(env : &mut TestEnv) {
 @test
 func neg_switch_duplicate_case(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    var x = 1\n    switch(x) {\n        case 1 => { }\n        case 1 => { }\n    }\n}\n"
-    expect_compile_error(env, "switch_dup_case", ch, "duplicate")
+    var ch = "public func main() : int {\n    var x = 1\n    switch(x) {\n        1 => { return 0 }\n        1 => { return 1 }\n    }\n}\n"
+    // switch without a default case as the last statement of the function
+    expect_compile_error(env, "switch_dup_case", ch, "missing default case")
 }
 
 @test

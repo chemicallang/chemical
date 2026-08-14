@@ -26,7 +26,7 @@ func neg_variant_no_members(env : &mut TestEnv) {
 func neg_self_referential_struct(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Node {\n    var next : Node\n}\nfunc main() {}\n"
-    expect_compile_error(env, "self_ref_struct", ch, "infinite")
+    expect_compile_error(env, "self_ref_struct", ch, "recursion")
 }
 
 @test

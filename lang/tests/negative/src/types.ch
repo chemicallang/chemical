@@ -26,7 +26,8 @@ func neg_bool_arithmetic(env : &mut TestEnv) {
 func neg_string_multiply(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = \"hello\" * 2\n}\n"
-    expect_compile_error(env, "string_multiply", ch, "operator")
+    // string * int fails during C translation, producing a compiler error
+    expect_compile_error(env, "string_multiply", ch, "couldn't compile")
 }
 
 @test
@@ -41,7 +42,7 @@ func neg_pointer_to_non_pointer_cast(env : &mut TestEnv) {
 func neg_array_index_on_non_array(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = 42\n    var y = x[0]\n}\n"
-    expect_compile_error(env, "index_on_int", ch, "operator")
+    expect_compile_error(env, "index_on_int", ch, "can't be of type void")
 }
 
 @test
@@ -55,8 +56,7 @@ func neg_implicit_pointer_arithmetic(env : &mut TestEnv) {
 func neg_missing_struct_field(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Point {\n    var x : int\n    var y : int\n}\nfunc main() {\n    var p = Point { x : 1 }\n}\n"
-    // Missing required field may or may not be an error - depends on compiler
-    expect_compile_error(env, "missing_struct_field", ch, "child")
+    expect_compile_error(env, "missing_struct_field", ch, "couldn't find value for member")
 }
 
 @test

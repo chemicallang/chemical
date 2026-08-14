@@ -12,7 +12,7 @@ func neg_move_after_use(env : &mut TestEnv) {
 func neg_move_non_struct_to_struct(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = 42\n    var b : S = a\n}\n"
-    expect_compile_error(env, "move_non_struct_to_struct", ch, "cannot move a struct to a non struct")
+    expect_compile_error(env, "move_non_struct_to_struct", ch, "does not satisfy")
 }
 
 @test
@@ -25,7 +25,7 @@ func neg_move_twice(env : &mut TestEnv) {
 @test
 func neg_zeroed_with_dtor(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var s = zeroed<S>\n}\n"
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var s = zeroed<S>()\n}\n"
     expect_compile_error(env, "zeroed_with_dtor", ch, "@allow_zeroed")
 }
 

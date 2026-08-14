@@ -906,6 +906,17 @@ public func RegSetValueExA(
 @dllimport
 public func _mkdir(path : LPCSTR) : int
 
+/**
+ * @brief Cross-platform helper: creates a directory, ignoring the mode argument
+ * (the POSIX mode is not meaningful on Windows).
+ * @param pathname Path to the directory (ANSI string).
+ * @param mode POSIX permission bits, ignored on Windows.
+ * @return 0 on success, -1 on failure (sets errno).
+ */
+public func mkdir(pathname : *char, mode : uint) : int {
+    return _mkdir(pathname)
+}
+
 /** @brief Removes a directory (CRT).
  * @param path Path to the directory (ANSI string).
  * @return 0 on success, -1 on failure (sets errno).

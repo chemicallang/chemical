@@ -76,33 +76,24 @@ public func write_u64(output : &mut std::string, val : u64) {
 }
 
 public func write_double_raw(output : &mut std::string, val : double) {
-    var v = val
-    if(v < 0.0) {
-        output.append('-')
-        v = -v
-    }
-    if(v == 0.0) {
-        output.append('0')
-        return
-    }
-    var int_part = v as i64
-    write_i64(output, int_part)
-    var frac = v - (int_part as double)
-    if(frac > 0.0) {
-        output.append('.')
-        var remaining = frac
-        for(var i = 0; i < 12; i++) {
-            if(remaining <= 0.0) break
-            remaining *= 10.0
-            var digit = remaining as i64
-            output.append('0' + digit as char)
-            remaining -= digit as double
+    var buf : char[64]
+    // %g picks the shortest of %e/%f style for the given precision and never
+    // emits trailing zeros, so binary float noise (e.g. 3.14f -> 3.1400001049041748)
+    // is trimmed to a clean decimal representation. 6 significant digits keeps
+    // JSON output compact while round-tripping common values exactly.
+    var len = snprintf(&raw mut buf[0], 64, "%.6g", val)
+    if(len > 0) {
+        var i = 0
+        while(i < len && i < 64) {
+            output.append(buf[i])
+            i++
         }
     }
 }
 
 public func write_double(output : &mut std::string, val : double) {
-    if(val != val) {
+    // NaN (val != val) and +/- infinity (val * 0.0 is NaN, which never equals 0.0)
+    if(val != val || val * 0.0 != 0.0) {
         output.append_char_ptr("null")
         return
     }

@@ -3751,37 +3751,56 @@ public namespace tls {
         var f = fopen(path, mode)
         if(f == null) { return null }
 
-        // Read the entire file into a buffer (up to 16KB)
-        var buf : [16384]u8
+        // Read the entire file into a heap buffer. System CA bundles can be
+        // hundreds of KB (e.g. Git for Windows' ca-bundle.crt is ~220KB), so a
+        // fixed stack buffer would truncate them and corrupt the heap when the
+        // truncated PEM/DER bytes get parsed. Cap at 1MB to bound memory.
+        fseek(f, 0, SEEK_END)
+        var file_size = ftell(f)
+        fseek(f, 0, SEEK_SET)
+        if(file_size <= 0) { fclose(f); return null }
+        if(file_size > 1048576) { file_size = 1048576 }
+
+        var buf = malloc(file_size as size_t) as *mut u8
+        if(buf == null) { fclose(f); return null }
+
         var total_read : size_t = 0
-        while(total_read < 16384) {
-            var n = fread(&raw mut buf[total_read], 1 as size_t, 16384 - total_read, f)
+        while(total_read < file_size as size_t) {
+            var n = fread(buf + total_read, 1 as size_t, (file_size as size_t) - total_read, f)
             if(n <= 0) { break }
             total_read += n
         }
         fclose(f)
 
-        if(total_read == 0) { return null }
+        if(total_read == 0) {
+            unsafe { dealloc buf }
+            return null
+        }
 
         // Allocate and parse the certificate
         var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
-        if(cert_mem == null) { return null }
+        if(cert_mem == null) {
+            unsafe { dealloc buf }
+            return null
+        }
 
         x509_cert_init(cert_mem)
-        var ret = parse_cert_pem(cert_mem, &raw buf[0], total_read)
+        var ret = parse_cert_pem(cert_mem, buf, total_read)
         if(ret < 0) {
             // Try DER parsing
-            ret = parse_cert_der(cert_mem, &raw buf[0], total_read)
+            ret = parse_cert_der(cert_mem, buf, total_read)
             if(ret < 0) {
                 // A partial parse may have left issuer/subject strings with heap
                 // buffers; reassigning empty strings frees them before dealloc.
                 cert_mem.issuer = string()
                 cert_mem.subject = string()
                 unsafe { dealloc cert_mem }
+                unsafe { dealloc buf }
                 return null
             }
         }
 
+        unsafe { dealloc buf }
         return cert_mem
     }
 

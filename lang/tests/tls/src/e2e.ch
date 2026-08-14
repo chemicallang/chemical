@@ -156,6 +156,9 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
     var ca = load_system_ca_bundle()
     if(ca == null) {
         env.error("no system CA bundle found")
+    } else {
+        cert_free(ca)
+        unsafe { dealloc ca }
     }
 }
 
@@ -171,10 +174,17 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     if(cert == null) { env.error("failed to load server cert"); return }
 
     var priv_key = ec_privkey_load_hex_file("/tmp/tls_19880_priv.hex")
-    if(priv_key == null) { env.error("failed to load private key"); return }
+    if(priv_key == null) {
+        cert_free(cert); unsafe { dealloc cert }
+        env.error("failed to load private key"); return
+    }
 
     var server_sock = net::listen_addr("127.0.0.1", 19880u)
-    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    if(server_sock == 0 as net::Socket) {
+        cert_free(cert); unsafe { dealloc cert }
+        unsafe { dealloc priv_key }
+        env.error("listen failed"); return
+    }
 
     system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19880 1.3 2>/dev/null &")
     system("sleep 1")
@@ -189,6 +199,8 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     }
     if(client_sock == 0 as net::Socket) {
         env.error("no client connected")
+        cert_free(cert); unsafe { dealloc cert }
+        unsafe { dealloc priv_key }
         net::close_socket(server_sock)
         return
     }
@@ -222,6 +234,9 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
 
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
+    cert_free(cert)
+    unsafe { dealloc cert }
+    unsafe { dealloc priv_key }
     net::close_socket(server_sock)
     system("fuser -k 19880/tcp 2>/dev/null")
 }
@@ -237,10 +252,17 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     if(cert == null) { env.error("failed to load ECDSA cert"); return }
 
     var priv_key = ec_privkey_load_hex_file("/tmp/tls_19882_priv.hex")
-    if(priv_key == null) { env.error("failed to load private key"); return }
+    if(priv_key == null) {
+        cert_free(cert); unsafe { dealloc cert }
+        env.error("failed to load private key"); return
+    }
 
     var server_sock = net::listen_addr("127.0.0.1", 19882u)
-    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+    if(server_sock == 0 as net::Socket) {
+        cert_free(cert); unsafe { dealloc cert }
+        unsafe { dealloc priv_key }
+        env.error("listen failed"); return
+    }
 
     system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19882 1.3 2>/dev/null &")
     system("sleep 1")
@@ -253,7 +275,13 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
         client_sock = net::accept_socket(server_sock)
         accept_attempts += 1
     }
-    if(client_sock == 0 as net::Socket) { env.error("no client"); net::close_socket(server_sock); return }
+    if(client_sock == 0 as net::Socket) {
+        env.error("no client")
+        cert_free(cert); unsafe { dealloc cert }
+        unsafe { dealloc priv_key }
+        net::close_socket(server_sock)
+        return
+    }
 
     var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
     ssl_init(ssl_mem)
@@ -281,6 +309,9 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     }
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }
+    cert_free(cert)
+    unsafe { dealloc cert }
+    unsafe { dealloc priv_key }
     net::close_socket(server_sock)
     system("fuser -k 19882/tcp 2>/dev/null")
 }
@@ -341,25 +372,38 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     var ret = x509_extract_ecdsa_pubkey(ec_cert, &raw mut ecdsa)
     if(ret != 0) {
         printf("[X509_EC] extract ret=%d\n", ret as int)
+        cert_free(ec_cert); unsafe { dealloc ec_cert }
         env.error("x509_extract_ecdsa_pubkey should succeed on EC cert")
         return
     }
-    if(!ecdsa.is_init) { env.error("extracted ECDSA context should be initialized"); return }
+    if(!ecdsa.is_init) {
+        cert_free(ec_cert); unsafe { dealloc ec_cert }
+        env.error("extracted ECDSA context should be initialized"); return
+    }
 
     // The extracted public key must verify the self-signed cert's own signature
     var vret = x509_verify_cert_ecdsa_signature(ec_cert, &raw mut ecdsa)
     if(vret != 0) {
+        cert_free(ec_cert); unsafe { dealloc ec_cert }
         env.error("x509_verify_cert_ecdsa_signature with extracted key failed")
         return
     }
 
     // Extracting from an RSA cert must fail with PK type mismatch
     var rsa_cert = x509_crt_load_pem_file("/tmp/tls_rsa_pub.crt")
-    if(rsa_cert == null) { env.error("failed to load RSA cert"); return }
+    if(rsa_cert == null) {
+        cert_free(ec_cert); unsafe { dealloc ec_cert }
+        env.error("failed to load RSA cert"); return
+    }
     var e2 : ECDSAContext
     ecdsa_init(&raw mut e2)
     ret = x509_extract_ecdsa_pubkey(rsa_cert, &raw mut e2)
     if(ret == 0) { env.error("x509_extract_ecdsa_pubkey should reject an RSA cert") }
+
+    cert_free(ec_cert)
+    unsafe { dealloc ec_cert }
+    cert_free(rsa_cert)
+    unsafe { dealloc rsa_cert }
 }
 
 @test
@@ -428,6 +472,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
         unsafe { dealloc ssl_mem }
     }
 
+    cert_free(cert)
+    unsafe { dealloc cert }
     net::close_socket(server_sock)
     system("fuser -k 19885/tcp 2>/dev/null")
 }
@@ -504,6 +550,8 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
         unsafe { dealloc ssl_mem }
     }
 
+    cert_free(cert)
+    unsafe { dealloc cert }
     net::close_socket(server_sock)
     system("fuser -k 19886/tcp 2>/dev/null")
 }

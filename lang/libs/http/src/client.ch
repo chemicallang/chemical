@@ -199,13 +199,24 @@ public namespace http {
                 var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
                 tls::ssl_init(ssl_ptr)
 
-                // Create config with auto-loaded CA
+                // Create config with auto-loaded CA. The config is heap-allocated
+                // so it outlives this function (the Body's TLS context keeps
+                // pointing at it); ssl_free releases it via conf_owned.
                 var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
                 var ca = tls::load_system_ca_bundle()
                 if(ca != null) {
                     tls::ssl_set_ca_chain(&raw mut config, ca)
                 }
-                tls::ssl_set_config(ssl_ptr, &raw mut config)
+                var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
+                if(config_mem == null) {
+                    if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
+                    tls::ssl_free(ssl_ptr)
+                    unsafe { dealloc ssl_ptr }
+                    return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS config alloc failed"))
+                }
+                *config_mem = config
+                tls::ssl_set_config(ssl_ptr, config_mem)
+                ssl_ptr.conf_owned = true
 
                 // Set hostname for SNI extension and certificate verification
                 tls::ssl_set_hostname(ssl_ptr, req_builder.url.host.data())
@@ -215,10 +226,15 @@ public namespace http {
                                             req_builder.url.host.data(),
                                             req_builder.url.port)
                 if(ret < 0) {
+                    if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
                     tls::ssl_free(ssl_ptr)
                     unsafe { dealloc ssl_ptr }
                     return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS handshake failed"))
                 }
+
+                // CA bundle is only needed for handshake-time certificate
+                // verification, which has completed — release it now.
+                if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
 
                 // Verify the server's certificate matches the requested hostname
                 if(ssl_ptr.peer_cert != null) {

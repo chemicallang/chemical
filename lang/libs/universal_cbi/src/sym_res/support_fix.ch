@@ -18,6 +18,12 @@ func resolve_page_children(
         return false;
     }
 
+    const appendHeadJsEscapedCharPtrFn = page.child("append_js_escaped_char_ptr")
+    if(appendHeadJsEscapedCharPtrFn == null) {
+        diagnoser.error("'append_js_escaped_char_ptr' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
     const appendHeadJsFn = page.child("append_js");
     if(appendHeadJsFn == null) {
         diagnoser.error("'append_js' function is required on 'page' for html to work", loc);
@@ -108,6 +114,7 @@ func resolve_page_children(
     support.appendHeadJsFn = appendHeadJsFn
     support.appendHeadJsCharFn = appendHeadJsCharFn
     support.appendHeadJsCharPtrFn = appendHeadJsCharPtrFn
+    support.appendHeadJsEscapedCharPtrFn = appendHeadJsEscapedCharPtrFn
     support.appendHeadJsIntFn = appendHeadJsIntFn;
     support.appendHeadJsUIntFn = appendHeadJsUIntFn;
     support.appendHeadJsFloatFn = appendHeadJsFloatFn;

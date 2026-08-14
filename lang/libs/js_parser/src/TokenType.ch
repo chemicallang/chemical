@@ -88,6 +88,8 @@ public enum JsTokenType {
     Export,
     Yield,
     Debugger,
+    Percent, // %
+    PercentEqual, // %=
     Regex,
     JSXText
 }

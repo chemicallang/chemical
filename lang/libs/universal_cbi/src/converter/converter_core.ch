@@ -374,6 +374,164 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.str.append_view(") ");
              converter.convertJsNode(f.body);
         }
+        JsNodeKind.ForOf => {
+             var f = node as *mut JsForOf
+             converter.str.append_view("for(");
+             converter.convertJsNode(f.left);
+             converter.str.append_view(" of ");
+             converter.convertJsNode(f.right);
+             converter.str.append_view(") ");
+             converter.convertJsNode(f.body);
+        }
+        JsNodeKind.While => {
+             var w = node as *mut JsWhile
+             converter.str.append_view("while(");
+             converter.convertJsNode(w.condition);
+             converter.str.append_view(") ");
+             converter.convertJsNode(w.body);
+        }
+        JsNodeKind.DoWhile => {
+             var d = node as *mut JsDoWhile
+             converter.str.append_view("do ");
+             converter.convertJsNode(d.body);
+             converter.str.append_view(" while(");
+             converter.convertJsNode(d.condition);
+             converter.str.append_view(");");
+        }
+        JsNodeKind.Switch => {
+             var s = node as *mut JsSwitch
+             converter.str.append_view("switch(");
+             converter.convertJsNode(s.discriminant);
+             converter.str.append_view(") {");
+             for(var i : uint = 0; i < s.cases.size(); i++) {
+                 const c = s.cases.get_ptr(i);
+                 if(c.test != null) {
+                     converter.str.append_view("case ");
+                     converter.convertJsNode(c.test);
+                     converter.str.append_view(": ");
+                 } else {
+                     converter.str.append_view("default: ");
+                 }
+                 for(var j : uint = 0; j < c.body.size(); j++) {
+                     converter.convertJsNode(c.body.get(j));
+                     converter.str.append(' ');
+                 }
+             }
+             converter.str.append_view("}");
+        }
+        JsNodeKind.Case => {
+             // Case nodes are emitted inline as part of Switch; this is a safety net.
+             var c = node as *mut JsCase
+             if(c.test != null) {
+                 converter.str.append_view("case ");
+                 converter.convertJsNode(c.test);
+                 converter.str.append_view(": ");
+             } else {
+                 converter.str.append_view("default: ");
+             }
+             for(var j : uint = 0; j < c.body.size(); j++) {
+                 converter.convertJsNode(c.body.get(j));
+                 converter.str.append(' ');
+             }
+        }
+        JsNodeKind.Break => {
+             converter.str.append_view("break;");
+        }
+        JsNodeKind.Continue => {
+             converter.str.append_view("continue;");
+        }
+        JsNodeKind.Throw => {
+             var t = node as *mut JsThrow
+             converter.str.append_view("throw ");
+             if(t.argument != null) converter.convertJsNode(t.argument);
+             converter.str.append_view(";");
+        }
+        JsNodeKind.Yield => {
+             var y = node as *mut JsYield
+             converter.str.append_view("yield");
+             if(y.delegate) converter.str.append('*');
+             if(y.argument != null) {
+                 converter.str.append(' ');
+                 converter.convertJsNode(y.argument);
+             }
+        }
+        JsNodeKind.Debugger => {
+             converter.str.append_view("debugger;");
+        }
+        JsNodeKind.ClassDecl => {
+             var c = node as *mut JsClassDecl
+             converter.str.append_view("class ");
+             converter.str.append_view(&c.name);
+             if(!c.superClass.empty()) {
+                 converter.str.append_view(" extends ");
+                 converter.str.append_view(&c.superClass);
+             }
+             converter.str.append_view(" { ");
+             for(var i : uint = 0; i < c.methods.size(); i++) {
+                 const m = c.methods.get_ptr(i);
+                 if(m.is_static) converter.str.append_view("static ");
+                 converter.str.append_view(&m.name);
+                 converter.str.append_view("(");
+                 for(var j : uint = 0; j < m.params.size(); j++) {
+                     if(j > 0) converter.str.append_view(", ");
+                     converter.str.append_view(&m.params.get(j).name);
+                     if(m.params.get(j).default_value != null) {
+                         converter.str.append_view(" = ");
+                         converter.convertJsNode(m.params.get(j).default_value);
+                     }
+                 }
+                 converter.str.append_view(") ");
+                 converter.convertJsNode(m.body);
+                 converter.str.append(' ');
+             }
+             converter.str.append_view("}");
+        }
+        JsNodeKind.Import => {
+             var imp = node as *mut JsImport
+             converter.str.append_view("import ");
+             var specCount : uint = 0;
+             for(var i : uint = 0; i < imp.specifiers.size(); i++) {
+                 const spec = imp.specifiers.get(i);
+                 if(spec.imported.equals(view("default"))) {
+                     if(specCount > 0) converter.str.append_view(", ");
+                     converter.str.append_view(&spec.local);
+                     specCount++;
+                 } else if(spec.imported.equals(view("*"))) {
+                     if(specCount > 0) converter.str.append_view(", ");
+                     converter.str.append_view("* as ");
+                     converter.str.append_view(&spec.local);
+                     specCount++;
+                 }
+             }
+             var named = std::vector<std::string_view>();
+             for(var i : uint = 0; i < imp.specifiers.size(); i++) {
+                 const spec = imp.specifiers.get(i);
+                 if(spec.imported.equals(view("default")) || spec.imported.equals(view("*"))) continue;
+                 named.push(spec.imported);
+             }
+             if(!named.empty()) {
+                 if(specCount > 0) converter.str.append_view(", ");
+                 converter.str.append_view("{ ");
+                 for(var i : uint = 0; i < named.size(); i++) {
+                     if(i > 0) converter.str.append_view(", ");
+                     converter.str.append_view(&named.get(i));
+                 }
+                 converter.str.append_view(" }");
+                 specCount++;
+             }
+             if(specCount > 0) {
+                 converter.str.append_view(" from ");
+             }
+             converter.str.append_view(&imp.source);
+             converter.str.append_view(";");
+        }
+        JsNodeKind.Export => {
+             var exp = node as *mut JsExport
+             converter.str.append_view("export ");
+             if(exp.is_default) converter.str.append_view("default ");
+             if(exp.declaration != null) converter.convertJsNode(exp.declaration);
+             converter.str.append_view(";");
+        }
         JsNodeKind.TryCatch => {
              var t = node as *mut JsTryCatch
              converter.str.append_view("try ");
@@ -456,5 +614,5 @@ func (converter : &mut JsConverter) is_props_children(node : *mut JsNode) : bool
     const mem = node as *mut JsMemberAccess;
     if(mem.object == null || mem.object.kind != JsNodeKind.Identifier) return false;
     const id = mem.object as *mut JsIdentifier;
-    return id.value.equals(view("props")) && mem.property.equals(view("children"));
+    return converter.is_component_props_name(id.value) && mem.property.equals(view("children"));
 }

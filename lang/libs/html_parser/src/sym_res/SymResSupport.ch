@@ -49,6 +49,10 @@ public struct SymResSupport {
 
     var appendJsCharPtrFn : *mut ASTNode = null
 
+    var appendJsEscapedCharPtrFn : *mut ASTNode = null
+
+    var appendJsEscapedFn : *mut ASTNode = null
+
     var appendJsFn : *mut ASTNode = null
 
     var appendJsIntFn : *mut ASTNode = null

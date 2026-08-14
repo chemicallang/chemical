@@ -89,7 +89,9 @@ public enum JsTokenType {
     Import,
     Export,
     Yield,
-    Debugger
+    Debugger,
+    Percent, // %
+    PercentEqual // %=
 }
 
 public func isIdOrKw(type : JsTokenType) : bool {

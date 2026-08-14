@@ -238,6 +238,20 @@ func (converter : &mut JsConverter) make_char_ptr_value_call(value : *mut Value)
     return converter.make_value_call_with(value, std::string_view("append_js_char_ptr"), converter.support.appendHeadJsCharPtrFn, converter.support.appendHtmlCharPtrFn)
 }
 
+// Appends a char pointer escaped for embedding inside a JS string literal.
+// Only valid for the JavaScript target (the HTML target has no escaping here).
+func (converter : &mut JsConverter) make_escaped_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("append_js_escaped_char_ptr"), converter.support.appendHeadJsEscapedCharPtrFn, false, location);
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
 func (converter : &mut JsConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
     return converter.make_value_call_with(value, std::string_view("append_js_char"), converter.support.appendHeadJsCharFn, converter.support.appendHtmlCharFn)
 }
@@ -1318,7 +1332,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             handled = true;
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
-                            if(mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
+                            if(mem.object.kind == JsNodeKind.Identifier && converter.is_component_props_name((mem.object as *mut JsIdentifier).value)) {
                                 const params = converter.current_func.get_params();
                                 const propsParam = params.get(1);
                                 if(propsParam != null) {
@@ -1373,19 +1387,59 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 pushedCount++;
             } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute){
                 const attr = attrNode as *mut JsJSXSpreadAttribute
-                // TODO: currently we only support spreading props (the real argument passed)
-                //  we automatically spread props when user spreads any object
-                //  we should check whether its a javascript object, or the props being passed from the current function
-                const params = converter.current_func.get_params()
-                const propsParam = params.get(1)
-                const spread_props = builder.make_identifier("attrs", propsParam, false, location);
-                const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
-                const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
+                const arg = attr.argument
+                if(arg != null && arg.kind == JsNodeKind.Identifier) {
+                    const argId = arg as *mut JsIdentifier
+                    if(converter.is_component_props_name(argId.value)) {
+                        // Only the component's own props parameter is SSR-spreadable.
+                        // Anything else (local objects, function results) cannot be
+                        // resolved at SSR time and must not silently spread `props`.
+                        const params = converter.current_func.get_params()
+                        const propsParam = params.get(1)
+                        const spread_props = builder.make_identifier("attrs", propsParam, false, location);
+                        const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
+                        const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
 
-                attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
-                attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
-                attrValues.push(attrStructVal);
-                pushedCount++;
+                        attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
+                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
+                        attrValues.push(attrStructVal);
+                        pushedCount++;
+                    }
+                } else if(arg != null && arg.kind == JsNodeKind.ObjectLiteral) {
+                    // Spread of an object literal: enumerate statically-known members
+                    const obj = arg as *mut JsObjectLiteral
+                    for(var p : uint = 0; p < obj.properties.size(); p++) {
+                        const prop = obj.properties.get(p)
+                        if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
+                            // Nested dynamic spread inside the literal — cannot SSR
+                            continue
+                        }
+                        if(prop.key.empty()) continue
+                        const spreadAttr = builder.make_struct_value(support.ssrAttrLinkedNode, location)
+                        spreadAttr.add_value(std::string_view("name"), converter.make_ssr_text(&prop.key, location))
+                        var valHandled = false
+                        if(prop.value != null && prop.value.kind == JsNodeKind.Literal) {
+                            spreadAttr.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(prop.value as *mut JsLiteral, &mut attrValConv, location))
+                            valHandled = true
+                        } else if(prop.value != null) {
+                            const evaluated = converter.eval_ssr_js_expr(prop.value)
+                            if(evaluated.valid) {
+                                if(evaluated.kind == 1) {
+                                    if(!evaluated.boolValue) continue
+                                    spreadAttr.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), builder.make_bool_value(true, location)))
+                                } else {
+                                    spreadAttr.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&evaluated.textValue, location)))
+                                }
+                                valHandled = true
+                            }
+                        }
+                        if(valHandled) {
+                            attrValues.push(spreadAttr)
+                            pushedCount++
+                        }
+                    }
+                }
+                // Any other spread target cannot be resolved at SSR time; skip it.
             }
         }
 

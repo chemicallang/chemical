@@ -22,6 +22,7 @@ public struct SymResSupport {
     var appendHeadJsFn : *mut ASTNode = null
     var appendHeadJsCharFn : *mut ASTNode = null
     var appendHeadJsCharPtrFn : *mut ASTNode = null
+    var appendHeadJsEscapedCharPtrFn : *mut ASTNode = null
     var appendHeadJsIntFn : *mut ASTNode = null
     var appendHeadJsUIntFn : *mut ASTNode = null
     var appendHeadJsFloatFn : *mut ASTNode = null

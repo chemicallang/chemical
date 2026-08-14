@@ -121,7 +121,15 @@ func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
             converter.vec.push(converter.make_js_integer_value_call(value) as *mut ASTNode);
         }
         BaseTypeKind.String, BaseTypeKind.Pointer => {
-            converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);
+            // Strings are embedded inside JS string literals at the call sites,
+            // so they must be escaped for that context (quotes/backslashes/controls).
+            var escapedName = std::string_view("append_js_escaped_char_ptr")
+            var escapedFn = converter.support.appendJsEscapedCharPtrFn
+            if(escapedFn == null) {
+                escapedName = std::string_view("append_js_char_ptr")
+                escapedFn = converter.support.appendJsCharPtrFn
+            }
+            converter.vec.push(converter.make_js_value_call_with(value, escapedName, escapedFn) as *mut ASTNode);
         }
         BaseTypeKind.Linked => {
             const linked = type as *mut LinkedType;

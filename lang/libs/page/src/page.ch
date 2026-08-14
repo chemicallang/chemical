@@ -175,6 +175,19 @@ public struct HtmlPage {
         pageJs.append_char_ptr(value);
     }
 
+    // Escapes the string for embedding inside a JS string literal: quotes,
+    // backslashes, newlines/control chars and the `</` sequence that could
+    // otherwise break out of an inline <script> block.
+    func append_js_escaped_char_ptr(&mut self, value : *char) {
+        const view = std::string_view(value, strlen(value))
+        appendJsEscaped(&mut pageJs, &view)
+    }
+
+    func append_js_escaped(&mut self, value : *char, len : size_t) {
+        const view = std::string_view(value, len)
+        appendJsEscaped(&mut pageJs, &view)
+    }
+
     func append_js_char(&mut self, value : char) {
         pageJs.append(value)
     }
@@ -474,7 +487,11 @@ window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
     }
     const fn = window[fnName]
     if(fn) {
-        window.$__uni_mount(target, fn, props, mode);
+        try {
+            window.$__uni_mount(target, fn, props, mode);
+        } catch(err) {
+            console.error("universal mount failed for component", fnName, err);
+        }
     } else {
         window.$__uni_hydration_queue.push([ fnName, target, props, mode ]);
     }
@@ -606,6 +623,27 @@ window.$_r = {
         if(!inst) return;
         if(!inst.layoutEffects) inst.layoutEffects = [];
         inst.layoutEffects.push({ fn, deps, lastDeps: null, cleanup: null });
+    },
+    useState: (initial) => {
+        const s = window.$_us(initial);
+        return [ s, (next) => { s.value = next; } ];
+    },
+    useRef: (initial) => ({ current: initial }),
+    useMemo: (fn) => window.$_ucs(() => fn()),
+    useCallback: (fn) => fn,
+    useReducer: (reducer, initial) => {
+        const state = window.$_us(initial);
+        const dispatch = (action) => { state.value = reducer(state.value, action); };
+        return [ state, dispatch ];
+    },
+    useContext: (ctx) => {
+        if(!ctx) return undefined;
+        if(ctx.currentValue !== undefined) return ctx.currentValue;
+        return ctx.defaultValue;
+    },
+    createContext: (defaultValue) => {
+        const ctx = { defaultValue, currentValue: defaultValue };
+        return ctx;
     }
 }
 window.$__uni_run_effects = ((inst, effects) => {
@@ -958,10 +996,14 @@ window.$_uc = ((factory, props) => {
 window.$__universal_flush = function() {
     const q = window.$__uni_hydration_queue;
     for(let i = 0; i < q.length; i++) {
-        const obj = window.$__uni_hydration_queue[i];
+        const obj = q[i];
         const fn = window[obj[0]];
         if(fn) {
-            window.$__uni_mount(obj[1], fn, obj[2], obj[3])
+            try {
+                window.$__uni_mount(obj[1], fn, obj[2], obj[3])
+            } catch(err) {
+                console.error("universal hydration failed for component", obj[0], err);
+            }
         } else {
             window.$__uni_error("missing component function by name", obj[0]);
         }

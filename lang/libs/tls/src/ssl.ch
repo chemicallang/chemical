@@ -3560,7 +3560,10 @@ public namespace tls {
     // Accept a TLS connection on an already-accepted socket.
     // Performs the server-side TLS handshake.
     // Returns a heap-allocated SSLContext on success, null on failure.
-    public func tls_accept(sock : net::Socket, cert : *mut X509Cert) : *mut SSLContext {
+    // priv_key must be a pointer to the matching private key context
+    // (*mut RSAContext for RSA certs, *mut ECDSAContext for EC certs).
+    public func tls_accept(sock : net::Socket, cert : *mut X509Cert,
+                           priv_key : *mut void) : *mut SSLContext {
         var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
         if(ssl_mem == null) { return null }
 
@@ -3571,6 +3574,15 @@ public namespace tls {
         var cfg = ssl_config_init(SSL_IS_SERVER)
         cfg.authmode = SSL_VERIFY_NONE
         cfg.own_cert = cert
+        cfg.own_key = priv_key
+        // This helper performs the TLS 1.2 server handshake, so pin the
+        // config to TLS 1.2 with a TLS 1.2 RSA key-exchange suite. The
+        // default preference list starts with a TLS 1.3-only suite which
+        // must not be offered in a TLS 1.2 ServerHello.
+        cfg.min_tls_version = SSL_VERSION_TLS1_2
+        cfg.max_tls_version = SSL_VERSION_TLS1_2
+        cfg.ciphersuite_list[0] = cs(TLS_RSA_WITH_AES_128_GCM_SHA256)
+        cfg.ciphersuite_count = 1
 
         var cfg_mem = malloc(sizeof(SSLConfig)) as *mut SSLConfig
         if(cfg_mem == null) {
@@ -3810,6 +3822,21 @@ public namespace tls {
         // Compression method (null)
         buf[pos] = 0 as u8; pos += 1
 
+        // Extensions: modern clients require the secure renegotiation
+        // (RFC 5746) extension in the ServerHello, otherwise OpenSSL aborts
+        // the handshake with "unsafe legacy renegotiation disabled".
+        // renegotiation_info(0xFF01) with an empty renegotiated_connection.
+        if(pos + 7 <= buf_size) {
+            var ext_total : i32 = 5   // 2 (type) + 2 (len) + 1 (data)
+            buf[pos] = (ext_total >> 8) as u8; pos += 1
+            buf[pos] = ext_total as u8; pos += 1
+            buf[pos] = 0xFF as u8; pos += 1
+            buf[pos] = 0x01 as u8; pos += 1
+            buf[pos] = 0x00 as u8; pos += 1
+            buf[pos] = 0x01 as u8; pos += 1
+            buf[pos] = 0x00 as u8; pos += 1
+        }
+
         return pos
     }
 
@@ -3842,11 +3869,11 @@ public namespace tls {
         // Feed ClientHello into transcript hash (body starts at hs_buf[4])
         ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
-        // Extract client random from ClientHello (bytes 2-33)
+        // Extract client random from ClientHello (body offsets 6-37)
         if(hs_len >= 34 && ssl.handshake != null) {
             var i : size_t = 0
             while(i < 32) {
-                ssl.handshake.randbytes[i] = hs_buf[2 + i]
+                ssl.handshake.randbytes[i] = hs_buf[6 + i]
                 i += 1
             }
         }
@@ -3913,19 +3940,20 @@ public namespace tls {
 
         // Parse encrypted pre-master secret from ClientKeyExchange
         // For RSA: body = length(2) + encrypted_pre_master
+        // hs_buf layout: [0]=type, [1..3]=length, [4..]=body
         var enc_pms_len : size_t = 0
-        if(hs_len >= 2) {
-            enc_pms_len = read_u16_be(&raw hs_buf[2]) as size_t
+        if(hs_len >= 6) {
+            enc_pms_len = read_u16_be(&raw hs_buf[4]) as size_t
         }
 
         var pre_master : [48]u8
         var pre_master_set : bool = false
 
         // Try to decrypt the pre-master secret using the server's RSA private key
-        if(hs_len >= 4 && enc_pms_len > 0 && enc_pms_len <= 256 &&
+        if(hs_len >= 6 && enc_pms_len > 0 && enc_pms_len <= 256 &&
            ssl.conf.own_key != null) {
             var server_rsa = ssl.conf.own_key as *mut RSAContext
-            var enc_pms = &raw hs_buf[4]
+            var enc_pms = &raw hs_buf[6]
             var decrypted : [256]u8
             var dec_len : size_t = enc_pms_len
             var dec_ret = rsa_pkcs1_decrypt(server_rsa,
@@ -3953,6 +3981,56 @@ public namespace tls {
                                     &raw ssl.handshake.randbytes[0],
                                     &raw ssl.handshake.randbytes[32],
                                     &raw mut master_secret[0])
+
+        // Derive key block and set up record-layer transforms. The client's
+        // Finished (and all subsequent records) are encrypted, so the receive
+        // transform must be active before reading it.
+        var cs_info = get_ciphersuite_info(ssl.negotiated_ciphersuite)
+        var kb_size = tls12_key_block_size(&raw cs_info)
+        var key_block : [256]u8
+        tls12_derive_key_block(&raw master_secret[0],
+                                &raw ssl.handshake.randbytes[32],  // server random
+                                &raw ssl.handshake.randbytes[0],   // client random
+                                &raw mut key_block[0], kb_size)
+
+        // populate_transform assigns enc=client_write, dec=server_write; the
+        // server must swap so its send path uses the server keys and its
+        // receive path uses the client keys.
+        var srv_tr : Transform
+        transform_init(&raw mut srv_tr)
+        var pop_ret = tls12_populate_transform(&raw mut srv_tr, &raw cs_info, &raw key_block[0], kb_size)
+        if(pop_ret < 0) { return pop_ret }
+        var sw_i : size_t = 0
+        while(sw_i < srv_tr.mac_key_len) {
+            var mt = srv_tr.mac_key_enc[sw_i]
+            srv_tr.mac_key_enc[sw_i] = srv_tr.mac_key_dec[sw_i]
+            srv_tr.mac_key_dec[sw_i] = mt
+            sw_i += 1
+        }
+        sw_i = 0
+        while(sw_i < srv_tr.key_len) {
+            var kt = srv_tr.key_enc[sw_i]
+            srv_tr.key_enc[sw_i] = srv_tr.key_dec[sw_i]
+            srv_tr.key_dec[sw_i] = kt
+            var it = srv_tr.iv_enc[sw_i]
+            srv_tr.iv_enc[sw_i] = srv_tr.iv_dec[sw_i]
+            srv_tr.iv_dec[sw_i] = it
+            var bt = srv_tr.base_iv_enc[sw_i]
+            srv_tr.base_iv_enc[sw_i] = srv_tr.base_iv_dec[sw_i]
+            srv_tr.base_iv_dec[sw_i] = bt
+            sw_i += 1
+        }
+
+        var tr_in_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_in_mem = srv_tr
+        ssl.transform_in = tr_in_mem
+
+        var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
+        *tr_out_mem = srv_tr
+
+        // Reset receive sequence number for the client's encrypted handshake records
+        var si9 : size_t = 0
+        while(si9 < 8) { ssl.in_ctr[si9] = 0; si9 += 1 }
 
         // 6. Read Finished (read_handshake_msg auto-consumes any preceding CCS record)
         ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
@@ -3989,14 +4067,19 @@ public namespace tls {
         var server_hs_hash : [32]u8
         crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
 
-        // 8. Send ChangeCipherSpec
+        // 8. Send ChangeCipherSpec (in the clear)
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
         var ccs_msg : [1]u8
         ccs_msg[0] = 1 as u8
         ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
         if(ret < 0) { return ret }
 
-        // 9. Send Finished
+        // Activate send-side encryption after ChangeCipherSpec (server key)
+        ssl.transform_out = tr_out_mem
+        var so_i : size_t = 0
+        while(so_i < 8) { ssl.out_ctr[so_i] = 0; so_i += 1 }
+
+        // 9. Send Finished (encrypted)
         ssl.state = SSLState.SERVER_FINISHED()
         tls12_compute_finished(&raw master_secret[0], false, &raw server_hs_hash[0], 32, &raw mut hs_buf[0])
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw hs_buf[0], 12)

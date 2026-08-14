@@ -163,6 +163,48 @@ func test_hex_pair_byte(hi : char, lo : char) : u8 {
     return ((test_hex_char_val(hi) << 4) | test_hex_char_val(lo)) as u8
 }
 
+// Parse an "N=<lowercase hex>\nD=<lowercase hex>\n" dump (from the tls_utils.py
+// privkey command for RSA keys) into big-endian byte buffers. Left-pads N/D with
+// zeros so the caller receives exactly the raw modulus/private exponent.
+func test_parse_n_d_hex_file(path : *char, n_out : *mut u8, n_max : size_t, n_len : *mut size_t,
+                             d_out : *mut u8, d_max : size_t, d_len : *mut size_t) {
+    var buf : [4096]u8
+    var total = test_read_file(path, &raw mut buf[0], 4096)
+    *n_len = 0
+    *d_len = 0
+    var pos : size_t = 0
+    while(pos < total) {
+        if(buf[pos] == 78 && pos + 1 < total && buf[pos + 1] == 61) {
+            pos += 2
+            var w : size_t = 0
+            while(pos < total && buf[pos] != 10 && buf[pos] != 13) {
+                if(pos + 1 < total && buf[pos + 1] != 10 && buf[pos + 1] != 13) {
+                    if(w < n_max) { n_out[w] = test_hex_pair_byte(buf[pos] as char, buf[pos + 1] as char); w += 1 }
+                    pos += 2
+                } else {
+                    if(w < n_max) { n_out[w] = test_hex_char_val(buf[pos] as char) as u8; w += 1 }
+                    pos += 1
+                }
+            }
+            *n_len = w
+        } else if(buf[pos] == 68 && pos + 1 < total && buf[pos + 1] == 61) {
+            pos += 2
+            var w : size_t = 0
+            while(pos < total && buf[pos] != 10 && buf[pos] != 13) {
+                if(pos + 1 < total && buf[pos + 1] != 10 && buf[pos + 1] != 13) {
+                    if(w < d_max) { d_out[w] = test_hex_pair_byte(buf[pos] as char, buf[pos + 1] as char); w += 1 }
+                    pos += 2
+                } else {
+                    if(w < d_max) { d_out[w] = test_hex_char_val(buf[pos] as char) as u8; w += 1 }
+                    pos += 1
+                }
+            }
+            *d_len = w
+        }
+        pos += 1
+    }
+}
+
 func write_tls_python_utils() {
     var py = std::string()
     py.append_view("import sys,ssl,socket,datetime,time\n")
@@ -236,7 +278,9 @@ func write_tls_python_utils() {
     py.append_view("    key=load_pem_private_key(open(sys.argv[2],'rb').read(),password=None)\n")
     py.append_view("    if isinstance(key, ec.EllipticCurvePrivateKey):\n")
     py.append_view("        val=key.private_numbers().private_value; open(sys.argv[3],'w').write(format(val,'064x'))\n")
-    py.append_view("    else: open(sys.argv[3],'w').write('NOT_EC')\n")
+    py.append_view("    else:\n")
+    py.append_view("        nums=key.private_numbers()\n")
+    py.append_view("        open(sys.argv[3],'w').write('N='+format(nums.public_numbers.n,'0512x')+chr(10)+'D='+format(nums.d,'0512x')+chr(10))\n")
     py.append_view("elif cmd=='srv':\n")
     py.append_view("    tls_srv(sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5] if len(sys.argv)>5 else '1.3',sys.argv[6] if len(sys.argv)>6 else None)\n")
     py.append_view("elif cmd=='cli':\n")

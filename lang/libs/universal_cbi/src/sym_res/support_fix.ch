@@ -250,6 +250,36 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const ssrTextEqualsFn = resolver.resolve("ssrTextEquals")
+    if(ssrTextEqualsFn == null) {
+        diagnoser.error("couldn't find 'ssrTextEquals' node", loc);
+        return false;
+    }
+
+    const ssrPickValueFn = resolver.resolve("ssrPickValue")
+    if(ssrPickValueFn == null) {
+        diagnoser.error("couldn't find 'ssrPickValue' node", loc);
+        return false;
+    }
+
+    const ssrMakeTextValueFn = resolver.resolve("ssrMakeTextValue")
+    if(ssrMakeTextValueFn == null) {
+        diagnoser.error("couldn't find 'ssrMakeTextValue' node", loc);
+        return false;
+    }
+
+    const ssrMakeBoolValueFn = resolver.resolve("ssrMakeBoolValue")
+    if(ssrMakeBoolValueFn == null) {
+        diagnoser.error("couldn't find 'ssrMakeBoolValue' node", loc);
+        return false;
+    }
+
+    const ssrNoneValueFn = resolver.resolve("ssrNoneValue")
+    if(ssrNoneValueFn == null) {
+        diagnoser.error("couldn't find 'ssrNoneValue' node", loc);
+        return false;
+    }
+
     const renderHtmlChildValueFn = resolver.resolve("renderHtmlChildValue")
     if(renderHtmlChildValueFn == null) {
         diagnoser.error("couldn't find 'renderHtmlChildValue' node", loc);
@@ -268,6 +298,11 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.renderJsAttrValueFn = renderJsAttrValueFn
     support.getSsrAttributeValueFn = getSsrAttributeValueFn
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
+    support.ssrTextEqualsFn = ssrTextEqualsFn
+    support.ssrPickValueFn = ssrPickValueFn
+    support.ssrMakeTextValueFn = ssrMakeTextValueFn
+    support.ssrMakeBoolValueFn = ssrMakeBoolValueFn
+    support.ssrNoneValueFn = ssrNoneValueFn
 
     const stdNamespace = resolver.resolve("std")
     if(stdNamespace == null) {

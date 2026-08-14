@@ -479,6 +479,50 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
     converter.str.append_view(")");
 }
 
+func (converter : &mut JsConverter) append_js_attr_entry(attr : *mut JsJSXAttribute, first : &mut bool) {
+    if(!*first) converter.str.append_view(", ");
+    converter.str.append_view("\"");
+    converter.str.append_view(&attr.name);
+    converter.str.append_view("\": ");
+    converter.convertAttributeValue(attr);
+    *first = false;
+}
+
+// Emits a JS object literal for element attributes. Duplicate class/className
+// attributes are merged into a single space-joined "class" key so the client
+// output matches the SSR HTML (which merges class values). The merge unwraps
+// reactive values and keeps the result reactive via $_ucs.
+func (converter : &mut JsConverter) emit_js_attr_object(attrs : &std::vector<*mut JsJSXAttribute>) {
+    var classAttrs = std::vector<*mut JsJSXAttribute>();
+    var otherAttrs = std::vector<*mut JsJSXAttribute>();
+    for(var i : uint = 0; i < attrs.size(); i++) {
+        const attr = attrs.get(i);
+        if(attr.name.equals("class") || attr.name.equals("className")) {
+            classAttrs.push(attr);
+        } else {
+            otherAttrs.push(attr);
+        }
+    }
+
+    converter.str.append_view("{");
+    var first = true;
+    if(classAttrs.size() > 1) {
+        converter.str.append_view("\"class\": $_ucs(() => [");
+        for(var i : uint = 0; i < classAttrs.size(); i++) {
+            if(i > 0) converter.str.append_view(", ");
+            converter.convertAttributeValue(classAttrs.get(i));
+        }
+        converter.str.append_view("].map(w => window.$__uni_value(w)).filter(Boolean).join(\" \"))");
+        first = false;
+    } else if(classAttrs.size() == 1) {
+        converter.append_js_attr_entry(classAttrs.get(0), &mut first);
+    }
+    for(var i : uint = 0; i < otherAttrs.size(); i++) {
+        converter.append_js_attr_entry(otherAttrs.get(i), &mut first);
+    }
+    converter.str.append_view("}");
+}
+
 func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElement) {
     const tagNameNode = element.opening.tagName as *mut JsNode
     var isComponent = false

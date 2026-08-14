@@ -1256,6 +1256,185 @@ func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut J
     return attrValConv.wrapArgAttrValueVariantCall(builder, "Text", converter.make_ssr_text(&text, location));
 }
 
+// Builds a Chemical bool expression that evaluates a props-driven JS expression
+// at SSR runtime. Returns null when the expression cannot be evaluated at SSR time.
+func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNode, attrValConv : &mut AttrValueConverter) : *mut Value {
+    if(node == null) return null;
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    switch(node.kind) {
+        JsNodeKind.Literal => {
+            const lit = node as *mut JsLiteral;
+            if(lit.value.equals(view("true"))) return builder.make_bool_value(true, location) as *mut Value;
+            if(lit.value.equals(view("false"))) return builder.make_bool_value(false, location) as *mut Value;
+            return null;
+        }
+        JsNodeKind.Paren => {
+            return converter.convert_ssr_attr_bool_expr((node as *mut JsParen).expression, attrValConv);
+        }
+        JsNodeKind.UnaryOp => {
+            const unary = node as *mut JsUnaryOp;
+            if(unary.operator.equals(view("!"))) {
+                const operand = converter.convert_ssr_attr_bool_expr(unary.operand, attrValConv);
+                if(operand != null) return builder.make_not_value(operand, location) as *mut Value;
+            }
+            return null;
+        }
+        JsNodeKind.MemberAccess => {
+            if(converter.is_component_props_read(node)) {
+                const v = converter.make_ssr_prop_v_call((node as *mut JsMemberAccess).property);
+                const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+                truthyCall.get_args().push(v);
+                return truthyCall as *mut Value;
+            }
+            return null;
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="));
+            const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="));
+            if(isEq || isNe) {
+                const leftVal = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);
+                if(leftVal == null) return null;
+                if(bin.right == null || bin.right.kind != JsNodeKind.Literal) return null;
+                const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
+                const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
+                cmpCall.get_args().push(leftVal);
+                cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
+                if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
+                return cmpCall as *mut Value;
+            }
+            return null;
+        }
+        default => return null
+    }
+}
+
+// Builds a Chemical SsrAttributeValue expression that evaluates a props-driven
+// JS expression at SSR runtime (ternary, ||, &&, + concatenation, props reads).
+// Returns null when the expression cannot be evaluated at SSR time.
+func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNode, attrValConv : &mut AttrValueConverter) : *mut Value {
+    if(node == null) return null;
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    switch(node.kind) {
+        JsNodeKind.Literal => {
+            // Use the runtime wrapper helpers (regular calls) so the result can be
+            // safely nested inside ssrPickValue and Multiple arrays.
+            const lit = node as *mut JsLiteral;
+            if(lit.value.equals(view("true"))) {
+                const call = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
+                call.get_args().push(builder.make_bool_value(true, location));
+                return call;
+            }
+            if(lit.value.equals(view("false"))) {
+                const call = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
+                call.get_args().push(builder.make_bool_value(false, location));
+                return call;
+            }
+            const text = strip_js_string_quotes(lit.value);
+            const call = builder.make_function_call_value(builder.make_identifier("ssrMakeTextValue", support.ssrMakeTextValueFn, false, location), location);
+            call.get_args().push(converter.make_ssr_text(&text, location));
+            return call;
+        }
+        JsNodeKind.Paren => {
+            return converter.convert_ssr_attr_value_expr((node as *mut JsParen).expression, attrValConv);
+        }
+        JsNodeKind.MemberAccess => {
+            if(converter.is_component_props_read(node)) {
+                if(converter.is_props_children(node)) return null;
+                return converter.make_ssr_prop_v_call((node as *mut JsMemberAccess).property);
+            }
+            return null;
+        }
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            if(bin.op.equals(view("+"))) {
+                var parts = std::vector<*mut Value>();
+                if(!converter.collect_ssr_concat_parts(bin as *mut JsNode, attrValConv, &mut parts)) return null;
+                if(parts.empty()) return null;
+                if(parts.size() == 1) return parts.get(0);
+
+                var attrValueType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+                var partsArr = builder.make_array_value(attrValueType, location)
+                var partsValues = partsArr.get_values();
+                for(var i : uint = 0; i < parts.size(); i++) {
+                    partsValues.push(parts.get(i));
+                }
+
+                const multiStruct = builder.make_struct_value(support.multipleAttributeValueNode, location)
+                multiStruct.add_value("data", partsArr)
+                multiStruct.add_value("size", builder.make_ubigint_value(parts.size() as ubigint, location))
+                return attrValConv.wrapArgAttrValueVariantCall(builder, "Multiple", multiStruct);
+            }
+            if(bin.op.equals(view("&&")) || bin.op.equals(view("||"))) {
+                const left = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);
+                if(left == null) return null;
+                const right = converter.convert_ssr_attr_value_expr(bin.right, attrValConv);
+                if(right == null) return null;
+
+                const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+                truthyCall.get_args().push(left);
+
+                const noneCall = builder.make_function_call_value(builder.make_identifier("ssrNoneValue", support.ssrNoneValueFn, false, location), location);
+
+                const pickCall = builder.make_function_call_value(builder.make_identifier("ssrPickValue", support.ssrPickValueFn, false, location), location);
+                pickCall.get_args().push(truthyCall);
+                if(bin.op.equals(view("||"))) {
+                    // a || b : if a is truthy emit a, otherwise emit b
+                    pickCall.get_args().push(left);
+                    pickCall.get_args().push(right);
+                } else {
+                    // a && b : if a is truthy emit b, otherwise emit nothing
+                    pickCall.get_args().push(right);
+                    pickCall.get_args().push(noneCall);
+                }
+                return pickCall as *mut Value;
+            }
+            return null;
+        }
+        JsNodeKind.Ternary => {
+            const tern = node as *mut JsTernary;
+            const cond = converter.convert_ssr_attr_bool_expr(tern.condition, attrValConv);
+            if(cond == null) return null;
+            const thenVal = converter.convert_ssr_attr_value_expr(tern.consequent, attrValConv);
+            if(thenVal == null) return null;
+            const elseVal = converter.convert_ssr_attr_value_expr(tern.alternate, attrValConv);
+            if(elseVal == null) return null;
+
+            const pickCall = builder.make_function_call_value(builder.make_identifier("ssrPickValue", support.ssrPickValueFn, false, location), location);
+            pickCall.get_args().push(cond);
+            pickCall.get_args().push(thenVal);
+            pickCall.get_args().push(elseVal);
+            return pickCall as *mut Value;
+        }
+        default => return null
+    }
+}
+
+// Flattens a `+` concatenation tree into its parts, converting each leaf into
+// an SsrAttributeValue expression. Returns false when any leaf is unsupported.
+func (converter : &mut JsConverter) collect_ssr_concat_parts(node : *mut JsNode, attrValConv : &mut AttrValueConverter, out : &mut std::vector<*mut Value>) : bool {
+    if(node == null) return false;
+    if(node.kind == JsNodeKind.Paren) {
+        return converter.collect_ssr_concat_parts((node as *mut JsParen).expression, attrValConv, out);
+    }
+    if(node.kind == JsNodeKind.BinaryOp && (node as *mut JsBinaryOp).op.equals(view("+"))) {
+        const bin = node as *mut JsBinaryOp;
+        if(!converter.collect_ssr_concat_parts(bin.left, attrValConv, out)) return false;
+        if(!converter.collect_ssr_concat_parts(bin.right, attrValConv, out)) return false;
+        return true;
+    }
+    const partVal = converter.convert_ssr_attr_value_expr(node, attrValConv);
+    if(partVal == null) return false;
+    out.push(partVal);
+    return true;
+}
+
 func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXElement) : *mut Value {
     const builder = converter.builder;
     const location = intrinsics::get_raw_location();
@@ -1358,6 +1537,19 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                         attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&evaluated.textValue, location)));
                                     }
                                     handled = true;
+                                } else {
+                                    // Props-driven expression: evaluate at SSR runtime
+                                    const runtimeVal = converter.convert_ssr_attr_value_expr(container.expression, &mut attrValConv);
+                                    if(runtimeVal != null) {
+                                        attrStructVal.add_value(std::string_view("value"), runtimeVal);
+                                        handled = true;
+                                    } else {
+                                        const runtimeBool = converter.convert_ssr_attr_bool_expr(container.expression, &mut attrValConv);
+                                        if(runtimeBool != null) {
+                                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), runtimeBool));
+                                            handled = true;
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -1371,6 +1563,19 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                     attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&evaluated.textValue, location)));
                                 }
                                 handled = true;
+                            } else {
+                                // Props-driven expression: evaluate at SSR runtime
+                                const runtimeVal = converter.convert_ssr_attr_value_expr(container.expression, &mut attrValConv);
+                                if(runtimeVal != null) {
+                                    attrStructVal.add_value(std::string_view("value"), runtimeVal);
+                                    handled = true;
+                                } else {
+                                    const runtimeBool = converter.convert_ssr_attr_bool_expr(container.expression, &mut attrValConv);
+                                    if(runtimeBool != null) {
+                                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), runtimeBool));
+                                        handled = true;
+                                    }
+                                }
                             }
                         }
                     } else {

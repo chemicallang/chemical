@@ -79,6 +79,53 @@ public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
     }
 }
 
+// Compares an attribute value's text content against an expected literal.
+// Used by the SSR evaluator for `props.x === "lit"` style expressions.
+public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
+    switch(val) {
+        None() => return expected.size == 0
+        Text(v) => return v.equals_text(&expected)
+        PtrChar(v) => {
+            const len = strlen(v)
+            return len == expected.size && strncmp(v, expected.data, expected.size) == 0
+        }
+        Boolean(v) => {
+            if(v) return expected.size == 4 && strncmp(expected.data, "true", 4) == 0
+            return expected.size == 5 && strncmp(expected.data, "false", 5) == 0
+        }
+        Char(v) => return expected.size == 1 && expected.data[0] == v
+        UInteger(v) => return false
+        Integer(v) => return false
+        Double(v, _) => return false
+        Multiple(_) => return false
+        Spread(_) => return false
+        Callable(_) => return false
+        default => return false
+    }
+}
+
+// Picks between two attribute values based on a runtime condition.
+// Used by the SSR evaluator for ternary expressions like
+// `class={props.variant === "primary" ? "a" : "b"}`.
+public func ssrPickValue(cond : bool, ifTrue : SsrAttributeValue, ifFalse : SsrAttributeValue) : SsrAttributeValue {
+    if(cond) return ifTrue else return ifFalse
+}
+
+// Wraps a static text into an attribute value.
+// Kept as a function (rather than a direct variant construction) so the SSR
+// evaluator can nest it inside ssrPickValue/ssrConcatAttrValues calls.
+public func ssrMakeTextValue(text : SsrText) : SsrAttributeValue {
+    return SsrAttributeValue.Text(text)
+}
+
+public func ssrMakeBoolValue(value : bool) : SsrAttributeValue {
+    return SsrAttributeValue.Boolean(value)
+}
+
+public func ssrNoneValue() : SsrAttributeValue {
+    return SsrAttributeValue.None()
+}
+
 func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
     for(var i = 0u; i < text.size(); i++) {
         const c = text.data()[i];

@@ -105,8 +105,17 @@ func test_kill_port(port : int) {
 // Print a file to stdout (used to surface python client stderr in e2e tests).
 func test_cat_file(path : string_view) {
     comptime if(def.windows) {
+        // cmd's `type` treats '/' in paths as command switches and fails with
+        // "The syntax of the command is incorrect." — use backslashes instead.
+        var win_path = string()
+        var i : size_t = 0
+        while(i < path.size()) {
+            var c = path.get(i)
+            if(c == '/') { win_path.append('\\') } else { win_path.append(c) }
+            i += 1
+        }
         var cmd = string("type ")
-        cmd.append_view(&path)
+        cmd.append_view(win_path.to_view())
         system(cmd.data())
     } else {
         var cmd = string("cat ")

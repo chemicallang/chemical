@@ -250,7 +250,8 @@ public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut 
         parent : parser.getParentNode(),
         children : std::vector<*mut MdNode>(),
         dyn_values : std::vector<*mut Value>(),
-        support : SymResSupport {}
+        support : SymResSupport {},
+        reference_defs : std::unordered_map<std::string, MdReference>()
     }
     
     var mdParser = MdParser { dyn_values : &raw mut root.dyn_values, builder : builder, root : root, in_link : false }
@@ -626,76 +627,84 @@ func (md : &mut MdParser) parseList(parser : *mut Parser, ordered : bool, start 
         start : start,
         children : std::vector<*mut MdNode>()
     }
-    
-    while(isDashToken(parser.getToken().type) || isPlusToken(parser.getToken().type) || isStarToken(parser.getToken().type)) {
-        parser.increment(); // consume marker
-        
-        // Skip space
-        if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
-            // Will handle in inline
+
+    // Track the indentation level of this list's items
+    var list_indent = -1;  // Will be set on first item
+
+    while(true) {
+        // Skip newlines
+        while(isNewlineToken(parser.getToken().type)) { parser.increment() };
+
+        // Measure indentation (whitespace before list marker)
+        var current_indent = 0;
+        while(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
+            current_indent = current_indent + parser.getToken().value.size() as int;
+            parser.increment();
         }
-        
+
+        // Check for list marker
+        if(!(isDashToken(parser.getToken().type) || isPlusToken(parser.getToken().type) || isStarToken(parser.getToken().type))) {
+            break;
+        }
+
+        // Set the expected indent on first item
+        if(list_indent < 0) {
+            list_indent = current_indent;
+        }
+
+        // If indentation doesn't match, we're done with this list.
+        // Items with less indentation belong to a parent list.
+        if(current_indent != list_indent) {
+            break;
+        }
+
+        parser.increment(); // consume marker
+
         var item = builder.allocate<MdListItem>()
         new (item) MdListItem {
             base : MdNode { kind : MdNodeKind.ListItem },
             children : std::vector<*mut MdNode>()
         }
-        
+
         // Task list checkbox support: - [ ] / - [x]
         var cb = md.tryParseTaskCheckbox(parser);
         if(cb != null) {
             item.children.push(cb);
         }
-        
+
         while(!isLineEnd(parser.getToken().type)) {
             var node = md.parseInlineNode(parser);
             if(node != null) item.children.push(node);
         }
-        
+
         if(isNewlineToken(parser.getToken().type)) {
             parser.increment();
         }
-        
-        // Support nested blocks (indented)
-        while(true) {
-            const t = parser.getToken();
-            if(isTextToken(t.type)) {
-                const val = t.value;
-                if(val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
-                    if(isWhitespaceOnlyText(val)) {
-                        parser.increment();
-                        skipWhitespace(parser);
-                        if(isBlockStart(parser)) {
-                            var sub_block = md.parseBlockNode(parser);
-                            if(sub_block != null) item.children.push(sub_block);
-                            continue;
-                        }
-                        continue;
-                    }
-                    // Reset if it's just whitespace line? No, skipWhitespace handles that later.
-                    // If it's indented, it could be a sub-block
-                    if(isListStart(parser) || isOrderedListStart(parser) || isBlockStart(parser)) {
-                         var sub_block = md.parseBlockNode(parser);
-                         if(sub_block != null) item.children.push(sub_block);
-                         continue;
-                    }
-                    // It's more inline text for the current item
-                    while(!isLineEnd(parser.getToken().type)) {
-                        var node = md.parseInlineNode(parser);
-                        if(node != null) item.children.push(node);
-                    }
-                    if(isNewlineToken(parser.getToken().type)) parser.increment();
-                    continue;
-                }
-            }
-            break;
+
+        // Check for nested list (deeper indentation)
+        // Peek at next line's indentation
+        var peek_indent = 0;
+        var saved_pos = parser.getToken();
+        while(isNewlineToken(parser.getToken().type)) { parser.increment() };
+        while(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
+            peek_indent = peek_indent + parser.getToken().value.size() as int;
+            parser.increment();
         }
-        
+
+        // If next line is a list item with MORE indentation, it's a nested list
+        if(peek_indent > list_indent && (isDashToken(parser.getToken().type) || isPlusToken(parser.getToken().type) || isStarToken(parser.getToken().type))) {
+            // Restore position to let nested parseList measure its own indentation
+            parser.setToken(saved_pos);
+            // Now parse nested list - it will handle its own newline/whitespace skipping
+            var nested = md.parseList(parser, false, 1);
+            if(nested != null) item.children.push(nested);
+        } else {
+            // Restore position for next iteration
+            parser.setToken(saved_pos);
+        }
+
         list.children.push(item as *mut MdNode);
-        
-        skipWhitespace(parser);
     }
-    
     return list as *mut MdNode;
 }
 
@@ -721,9 +730,13 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
         start : start_num,
         children : std::vector<*mut MdNode>()
     }
-    
-     while(isNumberToken(parser.getToken().type)) {
+
+    while(true) {
+         // Skip blank lines between items
+         while(isNewlineToken(parser.getToken().type)) { parser.increment() };
+
          // Check sequences: Number -> Dot -> Space
+         if(!isNumberToken(parser.getToken().type)) break;
          const next = peek_token(parser);
          if(!isDotToken(next.type)) {
              break;

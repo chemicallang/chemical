@@ -301,8 +301,9 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.escapeHtml(text.value);
         }
         MdNodeKind.Interpolation => {
-            var interp = node as *mut MdInterpolation;
-            converter.str.append_view(&interp.text);
+            // Chemical interpolation (${...}) requires the compiler to
+            // evaluate the expression; at runtime the value is null and the
+            // interpolation is skipped (mirroring the runtime html converter).
         }
         MdNodeKind.Superscript => {
             var sup = node as *mut MdSuperscript;

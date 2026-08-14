@@ -40,6 +40,11 @@ import "./compiler_plugins/css/build.lab" as cssTestMod
 import "./compiler_plugins/js/build.lab" as jsTestMod
 import "./compiler_plugins/universal/build.lab" as universalTestMod
 import "./compiler_plugins/md/build.lab" as mdTestMod
+import "./compiler_plugins/html_runtime/build.lab" as htmlRuntimeTestMod
+import "./compiler_plugins/css_runtime/build.lab" as cssRuntimeTestMod
+import "./compiler_plugins/js_runtime/build.lab" as jsRuntimeTestMod
+import "./compiler_plugins/md_runtime/build.lab" as mdRuntimeTestMod
+import "./compiler_plugins/universal_runtime/build.lab" as universalRuntimeTestMod
 import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
 
@@ -157,24 +162,6 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // the fs module
     const fs_module = fsMod.build(ctx, job)
 
-    // the compiler runtime module
-    const compiler_runtime_module = compilerRuntimeMod.build(ctx, job)
-
-    // the js runtime module
-    const js_module = jsMod.build(ctx, job)
-
-    // the html runtime module
-    const html_module = htmlMod.build(ctx, job)
-
-    // the css runtime module
-    const css_module = cssMod.build(ctx, job)
-
-    // the universal runtime module
-    const universal_module = universalMod.build(ctx, job)
-
-    // the md runtime module
-    const md_module = mdMod.build(ctx, job)
-
     // the net module
     const net_module = netMod.build(ctx, job)
 
@@ -208,11 +195,8 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // the image module
     const image_module = imageMod.build(ctx, job)
 
-    // the docgen module
-    const docgen_module = docgenMod.build(ctx, job)
-
     // currently the last dependency becomes null if we don't take it out like this
-    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, net_module, http_module, tls_module, path_module, encoding_module, crypto_module, compression_module, audio_module, font_module, archive_module, image_module, docgen_module, compiler_runtime_module, js_module, html_module, css_module, universal_module, md_module, test_env_module, test_module, common_mod, native_common_mod ]
+    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, net_module, http_module, tls_module, path_module, encoding_module, crypto_module, compression_module, audio_module, font_module, archive_module, image_module, test_env_module, test_module, common_mod, native_common_mod ]
     const main_mod_path = lab::rel_path_to("src");
     const module = ctx.directory_app_module(std::string_view(""), std::string_view("main"), std::string_view(&main_mod_path), dependencies);
 
@@ -268,18 +252,23 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
     switch(fnv1_hash_view(which)) {
         comptime_fnv1_hash("html") => {
             ctx.add_module(exe_job, htmlTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, htmlRuntimeTestMod.build(ctx, exe_job))
         }
         comptime_fnv1_hash("css") => {
             ctx.add_module(exe_job, cssTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, cssRuntimeTestMod.build(ctx, exe_job))
         }
         comptime_fnv1_hash("js") => {
             ctx.add_module(exe_job, jsTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, jsRuntimeTestMod.build(ctx, exe_job))
         }
         comptime_fnv1_hash("universal") => {
             ctx.add_module(exe_job, universalTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, universalRuntimeTestMod.build(ctx, exe_job))
         }
         comptime_fnv1_hash("md") => {
             ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, mdRuntimeTestMod.build(ctx, exe_job))
         }
         default => {
             ctx.add_module(exe_job, htmlTestMod.build(ctx, exe_job))
@@ -287,6 +276,11 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
             ctx.add_module(exe_job, jsTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, universalTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, htmlRuntimeTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, cssRuntimeTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, jsRuntimeTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, mdRuntimeTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, universalRuntimeTestMod.build(ctx, exe_job))
         }
     }
     ctx.add_module(exe_job, testPluginsRunner.build(ctx, exe_job))
@@ -313,6 +307,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("js"))
     } else if(ctx.has_arg(std::string_view("test-md"))) {
         return test_plugin_exe(ctx, std::string_view("md"))
+    } else if(ctx.has_arg(std::string_view("test-universal"))) {
+        return test_plugin_exe(ctx, std::string_view("universal"))
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
     }

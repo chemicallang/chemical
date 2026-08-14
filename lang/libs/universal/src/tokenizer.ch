@@ -235,6 +235,14 @@ func (t : &mut UniversalTokenizer) next_token() : Token {
             }
             return Token { type : JsTokenType.Star as int, value : std::string_view("*"), position : position }
         }
+        '%' => {
+            t.advance()
+            if(t.peek() == '=') {
+                t.advance()
+                return Token { type : JsTokenType.PercentEqual as int, value : std::string_view("%="), position : position }
+            }
+            return Token { type : JsTokenType.Percent as int, value : std::string_view("%"), position : position }
+        }
         '/' => {
             t.advance()
             if(t.peek() == '=') {

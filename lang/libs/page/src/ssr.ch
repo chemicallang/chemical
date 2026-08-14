@@ -79,10 +79,61 @@ public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
     }
 }
 
+func appendHtmlEscaped(output : &mut std::string, text : &std::string_view) {
+    for(var i = 0u; i < text.size(); i++) {
+        const c = text.data()[i];
+        switch(c) {
+            '&' => output.append_view("&amp;")
+            '<' => output.append_view("&lt;")
+            '>' => output.append_view("&gt;")
+            '"' => output.append_view("&quot;")
+            '\'' => output.append_view("&#39;")
+            default => output.append(c)
+        }
+    }
+}
+
+func appendJsHex2(output : &mut std::string, v : uint) {
+    const hex = "0123456789abcdef"
+    output.append(hex[(v >> 4) & 0xF]);
+    output.append(hex[v & 0xF]);
+}
+
+func appendJsEscaped(output : &mut std::string, text : &std::string_view) {
+    for(var i = 0u; i < text.size(); i++) {
+        const c = text.data()[i];
+        switch(c) {
+            '"' => output.append_view("\\\"")
+            '\\' => output.append_view("\\\\")
+            '\n' => output.append_view("\\n")
+            '\r' => output.append_view("\\r")
+            '\t' => output.append_view("\\t")
+            '<' => {
+                // Defensively escape `</` so values cannot break out of an
+                // inline <script> block (semantically identical in JS strings).
+                if(i + 1 < text.size() && text.data()[i+1] == '/') {
+                    output.append_view("\\u003C/");
+                    i++;
+                } else {
+                    output.append(c);
+                }
+            }
+            default => {
+                if((c as u8) < 0x20) {
+                    output.append_view("\\u00");
+                    appendJsHex2(output, c as uint);
+                } else {
+                    output.append(c);
+                }
+            }
+        }
+    }
+}
+
 func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {
-            output.append_view("null")   
+            // Unresolvable value: degrade to nothing instead of the literal "null"
         }
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
@@ -91,8 +142,14 @@ func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, at
         UInteger(value) => output.append_uinteger(value)
         Integer(value) => output.append_integer(value)
         Double(value, precision) => output.append_double(value, precision)
-        Text(value) => output.append_with_len(value.data, value.size)
-        PtrChar(value) => output.append_char_ptr(value)
+        Text(value) => {
+            const view = std::string_view(value.data, value.size)
+            appendHtmlEscaped(output, &view)
+        }
+        PtrChar(value) => {
+            const view = std::string_view(value, strlen(value))
+            appendHtmlEscaped(output, &view)
+        }
         Multiple(value) => {
             var curr = value.data
             const end = curr + value.size
@@ -131,18 +188,23 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                 page.renderHtmlAttrsInternal(&value, special)
             }
             default => {
+                if(d.value is SsrAttributeValue.None) {
+                    // Unresolvable values are skipped entirely: never render style="null" etc.
+                    d++;
+                    continue;
+                }
                 // Accumulate special attributes; defer the rest for dedup
                 if (d.name.equals("class")) {
-                    special.classes[special.class_count] = &raw d.value
-                    special.class_count++
-                } else if (d.name.equals("style")) {
-                    special.styles[special.style_count] = &raw d.value
-                    special.style_count++
-                } else {
-                    if(d.value is SsrAttributeValue.None) {
-                        d++;
-                        continue;
+                    if(special.class_count < 32) {
+                        special.classes[special.class_count] = &raw d.value
+                        special.class_count++
                     }
+                } else if (d.name.equals("style")) {
+                    if(special.style_count < 32) {
+                        special.styles[special.style_count] = &raw d.value
+                        special.style_count++
+                    }
+                } else {
                     if(d.value is SsrAttributeValue.Boolean) {
                         var Boolean(value) = d.value else unreachable;
                         if(!value) {
@@ -160,9 +222,11 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
                         }
                     }
                     if(!found) {
-                        special.others_names[special.others_count] = d.name
-                        special.others_values[special.others_count] = &raw d.value
-                        special.others_count++
+                        if(special.others_count < 64) {
+                            special.others_names[special.others_count] = d.name
+                            special.others_values[special.others_count] = &raw d.value
+                            special.others_count++
+                        }
                     }
                 }
             }
@@ -210,14 +274,16 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
 func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {
-            output.append_view("null")
+            output.append_view("undefined")
         }
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
         }
         Char(value) => {
             output.append('\'');
-            output.append(value)
+            if(value == '\'') output.append_view("\\'")
+            else if(value == '\\') output.append_view("\\\\")
+            else output.append(value)
             output.append('\'');
         }
         UInteger(value) => output.append_uinteger(value)
@@ -225,12 +291,14 @@ func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, 
         Double(value, precision) => output.append_double(value, precision)
         Text(value) => {
             output.append('"');
-            output.append_with_len(value.data, value.size)
+            const view = std::string_view(value.data, value.size)
+            appendJsEscaped(output, &view)
             output.append('"');
         }
         PtrChar(value) => {
             output.append('"');
-            output.append_char_ptr(value)
+            const view = std::string_view(value, strlen(value))
+            appendJsEscaped(output, &view)
             output.append('"');
         }
         Multiple(value) => {
@@ -258,17 +326,22 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                 page.renderJsAttrsInternal(&value, special, is_first)
             }
             default => {
+                if(d.value is SsrAttributeValue.None) {
+                    // Unresolvable values are skipped entirely: never render style="null" etc.
+                    d++;
+                    continue;
+                }
                 if (d.name.equals("class")) {
-                    special.classes[special.class_count] = &raw d.value
-                    special.class_count++
-                } else if (d.name.equals("style")) {
-                    special.styles[special.style_count] = &raw d.value
-                    special.style_count++
-                } else {
-                    if(d.value is SsrAttributeValue.None) {
-                        d++;
-                        continue;
+                    if(special.class_count < 32) {
+                        special.classes[special.class_count] = &raw d.value
+                        special.class_count++
                     }
+                } else if (d.name.equals("style")) {
+                    if(special.style_count < 32) {
+                        special.styles[special.style_count] = &raw d.value
+                        special.style_count++
+                    }
+                } else {
                     if(d.value is SsrAttributeValue.Boolean) {
                         var Boolean(value) = d.value else unreachable;
                         if(!value) {
@@ -286,9 +359,11 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
                         }
                     }
                     if(!found) {
-                        special.others_names[special.others_count] = d.name
-                        special.others_values[special.others_count] = &raw d.value
-                        special.others_count++
+                        if(special.others_count < 64) {
+                            special.others_names[special.others_count] = d.name
+                            special.others_values[special.others_count] = &raw d.value
+                            special.others_count++
+                        }
                     }
                 }
             }

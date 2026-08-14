@@ -584,6 +584,8 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
            token.type == JsTokenType.Minus as int || 
            token.type == JsTokenType.Star as int || 
            token.type == JsTokenType.Slash as int ||
+           token.type == JsTokenType.Percent as int ||
+           token.type == JsTokenType.PercentEqual as int ||
            token.type == JsTokenType.Equal as int ||
            token.type == JsTokenType.PlusEqual as int ||
            token.type == JsTokenType.MinusEqual as int ||
@@ -613,7 +615,8 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
                                   token.type == JsTokenType.PlusEqual as int ||
                                   token.type == JsTokenType.MinusEqual as int ||
                                   token.type == JsTokenType.StarEqual as int ||
-                                  token.type == JsTokenType.SlashEqual as int;
+                                  token.type == JsTokenType.SlashEqual as int ||
+                                  token.type == JsTokenType.PercentEqual as int;
 
             var op = builder.allocate_view(&token.value);
             parser.increment();

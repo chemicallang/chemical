@@ -117,7 +117,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
                                  }
                              } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                                   const mem = container.expression as *mut JsMemberAccess;
-                                  if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && (mem.object as *mut JsIdentifier).value.equals("props")) {
+                                  if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && converter.is_component_props_name((mem.object as *mut JsIdentifier).value)) {
                                        converter.put_chain_in();
                                        const v = converter.make_ssr_prop_v_call(mem.property);
                                        const renderCall = converter.render_ssr_value_call(v);

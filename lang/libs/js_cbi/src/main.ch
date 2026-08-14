@@ -222,6 +222,13 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             }
             return Token { type : JsTokenType.Star as int, value : view("*"), position : position }
         }
+        '%' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.PercentEqual as int, value : view("%="), position : position }
+            }
+            return Token { type : JsTokenType.Percent as int, value : view("%"), position : position }
+        }
         '/' => {
             if(provider.peek() == '=') {
                 provider.readCharacter();

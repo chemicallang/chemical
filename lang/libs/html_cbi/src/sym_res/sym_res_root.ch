@@ -219,6 +219,18 @@ func sym_res_root(
         return false;
     }
 
+    const appendJsEscapedCharPtrFn = page.child("append_js_escaped_char_ptr")
+    if(appendJsEscapedCharPtrFn == null) {
+        diagnoser.error("'append_js_escaped_char_ptr' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendJsEscapedFn = page.child("append_js_escaped")
+    if(appendJsEscapedFn == null) {
+        diagnoser.error("'append_js_escaped' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
     const appendJsFn = page.child("append_js");
     if(appendJsFn == null) {
         diagnoser.error("'append_js' function is required on 'page' for html to work", loc);
@@ -251,6 +263,8 @@ func sym_res_root(
 
     support.appendJsCharFn = appendJsCharFn
     support.appendJsCharPtrFn = appendJsCharPtrFn
+    support.appendJsEscapedCharPtrFn = appendJsEscapedCharPtrFn
+    support.appendJsEscapedFn = appendJsEscapedFn
     support.appendJsFn = appendJsFn
     support.appendJsIntFn = appendJsIntFn;
     support.appendJsUIntFn = appendJsUIntFn;

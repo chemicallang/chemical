@@ -4,8 +4,15 @@ func (converter : &mut JsConverter) put_wrapping(value : *mut Value) {
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_value_in(value : *mut Value) {
-    const chain = converter.make_char_ptr_value_call(value)
-    converter.vec.push(chain)
+    // Strings are embedded inside JS string literals at the call sites, so they
+    // must be escaped for that context (quotes/backslashes/control chars).
+    if(converter.target == BufferType.JavaScript) {
+        const chain = converter.make_escaped_char_ptr_value_call(value)
+        converter.vec.push(chain)
+    } else {
+        const chain = converter.make_char_ptr_value_call(value)
+        converter.vec.push(chain)
+    }
 }
 
 func (converter : &mut JsConverter) put_wrapped_chemical_char_value_in(value : *mut Value) {

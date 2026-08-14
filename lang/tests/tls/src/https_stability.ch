@@ -96,7 +96,12 @@ public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) 
     var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
-    if(rc != 0) { env.error("hostname matching CN should verify"); return }
+    if(rc != 0) {
+        tls::cert_free(cert); unsafe { dealloc cert }
+        env.error("hostname matching CN should verify"); return
+    }
+    tls::cert_free(cert);
+    unsafe { dealloc cert }
 }
 
 @test
@@ -107,7 +112,12 @@ public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv)
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // SAN == CN here, so a SAN-aware or CN-aware check must accept.
     var rc = tls::x509_verify_hostname(cert, "test.example.com" as *char);
-    if(rc != 0) { env.error("hostname matching SAN should verify"); return }
+    if(rc != 0) {
+        tls::cert_free(cert); unsafe { dealloc cert }
+        env.error("hostname matching SAN should verify"); return
+    }
+    tls::cert_free(cert);
+    unsafe { dealloc cert }
 }
 
 @test
@@ -117,7 +127,12 @@ public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
     var cert = tls::x509_crt_load_pem_file(path);
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     var rc = tls::x509_verify_hostname(cert, "other.example.com" as *char);
-    if(rc == 0) { env.error("hostname mismatch must be rejected"); return }
+    if(rc == 0) {
+        tls::cert_free(cert); unsafe { dealloc cert }
+        env.error("hostname mismatch must be rejected"); return
+    }
+    tls::cert_free(cert);
+    unsafe { dealloc cert }
 }
 
 @test
@@ -128,7 +143,12 @@ public func https_hostname_verification_rejects_wrong_host_ip(env : &mut TestEnv
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // CN is a DNS name, not an IP; verifying against an IP literal must fail.
     var rc = tls::x509_verify_hostname(cert, "127.0.0.1" as *char);
-    if(rc == 0) { env.error("IP literal must not match a DNS-only cert"); return }
+    if(rc == 0) {
+        tls::cert_free(cert); unsafe { dealloc cert }
+        env.error("IP literal must not match a DNS-only cert"); return
+    }
+    tls::cert_free(cert);
+    unsafe { dealloc cert }
 }
 
 // ─── HTTPS URL parsing coverage ─────────────────────────────────────────────

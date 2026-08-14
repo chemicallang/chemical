@@ -124,20 +124,21 @@ public namespace tls {
 
     // Free certificate chain — deallocates all malloc'd fields of each node.
     // Does NOT free the X509Cert structs themselves (they may be stack-allocated).
+    //
+    // Only raw_pem and san_entries are separately heap-allocated by the parser.
+    // serial, sig_oid, issuer_raw, subject_raw, pk_raw, sig, sig_alg and tbs_der
+    // are BORROWED pointers into the DER buffer (der_copy / raw_pem) and must not
+    // be freed individually.
     public func cert_free(crt : *mut X509Cert) {
         var curr = crt
         while(curr != null) {
             var nxt = curr.next
             if(curr.raw_pem != null) { unsafe { dealloc curr.raw_pem } }
-            if(curr.serial != null) { unsafe { dealloc curr.serial } }
-            if(curr.sig_oid != null) { unsafe { dealloc curr.sig_oid } }
-            if(curr.issuer_raw != null) { unsafe { dealloc curr.issuer_raw } }
-            if(curr.subject_raw != null) { unsafe { dealloc curr.subject_raw } }
-            if(curr.pk_raw != null) { unsafe { dealloc curr.pk_raw } }
-            if(curr.sig != null) { unsafe { dealloc curr.sig } }
-            if(curr.sig_alg != null) { unsafe { dealloc curr.sig_alg } }
-            if(curr.tbs_der != null) { unsafe { dealloc curr.tbs_der } }
             if(curr.san_entries != null) { unsafe { dealloc curr.san_entries } }
+            // Reassigning an empty string frees the heap buffer owned by the
+            // embedded std::string (move-assignment deletes the old buffer).
+            curr.issuer = string()
+            curr.subject = string()
             curr = nxt
         }
     }
@@ -714,6 +715,22 @@ public namespace tls {
                     crt.sig_len = sig_len
                 }
             }
+        }
+
+        // Rebase borrowed DER pointers onto the owned heap copy (raw_pem /
+        // der_copy) so they stay valid after the caller's buffer is freed.
+        // serial, sig_oid, issuer_raw, subject_raw, pk_raw, sig, sig_alg and
+        // tbs_der all point into the DER we just parsed; point them at the
+        // persistent copy instead of the caller-owned der_data.
+        if(crt.raw_pem != der_data) {
+            if(crt.serial != null) { crt.serial = crt.raw_pem + (crt.serial - der_data) }
+            if(crt.sig_oid != null) { crt.sig_oid = crt.raw_pem + (crt.sig_oid - der_data) }
+            if(crt.issuer_raw != null) { crt.issuer_raw = crt.raw_pem + (crt.issuer_raw - der_data) }
+            if(crt.subject_raw != null) { crt.subject_raw = crt.raw_pem + (crt.subject_raw - der_data) }
+            if(crt.pk_raw != null) { crt.pk_raw = crt.raw_pem + (crt.pk_raw - der_data) }
+            if(crt.sig != null) { crt.sig = crt.raw_pem + (crt.sig - der_data) }
+            if(crt.sig_alg != null) { crt.sig_alg = crt.raw_pem + (crt.sig_alg - der_data) }
+            if(crt.tbs_der != null) { crt.tbs_der = crt.raw_pem + (crt.tbs_der - der_data) }
         }
 
         return 0

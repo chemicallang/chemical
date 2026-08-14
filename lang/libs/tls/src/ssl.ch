@@ -3504,6 +3504,7 @@ public namespace tls {
         }
         *cfg_mem = cfg
         ssl_set_config(ssl_mem, cfg_mem)
+        ssl_mem.conf_owned = true
 
         // Perform server handshake
         var ret = do_tls12_server_handshake(ssl_mem)
@@ -3609,6 +3610,10 @@ public namespace tls {
             // Try DER parsing
             ret = parse_cert_der(cert_mem, &raw buf[0], total_read)
             if(ret < 0) {
+                // A partial parse may have left issuer/subject strings with heap
+                // buffers; reassigning empty strings frees them before dealloc.
+                cert_mem.issuer = string()
+                cert_mem.subject = string()
                 unsafe { dealloc cert_mem }
                 return null
             }
@@ -4572,6 +4577,13 @@ public namespace tls {
         if(ssl.alpn_negotiated != null) {
             unsafe { dealloc ssl.alpn_negotiated }
             ssl.alpn_negotiated = null
+        }
+        if(ssl.conf_owned && ssl.conf != null) {
+            // Config was heap-allocated by the library (tls_accept); caller-owned
+            // stack configs (ssl_set_config with &raw cfg) are never freed here.
+            unsafe { dealloc ssl.conf }
+            ssl.conf = null
+            ssl.conf_owned = false
         }
         if(ssl.transport_connected) {
             net::close_socket(ssl.transport_socket)

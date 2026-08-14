@@ -457,6 +457,7 @@ public namespace tls {
 
     public struct SSLContext {
         var conf : *mut SSLConfig    // Configuration (shared)
+        var conf_owned : bool        // true if conf was heap-allocated by the library (freed by ssl_free)
         var session : *mut Session   // Current session
         var state : SSLState         // Handshake state machine
 
@@ -531,6 +532,7 @@ public namespace tls {
 
     public func ssl_context_init(ssl : *mut SSLContext) {
         ssl.conf = null
+        ssl.conf_owned = false
         ssl.session = null
         ssl.state = SSLState.HELLO_REQUEST()
         ssl.in_msglen = 0

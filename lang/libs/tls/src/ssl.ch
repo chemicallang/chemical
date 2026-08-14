@@ -263,18 +263,6 @@ public namespace tls {
             i += 1
         }
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
-            printf("[DBG13] early_secret: "); var _des : size_t = 0
-            while(_des < 32) { printf("%02x", early_secret[_des] as int); _des += 1 }
-            printf("\n")
-            printf("[DBG13] derived: "); _des = 0
-            while(_des < 32) { printf("%02x", derived[_des] as int); _des += 1 }
-            printf("\n")
-            printf("[DBG13] handshake_secret: "); _des = 0
-            while(_des < 32) { printf("%02x", handshake_secret[_des] as int); _des += 1 }
-            printf("\n")
-        }
-
         // Step 4: Derive client and server handshake traffic secrets
         // Context = Transcript-Hash(ClientHello...ServerHello)
         var client_hts : [32]u8
@@ -292,15 +280,6 @@ public namespace tls {
             ssl.tls13_keys.client_handshake_traffic_secret[i] = client_hts[i]
             ssl.tls13_keys.server_handshake_traffic_secret[i] = server_hts[i]
             i += 1
-        }
-
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
-            printf("[DBG13] CLIENT_HANDSHAKE_TRAFFIC_SECRET: "); var _dts : size_t = 0
-            while(_dts < 32) { printf("%02x", client_hts[_dts] as int); _dts += 1 }
-            printf("\n")
-            printf("[DBG13] SERVER_HANDSHAKE_TRAFFIC_SECRET: "); _dts = 0
-            while(_dts < 32) { printf("%02x", server_hts[_dts] as int); _dts += 1 }
-            printf("\n")
         }
 
         // Step 5: Derive keys and IVs for AES-128-GCM
@@ -330,15 +309,6 @@ public namespace tls {
         // - Client role: transform_out (send) = client_key, transform_in (recv) = server_key
         // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
-
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
-            printf("[DBG13] transcript_hash: "); var _di : size_t = 0
-            while(_di < 32) { printf("%02x", transcript_hash[_di] as int); _di += 1 }
-            printf("\n")
-            printf("[DBG13] shared_secret: "); _di = 0
-            while(_di < 32) { printf("%02x", shared_secret[_di] as int); _di += 1 }
-            printf("\n")
-        }
 
         // Populate transform_out — for sending
         var tr_out : Transform
@@ -380,27 +350,6 @@ public namespace tls {
             while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
         }
 
-        if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_CLIENT && tls_config::DEBUG_LOG) {
-            printf("[DBG13] client_key: "); var _di2 : size_t = 0
-            while(_di2 < 16) { printf("%02x", client_key[_di2] as int); _di2 += 1 }
-            printf("\n")
-            printf("[DBG13] client_iv: "); _di2 = 0
-            while(_di2 < 12) { printf("%02x", client_iv[_di2] as int); _di2 += 1 }
-            printf("\n")
-            printf("[DBG13] server_key: "); _di2 = 0
-            while(_di2 < 16) { printf("%02x", server_key[_di2] as int); _di2 += 1 }
-            printf("\n")
-            printf("[DBG13] server_iv: "); _di2 = 0
-            while(_di2 < 12) { printf("%02x", server_iv[_di2] as int); _di2 += 1 }
-            printf("\n")
-            printf("[DBG13] tr_out.key_enc: "); _di2 = 0
-            while(_di2 < 16) { printf("%02x", tr_out.key_enc[_di2] as int); _di2 += 1 }
-            printf("\n")
-            printf("[DBG13] tr_in.key_dec: "); _di2 = 0
-            while(_di2 < 16) { printf("%02x", tr_in.key_dec[_di2] as int); _di2 += 1 }
-            printf("\n")
-        }
-
         // Allocate and install transforms
         var tr_out_mem = malloc(sizeof(Transform)) as *mut Transform
         *tr_out_mem = tr_out
@@ -420,29 +369,43 @@ public namespace tls {
     // Derive application traffic keys after handshake completes.
     // Called after both Finished messages have been exchanged.
     public func tls13_derive_application_keys(ssl : *mut SSLContext,
-                                               hs_hash : *u8, hash_len : size_t) : int {
+                                               hs_hash : *u8, hash_len : size_t,
+                                               res_hash : *u8 = null,
+                                               res_hash_len : size_t = 0) : int {
         var i : size_t = 0
 
-        // Derive-Secret(handshake_secret, "derived", Hash(ClientHello...Finished))
+        // RFC 8446 Section 7.1:
+        //   master_secret = HKDF-Extract(0, Derive-Secret(handshake_secret, "derived", ""))
+        // The "derived" label for the master secret uses empty Messages "", so the
+        // context is Transcript-Hash("") = SHA256("") (32 bytes) — NOT the handshake
+        // hash hs_hash and NOT a zero-length context.
         var derived : [32]u8
         var empty32 : [32]u8
+        var empty_hash : [32]u8
+        var sha_ctx_d : crypto::Sha256Context
+        crypto::sha256_init(&raw mut sha_ctx_d)
+        crypto::sha256_final(&raw mut sha_ctx_d, &raw mut empty_hash[0])
         while(i < 32) { empty32[i] = 0; i += 1 }
         var derived_label = "derived\0" as *char
         tls13_hkdf_expand_label(&raw ssl.tls13_keys.handshake_secret[0], 32,
-                                derived_label, 7, hs_hash, hash_len,
+                                derived_label, 7, &raw empty_hash[0], 32,
                                 &raw mut derived[0], 32)
 
-        // Master secret = HKDF-Extract(Derived, 0)
+        // Master secret = HKDF-Extract(salt=Derived, IKM=0)  (RFC 8446 §7.1:
+        // "0 -> HKDF-Extract" means the all-zero IKM; the "derived" value is the salt)
         var master_secret : [32]u8
         tls13_hkdf_extract(&raw derived[0], 32, &raw empty32[0], 32,
                            &raw mut master_secret[0])
         i = 0
         while(i < 32) { ssl.tls13_keys.master_secret[i] = master_secret[i]; i += 1 }
 
-        // Resumption master secret
+        // Resumption master secret (RFC 8446 §7.1: context = ClientHello...client Finished)
+        var rms_hash : *u8 = hs_hash
+        var rms_hash_len : size_t = hash_len
+        if(res_hash != null) { rms_hash = res_hash; rms_hash_len = res_hash_len }
         var rms_label = "res master\0" as *char
         tls13_hkdf_expand_label(&raw master_secret[0], 32, rms_label, 10,
-                                hs_hash, hash_len,
+                                rms_hash, rms_hash_len,
                                 &raw mut ssl.tls13_keys.resumption_master_secret[0], 32)
 
         // Client application traffic secret
@@ -1303,34 +1266,13 @@ public namespace tls {
         var dec_buf : [16640]u8
         if(ct_len > out_max + 1) { ct_len = out_max + 1 }
 
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _todbg : size_t
-        printf("[DBG13] TRACE input_len=%d ct_len=%d record_len_from_hdr=%d\n", input_len as int, ct_len as int, read_u16_be(&raw ssl.in_hdr[3]) as int);
-        printf("[DBG13] TRACE outer_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", outer_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
-        printf("[DBG13] TRACE ssl.in_hdr: "); _todbg = 0; while(_todbg < 5) { printf("%02x", ssl.in_hdr[_todbg] as int); _todbg += 1 }; printf("\n")
-        }
-
         ret = gcm_auth_decrypt(&raw mut gcm_ctx,
                                 &raw nonce[0], 12,
                                 &raw outer_hdr[0], 5,
                                 input, ct_len,
                                 tag_start, 16,
                                 &raw mut dec_buf[0])
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[DBG13] nonce_after: "); var _ndbg2 : size_t = 0; while(_ndbg2 < 12) { printf("%02x", nonce[_ndbg2] as int); _ndbg2 += 1 }; printf("\n") }
         if(ret < 0) {
-            if(tls_config::DEBUG_LOG) {
-                printf("[DBG13] GCM AUTH FAIL ct=%d aad_len=%d\n", ct_len as int, 
-                    read_u16_be(&raw ssl.in_hdr[3]) as int)
-                var _role_str : *char = "client"
-                if(ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER) { _role_str = "server" }
-                printf("[DBG13] CTX role=%s\n", _role_str)
-                printf("[DBG13] key_dec: "); var _di3 : size_t = 0; while(_di3 < tr.key_len as size_t) { printf("%02x", tr.key_dec[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] nonce: "); _di3 = 0; while(_di3 < 12) { printf("%02x", nonce[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] base_iv_dec: "); _di3 = 0; while(_di3 < 12) { printf("%02x", tr.base_iv_dec[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] in_ctr: "); _di3 = 0; while(_di3 < 8) { printf("%02x", ssl.in_ctr[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] aad: "); _di3 = 0; while(_di3 < 5) { printf("%02x", outer_hdr[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] ct: "); _di3 = 0; while(_di3 < ct_len) { printf("%02x", input[_di3] as int); _di3 += 1 }; printf("\n")
-                printf("[DBG13] tag: "); _di3 = 0; while(_di3 < 16) { printf("%02x", tag_start[_di3] as int); _di3 += 1 }; printf("\n")
-            }
             return ERR_SSL_INVALID_RECORD
         }
 
@@ -1945,19 +1887,9 @@ public namespace tls {
                 var cs_len_key = pos - cs_len_pos - 2
                 buf[cs_len_pos] = ((cs_len_key >> 8) & 0xFF) as u8
                 buf[cs_len_pos + 1] = (cs_len_key & 0xFF) as u8
-                if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[DBG_KS] cs_len_key=%d cs_byte0=%02x cs_byte1=%02x buf_kspos01=%02x%02x\n",
-                    cs_len_key as int,
-                    buf[cs_len_pos] as int, buf[cs_len_pos+1] as int,
-                    buf[ks_len_pos] as int, buf[ks_len_pos+1] as int)
                 var ks_data_len = 2 + cs_len_key
                 buf[ks_len_pos] = ((ks_data_len >> 8) & 0xFF) as u8
                 buf[ks_len_pos + 1] = (ks_data_len & 0xFF) as u8
-                if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[DBG_KS] ks_data_len=%d after_write ext_bytes=%02x%02x%02x%02x%02x%02x%02x%02x\n",
-                    ks_data_len as int,
-                    buf[ks_len_pos-2] as int, buf[ks_len_pos-1] as int,
-                    buf[ks_len_pos] as int, buf[ks_len_pos+1] as int,
-                    buf[cs_len_pos] as int, buf[cs_len_pos+1] as int,
-                    buf[cs_len_pos+2] as int, buf[cs_len_pos+3] as int)
             }
         }
 
@@ -2952,11 +2884,6 @@ public namespace tls {
         var x25519_ret = x25519_generate_keypair(&raw mut x25519_priv[0], &raw mut x25519_pub[0])
         var has_x25519 : bool = (x25519_ret == 0)
 
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _dka : size_t
-        printf("[DBG13] x25519_priv: "); _dka = 0; while(_dka < 32) { printf("%02x", x25519_priv[_dka] as int); _dka += 1 }; printf("\n")
-        printf("[DBG13] x25519_pub: "); _dka = 0; while(_dka < 32) { printf("%02x", x25519_pub[_dka] as int); _dka += 1 }; printf("\n")
-        }
-
         // Store x25519 keypair in handshake params
         if(has_x25519) {
             // Store private key (copy to heap so it persists)
@@ -2991,17 +2918,6 @@ public namespace tls {
         write_u24(ch_len as u32, &raw mut ch_hdr[1])
         crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
         crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
-
-        // DEBUG: print ClientHello bytes for transcript verification
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _chdbg : size_t = 0
-        printf("[DBG13] CH: ")
-        while(_chdbg < 4 + ch_len as size_t) { 
-            if(_chdbg < 4) { printf("%02x", ch_hdr[_chdbg] as int) }
-            else { printf("%02x", ch_buf[_chdbg - 4] as int) }
-            _chdbg += 1 
-        }
-        printf("\n")
-        }
 
         ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
@@ -3186,7 +3102,6 @@ public namespace tls {
                     }
                     found_key_share = true
                     using_x25519 = true
-                    if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[DBG13] server_x25519_key: "); var _dkb : size_t = 0; while(_dkb < 32) { printf("%02x", server_x25519_key[_dkb] as int); _dkb += 1 }; printf("\n") }
                 } else if(ks_group == TLS_GROUP_SECP256R1 as u16 && ks_key_len == 65 && ks_key_len <= ext_data_len - 4) {
                     var ki : size_t = 0
                     while(ki < 65) {
@@ -3206,13 +3121,6 @@ public namespace tls {
 
         // Hash ServerHello into transcript (including the 4-byte handshake header)
         crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
-
-        // DEBUG: print ServerHello bytes
-        if(tls_config::EXTENSIVE_DEBUG_LOG) { var _shdbg : size_t = 0
-        printf("[DBG13] SH: ")
-        while(_shdbg < 4 + hs_body_len) { printf("%02x", hs_buf[_shdbg] as int); _shdbg += 1 }
-        printf("\n")
-        }
 
         // ── Compute ECDHE shared secret ──────────────────────────────
         var shared_secret : [32]u8
@@ -3252,7 +3160,7 @@ public namespace tls {
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
             ret = read_record_header(ssl, &raw mut enc_hdr[0])
-            if(ret < 0) { if(tls_config::DEBUG_LOG) printf("[DBG_WL] read_record_header returned %d\n", ret as int); return ret }
+            if(ret < 0) { return ret }
 
             var enc_ct = enc_hdr[0]
 
@@ -3500,7 +3408,7 @@ public namespace tls {
 
         // ── Send client Finished ─────────────────────────────────────
         // First send ChangeCipherSpec (TLS 1.3 compatibility)
-        var ccs_out : [1]u8 = [20]
+        var ccs_out : [1]u8 = [1]
         ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_out[0], 1)
         if(ret < 0) { return ret }
 
@@ -3544,11 +3452,14 @@ public namespace tls {
         ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 32)
         if(ret < 0) { return ret }
 
-        // ── Derive application traffic keys (after sending client Finished) ────
+        // ── Derive application traffic keys ──
+        // RFC 8446 §7.1: c/s ap traffic use ClientHello...server Finished (cf_hash);
+        // res master uses ClientHello...client Finished (full_hash).
         var full_transcript_copy = transcript
         var full_hash : [32]u8
         crypto::sha256_final(&raw mut full_transcript_copy, &raw mut full_hash[0])
-        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
+        ret = tls13_derive_application_keys(ssl, &raw cf_hash[0], 32,
+                                                   &raw full_hash[0], 32)
         if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
@@ -3562,8 +3473,10 @@ public namespace tls {
     // Returns a heap-allocated SSLContext on success, null on failure.
     // priv_key must be a pointer to the matching private key context
     // (*mut RSAContext for RSA certs, *mut ECDSAContext for EC certs).
+    // cipher_suite selects the TLS 1.2 RSA key-exchange suite to offer.
     public func tls_accept(sock : net::Socket, cert : *mut X509Cert,
-                           priv_key : *mut void) : *mut SSLContext {
+                           priv_key : *mut void,
+                           cipher_suite : int = TLS_RSA_WITH_AES_128_GCM_SHA256) : *mut SSLContext {
         var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
         if(ssl_mem == null) { return null }
 
@@ -3581,7 +3494,7 @@ public namespace tls {
         // must not be offered in a TLS 1.2 ServerHello.
         cfg.min_tls_version = SSL_VERSION_TLS1_2
         cfg.max_tls_version = SSL_VERSION_TLS1_2
-        cfg.ciphersuite_list[0] = cs(TLS_RSA_WITH_AES_128_GCM_SHA256)
+        cfg.ciphersuite_list[0] = cs(cipher_suite)
         cfg.ciphersuite_count = 1
 
         var cfg_mem = malloc(sizeof(SSLConfig)) as *mut SSLConfig
@@ -4380,9 +4293,7 @@ public namespace tls {
         }
 
         // CertificateVerify
-        if(tls_config::DEBUG_LOG) printf("[CV_CHK_REACHED]\n")
         if(ssl.conf.own_cert != null && ssl.conf.own_key != null) {
-            if(tls_config::DEBUG_LOG) printf("[CV_IN_BLOCK]\n")
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
             var cv_copy = transcript
@@ -4409,7 +4320,6 @@ public namespace tls {
             crypto::sha256_init(&raw mut cv_hctx)
             crypto::sha256_update(&raw mut cv_hctx, &raw sig_in[0], sp)
             crypto::sha256_final(&raw mut cv_hctx, &raw mut cv_hash[0])
-            if(tls_config::DEBUG_LOG) printf("[CV_HASH_OK] pk_type=%d\n", ssl.conf.own_cert.pk_type as int)
 
             var pk_type = ssl.conf.own_cert.pk_type
             var sig_buf : [256]u8
@@ -4418,10 +4328,8 @@ public namespace tls {
             sig_len = 256  // buffer size input for ecdsa_sign
 
             if(pk_type == PK_ECKEY as u8) {
-                if(tls_config::DEBUG_LOG) printf("[CV_BEFORE_SIGN]\n")
                 var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
                 ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], 32, &raw mut sig_buf[0], &raw mut sig_len)
-                if(tls_config::DEBUG_LOG) printf("[CV_AFTER_SIGN] ret=%d sig_len=%d\n", ret, sig_len as int)
                 if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
                 sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16
             } else {
@@ -4438,7 +4346,6 @@ public namespace tls {
             var ck : size_t = 0
             while(ck < sig_len as size_t) { cv_buf[8 + ck] = sig_buf[ck]; ck += 1 }
             var cv_total = 4 + cv_body
-            if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[CV] sig_len=%d sig_der=", sig_len as int); var _cvd : size_t = 0; while(_cvd < sig_len as size_t) { printf("%02x", sig_buf[_cvd] as int); _cvd += 1 }; printf("\n") }
 
             crypto::sha256_update(&raw mut transcript, &raw cv_buf[0], cv_total as size_t)
 
@@ -4520,10 +4427,13 @@ public namespace tls {
         crypto::sha256_update(&raw mut transcript, &raw cf_hdr[0], 4)
         crypto::sha256_update(&raw mut transcript, &raw hs_buf[4], hs_len)
 
-        // ── Derive application traffic keys (after both Finished messages) ──
+        // ── Derive application traffic keys ──
+        // RFC 8446 §7.1: c/s ap traffic use ClientHello...server Finished
+        // (cf_transcript_hash); res master uses ClientHello...client Finished (full_hash).
         var full_hash : [32]u8
         crypto::sha256_final(&raw mut transcript, &raw mut full_hash[0])
-        ret = tls13_derive_application_keys(ssl, &raw full_hash[0], 32)
+        ret = tls13_derive_application_keys(ssl, &raw cf_transcript_hash[0], 32,
+                                                   &raw full_hash[0], 32)
         if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
@@ -4559,19 +4469,52 @@ public namespace tls {
 
         // If a transform is active, use the record layer (handles decryption)
         if(ssl.transform_in != null && ssl.state is SSLState.HANDSHAKE_OVER()) {
-            var ret = ssl_read_record(ssl)
-            if(ret < 0) { return ret }
+            while(true) {
+                var ret = ssl_read_record(ssl)
+                if(ret < 0) { return ret }
 
-            // Copy decrypted payload from in_buf to caller's buffer
-            var copy_len = ssl.in_msglen
-            if(copy_len > len) { copy_len = len }
-            var i : i32 = 0
-            while(i < copy_len) {
-                buf[i] = ssl.in_buf[5 + i]
-                i += 1
+                var inner_ct = ssl.in_hdr[0]
+
+                // Post-handshake handshake messages (NewSessionTicket, KeyUpdate, ...)
+                if(inner_ct == SSL_MSG_HANDSHAKE as u8) {
+                    ssl_consume_record(ssl)
+                    continue
+                }
+                // Legacy ChangeCipherSpec (ignored in TLS 1.3)
+                if(inner_ct == SSL_MSG_CHANGE_CIPHER_SPEC as u8) {
+                    ssl_consume_record(ssl)
+                    continue
+                }
+                // Alert records: close_notify -> EOF; fatal -> error; warning -> continue
+                if(inner_ct == SSL_MSG_ALERT as u8) {
+                    var level : u8 = 0
+                    var desc : u8 = 0
+                    if(ssl.in_msglen >= 2) {
+                        level = ssl.in_buf[5]
+                        desc = ssl.in_buf[6]
+                    }
+                    ssl_consume_record(ssl)
+                    if(desc == SSL_ALERT_MSG_CLOSE_NOTIFY as u8) {
+                        return 0
+                    }
+                    if(level == SSL_ALERT_LEVEL_FATAL as u8) {
+                        ssl.last_alert_desc = desc
+                        return ERR_SSL_FATAL_ALERT_MESSAGE
+                    }
+                    continue
+                }
+
+                // Application data
+                var copy_len = ssl.in_msglen
+                if(copy_len > len) { copy_len = len }
+                var i : i32 = 0
+                while(i < copy_len) {
+                    buf[i] = ssl.in_buf[5 + i]
+                    i += 1
+                }
+                ssl_consume_record(ssl)
+                return copy_len
             }
-            ssl_consume_record(ssl)
-            return copy_len
         }
 
         return ssl_recv(ssl, buf, len)

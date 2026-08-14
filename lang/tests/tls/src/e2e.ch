@@ -1,5 +1,6 @@
 using namespace tls
 using namespace crypto
+using std::string_view
 
 @test
 public func INT_smoke_test(env : &mut TestEnv) {
@@ -10,10 +11,11 @@ public func INT_smoke_test(env : &mut TestEnv) {
 @test
 public func INT_tls13_client(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19876/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem test.example.com ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19876)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem test.example.com ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -59,16 +61,17 @@ public func INT_tls13_client(env : &mut TestEnv) {
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
-    system("fuser -k 19876/tcp 2>/dev/null")
+    test_kill_port(19876)
 }
 
 @test
 public func INT_x25519_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19878/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19878)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem test.example.com ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -100,16 +103,19 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
         else { env.error("X25519: unknown error") }
     }
     ssl_free(&raw mut ctx)
-    system("fuser -k 19878/tcp 2>/dev/null")
+    test_kill_port(19878)
 }
 
 @test
 public func INT_tls12_client(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19877/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com rsa 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19877)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com rsa"))
+    // OpenSSL 3.x disables RSA key exchange by default; re-enable it client-side
+    // (matches the cipher the Chemical TLS 1.2 client offers).
+    test_py_run_background(string_view("srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -148,7 +154,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
-    system("fuser -k 19877/tcp 2>/dev/null")
+    test_kill_port(19877)
 }
 
 // ─── TLS 1.3 KeyUpdate round-trip ──────────────────────────────────────────
@@ -161,10 +167,11 @@ public func INT_tls12_client(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19910/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem localhost ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19910)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem localhost ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -206,7 +213,7 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
 
     ssl_close_notify(&raw mut ctx)
     ssl_free(&raw mut ctx)
-    system("fuser -k 19910/tcp 2>/dev/null")
+    test_kill_port(19910)
 }
 
 // ─── TLS 1.3 peer certificate population ───────────────────────────────────
@@ -216,10 +223,11 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls13_peer_cert(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19911/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem localhost ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19911)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem localhost ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -248,7 +256,7 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
 
     ssl_close_notify(&raw mut ctx)
     ssl_free(&raw mut ctx)
-    system("fuser -k 19911/tcp 2>/dev/null")
+    test_kill_port(19911)
 }
 
 // ─── TLS 1.3 NewSessionTicket storage ──────────────────────────────────────
@@ -258,10 +266,11 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls13_session_ticket(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19912/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem localhost ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19912)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem localhost ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -303,7 +312,7 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
 
     ssl_close_notify(&raw mut ctx)
     ssl_free(&raw mut ctx)
-    system("fuser -k 19912/tcp 2>/dev/null")
+    test_kill_port(19912)
 }
 
 // ─── TLS 1.3 session resumption ────────────────────────────────────────────
@@ -315,10 +324,11 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls13_session_resumption(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19913/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem localhost ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv2 /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem 19913 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19913)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem localhost ec"))
+    test_py_run_background(string_view("srv2 /tmp/tls_19913_cert.pem /tmp/tls_19913_key.pem 19913"))
+    test_server_wait()
 
     // ── Connection 1: full handshake + ticket acquisition ───────────
     var ctx1 : SSLContext; ssl_init(&raw mut ctx1)
@@ -414,7 +424,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     ssl_close_notify(&raw mut ctx2)
     ssl_free(&raw mut ctx1)
     ssl_free(&raw mut ctx2)
-    system("fuser -k 19913/tcp 2>/dev/null")
+    test_kill_port(19913)
 }
 
 // ─── ssl_free / delete cleanup ─────────────────────────────────────────────
@@ -460,10 +470,11 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
 @test
 public func INT_tls13_server_client(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19880/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec 2>/dev/null")
+    test_kill_port(19880)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19880_cert.pem /tmp/tls_19880_key.pem localhost ec"))
     // Export private key as hex for Chemical to load
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19880_key.pem /tmp/tls_19880_priv.hex 2>/dev/null")
+    test_py_run_foreground(string_view("privkey /tmp/tls_19880_key.pem /tmp/tls_19880_priv.hex"))
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19880_cert.pem")
     if(cert == null) { env.error("failed to load server cert"); return }
@@ -481,8 +492,8 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
         env.error("listen failed"); return
     }
 
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19880 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_py_run_background(string_view("cli 127.0.0.1 19880 1.3"))
+    test_server_wait()
 
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
@@ -533,15 +544,16 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     unsafe { dealloc cert }
     ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
-    system("fuser -k 19880/tcp 2>/dev/null")
+    test_kill_port(19880)
 }
 
 @test
 public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19882/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec 2>/dev/null")
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19882_key.pem /tmp/tls_19882_priv.hex 2>/dev/null")
+    test_kill_port(19882)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19882_cert.pem /tmp/tls_19882_key.pem localhost ec"))
+    test_py_run_foreground(string_view("privkey /tmp/tls_19882_key.pem /tmp/tls_19882_priv.hex"))
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19882_cert.pem")
     if(cert == null) { env.error("failed to load ECDSA cert"); return }
@@ -559,8 +571,8 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
         env.error("listen failed"); return
     }
 
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19882 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_py_run_background(string_view("cli 127.0.0.1 19882 1.3"))
+    test_server_wait()
 
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
@@ -608,16 +620,17 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     unsafe { dealloc cert }
     ecdsa_context_free(priv_key)
     net::close_socket(server_sock)
-    system("fuser -k 19882/tcp 2>/dev/null")
+    test_kill_port(19882)
 }
 
 @test
 public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19883/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19883)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 127.0.0.1 ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -649,15 +662,15 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
         else { env.error("ECDSA: unknown error") }
     }
     ssl_free(&raw mut ctx)
-    system("fuser -k 19883/tcp 2>/dev/null")
+    test_kill_port(19883)
 }
 
 @test
 @test.timeout(60000)
 public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_ec_pub.crt /tmp/tls_ec_pub.key localhost ec 2>/dev/null")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_rsa_pub.crt /tmp/tls_rsa_pub.key localhost rsa 2>/dev/null")
+    test_py_run_foreground(string_view("cert /tmp/tls_ec_pub.crt /tmp/tls_ec_pub.key localhost ec"))
+    test_py_run_foreground(string_view("cert /tmp/tls_rsa_pub.crt /tmp/tls_rsa_pub.key localhost rsa"))
 
     var ec_cert = x509_crt_load_pem_file("/tmp/tls_ec_pub.crt")
     if(ec_cert == null) { env.error("failed to load EC cert"); return }
@@ -705,9 +718,10 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19885/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19885_cert.pem /tmp/tls_19885_key.pem localhost rsa 2>/dev/null")
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19885_key.pem /tmp/tls_19885_priv.txt 2>/dev/null")
+    test_kill_port(19885)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19885_cert.pem /tmp/tls_19885_key.pem localhost rsa"))
+    test_py_run_foreground(string_view("privkey /tmp/tls_19885_key.pem /tmp/tls_19885_priv.txt"))
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19885_cert.pem")
     if(cert == null) { env.error("failed to load RSA server cert"); return }
@@ -731,9 +745,11 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 
     // The Chemical TLS 1.2 server uses RSA key exchange (no forward secrecy),
     // which OpenSSL 3 disables by default. Enable the legacy cipher client-side.
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19885 1.2 AES128-GCM-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err.txt &")
-    system("sleep 1")
-    system("cat /tmp/tls_cli_err.txt 2>/dev/null")
+    var cli_cmd = test_py_interp()
+    cli_cmd.append_view("/tmp/tls_utils.py cli 127.0.0.1 19885 1.2 AES128-GCM-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err.txt")
+    test_run_bg(cli_cmd.data())
+    test_server_wait()
+    test_cat_file(string_view("/tmp/tls_cli_err.txt"))
 
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
@@ -770,7 +786,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     cert_free(cert)
     unsafe { dealloc cert }
     net::close_socket(server_sock)
-    system("fuser -k 19885/tcp 2>/dev/null")
+    test_kill_port(19885)
 }
 
 // ─── TLS 1.2 server with the CBC-HMAC cipher path ──────────────────────────
@@ -781,9 +797,10 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19886/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19886_cert.pem /tmp/tls_19886_key.pem localhost rsa 2>/dev/null")
-    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19886_key.pem /tmp/tls_19886_priv.txt 2>/dev/null")
+    test_kill_port(19886)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19886_cert.pem /tmp/tls_19886_key.pem localhost rsa"))
+    test_py_run_foreground(string_view("privkey /tmp/tls_19886_key.pem /tmp/tls_19886_priv.txt"))
 
     var cert = x509_crt_load_pem_file("/tmp/tls_19886_cert.pem")
     if(cert == null) { env.error("failed to load RSA server cert"); return }
@@ -806,9 +823,11 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
     // OpenSSL 3 disables RSA key exchange by default; re-enable it client-side.
-    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19886 1.2 AES128-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err_cbc.txt &")
-    system("sleep 1")
-    system("cat /tmp/tls_cli_err_cbc.txt 2>/dev/null")
+    var cli_cmd = test_py_interp()
+    cli_cmd.append_view("/tmp/tls_utils.py cli 127.0.0.1 19886 1.2 AES128-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err_cbc.txt")
+    test_run_bg(cli_cmd.data())
+    test_server_wait()
+    test_cat_file(string_view("/tmp/tls_cli_err_cbc.txt"))
 
     net::set_nonblocking(server_sock)
     var client_sock = net::accept_socket(server_sock) as net::Socket
@@ -848,7 +867,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     cert_free(cert)
     unsafe { dealloc cert }
     net::close_socket(server_sock)
-    system("fuser -k 19886/tcp 2>/dev/null")
+    test_kill_port(19886)
 }
 
 // ─── TLS 1.2 client negotiating the CBC-HMAC path ──────────────────────────
@@ -859,10 +878,11 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls12_client_cbc(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19887/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem test.example.com rsa 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19887)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem test.example.com rsa"))
+    test_py_run_background(string_view("srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -889,7 +909,7 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
         ssl_close_notify(&raw mut ctx)
     }
     ssl_free(&raw mut ctx)
-    system("fuser -k 19887/tcp 2>/dev/null")
+    test_kill_port(19887)
 }
 
 // ─── Large multi-record live transfer ──────────────────────────────────────
@@ -900,10 +920,11 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
 @test.timeout(60000)
 public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     write_tls_python_utils()
-    system("fuser -k 19888/tcp 2>/dev/null; sleep 0.3")
-    system("python3 /tmp/tls_utils.py cert /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem test.example.com ec 2>/dev/null")
-    system("setsid python3 /tmp/tls_utils.py bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072 2>/dev/null &")
-    system("sleep 1")
+    test_kill_port(19888)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem test.example.com ec"))
+    test_py_run_background(string_view("bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072"))
+    test_server_wait()
 
     var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
@@ -915,7 +936,7 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     if(ret < 0) {
         env.error("large transfer: handshake failed against Python server")
         ssl_free(&raw mut ctx)
-        system("fuser -k 19888/tcp 2>/dev/null")
+        test_kill_port(19888)
         return
     }
 
@@ -943,5 +964,5 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
 
     ssl_close_notify(&raw mut ctx)
     ssl_free(&raw mut ctx)
-    system("fuser -k 19888/tcp 2>/dev/null")
+    test_kill_port(19888)
 }

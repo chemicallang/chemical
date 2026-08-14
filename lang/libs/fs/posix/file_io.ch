@@ -57,7 +57,7 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
     times[0].tv_nsec = 0;
     times[1].tv_sec = mtime;
     times[1].tv_nsec = 0;
-    var r = utimensat(0, path, &raw times[0], 0);
+    var r = utimensat(AT_FDCWD, path, &raw times[0], 0);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }

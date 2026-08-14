@@ -3982,3 +3982,232 @@ public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) 
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// rsa_public (raw RSA public operation)
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_rsa_public_known_answers_work(env : &mut TestEnv) {
+    var ctx : tls::RSAContext
+    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+
+    // n=33, e=3 (n = 3 * 11, phi = 20). rsa_public is the raw RSAVP1: c = m^e mod N.
+    var n_buf : [1]u8 = [0x21]  // 33
+    var e_buf : [1]u8 = [0x03]  // 3
+    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    if(ret < 0) { env.error("import pubkey should succeed"); return }
+
+    // m = 5 → c = 5^3 mod 33 = 125 mod 33 = 26 (0x1A)
+    var m : [1]u8 = [0x05]
+    var c : [64]u8
+    var c_len : size_t = 0
+    ret = tls::rsa_public(&raw mut ctx, &raw m[0], &raw mut c[0])
+    if(ret < 0) { env.error("rsa_public should succeed"); return }
+    c_len = tls::rsa_get_len(&raw mut ctx)
+    if(c_len != 1) { env.error("expected 1-byte key length"); return }
+    if(c[0] != 0x1A) {
+        printf("[RSA_PUB] c[0]=%02x expected 1a\n", c[0] as int)
+        env.error("5^3 mod 33 should be 26 (0x1A)")
+        return
+    }
+
+    // m = 34 ≥ N = 33 → must be rejected with ERR_RSA_PUBLIC_FAILED
+    var big_m : [1]u8 = [0x22]
+    ret = tls::rsa_public(&raw mut ctx, &raw big_m[0], &raw mut c[0])
+    if(ret >= 0) { env.error("rsa_public should reject M >= N") }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// mpi absolute-value / growth / trim helpers
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_bignum_abs_helpers_work(env : &mut TestEnv) {
+    var a : tls::Mpi; tls::mpi_init(&raw mut a)
+    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+    var x : tls::Mpi; tls::mpi_init(&raw mut x)
+
+    // mpi_cmp_abs ignores signs: |-5| vs 3 → 1
+    tls::mpi_lset(&raw mut a, -5); tls::mpi_lset(&raw mut b, 3)
+    if(tls::mpi_cmp_abs(&raw mut a, &raw mut b) != 1) {
+        env.error("cmp_abs(-5, 3) should be 1")
+        return
+    }
+    if(tls::mpi_cmp_abs(&raw mut b, &raw mut a) != -1) {
+        env.error("cmp_abs(3, -5) should be -1")
+        return
+    }
+
+    // mpi_add_abs: |100| + |200| = 300
+    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
+    var ret = tls::mpi_add_abs(&raw mut x, &raw mut a, &raw mut b)
+    if(ret < 0) { env.error("add_abs should succeed"); return }
+    if(tls::mpi_cmp_int(&raw mut x, 300) != 0) {
+        env.error("add_abs(100,200) should be 300")
+        return
+    }
+
+    // mpi_add_abs with a negative operand still sums magnitudes: |-100| + 200 = 300
+    tls::mpi_lset(&raw mut a, -100)
+    ret = tls::mpi_add_abs(&raw mut x, &raw mut a, &raw mut b)
+    if(ret < 0) { env.error("add_abs with negative should succeed"); return }
+    if(tls::mpi_cmp_int(&raw mut x, 300) != 0) {
+        env.error("add_abs(-100,200) should be 300")
+        return
+    }
+
+    // mpi_sub_abs: |200| - |100| = 100
+    tls::mpi_lset(&raw mut a, 200); tls::mpi_lset(&raw mut b, 100)
+    ret = tls::mpi_sub_abs(&raw mut x, &raw mut a, &raw mut b)
+    if(ret < 0) { env.error("sub_abs should succeed"); return }
+    if(tls::mpi_cmp_int(&raw mut x, 100) != 0) {
+        env.error("sub_abs(200,100) should be 100")
+        return
+    }
+
+    // mpi_sub_abs with |a| < |b| must error (no negative absolute result)
+    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
+    ret = tls::mpi_sub_abs(&raw mut x, &raw mut a, &raw mut b)
+    if(ret == 0) { env.error("sub_abs(100,200) should error") }
+}
+
+@test
+public func tls_bignum_grow_and_trim_work(env : &mut TestEnv) {
+    var m : tls::Mpi; tls::mpi_init(&raw mut m)
+
+    tls::mpi_lset(&raw mut m, 1)
+    if(m.n != 1) { env.error("1 should have 1 limb"); return }
+
+    // mpi_grow pads with zero limbs up to nlimbs
+    var ret = tls::mpi_grow(&raw mut m, 4)
+    if(ret < 0) { env.error("grow should succeed"); return }
+    if(m.n != 4) { env.error("grow should set n to 4"); return }
+    var i : size_t = 1
+    while(i < 4) { if(m.p[i] != 0) { env.error("grown limbs should be zero"); return }; i += 1 }
+
+    // grow below current n is a no-op
+    ret = tls::mpi_grow(&raw mut m, 2)
+    if(ret < 0) { env.error("grow to smaller should succeed"); return }
+    if(m.n != 4) { env.error("grow to smaller should not shrink"); return }
+
+    // grow beyond MAX_LIMBS errors
+    ret = tls::mpi_grow(&raw mut m, tls::MAX_LIMBS + 1)
+    if(ret == 0) { env.error("grow beyond MAX_LIMBS should error") }
+
+    // mpi_trim drops trailing zero limbs
+    m.n = 4; m.p[2] = 0; m.p[3] = 0; m.p[1] = 0x42
+    tls::mpi_trim(&raw mut m)
+    if(m.n != 2) { env.error("trim should drop trailing zero limbs"); return }
+    if(m.p[1] != 0x42) { env.error("trim should keep nonzero limbs"); return }
+
+    // mpi_trim on zero resets to n == 0 and positive sign
+    tls::mpi_lset(&raw mut m, 0)
+    m.n = 3; m.s = -1; m.p[0] = 0; m.p[1] = 0; m.p[2] = 0
+    tls::mpi_trim(&raw mut m)
+    if(m.n != 0) { env.error("trim of zero should give n==0"); return }
+    if(m.s != 1) { env.error("trim of zero should reset sign to +1"); return }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// fe_* x25519 field primitives
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_fe_field_primitives_work(env : &mut TestEnv) {
+    var a : [8]u32
+    var b : [8]u32
+    var c : [8]u32
+    var enc : [32]u8
+
+    // fe_zero zeroes all limbs
+    tls::fe_zero(&raw mut a[0])
+    var i : size_t = 0
+    while(i < 8) { if(a[i] != 0) { env.error("fe_zero should zero all limbs"); return }; i += 1 }
+
+    // fe_set_small sets limb 0 only
+    tls::fe_set_small(&raw mut a[0], 5)
+    if(a[0] != 5) { env.error("fe_set_small should set limb 0"); return }
+    i = 1
+    while(i < 8) { if(a[i] != 0) { env.error("fe_set_small should zero other limbs"); return }; i += 1 }
+
+    // fe_add: 5 + 10 = 15
+    tls::fe_set_small(&raw mut b[0], 10)
+    tls::fe_add(&raw mut c[0], &raw a[0], &raw b[0])
+    tls::fe_encode(&raw mut enc[0], &raw c[0])
+    if(enc[0] != 15 || enc[1] != 0) { env.error("fe_add(5,10) should be 15"); return }
+
+    // fe_sub: 10 - 5 = 5
+    tls::fe_set_small(&raw mut a[0], 10)
+    tls::fe_set_small(&raw mut b[0], 5)
+    tls::fe_sub(&raw mut c[0], &raw a[0], &raw b[0])
+    tls::fe_encode(&raw mut enc[0], &raw c[0])
+    if(enc[0] != 5 || enc[1] != 0) { env.error("fe_sub(10,5) should be 5"); return }
+
+    // fe_mul: 5 * 6 = 30
+    tls::fe_set_small(&raw mut a[0], 5)
+    tls::fe_set_small(&raw mut b[0], 6)
+    tls::fe_mul(&raw mut c[0], &raw a[0], &raw b[0])
+    tls::fe_encode(&raw mut enc[0], &raw c[0])
+    if(enc[0] != 30 || enc[1] != 0) { env.error("fe_mul(5,6) should be 30"); return }
+
+    // Modulus wrap: (p-1) + 1 ≡ 0 (mod p), p = 2^255 - 19
+    tls::fe_zero(&raw mut a[0])
+    a[0] = 0xFFFFFFECu32; a[7] = 0x7FFFFFFFu32
+    i = 1
+    while(i < 7) { a[i] = 0xFFFFFFFFu32; i += 1 }
+    tls::fe_set_small(&raw mut b[0], 1)
+    tls::fe_add(&raw mut c[0], &raw a[0], &raw b[0])
+    tls::fe_encode(&raw mut enc[0], &raw c[0])
+    var all_zero = true
+    i = 0
+    while(i < 32) { if(enc[i] != 0) { all_zero = false }; i += 1 }
+    if(!all_zero) { env.error("(p-1)+1 should reduce to 0 mod p"); return }
+
+    // decode/encode roundtrip preserves bytes
+    var data : [32]u8
+    var j : size_t = 0
+    while(j < 32) { data[j] = (j * 7 + 3) as u8; j += 1 }
+    data[31] = data[31] & 0x7F
+    tls::fe_decode(&raw mut a[0], &raw data[0])
+    tls::fe_encode(&raw mut enc[0], &raw a[0])
+    if(!test_bytes_eq(&raw data[0], &raw enc[0], 32)) {
+        env.error("fe_decode/fe_encode should roundtrip")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// random_32 / random_48
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_random_32_and_48_fill_work(env : &mut TestEnv) {
+    var r1 : [32]u8
+    var r2 : [32]u8
+    var r48 : [48]u8
+
+    var ret = tls::random_32(&raw mut r1)
+    if(ret != 0) { env.error("random_32 should succeed"); return }
+    ret = tls::random_32(&raw mut r2)
+    if(ret != 0) { env.error("random_32 second call should succeed"); return }
+    ret = tls::random_48(&raw mut r48)
+    if(ret != 0) { env.error("random_48 should succeed"); return }
+
+    // Two 32-byte draws should differ (astronomically improbable they collide)
+    if(test_bytes_eq(&raw r1[0], &raw r2[0], 32)) {
+        env.error("random_32 should produce differing values across calls")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// tls_init
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func tls_init_is_idempotent(env : &mut TestEnv) {
+    // tls_init must be callable multiple times without corrupting state
+    tls::tls_init()
+    tls::tls_init()
+    var ctx : tls::SSLContext; tls::ssl_init(&raw mut ctx)
+    if(ctx.conf != null) { env.error("fresh context should have no config yet") }
+}
+

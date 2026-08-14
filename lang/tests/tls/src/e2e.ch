@@ -306,3 +306,104 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     ssl_free(&raw mut ctx)
     system("fuser -k 19883/tcp 2>/dev/null")
 }
+
+@test
+@test.timeout(60000)
+public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_ec_pub.crt /tmp/tls_ec_pub.key localhost ec 2>/dev/null")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_rsa_pub.crt /tmp/tls_rsa_pub.key localhost rsa 2>/dev/null")
+
+    var ec_cert = x509_crt_load_pem_file("/tmp/tls_ec_pub.crt")
+    if(ec_cert == null) { env.error("failed to load EC cert"); return }
+
+    var ecdsa : ECDSAContext
+    ecdsa_init(&raw mut ecdsa)
+    var ret = x509_extract_ecdsa_pubkey(ec_cert, &raw mut ecdsa)
+    if(ret != 0) {
+        printf("[X509_EC] extract ret=%d\n", ret as int)
+        env.error("x509_extract_ecdsa_pubkey should succeed on EC cert")
+        return
+    }
+    if(!ecdsa.is_init) { env.error("extracted ECDSA context should be initialized"); return }
+
+    // The extracted public key must verify the self-signed cert's own signature
+    var vret = x509_verify_cert_ecdsa_signature(ec_cert, &raw mut ecdsa)
+    if(vret != 0) {
+        env.error("x509_verify_cert_ecdsa_signature with extracted key failed")
+        return
+    }
+
+    // Extracting from an RSA cert must fail with PK type mismatch
+    var rsa_cert = x509_crt_load_pem_file("/tmp/tls_rsa_pub.crt")
+    if(rsa_cert == null) { env.error("failed to load RSA cert"); return }
+    var e2 : ECDSAContext
+    ecdsa_init(&raw mut e2)
+    ret = x509_extract_ecdsa_pubkey(rsa_cert, &raw mut e2)
+    if(ret == 0) { env.error("x509_extract_ecdsa_pubkey should reject an RSA cert") }
+}
+
+@test
+@test.timeout(60000)
+public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
+    write_tls_python_utils()
+    system("fuser -k 19885/tcp 2>/dev/null; sleep 0.3")
+    system("python3 /tmp/tls_utils.py cert /tmp/tls_19885_cert.pem /tmp/tls_19885_key.pem localhost rsa 2>/dev/null")
+    system("python3 /tmp/tls_utils.py privkey /tmp/tls_19885_key.pem /tmp/tls_19885_priv.txt 2>/dev/null")
+
+    var cert = x509_crt_load_pem_file("/tmp/tls_19885_cert.pem")
+    if(cert == null) { env.error("failed to load RSA server cert"); return }
+
+    var n_buf : [512]u8
+    var d_buf : [512]u8
+    var n_len : size_t = 0
+    var d_len : size_t = 0
+    test_parse_n_d_hex_file("/tmp/tls_19885_priv.txt\0" as *char,
+                            &raw mut n_buf[0], 512, &raw mut n_len,
+                            &raw mut d_buf[0], 512, &raw mut d_len)
+    if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
+
+    var rsa_ctx : RSAContext
+    rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
+    if(kret < 0) { env.error("failed to import RSA private key"); return }
+
+    var server_sock = net::listen_addr("127.0.0.1", 19885u)
+    if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
+
+    // The Chemical TLS 1.2 server uses RSA key exchange (no forward secrecy),
+    // which OpenSSL 3 disables by default. Enable the legacy cipher client-side.
+    system("setsid python3 /tmp/tls_utils.py cli 127.0.0.1 19885 1.2 AES128-GCM-SHA256:@SECLEVEL=0 2>/tmp/tls_cli_err.txt &")
+    system("sleep 1")
+    system("cat /tmp/tls_cli_err.txt 2>/dev/null")
+
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var accept_attempts = 0
+    while(client_sock == 0 as net::Socket && accept_attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock)
+        accept_attempts += 1
+    }
+    if(client_sock == 0 as net::Socket) {
+        env.error("no client connected")
+        net::close_socket(server_sock)
+        return
+    }
+
+    var ssl_mem = tls_accept(client_sock, cert, &raw mut rsa_ctx)
+    if(ssl_mem == null) {
+        env.error("tls_accept server handshake failed against Python TLS 1.2 client")
+    } else {
+        var buf : [512]u8
+        ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
+        ssl_close_notify(ssl_mem)
+        ssl_free(ssl_mem)
+        unsafe { dealloc ssl_mem }
+    }
+
+    net::close_socket(server_sock)
+    system("fuser -k 19885/tcp 2>/dev/null")
+}

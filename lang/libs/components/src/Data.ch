@@ -272,20 +272,44 @@ public #universal AccordionPanel(props) {
     return <div {...props} class={${accordion_panel_styles(page)}}>{props.children}</div>
 }
 
+// Stateful accordion item: owns its open state, swaps the chevron glyph, and
+// shows/hides the panel without relying on native <details> behavior.
+// `defaultOpen` controls the initial (and SSR) state.
 public #universal AccordionItem(props) {
-    return <details {...props} class={${accordion_item_styles(page)}}>
-        <summary class="chx-accordion-summary">
+    state open = props.defaultOpen ? true : false
+    return <div {...props} class={${accordion_item_styles(page)}}>
+        <button type="button" class="chx-accordion-summary" onClick={() => open = !open}>
             <span class="chx-accordion-copy">
                 <span class="chx-accordion-title">{props.title}</span>
                 <span class="chx-accordion-subtitle">{props.subtitle}</span>
             </span>
-            <span class="chx-accordion-icon">+</span>
-        </summary>
-        <div class="chx-accordion-panel">{props.children}</div>
-    </details>
+            <span class="chx-accordion-icon">{open ? "−" : "+"}</span>
+        </button>
+        <div class="chx-accordion-panel" style={open ? "" : "display:none;"}>{props.children}</div>
+    </div>
 }
 
+// Tabs in two modes:
+// - `tabs`/`panels` arrays + optional `defaultIndex`: the component owns the
+//   active-tab state, renders the tab buttons and toggles panel visibility.
+// - Otherwise it degrades to the plain styled wrapper so explicit
+//   <TabList>/<Tab>/<TabPanel> children keep working unchanged.
 public #universal Tabs(props) {
+    state active = props.defaultIndex ? props.defaultIndex : 0
+    if(props.tabs) {
+        return <div {...props} class={${tabs_styles(page)}}>
+            <div class={${tab_list_styles(page)}}>
+                {props.tabs.map((tab, i) => (
+                    <button type="button" onClick={() => active = i} class={${tab_styles(page)}} style={active == i ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""}>{tab}</button>
+                ))}
+            </div>
+            <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">
+                {props.panels.map((panel, i) => (
+                    <div style={active == i ? "" : "display:none;"}>{panel}</div>
+                ))}
+            </div>
+        </div>
+    }
     return <div {...props} class={${tabs_styles(page)}}>{props.children}</div>
 }
 
@@ -305,7 +329,22 @@ public #universal TabPanel(props) {
     return <div {...props} class={${tab_panel_styles(page)}}>{props.children}</div>
 }
 
+// Pagination in two modes:
+// - `pages` array + optional `defaultPage`: the component owns the current
+//   page state, renders prev/next arrows and the page buttons.
+// - Otherwise it degrades to the plain styled wrapper for explicit
+//   <PageItem>/<PageItemActive> children.
 public #universal Pagination(props) {
+    state current = props.defaultPage ? props.defaultPage : 1
+    if(props.pages) {
+        return <nav {...props} class={${pagination_styles(page)}}>
+            <button type="button" onClick={() => current = current > 1 ? current - 1 : current} class={${pagination_item_styles(page)}} aria-label="Previous page">‹</button>
+            {props.pages.map(p => (
+                <button type="button" onClick={() => current = p} class={${pagination_item_styles(page)}} style={current == p ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""}>{p}</button>
+            ))}
+            <button type="button" onClick={() => current = current < props.pages.length ? current + 1 : current} class={${pagination_item_styles(page)}} aria-label="Next page">›</button>
+        </nav>
+    }
     return <nav {...props} class={${pagination_styles(page)}}>{props.children}</nav>
 }
 

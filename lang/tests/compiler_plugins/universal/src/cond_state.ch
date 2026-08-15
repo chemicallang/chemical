@@ -7,9 +7,10 @@
 public func universal_cond_state_detail_ssr_no_user(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <CondStateDetail /> }
-    // SSR cannot evaluate state variable conditions; both branches are skipped
+    // State initializers are SSR-evaluated (null → falsy), so the else branch
+    // renders — matching the client's first render.
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span>No user</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -31,8 +32,9 @@ public func universal_cond_state_detail_js_no_user(env : &mut TestEnv) {
 public func universal_cond_state_detail_prop_ssr_empty(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <CondStateDetailWithProp prefix="Name: " /> }
-    // SSR cannot evaluate state variable conditions; both branches are skipped
+    // State initializers are SSR-evaluated (null → falsy), so the else branch
+    // renders — matching the client's first render.
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div></div></div>`)
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span>Empty</span></div></div>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

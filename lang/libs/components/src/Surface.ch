@@ -246,8 +246,30 @@ public #universal Popover(props) {
     return <div {...props} class={${popover_styles(page)}}>{props.children}</div>
 }
 
+// Stateful modal dialog: owns its open state (initialized from `defaultOpen`),
+// dismisses on backdrop click or the Escape key, and fires `props.onClose` on
+// dismissal. Render overlay/backdrop/content via DialogBackdrop/DialogContent.
 public #universal Dialog(props) {
-    return <div {...props} class={${dialog_overlay_styles(page)}}>{props.children}</div>
+    state open = props.defaultOpen ? true : false
+    var close = () => {
+        open = false
+        if(props.onClose) {
+            props.onClose()
+        }
+    }
+    useEffect(() => {
+        const handler = (e) => {
+            if(e.key === "Escape") {
+                close()
+            }
+        }
+        document.addEventListener("keydown", handler)
+        return () => document.removeEventListener("keydown", handler)
+    }, [])
+    return <div {...props} class={${dialog_overlay_styles(page)}} style={open ? "" : "display:none;"}>
+        <DialogBackdrop onClick={close}></DialogBackdrop>
+        <DialogContent>{props.children}</DialogContent>
+    </div>
 }
 
 public #universal DialogBackdrop(props) {
@@ -290,11 +312,15 @@ public #universal StatCard(props) {
     return <section {...props} class={${stat_card_styles(page)}}>{props.children}</section>
 }
 
+// Stateful dropdown: owns its open state (initialized from `defaultOpen`). A
+// fixed overlay behind the menu closes it when clicking anywhere outside; the
+// trigger toggles it. `props.trigger` may be text or JSX; children are items.
 public #universal Dropdown(props) {
-    var menuId = props.id + "-menu"
+    state open = props.defaultOpen ? true : false
     return <div style="position:relative;display:inline-block;">
-        <Button id={props.id + "-trg"}>{props.trigger}</Button>
-        <Menu id={menuId} style="display:none;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;">
+        <div onClick={() => open = false} style={open ? "position:fixed;inset:0;z-index:5;" : "display:none;"}></div>
+        <Button onClick={() => open = !open}>{props.trigger}</Button>
+        <Menu style={open ? "display:block;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;" : "display:none;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;"}>
             {props.children}
         </Menu>
     </div>
@@ -302,12 +328,4 @@ public #universal Dropdown(props) {
 
 public #universal DropdownItem(props) {
     return <MenuItem {...props}>{props.children}</MenuItem>
-}
-
-public func dropdownInit(page : &mut HtmlPage, id : &std::string_view) {
-    page.pageJs.append_view("(function(){var t=document.getElementById('")
-    page.pageJs.append_view(id)
-    page.pageJs.append_view("-trg');var m=document.getElementById('")
-    page.pageJs.append_view(id)
-    page.pageJs.append_view("-menu');if(t&&m){t.addEventListener('click',function(){m.style.display=m.style.display==='none'?'':'none';});document.addEventListener('click',function(e){if(!t.contains(e.target)&&!m.contains(e.target)){m.style.display='none';}});}})();")
 }

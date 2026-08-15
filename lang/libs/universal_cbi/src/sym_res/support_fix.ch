@@ -262,6 +262,12 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const ssrValuesEqualFn = resolver.resolve("ssrValuesEqual")
+    if(ssrValuesEqualFn == null) {
+        diagnoser.error("couldn't find 'ssrValuesEqual' node", loc);
+        return false;
+    }
+
     const ssrPickValueFn = resolver.resolve("ssrPickValue")
     if(ssrPickValueFn == null) {
         diagnoser.error("couldn't find 'ssrPickValue' node", loc);
@@ -324,6 +330,7 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
     support.getMultipleAttributeValuesFn = getMultipleAttributeValuesFn
     support.ssrTextEqualsFn = ssrTextEqualsFn
+    support.ssrValuesEqualFn = ssrValuesEqualFn
     support.ssrPickValueFn = ssrPickValueFn
     support.ssrMakeTextValueFn = ssrMakeTextValueFn
     support.ssrMakeBoolValueFn = ssrMakeBoolValueFn

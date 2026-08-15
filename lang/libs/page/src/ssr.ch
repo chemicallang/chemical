@@ -138,6 +138,63 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
     }
 }
 
+// Canonical text representation of an attribute value, used by ssrValuesEqual.
+// None maps to the empty string; numeric/boolean values map to their decimal
+// representation (JS loose `==` coercion); Multiple/Spread/Callable are not
+// comparable. Returns false for non-comparable values.
+func appendSsrValueText(val : &SsrAttributeValue, out : &mut std::string) : bool {
+    switch(val) {
+        None() => return true
+        Boolean(v) => {
+            if(v) out.append_view("true") else out.append_view("false")
+            return true
+        }
+        Char(v) => {
+            out.append(v)
+            return true
+        }
+        UInteger(v) => {
+            out.append_uinteger(v)
+            return true
+        }
+        Integer(v) => {
+            out.append_integer(v)
+            return true
+        }
+        Double(v, precision) => {
+            out.append_double(v, precision)
+            var end = out.size()
+            while(end > 0 && out.get(end - 1) == '0') { end-- }
+            if(end > 0 && out.get(end - 1) == '.') { end-- }
+            if(end == 0) out.append('0')
+            else out.resize(end)
+            return true
+        }
+        Text(v) => {
+            out.append_view(std::string_view(v.data, v.size))
+            return true
+        }
+        PtrChar(v) => {
+            if(v == null) return true
+            out.append_view(std::string_view(v, strlen(v)))
+            return true
+        }
+        default => return false
+    }
+}
+
+// Loose equality between two attribute values (JS `==` semantics for the value
+// kinds the SSR evaluator produces). Used for `active == index`-style runtime
+// comparisons where the right side is another attribute value rather than a
+// literal (loop indices, bound map items, state values).
+public func ssrValuesEqual(left : &SsrAttributeValue, right : &SsrAttributeValue) : bool {
+    var a = std::string()
+    var b = std::string()
+    if(!appendSsrValueText(left, &mut a)) return false
+    if(!appendSsrValueText(right, &mut b)) return false
+    return a.equals(&b)
+}
+
 // Picks between two attribute values based on a runtime condition.
 // Used by the SSR evaluator for ternary expressions like
 // `class={props.variant === "primary" ? "a" : "b"}`.

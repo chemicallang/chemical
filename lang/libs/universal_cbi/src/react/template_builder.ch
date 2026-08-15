@@ -58,7 +58,10 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         ssr_locals : std::vector<JsSsrLocal>(),
         ssr_bound_param : "",
         ssr_bound_param_valid : false,
-        ssr_bound_param_value : ssr_js_eval_invalid()
+        ssr_bound_param_value : ssr_js_eval_invalid(),
+        ssr_index_param : "",
+        ssr_index_param_valid : false,
+        ssr_index_param_value : ssr_js_eval_invalid()
     }
 
     var nodeCount = 0u;

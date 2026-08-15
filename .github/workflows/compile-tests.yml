@@ -695,14 +695,14 @@ jobs:
             platform: linux-alpine
             arch: x64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
+            deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
           - name: alpine-arm64
             runner: ubuntu-24.04-arm
             container: alpine:3.20
             platform: linux-alpine
             arch: arm64
             debugger: gdb
-            deps: apk add --no-cache bash curl jq unzip gdb coreutils zip build-base file
+            deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
           - name: macos-arm64
             runner: macos-26
             platform: macos

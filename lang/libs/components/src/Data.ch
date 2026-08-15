@@ -13,12 +13,48 @@ func progress_styles(page : &mut HtmlPage) : *char {
         }
         &::-webkit-progress-value {
             border-radius: 999px;
-            background: linear-gradient(90deg, var(--chx-accent), #6366f1);
+            background: linear-gradient(90deg, hsl(var(--accent)), #6366f1);
             transition: width 0.3s ease;
         }
         &::-moz-progress-bar {
             border-radius: 999px;
-            background: linear-gradient(90deg, var(--chx-accent), #6366f1);
+            background: linear-gradient(90deg, hsl(var(--accent)), #6366f1);
+        }
+        &[data-variant="primary"]::-webkit-progress-value {
+            background: hsl(var(--primary));
+        }
+        &[data-variant="primary"]::-moz-progress-bar {
+            background: hsl(var(--primary));
+        }
+        &[data-variant="success"]::-webkit-progress-value {
+            background: hsl(var(--success));
+        }
+        &[data-variant="success"]::-moz-progress-bar {
+            background: hsl(var(--success));
+        }
+        &[data-variant="warning"]::-webkit-progress-value {
+            background: hsl(var(--warning));
+        }
+        &[data-variant="warning"]::-moz-progress-bar {
+            background: hsl(var(--warning));
+        }
+        &[data-variant="error"]::-webkit-progress-value {
+            background: hsl(var(--destructive));
+        }
+        &[data-variant="error"]::-moz-progress-bar {
+            background: hsl(var(--destructive));
+        }
+        &[data-variant="info"]::-webkit-progress-value {
+            background: hsl(var(--info));
+        }
+        &[data-variant="info"]::-moz-progress-bar {
+            background: hsl(var(--info));
+        }
+        &[data-size="sm"] {
+            height: 4px;
+        }
+        &[data-size="lg"] {
+            height: 12px;
         }
     }
 }
@@ -256,8 +292,23 @@ func table_cell_styles(page : &mut HtmlPage) : *char {
     }
 }
 
+// Progress bar: `value` (default 0) / `max` (default 100) drive the fill;
+// `variant` picks the tone (default/accent gradient, primary, success, warning,
+// error, info); `size` (sm/md/lg) scales the thickness. Other props pass
+// through via the spread (aria, id, className, ...).
 public #universal Progress(props) {
-    return <progress {...props} max={100} value={props.value} class={${progress_styles(page)}}></progress>
+    var variant = props.variant || "default"
+    var size = props.size || "md"
+    var value = props.value || 0
+    var max = props.max || 100
+    return <progress
+        {...props}
+        max={max}
+        value={value}
+        data-variant={variant}
+        data-size={size}
+        class={${progress_styles(page)}}
+    ></progress>
 }
 
 public #universal Accordion(props) {

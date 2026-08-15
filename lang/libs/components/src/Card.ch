@@ -5,13 +5,13 @@ func card_styles(page : &mut HtmlPage) : *char {
         flex-direction: column;
         gap: 0.375rem;
         border-radius: var(--chx-radius-lg);
-        border: 1px solid hsl(var(--chx-border));
-        background: hsl(var(--chx-card));
-        color: hsl(var(--chx-card-foreground));
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--card));
+        color: hsl(var(--card-foreground));
         box-shadow: var(--chx-shadow-sm);
         transition: box-shadow 0.15s ease, border-color 0.15s ease;
         &:hover {
-            border-color: hsl(var(--chx-border-strong));
+            border-color: hsl(var(--border));
         }
         &[data-interactive="true"] {
             cursor: pointer;
@@ -38,7 +38,7 @@ func card_title_styles(page : &mut HtmlPage) : *char {
         font-weight: 600;
         letter-spacing: -0.01em;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -46,7 +46,7 @@ func card_description_styles(page : &mut HtmlPage) : *char {
     return #css {
         font-size: 0.875rem;
         line-height: 1.375rem;
-        color: hsl(var(--chx-muted-foreground));
+        color: hsl(var(--muted-foreground));
         margin: 0;
     }
 }
@@ -55,7 +55,7 @@ func card_meta_styles(page : &mut HtmlPage) : *char {
     return #css {
         font-size: 0.75rem;
         line-height: 1.25rem;
-        color: hsl(var(--chx-muted-foreground));
+        color: hsl(var(--muted-foreground));
     }
 }
 

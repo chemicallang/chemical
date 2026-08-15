@@ -11,42 +11,71 @@ func badge_styles(page : &mut HtmlPage) : *char {
         font-weight: 600;
         white-space: nowrap;
         transition: colors 0.15s ease;
-        background: hsl(var(--chx-muted));
-        color: hsl(var(--chx-muted-foreground));
+        background: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
         &[data-variant="secondary"] {
-            background: hsl(var(--chx-secondary));
-            color: hsl(var(--chx-secondary-foreground));
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
         }
         &[data-variant="accent"] {
-            background: hsl(var(--chx-accent));
-            color: hsl(var(--chx-accent-foreground));
+            background: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
         }
         &[data-variant="success"] {
-            background: hsl(var(--chx-success));
-            color: hsl(var(--chx-success-foreground));
+            background: hsl(var(--success));
+            color: hsl(var(--success-foreground));
         }
         &[data-variant="error"] {
-            background: hsl(var(--chx-destructive));
-            color: hsl(var(--chx-destructive-foreground));
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
         }
         &[data-variant="warning"] {
-            background: hsl(var(--chx-warning));
-            color: hsl(var(--chx-warning-foreground));
+            background: hsl(var(--warning));
+            color: hsl(var(--warning-foreground));
+        }
+        &[data-variant="info"] {
+            background: hsl(var(--info));
+            color: hsl(var(--info-foreground));
         }
         &[data-variant="outline"] {
-            border-color: hsl(var(--chx-border));
-            color: hsl(var(--chx-foreground));
+            border-color: hsl(var(--border));
+            color: hsl(var(--foreground));
+            background: transparent;
+        }
+        &[data-variant="outline-secondary"] {
+            border-color: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+            background: transparent;
+        }
+        &[data-variant="outline-accent"] {
+            border-color: hsl(var(--accent));
+            color: hsl(var(--accent));
             background: transparent;
         }
         &[data-variant="outline-success"] {
-            border-color: hsl(var(--chx-success));
-            color: hsl(var(--chx-success));
+            border-color: hsl(var(--success));
+            color: hsl(var(--success));
             background: transparent;
         }
         &[data-variant="outline-error"] {
-            border-color: hsl(var(--chx-destructive));
-            color: hsl(var(--chx-destructive));
+            border-color: hsl(var(--destructive));
+            color: hsl(var(--destructive));
             background: transparent;
+        }
+        &[data-variant="outline-warning"] {
+            border-color: hsl(var(--warning));
+            color: hsl(var(--warning));
+            background: transparent;
+        }
+        &[data-variant="outline-info"] {
+            border-color: hsl(var(--info));
+            color: hsl(var(--info));
+            background: transparent;
+        }
+        &[data-size="xs"] {
+            font-size: 0.625rem;
+            padding: 0 0.4375rem;
+            line-height: 1.125rem;
         }
         &[data-size="sm"] {
             font-size: 0.625rem;
@@ -89,4 +118,19 @@ public #universal ChipSuccess(props) {
 }
 public #universal ChipError(props) {
     return <Badge {...props} variant="error">{props.children}</Badge>
+}
+public #universal ChipWarning(props) {
+    return <Badge {...props} variant="warning">{props.children}</Badge>
+}
+public #universal ChipInfo(props) {
+    return <Badge {...props} variant="info">{props.children}</Badge>
+}
+public #universal BadgeOutline(props) {
+    return <Badge {...props} variant="outline">{props.children}</Badge>
+}
+public #universal BadgeInfo(props) {
+    return <Badge {...props} variant="info">{props.children}</Badge>
+}
+public #universal BadgeWarning(props) {
+    return <Badge {...props} variant="warning">{props.children}</Badge>
 }

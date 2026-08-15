@@ -582,57 +582,70 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
     return jsParser.parsePostfixContinuation(parser, builder, node);
 }
 
+// JS operator precedence (higher binds tighter). Mirrors the ECMAScript
+// grammar: || < && < | < ^ < & < equality < relational < shift < additive <
+// multiplicative. Returns 0 for tokens that are not binary operators.
+func binary_operator_precedence(tokenType : int) : int {
+    switch(tokenType as JsTokenType) {
+        JsTokenType.LogicalOr => return 1
+        JsTokenType.LogicalAnd => return 2
+        JsTokenType.BitwiseOr => return 3
+        JsTokenType.BitwiseXor => return 4
+        JsTokenType.BitwiseAnd => return 5
+        JsTokenType.EqualEqual, JsTokenType.StrictEqual, JsTokenType.NotEqual, JsTokenType.StrictNotEqual => return 6
+        JsTokenType.LessThan, JsTokenType.GreaterThan, JsTokenType.LessThanEqual, JsTokenType.GreaterThanEqual, JsTokenType.In, JsTokenType.InstanceOf => return 7
+        JsTokenType.LeftShift, JsTokenType.RightShift, JsTokenType.RightShiftUnsigned => return 8
+        JsTokenType.Plus, JsTokenType.Minus => return 9
+        JsTokenType.Star, JsTokenType.Slash, JsTokenType.Percent => return 10
+        default => return 0
+    }
+}
+
+// Precedence-climbing binary expression parser. Parses operators with
+// precedence >= minPrec left-associatively; the right side is parsed with a
+// strictly higher minimum so higher-precedence operators bind tighter
+// (e.g. `a !== b || c` becomes ||(!==(a,b), c), not !==(||(a,b), c)).
+func (jsParser : &mut JsParser) parseBinaryPrecedence(parser : *mut Parser, builder : *mut ASTBuilder, minPrec : int, left : *mut JsNode) : *mut JsNode {
+    var node = left
+    while(true) {
+        const token = parser.getToken()
+        const prec = binary_operator_precedence(token.type as int)
+        if(prec == 0 || prec < minPrec) break
+        var op = builder.allocate_view(&token.value)
+        parser.increment()
+        var right = jsParser.parsePrimary(parser, builder)
+        if(right == null) {
+            parser.error("expected expression after operator")
+            break
+        }
+        right = jsParser.parseBinaryPrecedence(parser, builder, prec + 1, right)
+        var binOp = builder.allocate<JsBinaryOp>()
+        new (binOp) JsBinaryOp {
+            base : JsNode { kind : JsNodeKind.BinaryOp },
+            left : node,
+            right : right,
+            op : op
+        }
+        node = binOp as *mut JsNode
+    }
+    return node
+}
+
 func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder, left : *mut JsNode) : *mut JsNode {
     var node = left;
     while(true) {
         const token = parser.getToken();
-        if(token.type == JsTokenType.Plus as int ||
-           token.type == JsTokenType.Minus as int ||
-           token.type == JsTokenType.Star as int ||
-           token.type == JsTokenType.Slash as int ||
-           token.type == JsTokenType.Percent as int ||
-           token.type == JsTokenType.PercentEqual as int ||
-           token.type == JsTokenType.Equal as int ||
+        if(token.type == JsTokenType.Equal as int ||
            token.type == JsTokenType.PlusEqual as int ||
            token.type == JsTokenType.MinusEqual as int ||
            token.type == JsTokenType.StarEqual as int ||
            token.type == JsTokenType.SlashEqual as int ||
-           token.type == JsTokenType.EqualEqual as int ||
-           token.type == JsTokenType.StrictEqual as int ||
-           token.type == JsTokenType.NotEqual as int ||
-           token.type == JsTokenType.StrictNotEqual as int ||
-           token.type == JsTokenType.LessThan as int ||
-           token.type == JsTokenType.GreaterThan as int ||
-           token.type == JsTokenType.LessThanEqual as int ||
-           token.type == JsTokenType.GreaterThanEqual as int ||
-           token.type == JsTokenType.GreaterThanEqual as int ||
-           token.type == JsTokenType.LogicalAnd as int ||
-           token.type == JsTokenType.LogicalOr as int ||
-           token.type == JsTokenType.BitwiseAnd as int ||
-           token.type == JsTokenType.BitwiseOr as int ||
-           token.type == JsTokenType.BitwiseXor as int ||
-           token.type == JsTokenType.LeftShift as int ||
-           token.type == JsTokenType.RightShift as int ||
-           token.type == JsTokenType.RightShiftUnsigned as int ||
-           token.type == JsTokenType.In as int ||
-           token.type == JsTokenType.InstanceOf as int) {
-
-            const is_assignment = token.type == JsTokenType.Equal as int ||
-                                  token.type == JsTokenType.PlusEqual as int ||
-                                  token.type == JsTokenType.MinusEqual as int ||
-                                  token.type == JsTokenType.StarEqual as int ||
-                                  token.type == JsTokenType.SlashEqual as int ||
-                                  token.type == JsTokenType.PercentEqual as int;
+           token.type == JsTokenType.PercentEqual as int) {
 
             var op = builder.allocate_view(&token.value);
             parser.increment();
 
-            var right : *mut JsNode = null;
-            if(is_assignment) {
-                 right = jsParser.parseExpression(parser, builder);
-            } else {
-                 right = jsParser.parsePrimary(parser, builder);
-            }
+            var right = jsParser.parseExpression(parser, builder);
             var binOp = builder.allocate<JsBinaryOp>()
             new (binOp) JsBinaryOp {
                 base : JsNode { kind : JsNodeKind.BinaryOp },
@@ -641,6 +654,10 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
                 op : op
             }
             node = binOp as *mut JsNode;
+        } else if(binary_operator_precedence(token.type as int) > 0) {
+            // Consume all binary operators (with correct precedence), then
+            // re-check for assignment / ternary continuations.
+            node = jsParser.parseBinaryPrecedence(parser, builder, 1, node);
         } else if(token.type == JsTokenType.Question as int) {
             parser.increment();
             var consequent = jsParser.parseExpression(parser, builder);

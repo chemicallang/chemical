@@ -9,8 +9,8 @@ func avatar_styles(page : &mut HtmlPage) : *char {
         overflow: hidden;
         flex-shrink: 0;
         user-select: none;
-        background: hsl(var(--chx-muted));
-        color: hsl(var(--chx-muted-foreground));
+        background: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
         &[data-size="xs"] {
             width: 1.5rem;
             height: 1.5rem;
@@ -32,7 +32,7 @@ func avatar_styles(page : &mut HtmlPage) : *char {
             font-size: 1.5rem;
         }
         &[data-bordered="true"] {
-            border: 2px solid hsl(var(--chx-card));
+            border: 2px solid hsl(var(--card));
         }
     }
 }
@@ -73,9 +73,9 @@ func avatar_count_styles(page : &mut HtmlPage) : *char {
         border-radius: 9999px;
         font-size: 0.75rem;
         font-weight: 600;
-        background: hsl(var(--chx-secondary));
-        color: hsl(var(--chx-secondary-foreground));
-        border: 2px solid hsl(var(--chx-card));
+        background: hsl(var(--secondary));
+        color: hsl(var(--secondary-foreground));
+        border: 2px solid hsl(var(--card));
     }
 }
 

@@ -534,3 +534,135 @@ public func components_array_literal_prop_compiles(env : &mut TestEnv) {
     // JS function receives the array and maps over it
     contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.items).map"))
 }
+
+// ---------------------------------------------------------------------------
+// Stateful components: Tabs, AccordionItem, Pagination, Dropdown, Dialog
+// ---------------------------------------------------------------------------
+
+@test
+public func components_stateful_tabs_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Tabs defaultIndex={1} tabs={["One", "Two", "Three"]} panels={["Panel 1", "Panel 2", "Panel 3"]} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Tab buttons render, the active one carries the primary style
+    contains_string_assert(env, html.to_view(), std::string_view(">One</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Two</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Three</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view("background:var(--chx-primary)"))
+    // Only the active panel is visible
+    contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
+    // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\">Panel 1</div>"))
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\">Panel 3</div>"))
+}
+
+@test
+public func components_stateful_tabs_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Tabs defaultIndex={2} tabs={["A", "B"]} panels={["PA", "PB"]} /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // Reactive active state + index-driven comparison in the emitted JS
+    contains_string_assert(env, js.to_view(), std::string_view("$_us((window.$__uni_value(props.defaultIndex)"))
+    contains_string_assert(env, js.to_view(), std::string_view("active.value = i"))
+    contains_string_assert(env, js.to_view(), std::string_view("active.value == i"))
+    contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.tabs).map((tab, i)"))
+}
+
+@test
+public func components_stateful_accordion_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <AccordionItem defaultOpen={true} title="Q1" subtitle="S1">Answer 1</AccordionItem> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Summary button with title/subtitle
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-summary"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Q1</span>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">S1</span>"))
+    // Open state: chevron icon present + panel visible
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-icon\">"))
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-panel\" style=\"\">Answer 1</div>"))
+}
+
+@test
+public func components_stateful_accordion_closed_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <AccordionItem title="Q2" subtitle="S2">Answer 2</AccordionItem> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Closed: chevron icon present + hidden panel
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-icon\">"))
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-panel\" style=\"display:none;\">Answer 2</div>"))
+    // Toggle handler present in the JS bundle
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("open.value = !open.value"))
+}
+
+@test
+public func components_stateful_pagination_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Pagination defaultPage={3} pages={[1, 2, 3, 4, 5]} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // All pages + prev/next arrows render
+    contains_string_assert(env, html.to_view(), std::string_view(">1</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">5</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Previous page\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Next page\""))
+    // Page 3 is the active page
+    contains_string_assert(env, html.to_view(), std::string_view("background:var(--chx-primary)"))
+    // JS keeps the current-page guard logic
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("current.value = p"))
+}
+
+@test
+public func components_stateful_dropdown_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Dropdown trigger="Actions"><DropdownItem>One</DropdownItem><DropdownItem>Two</DropdownItem></Dropdown> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Closed by default: menu hidden, no raw injected JS
+    contains_string_assert(env, html.to_view(), std::string_view(">Actions</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;position:absolute;top:100%"))
+    contains_string_assert(env, html.to_view(), std::string_view(">One</a>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Two</a>"))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // Stateful toggle instead of raw JS injection
+    contains_string_assert(env, js.to_view(), std::string_view("open.value = !open.value"))
+    var dead = std::string_view("dropdownInit")
+    if(js.contains(&dead)) {
+        env.error("dropdownInit raw JS should be gone")
+    }
+}
+
+@test
+public func components_stateful_dialog_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Dialog defaultOpen={true}><DialogContent>Hello</DialogContent></Dialog> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Open by default: overlay visible (style=""), content present
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"\" defaultOpen=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">Hello</div>"))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // ESC handler via useEffect + onClose callback
+    contains_string_assert(env, js.to_view(), std::string_view("$_r.useEffect"))
+    contains_string_assert(env, js.to_view(), std::string_view("Escape"))
+    contains_string_assert(env, js.to_view(), std::string_view("props.onClose"))
+}
+
+@test
+public func components_stateful_dialog_closed_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Dialog><DialogContent>Hidden</DialogContent></Dialog> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Closed by default: overlay hidden via display:none
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\""))
+}

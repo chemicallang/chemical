@@ -49,7 +49,10 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         ssr_locals : std::vector<JsSsrLocal>(),
         ssr_bound_param : std::string_view(),
         ssr_bound_param_valid : false,
-        ssr_bound_param_value : ssr_js_eval_invalid()
+        ssr_bound_param_value : ssr_js_eval_invalid(),
+        ssr_index_param : std::string_view(),
+        ssr_index_param_valid : false,
+        ssr_index_param_value : ssr_js_eval_invalid()
     }
 
     const nodeLocation = value.getEncodedLocation()

@@ -891,6 +891,11 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
             if(converter.ssr_bound_param_valid && id.value.equals(&converter.ssr_bound_param)) {
                 return converter.ssr_bound_param_value;
             }
+            // The second `.map()` callback parameter (`index`) bound during
+            // compile-time unrolling of static array sources.
+            if(converter.ssr_index_param_valid && id.value.equals(&converter.ssr_index_param)) {
+                return converter.ssr_index_param_value;
+            }
             if(converter.is_reactive_var(id.value)) {
                 return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
             }
@@ -1252,6 +1257,13 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             return;
         }
 
+        // Reference to the second `.map()` callback parameter (`index`) while
+        // a static source is unrolled: render the element index.
+        if(converter.ssr_index_param_valid && id.value.equals(&converter.ssr_index_param)) {
+            converter.append_ssr_eval(converter.ssr_index_param_value);
+            return;
+        }
+
             // Reference to a `state`/computed variable: SSR renders the initial
             // state value as text (matching the client's first render). The value
             // is static text, so append it directly to the HTML buffer.
@@ -1496,6 +1508,12 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
     if(arrow.params.empty()) return
     const paramName = arrow.params.get(0).name
     if(paramName.empty()) return
+    // Optional second parameter (`(item, index) => ...`). Bound statically for
+    // compile-time-unrolled sources, or as an SSR local for runtime loops.
+    var indexParam = std::string_view("")
+    if(arrow.params.size() >= 2) {
+        indexParam = arrow.params.get(1).name
+    }
 
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
@@ -1538,6 +1556,9 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         const oldParam = converter.ssr_bound_param
         const oldValid = converter.ssr_bound_param_valid
         const oldValue = converter.ssr_bound_param_value
+        const oldIdxParam = converter.ssr_index_param
+        const oldIdxValid = converter.ssr_index_param_valid
+        const oldIdxValue = converter.ssr_index_param_value
         for(var si : uint = 0; si < staticElements.size(); si++) {
             const ev = ssr_js_eval_from_text(staticElements.get(si))
             // Unresolvable elements (object literals, expressions referencing
@@ -1547,6 +1568,14 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
             converter.ssr_bound_param = paramName
             converter.ssr_bound_param_valid = true
             converter.ssr_bound_param_value = ev
+            if(!indexParam.empty()) {
+                var idxText = std::string()
+                idxText.append_uinteger(si as ubigint)
+                const idxView = builder.allocate_view(idxText.to_view())
+                converter.ssr_index_param = indexParam
+                converter.ssr_index_param_valid = true
+                converter.ssr_index_param_value = ssr_js_eval_number(si as bigint, idxView)
+            }
             if(arrow.body != null) {
                 if(arrow.body.kind == JsNodeKind.Block) {
                     const block = arrow.body as *mut JsBlock
@@ -1561,6 +1590,9 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         converter.ssr_bound_param = oldParam
         converter.ssr_bound_param_valid = oldValid
         converter.ssr_bound_param_value = oldValue
+        converter.ssr_index_param = oldIdxParam
+        converter.ssr_index_param_valid = oldIdxValid
+        converter.ssr_index_param_value = oldIdxValue
         return
     }
 
@@ -1615,6 +1647,18 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
     // {item} / {item + 1} references resolve to the current loop element.
     converter.ssr_locals.push(JsSsrLocal { name : paramName, varInit : elemVar })
 
+    // Bind the optional second param (`index`) to the loop counter, wrapped as
+    // an SsrAttributeValue so `active == i` comparisons resolve at SSR runtime.
+    var indexVarPushed = false
+    if(!indexParam.empty()) {
+        const idxType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+        const idxMake = converter.make_ssr_make_call(support.ssrMakeUIntegerValueFn, "ssrMakeUIntegerValue", iId)
+        const idxVar = builder.make_varinit_stmt(false, false, &indexParam, idxType, idxMake, AccessSpecifier.Internal, converter.parent, location)
+        converter.vec.push(idxVar)
+        converter.ssr_locals.push(JsSsrLocal { name : indexParam, varInit : idxVar })
+        indexVarPushed = true
+    }
+
     if(arrow.body != null) {
         if(arrow.body.kind == JsNodeKind.Block) {
             const block = arrow.body as *mut JsBlock
@@ -1626,6 +1670,7 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         }
     }
 
+    if(indexVarPushed) converter.ssr_locals.pop_back()
     converter.ssr_locals.pop_back()
     converter.vec = oldVec
     converter.vec.push(forLoop as *mut ASTNode)
@@ -1691,7 +1736,6 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
         const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="));
         const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="));
         if(isEq || isNe) {
-            if(bin.right == null || bin.right.kind != JsNodeKind.Literal) return null;
             var attrValConv = AttrValueConverter {
                 pageNode : support.pageNode,
                 ssrTextNode : support.ssrTextLinkedNode,
@@ -1701,12 +1745,24 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
             }
             const leftVal = converter.convert_ssr_attr_value_expr(bin.left, &mut attrValConv);
             if(leftVal == null) return null;
-            const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
-            const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
-            cmpCall.get_args().push(leftVal);
-            cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
-            if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
-            return cmpCall as *mut Value;
+            // Literal right side: compare against its text (fast path).
+            if(bin.right != null && bin.right.kind == JsNodeKind.Literal) {
+                const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
+                const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
+                cmpCall.get_args().push(leftVal);
+                cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
+                if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
+                return cmpCall as *mut Value;
+            }
+            // Value-to-value comparison (`active == index`, `page == item`):
+            // both sides convert to SsrAttributeValue expressions.
+            const rightVal = converter.convert_ssr_attr_value_expr(bin.right, &mut attrValConv);
+            if(rightVal == null) return null;
+            const eqCall = builder.make_function_call_value(builder.make_identifier("ssrValuesEqual", support.ssrValuesEqualFn, false, location), location);
+            eqCall.get_args().push(leftVal);
+            eqCall.get_args().push(rightVal);
+            if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value;
+            return eqCall as *mut Value;
         }
     }
 
@@ -1739,6 +1795,11 @@ func (converter : &mut JsConverter) convert_js_literal_to_ssr_value(lit : *mut J
     const builder = converter.builder;
     if(val.equals("true")) return attrValConv.wrapArgAttrValueVariantCall(builder, "Boolean", builder.make_bool_value(true, location));
     if(val.equals("false")) return attrValConv.wrapArgAttrValueVariantCall(builder, "Boolean", builder.make_bool_value(false, location));
+    // `null`/`undefined` must not render as the literal text "null" (and the
+    // no-arg None variant cannot be built with wrapArgAttrValueVariantCall).
+    if(val.equals("null") || val.equals("undefined")) {
+        return converter.make_ssr_make_call(converter.support.ssrNoneValueFn, "ssrNoneValue", null);
+    }
     
     const text = strip_js_string_quotes(val);
     return attrValConv.wrapArgAttrValueVariantCall(builder, "Text", converter.make_ssr_text(&text, location));
@@ -1798,13 +1859,24 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
             if(isEq || isNe) {
                 const leftVal = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);
                 if(leftVal == null) return null;
-                if(bin.right == null || bin.right.kind != JsNodeKind.Literal) return null;
-                const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
-                const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
-                cmpCall.get_args().push(leftVal);
-                cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
-                if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
-                return cmpCall as *mut Value;
+                // Literal right side: compare against its text (fast path).
+                if(bin.right != null && bin.right.kind == JsNodeKind.Literal) {
+                    const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
+                    const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
+                    cmpCall.get_args().push(leftVal);
+                    cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
+                    if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
+                    return cmpCall as *mut Value;
+                }
+                // Value-to-value comparison (`active == index`, `page == item`):
+                // both sides convert to SsrAttributeValue expressions.
+                const rightVal = converter.convert_ssr_attr_value_expr(bin.right, attrValConv);
+                if(rightVal == null) return null;
+                const eqCall = builder.make_function_call_value(builder.make_identifier("ssrValuesEqual", support.ssrValuesEqualFn, false, location), location);
+                eqCall.get_args().push(leftVal);
+                eqCall.get_args().push(rightVal);
+                if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value;
+                return eqCall as *mut Value;
             }
             return null;
         }
@@ -1971,12 +2043,12 @@ func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode, ski
     if(stmt == null) return;
     switch(stmt.kind) {
         JsNodeKind.VarDecl => {
-            // Only plain var/let/const declarations become SSR locals. `state`
-            // (and computed) declarations are reactive client-side wrappers that
-            // SSR cannot evaluate — skip them so conditions referencing them
-            // render nothing, matching client-side empty-state behavior.
+            // Plain var/let/const declarations become SSR locals. `state`
+            // declarations with statically- or props-driven-convertible
+            // initializers are also registered (evaluated from their init) so
+            // conditions like `active == index` resolve at SSR runtime.
             const decl = stmt as *mut JsVarDecl;
-            if(decl.keyword.equals(view("var")) || decl.keyword.equals(view("let")) || decl.keyword.equals(view("const"))) {
+            if(decl.keyword.equals(view("var")) || decl.keyword.equals(view("let")) || decl.keyword.equals(view("const")) || decl.keyword.equals(view("state"))) {
                 converter.emit_ssr_local_decl(stmt as *mut JsVarDecl);
             }
         }
@@ -2155,6 +2227,13 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                 const call = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
                 call.get_args().push(builder.make_bool_value(false, location));
                 return call;
+            }
+            // `null`/`undefined` become None (falsy, renders nothing) so state
+            // inits like `state x = null` don't render as the literal text
+            // "null" and truthiness checks evaluate correctly.
+            if(lit.value.equals(view("null")) || lit.value.equals(view("undefined"))) {
+                const noneCall = builder.make_function_call_value(builder.make_identifier("ssrNoneValue", support.ssrNoneValueFn, false, location), location);
+                return noneCall;
             }
             const text = strip_js_string_quotes(lit.value);
             const call = builder.make_function_call_value(builder.make_identifier("ssrMakeTextValue", support.ssrMakeTextValueFn, false, location), location);
@@ -2347,6 +2426,15 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             }
                             attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Text"), converter.make_ssr_text(&objText, location)));
                             handled = true;
+                        } else if(container.expression.kind == JsNodeKind.ArrayLiteral) {
+                            // Inline array literal prop (`tabs={["A", "B"]}`):
+                            // convert to a Multiple so `.map()`/`.length` over
+                            // the prop resolve at SSR runtime.
+                            const arrVal = converter.build_ssr_multiple_from_array_node(container.expression as *mut JsArrayLiteral);
+                            if(arrVal != null) {
+                                attrStructVal.add_value(std::string_view("value"), arrVal);
+                                handled = true;
+                            }
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
                             if(mem.object.kind == JsNodeKind.Identifier && converter.is_component_props_name((mem.object as *mut JsIdentifier).value)) {

@@ -505,6 +505,103 @@ public func universal_spread_duplicate_attr_ssr(env : &mut TestEnv) {
     view_equals(env, page.getHtml(), html.to_view())
 }
 
+#universal SsrMapIndexState(props) {
+    state items = ["a", "b", "c"]
+    return <ul>{items.map((item, i) => <li>{i}:{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_index_state(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapIndexState /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>0:a</li><li>1:b</li><li>2:c</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapIndexNum(props) {
+    state items = ["a", "b"]
+    return <ul>{items.map((item, i) => <li>{i + 1}.{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_index_num(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapIndexNum /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>1.a</li><li>2.b</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapIndexProps(props) {
+    return <ul>{props.items.map((item, i) => <li>{i}:{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_index_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapIndexProps items={["One", "Two"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>0:One</li><li>1:Two</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrStateTernary(props) {
+    state open = true
+    return <div>{open ? "YES" : "NO"}</div>
+}
+
+@test
+public func universal_ssr_state_ternary(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStateTernary /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>YES</div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrStateAttrTernary(props) {
+    state open = false
+    return <span style={open ? "color:red;" : "color:blue;"}>t</span>
+}
+
+@test
+public func universal_ssr_state_attr_ternary(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStateAttrTernary /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><span style="color:blue;">t</span></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrStateIndexCompare(props) {
+    state active = 1
+    return <div>{props.items.map((item, i) => <button style={active == i ? "active" : ""}>{item}</button>)}</div>
+}
+
+@test
+public func universal_ssr_state_index_compare(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStateIndexCompare items={["A", "B", "C"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><button style="">A</button><button style="active">B</button><button style="">C</button></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrStatePropsInit(props) {
+    state active = props.defaultIndex ? props.defaultIndex : 0
+    return <div>{props.items.map((item, i) => <span style={active == i ? "on" : "off"}>{item}</span>)}</div>
+}
+
+@test
+public func universal_ssr_state_props_init(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStatePropsInit defaultIndex={2} items={["x", "y", "z"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span style="off">x</span><span style="off">y</span><span style="on">z</span></div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
 func dummy_class_1(page : &mut HtmlPage) : *char {
     return "dc_1"
 }

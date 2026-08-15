@@ -43,4 +43,11 @@ struct JsConverter {
     var ssr_bound_param : std::string_view = ""
     var ssr_bound_param_valid : bool = false
     var ssr_bound_param_value : SsrJsExprEval
+
+    // Second `.map()` callback parameter (`(item, index) => ...`) bound during
+    // compile-time unrolling of static sources. The runtime loop path binds it
+    // as an ordinary SSR local (see emit_ssr_map_children).
+    var ssr_index_param : std::string_view = ""
+    var ssr_index_param_valid : bool = false
+    var ssr_index_param_value : SsrJsExprEval
 }

@@ -161,6 +161,7 @@ func tooltip_styles(page : &mut HtmlPage) : *char {
         color: var(--chx-text-main);
         font-size: 0.82rem;
         box-shadow: var(--chx-shadow-sm);
+        transition: opacity 0.15s ease;
     }
 }
 
@@ -246,11 +247,15 @@ public #universal Popover(props) {
     return <div {...props} class={${popover_styles(page)}}>{props.children}</div>
 }
 
-// Stateful modal dialog: owns its open state (initialized from `defaultOpen`),
-// dismisses on backdrop click or the Escape key, and fires `props.onClose` on
-// dismissal. Render overlay/backdrop/content via DialogBackdrop/DialogContent.
+// Modal dialog in two modes (shadcn-style `open`/`onOpenChange`):
+// - Controlled: pass `open={...}` + `onClose`; visibility tracks the prop
+//   reactively, so parent state drives show/hide.
+// - Uncontrolled: `defaultOpen` sets the initial (and SSR) state; backdrop
+//   click and the Escape key dismiss via internal state.
+// Both modes fire `props.onClose` on dismissal.
 public #universal Dialog(props) {
     state open = props.defaultOpen ? true : false
+    var isOpen = props.open != null ? props.open : open
     var close = () => {
         open = false
         if(props.onClose) {
@@ -266,9 +271,9 @@ public #universal Dialog(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
-    return <div {...props} class={${dialog_overlay_styles(page)}} style={open ? "" : "display:none;"}>
+    return <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
         <DialogBackdrop onClick={close}></DialogBackdrop>
-        <DialogContent>{props.children}</DialogContent>
+        <DialogContent role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
     </div>
 }
 
@@ -292,7 +297,21 @@ public #universal Snackbar(props) {
     return <div {...props} role="status" class={${snackbar_styles(page)}}>{props.children}</div>
 }
 
+// Interactive tooltip in two modes:
+// - `label` (required for the overlay mode) + optional `position`
+//   (top/bottom/left/right, default top): shows a hover/focus bubble over the
+//   children (the trigger). Visibility is stateful and SSR matches the hidden
+//   initial render.
+// - Without `label`: the plain styled span (children rendered inline).
 public #universal Tooltip(props) {
+    state visible = false
+    if(props.label) {
+        var posStyle = props.position == "bottom" ? "top:100%;left:50%;transform:translateX(-50%);margin-top:0.5rem;" : props.position == "left" ? "right:100%;top:50%;transform:translateY(-50%);margin-right:0.5rem;" : props.position == "right" ? "left:100%;top:50%;transform:translateY(-50%);margin-left:0.5rem;" : "bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:0.5rem;"
+        return <span style="position:relative;display:inline-flex;">
+            <span onMouseEnter={() => visible = true} onMouseLeave={() => visible = false} onFocus={() => visible = true} onBlur={() => visible = false}>{props.children}</span>
+            <span class={${tooltip_styles(page)}} role="tooltip" style={"position:absolute;z-index:20;white-space:nowrap;pointer-events:none;" + (visible ? "opacity:1;" : "opacity:0;") + posStyle}>{props.label}</span>
+        </span>
+    }
     return <span {...props} class={${tooltip_styles(page)}}>{props.children}</span>
 }
 
@@ -312,15 +331,49 @@ public #universal StatCard(props) {
     return <section {...props} class={${stat_card_styles(page)}}>{props.children}</section>
 }
 
-// Stateful dropdown: owns its open state (initialized from `defaultOpen`). A
-// fixed overlay behind the menu closes it when clicking anywhere outside; the
-// trigger toggles it. `props.trigger` may be text or JSX; children are items.
+// Dropdown menu in two modes (shadcn-style `open`/`onOpenChange`):
+// - Controlled: pass `open={...}` + `onClose`; visibility tracks the prop
+//   reactively (parent state drives open/close).
+// - Uncontrolled: `defaultOpen` sets the initial (and SSR) state; the
+//   trigger toggles it.
+// A fixed overlay behind the menu closes it on outside click; the Escape key
+// dismisses too. `props.trigger` may be text or JSX; children are items.
+// `props.menuStyle`/`props.itemClassName` allow per-use styling tweaks.
 public #universal Dropdown(props) {
     state open = props.defaultOpen ? true : false
+    var isOpen = props.open != null ? props.open : open
+    var close = () => {
+        open = false
+        if(props.onClose) {
+            props.onClose()
+        }
+    }
+    var toggle = () => {
+        if(props.open != null) {
+            if(props.onToggle) {
+                props.onToggle()
+            }
+        } else {
+            open = !open
+        }
+    }
+    useEffect(() => {
+        const handler = (e) => {
+            if(e.key === "Escape") {
+                close()
+            }
+        }
+        document.addEventListener("keydown", handler)
+        return () => document.removeEventListener("keydown", handler)
+    }, [])
+    var menuStyle = "position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;"
+    if(props.menuStyle) {
+        menuStyle = props.menuStyle
+    }
     return <div style="position:relative;display:inline-block;">
-        <div onClick={() => open = false} style={open ? "position:fixed;inset:0;z-index:5;" : "display:none;"}></div>
-        <Button onClick={() => open = !open}>{props.trigger}</Button>
-        <Menu style={open ? "display:block;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;" : "display:none;position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;"}>
+        <div onClick={close} style={isOpen ? "position:fixed;inset:0;z-index:5;" : "display:none;"}></div>
+        <Button onClick={toggle} aria-haspopup="menu" aria-expanded={isOpen ? "true" : "false"}>{props.trigger}</Button>
+        <Menu style={isOpen ? "display:block;" + menuStyle : "display:none;" + menuStyle}>
             {props.children}
         </Menu>
     </div>

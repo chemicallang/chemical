@@ -1633,14 +1633,17 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
     const oldVec = converter.vec
     converter.vec = forLoop.get_body()
 
-    // var <param> = src.data[i]
-    const dataNode = support.multipleAttributeValueNode.child("data")
-    const dataId = builder.make_identifier("data", dataNode, false, location)
-    const dataAccess = builder.make_access_chain(&std::span<*mut Value>([ srcId, dataId ]), location)
-    const indexOp = builder.make_index_op_value(dataAccess, location)
-    *indexOp.get_idx_ptr() = iId
+    // var <param> = ssrMultipleGet(src, i)
+    // A call (rather than a raw `src.data[i]` index op) so the value is fully
+    // type-resolved: generated SSR function bodies bypass symres type
+    // determination, which left the index operator's type null and crashed
+    // LLVM codegen (the TCC path tolerated it because the explicit varinit
+    // type drives the C translation).
+    const getCall = builder.make_function_call_value(builder.make_identifier("ssrMultipleGet", support.ssrMultipleGetFn, false, location), location)
+    getCall.get_args().push(srcId)
+    getCall.get_args().push(iId)
     const elemType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
-    const elemVar = builder.make_varinit_stmt(false, false, &paramName, elemType, indexOp, AccessSpecifier.Internal, converter.parent, location)
+    const elemVar = builder.make_varinit_stmt(false, false, &paramName, elemType, getCall, AccessSpecifier.Internal, converter.parent, location)
     converter.vec.push(elemVar)
 
     // Bind the callback param as an SSR local while converting the body, so

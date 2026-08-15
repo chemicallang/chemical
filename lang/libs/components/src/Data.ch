@@ -274,16 +274,30 @@ public #universal AccordionPanel(props) {
 
 // Stateful accordion item: owns its open state, swaps the chevron glyph, and
 // shows/hides the panel without relying on native <details> behavior.
-// `defaultOpen` controls the initial (and SSR) state.
+// `defaultOpen` controls the initial (and SSR) state; `chevronOpen`/
+// `chevronClosed` override the glyphs; `disabled` locks the item; `onToggle`
+// fires with the next state on every click.
 public #universal AccordionItem(props) {
     state open = props.defaultOpen ? true : false
-    return <div {...props} class={${accordion_item_styles(page)}}>
-        <button type="button" class="chx-accordion-summary" onClick={() => open = !open}>
+    var disabled = props.disabled || false
+    var chevronOpen = props.chevronOpen || "−"
+    var chevronClosed = props.chevronClosed || "+"
+    var toggle = () => {
+        if(disabled) {
+            return
+        }
+        open = !open
+        if(props.onToggle) {
+            props.onToggle(open)
+        }
+    }
+    return <div {...props} class={${accordion_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
+        <button type="button" class="chx-accordion-summary" onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"}>
             <span class="chx-accordion-copy">
                 <span class="chx-accordion-title">{props.title}</span>
                 <span class="chx-accordion-subtitle">{props.subtitle}</span>
             </span>
-            <span class="chx-accordion-icon">{open ? "−" : "+"}</span>
+            <span class="chx-accordion-icon">{open ? chevronOpen : chevronClosed}</span>
         </button>
         <div class="chx-accordion-panel" style={open ? "" : "display:none;"}>{props.children}</div>
     </div>
@@ -297,15 +311,19 @@ public #universal AccordionItem(props) {
 public #universal Tabs(props) {
     state active = props.defaultIndex ? props.defaultIndex : 0
     if(props.tabs) {
+        var select = (i) => {
+            active = i
+            if(props.onChange) { props.onChange(i) }
+        }
         return <div {...props} class={${tabs_styles(page)}}>
-            <div class={${tab_list_styles(page)}}>
+            <div class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => active = i} class={${tab_styles(page)}} style={active == i ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} class={${tab_styles(page)}} style={active == i ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
             <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">
                 {props.panels.map((panel, i) => (
-                    <div style={active == i ? "" : "display:none;"}>{panel}</div>
+                    <div role="tabpanel" style={active == i ? "" : "display:none;"}>{panel}</div>
                 ))}
             </div>
         </div>
@@ -331,18 +349,38 @@ public #universal TabPanel(props) {
 
 // Pagination in two modes:
 // - `pages` array + optional `defaultPage`: the component owns the current
-//   page state, renders prev/next arrows and the page buttons.
+//   page state, renders prev/next controls and the page buttons. The boundary
+//   arrows disable at the first/last page. `prevLabel`/`nextLabel` (default
+//   "‹"/"›") override the arrows; `onChange` fires with the new page.
 // - Otherwise it degrades to the plain styled wrapper for explicit
 //   <PageItem>/<PageItemActive> children.
 public #universal Pagination(props) {
     state current = props.defaultPage ? props.defaultPage : 1
     if(props.pages) {
+        var prevLabel = props.prevLabel || "‹"
+        var nextLabel = props.nextLabel || "›"
+        var goPrev = () => {
+            if(current > 1) {
+                current = current - 1
+                if(props.onChange) { props.onChange(current) }
+            }
+        }
+        var goNext = () => {
+            if(current < props.pages.length) {
+                current = current + 1
+                if(props.onChange) { props.onChange(current) }
+            }
+        }
+        var goTo = (p) => {
+            current = p
+            if(props.onChange) { props.onChange(p) }
+        }
         return <nav {...props} class={${pagination_styles(page)}}>
-            <button type="button" onClick={() => current = current > 1 ? current - 1 : current} class={${pagination_item_styles(page)}} aria-label="Previous page">‹</button>
+            <button type="button" onClick={goPrev} disabled={current <= 1} class={${pagination_item_styles(page)}} aria-label="Previous page">{prevLabel}</button>
             {props.pages.map(p => (
-                <button type="button" onClick={() => current = p} class={${pagination_item_styles(page)}} style={current == p ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""}>{p}</button>
+                <button type="button" onClick={() => goTo(p)} class={${pagination_item_styles(page)}} style={current == p ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""} aria-current={current == p ? "page" : null}>{p}</button>
             ))}
-            <button type="button" onClick={() => current = current < props.pages.length ? current + 1 : current} class={${pagination_item_styles(page)}} aria-label="Next page">›</button>
+            <button type="button" onClick={goNext} disabled={current >= props.pages.length} class={${pagination_item_styles(page)}} aria-label="Next page">{nextLabel}</button>
         </nav>
     }
     return <nav {...props} class={${pagination_styles(page)}}>{props.children}</nav>

@@ -256,6 +256,12 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const ssrMultipleGetFn = resolver.resolve("ssrMultipleGet")
+    if(ssrMultipleGetFn == null) {
+        diagnoser.error("couldn't find 'ssrMultipleGet' node", loc);
+        return false;
+    }
+
     const ssrTextEqualsFn = resolver.resolve("ssrTextEquals")
     if(ssrTextEqualsFn == null) {
         diagnoser.error("couldn't find 'ssrTextEquals' node", loc);
@@ -329,6 +335,7 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.getSsrAttributeValueFn = getSsrAttributeValueFn
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
     support.getMultipleAttributeValuesFn = getMultipleAttributeValuesFn
+    support.ssrMultipleGetFn = ssrMultipleGetFn
     support.ssrTextEqualsFn = ssrTextEqualsFn
     support.ssrValuesEqualFn = ssrValuesEqualFn
     support.ssrPickValueFn = ssrPickValueFn

@@ -100,3 +100,31 @@ public func css_variable_inside_color_function_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "background-color:hsl(var(--primary) / 0.9);color:hsl(var(--foreground));")
 }
+
+@test
+public func attribute_selector_with_pseudo_element_stays_compound(env : &mut TestEnv) {
+    // Regression: `&[data-variant="error"]::-webkit-progress-value` was parsed
+    // as TWO compounds with a descendant combinator (a space appeared between
+    // `]` and `::`), breaking the selector. The attribute selector must keep
+    // the following pseudo-element in the same compound.
+    var page = HtmlPage()
+    #css {
+        color : red;
+        &[data-variant="error"]::-webkit-progress-value {
+            background: blue;
+        }
+        &[data-variant="error"]:hover {
+            color: green;
+        }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(&classView)
+    expected.append_view("{color:red;}")
+    expected.append_view(&classView)
+    expected.append_view("[data-variant=\"error\"]::-webkit-progress-value { background: blue; }")
+    expected.append_view(&classView)
+    expected.append_view("[data-variant=\"error\"]:hover { color:green; }")
+    compl_css_equals(env, &got, expected.to_view())
+}

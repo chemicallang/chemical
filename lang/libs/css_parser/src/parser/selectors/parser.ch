@@ -78,7 +78,9 @@ func strip_quotes_if_any(value : std::string_view) : std::string_view {
 // Parses an attribute selector starting at the '[' token: [attr], [attr=value],
 // [attr^="pre"], [attr$="suf"], [attr*="sub"], [attr~="word"], [attr|="prefix"],
 // optionally followed by a case-sensitivity flag (i / s).
-func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : *mut Token) : *mut SimpleSelector {
+// `end_line`/`end_char` receive the position just past the closing ']' so the
+// caller can keep building the same compound selector (e.g. `&[data-x="y"]::p`).
+func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : *mut Token, end_line : *mut uint, end_char : *mut uint) : *mut SimpleSelector {
     var s = builder.allocate<SimpleSelector>();
     var attr = builder.allocate<AttributeSelectorData>();
     new (attr) AttributeSelectorData();
@@ -135,6 +137,8 @@ func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, sta
         parser.error("expected ']' to close attribute selector");
         return null;
     }
+    *end_line = closeTok.position.line;
+    *end_char = closeTok.position.character + closeTok.value.size();
     parser.increment();
 
     s.kind = SimpleSelectorKind.Attribute;
@@ -152,6 +156,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
     var last_line : uint = 0;
     var last_char : uint = 0;
     var first = true;
+    var attr_parsed = false;
     
     while(true) {
         const token = parser.getToken();
@@ -196,10 +201,18 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
              simple.value = std::string_view("*");
              parser.increment();
         } else if(token.type == TokenType.LBracket) {
-             simple = parseAttributeSelector(parser, builder, token);
+             var attrEndLine : uint = 0
+             var attrEndChar : uint = 0
+             simple = parseAttributeSelector(parser, builder, token, &raw mut attrEndLine, &raw mut attrEndChar);
              if(simple == null) {
                  break;
              }
+             // The attribute selector consumed through ']' — advance the
+             // adjacency cursor to just past it so a directly-following
+             // pseudo/class stays in the same compound.
+             last_line = attrEndLine
+             last_char = attrEndChar
+             attr_parsed = true
         } else if(token.type == TokenType.Colon) {
              if(simple != null) {
                  break;
@@ -249,11 +262,14 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         
         if(simple != null) {
             comp.simple_selectors.push(simple);
-            last_line = token.position.line;
-            last_char = token.position.character + token.value.size();
-            if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
-                last_char++; // account for '.' or '#' prefix not included in value
+            if(!attr_parsed) {
+                last_line = token.position.line;
+                last_char = token.position.character + token.value.size();
+                if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
+                    last_char++; // account for '.' or '#' prefix not included in value
+                }
             }
+            attr_parsed = false;
             first = false;
         } else {
             break; 

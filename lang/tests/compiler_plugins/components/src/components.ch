@@ -757,3 +757,99 @@ public func components_textarea_sizes(env : &mut TestEnv) {
     css.append_view(page.getCss())
     contains_string_assert(env, css.to_view(), std::string_view("[data-size=\"lg\"]"))
 }
+
+// ---------------------------------------------------------------------------
+// Card composition (CardAction), Select placeholder, Progress variants/sizes
+// ---------------------------------------------------------------------------
+
+@test
+public func components_card_action_composition(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Card>
+            <CardHeader>
+                <CardAction><Button size="sm" variant="ghost">Edit</Button></CardAction>
+                <CardTitle>Account</CardTitle>
+                <CardDescription>Manage your settings</CardDescription>
+            </CardHeader>
+            <CardContent>Body</CardContent>
+            <CardFooter><Button size="sm">Save</Button></CardFooter>
+        </Card>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Account"))
+    contains_string_assert(env, html.to_view(), std::string_view("Manage your settings"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Edit</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Save</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view("Body"))
+    var css = std::string()
+    css.append_view(page.getCss())
+    // CardAction pushes itself to the end of the header (hashed class, so
+    // assert on a distinctive style property).
+    contains_string_assert(env, css.to_view(), std::string_view("align-self:flex-end"))
+}
+
+@test
+public func components_select_placeholder(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Select placeholder="Pick an option">
+            <option value="a">A</option>
+            <option value="b">B</option>
+        </Select>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Pick an option"))
+    contains_string_assert(env, html.to_view(), std::string_view(">A</option>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">B</option>"))
+    // placeholder option is disabled
+    contains_string_assert(env, html.to_view(), std::string_view("value=\"\" disabled"))
+}
+
+@test
+public func components_select_no_placeholder(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Select>
+            <option value="a">A</option>
+        </Select>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // no placeholder option rendered
+    if(html.to_view().contains(std::string_view("disabled"))) {
+        env.error("select without placeholder rendered a disabled option")
+    }
+    contains_string_assert(env, html.to_view(), std::string_view(">A</option>"))
+}
+
+@test
+public func components_progress_variants_sizes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <Progress value={40} />
+            <Progress value={80} variant="success" size="sm" />
+            <Progress value={30} variant="warning" size="lg" max={200} />
+            <Progress value={50} variant="error" />
+            <Progress value={70} variant="info" />
+            <Progress value={90} variant="primary" />
+        </div>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("value=\"40\""))
+    contains_string_assert(env, html.to_view(), std::string_view("max=\"200\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"success\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"error\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"info\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"primary\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"sm\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"lg\""))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"error\"]::-webkit-progress-value"))
+    contains_string_assert(env, css.to_view(), std::string_view("[data-size=\"lg\"]"))
+}

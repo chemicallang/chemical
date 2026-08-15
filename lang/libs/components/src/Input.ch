@@ -179,6 +179,9 @@ public #universal TextArea(props) {
     >{props.children}</textarea>
 }
 
+// Native select with the shared input look. `placeholder` renders a disabled
+// placeholder option (shown while no value is selected); `variant`/`size` mirror
+// the Input props; everything else passes through via the spread.
 public #universal Select(props) {
     return <select
         {...props}
@@ -191,7 +194,11 @@ public #universal Select(props) {
         onChange={props.onChange}
         id={props.id}
         name={props.name}
-    >{props.children}</select>
+        aria-label={props.ariaLabel}
+    >
+        {props.placeholder !== undefined ? <option value="" disabled>{props.placeholder}</option> : null}
+        {props.children}
+    </select>
 }
 
 // Legacy wrappers — keep every previously-public name working.

@@ -83,18 +83,16 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
     tcc_add_library_path(s, sys_buf);
 #endif
 
-    // -b
-    // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
-    // Note: -b is only available on i386 when using libtcc for the moment.
-    // -bt N Display N callers in stack traces. This is useful with -g or -b.
+    // -g enables debug info (line/file/function names in runtime errors and backtraces).
+    // -bt N Display N callers in stack traces.
+    // DebugComplete adds no extra runtime checks — it's the same debug info as Debug,
+    // reserved for a future mode that produces slower but more debuggable code.
     switch(mode) {
         case TCCMode::None:
             break;
         case TCCMode::Debug:
-            tcc_set_options(s, "-g -bt 25");
-            break;
         case TCCMode::DebugComplete:
-            tcc_set_options(s, "-g -bt 25 -b");
+            tcc_set_options(s, "-g -bt 25");
             break;
     }
 

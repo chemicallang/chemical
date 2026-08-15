@@ -59,6 +59,18 @@ func card_meta_styles(page : &mut HtmlPage) : *char {
     }
 }
 
+func card_action_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        margin-left: auto;
+        align-self: flex-end;
+        padding-left: 1rem;
+        margin-bottom: 0.25rem;
+    }
+}
+
 func card_content_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0 1.25rem;
@@ -112,6 +124,15 @@ public #universal CardMeta(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     return <div class={classes + " " + ${card_meta_styles(page)}}>{props.children}</div>
+}
+
+// Shadcn v2 header action slot — place a dropdown/button/icon action in the
+// top-right of a CardHeader. Put it FIRST in the header so it sits on its own
+// row above the title/description (the header stacks vertically).
+public #universal CardAction(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + ${card_action_styles(page)}}>{props.children}</div>
 }
 
 public #universal CardContent(props) {

@@ -148,6 +148,13 @@ jobs:
           echo "Running compile command for Linux Regular Variant:"
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
           eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-regular-output.txt"
         shell: bash
@@ -185,6 +192,13 @@ jobs:
           echo "Running compile command for Linux TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
           eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-tcc-output.txt"
         shell: bash
@@ -307,6 +321,13 @@ jobs:
           echo "Running compile command for Alpine Regular Variant:"
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
           eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-regular-output.txt"
         shell: bash
@@ -344,6 +365,13 @@ jobs:
           echo "Running compile command for Alpine TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
           eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-tcc-output.txt"
         shell: bash
@@ -453,6 +481,13 @@ jobs:
           echo "Running compile command for macOS Regular Variant:"
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
           eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-regular-output.txt"
         shell: bash
@@ -490,6 +525,13 @@ jobs:
           echo "Running compile command for macOS TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
           eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
+          echo "== Running compiled test suite executable =="
+          if [ -f "./chemical-tests" ]; then
+            ./chemical-tests 2>&1 | tee -a compile_output.txt
+            exit ${PIPESTATUS[0]}
+          else
+            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+          fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-tcc-output.txt"
         shell: bash
@@ -601,6 +643,15 @@ jobs:
           Write-Host "Running compile command for Windows Regular Variant:"
           Write-Host $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt -Append
+          Write-Host "== Running compiled test suite executable =="
+          $testExe = ".\chemical-tests.exe"
+          if (-not (Test-Path $testExe)) { $testExe = ".\chemical-tests" }
+          if (Test-Path $testExe) {
+              & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+              Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
+          }
           Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-regular-output.txt
         shell: pwsh
 
@@ -638,6 +689,15 @@ jobs:
           Write-Host "Running compile command for Windows TCC Variant:"
           Write-Host $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt -Append
+          Write-Host "== Running compiled test suite executable =="
+          $testExe = ".\chemical-tests.exe"
+          if (-not (Test-Path $testExe)) { $testExe = ".\chemical-tests" }
+          if (Test-Path $testExe) {
+              & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+              Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
+          }
           Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt
         shell: pwsh
 

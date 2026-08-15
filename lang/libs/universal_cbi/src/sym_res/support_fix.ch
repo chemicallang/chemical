@@ -250,6 +250,12 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const getMultipleAttributeValuesFn = resolver.resolve("getMultipleAttributeValues")
+    if(getMultipleAttributeValuesFn == null) {
+        diagnoser.error("couldn't find 'getMultipleAttributeValues' node", loc);
+        return false;
+    }
+
     const ssrTextEqualsFn = resolver.resolve("ssrTextEquals")
     if(ssrTextEqualsFn == null) {
         diagnoser.error("couldn't find 'ssrTextEquals' node", loc);
@@ -271,6 +277,24 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     const ssrMakeBoolValueFn = resolver.resolve("ssrMakeBoolValue")
     if(ssrMakeBoolValueFn == null) {
         diagnoser.error("couldn't find 'ssrMakeBoolValue' node", loc);
+        return false;
+    }
+
+    const ssrMakeUIntegerValueFn = resolver.resolve("ssrMakeUIntegerValue")
+    if(ssrMakeUIntegerValueFn == null) {
+        diagnoser.error("couldn't find 'ssrMakeUIntegerValue' node", loc);
+        return false;
+    }
+
+    const ssrMakeIntegerValueFn = resolver.resolve("ssrMakeIntegerValue")
+    if(ssrMakeIntegerValueFn == null) {
+        diagnoser.error("couldn't find 'ssrMakeIntegerValue' node", loc);
+        return false;
+    }
+
+    const ssrMakeMultipleValueFn = resolver.resolve("ssrMakeMultipleValue")
+    if(ssrMakeMultipleValueFn == null) {
+        diagnoser.error("couldn't find 'ssrMakeMultipleValue' node", loc);
         return false;
     }
 
@@ -298,10 +322,14 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.renderJsAttrValueFn = renderJsAttrValueFn
     support.getSsrAttributeValueFn = getSsrAttributeValueFn
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
+    support.getMultipleAttributeValuesFn = getMultipleAttributeValuesFn
     support.ssrTextEqualsFn = ssrTextEqualsFn
     support.ssrPickValueFn = ssrPickValueFn
     support.ssrMakeTextValueFn = ssrMakeTextValueFn
     support.ssrMakeBoolValueFn = ssrMakeBoolValueFn
+    support.ssrMakeUIntegerValueFn = ssrMakeUIntegerValueFn
+    support.ssrMakeIntegerValueFn = ssrMakeIntegerValueFn
+    support.ssrMakeMultipleValueFn = ssrMakeMultipleValueFn
     support.ssrNoneValueFn = ssrNoneValueFn
 
     const stdNamespace = resolver.resolve("std")

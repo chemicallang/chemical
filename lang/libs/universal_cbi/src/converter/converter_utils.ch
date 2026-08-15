@@ -1170,7 +1170,29 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                 }
             }
         }
-        JsNodeKind.Literal, JsNodeKind.Identifier => {
+        JsNodeKind.Identifier => {
+            // Reference to a local variable declared in the component body:
+            // render it as a child value at SSR runtime.
+            const id = node as *mut JsIdentifier;
+            const local = converter.find_ssr_local(id.value);
+            if(local == null) return;
+
+            const builder = converter.builder;
+            const location = intrinsics::get_raw_location();
+            const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
+            var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+
+            var call = builder.make_function_call_node(
+                builder.make_identifier("renderHtmlChildValue", converter.support.renderHtmlChildValueFn, false, location),
+                converter.parent,
+                location
+            );
+            call.get_args().push(pageId);
+            call.get_args().push(localRef);
+
+            converter.vec.push(call as *mut ASTNode);
+        }
+        JsNodeKind.Literal => {
              // For literals or other expressions, we might want to render them
              // but only if they are not props.
              // Actually, if it's a literal string, we should append it to HTML.
@@ -1212,6 +1234,18 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
         if(lit.value.equals(view("false"))) return builder.make_bool_value(false, location) as *mut Value;
     }
 
+    if(node.kind == JsNodeKind.Identifier) {
+        // Reference to a local variable declared in the component body.
+        const id = node as *mut JsIdentifier;
+        const local = converter.find_ssr_local(id.value);
+        if(local != null) {
+            const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
+            const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+            truthyCall.get_args().push(localRef);
+            return truthyCall as *mut Value;
+        }
+    }
+
     if(node.kind == JsNodeKind.UnaryOp) {
         var unary = node as *mut JsUnaryOp;
         if(unary.operator.equals(view("!"))) {
@@ -1219,6 +1253,30 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
             if(operandVal != null) {
                 return builder.make_not_value(operandVal, location) as *mut Value;
             }
+        }
+    }
+
+    if(node.kind == JsNodeKind.BinaryOp) {
+        var bin = node as *mut JsBinaryOp;
+        const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="));
+        const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="));
+        if(isEq || isNe) {
+            if(bin.right == null || bin.right.kind != JsNodeKind.Literal) return null;
+            var attrValConv = AttrValueConverter {
+                pageNode : support.pageNode,
+                ssrTextNode : support.ssrTextLinkedNode,
+                ssrAttributeValueNode : support.ssrAttributeValueNode,
+                multipleAttributeValueNode : support.multipleAttributeValueNode,
+                parent : converter.parent
+            }
+            const leftVal = converter.convert_ssr_attr_value_expr(bin.left, &mut attrValConv);
+            if(leftVal == null) return null;
+            const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
+            const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
+            cmpCall.get_args().push(leftVal);
+            cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
+            if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
+            return cmpCall as *mut Value;
         }
     }
 
@@ -1282,6 +1340,18 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
             }
             return null;
         }
+        JsNodeKind.Identifier => {
+            // Reference to a local variable declared in the component body.
+            const id = node as *mut JsIdentifier;
+            const local = converter.find_ssr_local(id.value);
+            if(local != null) {
+                const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
+                const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+                truthyCall.get_args().push(localRef);
+                return truthyCall as *mut Value;
+            }
+            return null;
+        }
         JsNodeKind.MemberAccess => {
             if(converter.is_component_props_read(node)) {
                 const v = converter.make_ssr_prop_v_call((node as *mut JsMemberAccess).property);
@@ -1312,9 +1382,183 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
     }
 }
 
+// Looks up a local variable declared in the current universal component body
+// (see emit_ssr_local_decl). Returns null when the name is not a known local.
+func (converter : &mut JsConverter) find_ssr_local(name : std::string_view) : *JsSsrLocal {
+    for(var i : uint = 0; i < converter.ssr_locals.size(); i++) {
+        if(converter.ssr_locals.get_ptr(i).name.equals(&name)) {
+            return converter.ssr_locals.get_ptr(i);
+        }
+    }
+    return null;
+}
+
+// Builds an AttrValueConverter for the current converter context.
+func (converter : &mut JsConverter) make_attr_value_converter() : AttrValueConverter {
+    const support = converter.support;
+    return AttrValueConverter {
+        pageNode : support.pageNode,
+        ssrTextNode : support.ssrTextLinkedNode,
+        ssrAttributeValueNode : support.ssrAttributeValueNode,
+        multipleAttributeValueNode : support.multipleAttributeValueNode,
+        parent : converter.parent
+    }
+}
+
+// Converts a component-body `var` declaration into a Chemical SsrAttributeValue
+// local in the SSR function and records it in ssr_locals so JSX attribute/child
+// expressions can reference it ({variant} etc). Returns false when the
+// declaration cannot be represented at SSR time.
+func (converter : &mut JsConverter) emit_ssr_local_decl(decl : *mut JsVarDecl) : bool {
+    if(decl == null || decl.name.empty()) return false;
+    if(converter.find_ssr_local(decl.name) != null) return false;
+
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+    const support = converter.support;
+
+    var attrValConv = converter.make_attr_value_converter();
+
+    var init : *mut Value = null;
+    if(decl.value != null) {
+        if(decl.value.kind == JsNodeKind.ChemicalValue) {
+            const chem = decl.value as *mut JsChemicalValue;
+            if(chem.value != null) {
+                init = attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value);
+            }
+        } else {
+            init = converter.convert_ssr_attr_value_expr(decl.value, &mut attrValConv);
+        }
+    }
+    if(init == null) return false;
+
+    const varType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location);
+    const varInit = builder.make_varinit_stmt(false, false, &decl.name, varType, init, AccessSpecifier.Internal, converter.parent, location);
+    converter.vec.push(varInit);
+
+    var local = JsSsrLocal {
+        name : decl.name,
+        varInit : varInit
+    }
+    converter.ssr_locals.push(local);
+    return true;
+}
+
+// Converts a component-body assignment statement (`x = expr`) into a Chemical
+// assignment targeting a known SSR local. Returns false when unsupported.
+func (converter : &mut JsConverter) emit_ssr_assignment_stmt(expr : *mut JsNode) : bool {
+    if(expr == null || expr.kind != JsNodeKind.BinaryOp) return false;
+    const bin = expr as *mut JsBinaryOp;
+    if(!bin.op.equals(view("="))) return false;
+    if(bin.left == null || bin.left.kind != JsNodeKind.Identifier) return false;
+    const id = bin.left as *mut JsIdentifier;
+    const local = converter.find_ssr_local(id.value);
+    if(local == null) return false;
+
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+
+    var attrValConv = converter.make_attr_value_converter();
+
+    var rhs : *mut Value = null;
+    if(bin.right != null) {
+        if(bin.right.kind == JsNodeKind.ChemicalValue) {
+            const chem = bin.right as *mut JsChemicalValue;
+            if(chem.value != null) {
+                rhs = attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value);
+            }
+        } else {
+            rhs = converter.convert_ssr_attr_value_expr(bin.right, &mut attrValConv);
+        }
+    }
+    if(rhs == null) return false;
+
+    const lhs = builder.make_identifier(&local.name, local.varInit, false, location);
+    const assign = builder.make_assignment_stmt(lhs, rhs, Operation.Assignment, converter.parent, location);
+    converter.vec.push(assign as *mut ASTNode);
+    return true;
+}
+
+// Emits a component-body `if` statement (with else/else-if chains) into the SSR
+// function. Conditions and assigned bodies are converted to Chemical.
+func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf) {
+    if(ifNode == null) return;
+
+    const cond = converter.convert_js_expr_to_ssr_bool_value(ifNode.condition);
+    if(cond == null) return;
+
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+
+    const ifStmt = builder.make_if_stmt(cond, converter.parent, location);
+    const oldVec = converter.vec;
+
+    if(ifNode.thenBlock != null) {
+        converter.vec = ifStmt.get_body();
+        if(ifNode.thenBlock.kind == JsNodeKind.Block) {
+            converter.emit_ssr_body_statements(ifNode.thenBlock as *mut JsBlock);
+        } else {
+            converter.emit_ssr_single_stmt(ifNode.thenBlock);
+        }
+    }
+
+    if(ifNode.elseBlock != null) {
+        converter.vec = ifStmt.add_else_body();
+        if(ifNode.elseBlock.kind == JsNodeKind.If) {
+            // else-if chain
+            converter.emit_ssr_if_stmt(ifNode.elseBlock as *mut JsIf);
+        } else if(ifNode.elseBlock.kind == JsNodeKind.Block) {
+            converter.emit_ssr_body_statements(ifNode.elseBlock as *mut JsBlock);
+        } else {
+            converter.emit_ssr_single_stmt(ifNode.elseBlock);
+        }
+    }
+
+    converter.vec = oldVec;
+    converter.vec.push(ifStmt as *mut ASTNode);
+}
+
+// Emits a single non-block component body statement into the SSR function.
+func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode) {
+    if(stmt == null) return;
+    switch(stmt.kind) {
+        JsNodeKind.VarDecl => {
+            // Only plain var/let/const declarations become SSR locals. `state`
+            // (and computed) declarations are reactive client-side wrappers that
+            // SSR cannot evaluate — skip them so conditions referencing them
+            // render nothing, matching client-side empty-state behavior.
+            const decl = stmt as *mut JsVarDecl;
+            if(decl.keyword.equals(view("var")) || decl.keyword.equals(view("let")) || decl.keyword.equals(view("const"))) {
+                converter.emit_ssr_local_decl(stmt as *mut JsVarDecl);
+            }
+        }
+        JsNodeKind.If => {
+            converter.emit_ssr_if_stmt(stmt as *mut JsIf);
+        }
+        JsNodeKind.ExpressionStatement => {
+            const es = stmt as *mut JsExpressionStatement;
+            converter.emit_ssr_assignment_stmt(es.expression);
+        }
+        default => {}
+    }
+}
+
+// Emits all component body statements (var declarations, if/else chains,
+// assignments) into the SSR function body, in order. This makes locals like
+// `var variant = props.variant || "default"` available to the returned JSX.
+func (converter : &mut JsConverter) emit_ssr_body_statements(block : *mut JsBlock) {
+    if(block == null) return;
+    for(var i : uint = 0; i < block.statements.size(); i++) {
+        const stmt = block.statements.get(i);
+        if(stmt == null) continue;
+        converter.emit_ssr_single_stmt(stmt);
+    }
+}
+
 // Builds a Chemical SsrAttributeValue expression that evaluates a props-driven
-// JS expression at SSR runtime (ternary, ||, &&, + concatenation, props reads).
-// Returns null when the expression cannot be evaluated at SSR time.
+// JS expression at SSR runtime (ternary, ||, &&, + concatenation, props reads,
+// local variable references). Returns null when the expression cannot be
+// evaluated at SSR time.
 func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNode, attrValConv : &mut AttrValueConverter) : *mut Value {
     if(node == null) return null;
     const builder = converter.builder;
@@ -1344,12 +1588,27 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
         JsNodeKind.Paren => {
             return converter.convert_ssr_attr_value_expr((node as *mut JsParen).expression, attrValConv);
         }
+        JsNodeKind.Identifier => {
+            // Reference to a local variable declared earlier in the component body.
+            const id = node as *mut JsIdentifier;
+            const local = converter.find_ssr_local(id.value);
+            if(local != null) {
+                return builder.make_identifier(&local.name, local.varInit, false, location) as *mut Value;
+            }
+            return null;
+        }
         JsNodeKind.MemberAccess => {
             if(converter.is_component_props_read(node)) {
                 if(converter.is_props_children(node)) return null;
                 return converter.make_ssr_prop_v_call((node as *mut JsMemberAccess).property);
             }
             return null;
+        }
+        JsNodeKind.ChemicalValue => {
+            // A ${...} embed — the value is already a Chemical expression.
+            const chem = node as *mut JsChemicalValue;
+            if(chem.value == null) return null;
+            return attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value);
         }
         JsNodeKind.BinaryOp => {
             const bin = node as *mut JsBinaryOp;

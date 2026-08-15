@@ -1,189 +1,234 @@
+// Shadcn-style Input family with variant/size props.
+//
+// One `input_styles` block carries the base look plus every variant/size as
+// `[data-variant=...]` / `[data-size=...]` attribute selectors; the component
+// renders matching data attributes so SSR HTML and the client bundle agree.
+
 func input_styles(page : &mut HtmlPage) : *char {
     return #css {
+        display: inline-flex;
+        align-items: center;
         width: 100%;
-        padding: 0.75rem 0.9rem;
-        border-radius: var(--chx-radius-sm);
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
+        height: 2.5rem;
+        padding: 0 0.9rem;
+        border-radius: calc(var(--radius) - 2px);
+        border: 1px solid hsl(var(--input));
+        background: transparent;
+        color: hsl(var(--foreground));
+        font-size: 0.875rem;
         outline: none;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        &::placeholder {
+            color: hsl(var(--muted-foreground));
+        }
         &:hover {
-            border-color: var(--chx-border-strong);
+            border-color: hsl(var(--input) / 0.8);
         }
         &:focus {
-            border-color: var(--chx-accent);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+            border-color: hsl(var(--ring));
+            box-shadow: 0 0 0 3px hsl(var(--ring) / 0.22);
+        }
+        &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            background: hsl(var(--muted) / 0.4);
+        }
+        &[data-variant="filled"] {
+            background: hsl(var(--muted) / 0.55);
+            border-color: transparent;
+            &:hover { border-color: transparent; }
+        }
+        &[data-variant="ghost"] {
+            background: transparent;
+            border-color: transparent;
+            border-bottom: 1px solid hsl(var(--input));
+            border-radius: 0;
+            padding-left: 0;
+            padding-right: 0;
+            &:hover { border-color: hsl(var(--input) / 0.8); }
+        }
+        &[data-variant="error"] {
+            border-color: hsl(var(--destructive) / 0.6);
+            &:focus { box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.14); }
+        }
+        &[data-variant="success"] {
+            border-color: hsl(var(--success) / 0.55);
+            &:focus { box-shadow: 0 0 0 3px hsl(var(--success) / 0.14); }
+        }
+        &[data-size="sm"] {
+            height: 2.25rem;
+            padding: 0 0.75rem;
+            font-size: 0.8125rem;
+        }
+        &[data-size="lg"] {
+            height: 2.75rem;
+            padding: 0 1rem;
+            font-size: 1rem;
         }
     }
 }
 
 func textarea_styles(page : &mut HtmlPage) : *char {
     return #css {
+        display: flex;
         width: 100%;
         min-height: 120px;
-        padding: 0.85rem 0.9rem;
-        border-radius: var(--chx-radius-sm);
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
+        padding: 0.75rem 0.9rem;
+        border-radius: calc(var(--radius) - 2px);
+        border: 1px solid hsl(var(--input));
+        background: transparent;
+        color: hsl(var(--foreground));
+        font-size: 0.875rem;
+        font-family: inherit;
         outline: none;
         resize: vertical;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        &:hover {
-            border-color: var(--chx-border-strong);
-        }
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        &::placeholder { color: hsl(var(--muted-foreground)); }
+        &:hover { border-color: hsl(var(--input) / 0.8); }
         &:focus {
-            border-color: var(--chx-accent);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+            border-color: hsl(var(--ring));
+            box-shadow: 0 0 0 3px hsl(var(--ring) / 0.22);
         }
-    }
-}
-
-func select_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 100%;
-        padding: 0.75rem 0.9rem;
-        border-radius: var(--chx-radius-sm);
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
-        outline: none;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        &:hover {
-            border-color: var(--chx-border-strong);
+        &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
-        &:focus {
-            border-color: var(--chx-accent);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+        &[data-variant="error"] {
+            border-color: hsl(var(--destructive) / 0.6);
+            &:focus { box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.14); }
         }
-    }
-}
-
-func input_filled_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        background: var(--chx-surface-2);
-        border-color: transparent;
-    }
-}
-
-func input_success_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        border-color: rgba(16, 185, 129, 0.45);
-        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
-    }
-}
-
-func input_error_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        border-color: rgba(239, 68, 68, 0.45);
-        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.10);
-    }
-}
-
-func input_ghost_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        background: transparent;
-        border-color: transparent;
-        border-bottom: 1px solid var(--chx-border-strong);
-        border-radius: 0;
-        padding-left: 0;
-        padding-right: 0;
-    }
-}
-
-func input_sm_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        padding: 0.55rem 0.75rem;
-        font-size: 0.88rem;
-    }
-}
-
-func input_lg_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        padding: 0.95rem 1rem;
-        font-size: 1.02rem;
-    }
-}
-
-func input_disabled_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        opacity: 0.62;
-        cursor: not-allowed;
-        background: var(--chx-surface-2);
     }
 }
 
 func field_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: grid;
-        gap: 0.45rem;
+        gap: 0.5rem;
+        text-align: left;
     }
 }
 
 func field_label_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-size: 0.9rem;
-        font-weight: 650;
-        color: var(--chx-text-main);
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1;
+        color: hsl(var(--foreground));
     }
 }
 
 func field_hint_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-size: 0.82rem;
-        color: var(--chx-text-muted);
+        font-size: 0.8125rem;
+        color: hsl(var(--muted-foreground));
+    }
+}
+
+func field_error_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: hsl(var(--destructive));
     }
 }
 
 public #universal Input(props) {
-    return <input {...props} class={${input_styles(page)}} />
+    return <input
+        {...props}
+        type={props.type || "text"}
+        placeholder={props.placeholder}
+        value={props.value}
+        disabled={props.disabled}
+        data-variant={props.variant || "default"}
+        data-size={props.size || "default"}
+        class={${input_styles(page)}}
+        class={props.className || props.class}
+        onClick={props.onClick}
+        onChange={props.onChange}
+        id={props.id}
+        name={props.name}
+        aria-label={props.ariaLabel}
+    />
 }
 
 public #universal TextArea(props) {
-    return <textarea {...props} class={${textarea_styles(page)}}>{props.children}</textarea>
+    return <textarea
+        {...props}
+        placeholder={props.placeholder}
+        value={props.value}
+        disabled={props.disabled}
+        data-variant={props.variant || "default"}
+        class={${textarea_styles(page)}}
+        class={props.className || props.class}
+        onClick={props.onClick}
+        onChange={props.onChange}
+        id={props.id}
+        name={props.name}
+        rows={props.rows}
+    >{props.children}</textarea>
 }
 
 public #universal Select(props) {
-    return <select {...props} class={${select_styles(page)}}>{props.children}</select>
+    return <select
+        {...props}
+        value={props.value}
+        disabled={props.disabled}
+        data-variant={props.variant || "default"}
+        data-size={props.size || "default"}
+        class={${input_styles(page)}}
+        class={props.className || props.class}
+        onChange={props.onChange}
+        id={props.id}
+        name={props.name}
+    >{props.children}</select>
 }
 
+// Legacy wrappers — keep every previously-public name working.
 public #universal InputFilled(props) {
-    return <Input {...props} class={${input_filled_styles(page)}} />
+    return <Input {...props} variant="filled">{props.children}</Input>
 }
 
 public #universal InputSuccess(props) {
-    return <Input {...props} class={${input_success_styles(page)}} />
+    return <Input {...props} variant="success">{props.children}</Input>
 }
 
 public #universal InputError(props) {
-    return <Input {...props} class={${input_error_styles(page)}} />
+    return <Input {...props} variant="error">{props.children}</Input>
 }
 
 public #universal InputGhost(props) {
-    return <Input {...props} class={${input_ghost_styles(page)}} />
+    return <Input {...props} variant="ghost">{props.children}</Input>
 }
 
 public #universal InputSm(props) {
-    return <Input {...props} class={${input_sm_styles(page)}} />
+    return <Input {...props} size="sm">{props.children}</Input>
 }
 
 public #universal InputLg(props) {
-    return <Input {...props} class={${input_lg_styles(page)}} />
+    return <Input {...props} size="lg">{props.children}</Input>
 }
 
 public #universal InputDisabled(props) {
-    return <Input {...props} disabled={true} class={${input_disabled_styles(page)}} />
+    return <Input {...props} disabled={true}>{props.children}</Input>
 }
 
 public #universal Field(props) {
-    return <label {...props} class={${field_styles(page)}}>{props.children}</label>
+    return <label class={${field_styles(page)}} class={props.className || props.class}>
+        {props.label !== undefined ? <FieldLabel>{props.label}</FieldLabel> : null}
+        {props.children}
+        {props.hint !== undefined ? <FieldHint>{props.hint}</FieldHint> : null}
+        {props.error !== undefined ? <FieldError>{props.error}</FieldError> : null}
+    </label>
 }
 
 public #universal FieldLabel(props) {
-    return <span {...props} class={${field_label_styles(page)}}>{props.children}</span>
+    return <span class={${field_label_styles(page)}} class={props.className || props.class}>{props.children}</span>
 }
 
 public #universal FieldHint(props) {
-    return <span {...props} class={${field_hint_styles(page)}}>{props.children}</span>
+    return <span class={${field_hint_styles(page)}} class={props.className || props.class}>{props.children}</span>
+}
+
+public #universal FieldError(props) {
+    return <span role="alert" class={${field_error_styles(page)}} class={props.className || props.class}>{props.children}</span>
 }

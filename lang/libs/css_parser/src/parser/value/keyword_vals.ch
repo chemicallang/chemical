@@ -2266,16 +2266,17 @@ func (cssParser : &mut CSSParser) parseBackgroundSize(
         value : &mut CSSValue
 ) {
     const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("background-size")
-        return;
+    if(token.type == TokenType.Identifier) {
+        const kind = getBackgroundSizeKeywordKind(token.fnv1())
+        if(kind != CSSKeywordKind.Unknown) {
+            parser.increment()
+            alloc_value_keyword(builder, value, kind, &token.value)
+            return;
+        }
+        // fall through: identifier that is not a known keyword
+        // (e.g. custom var) is handled by the value parser below
     }
-    const kind = getBackgroundSizeKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("background-size")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, &token.value)
+    cssParser.parseBackgroundSizeValue(parser, builder, value)
 }
 
 

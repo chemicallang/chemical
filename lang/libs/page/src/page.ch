@@ -505,10 +505,11 @@ window.$_um = ((...parts) => {
         if(!part) continue;
         for(const k in part) {
             const key = (k === "className" || k === "class") ? "class" : k;
-            if(key === "class" && out[key] && part[k]) {
-                out[key] = out[key] + " " + part[k];
+            const v = window.$__uni_value(part[k]);
+            if(key === "class" && out[key] && v) {
+                out[key] = window.$__uni_value(out[key]) + " " + v;
             } else {
-                out[key] = part[k];
+                out[key] = v;
             }
         }
     }

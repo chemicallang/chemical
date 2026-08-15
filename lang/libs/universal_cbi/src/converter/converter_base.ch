@@ -8,6 +8,14 @@ struct JsStateInit {
     var init : std::string_view
 }
 
+// A local variable declared in a universal component body (e.g. `var variant =
+// props.variant || "default"`). SSR emits these as Chemical var statements so
+// JSX attributes that reference them ({variant}) resolve at SSR runtime.
+struct JsSsrLocal {
+    var name : std::string_view
+    var varInit : *mut ASTNode
+}
+
 struct JsConverter {
     var builder : *mut ASTBuilder
     var support : *mut SymResSupport
@@ -26,4 +34,7 @@ struct JsConverter {
     var in_jsx_attribute : bool = false
     var skip_reactive_deref : bool = false
     var function_depth : int = 0
+    // Local variables declared in the current universal component body, tracked
+    // so JSX attribute/child expressions can reference them during SSR.
+    var ssr_locals : std::vector<JsSsrLocal>
 }

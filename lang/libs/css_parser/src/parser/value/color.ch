@@ -144,10 +144,14 @@ func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) 
                 return CSSLengthValueData { kind : lenKind, value : builder.allocate_view(&token.value) }
             }
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("none")) {
                 parser.increment()
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
+            } else if(token.value.equals("var")) {
+                parser.increment()
+                const view2 = parseCssVariableFunc(&raw mut parser, builder)
+                return CSSLengthValueData { kind : CSSLengthKind.Variable, value : builder.allocate_view(&view2) }
             }
         }
         default => {
@@ -169,10 +173,14 @@ func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuil
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(&token.value) }
             }
         }
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             if(token.value.equals("none")) {
                 parser.increment()
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
+            } else if(token.value.equals("var")) {
+                parser.increment()
+                const view2 = parseCssVariableFunc(&raw mut parser, builder)
+                return CSSLengthValueData { kind : CSSLengthKind.Variable, value : builder.allocate_view(&view2) }
             }
         }
         default => {
@@ -180,6 +188,30 @@ func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuil
         }
     }
     return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
+}
+
+func parseCssVariableFunc(parser : *mut Parser, builder : *mut ASTBuilder) : std::string_view {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'var'")
+    }
+
+    const colorToken = parser.getToken()
+    if(colorToken.type != TokenType.Identifier && colorToken.type != TokenType.PropertyName) {
+        parser.error("expected a identifier after 'var'");
+    }
+    parser.increment()
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'var' arguments")
+    }
+
+    return colorToken.value
 }
 
 // this should be called after incrementing the 'rgb' or 'rgba' token

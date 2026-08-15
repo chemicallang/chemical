@@ -45,7 +45,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         state_vars : std::vector<std::string_view>(),
         state_inits : std::vector<JsStateInit>(),
         current_func : funcNode,
-        component_props_name : root.signature.propsName
+        component_props_name : root.signature.propsName,
+        ssr_locals : std::vector<JsSsrLocal>()
     }
 
     const nodeLocation = value.getEncodedLocation()
@@ -154,6 +155,9 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             // 3. HTML emission
             // Emit the actual component content, going into html buffer
             converter.target = BufferType.HTML;
+            // Emit component body statements (var decls, if/else chains) first so
+            // locals referenced by the returned JSX ({variant}) exist at SSR time.
+            converter.emit_ssr_body_statements(block);
             converter.convertJsNode(returned);
             converter.put_chain_in();
 

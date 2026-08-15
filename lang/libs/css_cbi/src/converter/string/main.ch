@@ -1825,6 +1825,22 @@ func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replaceme
         out.append_view(&replacement);
         return;
     }
+    if(s.kind == SimpleSelectorKind.Attribute) {
+        out.append('[');
+        out.append_view(&s.attr.name);
+        if(!s.attr.operator.empty()) {
+            out.append_view(&s.attr.operator);
+            out.append('"');
+            out.append_view(&s.attr.value);
+            out.append('"');
+            if(!s.attr.flags.empty()) {
+                out.append(' ');
+                out.append_view(&s.attr.flags);
+            }
+        }
+        out.append(']');
+        return;
+    }
     if(s.kind == SimpleSelectorKind.Class) out.append('.');
     if(s.kind == SimpleSelectorKind.Id) out.append('#');
     if(s.kind == SimpleSelectorKind.PseudoClass) {
@@ -1834,7 +1850,6 @@ func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replaceme
         out.append_view("::");
     }
     out.append_view(&s.value);
-    // TODO: Attribute selectors
 }
 func serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
     var i : uint = 0;

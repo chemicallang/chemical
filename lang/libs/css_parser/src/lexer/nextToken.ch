@@ -137,6 +137,20 @@ public func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 position : position
             }
         }
+        '[' => {
+            return Token {
+                type : TokenType.LBracket as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
+        ']' => {
+            return Token {
+                type : TokenType.RBracket as int,
+                value : std::string_view(data_ptr, 1),
+                position : position
+            }
+        }
         '@' => {
             css.at_rule = true;
             return Token {

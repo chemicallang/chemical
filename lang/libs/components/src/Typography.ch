@@ -1,116 +1,245 @@
-func typo_h1_styles(page : &mut HtmlPage) : *char {
+func h1_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-size: 3rem;
-        line-height: 1.04;
-        letter-spacing: -0.04em;
+        font-size: 2.25rem;
+        line-height: 2.5rem;
         font-weight: 800;
+        letter-spacing: -0.025em;
         margin: 0;
-        color: var(--chx-text-main);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_h2_styles(page : &mut HtmlPage) : *char {
+func h2_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-size: 2.2rem;
-        line-height: 1.08;
-        letter-spacing: -0.03em;
-        font-weight: 760;
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
         margin: 0;
-        color: var(--chx-text-main);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_h3_styles(page : &mut HtmlPage) : *char {
+func h3_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-size: 1.35rem;
-        line-height: 1.15;
-        font-weight: 720;
+        font-size: 1.5rem;
+        line-height: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.025em;
         margin: 0;
-        color: var(--chx-text-main);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_text_styles(page : &mut HtmlPage) : *char {
+func h4_styles(page : &mut HtmlPage) : *char {
     return #css {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
         margin: 0;
-        line-height: 1.65;
-        color: var(--chx-text-main);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_lead_styles(page : &mut HtmlPage) : *char {
+func h5_styles(page : &mut HtmlPage) : *char {
     return #css {
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+        font-weight: 600;
         margin: 0;
-        font-size: 1.08rem;
-        line-height: 1.75;
-        color: var(--chx-text-muted);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_caption_styles(page : &mut HtmlPage) : *char {
+func h6_styles(page : &mut HtmlPage) : *char {
     return #css {
+        font-size: 1rem;
+        line-height: 1.5rem;
+        font-weight: 600;
         margin: 0;
-        font-size: 0.82rem;
-        letter-spacing: 0.02em;
-        color: var(--chx-text-muted);
+        color: hsl(var(--chx-foreground));
     }
 }
 
-func typo_code_styles(page : &mut HtmlPage) : *char {
+func text_styles(page : &mut HtmlPage) : *char {
     return #css {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.15rem 0.4rem;
-        border-radius: 8px;
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface-2);
-        color: var(--chx-text-main);
-        font-size: 0.82rem;
-        font-family: ui-monospace, "SFMono-Regular", monospace;
+        font-size: 1rem;
+        line-height: 1.75rem;
+        margin: 0;
+        color: hsl(var(--chx-foreground));
+        &[data-muted="true"] {
+            color: hsl(var(--chx-muted-foreground));
+        }
+    }
+}
+
+func lead_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        margin: 0;
+        color: hsl(var(--chx-foreground));
+    }
+}
+
+func caption_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: hsl(var(--chx-muted-foreground));
+        margin: 0;
+    }
+}
+
+func code_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-family: var(--chx-font-mono);
+        font-size: 0.875em;
+        background: hsl(var(--chx-muted));
+        color: hsl(var(--chx-foreground));
+        border-radius: 0.25rem;
+        padding: 0.2em 0.4em;
     }
 }
 
 func link_styles(page : &mut HtmlPage) : *char {
     return #css {
-        color: var(--chx-accent);
-        text-decoration: none;
-        font-weight: 600;
-        transition: color 0.18s ease, opacity 0.18s ease;
+        color: hsl(var(--chx-primary));
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        font: inherit;
         &:hover {
-            opacity: 0.82;
-            text-decoration: underline;
+            text-decoration-thickness: 2px;
+        }
+    }
+}
+
+func blockquote_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        margin: 0;
+        border-left: 3px solid hsl(var(--chx-border));
+        padding-left: 1rem;
+        color: hsl(var(--chx-muted-foreground));
+        font-style: italic;
+        .chx-blockquote-cite {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: hsl(var(--chx-muted-foreground));
+            font-style: normal;
         }
     }
 }
 
 public #universal H1(props) {
-    return <h1 {...props} class={${typo_h1_styles(page)}}>{props.children}</h1>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h1 class={classes + " " + ${h1_styles(page)}}>{props.children}</h1>
 }
 
 public #universal H2(props) {
-    return <h2 {...props} class={${typo_h2_styles(page)}}>{props.children}</h2>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h2 class={classes + " " + ${h2_styles(page)}}>{props.children}</h2>
 }
 
 public #universal H3(props) {
-    return <h3 {...props} class={${typo_h3_styles(page)}}>{props.children}</h3>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h3 class={classes + " " + ${h3_styles(page)}}>{props.children}</h3>
+}
+
+public #universal H4(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h4 class={classes + " " + ${h4_styles(page)}}>{props.children}</h4>
+}
+
+public #universal H5(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h5 class={classes + " " + ${h5_styles(page)}}>{props.children}</h5>
+}
+
+public #universal H6(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h6 class={classes + " " + ${h6_styles(page)}}>{props.children}</h6>
+}
+
+public #universal Heading(props) {
+    var level = props.level || 1
+    if(level == 2) { return <H2 {...props} /> }
+    if(level == 3) { return <H3 {...props} /> }
+    if(level == 4) { return <H4 {...props} /> }
+    if(level == 5) { return <H5 {...props} /> }
+    if(level == 6) { return <H6 {...props} /> }
+    return <H1 {...props} />
 }
 
 public #universal Text(props) {
-    return <p {...props} class={${typo_text_styles(page)}}>{props.children}</p>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    var tag = props.as || "p"
+    var muted = props.muted || false
+    var out = classes + " " + ${text_styles(page)}
+    if(tag == "span") { return <span data-muted={muted ? "true" : "false"} class={out}>{props.children}</span> }
+    if(tag == "div") { return <div data-muted={muted ? "true" : "false"} class={out}>{props.children}</div> }
+    return <p data-muted={muted ? "true" : "false"} class={out}>{props.children}</p>
 }
 
 public #universal Lead(props) {
-    return <p {...props} class={${typo_lead_styles(page)}}>{props.children}</p>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <p class={classes + " " + ${lead_styles(page)}}>{props.children}</p>
 }
 
 public #universal Caption(props) {
-    return <p {...props} class={${typo_caption_styles(page)}}>{props.children}</p>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <p class={classes + " " + ${caption_styles(page)}}>{props.children}</p>
 }
 
 public #universal CodeText(props) {
-    return <code {...props} class={${typo_code_styles(page)}}>{props.children}</code>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <code class={classes + " " + ${code_styles(page)}}>{props.children}</code>
 }
 
 public #universal Link(props) {
-    return <a {...props} class={${link_styles(page)}}>{props.children}</a>
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    var out = classes + " " + ${link_styles(page)}
+    var attrs = {}
+    attrs.class = out
+    if(props.href) { attrs.href = props.href }
+    if(props.target) { attrs.target = props.target }
+    if(props.rel) { attrs.rel = props.rel }
+    if(props.id) { attrs.id = props.id }
+    if(props.onClick) { attrs.onClick = props.onClick }
+    return <a {...attrs}>{props.children}</a>
 }
+
+public #universal Blockquote(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    var cite = props.cite || ""
+    return <blockquote class={classes + " " + ${blockquote_styles(page)}}>{props.children}{cite ? <cite class="chx-blockquote-cite">{cite}</cite> : null}</blockquote>
+}
+
+// Legacy aliases
+public #universal TypographyH1(props) { return <H1 {...props} /> }
+public #universal TypographyH2(props) { return <H2 {...props} /> }
+public #universal TypographyH3(props) { return <H3 {...props} /> }
+public #universal TypographyH4(props) { return <H4 {...props} /> }
+public #universal TypographyH5(props) { return <H5 {...props} /> }
+public #universal TypographyH6(props) { return <H6 {...props} /> }
+public #universal TypographyText(props) { return <Text {...props}>{props.children}</Text> }
+public #universal TypographyLead(props) { return <Lead {...props}>{props.children}</Lead> }
+public #universal TypographyCaption(props) { return <Caption {...props}>{props.children}</Caption> }
+public #universal TypographyCode(props) { return <CodeText {...props}>{props.children}</CodeText> }

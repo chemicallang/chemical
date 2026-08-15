@@ -53,7 +53,7 @@ public func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM
                     keep_parsing = false;
                 }
             }
-            TokenType.Ampersand, TokenType.ClassName, TokenType.Id, TokenType.Colon, TokenType.LBrace, TokenType.Multiply => {
+            TokenType.Ampersand, TokenType.ClassName, TokenType.Id, TokenType.Colon, TokenType.LBrace, TokenType.Multiply, TokenType.LBracket => {
                 if(!cssParser.parseNestedRule(&mut *root, parser, builder)) {
                     parser.error("failed to parse nested rule");
                     keep_parsing = false;

@@ -40,6 +40,10 @@ public enum TokenType {
     LParen,
     // )
     RParen,
+    // [
+    LBracket,
+    // ]
+    RBracket,
     // #e3e3e3
     HexColor,
     // %

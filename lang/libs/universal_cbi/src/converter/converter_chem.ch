@@ -88,6 +88,24 @@ func (converter : &mut JsConverter) put_chemical_value_in(value : *mut Value) {
 }
 
 func (converter : &mut JsConverter) convertChemicalValue(chem : *mut JsChemicalValue) {
+    // Inside the JS bundle, a ${...} embed of a string value must be wrapped in
+    // quotes so the emitted JS text references a string literal instead of a bare
+    // identifier (the mangled Chemical variable name). Numeric/boolean embeds
+    // stay unquoted — put_by_type handles their serialization.
+    var quoted = false;
+    if(converter.target == BufferType.JavaScript && chem.value != null) {
+        const cvType = chem.value.getType();
+        const isStr = cvType != null && (cvType.getKind() == BaseTypeKind.String ||
+            cvType.getKind() == BaseTypeKind.Pointer ||
+            cvType.getKind() == BaseTypeKind.ExpressiveString);
+        if(isStr) {
+            converter.str.append('"');
+            quoted = true;
+        }
+    }
     converter.put_chain_in()
     converter.put_chemical_value_in(chem.value)
+    if(quoted) {
+        converter.str.append('"');
+    }
 }

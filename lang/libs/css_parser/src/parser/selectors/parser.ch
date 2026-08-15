@@ -1,7 +1,8 @@
 
 func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : Token) : *mut SimpleSelector {
     var s = builder.allocate<SimpleSelector>(); // Need to ensure alignment/allocation matches struct
-    
+    s.attr = null;
+
     switch(start.type) {
         TokenType.Identifier, TokenType.PropertyName => {
             s.kind = SimpleSelectorKind.Tag
@@ -53,13 +54,92 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
                  s.value = builder.allocate_view(&start.value)
             }
         }
-        // Attribute selector [ ... ]
-        // TokenType.LBracket? (Not in enum shown)
+        // Attribute selectors are handled in parseCompoundSelector, which keeps
+        // the live parser position. parseSimpleSelector is kept for completeness.
         
         default => {
              return null;
         }
     }
+    return s;
+}
+
+func strip_quotes_if_any(value : std::string_view) : std::string_view {
+    if(value.size() >= 2) {
+        const first = value.get(0);
+        const last = value.get(value.size() - 1);
+        if((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            return value.subview(1, value.size() - 1);
+        }
+    }
+    return value;
+}
+
+// Parses an attribute selector starting at the '[' token: [attr], [attr=value],
+// [attr^="pre"], [attr$="suf"], [attr*="sub"], [attr~="word"], [attr|="prefix"],
+// optionally followed by a case-sensitivity flag (i / s).
+func parseAttributeSelector(parser : *mut Parser, builder : *mut ASTBuilder, start : *mut Token) : *mut SimpleSelector {
+    var s = builder.allocate<SimpleSelector>();
+    var attr = builder.allocate<AttributeSelectorData>();
+    new (attr) AttributeSelectorData();
+
+    parser.increment(); // consume '['
+
+    // attribute name
+    const nameTok = parser.getToken();
+    if(nameTok.type != TokenType.Identifier && nameTok.type != TokenType.PropertyName) {
+        parser.error("expected attribute name after '['");
+        return null;
+    }
+    attr.name = builder.allocate_view(&nameTok.value);
+    parser.increment();
+
+    // optional operator + value
+    const opTok = parser.getToken();
+    if(opTok.type != TokenType.RBracket) {
+        switch(opTok.type) {
+            TokenType.Equal => attr.operator = view("=")
+            TokenType.ContainsWord => attr.operator = view("~=")
+            TokenType.ContainsSubstr => attr.operator = view("*=")
+            TokenType.StartsWith => attr.operator = view("^=")
+            TokenType.EndsWith => attr.operator = view("$=")
+            TokenType.DashSeparatedMatch => attr.operator = view("|=")
+            default => {
+                parser.error("invalid attribute selector operator");
+                return null;
+            }
+        }
+        parser.increment();
+
+        const valTok = parser.getToken();
+        if(valTok.type == TokenType.DoubleQuotedValue || valTok.type == TokenType.SingleQuotedValue ||
+            valTok.type == TokenType.Identifier || valTok.type == TokenType.PropertyName ||
+            valTok.type == TokenType.Number) {
+            attr.value = builder.allocate_view(&strip_quotes_if_any(valTok.value));
+            parser.increment();
+        } else {
+            parser.error("expected attribute selector value");
+            return null;
+        }
+
+        // optional flags (i, s)
+        const flagTok = parser.getToken();
+        if(flagTok.type == TokenType.Identifier) {
+            attr.flags = builder.allocate_view(&flagTok.value);
+            parser.increment();
+        }
+    }
+
+    const closeTok = parser.getToken();
+    if(closeTok.type != TokenType.RBracket) {
+        parser.error("expected ']' to close attribute selector");
+        return null;
+    }
+    parser.increment();
+
+    s.kind = SimpleSelectorKind.Attribute;
+    s.value = view("");
+    s.attr = attr;
     return s;
 }
 
@@ -115,7 +195,15 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
              simple.kind = SimpleSelectorKind.Universal;
              simple.value = std::string_view("*");
              parser.increment();
+        } else if(token.type == TokenType.LBracket) {
+             simple = parseAttributeSelector(parser, builder, token);
+             if(simple == null) {
+                 break;
+             }
         } else if(token.type == TokenType.Colon) {
+             if(simple != null) {
+                 break;
+             }
              parser.increment();
              const next = parser.getToken();
              if(next.type == TokenType.Colon) {

@@ -442,31 +442,11 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
          // Group static/named attributes into an object for merging
          if(!attrMap.empty()) {
              if(!first) converter.str.append_view(", ");
-             converter.str.append_view("{");
-             for(var i : uint = 0; i < attrMap.size(); i++) {
-                 if(i > 0) converter.str.append_view(", ");
-                 const attr = attrMap.get(i);
-                 converter.str.append_view("\"");
-                 converter.str.append_view(&attr.name);
-                 converter.str.append_view("\": ");
-                 converter.convertAttributeValue(attr);
-             }
-             converter.str.append_view("}");
+             converter.emit_js_attr_object(&attrMap);
          }
          converter.str.append_view(")");
      } else {
-         converter.str.append_view("{");
-         var first = true;
-         for(var i : uint = 0; i < attrMap.size(); i++) {
-             const attr = attrMap.get(i);
-             if(!first) converter.str.append_view(", ");
-             converter.str.append_view("\"");
-             converter.str.append_view(&attr.name);
-             converter.str.append_view("\": ");
-             converter.convertAttributeValue(attr);
-             first = false;
-         }
-         converter.str.append_view("}");
+         converter.emit_js_attr_object(&attrMap);
      }
 
     if(!element.children.empty()) {

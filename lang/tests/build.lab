@@ -45,6 +45,7 @@ import "./compiler_plugins/css_runtime/build.lab" as cssRuntimeTestMod
 import "./compiler_plugins/js_runtime/build.lab" as jsRuntimeTestMod
 import "./compiler_plugins/md_runtime/build.lab" as mdRuntimeTestMod
 import "./compiler_plugins/universal_runtime/build.lab" as universalRuntimeTestMod
+import "./compiler_plugins/components/build.lab" as componentsTestMod
 import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
 
@@ -270,6 +271,9 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
             ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, mdRuntimeTestMod.build(ctx, exe_job))
         }
+        comptime_fnv1_hash("components") => {
+            ctx.add_module(exe_job, componentsTestMod.build(ctx, exe_job))
+        }
         default => {
             ctx.add_module(exe_job, htmlTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, cssTestMod.build(ctx, exe_job))
@@ -281,6 +285,7 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
             ctx.add_module(exe_job, jsRuntimeTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, mdRuntimeTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, universalRuntimeTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, componentsTestMod.build(ctx, exe_job))
         }
     }
     ctx.add_module(exe_job, testPluginsRunner.build(ctx, exe_job))
@@ -309,6 +314,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("md"))
     } else if(ctx.has_arg(std::string_view("test-universal"))) {
         return test_plugin_exe(ctx, std::string_view("universal"))
+    } else if(ctx.has_arg(std::string_view("test-components"))) {
+        return test_plugin_exe(ctx, std::string_view("components"))
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
     }

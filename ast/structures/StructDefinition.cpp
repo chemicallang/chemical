@@ -157,7 +157,7 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
     auto func = destructor_func();
     if(func) {
         llvm::Function* func_data = func->llvm_func(gen);
-        const auto instr = gen.builder->CreateCall(func_data, func->has_self_param() ? std::initializer_list<llvm::Value*> { allocaInst } : std::initializer_list<llvm::Value*> {});
+        const auto instr = gen.builder->CreateCall(func_data, func->has_self_param() ? llvm::ArrayRef<llvm::Value*>(allocaInst) : llvm::ArrayRef<llvm::Value*>());
         gen.di.instr(instr, location);
     }
 }

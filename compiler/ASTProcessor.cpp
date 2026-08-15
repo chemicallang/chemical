@@ -85,7 +85,7 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
     std::cout << std::flush;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(PRINT_FILE_ORDER_SEED)
 
 namespace {
 
@@ -102,11 +102,6 @@ namespace {
         return seed;
     }
 
-    std::mt19937_64& file_order_rng() {
-        static std::mt19937_64 rng(file_order_seed());
-        return rng;
-    }
-
     void print_file_order_seed_once() {
         static const bool printed = [] {
             std::cout << "File order seed: " << file_order_seed()
@@ -116,13 +111,22 @@ namespace {
         (void)printed;
     }
 
+#ifdef DEBUG
+    std::mt19937_64& file_order_rng() {
+        static std::mt19937_64 rng(file_order_seed());
+        return rng;
+    }
+#endif
+
 } // namespace
 
+#ifdef DEBUG
 void shuffle_files(std::vector<std::string>& files) {
     std::sort(files.begin(), files.end());   // makes the shuffle reproducible across machines
     print_file_order_seed_once();
     std::shuffle(files.begin(), files.end(), file_order_rng());
 }
+#endif
 
 #endif
 
@@ -170,6 +174,12 @@ void ASTProcessor::determine_module_files(
                     // but sometimes compiler has bugs in it, that only become visible when files are in certain order
                     // so in debug mode, we always shuffle the files, in hopes to test the compiler in all sorts of file orderings
                     // if there's a compiler crash it can be replicated via this seed we are printing
+                    // note: rel-with-deb-info builds do NOT shuffle — they use the system file order like
+                    // release, but still print the seed so a crash in CI can be reproduced with a shuffled
+                    // debug build using the exact same FILE_ORDER_SEED.
+#if defined(DEBUG) || defined(PRINT_FILE_ORDER_SEED)
+                    print_file_order_seed_once();
+#endif
 #ifdef DEBUG
                     shuffle_files(filePaths);
 #endif

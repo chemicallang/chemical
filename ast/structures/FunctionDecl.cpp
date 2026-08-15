@@ -564,7 +564,10 @@ void create_call_member_func(
     auto arg = func->getArg(0);
     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
     auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
-    auto args = (force_pass_self || decl->has_self_param()) ? std::initializer_list<llvm::Value*> { element_ptr } : std::initializer_list<llvm::Value*> {};
+    llvm::Value* arg_values[1] = { element_ptr };
+    const auto args = (force_pass_self || decl->has_self_param())
+            ? llvm::ArrayRef<llvm::Value*>(arg_values, 1)
+            : llvm::ArrayRef<llvm::Value*>();
     const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
     gen.di.instr(callInst, location);
 }

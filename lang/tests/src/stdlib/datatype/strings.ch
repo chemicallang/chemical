@@ -125,4 +125,15 @@ func test_strings() {
         var second = string("value : 99 end")
         return c.str.equals(&second);
     })
+    test("struct with std::string member generated constructor and destructor work", () => {
+        var c = StringContainerAppendExpr()
+        c.str = string("hello generated constructor")
+        if(!c.str.equals(&string("hello generated constructor"))) { return false }
+        c.str = string("reassigned")
+        if(!c.str.equals(&string("reassigned"))) { return false }
+        var c2 = StringContainerAppendExpr()
+        c2.str = string("second")
+        if(!c2.str.equals(&string("second"))) { return false }
+        return true
+    })
 }

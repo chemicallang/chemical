@@ -55,8 +55,8 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
 }
 
 llvm::Value* VariantDefinition::ptr_to_type_int(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
-    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(direct_inh_composed_structs(this)) };
-    return gen.builder->CreateGEP(def_type, pointer, idxList, "",gen.inbounds);
+    llvm::Value* idxList[] = { gen.builder->getInt32(0), gen.builder->getInt32(direct_inh_composed_structs(this)) };
+    return gen.builder->CreateGEP(def_type, pointer, llvm::ArrayRef<llvm::Value*>(idxList), "",gen.inbounds);
 }
 
 llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Type* def_type, llvm::Value* pointer, SourceLocation location) {
@@ -67,13 +67,13 @@ llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Type* def_type
 }
 
 llvm::Value* VariantDefinition::get_member_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
-    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)) };
-    return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
+    llvm::Value* idxList[] = { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)) };
+    return gen.builder->CreateGEP(def_type, pointer, llvm::ArrayRef<llvm::Value*>(idxList), "", gen.inbounds);
 }
 
 llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer, VariantMemberParam* param) {
-    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
-    return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
+    llvm::Value* idxList[] = { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    return gen.builder->CreateGEP(def_type, pointer, llvm::ArrayRef<llvm::Value*>(idxList), "", gen.inbounds);
 }
 
 llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param) {
@@ -86,8 +86,8 @@ llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* poi
     
     // 1. Get pointer to the variant payload container (the union-like struct) in the canonical layout.
     // idxList: {0 (base), 1 + direct_inh_composed_structs (payload index)}
-    std::initializer_list<llvm::Value*> payloadIdxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(def)) };
-    auto payload_ptr = gen.builder->CreateGEP(canonical_type, pointer, payloadIdxList, "", gen.inbounds);
+    llvm::Value* payloadIdxList[] = { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(def)) };
+    auto payload_ptr = gen.builder->CreateGEP(canonical_type, pointer, llvm::ArrayRef<llvm::Value*>(payloadIdxList), "", gen.inbounds);
     
     // 2. The payload field itself is an anonymous struct containing the member struct.
     // We bitcast only the payload pointer to the specific member's payload field type.
@@ -97,8 +97,8 @@ llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* poi
     
     // 3. Now we GEP into the member's parameters within that payload structure.
     // idxList: {0 (base deref), 0 (inner struct), param->index}
-    std::initializer_list<llvm::Value*> paramIdxList { gen.builder->getInt32(0), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
-    return gen.builder->CreateGEP(specific_payload_type, casted_payload_ptr, paramIdxList, "", gen.inbounds);
+    llvm::Value* paramIdxList[] = { gen.builder->getInt32(0), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    return gen.builder->CreateGEP(specific_payload_type, casted_payload_ptr, llvm::ArrayRef<llvm::Value*>(paramIdxList), "", gen.inbounds);
 }
 
 llvm::StructType* VariantDefinition::llvm_stored_type(Codegen& gen) {

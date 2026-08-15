@@ -72,6 +72,13 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     endif()
 endif ()
 
+# Both Debug and RelWithDebInfo builds print the file order seed so a crash
+# in CI (which uses RelWithDebInfo) can be reproduced locally with the exact
+# same seed. Pure Release stays clean — it's for users, no debug checks.
+if (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
+    add_definitions(-DPRINT_FILE_ORDER_SEED)
+endif ()
+
 # Treat mismatched struct/class tags as errors (causes runtime/linking issues)
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
     add_compile_options(-Werror=mismatched-tags)

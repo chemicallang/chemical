@@ -154,6 +154,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-regular-output.txt"
@@ -198,6 +199,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-tcc-output.txt"
@@ -327,6 +329,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-regular-output.txt"
@@ -371,6 +374,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-tcc-output.txt"
@@ -487,6 +491,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-regular-output.txt"
@@ -531,6 +536,7 @@ jobs:
             exit ${PIPESTATUS[0]}
           else
             echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
+            exit 1
           fi
           popd
           cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-tcc-output.txt"
@@ -651,6 +657,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
               Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
+              exit 1
           }
           Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-regular-output.txt
         shell: pwsh
@@ -697,6 +704,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } else {
               Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
+              exit 1
           }
           Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt
         shell: pwsh

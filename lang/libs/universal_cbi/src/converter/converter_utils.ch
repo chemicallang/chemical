@@ -953,6 +953,28 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
                     return ssr_js_eval_text(catView);
                 }
             }
+            // Arithmetic: -, *, / (whole-number results) so static JSX
+            // expressions like {1 + 2 * 3} evaluate numerically at SSR.
+            if(left.kind == 2 && right.kind == 2) {
+                if(bin.op.equals(view("-"))) {
+                    var subText = std::string();
+                    subText.append_integer(left.numberValue - right.numberValue);
+                    const subView = converter.builder.allocate_view(subText.to_view());
+                    return ssr_js_eval_number(left.numberValue - right.numberValue, subView);
+                }
+                if(bin.op.equals(view("*"))) {
+                    var mulText = std::string();
+                    mulText.append_integer(left.numberValue * right.numberValue);
+                    const mulView = converter.builder.allocate_view(mulText.to_view());
+                    return ssr_js_eval_number(left.numberValue * right.numberValue, mulView);
+                }
+                if(bin.op.equals(view("/")) && right.numberValue != 0 && left.numberValue % right.numberValue == 0) {
+                    var divText = std::string();
+                    divText.append_integer(left.numberValue / right.numberValue);
+                    const divView = converter.builder.allocate_view(divText.to_view());
+                    return ssr_js_eval_number(left.numberValue / right.numberValue, divView);
+                }
+            }
             return ssr_js_eval_invalid();
         }
         JsNodeKind.Ternary => {
@@ -1696,6 +1718,10 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
     const location = intrinsics::get_raw_location();
     const support = converter.support;
 
+    if(node.kind == JsNodeKind.Paren) {
+        return converter.convert_js_expr_to_ssr_bool_value((node as *mut JsParen).expression);
+    }
+
     if(node.kind == JsNodeKind.MemberAccess) {
         if(converter.is_component_props_read(node)) {
             const mem = node as *mut JsMemberAccess;
@@ -1766,6 +1792,19 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
             eqCall.get_args().push(rightVal);
             if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value;
             return eqCall as *mut Value;
+        }
+        // Logical && / ||: combine the operand bool values.
+        if(bin.op.equals(view("&&"))) {
+            const leftBool = converter.convert_js_expr_to_ssr_bool_value(bin.left);
+            const rightBool = converter.convert_js_expr_to_ssr_bool_value(bin.right);
+            if(leftBool == null || rightBool == null) return null;
+            return builder.make_expression_value(leftBool, rightBool, Operation.LogicalAND, builder.make_bool_type(), location) as *mut Value;
+        }
+        if(bin.op.equals(view("||"))) {
+            const leftBool = converter.convert_js_expr_to_ssr_bool_value(bin.left);
+            const rightBool = converter.convert_js_expr_to_ssr_bool_value(bin.right);
+            if(leftBool == null || rightBool == null) return null;
+            return builder.make_expression_value(leftBool, rightBool, Operation.LogicalOR, builder.make_bool_type(), location) as *mut Value;
         }
     }
 
@@ -1880,6 +1919,19 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
                 eqCall.get_args().push(rightVal);
                 if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value;
                 return eqCall as *mut Value;
+            }
+            // Logical && / ||: combine the operand bool values.
+            if(bin.op.equals(view("&&"))) {
+                const leftBool = converter.convert_ssr_attr_bool_expr(bin.left, attrValConv);
+                const rightBool = converter.convert_ssr_attr_bool_expr(bin.right, attrValConv);
+                if(leftBool == null || rightBool == null) return null;
+                return builder.make_expression_value(leftBool, rightBool, Operation.LogicalAND, builder.make_bool_type(), location) as *mut Value;
+            }
+            if(bin.op.equals(view("||"))) {
+                const leftBool = converter.convert_ssr_attr_bool_expr(bin.left, attrValConv);
+                const rightBool = converter.convert_ssr_attr_bool_expr(bin.right, attrValConv);
+                if(leftBool == null || rightBool == null) return null;
+                return builder.make_expression_value(leftBool, rightBool, Operation.LogicalOR, builder.make_bool_type(), location) as *mut Value;
             }
             return null;
         }

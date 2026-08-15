@@ -154,7 +154,9 @@ public func components_alert_variant(env : &mut TestEnv) {
     html.append_view(page.getHtml())
     contains_string_assert(env, html.to_view(), std::string_view("role=\"alert\""))
     contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"error\""))
-    contains_string_assert(env, html.to_view(), std::string_view(">Something broke</div>"))
+    // Children render inside the alert (the multi-line JSX layout adds
+    // whitespace text around the children).
+    contains_string_assert(env, html.to_view(), std::string_view("Something broke"))
     var css = std::string()
     css.append_view(page.getCss())
     contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"error\"]"))
@@ -665,4 +667,93 @@ public func components_stateful_dialog_closed_ssr(env : &mut TestEnv) {
     html.append_view(page.getHtml())
     // Closed by default: overlay hidden via display:none
     contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\""))
+}
+
+// ---------------------------------------------------------------------------
+// New shadcn-style tones/sizes (Button info/accent, Badge info + outline
+// tones + xs, Alert composed title/description + dismissible, TextArea sizes)
+// ---------------------------------------------------------------------------
+
+@test
+public func components_button_info_accent(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <div><Button variant="info">Info</Button><Button variant="accent">Accent</Button></div> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"info\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"accent\""))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"info\"]"))
+    contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"accent\"]"))
+}
+
+@test
+public func components_badge_info_outline_sizes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <div><Badge variant="info">I</Badge><Badge variant="outline-warning">W</Badge><Badge variant="outline-secondary">S</Badge><Badge size="xs">XS</Badge><Badge size="lg">LG</Badge></div> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"info\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"outline-warning\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"outline-secondary\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"xs\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"lg\""))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"outline-info\"]"))
+    contains_string_assert(env, css.to_view(), std::string_view("[data-size=\"xs\"]"))
+}
+
+@test
+public func components_alert_composed_title_description(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Alert variant="warning" title="Heads up" description="Careful there." dismissible={true} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Composed branch renders title + description and the dismiss button
+    contains_string_assert(env, html.to_view(), std::string_view("Heads up"))
+    contains_string_assert(env, html.to_view(), std::string_view("Careful there."))
+    contains_string_assert(env, html.to_view(), std::string_view("Dismiss alert"))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"warning\""))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // Client side fires onDismiss from the close button
+    contains_string_assert(env, js.to_view(), std::string_view("props.onDismiss"))
+}
+
+@test
+public func components_alert_plain_children_no_dismiss(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Alert variant="info">Plain body</Alert> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Plain body"))
+    // dismissible defaults to false → no close button
+    if(html.to_view().contains(std::string_view("Dismiss alert"))) {
+        env.error("dismissible=false rendered a dismiss button")
+    }
+}
+
+@test
+public func components_alert_description_alias(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Alert><AlertDescription>Alias body</AlertDescription></Alert> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Alias body"))
+    contains_string_assert(env, html.to_view(), std::string_view("<p"))
+}
+
+@test
+public func components_textarea_sizes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <div><TextArea size="sm">S</TextArea><TextArea size="lg">L</TextArea></div> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"sm\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"lg\""))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("[data-size=\"lg\"]"))
 }

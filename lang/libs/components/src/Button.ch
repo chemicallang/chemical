@@ -84,6 +84,16 @@ func button_styles(page : &mut HtmlPage) : *char {
             color: hsl(var(--warning-foreground));
             &:hover { background-color: hsl(var(--warning) / 0.9); }
         }
+        &[data-variant="info"] {
+            background-color: hsl(var(--info));
+            color: hsl(var(--info-foreground));
+            &:hover { background-color: hsl(var(--info) / 0.9); }
+        }
+        &[data-variant="accent"] {
+            background-color: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+            &:hover { background-color: hsl(var(--accent) / 0.8); }
+        }
 
         &[data-size="sm"] {
             height: 2.25rem;
@@ -174,6 +184,14 @@ public #universal ButtonDanger(props) {
 
 public #universal ButtonSuccess(props) {
     return <Button {...props} variant="success">{props.children}</Button>
+}
+
+public #universal ButtonInfo(props) {
+    return <Button {...props} variant="info">{props.children}</Button>
+}
+
+public #universal ButtonAccent(props) {
+    return <Button {...props} variant="accent">{props.children}</Button>
 }
 
 public #universal ButtonSm(props) {

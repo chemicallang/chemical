@@ -5,7 +5,7 @@ func h1_styles(page : &mut HtmlPage) : *char {
         font-weight: 800;
         letter-spacing: -0.025em;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -16,7 +16,7 @@ func h2_styles(page : &mut HtmlPage) : *char {
         font-weight: 700;
         letter-spacing: -0.025em;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -27,7 +27,7 @@ func h3_styles(page : &mut HtmlPage) : *char {
         font-weight: 600;
         letter-spacing: -0.025em;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -38,7 +38,7 @@ func h4_styles(page : &mut HtmlPage) : *char {
         font-weight: 600;
         letter-spacing: -0.02em;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -48,7 +48,7 @@ func h5_styles(page : &mut HtmlPage) : *char {
         line-height: 1.75rem;
         font-weight: 600;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -58,7 +58,7 @@ func h6_styles(page : &mut HtmlPage) : *char {
         line-height: 1.5rem;
         font-weight: 600;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -67,9 +67,9 @@ func text_styles(page : &mut HtmlPage) : *char {
         font-size: 1rem;
         line-height: 1.75rem;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
         &[data-muted="true"] {
-            color: hsl(var(--chx-muted-foreground));
+            color: hsl(var(--muted-foreground));
         }
     }
 }
@@ -79,7 +79,7 @@ func lead_styles(page : &mut HtmlPage) : *char {
         font-size: 1.25rem;
         line-height: 1.75rem;
         margin: 0;
-        color: hsl(var(--chx-foreground));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -87,7 +87,7 @@ func caption_styles(page : &mut HtmlPage) : *char {
     return #css {
         font-size: 0.875rem;
         line-height: 1.25rem;
-        color: hsl(var(--chx-muted-foreground));
+        color: hsl(var(--muted-foreground));
         margin: 0;
     }
 }
@@ -96,8 +96,8 @@ func code_styles(page : &mut HtmlPage) : *char {
     return #css {
         font-family: var(--chx-font-mono);
         font-size: 0.875em;
-        background: hsl(var(--chx-muted));
-        color: hsl(var(--chx-foreground));
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
         border-radius: 0.25rem;
         padding: 0.2em 0.4em;
     }
@@ -105,7 +105,7 @@ func code_styles(page : &mut HtmlPage) : *char {
 
 func link_styles(page : &mut HtmlPage) : *char {
     return #css {
-        color: hsl(var(--chx-primary));
+        color: hsl(var(--primary));
         text-decoration: underline;
         text-underline-offset: 4px;
         cursor: pointer;
@@ -122,15 +122,15 @@ func link_styles(page : &mut HtmlPage) : *char {
 func blockquote_styles(page : &mut HtmlPage) : *char {
     return #css {
         margin: 0;
-        border-left: 3px solid hsl(var(--chx-border));
+        border-left: 3px solid hsl(var(--border));
         padding-left: 1rem;
-        color: hsl(var(--chx-muted-foreground));
+        color: hsl(var(--muted-foreground));
         font-style: italic;
         .chx-blockquote-cite {
             display: block;
             margin-top: 0.5rem;
             font-size: 0.875rem;
-            color: hsl(var(--chx-muted-foreground));
+            color: hsl(var(--muted-foreground));
             font-style: normal;
         }
     }

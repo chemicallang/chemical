@@ -97,6 +97,16 @@ func textarea_styles(page : &mut HtmlPage) : *char {
             border-color: hsl(var(--destructive) / 0.6);
             &:focus { box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.14); }
         }
+        &[data-size="sm"] {
+            min-height: 96px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+        &[data-size="lg"] {
+            min-height: 150px;
+            padding: 1rem;
+            font-size: 1rem;
+        }
     }
 }
 
@@ -158,6 +168,7 @@ public #universal TextArea(props) {
         value={props.value}
         disabled={props.disabled}
         data-variant={props.variant || "default"}
+        data-size={props.size || "default"}
         class={${textarea_styles(page)}}
         class={props.className || props.class}
         onClick={props.onClick}

@@ -15,10 +15,14 @@ public struct SymResSupport {
     var renderJsAttrValueFn : *mut ASTNode = null
     var getSsrAttributeValueFn : *mut ASTNode = null
     var isSsrAttributeValueTruthyFn : *mut ASTNode = null
+    var getMultipleAttributeValuesFn : *mut ASTNode = null
     var ssrTextEqualsFn : *mut ASTNode = null
     var ssrPickValueFn : *mut ASTNode = null
     var ssrMakeTextValueFn : *mut ASTNode = null
     var ssrMakeBoolValueFn : *mut ASTNode = null
+    var ssrMakeUIntegerValueFn : *mut ASTNode = null
+    var ssrMakeIntegerValueFn : *mut ASTNode = null
+    var ssrMakeMultipleValueFn : *mut ASTNode = null
     var ssrNoneValueFn : *mut ASTNode = null
 
     var pageNode : *mut ASTNode = null

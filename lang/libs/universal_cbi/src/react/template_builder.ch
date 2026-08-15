@@ -54,7 +54,11 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         state_inits : std::vector<JsStateInit>(),
         target : BufferType.HTML,
         current_func : comp.signature.functionNode,
-        component_props_name : comp.signature.propsName
+        component_props_name : comp.signature.propsName,
+        ssr_locals : std::vector<JsSsrLocal>(),
+        ssr_bound_param : "",
+        ssr_bound_param_valid : false,
+        ssr_bound_param_value : ssr_js_eval_invalid()
     }
 
     var nodeCount = 0u;

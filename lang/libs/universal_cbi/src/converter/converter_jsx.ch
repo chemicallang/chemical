@@ -173,6 +173,11 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var startIdxNameStr = std::string();
         startIdxNameStr.append_view("startIdx_");
         startIdxNameStr.append_uinteger(element.loc);
+        // Unique per emission: the same JSX node is converted multiple times
+        // when `.map()` children are unrolled at SSR compile time.
+        startIdxNameStr.append_view("_");
+        startIdxNameStr.append_uinteger(converter.id_counter as ubigint);
+        converter.id_counter++
         var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
 
         var startIdxVar = builder.make_varinit_stmt(false, false, &startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
@@ -186,6 +191,10 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         var childrenHtmlNameStr = std::string();
         childrenHtmlNameStr.append_view("childrenHtml_");
         childrenHtmlNameStr.append_uinteger(element.loc);
+        // Unique per emission (see startIdx_ above).
+        childrenHtmlNameStr.append_view("_");
+        childrenHtmlNameStr.append_uinteger(converter.id_counter as ubigint);
+        converter.id_counter++
         var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
 
         var childrenHtmlVar = builder.make_varinit_stmt(false, false, &childrenHtmlName, null,

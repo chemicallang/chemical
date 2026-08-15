@@ -43,6 +43,16 @@ public struct SsrAttributeList {
 	var size : u64
 }
 
+// Extracts the array payload from an attribute value, returning an empty list
+// when the value is not a Multiple (array). Lets SSR iterate `.map()` sources
+// (props arrays, state arrays) uniformly at runtime.
+public func getMultipleAttributeValues(val : &SsrAttributeValue) : MultipleAttributeValues {
+    switch(val) {
+        Multiple(v) => return v
+        default => return MultipleAttributeValues { data: null, size: 0 }
+    }
+}
+
 public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrAttributeValue {
     var d = list.data
     const end = d + list.size
@@ -144,6 +154,18 @@ public func ssrMakeTextValue(text : SsrText) : SsrAttributeValue {
 
 public func ssrMakeBoolValue(value : bool) : SsrAttributeValue {
     return SsrAttributeValue.Boolean(value)
+}
+
+public func ssrMakeUIntegerValue(value : ubigint) : SsrAttributeValue {
+    return SsrAttributeValue.UInteger(value)
+}
+
+public func ssrMakeIntegerValue(value : bigint) : SsrAttributeValue {
+    return SsrAttributeValue.Integer(value)
+}
+
+public func ssrMakeMultipleValue(value : MultipleAttributeValues) : SsrAttributeValue {
+    return SsrAttributeValue.Multiple(value)
 }
 
 public func ssrNoneValue() : SsrAttributeValue {

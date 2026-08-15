@@ -37,4 +37,10 @@ struct JsConverter {
     // Local variables declared in the current universal component body, tracked
     // so JSX attribute/child expressions can reference them during SSR.
     var ssr_locals : std::vector<JsSsrLocal>
+
+    // Temporary binding used while statically evaluating `.filter()` predicates
+    // against the elements of a static (state/array-literal) source.
+    var ssr_bound_param : std::string_view = ""
+    var ssr_bound_param_valid : bool = false
+    var ssr_bound_param_value : SsrJsExprEval
 }

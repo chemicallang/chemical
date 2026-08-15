@@ -863,13 +863,18 @@ func ssr_js_eval_equals(left : SsrJsExprEval, right : SsrJsExprEval) : bool {
 }
 
 func ssr_js_eval_from_text(text : std::string_view) : SsrJsExprEval {
-    if(text.empty()) return ssr_js_eval_invalid();
-    if(text.equals(view("true"))) return ssr_js_eval_bool(true);
-    if(text.equals(view("false"))) return ssr_js_eval_bool(false);
-    const stripped = strip_js_string_quotes(text);
-    if(stripped.size() < text.size()) return ssr_js_eval_text(stripped);
+    // Trim surrounding whitespace (array literals split on commas keep the
+    // separating spaces, e.g. `["a", "b"]` produces `" "b"`).
+    var t = text
+    while(t.size() > 0 && (t.get(0) == ' ' || t.get(0) == '\n' || t.get(0) == '\t' || t.get(0) == '\r')) t = t.skip(1)
+    while(t.size() > 0 && (t.get(t.size() - 1) == ' ' || t.get(t.size() - 1) == '\n' || t.get(t.size() - 1) == '\t' || t.get(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
+    if(t.empty()) return ssr_js_eval_invalid();
+    if(t.equals(view("true"))) return ssr_js_eval_bool(true);
+    if(t.equals(view("false"))) return ssr_js_eval_bool(false);
+    const stripped = strip_js_string_quotes(t);
+    if(stripped.size() < t.size()) return ssr_js_eval_text(stripped);
     var num : bigint = 0;
-    if(parse_ssr_bigint(text, &mut num)) return ssr_js_eval_number(num, text);
+    if(parse_ssr_bigint(t, &mut num)) return ssr_js_eval_number(num, t);
     return ssr_js_eval_invalid();
 }
 
@@ -881,6 +886,11 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
         }
         JsNodeKind.Identifier => {
             const id = node as *mut JsIdentifier;
+            // While evaluating a `.filter()` predicate over a static array,
+            // the callback parameter is bound to the current element.
+            if(converter.ssr_bound_param_valid && id.value.equals(&converter.ssr_bound_param)) {
+                return converter.ssr_bound_param_value;
+            }
             if(converter.is_reactive_var(id.value)) {
                 return ssr_js_eval_from_text(converter.find_state_init_text(id.value));
             }
@@ -1106,6 +1116,30 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                     return;
                 }
             }
+            // Other binary operations (`+`, comparisons): evaluate statically
+            // when possible (state values, bound map params, literals), then
+            // fall back to a runtime expression rendered as a child value.
+            const eval = converter.eval_ssr_js_expr(node);
+            if(eval.valid) {
+                converter.append_ssr_eval(eval);
+                return;
+            }
+            var attrValConv = converter.make_attr_value_converter();
+            const v = converter.convert_ssr_attr_value_expr(node, &mut attrValConv);
+            if(v != null) {
+                const builder = converter.builder;
+                const location = intrinsics::get_raw_location();
+                var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+                var call = builder.make_function_call_node(
+                    builder.make_identifier("renderHtmlChildValue", converter.support.renderHtmlChildValueFn, false, location),
+                    converter.parent,
+                    location
+                );
+                call.get_args().push(pageId);
+                call.get_args().push(v);
+                converter.vec.push(call as *mut ASTNode);
+                return;
+            }
         }
         JsNodeKind.Ternary => {
             var tern = node as *mut JsTernary;
@@ -1141,6 +1175,14 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             converter.convertChemicalValue(node as *mut JsChemicalValue);
         }
         JsNodeKind.MemberAccess => {
+            const mem = node as *mut JsMemberAccess;
+            // Array `.length`/`.size` reads (`props.items.length`, `items.length`)
+            // render the element count as text, matching the hydrated DOM.
+            if(mem.property.equals(view("length")) || mem.property.equals(view("size"))) {
+                if(converter.emit_ssr_array_count(mem.object)) {
+                    return;
+                }
+            }
             if(converter.is_component_props_read(node)) {
                 if(converter.is_props_children(node)) {
                     // children handled specially in JSXExpressionContainer or here?
@@ -1168,7 +1210,6 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
 
                     converter.vec.push(appendCall as *mut ASTNode);
                 } else {
-                    const mem = node as *mut JsMemberAccess;
                     const v = converter.make_ssr_prop_v_call(mem.property);
                     
                     const builder = converter.builder;
@@ -1187,10 +1228,29 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                 }
             }
         }
+        JsNodeKind.FunctionCall => {
+            // `.map()` over props/state arrays: render each element through the
+            // callback, matching the client's initial render.
+            const call = node as *mut JsFunctionCall;
+            if(call.callee != null && call.callee.kind == JsNodeKind.MemberAccess) {
+                const mem = call.callee as *mut JsMemberAccess;
+                if(mem.property.equals(view("map")) && call.args.size() >= 1 && call.args.get(0) != null && call.args.get(0).kind == JsNodeKind.ArrowFunction) {
+                    converter.emit_ssr_map_children(call);
+                    return;
+                }
+            }
+        }
         JsNodeKind.Identifier => {
             const id = node as *mut JsIdentifier;
             const builder = converter.builder;
             const location = intrinsics::get_raw_location();
+
+        // Reference to a `.map()` callback parameter bound to a static
+        // element (compile-time unrolled map): render the element value.
+        if(converter.ssr_bound_param_valid && id.value.equals(&converter.ssr_bound_param)) {
+            converter.append_ssr_eval(converter.ssr_bound_param_value);
+            return;
+        }
 
             // Reference to a `state`/computed variable: SSR renders the initial
             // state value as text (matching the client's first render). The value
@@ -1240,6 +1300,345 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
         }
         default => {}
     }
+}
+
+// Splits a JS array literal text (`["One","Two"]`, `[1, 2, 3]`) into its
+// top-level element texts, respecting quotes and nested brackets. Returns false
+// when the text is not a well-formed array literal.
+func split_js_array_elements(text : std::string_view, out : &mut std::vector<std::string_view>) : bool {
+    var start : size_t = 0
+    while(start < text.size() && (text.get(start) == ' ' || text.get(start) == '(' || text.get(start) == '\n' || text.get(start) == '\r' || text.get(start) == '\t')) start++
+    if(start >= text.size() || text.get(start) != '[') return false
+    var end : size_t = text.size()
+    while(end > start && (text.get(end - 1) == ' ' || text.get(end - 1) == ')' || text.get(end - 1) == '\n' || text.get(end - 1) == '\r' || text.get(end - 1) == '\t')) end--
+    if(end <= start || text.get(end - 1) != ']') return false
+    start++
+    end--
+    var i = start
+    var depth : int = 0
+    var curStart = start
+    while(i < end) {
+        const c = text.get(i)
+        if(c == '"' || c == '\'' || c == '`') {
+            const quote = c
+            i++
+            while(i < end && text.get(i) != quote) {
+                if(text.get(i) == '\\') i++
+                i++
+            }
+            if(i < end) i++
+            continue
+        }
+        if(c == '[' || c == '{') depth++
+        else if(c == ']' || c == '}') { if(depth > 0) depth-- }
+        else if(c == ',' && depth == 0) {
+            out.push(text.subview(curStart, i))
+            i++
+            curStart = i
+            continue
+        }
+        i++
+    }
+    if(curStart < end) out.push(text.subview(curStart, end))
+    return true
+}
+
+// Builds a call to a `ssrMake*` runtime helper that returns an SsrAttributeValue.
+// These ordinary function calls resolve their return type via the function
+// declaration (unlike inline `SsrAttributeValue.X(...)` variant-constructor
+// calls, which leave the call type unresolved when nested as reference-param
+// arguments of other generated calls).
+func (converter : &mut JsConverter) make_ssr_make_call(fnPtr : *mut ASTNode, fnName : std::string_view, arg : *mut Value) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const call = builder.make_function_call_value(builder.make_identifier(&fnName, fnPtr, false, location), location)
+    if(arg != null) call.get_args().push(arg)
+    return call
+}
+
+// Converts a static JS element text (from a state array literal) into an
+// SsrAttributeValue expression: quoted strings become Text, true/false become
+// Boolean, integers become UInteger/Integer, and null/undefined become None.
+func (converter : &mut JsConverter) build_ssr_element_value_from_text(text : std::string_view) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    var t = text
+    while(t.size() > 0 && (t.get(0) == ' ' || t.get(0) == '\n' || t.get(0) == '\t' || t.get(0) == '\r')) t = t.skip(1)
+    while(t.size() > 0 && (t.get(t.size() - 1) == ' ' || t.get(t.size() - 1) == '\n' || t.get(t.size() - 1) == '\t' || t.get(t.size() - 1) == '\r')) t = t.subview(0, t.size() - 1)
+    if(t.empty()) return null
+
+    if(t.equals(view("true"))) return converter.make_ssr_make_call(support.ssrMakeBoolValueFn, "ssrMakeBoolValue", builder.make_bool_value(true, location))
+    if(t.equals(view("false"))) return converter.make_ssr_make_call(support.ssrMakeBoolValueFn, "ssrMakeBoolValue", builder.make_bool_value(false, location))
+    if(t.equals(view("null")) || t.equals(view("undefined"))) {
+        return converter.make_ssr_make_call(support.ssrNoneValueFn, "ssrNoneValue", null)
+    }
+
+    const stripped = strip_js_string_quotes(t)
+    if(stripped.size() < t.size()) {
+        return converter.make_ssr_make_call(support.ssrMakeTextValueFn, "ssrMakeTextValue", make_ssr_text_val(builder, &stripped, support.ssrTextLinkedNode, location))
+    }
+    var num : bigint = 0
+    if(parse_ssr_bigint(t, &mut num)) {
+        if(num >= 0) return converter.make_ssr_make_call(support.ssrMakeUIntegerValueFn, "ssrMakeUIntegerValue", builder.make_ubigint_value(num as ubigint, location))
+        return converter.make_ssr_make_call(support.ssrMakeIntegerValueFn, "ssrMakeIntegerValue", builder.make_bigint_value(num, location))
+    }
+    // Fallback: render the raw text (unquoted) as a Text value
+    return converter.make_ssr_make_call(support.ssrMakeTextValueFn, "ssrMakeTextValue", make_ssr_text_val(builder, &t, support.ssrTextLinkedNode, location))
+}
+
+// Builds a `Multiple` SsrAttributeValue from a static JS array literal text
+// (a `state items = [...]` initializer), so `.map()`/`.length` over state
+// arrays resolve at SSR time. Returns null when the text is not an array.
+func (converter : &mut JsConverter) build_ssr_multiple_from_array_text(initText : std::string_view) : *mut Value {
+    var elements = std::vector<std::string_view>()
+    if(!split_js_array_elements(initText, &mut elements)) return null
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    var attrValueType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+    var ssrAttrValArr = builder.make_array_value(attrValueType, location)
+    var arrValues = ssrAttrValArr.get_values()
+    for(var i : uint = 0; i < elements.size(); i++) {
+        const elemVal = converter.build_ssr_element_value_from_text(elements.get(i))
+        if(elemVal != null) arrValues.push(elemVal)
+    }
+    const multiAttrStructVal = builder.make_struct_value(support.multipleAttributeValueNode, location)
+    multiAttrStructVal.add_value("data", ssrAttrValArr)
+    multiAttrStructVal.add_value("size", builder.make_ubigint_value(arrValues.size(), location))
+    return converter.make_ssr_make_call(support.ssrMakeMultipleValueFn, "ssrMakeMultipleValue", multiAttrStructVal)
+}
+
+// Builds a `Multiple` SsrAttributeValue from an inline JS array literal node
+// (`{[1, 2].map(...)}`), converting each element through the standard SSR
+// expression evaluator. Returns null when no element is convertible.
+func (converter : &mut JsConverter) build_ssr_multiple_from_array_node(node : *mut JsArrayLiteral) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+    var attrValConv = converter.make_attr_value_converter()
+
+    var attrValueType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+    var ssrAttrValArr = builder.make_array_value(attrValueType, location)
+    var arrValues = ssrAttrValArr.get_values()
+    for(var i : uint = 0; i < node.elements.size(); i++) {
+        const elemVal = converter.convert_ssr_attr_value_expr(node.elements.get(i), &mut attrValConv)
+        if(elemVal != null) arrValues.push(elemVal)
+    }
+    if(arrValues.size() == 0) return null
+    const multiAttrStructVal = builder.make_struct_value(support.multipleAttributeValueNode, location)
+    multiAttrStructVal.add_value("data", ssrAttrValArr)
+    multiAttrStructVal.add_value("size", builder.make_ubigint_value(arrValues.size(), location))
+    return converter.make_ssr_make_call(support.ssrMakeMultipleValueFn, "ssrMakeMultipleValue", multiAttrStructVal)
+}
+
+// Renders the element count of an array expression (`props.items.length`,
+// `items.length`, `items.size`) as text, matching the hydrated DOM. Returns
+// false when the object is not a representable array source.
+func (converter : &mut JsConverter) emit_ssr_array_count(object : *mut JsNode) : bool {
+    if(object == null) return false
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    var sourceVal : *mut Value = null
+    if(object.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(object)) {
+        sourceVal = converter.make_ssr_prop_v_call((object as *mut JsMemberAccess).property)
+    } else if(object.kind == JsNodeKind.Identifier) {
+        const id = object as *mut JsIdentifier
+        if(converter.is_reactive_var(id.value)) {
+            // Static state array: count the elements at compile time.
+            const initText = converter.find_state_init_text(id.value)
+            var elements = std::vector<std::string_view>()
+            if(!initText.empty() && split_js_array_elements(initText, &mut elements)) {
+                converter.vec.push(converter.make_uinteger_value_call(builder.make_ubigint_value(elements.size() as ubigint, location)))
+                return true
+            }
+            return false
+        } else {
+            const local = converter.find_ssr_local(id.value)
+            if(local != null) {
+                sourceVal = builder.make_identifier(&local.name, local.varInit, false, location)
+            }
+        }
+    }
+    if(sourceVal == null) return false
+
+    // page.append_html_uinteger(getMultipleAttributeValues(source).size)
+    const getMultiCall = builder.make_function_call_value(builder.make_identifier("getMultipleAttributeValues", support.getMultipleAttributeValuesFn, false, location), location)
+    getMultiCall.get_args().push(sourceVal)
+    const getMultiVal : *mut Value = getMultiCall
+    const sizeNode = support.multipleAttributeValueNode.child("size")
+    const sizeId = builder.make_identifier("size", sizeNode, false, location)
+    const sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ getMultiVal, sizeId ]), location)
+    converter.vec.push(converter.make_uinteger_value_call(sizeAccess))
+    return true
+}
+
+// Converts a `.map()` callback child of a component's returned JSX into SSR
+// output, matching the client's initial render. Static array sources (state
+// array literals, inline array literals) are unrolled at compile time with the
+// callback parameter statically bound, so `{item + 1}` style expressions
+// evaluate numerically. Runtime sources (props arrays, component-body locals)
+// emit a Chemical for-loop that iterates the array's MultipleAttributeValues
+// and renders each element through the callback body.
+func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunctionCall) {
+    if(call == null || call.callee == null) return
+    if(call.callee.kind != JsNodeKind.MemberAccess) return
+    const mem = call.callee as *mut JsMemberAccess
+    if(!mem.property.equals(view("map"))) return
+    if(call.args.empty()) return
+    const arg0 = call.args.get(0)
+    if(arg0 == null || arg0.kind != JsNodeKind.ArrowFunction) return
+    const arrow = arg0 as *mut JsArrowFunction
+    if(arrow.params.empty()) return
+    const paramName = arrow.params.get(0).name
+    if(paramName.empty()) return
+
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    // Static element texts (state array literal / inline array literal). When
+    // non-empty, the map is unrolled at compile time.
+    var staticElements = std::vector<std::string_view>()
+    // Runtime array source expression (props read / local variable).
+    var sourceVal : *mut Value = null
+
+    if(mem.object != null) {
+        if(mem.object.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(mem.object)) {
+            sourceVal = converter.make_ssr_prop_v_call((mem.object as *mut JsMemberAccess).property)
+        } else if(mem.object.kind == JsNodeKind.Identifier) {
+            const id = mem.object as *mut JsIdentifier
+            if(converter.is_reactive_var(id.value)) {
+                const initText = converter.find_state_init_text(id.value)
+                if(!initText.empty()) {
+                    split_js_array_elements(initText, &mut staticElements)
+                }
+            } else {
+                const local = converter.find_ssr_local(id.value)
+                if(local != null) {
+                    sourceVal = builder.make_identifier(&local.name, local.varInit, false, location)
+                }
+            }
+        } else if(mem.object.kind == JsNodeKind.ArrayLiteral) {
+            const arr = mem.object as *mut JsArrayLiteral
+            for(var ai : uint = 0; ai < arr.elements.size(); ai++) {
+                staticElements.push(build_js_node_text_view(builder, arr.elements.get(ai)))
+            }
+        }
+    }
+
+    // Compile-time unroll for static sources: bind the callback param to each
+    // element value and convert the body. This lets {item + 1} over [1,2,3]
+    // evaluate numerically (2,3,4) exactly like the hydrated DOM.
+    if(!staticElements.empty()) {
+        const oldParam = converter.ssr_bound_param
+        const oldValid = converter.ssr_bound_param_valid
+        const oldValue = converter.ssr_bound_param_value
+        for(var si : uint = 0; si < staticElements.size(); si++) {
+            const ev = ssr_js_eval_from_text(staticElements.get(si))
+            // Unresolvable elements (object literals, expressions referencing
+            // runtime values) render nothing — matching the pre-SSR behavior and
+            // avoiding empty wrappers that would mismatch the hydrated DOM.
+            if(!ev.valid) continue
+            converter.ssr_bound_param = paramName
+            converter.ssr_bound_param_valid = true
+            converter.ssr_bound_param_value = ev
+            if(arrow.body != null) {
+                if(arrow.body.kind == JsNodeKind.Block) {
+                    const block = arrow.body as *mut JsBlock
+                    for(var bi : uint = 0; bi < block.statements.size(); bi++) {
+                        converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+                    }
+                } else {
+                    converter.convert_jsx_ssr_expression(arrow.body)
+                }
+            }
+        }
+        converter.ssr_bound_param = oldParam
+        converter.ssr_bound_param_valid = oldValid
+        converter.ssr_bound_param_value = oldValue
+        return
+    }
+
+    if(sourceVal == null) return
+
+    // Runtime for-loop over the array source.
+    // Unique temporary names for this map (a component may contain several).
+    var srcNameS = std::string("__ssr_ms_")
+    srcNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const srcName = builder.allocate_view(srcNameS.to_view())
+    var idxNameS = std::string("__ssr_mi_")
+    idxNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const idxName = builder.allocate_view(idxNameS.to_view())
+
+    // var src = getMultipleAttributeValues(sourceVal)
+    const getMultiCall = builder.make_function_call_value(builder.make_identifier("getMultipleAttributeValues", support.getMultipleAttributeValuesFn, false, location), location)
+    getMultiCall.get_args().push(sourceVal)
+    const srcType = builder.make_linked_type("MultipleAttributeValues", support.multipleAttributeValueNode, location)
+    const srcVar = builder.make_varinit_stmt(false, false, &srcName, srcType, getMultiCall, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(srcVar)
+
+    // for(var i = 0u; i < src.size; i = i + 1)
+    const iType = builder.get_u64_type()
+    const iVar = builder.make_varinit_stmt(false, false, &idxName, iType, builder.make_ubigint_value(0, location), AccessSpecifier.Internal, converter.parent, location)
+    const srcId = builder.make_identifier(&srcName, srcVar, false, location)
+    const sizeNode = support.multipleAttributeValueNode.child("size")
+    const sizeId = builder.make_identifier("size", sizeNode, false, location)
+    const sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ srcId, sizeId ]), location)
+    const iId = builder.make_identifier(&idxName, iVar, false, location)
+    const cond = builder.make_expression_value(iId, sizeAccess, Operation.LessThan, builder.make_bool_type(), location)
+    const oneVal = builder.make_ubigint_value(1, location)
+    const addExpr = builder.make_expression_value(iId, oneVal, Operation.Addition, iType, location)
+    const incr = builder.make_assignment_stmt(iId, addExpr, Operation.Assignment, converter.parent, location)
+
+    const forLoop = builder.make_for_loop(iVar, cond, incr, converter.parent, location)
+    const oldVec = converter.vec
+    converter.vec = forLoop.get_body()
+
+    // var <param> = src.data[i]
+    const dataNode = support.multipleAttributeValueNode.child("data")
+    const dataId = builder.make_identifier("data", dataNode, false, location)
+    const dataAccess = builder.make_access_chain(&std::span<*mut Value>([ srcId, dataId ]), location)
+    const indexOp = builder.make_index_op_value(dataAccess, location)
+    *indexOp.get_idx_ptr() = iId
+    const elemType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+    const elemVar = builder.make_varinit_stmt(false, false, &paramName, elemType, indexOp, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(elemVar)
+
+    // Bind the callback param as an SSR local while converting the body, so
+    // {item} / {item + 1} references resolve to the current loop element.
+    converter.ssr_locals.push(JsSsrLocal { name : paramName, varInit : elemVar })
+
+    if(arrow.body != null) {
+        if(arrow.body.kind == JsNodeKind.Block) {
+            const block = arrow.body as *mut JsBlock
+            for(var bi : uint = 0; bi < block.statements.size(); bi++) {
+                converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+            }
+        } else {
+            converter.convert_jsx_ssr_expression(arrow.body)
+        }
+    }
+
+    converter.ssr_locals.pop_back()
+    converter.vec = oldVec
+    converter.vec.push(forLoop as *mut ASTNode)
+}
+
+// Appends a statically evaluated JS expression (SsrJsExprEval) as HTML text.
+// Booleans render nothing, matching React's JSX children semantics (which the
+// runtime renderHtmlChildValue also mirrors).
+func (converter : &mut JsConverter) append_ssr_eval(eval : SsrJsExprEval) {
+    if(!eval.valid) return
+    if(eval.kind == 1) return
+    converter.str.append_view(&eval.textValue)
+    converter.put_chain_in()
 }
 
 func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mut JsNode) : *mut Value {
@@ -1805,7 +2204,10 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                 const multiStruct = builder.make_struct_value(support.multipleAttributeValueNode, location)
                 multiStruct.add_value("data", partsArr)
                 multiStruct.add_value("size", builder.make_ubigint_value(parts.size() as ubigint, location))
-                return attrValConv.wrapArgAttrValueVariantCall(builder, "Multiple", multiStruct);
+                // Use the runtime helper (not an inline variant-constructor call) so
+                // the result can be safely passed to `&SsrAttributeValue` params
+                // (renderHtmlChildValue) without leaving the call type unresolved.
+                return converter.make_ssr_make_call(support.ssrMakeMultipleValueFn, "ssrMakeMultipleValue", multiStruct);
             }
             if(bin.op.equals(view("&&")) || bin.op.equals(view("||"))) {
                 const left = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);

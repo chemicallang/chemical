@@ -360,6 +360,137 @@ public func universal_prop_array_sugar_js(env : &mut TestEnv) {
     view_equals(env, page.getJs(), js.to_view())
 }
 
+// ---------------------------------------------------------------------------
+// SSR rendering of state-derived children — `.map()` over state/props arrays,
+// `.length` counts, numeric expressions, block bodies, and inline literals must
+// render the same HTML the hydrated DOM produces on first paint.
+// ---------------------------------------------------------------------------
+
+#universal SsrMapState(props) {
+    state items = ["a", "b", "c"]
+    return <ul>{items.map(item => <li>{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_state(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapState /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>a</li><li>b</li><li>c</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapProps(props) {
+    return <ul>{props.items.map(item => <li>{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapProps items={["One", "Two"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>One</li><li>Two</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapNumbers(props) {
+    state nums = [1, 2, 3]
+    return <ul>{nums.map(n => <li>{n + 1}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_numbers(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapNumbers /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>2</li><li>3</li><li>4</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapBlockBody(props) {
+    state items = ["x", "y"]
+    return <ul>{items.map(item => {
+        return <li>{item}</li>
+    })}</ul>
+}
+
+@test
+public func universal_ssr_map_block_body(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapBlockBody /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>x</li><li>y</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapInlineLiteral(props) {
+    return <ul>{[10, 20].map(n => <li>{n}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_inline_literal(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapInlineLiteral /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>10</li><li>20</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrLenState(props) {
+    state items = ["a", "b"]
+    return <div>{items.length} items</div>
+}
+
+@test
+public func universal_ssr_len_state(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrLenState /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>2 items</div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrLenProps(props) {
+    return <div>{props.items.length} items</div>
+}
+
+@test
+public func universal_ssr_len_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrLenProps items={["a", "b", "c", "d"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>4 items</div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapLocalVar(props) {
+    var items = props.items
+    return <ul>{items.map(item => <li>{item}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_map_local_var(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapLocalVar items={["A", "B"]} /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>A</li><li>B</li></ul></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+#universal SsrMapConcat(props) {
+    state items = ["a", "b", "c"]
+    return <div>{items.map(item => item + "!")}</div>
+}
+
+@test
+public func universal_ssr_map_concat(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapConcat /> }
+    var html = std::string()
+    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>a!b!c!</div></div>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
 #universal SpreadWithDuplicateAttr(props) {
     return <div {...props} title="static"></div>
 }

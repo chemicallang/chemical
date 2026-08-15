@@ -64,8 +64,8 @@ jobs:
             asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
       ASSET_REGULAR: "linux-${{ matrix.asset_suffix }}.zip"
       ASSET_TCC: "linux-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
@@ -227,8 +227,8 @@ jobs:
             asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
       ASSET_REGULAR: "linux-alpine-${{ matrix.asset_suffix }}.zip"
       ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
@@ -398,8 +398,8 @@ jobs:
             asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
       ASSET_REGULAR: "macos-${{ matrix.asset_suffix }}.zip"
       ASSET_TCC: "macos-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
@@ -558,8 +558,8 @@ jobs:
             asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
+      COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
       ASSET_REGULAR: "windows-${{ matrix.asset_suffix }}.zip"
       ASSET_TCC: "windows-${{ matrix.asset_suffix }}-tcc.zip"
     steps:

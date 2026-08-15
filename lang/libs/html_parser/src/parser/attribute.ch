@@ -40,7 +40,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
 
             parser.increment();
 
-            var expr = parser.parseExpression(builder);
+            var expr = parser.parseExpressionOrArrayOrStruct(builder);
             if(expr == null) {
                 parser.error("expected a expression value after '{'");
             } else {
@@ -69,7 +69,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
 
                         parser.increment();
 
-                        const expr2 = parser.parseExpression(builder);
+                        const expr2 = parser.parseExpressionOrArrayOrStruct(builder);
                         if(expr2 != null) {
 
                             value.values.push(expr2)

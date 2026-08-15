@@ -16,6 +16,8 @@ public interface Parser {
 
     func parseExpression(&self, builder : *mut ASTBuilder, parseStruct : bool = false, parseLambda : bool = false) : *mut Value
 
+    func parseExpressionOrArrayOrStruct(&self, builder : *mut ASTBuilder, parseLambda : bool = false) : *mut Value
+
     func parseNestedLevelStatement(&self, builder : *mut ASTBuilder) : *mut ASTNode
 
     func error_at(&self, msg : std::string_view, token : *mut Token);

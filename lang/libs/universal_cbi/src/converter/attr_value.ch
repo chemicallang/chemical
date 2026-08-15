@@ -195,9 +195,33 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
             // putting a pointer as integer
             // a pointer to other than char, or uchar, we cannot handle it
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
-        }
-        BaseTypeKind.String => {
+        }        BaseTypeKind.String => {
             return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
+
+        }
+        BaseTypeKind.Array => {
+            // array literal (e.g., items={["One", "Two"]}) — convert each
+            // element into an attribute value and wrap in Multiple
+            if(value.getKind() != ValueKind.ArrayValue) {
+                return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
+            }
+            const arrayValue = value as *mut ArrayValue
+            const values = arrayValue.get_values()
+            const size = values.size()
+
+            var location = intrinsics::get_raw_location();
+            var attrValueType = builder.make_linked_type("SsrAttributeValue", converter.ssrAttributeValueNode, location)
+            var ssrAttrValArr = builder.make_array_value(attrValueType, location)
+            var arrValues = ssrAttrValArr.get_values();
+            for(var i : uint = 0; i < size; i++) {
+                const ptr = values.get(i)
+                arrValues.push(converter.convert_to_attr_value(builder, ptr.getType(), ptr))
+            }
+
+            const multiAttrStructVal = builder.make_struct_value(converter.multipleAttributeValueNode, location)
+            multiAttrStructVal.add_value("data", ssrAttrValArr)
+            multiAttrStructVal.add_value("size", builder.make_ubigint_value(size as ubigint, location))
+            return converter.wrapArgAttrValueVariantCall(builder, "Multiple", multiAttrStructVal);
         }
         default => {
             // unknown type of value being appended

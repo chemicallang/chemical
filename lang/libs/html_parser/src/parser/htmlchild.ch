@@ -60,7 +60,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             value : null
         }
 
-        const expr = parser.parseExpression(builder)
+        const expr = parser.parseExpressionOrArrayOrStruct(builder)
         if(expr != null) {
             value_child.value = expr;
             htmlParser.dyn_values.push(expr)

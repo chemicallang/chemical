@@ -505,9 +505,13 @@ window.$_um = ((...parts) => {
         if(!part) continue;
         for(const k in part) {
             const key = (k === "className" || k === "class") ? "class" : k;
-            const v = window.$__uni_value(part[k]);
+            const raw = part[k];
+            // Preserve state/signal values so reactive attribute bindings
+            // (style, checked, value, ...) survive the merge and hydrate
+            // subscribes to them. Unwrapping here froze the binding at mount.
+            const v = window.$__uni_is_state(raw) ? raw : window.$__uni_value(raw);
             if(key === "class" && out[key] && v) {
-                out[key] = window.$__uni_value(out[key]) + " " + v;
+                out[key] = window.$__uni_value(out[key]) + " " + window.$__uni_value(v);
             } else {
                 out[key] = v;
             }

@@ -553,8 +553,8 @@ public func components_stateful_tabs_ssr(env : &mut TestEnv) {
     // Only the active panel is visible
     contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
     // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\">Panel 1</div>"))
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\">Panel 3</div>"))
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"tabpanel\">Panel 1</div>"))
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"tabpanel\">Panel 3</div>"))
 }
 
 @test

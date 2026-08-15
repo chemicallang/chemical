@@ -53,6 +53,18 @@ public func getMultipleAttributeValues(val : &SsrAttributeValue) : MultipleAttri
     }
 }
 
+// Fetches a single element from a Multiple array at runtime. Kept as a
+// function (rather than an inline `data[i]` expression in generated code) so
+// the SSR evaluator can emit it as a normal, fully type-resolved call — the
+// generated SSR function bodies bypass symres type-determination, which
+// left the index operator's type unresolved and crashed LLVM codegen.
+public func ssrMultipleGet(values : MultipleAttributeValues, index : ubigint) : SsrAttributeValue {
+    if(index < values.size) {
+        return values.data[index]
+    }
+    return SsrAttributeValue.None()
+}
+
 public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrAttributeValue {
     var d = list.data
     const end = d + list.size

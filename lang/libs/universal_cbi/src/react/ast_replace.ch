@@ -155,10 +155,14 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             // 3. HTML emission
             // Emit the actual component content, going into html buffer
             converter.target = BufferType.HTML;
-            // Emit component body statements (var decls, if/else chains) first so
-            // locals referenced by the returned JSX ({variant}) exist at SSR time.
-            converter.emit_ssr_body_statements(block);
-            converter.convertJsNode(returned);
+            // Emit component body statements (var decls, if/else chains, conditional
+            // returns) first so locals referenced by the returned JSX ({variant})
+            // exist at SSR time. The final return is skipped here — it is converted
+            // below unless a conditional-return chain already rendered it.
+            const finalRendered = converter.emit_ssr_body_statements(block, returned);
+            if(!finalRendered) {
+                converter.convertJsNode(returned);
+            }
             converter.put_chain_in();
 
         }

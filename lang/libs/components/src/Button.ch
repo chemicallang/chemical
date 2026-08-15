@@ -136,22 +136,23 @@ func fab_styles(page : &mut HtmlPage) : *char {
 
 // The flagship Button. Every prop is optional; unset variant/size resolve to
 // the shadcn "default" look. className merges with the generated style class.
+// Any other prop (style, data-*, aria-*, id, name, ...) passes through via the
+// spread. `loading` swaps children for a "Loading..." label, disables the
+// button and sets aria-busy.
 public #universal Button(props) {
+    var loading = props.loading || false
     return <button
+        {...props}
         class={${button_styles(page)}}
+        class={props.className || props.class}
         data-variant={props.variant || "default"}
         data-size={props.size}
-        class={props.className}
         type={props.type || "button"}
-        disabled={props.disabled}
+        disabled={props.disabled || loading}
+        aria-disabled={props.disabled || loading}
+        aria-busy={loading ? "true" : "false"}
         onClick={props.onClick}
-        id={props.id}
-        name={props.name}
-        form={props.form}
-        title={props.title}
-        aria-label={props.ariaLabel}
-        aria-disabled={props.disabled}
-    >{props.children}</button>
+    >{loading ? "Loading..." : props.children}</button>
 }
 
 // Legacy wrappers — keep every previously-public name working.

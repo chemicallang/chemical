@@ -83,7 +83,11 @@ public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
 // Used by the SSR evaluator for `props.x === "lit"` style expressions.
 public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
     switch(val) {
-        None() => return expected.size == 0
+        // An unset value equals "undefined"/"null" in JS semantics, so
+        // `props.label !== undefined` correctly evaluates to false for unset.
+        None() => return (expected.size == 0) ||
+            (expected.size == 9 && strncmp(expected.data, "undefined", 9) == 0) ||
+            (expected.size == 4 && strncmp(expected.data, "null", 4) == 0)
         Text(v) => return v.equals_text(&expected)
         PtrChar(v) => {
             const len = strlen(v)
@@ -94,9 +98,29 @@ public func ssrTextEquals(val : &SsrAttributeValue, expected : SsrText) : bool {
             return expected.size == 5 && strncmp(expected.data, "false", 5) == 0
         }
         Char(v) => return expected.size == 1 && expected.data[0] == v
-        UInteger(v) => return false
-        Integer(v) => return false
-        Double(v, _) => return false
+        UInteger(v) => {
+            // Numeric equality against the decimal representation (JS loose ==).
+            var tmp = std::string()
+            tmp.append_uinteger(v)
+            return expected.size == tmp.size() && strncmp(expected.data, tmp.data(), expected.size) == 0
+        }
+        Integer(v) => {
+            var tmp = std::string()
+            tmp.append_integer(v)
+            return expected.size == tmp.size() && strncmp(expected.data, tmp.data(), expected.size) == 0
+        }
+        Double(v, precision) => {
+            // Compare against the formatted representation, stripping trailing
+            // zeros so "2.00" matches "2" (JS loose equality).
+            var tmp = std::string()
+            tmp.append_double(v, precision)
+            var end = tmp.size()
+            while(end > 0 && tmp.get(end - 1) == '0') { end-- }
+            if(end > 0 && tmp.get(end - 1) == '.') { end-- }
+            if(end == 0) return false
+            const view = std::string_view(tmp.data(), end)
+            return expected.size == view.size() && strncmp(expected.data, view.data(), view.size()) == 0
+        }
         Multiple(_) => return false
         Spread(_) => return false
         Callable(_) => return false

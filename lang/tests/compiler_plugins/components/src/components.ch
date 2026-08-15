@@ -90,6 +90,31 @@ public func components_button_legacy_wrapper(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view(">Legacy</button>"))
 }
 
+@test
+public func components_button_loading(env : &mut TestEnv) {
+    // loading swaps children for "Loading...", disables and sets aria-busy.
+    var page = HtmlPage()
+    #html { <Button loading={true}>Save</Button> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view(">Loading...</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view("disabled=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-busy=\"true\""))
+}
+
+@test
+public func components_button_style_passthrough(env : &mut TestEnv) {
+    // Arbitrary native attrs (style, data-*) flow through the prop spread.
+    var page = HtmlPage()
+    #html { <Button style="color:red;" data-test-id="btn-1" title="T">Go</Button> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"color:red;\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-test-id=\"btn-1\""))
+    contains_string_assert(env, html.to_view(), std::string_view("title=\"T\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">Go</button>"))
+}
+
 // ---------------------------------------------------------------------------
 // Badge: variants
 // ---------------------------------------------------------------------------
@@ -179,6 +204,55 @@ public func components_typography_heading(env : &mut TestEnv) {
 }
 
 @test
+public func components_heading_level_dispatch(env : &mut TestEnv) {
+    // Heading with level=2 must render <h2> (conditional-return dispatch in SSR).
+    var page = HtmlPage()
+    #html { <Heading level={2}>Mid Title</Heading> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<h2"))
+    contains_string_assert(env, html.to_view(), std::string_view("Mid Title</h2>"))
+}
+
+@test
+public func components_heading_level_default(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Heading>Top Title</Heading> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<h1"))
+    contains_string_assert(env, html.to_view(), std::string_view("Top Title</h1>"))
+}
+
+@test
+public func components_text_as_dispatch(env : &mut TestEnv) {
+    // Text with as="span" must render <span> (conditional-return dispatch).
+    var page = HtmlPage()
+    #html { <Text as="span" muted={true}>Inline</Text> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<span"))
+    contains_string_assert(env, html.to_view(), std::string_view("data-muted=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Inline</span>"))
+}
+
+@test
+public func components_link_attrs(env : &mut TestEnv) {
+    // Link must render class/href/target/rel/id — previously the object-literal
+    // spread ({...attrs}) dropped every attribute in SSR.
+    var page = HtmlPage()
+    #html { <Link href="/docs" target="_blank" rel="noopener" id="lnk1">Docs</Link> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<a"))
+    contains_string_assert(env, html.to_view(), std::string_view("href=\"/docs\""))
+    contains_string_assert(env, html.to_view(), std::string_view("target=\"_blank\""))
+    contains_string_assert(env, html.to_view(), std::string_view("rel=\"noopener\""))
+    contains_string_assert(env, html.to_view(), std::string_view("id=\"lnk1\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Docs</a>"))
+}
+
+@test
 public func components_typography_text_muted(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <Text muted={true}>Muted text</Text> }
@@ -260,6 +334,82 @@ public func components_input_renders(env : &mut TestEnv) {
     html.append_view(page.getHtml())
     contains_string_assert(env, html.to_view(), std::string_view("<input"))
     contains_string_assert(env, html.to_view(), std::string_view("placeholder=\"Email\""))
+}
+
+@test
+public func components_input_variant_filled(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <InputFilled placeholder="Search" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"filled\""))
+    contains_string_assert(env, html.to_view(), std::string_view("type=\"text\""))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"filled\"]"))
+}
+
+@test
+public func components_textarea_renders(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <TextArea placeholder="Message" rows={4}>Body</TextArea> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<textarea"))
+    contains_string_assert(env, html.to_view(), std::string_view("placeholder=\"Message\""))
+    contains_string_assert(env, html.to_view(), std::string_view("rows=\"4\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">Body</textarea>"))
+}
+
+@test
+public func components_select_renders_children(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Select><option>One</option><option>Two</option></Select> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<select"))
+    contains_string_assert(env, html.to_view(), std::string_view("<option>One</option>"))
+    contains_string_assert(env, html.to_view(), std::string_view("<option>Two</option>"))
+}
+
+@test
+public func components_field_renders_label_hint_error(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Field label="Name" hint="Enter your name" error="Too short"><Input placeholder="Name" /></Field> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Name"))
+    contains_string_assert(env, html.to_view(), std::string_view("Enter your name"))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"alert\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Too short"))
+}
+
+@test
+public func components_field_unlabeled_skips_label(env : &mut TestEnv) {
+    // `props.label !== undefined` must evaluate false when the prop is unset
+    // (SSR None == "undefined"), so no empty label span is rendered.
+    var page = HtmlPage()
+    #html { <Field><Input placeholder="Unlabeled" /></Field> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    var hasEmptyLabel = html.contains(std::string_view("<span class=\"")) && html.contains(std::string_view(">\n        </span>"))
+    if(hasEmptyLabel) {
+        env.error("unlabeled Field rendered an empty label span")
+        env.info(html.data())
+    } else {
+        env.success("unlabeled Field skips label/hint/error spans")
+    }
+}
+
+@test
+public func components_toggle_radio(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Radio name="group1" checked={true}>Choice A</Radio> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("type=\"radio\""))
+    contains_string_assert(env, html.to_view(), std::string_view("name=\"group1\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Choice A"))
 }
 
 // ---------------------------------------------------------------------------

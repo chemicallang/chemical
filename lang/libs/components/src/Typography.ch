@@ -174,12 +174,12 @@ public #universal H6(props) {
 
 public #universal Heading(props) {
     var level = props.level || 1
-    if(level == 2) { return <H2 {...props} /> }
-    if(level == 3) { return <H3 {...props} /> }
-    if(level == 4) { return <H4 {...props} /> }
-    if(level == 5) { return <H5 {...props} /> }
-    if(level == 6) { return <H6 {...props} /> }
-    return <H1 {...props} />
+    if(level == 2) { return <H2 {...props}>{props.children}</H2> }
+    if(level == 3) { return <H3 {...props}>{props.children}</H3> }
+    if(level == 4) { return <H4 {...props}>{props.children}</H4> }
+    if(level == 5) { return <H5 {...props}>{props.children}</H5> }
+    if(level == 6) { return <H6 {...props}>{props.children}</H6> }
+    return <H1 {...props}>{props.children}</H1>
 }
 
 public #universal Text(props) {
@@ -215,14 +215,7 @@ public #universal Link(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var out = classes + " " + ${link_styles(page)}
-    var attrs = {}
-    attrs.class = out
-    if(props.href) { attrs.href = props.href }
-    if(props.target) { attrs.target = props.target }
-    if(props.rel) { attrs.rel = props.rel }
-    if(props.id) { attrs.id = props.id }
-    if(props.onClick) { attrs.onClick = props.onClick }
-    return <a {...attrs}>{props.children}</a>
+    return <a class={out} href={props.href} target={props.target} rel={props.rel} id={props.id} onClick={props.onClick}>{props.children}</a>
 }
 
 public #universal Blockquote(props) {

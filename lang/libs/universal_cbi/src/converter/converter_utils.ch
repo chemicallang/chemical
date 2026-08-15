@@ -1481,7 +1481,7 @@ func (converter : &mut JsConverter) emit_ssr_assignment_stmt(expr : *mut JsNode)
 
 // Emits a component-body `if` statement (with else/else-if chains) into the SSR
 // function. Conditions and assigned bodies are converted to Chemical.
-func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf) {
+func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf, skipReturnValue : *mut JsNode) {
     if(ifNode == null) return;
 
     const cond = converter.convert_js_expr_to_ssr_bool_value(ifNode.condition);
@@ -1496,9 +1496,9 @@ func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf) {
     if(ifNode.thenBlock != null) {
         converter.vec = ifStmt.get_body();
         if(ifNode.thenBlock.kind == JsNodeKind.Block) {
-            converter.emit_ssr_body_statements(ifNode.thenBlock as *mut JsBlock);
+            converter.emit_ssr_body_statements(ifNode.thenBlock as *mut JsBlock, skipReturnValue);
         } else {
-            converter.emit_ssr_single_stmt(ifNode.thenBlock);
+            converter.emit_ssr_single_stmt(ifNode.thenBlock, skipReturnValue);
         }
     }
 
@@ -1506,11 +1506,11 @@ func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf) {
         converter.vec = ifStmt.add_else_body();
         if(ifNode.elseBlock.kind == JsNodeKind.If) {
             // else-if chain
-            converter.emit_ssr_if_stmt(ifNode.elseBlock as *mut JsIf);
+            converter.emit_ssr_if_stmt(ifNode.elseBlock as *mut JsIf, skipReturnValue);
         } else if(ifNode.elseBlock.kind == JsNodeKind.Block) {
-            converter.emit_ssr_body_statements(ifNode.elseBlock as *mut JsBlock);
+            converter.emit_ssr_body_statements(ifNode.elseBlock as *mut JsBlock, skipReturnValue);
         } else {
-            converter.emit_ssr_single_stmt(ifNode.elseBlock);
+            converter.emit_ssr_single_stmt(ifNode.elseBlock, skipReturnValue);
         }
     }
 
@@ -1518,8 +1518,26 @@ func (converter : &mut JsConverter) emit_ssr_if_stmt(ifNode : *mut JsIf) {
     converter.vec.push(ifStmt as *mut ASTNode);
 }
 
+// Emits a `return <JSX>` statement found inside a conditional body into the
+// current SSR output. `null`/empty returns render nothing. Returns true when
+// the statement was handled.
+func (converter : &mut JsConverter) emit_ssr_return_stmt(ret : *mut JsReturn) : bool {
+    if(ret == null) return false;
+    if(ret.value == null) return true;
+
+    const value = unwrap_returned_jsx_node(ret.value);
+    if(value == null) return true;
+    if(value.kind == JsNodeKind.JSXElement || value.kind == JsNodeKind.JSXFragment) {
+        converter.convertJsNode(value);
+        return true;
+    }
+    // Non-JSX return value (identifier, ternary, etc.) — try the general path.
+    converter.convert_jsx_ssr_expression(ret.value);
+    return true;
+}
+
 // Emits a single non-block component body statement into the SSR function.
-func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode) {
+func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode, skipReturnValue : *mut JsNode) {
     if(stmt == null) return;
     switch(stmt.kind) {
         JsNodeKind.VarDecl => {
@@ -1533,7 +1551,17 @@ func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode) {
             }
         }
         JsNodeKind.If => {
-            converter.emit_ssr_if_stmt(stmt as *mut JsIf);
+            converter.emit_ssr_if_stmt(stmt as *mut JsIf, skipReturnValue);
+        }
+        JsNodeKind.Return => {
+            // The final component return is emitted separately by the caller;
+            // only conditional returns (inside if/else bodies) render here.
+            const ret = stmt as *mut JsReturn;
+            if(skipReturnValue != null && ret.value != null) {
+                const unwrapped = unwrap_returned_jsx_node(ret.value);
+                if(unwrapped == skipReturnValue) return;
+            }
+            converter.emit_ssr_return_stmt(stmt as *mut JsReturn);
         }
         JsNodeKind.ExpressionStatement => {
             const es = stmt as *mut JsExpressionStatement;
@@ -1543,16 +1571,134 @@ func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode) {
     }
 }
 
+// Returns true when the `if` body ends in a `return <JSX>` — the pattern used
+// for component dispatch (`if(tag == "span") { return <span/> }`). Such ifs are
+// chained as if/else-if with the trailing return as the else branch, because JS
+// `return` stops execution while a plain `if` does not.
+func is_return_jsx_if(ifNode : *mut JsIf) : bool {
+    if(ifNode == null || ifNode.elseBlock != null) return false;
+    const tb = ifNode.thenBlock;
+    if(tb == null) return false;
+    if(tb.kind == JsNodeKind.Return) {
+        return return_has_jsx(tb as *mut JsReturn);
+    }
+    if(tb.kind == JsNodeKind.Block) {
+        const block = tb as *mut JsBlock;
+        if(block.statements.empty()) return false;
+        const last = block.statements.get(block.statements.size() - 1);
+        return last != null && last.kind == JsNodeKind.Return && return_has_jsx(last as *mut JsReturn);
+    }
+    return false;
+}
+
+func return_has_jsx(ret : *mut JsReturn) : bool {
+    if(ret == null || ret.value == null) return false;
+    const v = unwrap_returned_jsx_node(ret.value);
+    return v != null && (v.kind == JsNodeKind.JSXElement || v.kind == JsNodeKind.JSXFragment);
+}
+
+// Renders the body of a conditional-return branch (a `return <JSX>` or a block
+// ending in one) into the current SSR output.
+func (converter : &mut JsConverter) emit_return_jsx_body(body : *mut JsNode) {
+    if(body == null) return;
+    if(body.kind == JsNodeKind.Block) {
+        const block = body as *mut JsBlock;
+        for(var i : uint = 0; i < block.statements.size(); i++) {
+            converter.emit_ssr_single_stmt(block.statements.get(i), null);
+        }
+    } else {
+        converter.emit_ssr_single_stmt(body, null);
+    }
+}
+
+// Emits an if/else-if/else chain for consecutive `if(c){ return <JSX> }`
+// statements plus an optional trailing return (the else branch), so exactly one
+// branch renders — matching JS `return` semantics. Falls back to independent
+// ifs when a condition cannot be evaluated at SSR time.
+func (converter : &mut JsConverter) emit_ssr_return_chain(ifs : &std::vector<*mut JsIf>, finalReturn : *mut JsReturn, skipReturnValue : *mut JsNode) {
+    const builder = converter.builder;
+    const location = intrinsics::get_raw_location();
+
+    if(ifs.empty()) {
+        if(finalReturn != null) {
+            converter.emit_ssr_return_stmt(finalReturn);
+        }
+        return;
+    }
+
+    // Build from the LAST if backwards so each previous if can attach the
+    // already-built remainder as its else branch.
+    var chainRoot : *mut IfStatement = null
+    var i : int = ifs.size() as int - 1
+    while(i >= 0) {
+        const ifNode = ifs.get(i as uint)
+        const cond = converter.convert_js_expr_to_ssr_bool_value(ifNode.condition)
+        if(cond == null) {
+            // Cannot SSR this condition: emit the chain built so far, then the
+            // remaining ifs independently, then the trailing return.
+            if(chainRoot != null) {
+                converter.vec.push(chainRoot as *mut ASTNode)
+            }
+            for(var j : int = i; j >= 0; j--) {
+                converter.emit_ssr_if_stmt(ifs.get(j as uint), skipReturnValue)
+            }
+            if(finalReturn != null) {
+                converter.emit_ssr_return_stmt(finalReturn)
+            }
+            return
+        }
+
+        const ifStmt = builder.make_if_stmt(cond, converter.parent, location)
+        const oldVec = converter.vec
+        converter.vec = ifStmt.get_body()
+        converter.emit_return_jsx_body(ifNode.thenBlock)
+        if(chainRoot == null) {
+            if(finalReturn != null) {
+                converter.vec = ifStmt.add_else_body()
+                converter.emit_ssr_return_stmt(finalReturn)
+            }
+        } else {
+            converter.vec = ifStmt.add_else_body()
+            converter.vec.push(chainRoot as *mut ASTNode)
+        }
+        converter.vec = oldVec
+        chainRoot = ifStmt
+        i--
+    }
+    converter.vec.push(chainRoot as *mut ASTNode)
+}
+
 // Emits all component body statements (var declarations, if/else chains,
-// assignments) into the SSR function body, in order. This makes locals like
-// `var variant = props.variant || "default"` available to the returned JSX.
-func (converter : &mut JsConverter) emit_ssr_body_statements(block : *mut JsBlock) {
-    if(block == null) return;
+// assignments, conditional returns) into the SSR function body, in order. This
+// makes locals like `var variant = props.variant || "default"` available to the
+// returned JSX and supports `if(tag == "span") { return <span/> }` dispatch.
+// Returns true when the final component return was consumed as a chain else
+// (the caller must not render it again).
+func (converter : &mut JsConverter) emit_ssr_body_statements(block : *mut JsBlock, skipReturnValue : *mut JsNode) : bool {
+    if(block == null) return false;
+    var pending = std::vector<*mut JsIf>()
+    var finalRendered = false
     for(var i : uint = 0; i < block.statements.size(); i++) {
         const stmt = block.statements.get(i);
         if(stmt == null) continue;
-        converter.emit_ssr_single_stmt(stmt);
+        if(stmt.kind == JsNodeKind.If && is_return_jsx_if(stmt as *mut JsIf)) {
+            pending.push(stmt as *mut JsIf);
+            continue;
+        }
+        if(stmt.kind == JsNodeKind.Return && !pending.empty()) {
+            // Trailing return closes the chain as its else branch.
+            converter.emit_ssr_return_chain(&pending, stmt as *mut JsReturn, skipReturnValue);
+            pending.clear();
+            finalRendered = true;
+            continue;
+        }
+        // Non-chain statement: flush pending as independent ifs, then emit.
+        converter.emit_ssr_return_chain(&pending, null, null);
+        pending.clear();
+        converter.emit_ssr_single_stmt(stmt, skipReturnValue);
     }
+    converter.emit_ssr_return_chain(&pending, null, null);
+    return finalRendered
 }
 
 // Builds a Chemical SsrAttributeValue expression that evaluates a props-driven

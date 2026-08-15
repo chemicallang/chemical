@@ -700,6 +700,17 @@ void GenericInstantiator::waitSignatureFinalized(BaseGenericDecl* decl, size_t i
     auto& status_mutex = container.getInstantiationStatusMutex();
     auto& cv = container.getInstantiationCv();
     std::unique_lock<std::mutex> lock(status_mutex);
+    // If this thread is the one that registered this instantiation, it must not
+    // wait for the signature to be finalized — it is this same thread that will
+    // finalize it once the recursive finalization unwinds. This happens with
+    // recursive generic types (e.g. JsonValue containing std::vector<JsonValue>),
+    // where finalizing the signature of one instantiation triggers a nested
+    // instantiation whose body finalization re-encounters the outer instantiation
+    // while it is still in the Registered state. Waiting here would deadlock the
+    // thread against itself.
+    if(decl->instantiation_statuses[index].builder_thread == std::this_thread::get_id()) {
+        return;
+    }
     cv.wait(lock, [decl, index]() {
         return decl->instantiation_statuses[index].status == InstantiationStatus::SignatureFinalized;
     });

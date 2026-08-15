@@ -497,3 +497,40 @@ public func components_theme_inject(env : &mut TestEnv) {
     contains_string_assert(env, css.to_view(), std::string_view("--chx-surface"))
     contains_string_assert(env, css.to_view(), std::string_view("chx-spinner-rotate"))
 }
+
+// ---------------------------------------------------------------------------
+// array literal in #html attr (parser: parseExpressionOrArrayOrStruct CBI binding)
+// ---------------------------------------------------------------------------
+
+@test
+public func components_array_literal_attr_parses(env : &mut TestEnv) {
+    // Previously `{[1, 2]}` failed to parse in #html attributes. The CBI
+    // binding now routes through parseExpressionOrArrayOrStruct.
+    var page = HtmlPage()
+    #html { <div data-arr={[1, 2]}></div> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-arr"))
+}
+
+#universal ArrayLiteralList(props) {
+    return <ul>{props.items.map(item => <li>{item}</li>)}</ul>
+}
+
+@test
+public func components_array_literal_prop_compiles(env : &mut TestEnv) {
+    // Array literal passed as a universal component prop must parse and
+    // produce a Multiple attribute value (not a broken UInteger initializer).
+    var page = HtmlPage()
+    #html { <ArrayLiteralList items={["One", "Two"]} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<ul"))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // The dispatch props must serialize the array as a proper JS array literal
+    // (previously garbage bytes / broken UInteger initializer).
+    contains_string_assert(env, js.to_view(), std::string_view("\"items\":[\"One\",\"Two\"]"))
+    // JS function receives the array and maps over it
+    contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.items).map"))
+}

@@ -131,6 +131,39 @@ func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
             }
             converter.vec.push(converter.make_js_value_call_with(value, escapedName, escapedFn) as *mut ASTNode);
         }
+        BaseTypeKind.Array => {
+            // array literal — serialize as a JS array literal: ["One","Two"]
+            if(value.getKind() == ValueKind.ArrayValue) {
+                const arrayValue = value as *mut ArrayValue
+                const values = arrayValue.get_values()
+                const size = values.size()
+
+                var open = std::string("[")
+                converter.emit_append_js_from_str(&mut open)
+                for(var i : uint = 0; i < size; i++) {
+                    if(i > 0) {
+                        var comma = std::string(",")
+                        converter.emit_append_js_from_str(&mut comma)
+                    }
+                    const ptr = values.get(i)
+                    const ptrType = ptr.getType()
+                    const is_str = converter.is_string_type(ptrType)
+                    if(is_str) {
+                        var quote = std::string("\"")
+                        converter.emit_append_js_from_str(&mut quote)
+                        converter.put_js_value_in(ptr)
+                        var quote2 = std::string("\"")
+                        converter.emit_append_js_from_str(&mut quote2)
+                    } else {
+                        converter.put_js_value_in(ptr)
+                    }
+                }
+                var close = std::string("]")
+                converter.emit_append_js_from_str(&mut close)
+            } else {
+                converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);
+            }
+        }
         BaseTypeKind.Linked => {
             const linked = type as *mut LinkedType;
             const node = linked.getLinkedNode();

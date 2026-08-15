@@ -32,6 +32,10 @@ Value* ParserparseExpression(Parser* parser, ASTBuilder* builder, bool parseStru
     return parser->parseExpression(*builder->allocator, parseStruct, parseLambda);
 }
 
+Value* ParserparseExpressionOrArrayOrStruct(Parser* parser, ASTBuilder* builder, bool parseLambda) {
+    return parser->parseExpressionOrArrayOrStruct(*builder->allocator, parseLambda);
+}
+
 ASTNode* ParserparseNestedLevelStatement(Parser* parser, ASTBuilder* builder) {
     return parser->parseNestedLevelStatementTokens(*builder->allocator, false, false);
 }

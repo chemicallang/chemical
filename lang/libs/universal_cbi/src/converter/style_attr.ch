@@ -132,12 +132,20 @@ func append_kebab_case(input: std::string_view, out: &mut std::string) {
     }
 }
 
+// Builds the SSR `style` attribute text from a JSX style object literal. Only
+// statically-known values are included: string/number literals. Props reads,
+// state reads and expressions are skipped entirely — leaking raw JS source text
+// (e.g. `background-color:props.bg`) into the HTML attribute would corrupt the
+// style, and the client bundle re-evaluates those reactively on hydration.
 func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut JsObjectLiteral) : std::string_view {
     var out = std::string();
+    var wrote = false;
     for(var i : uint = 0; i < obj.properties.size(); i++) {
-        if(i > 0) out.append(';');
         const prop = obj.properties.get(i);
-        if(prop.value != null && prop.value.kind == JsNodeKind.Spread) return view("");
+        if(prop.value == null || prop.value.kind == JsNodeKind.Spread) return view("");
+        if(prop.value.kind != JsNodeKind.Literal) continue;
+        if(wrote) out.append(';');
+        wrote = true;
         const stripped = strip_js_string_quotes(prop.key);
         if(stripped.size() < prop.key.size()) {
             // quotes were stripped from property key
@@ -148,7 +156,10 @@ func build_js_node_text_view_style_attr(builder : *mut ASTBuilder, obj : *mut Js
             append_kebab_case(prop.key, &mut out);
         }
         out.append(':');
-        if(!append_style_js_node_text(prop.value, &mut out)) break;
+        if(!append_style_js_node_text(prop.value, &mut out)) {
+            out.clear();
+            return std::string_view();
+        }
     }
     return builder.allocate_view(out.to_view());
 }

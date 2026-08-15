@@ -53,6 +53,10 @@ impl Parser for RuntimeParser {
         return null
     }
 
+    func parseExpressionOrArrayOrStruct(&self, builder : *mut ASTBuilder, parseLambda : bool) : *mut Value {
+        return null
+    }
+
     func parseNestedLevelStatement(&self, builder : *mut ASTBuilder) : *mut ASTNode {
         return null
     }

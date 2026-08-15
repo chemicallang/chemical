@@ -921,6 +921,23 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
             if(bin.op.equals(view("||")) && left.kind == 1 && right.kind == 1) {
                 return ssr_js_eval_bool(left.boolValue || right.boolValue);
             }
+            if(bin.op.equals(view("+"))) {
+                if(left.kind == 2 && right.kind == 2) {
+                    // numeric addition
+                    var sumText = std::string();
+                    sumText.append_integer(left.numberValue + right.numberValue);
+                    const sumView = converter.builder.allocate_view(sumText.to_view());
+                    return ssr_js_eval_number(left.numberValue + right.numberValue, sumView);
+                }
+                // string concatenation (JS: number + string coerces to string)
+                if(left.kind == 3 || right.kind == 3 || left.kind == 2 || right.kind == 2) {
+                    var cat = std::string();
+                    cat.append_view(&left.textValue);
+                    cat.append_view(&right.textValue);
+                    const catView = converter.builder.allocate_view(cat.to_view());
+                    return ssr_js_eval_text(catView);
+                }
+            }
             return ssr_js_eval_invalid();
         }
         JsNodeKind.Ternary => {
@@ -1171,14 +1188,28 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             }
         }
         JsNodeKind.Identifier => {
+            const id = node as *mut JsIdentifier;
+            const builder = converter.builder;
+            const location = intrinsics::get_raw_location();
+
+            // Reference to a `state`/computed variable: SSR renders the initial
+            // state value as text (matching the client's first render). The value
+            // is static text, so append it directly to the HTML buffer.
+            if(converter.is_reactive_var(id.value)) {
+                const initText = converter.find_state_init_text(id.value);
+                if(!initText.empty()) {
+                    converter.str.append_view(&initText);
+                    converter.put_chain_in();
+                }
+                return;
+            }
+
+
             // Reference to a local variable declared in the component body:
             // render it as a child value at SSR runtime.
-            const id = node as *mut JsIdentifier;
             const local = converter.find_ssr_local(id.value);
             if(local == null) return;
 
-            const builder = converter.builder;
-            const location = intrinsics::get_raw_location();
             const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
             var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 

@@ -42,6 +42,8 @@ extern "C" {
 
     Value* ParserparseExpression(Parser* parser, ASTBuilder* builder,  bool parseStruct, bool parseLambda);
 
+    Value* ParserparseExpressionOrArrayOrStruct(Parser* parser, ASTBuilder* builder, bool parseLambda);
+
     ASTNode* ParserparseNestedLevelStatement(Parser* parser, ASTBuilder* builder);
 
     void Parsererror_at(Parser* parser, chem::string_view* view, Token* token);

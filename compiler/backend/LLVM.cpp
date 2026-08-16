@@ -336,8 +336,7 @@ llvm::Value* call_single_param_op_impl(Codegen& gen, FunctionDeclaration* decl, 
     llvm::Instruction* returnedStruct = nullptr;
     // handle secret struct param sent to call inst when call returns a struct
     if(decl->returnType->isStructLikeType()) {
-        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
-        gen.di.instr(returnedStruct, arg->encoded_location());
+        returnedStruct = (llvm::Instruction*) gen.llvm.CreateAlloca(decl->returnType, arg->encoded_location());
         args.emplace_back(returnedStruct);
     }
     args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], arg, 0, destructibles));
@@ -358,8 +357,7 @@ llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Val
     llvm::Instruction* returnedStruct = nullptr;
     // handle secret struct param sent to call inst when call returns a struct
     if(decl->returnType->isStructLikeType()) {
-        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
-        gen.di.instr(returnedStruct, first->encoded_location());
+        returnedStruct = (llvm::Instruction*) gen.llvm.CreateAlloca(decl->returnType, first->encoded_location());
         args.emplace_back(returnedStruct);
     }
     args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], first, 0, destructibles));
@@ -1517,9 +1515,8 @@ llvm::Type* AlignOfValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    auto type = for_type->llvm_type(gen);
-    auto align = gen.module->getDataLayout().getABITypeAlign(type);
-    return gen.builder->getInt64(align.value());
+    auto align = chemical_llvm_type_align(gen, for_type);
+    return gen.builder->getInt64(align);
 }
 
 llvm::Type* OffsetOfValue::llvm_type(Codegen &gen) {

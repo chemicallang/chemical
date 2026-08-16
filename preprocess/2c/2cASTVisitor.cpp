@@ -2720,8 +2720,15 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     // will be declared later, so C responds with incomplete type
     early_declare_composed_variables(visitor, *def);
     visitor.new_line_and_indent();
-    write("struct ");
-    visitor.mangle(def);
+    if(def->get_required_alignment() > 0) {
+        write("__chx_align_struct(");
+        visitor.writer << def->get_required_alignment();
+        write(") ");
+        visitor.mangle(def);
+    } else {
+        write("struct ");
+        visitor.mangle(def);
+    }
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
@@ -3206,6 +3213,16 @@ void ToCAstVisitor::prepare_translate() {
           "#else\n"
           "    #define __chem_stdcall __attribute__((stdcall))\n"
           "    #define __chem_dllimport __attribute__((dllimport))\n"
+          "#endif\n"
+      );
+    write("#ifndef __chx_align\n"
+          "#if defined(_MSC_VER)\n"
+          "  #define __chx_align(N) __declspec(align(N))\n"
+          "  #define __chx_align_struct(N) __declspec(align(N)) struct\n"
+          "#else\n"
+          "  #define __chx_align(N) __attribute__((aligned(N)))\n"
+          "  #define __chx_align_struct(N) struct __attribute__((aligned(N)))\n"
+          "#endif\n"
           "#endif\n"
       );
     write("#ifndef __chx_thread_local\n"
@@ -6107,6 +6124,11 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 }
 
 void ToCAstVisitor::VisitStructMember(StructMember *member) {
+    if(member->get_required_alignment() > 0) {
+        write("__chx_align(");
+        writer << member->get_required_alignment();
+        write(") ");
+    }
     if(member->type->kind() == BaseTypeKind::Function) {
         const auto func_type = member->type->as_function_type();
         if(func_type->isCapturing()) {

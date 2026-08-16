@@ -115,6 +115,7 @@ Codegen::Codegen(
     builder = new llvm::IRBuilder<>(*ctx);
     // updating the builder
     llvm.updateBuilder(builder);
+    llvm.set_codegen(this);
     // create an interface module
     interface_module = std::make_unique<llvm::Module>("interface.module", *ctx);
 }

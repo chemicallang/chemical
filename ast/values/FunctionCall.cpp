@@ -432,9 +432,7 @@ llvm::Value* struct_return_in_args(
 ) {
     if(func_type->returnType->isStructLikeType()) {
         if(!returnedValue) {
-            const auto allocaInstr = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
-            gen.di.instr(allocaInstr, debug_value);
-            returnedValue = allocaInstr;
+            returnedValue = gen.llvm.CreateAlloca(func_type->returnType, debug_value);
         }
         args.emplace_back(returnedValue);
     }
@@ -590,9 +588,7 @@ llvm::Value *call_capturing_lambda(
     const auto returnsStruct = func_type->returnType->isStructLikeType();
     if(returnsStruct) {
         if (!returnedStruct) {
-            const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
-            gen.di.instr(returnedAlloca, call);
-            returnedStruct = returnedAlloca;
+            returnedStruct = gen.llvm.CreateAlloca(func_type->returnType, call);
         }
         args.emplace_back(returnedStruct);
     }
@@ -763,9 +759,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
         if(returnsStruct) {
             if(!returnedStruct) {
-                const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
-                gen.di.instr(returnedAlloca, this);
-                returnedValue = returnedAlloca;
+                returnedValue = gen.llvm.CreateAlloca(func_type->returnType, this);
             }
             switch(val->kind()) {
                 case ValueKind::StructValue:
@@ -799,9 +793,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     if(returnsStruct) {
         if(!returnedStruct) {
-            const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
-            gen.di.instr(returnedAlloca, this);
-            returnedValue = returnedAlloca;
+            returnedValue = gen.llvm.CreateAlloca(func_type->returnType, this);
         }
         args.emplace_back(returnedValue);
     }

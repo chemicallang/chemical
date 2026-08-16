@@ -4,6 +4,8 @@
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 #include "compiler/backend/DebugInfoBuilder.h"
+#include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
 inline llvm::ArrayRef<llvm::Value*> ref(const std::span<llvm::Value*>& idxList) {
     return {idxList.data(), idxList.size()};
@@ -11,6 +13,16 @@ inline llvm::ArrayRef<llvm::Value*> ref(const std::span<llvm::Value*>& idxList) 
 
 llvm::Value* LLVMGenCreateAlloca(LLVMGen* gen, llvm::Type* type, SourceLocation location) {
     const auto allocaInst = gen->builder->CreateAlloca(type);
+    gen->di.instr(allocaInst, location);
+    return allocaInst;
+}
+
+llvm::Value* LLVMGenCreateAllocaTyped(LLVMGen* gen, BaseType* type, SourceLocation location) {
+    const auto allocaInst = gen->builder->CreateAlloca(type->llvm_type(*gen->codegen));
+    const auto align = chemical_llvm_type_align(*gen->codegen, type);
+    if(align > 1) {
+        allocaInst->setAlignment(llvm::Align(align));
+    }
     gen->di.instr(allocaInst, location);
     return allocaInst;
 }

@@ -24,6 +24,7 @@ public namespace std {
     comptime const CONDITION_VARIABLE_SIZE = 8  // typical Win32 CONDITION_VARIABLE (small user object)
 
     // Cross-platform CondVar (opaque storage)
+    @align(8)
     public struct CondVar {
 
         var storage : [CONDITION_VARIABLE_SIZE]u8

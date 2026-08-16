@@ -21,7 +21,14 @@ struct TargetData;
 
 #ifdef COMPILER_BUILD
 class Codegen;
+class BaseType;
 #include "compiler/llvmfwd.h"
+
+/**
+ * computes the LLVM alignment for a given chemical type, honoring @maxalign
+ * returns at least 1
+ */
+unsigned chemical_llvm_type_align(Codegen& gen, BaseType* type);
 
 #endif
 

@@ -4,6 +4,7 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/StructMember.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnionDef.h"
@@ -14,6 +15,7 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
+#include "ast/values/IntNumValue.h"
 
 void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
@@ -230,7 +232,19 @@ void annot_handler_thread_local(Parser* parser, ASTNode* node, std::vector<Value
 }
 
 void annot_handler_maxalign(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    // TODO
+    if(!args.empty()) {
+        parser->error("@maxalign does not take arguments, use @align(N) to specify an explicit alignment");
+        return;
+    }
+    // max alignment for the target, same as alignof(max_align_t)
+    const uint32_t align = parser->is64Bit ? 16 : 8;
+    if(node->kind() == ASTNodeKind::StructDecl) {
+        node->as_struct_def_unsafe()->set_required_alignment(align);
+    } else if(node->kind() == ASTNodeKind::StructMember) {
+        node->as_struct_member_unsafe()->set_required_alignment(align);
+    } else {
+        parser->error("@maxalign can only be applied to structs or struct members");
+    }
 }
 
 void annot_handler_no_return(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
@@ -270,7 +284,24 @@ void annot_handler_deprecated(Parser* parser, ASTNode* node, std::vector<Value*>
 }
 
 void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    // TODO:
+    uint32_t align = 0;
+    if(!args.empty()) {
+        const auto arg = args[0];
+        if(arg && arg->val_kind() == ValueKind::IntN) {
+            align = (uint32_t) arg->as_int_num_value_unsafe()->get_num_value();
+        }
+    }
+    if(align == 0) {
+        parser->error("expected a constant integer argument for @align, e.g. @align(8)");
+        return;
+    }
+    if(node->kind() == ASTNodeKind::StructDecl) {
+        node->as_struct_def_unsafe()->set_required_alignment(align);
+    } else if(node->kind() == ASTNodeKind::StructMember) {
+        node->as_struct_member_unsafe()->set_required_alignment(align);
+    } else {
+        parser->error("@align can only be applied to structs or struct members");
+    }
 }
 
 void annot_handler_allow_zeroed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {

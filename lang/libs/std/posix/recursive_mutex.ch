@@ -13,6 +13,7 @@ public namespace std {
     comptime const PTHREAD_MUTEXATTR_T_SIZE = 4
     comptime const PTHREAD_MUTEX_RECURSIVE = 1
 
+    @align(8)
     public struct recursive_mutex {
         var storage : [PTHREAD_MUTEX_T_SIZE]u8
 

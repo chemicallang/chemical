@@ -49,6 +49,12 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
+unsigned chemical_llvm_type_align(Codegen& gen, BaseType* type) {
+    if(type == nullptr) return 1;
+    const auto align = type->type_alignment(gen.comptime_scope.target_data);
+    return align > 0 ? align : 1;
+}
+
 llvm::Value* Value::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
     switch(kind()) {
         case ValueKind::Identifier:
@@ -66,9 +72,9 @@ llvm::Value* Value::loadable_llvm_pointer(Codegen& gen, SourceLocation location)
 }
 
 llvm::AllocaInst* Value::llvm_alloca_store(Codegen& gen, BaseType* expected_type, llvm::Value* value) {
-    const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
-    auto alloc = gen.builder->CreateAlloca(type, nullptr);
-    gen.di.instr(alloc, this);
+    const auto chemical_type = expected_type ? expected_type : getType();
+    const auto type = chemical_type->llvm_type(gen);
+    auto alloc = (llvm::AllocaInst*) gen.llvm.CreateAlloca(chemical_type, encoded_location());
     const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(value, expected_type, type) : value, alloc);
     gen.di.instr(store, this);
     return alloc;
@@ -76,9 +82,9 @@ llvm::AllocaInst* Value::llvm_alloca_store(Codegen& gen, BaseType* expected_type
 
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     const auto value = llvm_value(gen, expected_type);
-    const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
-    auto alloc = gen.builder->CreateAlloca(type, nullptr);
-    gen.di.instr(alloc, this);
+    const auto chemical_type = expected_type ? expected_type : getType();
+    const auto type = chemical_type->llvm_type(gen);
+    auto alloc = (llvm::AllocaInst*) gen.llvm.CreateAlloca(chemical_type, encoded_location());
     const auto val = expected_type ? gen.implicit_cast(value, expected_type, type) : value;
     gen.aggregate_store(type, alloc, val, encoded_location());
     return alloc;
@@ -94,8 +100,9 @@ llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<Value*>
     } else {
         const auto value = val->access_chain_value(gen, values, until, expected_type);
         const auto loc = val->encoded_location();
-        const auto val_type = val->llvm_type(gen);
-        const auto alloc = gen.llvm.CreateAlloca(val_type, loc);
+        const auto chemical_type = expected_type ? expected_type : val->getType();
+        const auto val_type = chemical_type->llvm_type(gen);
+        const auto alloc = gen.llvm.CreateAlloca(chemical_type, loc);
         gen.aggregate_store(val_type, alloc, value, loc);
         return (llvm::AllocaInst*) alloc;
     }

@@ -1,11 +1,8 @@
-/* NULL-terminated array of "NAME=VALUE" environment variables.  */
-@extern
-public var __environ : **mut char;
-
-if(def.gnu) {
-    @extern
-    public var environ : **mut char;
-}
+/* NULL-terminated array of "NAME=VALUE" environment variables.
+   Platform specific:
+    - Linux -> __environ / environ in posix_linux/io/unistd.ch
+    - macOS -> _NSGetEnviron() in posix_macos/io/unistd.ch
+*/
 
 /** @def O_RDONLY Open for reading only. */
 public comptime const O_RDONLY = 0b00000000

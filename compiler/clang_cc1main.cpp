@@ -113,7 +113,7 @@ static void ensureSufficientStack() {}
 
 /// Print supported cpus of the given target.
 static int PrintSupportedCPUs(std::string TargetStr) {
-  llvm::Triple Triple(TargetStr);
+  llvm::Triple Triple(llvm::Triple::normalize(TargetStr));
   std::string Error;
   const llvm::Target *TheTarget =
       llvm::TargetRegistry::lookupTarget(Triple, Error);
@@ -131,7 +131,7 @@ static int PrintSupportedCPUs(std::string TargetStr) {
 }
 
 static int PrintSupportedExtensions(std::string TargetStr) {
-  llvm::Triple Triple(TargetStr);
+  llvm::Triple Triple(llvm::Triple::normalize(TargetStr));
   std::string Error;
   const llvm::Target *TheTarget =
       llvm::TargetRegistry::lookupTarget(Triple, Error);
@@ -169,7 +169,7 @@ static int PrintSupportedExtensions(std::string TargetStr) {
 }
 
 static int PrintEnabledExtensions(const TargetOptions& TargetOpts) {
-  llvm::Triple Triple(TargetOpts.Triple);
+  llvm::Triple Triple(llvm::Triple::normalize(TargetOpts.Triple));
   std::string Error;
   const llvm::Target *TheTarget =
       llvm::TargetRegistry::lookupTarget(Triple, Error);

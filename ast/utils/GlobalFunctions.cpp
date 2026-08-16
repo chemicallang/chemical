@@ -2944,6 +2944,24 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         data.is64Bit = true;
     }
 
+    // environment / libc detection from the triple, e.g. aarch64-linux-musl
+    switch(triple.getEnvironment()) {
+        case llvm::Triple::Musl:
+        case llvm::Triple::MuslEABI:
+        case llvm::Triple::MuslEABIHF:
+            data.musl = true;
+            break;
+        case llvm::Triple::GNU:
+        case llvm::Triple::GNUEABI:
+        case llvm::Triple::GNUEABIHF:
+        case llvm::Triple::GNUSF:
+        case llvm::Triple::GNUX32:
+            data.gnu = true;
+            break;
+        default:
+            break;
+    }
+
     // Check for architecture
     switch(arhType) {
         case llvm::Triple::x86_64:
@@ -2963,6 +2981,11 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
     }
 
     data.little_endian = triple.isLittleEndian();
+    data.big_endian = !triple.isLittleEndian();
+
+    // posix is not a host macro; derive it from the target OS like the manual
+    // (non-COMPILER_BUILD) parser does
+    data.posix = !data.windows;
 
 }
 
@@ -2972,7 +2995,20 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
         return;
     }
 
-    auto triple = llvm::Triple(target_triple);
+    // The triple fully determines the target's arch/OS/libc, so clear the
+    // host values set by create_target_data() from build macros. Otherwise a
+    // host flag leaks into a cross target (e.g. host linux would wrongly
+    // select "source ... if linux" when targeting windows). Preserve the
+    // compiler-backend flag (clang) — initialize_job re-establishes c/tcc/mode.
+    const bool clang = data.clang;
+    data = TargetData{};
+    data.clang = clang;
+
+    // normalize first: llvm::Triple does not parse 3-part triples like
+    // "aarch64-linux-musl" (no vendor) without it — the OS and environment
+    // come out as Unknown. normalize() inserts the "unknown" vendor so the
+    // OS/env (linux/musl/gnu) are recognized.
+    auto triple = llvm::Triple(llvm::Triple::normalize(target_triple));
     init_target_data(triple, data);
 }
 
@@ -2993,7 +3029,8 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
         parts.push_back(part);
     }
 
-    if (parts.size() < 3) {
+    // We need at least an arch and an OS to infer anything useful.
+    if (parts.size() < 2) {
         return;  // Invalid target string format
     }
 
@@ -3003,46 +3040,49 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
     data = TargetData{};
 
     const auto& arch = parts[0];
-    const auto& sys = parts[2];
-    const auto& abi = (parts.size() > 3) ? parts[3] : ""; // Optional ABI part
+    const auto& abi = (parts.size() > 3) ? parts[3] : ""; // Optional ABI part (used for endianness)
 
     // Determine architecture
     if (arch == "x86_64") {
         data.x86_64 = true;
+        data.is64Bit = true;
     } else if (arch == "i386") {
         data.i386 = true;
     } else if (arch == "arm") {
         data.arm = true;
     } else if (arch == "aarch64") {
         data.aarch64 = true;
+        data.is64Bit = true;
     }
 
-    // Determine operating system
-    if (sys == "linux") {
-        data.isLinux = true;
-        data.isUnix = true;
-    } else if (sys == "windows") {
-        data.win32 = true;
-        data.windows = true;
-    } else if (sys == "darwin") {
-        data.macos = true;
-        data.isUnix = true;
-    } else if (sys == "freebsd") {
-        data.freebsd = true;
-        data.isUnix = true;
-    } else if (sys == "android") {
-        data.android = true;
-        data.isUnix = true;
-    } else if (sys == "cygwin") {
-        data.cygwin = true;
-        data.isUnix = true;
-    } else if (sys == "mingw32") {
-        data.mingw32 = true;
-        data.win32 = true;
-        data.windows = true;
-    } else if (sys == "mingw64") {
-        data.win64 = true;
-        data.windows = true;
+    // environment / libc detection: the trailing marker of the triple, e.g.
+    // aarch64-linux-musl or aarch64-unknown-linux-gnu. A bare "eabi" (like
+    // arm-none-eabi) is a bare-metal ABI and is neither gnu nor musl.
+    {
+        const auto& last = parts.back();
+        if (last.find("musl") != std::string::npos) {
+            data.musl = true;
+        } else if (last.find("gnu") != std::string::npos) {
+            data.gnu = true;
+        }
+    }
+
+    // operating system: scan back-to-front for the last part that names an OS,
+    // skipping the trailing environment marker. This avoids treating a vendor
+    // like "linux" in e.g. x86_64-linux-android as the OS.
+    for (size_t i = parts.size(); i-- > 1; ) {
+        const auto& p = parts[i];
+        if (i == parts.size() - 1 && (p.find("musl") != std::string::npos || p.find("gnu") != std::string::npos)) {
+            continue; // trailing environment marker, not the OS
+        }
+        if (p == "linux") { data.isLinux = true; data.isUnix = true; break; }
+        else if (p == "windows") { data.win32 = true; data.windows = true; break; }
+        else if (p == "darwin" || p == "macos") { data.macos = true; data.isUnix = true; break; }
+        else if (p == "freebsd") { data.freebsd = true; data.isUnix = true; break; }
+        else if (p == "android") { data.android = true; data.isUnix = true; break; }
+        else if (p == "cygwin") { data.cygwin = true; data.isUnix = true; break; }
+        else if (p == "mingw32") { data.mingw32 = true; data.win32 = true; data.windows = true; break; }
+        else if (p == "mingw64") { data.win64 = true; data.windows = true; break; }
     }
 
     // posix
@@ -3064,6 +3104,7 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
     } else {
         data.little_endian = IS_LITTLE_ENDIAN;
     }
+    data.big_endian = !data.little_endian;
 
 }
 

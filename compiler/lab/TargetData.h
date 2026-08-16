@@ -98,6 +98,13 @@ consteval TargetData create_target_data() {
     d.isUnix = true;
 #endif
 
+// musl cannot be reliably detected at runtime from host macros, so it is set
+// from the build (CHEMICAL_MUSL) or from an explicit target triple later
+// (prepare_target_data / init_target_data take precedence).
+#ifdef CHEMICAL_MUSL
+    d.musl = true;
+#endif
+
 #ifdef __APPLE__
     d.macos = true;
     d.isUnix = true;

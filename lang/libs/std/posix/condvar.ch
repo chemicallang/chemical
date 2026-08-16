@@ -22,7 +22,10 @@ public func clock_gettime(clk_id : int, ts : *mut timespec) : int
 public namespace std {
 
     // conservative sizes (x86_64 glibc / typical Windows values)
-    comptime const PTHREAD_MUTEX_T_SIZE = 40    // common glibc x86_64
+    // conservative sizes: glibc aarch64 pthread_mutex_t is 48 bytes, on
+    // x86_64 glibc and on musl it is 40 bytes. We always use the largest
+    // (48) so pthread_mutex_init never overflows the storage on any target.
+    comptime const PTHREAD_MUTEX_T_SIZE = 48
     comptime const PTHREAD_COND_T_SIZE  = 48    // common glibc x86_64
 
     // Helper: compute absolute timespec = now + timeout_ms (uses CLOCK_REALTIME)

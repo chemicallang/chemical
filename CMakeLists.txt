@@ -57,6 +57,13 @@ option(BUILD_COMPILER "Build full Compiler (requires LLVM/Clang/LLD). Turn OFF t
 option(VERBOSE "Enable verbose output (for debugging)" OFF)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds to catch bugs" OFF)
 option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets where safe" ON)
+option(CHEMICAL_MUSL "The compiler is built for/run on musl libc. Used to select musl-specific behaviour (e.g. pthread type sizes)." OFF)
+
+# Compile-time musl flag. When a target triple is given to the compiler at
+# runtime it takes precedence (see prepare_target_data / init_target_data).
+if (CHEMICAL_MUSL)
+    add_compile_definitions(CHEMICAL_MUSL)
+endif()
 
 # Debug builds error messages that are more helpful
 # set(CMAKE_BUILD_TYPE "Debug")

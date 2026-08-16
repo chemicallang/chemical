@@ -1,18 +1,11 @@
-
 /**
- * this is different on apple and android
- * TODO: this is different on apple and free bsd : extern int *__error(void);
+ * POSIX-compatible error condition constants.
+ *
+ * The errno access (get_errno/set_errno) is platform specific:
+ *  - Linux -> __errno_location() in posix_linux/diagnostics/errno.ch
+ *  - macOS -> __error() in posix_macos/diagnostics/errno.ch
  */
-@extern
-public func __errno_location() : *mut int
 
-public func get_errno() : int {
-    return *__errno_location();
-}
-
-public func set_errno(value : int) {
-    *__errno_location() = value;
-}
 
 public comptime const EPERM =		 1	/* Operation not permitted */
 public comptime const ENOENT =		 2	/* No such file or directory */
@@ -163,4 +156,3 @@ public comptime const ENOTRECOVERABLE =	131	/* State not recoverable */
 
 public comptime const ERFKILL =		132	/* Operation not possible due to RF-kill */
 
-public comptime const EHWPOISON =	133	/* Memory page has hardware error */

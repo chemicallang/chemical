@@ -9,11 +9,17 @@
 
 class LLVMGen;
 
+class Codegen;
+
+class BaseType;
+
 class DebugInfoBuilder;
 
 extern "C" {
 
     llvm::Value* LLVMGenCreateAlloca(LLVMGen* gen, llvm::Type* type, SourceLocation location);
+
+    llvm::Value* LLVMGenCreateAllocaTyped(LLVMGen* gen, BaseType* type, SourceLocation location);
 
     llvm::StoreInst* LLVMGenCreateStore(LLVMGen* gen, llvm::Value* val, llvm::Value* ptr, SourceLocation location);
 
@@ -31,6 +37,12 @@ public:
     DebugInfoBuilder& di;
 
     /**
+     * the codegen this generator belongs to, used to resolve
+     * chemical types to llvm types and alignments
+     */
+    Codegen* codegen = nullptr;
+
+    /**
      * constructor
      */
     LLVMGen(DebugInfoBuilder& di) : di(di) {
@@ -41,11 +53,23 @@ public:
         builder = newBuilder;
     }
 
+    void set_codegen(Codegen* codegen_) {
+        codegen = codegen_;
+    }
+
     /**
      * create alloca instruction
      */
     inline llvm::Value* CreateAlloca(llvm::Type* type, SourceLocation location) {
         return LLVMGenCreateAlloca(this, type, location);
+    }
+
+    /**
+     * create alloca instruction, computes the llvm type and honors @maxalign alignment
+     * from the chemical type
+     */
+    inline llvm::Value* CreateAlloca(BaseType* type, SourceLocation location) {
+        return LLVMGenCreateAllocaTyped(this, type, location);
     }
 
     /**
@@ -74,6 +98,16 @@ public:
      */
     template <typename NodeT>
     inline llvm::Value* CreateAlloca(llvm::Type* type, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
+        return CreateAlloca(type, node->encoded_location());
+    }
+
+    /**
+     * helper method
+     */
+    template <typename NodeT>
+    inline llvm::Value* CreateAlloca(BaseType* type, NodeT* node)
     requires requires(NodeT n) { n.encoded_location(); }
     {
         return CreateAlloca(type, node->encoded_location());

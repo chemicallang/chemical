@@ -16,6 +16,7 @@ public func pthread_mutex_destroy(m : *mut u8) : int
 public namespace std {
 
     // ----- std::mutex implementation -----
+    @align(8)
     public struct mutex {
 
         var storage : [PTHREAD_MUTEX_T_SIZE]u8;

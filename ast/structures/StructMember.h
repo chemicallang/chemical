@@ -15,6 +15,12 @@ struct StructMemberAttributes {
 
     bool deprecated;
 
+    /**
+     * alignment this member requires, applied via @align(N) or @maxalign annotation.
+     * zero means the member does not force an alignment
+     */
+    uint32_t required_alignment = 0;
+
 };
 
 class StructMember : public BaseDefMember {
@@ -63,6 +69,14 @@ public:
 
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
+    }
+
+    inline uint32_t get_required_alignment() const noexcept {
+        return attrs.required_alignment;
+    }
+
+    inline void set_required_alignment(uint32_t value) noexcept {
+        attrs.required_alignment = value;
     }
 
     Value *default_value() final {

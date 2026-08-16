@@ -732,7 +732,11 @@ unsigned BaseType::type_alignment(const TargetData& data) {
             const auto st = as_struct_type_unsafe();
             size_t maxAlign = 1;
             for(const auto member : st->variables()) {
-                const auto align = (size_t) member->known_type()->type_alignment(data);
+                auto align = (size_t) member->known_type()->type_alignment(data);
+                const auto sm = member->as_struct_member();
+                if(sm && sm->get_required_alignment() > align) {
+                    align = sm->get_required_alignment();
+                }
                 if(align > maxAlign) maxAlign = align;
             }
             return (unsigned) maxAlign;
@@ -807,8 +811,18 @@ unsigned BaseType::type_alignment(const TargetData& data) {
                     if(container) {
                         size_t maxAlign = 1;
                         for(const auto member : container->variables()) {
-                            const auto align = (size_t) member->known_type()->type_alignment(data);
+                            auto align = (size_t) member->known_type()->type_alignment(data);
+                            const auto sm = member->as_struct_member();
+                            if(sm && sm->get_required_alignment() > align) {
+                                align = sm->get_required_alignment();
+                            }
                             if(align > maxAlign) maxAlign = align;
+                        }
+                        if(linked->kind() == ASTNodeKind::StructDecl) {
+                            const auto sd = linked->as_struct_def_unsafe();
+                            if(sd->get_required_alignment() > maxAlign) {
+                                maxAlign = sd->get_required_alignment();
+                            }
                         }
                         return (unsigned) maxAlign;
                     }

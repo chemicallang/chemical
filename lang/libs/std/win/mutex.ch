@@ -22,6 +22,7 @@ public namespace std {
 
     comptime const SRWLOCK_SIZE = 8
 
+    @align(8)
     public struct mutex {
 
         var storage : [SRWLOCK_SIZE]u8;

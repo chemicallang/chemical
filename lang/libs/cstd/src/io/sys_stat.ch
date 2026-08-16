@@ -39,6 +39,30 @@ if(def.windows) {
         var st_mtime  : time_t;    // time of last modification
         var st_ctime  : time_t;    // time of last status change (on Windows: creation time in some APIs)
     }
+} else if(def.aarch64) {
+
+    // aarch64 (64-bit) uses the generic Linux struct stat layout, which
+    // differs from x86_64: st_mode (u32) comes before st_nlink (u32) and
+    // st_blksize is a 32-bit int. This layout matches both glibc and musl.
+    public struct Stat {
+        var st_dev : ulong;        // 0  Device.
+        var st_ino : ulong;        // 8  File serial number.
+        var st_mode : uint;        // 16 File mode.
+        var st_nlink : uint;       // 20 Link count.
+        var st_uid : uint;         // 24 User ID of the file's owner.
+        var st_gid : uint;         // 28 Group ID of the file's group.
+        var st_rdev : ulong;       // 32 Device number, if device.
+        var __pad1 : ulong;        // 40
+        var st_size : long;        // 48 Size of file, in bytes.
+        var st_blksize : int;      // 56 Optimal block size for I/O.
+        var __pad2 : int;          // 60
+        var st_blocks : long;      // 64 Number 512-byte blocks allocated.
+        var st_atime : timespec;   // 72 Time of last access.
+        var st_mtime : timespec;   // 88 Time of last modification.
+        var st_ctime : timespec;   // 104 Time of last status change.
+        var __glibc_reserved : [2]int;  // 120
+    }
+
 } else {
 
     public type __dev_t = ulong

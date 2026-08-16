@@ -89,6 +89,12 @@ public:
     std::vector<chem::string_view> lifetime_params;
 
     /**
+     * alignment this struct requires, applied via @align(N) or @maxalign annotation.
+     * zero means the struct does not force an alignment
+     */
+    uint32_t required_alignment = 0;
+
+    /**
      * @brief Construct a new StructDeclaration object.
      *
      * @param name The name of the struct.
@@ -199,11 +205,20 @@ public:
         return destructor_func() != nullptr;
     }
 
+    inline uint32_t get_required_alignment() const noexcept {
+        return required_alignment;
+    }
+
+    inline void set_required_alignment(uint32_t value) noexcept {
+        required_alignment = value;
+    }
+
     StructDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(
                 identifier, parent(), encoded_location(), specifier()
         );
         def->attrs = attrs;
+        def->required_alignment = required_alignment;
         ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
         return def;
     }

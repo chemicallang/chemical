@@ -63,6 +63,15 @@ public func posix_spawn_file_actions_destroy(
     __file_actions : *mut posix_spawn_file_actions_t
 ) : int
 
+/* Create a new process using file path directly (no PATH search).  */
+@extern
+public func posix_spawn(
+    __pid : *mut pid_t, __file : *char,
+    __file_actions : *posix_spawn_file_actions_t,
+    __attrp : *posix_spawnattr_t,
+    __argv : **char,  __envp : **char
+) : int
+
 /* Similar to `posix_spawn' but search for FILE in the PATH.
 
    This function is a possible cancellation point and therefore not

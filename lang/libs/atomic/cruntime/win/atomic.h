@@ -29,7 +29,9 @@
 #include <intrin.h>
 #endif
 
-#ifdef _MSC_VER
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
+#define cpu_relax() ((void)0)
+#elif defined(_MSC_VER)
 #define cpu_relax() _mm_pause()
 #else
 #define cpu_relax() __asm__ __volatile__ ("pause")
@@ -81,6 +83,22 @@
         } \
     } while (0)
 #else
+/* Non-MSVC (tcc / gcc / clang on Windows).
+   x86 uses mfence / compiler barriers; ARM/ARM64 uses the SDK's
+   arch-appropriate MemoryBarrier (dmb) since inline asm for the
+   barrier is not portable across compilers there. */
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
+#define atomic_thread_fence(order) do { \
+    switch (order) { \
+        case memory_order_relaxed: \
+        case memory_order_consume: \
+            break; \
+        default: \
+            MemoryBarrier(); \
+            break; \
+    } \
+} while (0)
+#else
 #define atomic_thread_fence(order) do { \
     switch (order) { \
         case memory_order_relaxed: \
@@ -99,6 +117,7 @@
             break; \
     } \
 } while (0)
+#endif
 #endif
 
 #define atomic_signal_fence(order) \
@@ -360,6 +379,40 @@ static inline int atomic_compare_exchange_strong_u32(unsigned volatile * object,
 #define InterlockedExchange16 ManualInterlockedExchange16
 #define InterlockedExchangeAdd16 ManualInterlockedExchangeAdd16
 
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
+
+/* Portable ARM/ARM64 implementations using the (32-bit) InterlockedCompareExchange
+   on the aligned word that contains the 16-bit value. */
+static inline uint16_t ManualInterlockedExchange16(volatile uint16_t* object, uint16_t desired) {
+    uintptr_t addr = (uintptr_t)object;
+    unsigned volatile* word = (unsigned volatile*)(addr & ~(uintptr_t)3u);
+    unsigned shift = (unsigned)((addr & 3u) * 8u);
+    unsigned mask = 0xFFFFu << shift;
+    unsigned old32;
+    uint16_t old16;
+    do {
+        old32 = *word;
+        old16 = (uint16_t)((old32 >> shift) & 0xFFFFu);
+    } while (InterlockedCompareExchange((void*)word, (old32 & ~mask) | (((unsigned)desired << shift) & mask), old32) != old32);
+    return old16;
+}
+
+static inline unsigned short ManualInterlockedExchangeAdd16(unsigned short volatile* Addend, unsigned short Value) {
+    uintptr_t addr = (uintptr_t)Addend;
+    unsigned volatile* word = (unsigned volatile*)(addr & ~(uintptr_t)3u);
+    unsigned shift = (unsigned)((addr & 3u) * 8u);
+    unsigned mask = 0xFFFFu << shift;
+    unsigned old32;
+    unsigned short result;
+    do {
+        old32 = *word;
+        result = (unsigned short)((old32 >> shift) & 0xFFFFu);
+    } while (InterlockedCompareExchange((void*)word, (old32 & ~mask) | ((((unsigned)(result + Value) & 0xFFFFu) << shift) & mask), old32) != old32);
+    return result;
+}
+
+#else
+
 static inline uint16_t ManualInterlockedExchange16(volatile uint16_t* object, uint16_t desired) {
     __asm__ __volatile__ (
         "xchgw %0, %1"
@@ -379,6 +432,8 @@ static inline unsigned short ManualInterlockedExchangeAdd16(unsigned short volat
     );
     return Value;
 }
+
+#endif
 #endif
 
 static inline void atomic_store_u16(unsigned short volatile * object, unsigned short desired) {
@@ -396,26 +451,32 @@ static inline unsigned short atomic_load_u16(unsigned short volatile * object) {
 #define atomic_exchange_u16(object, desired) \
     InterlockedExchange16(object, desired)
 
-static inline int atomic_compare_exchange_strong_u16(unsigned short volatile * object, unsigned short volatile * expected,
-                                                 unsigned short desired)
-{
-	unsigned short old = *expected;
-    *expected = InterlockedCompareExchange16(object, desired, old);
-    return *expected == old;
-}
-
-#define atomic_compare_exchange_weak_u16(object, expected, desired) \
-    atomic_compare_exchange_strong_u16((void*)object, expected, desired)
-
-#define atomic_fetch_add_u16(object, operand) \
-    InterlockedExchangeAdd16(object, operand)
-
-#define atomic_fetch_sub_u16(object, operand) \
-    InterlockedExchangeAdd16(object, -(operand))
-
-#ifdef __TINYC__
+/* TCC and non-x86 compilers lack the 16-bit SDK Interlocked intrinsics,
+   so always route through our portable (or x86-asm) implementation. */
+#if defined(__TINYC__) || defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
 
 #define InterlockedCompareExchange16 ManualInterlockedCompareExchange16
+
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
+
+static inline unsigned short ManualInterlockedCompareExchange16(unsigned short volatile * dest, unsigned short exchange, unsigned short comparand) {
+    uintptr_t addr = (uintptr_t)dest;
+    unsigned volatile* word = (unsigned volatile*)(addr & ~(uintptr_t)3u);
+    unsigned shift = (unsigned)((addr & 3u) * 8u);
+    unsigned mask = 0xFFFFu << shift;
+    unsigned comparand32 = ((unsigned)comparand << shift) & mask;
+    unsigned exchange32 = ((unsigned)exchange << shift) & mask;
+    unsigned old32;
+    do {
+        old32 = *word;
+        if ((old32 & mask) != comparand32) {
+            break;
+        }
+    } while (InterlockedCompareExchange((void*)word, (old32 & ~mask) | exchange32, old32) != old32);
+    return (unsigned short)((old32 >> shift) & 0xFFFFu);
+}
+
+#else
 
 static inline unsigned short ManualInterlockedCompareExchange16(unsigned short volatile * dest, unsigned short exchange, unsigned short comparand) {
     unsigned short result;
@@ -427,6 +488,8 @@ static inline unsigned short ManualInterlockedCompareExchange16(unsigned short v
     );
     return result;
 }
+
+#endif
 
 static inline unsigned short ManualInterlockedOr16(unsigned short volatile * dest, unsigned short value) {
     unsigned short oldValue;
@@ -513,6 +576,23 @@ static inline unsigned long long ManualInterlockedAnd64(unsigned long long volat
 #define InterlockedAnd64 ManualInterlockedAnd64
 
 #endif
+static inline int atomic_compare_exchange_strong_u16(unsigned short volatile * object, unsigned short volatile * expected,
+                                                 unsigned short desired)
+{
+	unsigned short old = *expected;
+    *expected = InterlockedCompareExchange16(object, desired, old);
+    return *expected == old;
+}
+
+#define atomic_compare_exchange_weak_u16(object, expected, desired) \
+    atomic_compare_exchange_strong_u16((void*)object, expected, desired)
+
+#define atomic_fetch_add_u16(object, operand) \
+    InterlockedExchangeAdd16(object, operand)
+
+#define atomic_fetch_sub_u16(object, operand) \
+    InterlockedExchangeAdd16(object, -(operand))
+
 
 #define atomic_fetch_or_u16(object, operand) \
     InterlockedOr16(object, operand)
@@ -568,6 +648,41 @@ static inline unsigned long long ManualInterlockedAnd64(unsigned long long volat
 #define InterlockedXor8 ManualInterlockedXor8
 #define InterlockedAnd8 ManualInterlockedAnd8
 
+#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
+
+static inline char ManualInterlockedExchange8(char volatile* object, char desired) {
+    uintptr_t addr = (uintptr_t)object;
+    unsigned volatile* word = (unsigned volatile*)(addr & ~(uintptr_t)3u);
+    unsigned shift = (unsigned)((addr & 3u) * 8u);
+    unsigned mask = 0xFFu << shift;
+    unsigned old32;
+    unsigned char old8;
+    do {
+        old32 = *word;
+        old8 = (unsigned char)((old32 >> shift) & 0xFFu);
+    } while (InterlockedCompareExchange((void*)word, (old32 & ~mask) | (((unsigned)(unsigned char)desired << shift) & mask), old32) != old32);
+    return (char)old8;
+}
+
+static inline unsigned char ManualInterlockedCompareExchange8(unsigned char volatile * dest, unsigned char exchange, unsigned char comparand) {
+    uintptr_t addr = (uintptr_t)dest;
+    unsigned volatile* word = (unsigned volatile*)(addr & ~(uintptr_t)3u);
+    unsigned shift = (unsigned)((addr & 3u) * 8u);
+    unsigned mask = 0xFFu << shift;
+    unsigned comparand32 = ((unsigned)comparand << shift) & mask;
+    unsigned exchange32 = ((unsigned)exchange << shift) & mask;
+    unsigned old32;
+    do {
+        old32 = *word;
+        if ((old32 & mask) != comparand32) {
+            break;
+        }
+    } while (InterlockedCompareExchange((void*)word, (old32 & ~mask) | exchange32, old32) != old32);
+    return (unsigned char)((old32 >> shift) & 0xFFu);
+}
+
+#else
+
 static inline char ManualInterlockedExchange8(char volatile* object, char desired) {
     __asm__ __volatile__ (
         "xchgb %0, %1"
@@ -590,6 +705,8 @@ static inline unsigned char ManualInterlockedCompareExchange8(unsigned char vola
 
     return result;
 }
+
+#endif
 
 static inline unsigned char ManualInterlockedExchangeAdd8(unsigned char volatile * dest, unsigned char value) {
     unsigned char oldValue;

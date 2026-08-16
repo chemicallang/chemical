@@ -48,8 +48,11 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
    // Close original child-end fd in the child's table (optional, good hygiene)
    posix_spawn_file_actions_addclose(&raw mut actions, sv[0]);
 
-    // spawn the process
-    rc = posix_spawnp(&raw mut pid, exe_path, &raw actions, null, argv, __environ)
+    // spawn the process. exe_path is always absolute here, so use posix_spawn
+    // directly (no PATH search). posix_spawnp runs __execvpe in the child,
+    // which uses a large PATH_MAX stack buffer and can overflow the small
+    // stack musl allocates for the child (crashes on long PATH environments).
+    rc = posix_spawn(&raw mut pid, exe_path, &raw actions, null, argv, get_environ())
 
     // destroy the actions
     posix_spawn_file_actions_destroy(&raw mut actions);

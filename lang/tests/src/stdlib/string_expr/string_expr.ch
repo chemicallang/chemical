@@ -33,7 +33,7 @@ func test_implicit_string_expr_const_var_init() : bool {
 
 // assignment to an already-typed variable
 func test_implicit_string_expr_assignment() : bool {
-    var greeting : std::string
+    var greeting = std::string()
     var world = "World"
     greeting = `Hello ${world}!`
     var expected = std::string("Hello World!")

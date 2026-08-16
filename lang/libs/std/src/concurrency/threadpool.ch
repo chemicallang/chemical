@@ -23,11 +23,17 @@ public struct SYSTEM_INFO {
 } else {
 
 @extern public func pthread_create(thread_out:*usize,attr:*void,start_routine:*void,arg:*void):int;
+@extern public func pthread_attr_init(attr:*mut u8):int;
+@extern public func pthread_attr_setstacksize(attr:*mut u8,size:size_t):int;
+@extern public func pthread_attr_destroy(attr:*mut u8):int;
 @extern public func pthread_join(thread:usize,retval:*mut*void):int;
 @extern public func usleep(usec:int):int
 
 @extern public func sysconf(name: int): long
 const _SC_NPROCESSORS_ONLN = 84 // Linux/macOS constant for online CPUs
+
+// large enough for pthread_attr_t on glibc (56) and musl (4)
+comptime const PTHREAD_ATTR_T_SIZE = 64
 
 }
 
@@ -59,9 +65,19 @@ public namespace std {
                 return CreateThread(null,0u,entry,arg,0u,&raw mut tid) as usize
             } else {
                 var th:usize=0u;
-                if(pthread_create(&raw mut th,null,entry,arg)!=0){
+                // musl defaults to a 128KB thread stack when RLIMIT_STACK is
+                // unlimited, which overflows with deep frames + posix_spawn's
+                // 5KB buffer. Give workers an explicit 8MB stack like glibc.
+                var attr_storage:[PTHREAD_ATTR_T_SIZE / 8]ulong
+                const attr_ptr = &raw mut attr_storage[0] as *mut u8
+                if(pthread_attr_init(attr_ptr)!=0){
+                    panic("pthread_attr_init")
+                }
+                pthread_attr_setstacksize(attr_ptr, (8 * 1024 * 1024) as size_t)
+                if(pthread_create(&raw mut th,attr_ptr,entry,arg)!=0){
                     panic("pthread_create")
                 }
+                pthread_attr_destroy(attr_ptr)
                 return th
             }
         }

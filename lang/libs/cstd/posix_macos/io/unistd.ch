@@ -3,7 +3,7 @@
  * __NSGetEnviron). There is no exported __environ symbol.
  */
 @extern
-public func _NSGetEnviron() : ***char
+public func _NSGetEnviron() : ***mut char
 
 /**
  * cross platform helper function returning the process environment

@@ -26,7 +26,7 @@ public func DeleteCriticalSection(cs : *mut u8) : void
 public namespace std {
     comptime const CRITICAL_SECTION_SIZE = 40
 
-    @align(8)
+    @maxalign
     public struct recursive_mutex {
         var storage : [CRITICAL_SECTION_SIZE]u8
 

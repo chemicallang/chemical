@@ -29,24 +29,30 @@
 #include <intrin.h>
 #endif
 
-/* MemoryBarrier is an MSVC/SDK intrinsic; provide a portable one for other
-   compilers (tcc, gcc, clang) so it links on every target. */
+/* MemoryBarrier is an MSVC/SDK intrinsic. Provide a portable one for other
+   compilers (tcc, gcc, clang) that links on every target — tcc has no
+   __sync_synchronize/__atomic_thread_fence builtin on ARM, so use a volatile
+   access which acts as a compiler barrier and always compiles. */
 #ifndef MemoryBarrier
-#define MemoryBarrier() __sync_synchronize()
+static inline void MemoryBarrier(void) {
+    volatile unsigned _chx_mb = 0;
+    (void)_chx_mb;
+}
 #endif
 
-/* 64-bit compare-exchange is not provided by tcc on ARM/ARM64. Implement it
-   with the portable __atomic_compare_exchange_8 builtin and route the
-   InterlockedCompareExchange64 macro through it. */
-#if !defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__))
+/* 64-bit compare-exchange is not reliably provided on every compiler (tcc
+   lacks it on ARM/ARM64). Implement it with the portable __atomic_compare_exchange
+   builtin and route the InterlockedCompareExchange64 macro through it for all
+   non-MSVC compilers. */
+#if !defined(_MSC_VER)
 static inline LONGLONG ManualInterlockedCompareExchange64(LONGLONG volatile* dest, LONGLONG exchange, LONGLONG comparand) {
     LONGLONG old = comparand;
-    __atomic_compare_exchange_8((unsigned long long volatile*)dest, (unsigned long long*)&old, (unsigned long long)exchange, 0, 5, 5);
+    unsigned long long tmp = (unsigned long long)exchange;
+    __atomic_compare_exchange((unsigned long long*)dest, (unsigned long long*)&old, &tmp, 0, 5, 5);
     return old;
 }
-#ifndef InterlockedCompareExchange64
+#undef InterlockedCompareExchange64
 #define InterlockedCompareExchange64 ManualInterlockedCompareExchange64
-#endif
 #endif
 
 #if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)

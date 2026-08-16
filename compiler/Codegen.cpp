@@ -240,9 +240,10 @@ void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
 }
 
 bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
-    // Parse the target triple string
+    // Parse the target triple string. Normalize so short triples without a
+    // vendor (e.g. "aarch64-linux-musl") are parsed the same as 4-part ones.
     auto llvmRef = llvm::StringRef(target_triple);
-    llvm::Triple triple(llvmRef);
+    llvm::Triple triple(llvm::Triple::normalize(llvmRef));
     return triple.isArch64Bit();
 }
 
@@ -262,7 +263,7 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
 
     // set the data layout and target triple
     module->setDataLayout(TargetMachine->createDataLayout());
-    module->setTargetTriple(llvm::Triple(target_triple));
+    module->setTargetTriple(llvm::Triple(llvm::Triple::normalize(target_triple)));
 
     // debug flags must be added otherwise debug information is ignored (or dropped)
     if(llvm.di.isEnabled) {
@@ -1337,7 +1338,7 @@ TargetMachine* Codegen::setup_for_target(const std::string &TargetTriple, bool i
         RM = llvm::Reloc::PIC_;
     }
 
-    auto TheTargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, RM);
+    auto TheTargetMachine = Target->createTargetMachine(llvm::Triple(llvm::Triple::normalize(TargetTriple)), CPU, Features, opt, RM);
     TargetMachine = TheTargetMachine;
 
     return TheTargetMachine;
@@ -1706,7 +1707,7 @@ int invoke_lld(std::vector<chem::string>& command_args, const std::string_view& 
     // figure out the lld driver
     chem::string lld_driver;
     auto tripleRef = llvm::StringRef(targetTripleString);
-    auto triple = llvm::Triple(tripleRef);
+    auto triple = llvm::Triple(llvm::Triple::normalize(tripleRef));
     if (triple.isOSDarwin()){
         lld_driver.append(std::string_view("ld64.lld"));
     } else if (triple.isOSWindows()) {

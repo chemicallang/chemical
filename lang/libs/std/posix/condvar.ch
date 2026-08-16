@@ -47,7 +47,7 @@ public namespace std {
     }
 
     // Cross-platform CondVar (opaque storage)
-    @align(8)
+    @maxalign
     public struct CondVar {
 
         var storage : [PTHREAD_COND_T_SIZE]u8;

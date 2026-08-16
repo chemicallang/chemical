@@ -29,6 +29,26 @@
 #include <intrin.h>
 #endif
 
+/* MemoryBarrier is an MSVC/SDK intrinsic; provide a portable one for other
+   compilers (tcc, gcc, clang) so it links on every target. */
+#ifndef MemoryBarrier
+#define MemoryBarrier() __sync_synchronize()
+#endif
+
+/* 64-bit compare-exchange is not provided by tcc on ARM/ARM64. Implement it
+   with the portable __atomic_compare_exchange_8 builtin and route the
+   InterlockedCompareExchange64 macro through it. */
+#if !defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__))
+static inline LONGLONG ManualInterlockedCompareExchange64(LONGLONG volatile* dest, LONGLONG exchange, LONGLONG comparand) {
+    LONGLONG old = comparand;
+    __atomic_compare_exchange_8((unsigned long long volatile*)dest, (unsigned long long*)&old, (unsigned long long)exchange, 0, 5, 5);
+    return old;
+}
+#ifndef InterlockedCompareExchange64
+#define InterlockedCompareExchange64 ManualInterlockedCompareExchange64
+#endif
+#endif
+
 #if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)
 #define cpu_relax() ((void)0)
 #elif defined(_MSC_VER)

@@ -718,19 +718,21 @@ jobs:
           try {
               $script:machStr = { param($m) switch ($m) { 0x8664 {"x64"} 0x014c {"x86"} 0xAA64 {"ARM64"} default {("0x{0:X4}" -f $m)} } }
 
-              # 1) CRT DLL presence in System32, with the PE machine type so we can tell a
-              #    native ARM64 DLL from an emulated x86/x64 one.
+              # 1) The failing test exe: machine type + full import table (DLL and the exact
+              #    entry-point names). STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139) means the loader
+              #    found the DLL but could not resolve one of these imports on this OS.
               if (Test-Path $testExe) {
-                  $diagLines.Add("== PE info of `"$testExe`" ==")
+                  $diagLines.Add("== PE info ==")
                   $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $testExe))
                   $peOff = [BitConverter]::ToInt32($bytes, 0x3c)
                   $machine = [BitConverter]::ToUInt16($bytes, $peOff + 4)
                   $optMagic = [BitConverter]::ToUInt16($bytes, $peOff + 24)
                   $subsys = [BitConverter]::ToUInt16($bytes, $peOff + 24 + 68)
-                  $diagLines.Add("  machine=" + (& $script:machStr $machine) + (" optmagic=0x{0:X} subsystem={1}" -f $optMagic, $subsys))
+                  $line1 = "  machine=" + (& $script:machStr $machine) + " optmagic=0x" + ('{0:X}' -f $optMagic) + " subsystem=" + $subsys
+                  $diagLines.Add($line1)
                   $dataDirCount = [BitConverter]::ToUInt32($bytes, $peOff + 24 + 108)
                   $importDescRva = [BitConverter]::ToUInt32($bytes, $peOff + 24 + 112 + 8)
-                  $diagLines.Add("  import-table-rva=0x{0:X} datadirs={1}" -f $importDescRva, $dataDirCount)
+                  $diagLines.Add("  import-table-rva=0x" + ('{0:X}' -f $importDescRva) + " datadirs=" + $dataDirCount)
                   # Walk sections to build an rva -> file-offset map.
                   $nsec = [BitConverter]::ToUInt16($bytes, $peOff + 6)
                   $optSize = [BitConverter]::ToUInt16($bytes, $peOff + 20)
@@ -743,7 +745,8 @@ jobs:
                       $va  = [BitConverter]::ToUInt32($bytes, $o + 12)
                       $ro  = [BitConverter]::ToUInt32($bytes, $o + 20)
                       $secs += [pscustomobject]@{ Name=$secName; VA=$va; Vsz=$vsz; RO=$ro }
-                      $diagLines.Add("  sec $secName rva=0x{0:X} vsz=0x{1:X}" -f $va, $vsz)
+                      $sLine = "  sec " + $secName + " rva=0x" + ('{0:X}' -f $va) + " vsz=0x" + ('{0:X}' -f $vsz)
+                      $diagLines.Add($sLine)
                   }
                   $r2o = {
                       param($rva, $secTable)
@@ -753,20 +756,46 @@ jobs:
                   if ($importDescRva -ne 0) {
                       $io = & $r2o $importDescRva $secs
                       if ($io -ge 0) {
-                          $diagLines.Add("== imported DLLs ==")
                           $k = 0
                           while ($k -lt 16) {
                               $ent = $io + $k * 20
                               $ilt = [BitConverter]::ToUInt32($bytes, $ent)
                               $ts  = [BitConverter]::ToUInt32($bytes, $ent + 4)
+                              $ift = [BitConverter]::ToUInt32($bytes, $ent + 16)
                               $on  = [BitConverter]::ToUInt32($bytes, $ent + 12)
-                              if ($ilt -eq 0 -and $on -eq 0 -and $ts -eq 0) { break }
+                              if ($ilt -eq 0 -and $on -eq 0 -and $ift -eq 0) { break }
                               $no = & $r2o $on $secs
-                              if ($no -lt 0) { break }
-                              $nm = ""
-                              $jj = $no
-                              while ($bytes[$jj] -ne 0) { $nm += [char]$bytes[$jj]; $jj++ }
-                              $diagLines.Add("  DLL: $nm")
+                              $dll = ""
+                              if ($no -ge 0) {
+                                  $jj = $no
+                                  while ($bytes[$jj] -ne 0) { $dll += [char]$bytes[$jj]; $jj++ }
+                              }
+                              $diagLines.Add("== DLL: $dll ==")
+                              # Dump functions from the Import Lookup Table (64-bit: bit 63 == ordinal)
+                              $lookup = $ilt
+                              if ($lookup -eq 0) { $lookup = $ift }
+                              if ($lookup -ne 0) {
+                                  $funcCount = 0
+                                  while ($funcCount -lt 200) {
+                                      $fo = & $r2o $lookup $secs
+                                      if ($fo -lt 0) { break }
+                                      $val = [BitConverter]::ToUInt64($bytes, $fo)
+                                      if ($val -eq 0) { break }
+                                      if (($val -band 0x8000000000000000) -ne 0) {
+                                          $diagLines.Add("    (ordinal " + ($val -band 0xffff) + ")")
+                                      } else {
+                                          $nmOff = & $r2o ([uint32]($val -band 0xffffffff)) $secs
+                                          $fn = ""
+                                          if ($nmOff -ge 0) {
+                                              $q = $nmOff + 2
+                                              while ($bytes[$q] -ne 0) { $fn += [char]$bytes[$q]; $q++ }
+                                          }
+                                          $diagLines.Add("    $fn")
+                                      }
+                                      $lookup = $lookup + 8
+                                      $funcCount++
+                                  }
+                              }
                               $k++
                           }
                       }
@@ -850,9 +879,11 @@ jobs:
           Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt -Force
           exit $testRc
 
+
         shell: pwsh
 
       - name: Upload Windows Outputs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}-tests-output

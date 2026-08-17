@@ -37,15 +37,24 @@ func drawer_styles(page : &mut HtmlPage) : *char {
 }
 
 func menu_styles(page : &mut HtmlPage) : *char {
+    // Portaled into document.body and positioned fixed by $__uni_floating;
+    // visibility is driven by data-open (inline style would wipe positioning).
     return #css {
         min-width: 220px;
-        display: grid;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 20;
+        display: none;
         gap: 0.35rem;
         padding: 0.55rem;
         border: 1px solid hsl(var(--border));
         border-radius: 14px;
         background: hsl(var(--background));
         box-shadow: var(--shadow);
+        &[data-open="true"] {
+            display: grid;
+        }
     }
 }
 
@@ -236,11 +245,11 @@ public #universal Drawer(props) {
 }
 
 public #universal Menu(props) {
-    return <div {...props} class={${menu_styles(page)}}>{props.children}</div>
+    return <div {...props} role="menu" class={${menu_styles(page)}}>{props.children}</div>
 }
 
 public #universal MenuItem(props) {
-    return <a {...props} class={${menu_item_styles(page)}}>{props.children}</a>
+    return <a {...props} role="menuitem" class={${menu_item_styles(page)}}>{props.children}</a>
 }
 
 public #universal Popover(props) {
@@ -406,6 +415,8 @@ public #universal StatCard(props) {
 public #universal Dropdown(props) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
+    const triggerRef = useRef(null)
+    const menuRef = useRef(null)
     var close = () => {
         open = false
         if(props.onClose) {
@@ -430,16 +441,26 @@ public #universal Dropdown(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
-    var menuStyle = "position:absolute;top:100%;left:0;margin-top:0.5rem;z-index:10;"
+    // Portaled into document.body and anchored under the trigger by
+    // $__uni_floating, so the menu escapes overflow/transform clipping.
+    useEffect(() => {
+        if(!isOpen || !triggerRef.current || !menuRef.current) {
+            return () => {}
+        }
+        return window.$__uni_floating(triggerRef.current, menuRef.current, { gap: 8 })
+    }, [isOpen])
+    var menuStyle = ""
     if(props.menuStyle) {
         menuStyle = props.menuStyle
     }
     return <div style="position:relative;display:inline-block;">
         <div onClick={close} style={isOpen ? "position:fixed;inset:0;z-index:5;" : "display:none;"}></div>
-        <Button onClick={toggle} aria-haspopup="menu" aria-expanded={isOpen ? "true" : "false"}>{props.trigger}</Button>
-        <Menu style={isOpen ? "display:block;" + menuStyle : "display:none;" + menuStyle}>
-            {props.children}
-        </Menu>
+        <Button ref={triggerRef} onClick={toggle} aria-haspopup="menu" aria-expanded={isOpen ? "true" : "false"}>{props.trigger}</Button>
+        {createPortal(
+            <Menu ref={menuRef} data-open={isOpen ? "true" : "false"} style={menuStyle}>
+                {props.children}
+            </Menu>
+        )}
     </div>
 }
 

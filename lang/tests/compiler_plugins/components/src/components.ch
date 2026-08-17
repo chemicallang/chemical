@@ -653,9 +653,9 @@ public func components_stateful_dropdown_ssr(env : &mut TestEnv) {
     #html { <Dropdown trigger="Actions"><DropdownItem>One</DropdownItem><DropdownItem>Two</DropdownItem></Dropdown> }
     var html = std::string()
     html.append_view(page.getHtml())
-    // Closed by default: menu hidden, no raw injected JS
+    // Closed by default: menu hidden (data-open visibility, portaled), no raw JS
     contains_string_assert(env, html.to_view(), std::string_view(">Actions</button>"))
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;position:absolute;top:100%"))
+    contains_string_assert(env, html.to_view(), std::string_view("data-open=\"false\""))
     contains_string_assert(env, html.to_view(), std::string_view(">One</a>"))
     contains_string_assert(env, html.to_view(), std::string_view(">Two</a>"))
     var js = std::string()
@@ -1284,4 +1284,70 @@ public func components_floating_helper_present(env : &mut TestEnv) {
     js.append_view(page.getJs())
     contains_string_assert(env, js.to_view(), std::string_view("$__uni_floating"))
     contains_string_assert(env, js.to_view(), std::string_view("getBoundingClientRect"))
+}
+
+// Tabs implement the WAI-ARIA tabs pattern: roving tabindex (only the active
+// tab is in the tab order) + arrow-key navigation in the JS bundle.
+@test
+public func components_tabs_roving_tabindex(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Tabs id="demo" tabs={["Alpha", "Beta"]} panels={["Panel A", "Panel B"]} defaultIndex={0} /> }
+    // roving tabindex is applied at hydration (SSR emits plain buttons); the
+    // tablist owns the keyboard handling (verified in the browser E2E suite)
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("tabIndex"))
+    contains_string_assert(env, js.to_view(), std::string_view("ArrowRight"))
+    contains_string_assert(env, js.to_view(), std::string_view("ArrowLeft"))
+    contains_string_assert(env, js.to_view(), std::string_view("Home"))
+    contains_string_assert(env, js.to_view(), std::string_view("End"))
+}
+
+// Dropdown menu is portaled and exposes menu/menuitem roles.
+@test
+public func components_dropdown_portal_and_roles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Dropdown trigger="Actions"><DropdownItem>One</DropdownItem></Dropdown> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("$_r.createPortal"))
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"menu\""))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"menuitem\""))
+}
+
+// Error boundary: the runtime contains render errors (fallback UI instead of a
+// dead page) and the components theme styles the fallback.
+@test
+public func components_error_boundary_runtime(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()
+    page.injectDefaultComponentsTheme()
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("useErrorBoundary"))
+    contains_string_assert(env, js.to_view(), std::string_view("$__uni_render_fallback"))
+    contains_string_assert(env, js.to_view(), std::string_view("chx-error-boundary"))
+    contains_string_assert(env, js.to_view(), std::string_view("component render failed"))
+}
+
+// Accordion items expose arrow-key navigation between sibling items.
+@test
+public func components_accordion_arrow_nav(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Accordion>
+            <AccordionItem title="A" defaultOpen={false}>a</AccordionItem>
+            <AccordionItem title="B" defaultOpen={false}>b</AccordionItem>
+        </Accordion>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-accordion-root=\"true\""))
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("chx-accordion-summary:not([disabled])"))
+    contains_string_assert(env, js.to_view(), std::string_view("ArrowDown"))
+    contains_string_assert(env, js.to_view(), std::string_view("ArrowUp"))
 }

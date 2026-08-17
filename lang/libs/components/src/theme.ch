@@ -97,6 +97,16 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
         .chx-text-muted-c { color: hsl(var(--muted-foreground)); }
         .chx-border-c { border-color: hsl(var(--border)); }
 
+        /* Error boundary fallback UI (rendered when a universal component throws) */
+        .chx-error-boundary {
+            padding: 0.9rem 1rem;
+            border: 1px solid hsl(var(--destructive) / 0.4);
+            border-radius: calc(var(--radius) - 2px);
+            background: hsl(var(--destructive) / 0.08);
+            color: hsl(var(--destructive));
+            font-size: 0.85rem;
+        }
+
         /* Shared keyframes used by components */
         @keyframes chx-skeleton-shimmer {
             0% { background-position: -400px 0; }

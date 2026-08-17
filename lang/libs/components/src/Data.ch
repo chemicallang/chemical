@@ -312,7 +312,7 @@ public #universal Progress(props) {
 }
 
 public #universal Accordion(props) {
-    return <details {...props} class={${accordion_styles(page)}}>{props.children}</details>
+    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true">{props.children}</div>
 }
 
 public #universal AccordionSummary(props) {
@@ -342,8 +342,50 @@ public #universal AccordionItem(props) {
             props.onToggle(open)
         }
     }
+    // Keyboard navigation between sibling items (shadcn accordion pattern):
+    // ArrowDown/ArrowUp move focus to the next/previous item trigger, Home/End
+    // jump to the first/last. Works with the children-based API via DOM
+    // traversal — no parent state required.
+    var handleKeyDown = (e) => {
+        if(disabled) {
+            return
+        }
+        if(e.key != "ArrowDown" && e.key != "ArrowUp" && e.key != "Home" && e.key != "End") {
+            return
+        }
+        const root = e.currentTarget.closest("[data-accordion-root]")
+        const triggers = root ? root.querySelectorAll(".chx-accordion-summary:not([disabled])") : []
+        if(triggers.length == 0) {
+            return
+        }
+        var idx = -1
+        for(var t = 0; t < triggers.length; t++) {
+            if(triggers[t] == e.currentTarget) {
+                idx = t
+                break
+            }
+        }
+        if(idx < 0) {
+            return
+        }
+        var next = idx
+        if(e.key == "ArrowDown") {
+            e.preventDefault()
+            next = (idx + 1) % triggers.length
+        } else if(e.key == "ArrowUp") {
+            e.preventDefault()
+            next = (idx - 1 + triggers.length) % triggers.length
+        } else if(e.key == "Home") {
+            e.preventDefault()
+            next = 0
+        } else if(e.key == "End") {
+            e.preventDefault()
+            next = triggers.length - 1
+        }
+        triggers[next].focus()
+    }
     return <div {...props} class={${accordion_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-        <button type="button" class="chx-accordion-summary" onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"}>
+        <button type="button" class="chx-accordion-summary" onClick={toggle} onKeyDown={handleKeyDown} disabled={disabled} aria-expanded={open ? "true" : "false"}>
             <span class="chx-accordion-copy">
                 <span class="chx-accordion-title">{props.title}</span>
                 <span class="chx-accordion-subtitle">{props.subtitle}</span>
@@ -362,18 +404,58 @@ public #universal AccordionItem(props) {
 public #universal Tabs(props) {
     state active = props.defaultIndex ? props.defaultIndex : 0
     if(props.tabs) {
+        const tabListRef = useRef(null)
         var select = (i) => {
             active = i
             if(props.onChange) { props.onChange(i) }
+        }
+        // Keyboard navigation (shadcn/WAI-ARIA tabs pattern): Left/Right move
+        // focus + selection between tabs (wrapping), Home/End jump to the
+        // first/last. The active tab is the only one in the tab order
+        // (roving tabindex).
+        var handleTabKeyDown = (e) => {
+            if(!tabListRef.current) {
+                return
+            }
+            const tabs = tabListRef.current.querySelectorAll("[role=tab]")
+            if(tabs.length == 0) {
+                return
+            }
+            var currentIndex = -1
+            for(var t = 0; t < tabs.length; t++) {
+                if(tabs[t] == document.activeElement) {
+                    currentIndex = t
+                    break
+                }
+            }
+            if(currentIndex < 0) { currentIndex = active }
+            var next = currentIndex
+            if(e.key == "ArrowRight") {
+                e.preventDefault()
+                next = (currentIndex + 1) % tabs.length
+            } else if(e.key == "ArrowLeft") {
+                e.preventDefault()
+                next = (currentIndex - 1 + tabs.length) % tabs.length
+            } else if(e.key == "Home") {
+                e.preventDefault()
+                next = 0
+            } else if(e.key == "End") {
+                e.preventDefault()
+                next = tabs.length - 1
+            } else {
+                return
+            }
+            tabs[next].focus()
+            select(next)
         }
         // ARIA wiring: each tab controls its panel (aria-controls), each panel
         // is labelled by its tab (aria-labelledby), giving tabpanels an
         // accessible name derived from the tab text.
         var baseId = props.id ? props.id : "tabs"
         return <div {...props} class={${tabs_styles(page)}}>
-            <div class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel}>
+            <div ref={tabListRef} class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel} onKeyDown={handleTabKeyDown}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
             <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">

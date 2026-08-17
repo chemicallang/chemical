@@ -197,10 +197,29 @@ component should meet:
   live; menu is `role="listbox"`; options `role="option"` with `aria-selected`;
   `data-highlighted` on the active option; `scrollIntoView({block:"nearest"})` keeps the
   highlight visible while arrow-navigating.
+- **Tabs:** roving tabindex (only the active tab is tabbable) + ArrowLeft/Right,
+  Home/End move focus AND selection; panels named via `aria-labelledby`.
+- **Accordion:** ArrowDown/Up, Home/End move focus between sibling item triggers via
+  `[data-accordion-root]` DOM traversal (works with the children-based API).
+- **Dropdown:** menu is portaled like Select; `role="menu"`/`role="menuitem"` on
+  Menu/MenuItem.
+- **Error boundary:** a component whose render throws is replaced by its
+  `useErrorBoundary(fallback)` result or the default `.chx-error-boundary` UI; the
+  page keeps working (verified by clicking a counter after a fallback mounts).
+  Fallbacks apply per-component (each universal component mounts independently — a
+  parent cannot catch a child's render error).
+
+## Portaled menu collision flipping
+
+`$__uni_floating` flips the menu ABOVE the trigger when there is not enough room
+below (viewport bottom). The E2E suite caught a real bug here: a fixed-position menu
+opening below the fold is unreachable — Playwright cannot scroll a `position: fixed`
+element into view. Tests must keep the fixture high enough on the page, or the flip
+must kick in (it does: `spaceBelow < menuHeight + gap`).
 
 ## Performance notes
 
-- 21 tests across 10 workers finish in ~5–7s plus app build time (~30–60s for the
+- 26 tests across 10 workers finish in ~6–15s plus app build time (~30–60s for the
   Chemical compile step). The browser tests themselves are fast; the Chemical build is
   the slow part.
 - After changing `lang/libs/page/src/page.ch` (the runtime JS lives in a C++ string),

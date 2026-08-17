@@ -179,6 +179,36 @@ Converter support (needed once per new portal component):
 - `converter_utils.ch` `convert_jsx_ssr_expression` FunctionCall case: `createPortal`
   renders its argument inline.
 
+### Error boundaries (`useErrorBoundary`)
+
+A component whose render throws must not take down the page:
+
+- `$__uni_mount` wraps `comp(props)` in try/catch. On error it logs
+  `[universal] component render failed` and renders `$__uni_render_fallback(inst,
+  props, err)` — the component's `useErrorBoundary(fallback)` result, or the default
+  `.chx-error-boundary` UI (styled by the components theme).
+- Effect bodies/cleanups and event handlers are also wrapped: a throwing handler or
+  effect is logged and contained.
+- **Scope:** boundaries are per-component. Each universal component mounts
+  independently, so a parent's `useErrorBoundary` does NOT catch a child's render
+  error — declare the boundary in the component that can throw.
+
+```chemical
+#universal BadComponent(props) {
+    useErrorBoundary(() => <p role="alert">Fallback shown</p>)
+    var boom = () => { throw new Error("bad component"); }
+    boom()
+    return <p>never rendered</p>
+}
+```
+
+### `$__uni_floating` collision flipping
+
+Portaled menus position themselves under the trigger with fixed coordinates. When
+`spaceBelow < menuHeight + gap` they FLIP above the trigger (`bottom` anchored,
+`maxHeight` clamped to available space). This is required: a fixed menu opening
+below the fold is unreachable (fixed elements can't be scrolled into view).
+
 ### Subscriber mutation during notification
 
 Symptoms:

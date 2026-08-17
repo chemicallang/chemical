@@ -671,22 +671,73 @@ window.$_r = {
         const ctx = { defaultValue, currentValue: defaultValue };
         return ctx;
     },
-    createPortal: (children) => ({ t: "__uni_portal", c: Array.isArray(children) ? children : [ children ] })
+    createPortal: (children) => ({ t: "__uni_portal", c: Array.isArray(children) ? children : [ children ] }),
+    useErrorBoundary: (fallback) => {
+        const inst = window.$__uni_current_instance;
+        if(!inst) return;
+        inst.errorFallback = typeof fallback === "function" ? fallback : null;
+    }
 }
+// Default fallback UI rendered in place of a universal component whose render
+// threw. Components can supply their own via useErrorBoundary(fallback).
+window.$__uni_default_fallback = ((props, err) => {
+    const msg = (err && err.message) ? err.message : "component error";
+    return window.$_ur.createElement("div", {
+        "class": "chx-error-boundary",
+        "role": "alert",
+        "data-error": "true"
+    }, "Something went wrong rendering this section.");
+})
+// Renders a component's registered error fallback, or the default UI. The
+// fallback receives the same props the component would have received, plus the
+// caught error.
+window.$__uni_render_fallback = ((inst, props, err) => {
+    if(inst && inst.errorFallback) {
+        try {
+            const out = inst.errorFallback(props, err);
+            if(out) return out;
+        } catch(e2) {
+            console.error("[universal] error boundary fallback itself failed", e2);
+        }
+    }
+    return window.$__uni_default_fallback(props, err);
+})
 // Positions a portaled menu/overlay relative to its trigger using the trigger's
 // current viewport rect. Returns a cleanup that removes the scroll/resize
 // listeners. Used by components that render into document.body via createPortal
 // (Select menu, DropdownMenu, etc.) so they escape overflow/transform clipping.
 window.$__uni_floating = ((trigger, menu, opts = {}) => {
     const gap = opts.gap || 6;
+    // Estimate the portaled content's height once it is visible. Falls back to
+    // a viewport-relative guess (half the viewport) when it is hidden, so menus
+    // near the bottom edge still flip above instead of opening off-screen.
+    const measureHeight = () => {
+        const style = window.getComputedStyle(menu);
+        if(style.display !== "none" && menu.offsetHeight > 0) {
+            return menu.offsetHeight;
+        }
+        return Math.round(window.innerHeight * 0.5);
+    };
     const update = () => {
         if(!trigger || !trigger.isConnected) return;
         const r = trigger.getBoundingClientRect();
+        const menuHeight = measureHeight();
+        const spaceBelow = window.innerHeight - r.bottom;
+        const spaceAbove = r.top;
+        const placeAbove = spaceBelow < menuHeight + gap && spaceAbove > spaceBelow;
         menu.style.position = "fixed";
-        menu.style.top = (r.bottom + gap) + "px";
         menu.style.left = r.left + "px";
         menu.style.minWidth = (opts.minWidth || r.width) + "px";
         menu.style.margin = "0";
+        if(placeAbove) {
+            menu.style.top = "auto";
+            menu.style.bottom = (window.innerHeight - r.top + gap) + "px";
+            menu.style.maxHeight = (spaceAbove - gap) + "px";
+        } else {
+            menu.style.top = (r.bottom + gap) + "px";
+            menu.style.bottom = "auto";
+            menu.style.maxHeight = (spaceBelow - gap) + "px";
+        }
     };
     update();
     window.addEventListener("scroll", update, true);
@@ -709,8 +760,15 @@ window.$__uni_run_effects = ((inst, effects) => {
             }
         }
         if(changed) {
-            if(eff.cleanup) eff.cleanup();
-            eff.cleanup = eff.fn();
+            if(eff.cleanup) {
+                try { eff.cleanup(); } catch(err) { console.error("[universal] effect cleanup failed:", err); }
+            }
+            try {
+                eff.cleanup = eff.fn();
+            } catch(err) {
+                console.error("[universal] effect failed:", err);
+                eff.cleanup = null;
+            }
             if(eff.deps) eff.lastDeps = eff.deps.map(window.$__uni_value);
             else eff.lastDeps = [];
         }
@@ -816,8 +874,17 @@ window.$__uni_set_prop = ((el, key, value) => {
         if(typeof v !== "function") {
             window.$__uni_error("event handler must be a function", key + " on <" + el.tagName.toLowerCase() + ">");
         }
-        el.$__uni_events[eventName] = v;
-        el.addEventListener(eventName, v);
+        // Wrap handlers so a throwing handler is logged and contained instead
+        // of taking down the whole page (error-boundary contract).
+        const wrapped = (e) => {
+            try {
+                v(e);
+            } catch(err) {
+                console.error("[universal] event handler failed:", err);
+            }
+        };
+        el.$__uni_events[eventName] = wrapped;
+        el.addEventListener(eventName, wrapped);
         return;
     }
     const propType = typeof el[key];
@@ -1100,7 +1167,13 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     const prevInstance = window.$__uni_current_instance;
     const inst = {};
     window.$__uni_current_instance = inst;
-    const out = comp(props || {});
+    let out;
+    try {
+        out = comp(props || {});
+    } catch(err) {
+        console.error("[universal] component render failed:", err);
+        out = window.$__uni_render_fallback(inst, props, err);
+    }
     window.$__uni_current_instance = prevInstance;
     if(mode === "root") {
         const parent = host.parentNode;

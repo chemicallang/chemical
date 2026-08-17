@@ -1,8 +1,16 @@
-// Shadcn-style ToggleGroup: a group of toggle buttons.
+// Shadcn-style ToggleGroup: a group of toggle buttons built from children:
+//
+//      <ToggleGroup type="single" defaultValue="bold" onValueChange={(v) => ...}>
+//          <ToggleGroupItem value="bold">Bold</ToggleGroupItem>
+//          <ToggleGroupItem value="italic">Italic</ToggleGroupItem>
+//      </ToggleGroup>
+//
+//      <ToggleGroup type="multiple" defaultValue={["bold"]}>
+//          <ToggleGroupItem value="bold">Bold</ToggleGroupItem>
+//      </ToggleGroup>
 //
 // Props:
 //   type           "single" (default, one pressed at a time) | "multiple"
-//   options        required array of strings (value == label)
 //   value          controlled selection; a string (single) or array (multiple)
 //   defaultValue   uncontrolled initial selection; string or array
 //   onValueChange  fired with the new selection (string or array)
@@ -11,10 +19,10 @@
 //   disabled       locks all items
 //   className      merged with the group class
 //
-// In single mode the selection is a string; in multiple mode it is an array.
-// Like Tabs/Pagination, the group owns selection state and renders its items
-// from `options` (value == label). For custom labels, use children with
-// <ToggleGroupItem pressed={...} onClick={...}>.
+// The group owns selection state via context (keyed by `name`, defaulting to
+// "default"). In single mode the selection is a string; in multiple mode it is
+// an array. SSR renders items unpressed (children render before the provider's
+// SSR function); hydration applies the selection.
 
 func toggle_group_styles(page : &mut HtmlPage) : *char {
     return #css {
@@ -90,14 +98,23 @@ func toggle_group_item_styles(page : &mut HtmlPage) : *char {
 public #universal ToggleGroup(props) {
     var multiple = props.type == "multiple"
     state selected = props.defaultValue || ""
-    var current = props.value != null ? props.value : selected
+    const ctx = createContext("tg-" + (props.name || "default"), "")
     var disabled = props.disabled || false
     var variant = props.variant || "default"
     var size = props.size || "default"
+    // Thread the group name into item children (items resolve their context
+    // key without repeating `name` on every item).
+    if(props.children && props.children.map) {
+        props.children = props.children.map((c) => {
+            if(c && c.p && c.p.props) {
+                c.p.props.__rgName = props.name || "default"
+            }
+            return c
+        })
+    }
+    var current = props.value != null ? props.value : selected
     var toggle = (v) => {
-        if(disabled) {
-            return
-        }
+        if(disabled) { return }
         var next = current
         if(multiple) {
             if(current.indexOf(v) != -1) {
@@ -108,6 +125,8 @@ public #universal ToggleGroup(props) {
         } else {
             next = v
         }
+        // Publish directly so both modes keep items in sync immediately.
+        ctx.value = next
         if(props.value != null) {
             if(props.onValueChange) { props.onValueChange(next) }
         } else {
@@ -115,35 +134,27 @@ public #universal ToggleGroup(props) {
             if(props.onValueChange) { props.onValueChange(next) }
         }
     }
+    ctx.value = current
+    ctx.mode = multiple ? "multiple" : "single"
+    ctx.write = (v) => { toggle(v) }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    if(props.options) {
-        if(multiple) {
-            // Multiple mode: the pressed set is an array; SSR shows the initial
-            // selection via defaultValue comparison and hydration refines it.
-        return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-            {props.options.map((opt, i) => (
-                <ToggleGroupItem value={opt} pressed={current.indexOf(opt) != -1} disabled={disabled} variant={variant} size={size} onClick={() => toggle(opt)}>{opt}</ToggleGroupItem>
-            ))}
-        </div>
-        }
-        return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-            {props.options.map((opt, i) => (
-                <ToggleGroupItem value={opt} pressed={current == opt} disabled={disabled} variant={variant} size={size} onClick={() => toggle(opt)}>{opt}</ToggleGroupItem>
-            ))}
-        </div>
-    }
     return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
 public #universal ToggleGroupItem(props) {
+    const ctx = useContext("tg-" + (props.__rgName || props.name || "default"))
     var disabled = props.disabled || false
     var variant = props.variant || "default"
     var size = props.size || "default"
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    // `pressed` is passed straight through to the attributes (not through a
-    // local) so the runtime keeps it reactive: when the parent group's
-    // selection changes, the signal recomputes and this button re-renders.
-    return <button {...props} type="button" aria-pressed={props.pressed ? "true" : "false"} data-pressed={props.pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} class={classes + " " + ${toggle_group_item_styles(page)}}>{props.children}</button>
+    // Reactive pressed state from context: single mode compares directly,
+    // multiple mode checks array membership.
+    var pressed = ctx.mode == "multiple" ? ctx.value.indexOf(props.value) != -1 : ctx.value == props.value
+    var onToggle = () => {
+        if(disabled) { return }
+        if(ctx.write) { ctx.write(props.value) }
+    }
+    return <button {...props} type="button" aria-pressed={pressed ? "true" : "false"} data-pressed={pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} class={classes + " " + ${toggle_group_item_styles(page)}} onClick={onToggle}>{props.children}</button>
 }

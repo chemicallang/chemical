@@ -84,6 +84,46 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.BinaryOp => {
             var bin = node as *mut JsBinaryOp
+            // Context publish: `ctx.value = <signal>` must pass the raw signal
+            // (not a deref'd snapshot) so the runtime setter wires the context
+            // entry to follow the provider's state. `ctx.write = fn` and other
+            // member assignments are unaffected by the deref skip.
+            if(bin.left != null && bin.left.kind == JsNodeKind.MemberAccess &&
+                (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
+                const ctxMem = bin.left as *mut JsMemberAccess
+                if(ctxMem.object != null && ctxMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((ctxMem.object as *mut JsIdentifier).value)) {
+                    converter.skip_reactive_deref = true;
+                    converter.convertJsNode(bin.left);
+                    converter.str.append_view(" ");
+                    converter.str.append_view(&bin.op);
+                    converter.str.append_view(" ");
+                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                        converter.str.append_view("(");
+                        converter.convertJsNode(bin.right);
+                        converter.str.append_view(")");
+                    } else {
+                        converter.convertJsNode(bin.right);
+                    }
+                    converter.skip_reactive_deref = false;
+                    return;
+                }
+            }
+            // props.x = expr - emit the raw property access on the LHS (the
+            // $__uni_value getter wrapper is an invalid assignment target).
+            if(bin.left != null && (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/="))) && converter.is_component_props_read(bin.left)) {
+                append_js_node_text(bin.left, &mut converter.str);
+                converter.str.append_view(" ");
+                converter.str.append_view(&bin.op);
+                converter.str.append_view(" ");
+                if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
+                    converter.str.append_view("(");
+                    converter.convertJsNode(bin.right);
+                    converter.str.append_view(")");
+                } else {
+                    converter.convertJsNode(bin.right);
+                }
+                return;
+            }
             if(bin.left != null && bin.left.kind == JsNodeKind.Identifier) {
                 const id = bin.left as *mut JsIdentifier
                 if(converter.is_reactive_var(id.value) &&
@@ -162,6 +202,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     comptime_fnv1_hash("useCallback"),
                     comptime_fnv1_hash("useRef"),
                     comptime_fnv1_hash("useContext"),
+                    comptime_fnv1_hash("createContext"),
                     comptime_fnv1_hash("useReducer"),
                     comptime_fnv1_hash("useLayoutEffect"),
                     comptime_fnv1_hash("useErrorBoundary"),
@@ -298,6 +339,28 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  }
                  converter.str.append_view(");");
              } else {
+                 // `const ctx = createContext(name, default)` / `useContext(name)`
+                 // binds a context var: record it so `ctx.value` reads wrap
+                 // reactively and SSR resolves them to the static default.
+                 if(!decl.name.empty() && decl.pattern == null && decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
+                     var ctxCall = decl.value as *mut JsFunctionCall
+                     if(ctxCall.callee != null && ctxCall.callee.kind == JsNodeKind.Identifier) {
+                         const ctxId = ctxCall.callee as *mut JsIdentifier
+                         if(ctxId.value.equals(view("createContext")) || ctxId.value.equals(view("useContext"))) {
+                             var ctxNameExpr : *mut JsNode = null
+                             var ctxDefaultExpr : *mut JsNode = null
+                             if(ctxCall.args.size() >= 1) {
+                                 ctxNameExpr = ctxCall.args.get(0)
+                             }
+                             if(ctxId.value.equals(view("createContext")) && ctxCall.args.size() >= 2) {
+                                 ctxDefaultExpr = ctxCall.args.get(1)
+                             }
+                             if(ctxNameExpr != null) {
+                                 converter.add_context_var(decl.name, ctxNameExpr, ctxDefaultExpr);
+                             }
+                         }
+                     }
+                 }
                  var is_existing_ucs = false;
                  if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
                      var call = decl.value as *mut JsFunctionCall

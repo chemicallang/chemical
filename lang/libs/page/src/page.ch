@@ -616,6 +616,7 @@ window.$_ucs = ((fn) => {
     return signal;
 })
 window.$__uni_current_instance = null;
+window.$__uni_ctx = {}
 window.$_r = {
     useEffect: (fn, deps) => {
         const inst = window.$__uni_current_instance;
@@ -662,14 +663,41 @@ window.$_r = {
         const dispatch = (action) => { state.value = reducer(state.value, action); };
         return [ state, dispatch ];
     },
-    useContext: (ctx) => {
-        if(!ctx) return undefined;
-        if(ctx.currentValue !== undefined) return ctx.currentValue;
-        return ctx.defaultValue;
+    // Name-keyed context registry. Provider and consumer components derive the
+    // same key from a shared `name` prop ("rg-" + props.name), so no module-level
+    // declarations are needed - each component's JS function is only emitted
+    // when used, and the registry itself always lives in the runtime. Reading
+    // `.value` inside a $_ucs() computed subscribes like any other signal;
+    // assigning a signal to `.value` wires the context to follow it (the
+    // provider publishes its state signal).
+    createContext: (name, defaultValue) => {
+        let entry = window.$__uni_ctx[name];
+        if(!entry) {
+            const sig = window.$_us(defaultValue);
+            entry = {
+                name,
+                get value() {
+                    return sig.value;
+                },
+                set value(n) {
+                    if(n && typeof n.subscribe === "function") {
+                        if(entry._unsub) entry._unsub();
+                        entry._unsub = n.subscribe((v) => { sig.value = v; });
+                        sig.value = n.value;
+                    } else {
+                        sig.value = n;
+                    }
+                }
+            };
+            window.$__uni_ctx[name] = entry;
+        }
+        return entry;
     },
-    createContext: (defaultValue) => {
-        const ctx = { defaultValue, currentValue: defaultValue };
-        return ctx;
+    useContext: (name) => {
+        if(!window.$__uni_ctx[name]) {
+            window.$__uni_ctx[name] = window.$_r.createContext(name, undefined);
+        }
+        return window.$__uni_ctx[name];
     },
     createPortal: (children) => ({ t: "__uni_portal", c: Array.isArray(children) ? children : [ children ] }),
     useErrorBoundary: (fallback) => {

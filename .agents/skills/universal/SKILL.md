@@ -202,6 +202,72 @@ A component whose render throws must not take down the page:
 }
 ```
 
+### Context system (`createContext` / `useContext`)
+
+Components have NO module-level JS declarations (a component's JS function is
+only emitted when used), so context cannot be a shared top-level object. Context
+is a **name-keyed registry in the runtime** (`window.$__uni_ctx`), keyed by a
+string both sides derive from a shared prop:
+
+```chemical
+// provider (group):
+const ctx = createContext("rg-" + (props.name || "default"), "")
+ctx.value = value                    // publish the state signal (wired)
+ctx.write = (v) => { value = v; if(props.onValueChange) { props.onValueChange(v) } }
+
+// consumer (item):
+const ctx = useContext("rg-" + (props.__rgName || props.name || "default"))
+// reads are reactive: ctx.value inside a $_ucs() computed subscribes
+<input checked={ctx.value == props.value} />
+<button onClick={() => { if(ctx.write) { ctx.write(props.value) } }} />
+```
+
+Contract:
+
+- **Registry** (`page.ch` runtime): `createContext(name, default)` is idempotent
+  (first call creates the entry, keyed by name); the entry holds a `$_us` signal.
+  Assigning a **signal** to `ctx.value` WIRES the entry to follow it (provider
+  publishes its state/computed); assigning a plain value sets it directly.
+  `useContext(name)` ensures the entry exists (default undefined) and returns it.
+- **Converter** (`universal_cbi`): `const X = createContext(A, B)` /
+  `useContext(A)` registers `X` as a context var (name + default expressions).
+  `ctx.*` reads count as reactive: JSX attrs referencing them wrap in `$_ucs`,
+  so consumer components re-render when the provider's signal changes.
+  `ctx.value = <signal>` emits the RAW signal (no deref) so the runtime wiring
+  kicks in; `props.x = expr` assignments emit the raw LHS (the `$__uni_value`
+  getter is an invalid assignment target).
+- **SSR**: a provider's SSR function runs AFTER its children render (children
+  HTML is pre-rendered and passed in as the 3rd arg), so a consumer can never
+  observe a published value at SSR. `ctx.value` reads therefore resolve to the
+  STATIC createContext default (or None for useContext), and `ctx.value = x` /
+  `ctx.write = fn` are no-ops at SSR. Groups render children unpressed/
+  unchecked at SSR; hydration applies the selection. This is documented in the
+  components (see RadioGroup/ToggleGroup).
+- **Name threading**: groups inject their `name` into item child vnodes
+  (`c.p.props.__rgName = props.name`) so items resolve the key without repeating
+  `name` on every item. The injection mutates the `$_uc_h` vnode props before
+  mount (group body runs before children mount), then the item spreads `{...props}`
+  — injected keys appear as DOM attributes (harmless, e.g. `__rgname="tg-main"`).
+- **No provider**: `useContext` without a matching `createContext` returns an
+  entry with an undefined value; comparisons are false, items stay unpressed/
+  unchecked, and `ctx.write` is absent (guarded calls no-op).
+
+Relevant files:
+
+- Runtime registry: `lang/libs/page/src/page.ch` (`window.$__uni_ctx`,
+  `$_r.createContext`, `$_r.useContext`)
+- Converter: `lang/libs/universal_cbi/src/converter/converter_core.ch` (VarDecl
+  context registration, `ctx.value = x` / `props.x = y` assignments),
+  `converter_utils.ch` (`is_context_var`, reactive detection, SSR default
+  resolution, `emit_ssr_assignment_stmt` no-op)
+- Components: `lang/libs/components/src/RadioGroup.ch`, `ToggleGroup.ch`
+
+> ⚠️ **Non-ASCII in JS blobs**: the runtime JS is embedded in Chemical strings
+> in `page.ch`. A non-ASCII character (e.g. an em dash in a comment) becomes a
+> UTF-8 byte ≥ 0x80 in the emitted JS, which crashes `std::string::find` (the
+> Boyer-Moore skip table sign-extends signed chars). Keep every byte in `page.ch`
+> ASCII.
+
 ### `$__uni_floating` collision flipping
 
 Portaled menus position themselves under the trigger with fixed coordinates. When

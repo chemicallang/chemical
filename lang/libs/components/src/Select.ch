@@ -79,14 +79,17 @@ func select_trigger_styles(page : &mut HtmlPage) : *char {
 }
 
 func select_menu_styles(page : &mut HtmlPage) : *char {
+    // The menu is rendered through createPortal into document.body and positioned
+    // by $__uni_floating (fixed coords from the trigger's rect), so it escapes
+    // overflow: hidden / transform ancestors. Visibility is driven by the
+    // data-open attribute (not inline style, which would wipe the positioning).
     return #css {
-        position: absolute;
-        top: calc(100% + 0.375rem);
+        position: fixed;
+        top: 0;
         left: 0;
-        right: 0;
         min-width: 100%;
         z-index: 20;
-        display: grid;
+        display: none;
         gap: 0.125rem;
         padding: 0.375rem;
         border-radius: var(--radius-md);
@@ -97,6 +100,9 @@ func select_menu_styles(page : &mut HtmlPage) : *char {
         max-height: 16rem;
         overflow-y: auto;
         animation: chx-slide-down 0.15s var(--ease);
+        &[data-open="true"] {
+            display: grid;
+        }
     }
 }
 
@@ -143,6 +149,7 @@ public #universal Select(props) {
     state selected = props.defaultValue || ""
     state highlight = 0
     state typed = ""
+    const triggerRef = useRef(null)
     const menuRef = useRef(null)
     const typeaheadRef = useRef(null)
     var current = props.value != null ? props.value : selected
@@ -252,6 +259,15 @@ public #universal Select(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
+    // The menu lives in document.body (createPortal). Position it under the
+    // trigger with fixed coordinates, re-measured on scroll/resize, so it stays
+    // anchored even inside overflow: hidden / transform ancestors.
+    useEffect(() => {
+        if(!open || !triggerRef.current || !menuRef.current) {
+            return () => {}
+        }
+        return window.$__uni_floating(triggerRef.current, menuRef.current, { gap: 6 })
+    }, [open])
     // Keep the highlighted option in view while navigating with the keyboard.
     useEffect(() => {
         if(!open || !menuRef.current) {
@@ -272,17 +288,19 @@ public #universal Select(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var placeholder = props.placeholder || "Select..."
-    return <div class={classes} style="position:relative;display:inline-block;width:100%;">
+    return <div {...props} class={classes} style="position:relative;display:inline-block;width:100%;">
         <div onClick={close} style={open ? "position:fixed;inset:0;z-index:10;" : "display:none;"}></div>
-        <button type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel}>
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel}>
             <span class={current != "" ? "chx-select-value" : "chx-select-value chx-select-placeholder"}>{current ? current : placeholder}</span>
             <span class="chx-select-chevron">▾</span>
         </button>
-        <div ref={menuRef} class={${select_menu_styles(page)}} style={open ? "display:grid;" : "display:none;"} role="listbox" id="chx-select-listbox" onClick={handleMenuClick}>
-            {props.options ? props.options.map((opt, i) => (
-                <button type="button" role="option" id={"chx-select-opt-" + i} aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} data-highlighted={highlight == i ? "true" : "false"} class={${select_item_styles(page)}}>{opt}</button>
-            )) : props.children}
-        </div>
+        {createPortal(
+            <div ref={menuRef} class={${select_menu_styles(page)}} data-open={open ? "true" : "false"} role="listbox" id="chx-select-listbox" onClick={handleMenuClick}>
+                {props.options ? props.options.map((opt, i) => (
+                    <button type="button" role="option" id={"chx-select-opt-" + i} aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} data-highlighted={highlight == i ? "true" : "false"} class={${select_item_styles(page)}}>{opt}</button>
+                )) : props.children}
+            </div>
+        )}
     </div>
 }
 

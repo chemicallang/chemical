@@ -670,8 +670,32 @@ window.$_r = {
     createContext: (defaultValue) => {
         const ctx = { defaultValue, currentValue: defaultValue };
         return ctx;
-    }
+    },
+    createPortal: (children) => ({ t: "__uni_portal", c: Array.isArray(children) ? children : [ children ] })
 }
+// Positions a portaled menu/overlay relative to its trigger using the trigger's
+// current viewport rect. Returns a cleanup that removes the scroll/resize
+// listeners. Used by components that render into document.body via createPortal
+// (Select menu, DropdownMenu, etc.) so they escape overflow/transform clipping.
+window.$__uni_floating = ((trigger, menu, opts = {}) => {
+    const gap = opts.gap || 6;
+    const update = () => {
+        if(!trigger || !trigger.isConnected) return;
+        const r = trigger.getBoundingClientRect();
+        menu.style.position = "fixed";
+        menu.style.top = (r.bottom + gap) + "px";
+        menu.style.left = r.left + "px";
+        menu.style.minWidth = (opts.minWidth || r.width) + "px";
+        menu.style.margin = "0";
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+        window.removeEventListener("scroll", update, true);
+        window.removeEventListener("resize", update);
+    };
+})
 window.$__uni_run_effects = ((inst, effects) => {
     if(!effects) return;
     for(let i = 0; i < effects.length; i++) {
@@ -873,6 +897,13 @@ window.$_urn = ((v) => {
             for(let i = 0; i < (v.c || []).length; i++) f.appendChild(window.$_urn(v.c[i]));
             return f;
         }
+        if(v.t === "__uni_portal") {
+            const container = document.createElement("div");
+            document.body.appendChild(container);
+            const children = v.c || [];
+            for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));
+            return container;
+        }
         if(typeof v.t === "function") {
             const nextProps = v.p ? { ...v.p } : {};
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
@@ -1001,6 +1032,31 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(parent) parent.insertBefore(container, dom);
             window.$__uni_dispatch(name, container, props);
             return dom;
+        }
+        if(v.t === "__uni_portal") {
+            // SSR renders portal children inline (no body on the server). During
+            // hydration the SSR'd nodes sit at `dom`; hydrate them in place, then
+            // MOVE that range into a container appended to document.body so the
+            // content escapes overflow/transform clipping by its ancestors.
+            const container = document.createElement("div");
+            document.body.appendChild(container);
+            const children = v.c || [];
+            if(!dom) {
+                for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));
+                return dom;
+            }
+            const startDom = dom;
+            let cur = startDom;
+            for(let i = 0; i < children.length; i++) {
+                cur = window.$__uni_hydrate_node(parent, cur, children[i]);
+            }
+            let node = startDom;
+            while(node && node !== cur) {
+                const next = node.nextSibling;
+                container.appendChild(node);
+                node = next;
+            }
+            return cur;
         }
         if(v.t === window.$_ur.Fragment) return window.$__uni_hydrate_node(parent, dom, v.c || []);
         if(typeof v.t === "function") {

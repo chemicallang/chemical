@@ -124,6 +124,7 @@ public #universal Sheet(props) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
     var side = props.side || "right"
+    const contentRef = useRef(null)
     var close = () => {
         open = false
         if(props.onClose) {
@@ -139,6 +140,63 @@ public #universal Sheet(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
+    // Focus management: on open, focus the sheet close button (first
+    // focusable) and trap Tab within it; restore focus on close.
+    useEffect(() => {
+        if(!isOpen) {
+            return () => {}
+        }
+        const sheetEl = contentRef.current
+        if(!sheetEl) {
+            return () => {}
+        }
+        const previouslyFocused = document.activeElement
+        const focusables = () => sheetEl.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        const firstEl = () => {
+            const list = focusables()
+            return list.length > 0 ? list[0] : null
+        }
+        const lastEl = () => {
+            const list = focusables()
+            return list.length > 0 ? list[list.length - 1] : null
+        }
+        const focusFirst = () => {
+            const el = firstEl()
+            if(el) { el.focus() }
+        }
+        const onKeyDown = (e) => {
+            if(e.key !== "Tab") {
+                return
+            }
+            const list = focusables()
+            if(list.length === 0) {
+                e.preventDefault()
+                return
+            }
+            const active = document.activeElement
+            if(e.shiftKey) {
+                if(active === firstEl() || !sheetEl.contains(active)) {
+                    e.preventDefault()
+                    const last = lastEl()
+                    if(last) { last.focus() }
+                }
+            } else {
+                if(active === lastEl() || !sheetEl.contains(active)) {
+                    e.preventDefault()
+                    const first = firstEl()
+                    if(first) { first.focus() }
+                }
+            }
+        }
+        document.addEventListener("keydown", onKeyDown)
+        focusFirst()
+        return () => {
+            document.removeEventListener("keydown", onKeyDown)
+            if(previouslyFocused && previouslyFocused.focus) {
+                previouslyFocused.focus()
+            }
+        }
+    }, [isOpen])
     var width = props.width || ""
     var style = ""
     if(width && (side == "left" || side == "right")) {
@@ -146,7 +204,7 @@ public #universal Sheet(props) {
     }
     return <div class={${sheet_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
         <SheetBackdrop onClick={close}></SheetBackdrop>
-        <SheetContent side={side} style={style} role="dialog" aria-modal="true" aria-label={props.title}>
+        <SheetContent ref={contentRef} side={side} style={style} role="dialog" aria-modal="true" aria-label={props.title}>
             <SheetHeader>
                 {props.title ? <SheetTitle>{props.title}</SheetTitle> : <span></span>}
                 <SheetClose onClick={close} aria-label="Close">×</SheetClose>

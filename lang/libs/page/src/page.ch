@@ -621,7 +621,28 @@ window.$_r = {
         const inst = window.$__uni_current_instance;
         if(!inst) return;
         if(!inst.effects) inst.effects = [];
-        inst.effects.push({ fn, deps, lastDeps: null, cleanup: null });
+        const eff = { fn, deps, lastDeps: null, cleanup: null, depUnsubs: [] };
+        inst.effects.push(eff);
+        // Effects must re-run when a reactive dependency changes, not only when
+        // the component's own state is assigned. Subscribe to every state /
+        // computed in the deps array so controlled props (e.g. `open` passed
+        // from a parent) still trigger the effect.
+        if(deps) {
+            for(let i = 0; i < deps.length; i++) {
+                const d = deps[i];
+                if(d && typeof d.subscribe === "function") {
+                    eff.depUnsubs.push(d.subscribe(() => {
+                        if(!inst._pendingEffects) {
+                            inst._pendingEffects = true;
+                            Promise.resolve().then(() => {
+                                inst._pendingEffects = false;
+                                if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+                            });
+                        }
+                    }));
+                }
+            }
+        }
     },
     useLayoutEffect: (fn, deps) => {
         const inst = window.$__uni_current_instance;
@@ -672,6 +693,15 @@ window.$__uni_run_effects = ((inst, effects) => {
     }
 })
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
+window.$__uni_warn_hydration = ((msg, expected, got) => {
+    // Hydration mismatches are reported loudly in dev but never crash the
+    // page in production: the runtime already self-corrects below. Guarded so
+    // a busy page with many components doesn't spam thousands of duplicates.
+    if(window.$__uni_hydration_warned) return;
+    window.$__uni_hydration_warned = true;
+    console.warn("[universal] hydration mismatch: " + msg, expected, got);
+    console.warn("[universal] further hydration mismatch warnings suppressed; fix the component source (see components_e2e skill)");
+})
 window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
@@ -947,11 +977,15 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         return dom;
     }
     if(typeof v === "string" || typeof v === "number") {
+        const nextText = "" + v;
         if(dom && dom.nodeType === 3) {
-            dom.textContent = "" + v;
+            if(dom.textContent !== nextText) {
+                window.$__uni_warn_hydration("text node differs from SSR", nextText, dom.textContent);
+            }
+            dom.textContent = nextText;
             return dom.nextSibling;
         }
-        const n = document.createTextNode("" + v);
+        const n = document.createTextNode(nextText);
         if(parent) { if(dom) parent.insertBefore(n, dom); else parent.appendChild(n); }
         return dom;
     }
@@ -982,6 +1016,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
                 return dom;
             }
             const e = dom;
+        const expectedTag = typeof v.t === "string" ? v.t : null;
+        if(expectedTag && e.tagName && e.tagName.toLowerCase() !== expectedTag) {
+            window.$__uni_warn_hydration("element tag differs from SSR (" + expectedTag + " vs " + e.tagName.toLowerCase() + ")", expectedTag, e.tagName.toLowerCase());
+        }
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         if(v.c && v.c.length) {

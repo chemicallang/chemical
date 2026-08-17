@@ -97,6 +97,43 @@ Relevant files:
 - `lang/libs/universal_cbi/src/react/jsx_props.ch`
 - `lang/libs/universal_cbi/src/converter/converter_utils.ch`
 
+### Attribute values from plain locals are frozen (reactivity gotcha)
+
+A local variable computed before `return` is evaluated **once at render** and its value
+is inlined as a static attribute — it does NOT update when state changes. Only
+attribute **expressions** that directly read state/props (or call `$_ucs`) subscribe.
+
+```chemical
+// FROZEN — never re-evaluates:
+var activeDesc = ""
+if(open && props.options && props.options[highlight] != null) {
+    activeDesc = "chx-select-opt-" + highlight
+}
+<button aria-activedescendant={activeDesc} />
+
+// REACTIVE — converter wraps this in $_ucs(() => ...) so it updates live:
+<button aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} />
+```
+
+Same rule applies to child props: `var checked = props.checked || false` freezes the
+value. Pass `props.checked` directly in the attribute when it must stay reactive
+(see ToggleGroupItem/RadioGroupItem).
+
+### Effects re-run on reactive dep changes
+
+`useEffect(fn, [dep])` re-runs when any dep in the array is a state/computed whose
+signal value changes — including computeds derived from **parent-controlled props**
+(e.g. `isOpen = props.open != null ? props.open : open`). This is what lets a Dialog
+focus trap react when a parent toggles `open`. Deps that are plain values only run
+once. Do not rely on effects running after every render.
+
+### Hydration mismatch detection
+
+`$__uni_hydrate_node` warns once via `$__uni_warn_hydration` when hydrated text/tag
+content disagrees with the SSR DOM, then self-corrects (never crashes). Look for
+`Hydration mismatch` in the console while debugging; the runtime also records
+`$__uni_hydration_warned` so pages can surface it.
+
 ### Subscriber mutation during notification
 
 Symptoms:

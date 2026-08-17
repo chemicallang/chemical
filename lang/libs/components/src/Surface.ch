@@ -256,6 +256,7 @@ public #universal Popover(props) {
 public #universal Dialog(props) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
+    const contentRef = useRef(null)
     var close = () => {
         open = false
         if(props.onClose) {
@@ -271,9 +272,67 @@ public #universal Dialog(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
+    // Focus management (WAI-ARIA dialog pattern): on open, remember the
+    // trigger, move focus to the first focusable element inside the dialog and
+    // trap Tab/Shift+Tab within it. On close, restore focus to the trigger.
+    useEffect(() => {
+        if(!isOpen) {
+            return () => {}
+        }
+        const dialogEl = contentRef.current
+        if(!dialogEl) {
+            return () => {}
+        }
+        const previouslyFocused = document.activeElement
+        const focusables = () => dialogEl.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        const firstEl = () => {
+            const list = focusables()
+            return list.length > 0 ? list[0] : null
+        }
+        const lastEl = () => {
+            const list = focusables()
+            return list.length > 0 ? list[list.length - 1] : null
+        }
+        const focusFirst = () => {
+            const el = firstEl()
+            if(el) { el.focus() }
+        }
+        const onKeyDown = (e) => {
+            if(e.key !== "Tab") {
+                return
+            }
+            const list = focusables()
+            if(list.length === 0) {
+                e.preventDefault()
+                return
+            }
+            const active = document.activeElement
+            if(e.shiftKey) {
+                if(active === firstEl() || !dialogEl.contains(active)) {
+                    e.preventDefault()
+                    const last = lastEl()
+                    if(last) { last.focus() }
+                }
+            } else {
+                if(active === lastEl() || !dialogEl.contains(active)) {
+                    e.preventDefault()
+                    const first = firstEl()
+                    if(first) { first.focus() }
+                }
+            }
+        }
+        document.addEventListener("keydown", onKeyDown)
+        focusFirst()
+        return () => {
+            document.removeEventListener("keydown", onKeyDown)
+            if(previouslyFocused && previouslyFocused.focus) {
+                previouslyFocused.focus()
+            }
+        }
+    }, [isOpen])
     return <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
         <DialogBackdrop onClick={close}></DialogBackdrop>
-        <DialogContent role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
+        <DialogContent ref={contentRef} role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
     </div>
 }
 

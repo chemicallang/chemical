@@ -1158,3 +1158,62 @@ public func components_tabs_aria_wiring(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("id=\"demo-tab-0\""))
     contains_string_assert(env, html.to_view(), std::string_view("id=\"demo-panel-1\""))
 }
+
+// Select implements the WAI-ARIA combobox/listbox pattern: the trigger is a
+// button with aria-haspopup="listbox", the menu has role="listbox", options
+// are role="option", and aria-activedescendant on the trigger tracks the
+// highlighted option (reactive — verified in the browser with keyboard tests).
+@test
+public func components_select_listbox_pattern(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Select options={["a", "b"]} placeholder="Pick" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("aria-haspopup=\"listbox\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-expanded=\"false\""))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"listbox\""))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"option\""))
+    contains_string_assert(env, html.to_view(), std::string_view("id=\"chx-select-opt-0\""))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // the highlighted option id must stay reactive (updates with keyboard nav)
+    contains_string_assert(env, js.to_view(), std::string_view("chx-select-opt-\" + highlight.value"))
+}
+
+// Dialog/Sheet expose a proper modal dialog: role="dialog", aria-modal, an
+// accessible name from the title, and focus trapping (aria wiring + the
+// focus trap effect compiled into the JS bundle).
+@test
+public func components_dialog_modal_aria(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Dialog ariaLabel="Confirm" open={true}>
+            <p>Body</p>
+        </Dialog>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Confirm\""))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // focus trap: the effect queries focusable elements inside the dialog
+    contains_string_assert(env, js.to_view(), std::string_view("querySelectorAll"))
+    contains_string_assert(env, js.to_view(), std::string_view("previouslyFocused"))
+}
+
+@test
+public func components_sheet_modal_aria(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Sheet title="Settings" open={true}>
+            <p>Body</p>
+        </Sheet>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Settings\""))
+}

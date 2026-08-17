@@ -139,10 +139,41 @@ These are the real bugs the suite has caught so far — keep the fixes intact:
 5. **Hidden native inputs were unclickable** — `.chx-toggle-input`/`.chx-radio-input`
    were 1px with `pointer-events: none`; now `inset: 0; width/height: 100%; z-index: 1`
    so the whole control is a valid click target (keyboard + Playwright `check()` work).
+6. **Focus trap + focus return on Dialog/Sheet** — on open, save `document.activeElement`
+   (the trigger), focus the first focusable inside, trap Tab/Shift+Tab to the dialog, and
+   restore focus on close. Wired via `useEffect` with `[isOpen]` deps + `contentRef`.
+7. **Select keyboard navigation** — WAI-ARIA combobox/listbox pattern: trigger has
+   `aria-haspopup="listbox"`, options are `role="option"` with stable ids
+   (`chx-select-opt-N`), `aria-activedescendant` on the trigger tracks the highlighted
+   option. ArrowDown/Up move highlight, Home/End jump, Enter selects, printable chars
+   typeahead (with 500ms reset), Escape closes. **Gotcha:** `aria-activedescendant` must
+   be an inline attribute expression (`props.options[highlight]`), NOT a precomputed
+   local — plain locals are frozen at mount and never re-evaluate.
+8. **Hydration mismatch detection** — the runtime now warns (once, via
+   `$__uni_warn_hydration`) when hydrated text/tag disagrees with SSR, then self-corrects
+   instead of silently rendering stale UI. Guarded so busy pages don't spam.
+9. **Effects subscribe to reactive deps** — `useEffect(fn, [dep])` where `dep` is a
+   computed (e.g. `isOpen` derived from a controlled `props.open`) now re-runs when the
+   dep's signal changes, not only on the component's own state assignment. This is what
+   makes the Dialog/Sheet focus effect fire when a *parent* toggles `open`.
+
+## Production-hardening patterns (verified in browser)
+
+These E2E tests double as living examples of the a11y/UX contracts every interactive
+component should meet:
+
+- **Dialog/Sheet:** `role="dialog"`, `aria-modal="true"`, accessible name
+  (`aria-label={props.ariaLabel}` on Dialog, `aria-label={props.title}` on Sheet), focus
+  moves to the first focusable on open, Tab cycles within, Escape closes, focus returns
+  to the trigger.
+- **Select:** trigger `aria-expanded`/`aria-haspopup`/`aria-activedescendant` all react
+  live; menu is `role="listbox"`; options `role="option"` with `aria-selected`;
+  `data-highlighted` on the active option; `scrollIntoView({block:"nearest"})` keeps the
+  highlight visible while arrow-navigating.
 
 ## Performance notes
 
-- 15 tests across 10 workers finish in ~6–7s plus app build time (~30–60s for the
+- 19 tests across 10 workers finish in ~5–7s plus app build time (~30–60s for the
   Chemical compile step). The browser tests themselves are fast; the Chemical build is
   the slow part.
 - `--cache` (default in `build-app.mjs`) skips unchanged modules. Only pass

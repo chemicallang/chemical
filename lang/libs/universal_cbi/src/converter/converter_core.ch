@@ -164,7 +164,8 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     comptime_fnv1_hash("useContext"),
                     comptime_fnv1_hash("useReducer"),
                     comptime_fnv1_hash("useLayoutEffect"),
-                    comptime_fnv1_hash("useErrorBoundary") => {
+                    comptime_fnv1_hash("useErrorBoundary"),
+                    comptime_fnv1_hash("createPortal") => {
                          converter.str.append_view("$_r.")
                          is_hook = true
                     }

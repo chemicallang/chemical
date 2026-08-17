@@ -103,7 +103,23 @@ func unwrap_returned_jsx_node(node : *mut JsNode) : *mut JsNode {
     while(current != null && current.kind == JsNodeKind.Paren) {
         current = (current as *mut JsParen).expression;
     }
+    // `createPortal(<jsx/>)` returns the JSX element (the portal wrapper is a
+    // client-side concern; SSR renders the children inline where the portal is).
+    if(current != null && current.kind == JsNodeKind.FunctionCall) {
+        const call = current as *mut JsFunctionCall;
+        if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
+            const id = call.callee as *mut JsIdentifier;
+            if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.get(0) != null) {
+                return unwrap_returned_jsx_node(call.args.get(0));
+            }
+        }
+    }
     return current;
+}
+
+func is_jsx_node(node : *mut JsNode) : bool {
+    if(node == null) return false;
+    return node.kind == JsNodeKind.JSXElement || node.kind == JsNodeKind.JSXFragment;
 }
 
 func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
@@ -114,7 +130,7 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
         if(ret.value == null) continue;
         const value = unwrap_returned_jsx_node(ret.value);
         if(value == null) continue;
-        if(value.kind == JsNodeKind.JSXElement || value.kind == JsNodeKind.JSXFragment) {
+        if(is_jsx_node(value)) {
             return value;
         }
         if(value.kind == JsNodeKind.Identifier) {
@@ -124,7 +140,7 @@ func find_returned_jsx(block : *mut JsBlock) : *mut JsNode {
                 if(prev != null && prev.kind == JsNodeKind.VarDecl) {
                     const decl = prev as *mut JsVarDecl;
                     const declValue = unwrap_returned_jsx_node(decl.value);
-                    if(decl.name.equals(&id.value) && declValue != null && (declValue.kind == JsNodeKind.JSXElement || declValue.kind == JsNodeKind.JSXFragment)) {
+                    if(decl.name.equals(&id.value) && is_jsx_node(declValue)) {
                         return declValue;
                     }
                 }

@@ -134,6 +134,51 @@ content disagrees with the SSR DOM, then self-corrects (never crashes). Look for
 `Hydration mismatch` in the console while debugging; the runtime also records
 `$__uni_hydration_warned` so pages can surface it.
 
+### Portals (`createPortal`) — escaping overflow/transform clipping
+
+Overlays that must escape `overflow: hidden` / `transform` ancestors (Select menu,
+Dialog, Sheet) render through `$_r.createPortal(children)`:
+
+```chemical
+return createPortal(
+    <div class={${overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
+        {props.children}
+    </div>
+)
+```
+
+Runtime contract (`lang/libs/page/src/page.ch`):
+
+- `createPortal(...)` returns a `{ t: "__uni_portal", c: [...] }` vnode marker.
+- **SSR** renders the portal children inline where the portal sits (no body on the
+  server) — output identical to a normal subtree.
+- **Hydration** (`$__uni_hydrate_node`): the SSR'd nodes sit at the current `dom`
+  position; they are hydrated in place, then the `[startDom, cur)` range is MOVED into
+  a container appended to `document.body`. State subscriptions reference elements, so
+  they keep working after the move.
+- **`$_urn`** (fresh client render) creates the body container directly.
+- **`$__uni_floating(trigger, menu, opts)`** anchors a portaled menu under its trigger
+  with fixed coordinates (`getBoundingClientRect`), re-measured on scroll/resize.
+  Returns a cleanup used as the effect's return value.
+
+Component-side rules:
+
+- **Never toggle menu visibility with an inline reactive `style`** when the menu is
+  portaled and floating-positioned: the style subscription sets `el.style.cssText`,
+  wiping the inline `position/top/left`. Use `data-open={open ? "true" : "false"}` +
+  CSS `&[data-open="true"] { display: grid; }`.
+- The component root must spread `{...props}` so custom attributes (`data-testid`,
+  `aria-*`) reach the DOM.
+
+Converter support (needed once per new portal component):
+
+- `converter_core.ch` hook-name switch: add `createPortal` → `$_r.` prefix.
+- `react/utils.ch` `unwrap_returned_jsx_node` / `find_returned_jsx`: unwrap
+  `createPortal(<jsx/>)` to the inner JSX element, or the component's JS function is
+  never emitted and SSR is skipped.
+- `converter_utils.ch` `convert_jsx_ssr_expression` FunctionCall case: `createPortal`
+  renders its argument inline.
+
 ### Subscriber mutation during notification
 
 Symptoms:

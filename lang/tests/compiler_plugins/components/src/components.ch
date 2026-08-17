@@ -829,8 +829,8 @@ public func components_select_placeholder(env : &mut TestEnv) {
     // items render inside the (hidden) listbox
     contains_string_assert(env, html.to_view(), std::string_view(">A</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">B</button>"))
-    // listbox hidden until opened
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"listbox\""))
+    // listbox hidden until opened (data-open visibility, portaled menu)
+    contains_string_assert(env, html.to_view(), std::string_view("data-open=\"false\" role=\"listbox\""))
 }
 
 @test
@@ -1087,8 +1087,8 @@ public func components_select_children_mode(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("data-select-value=\"a\""))
     contains_string_assert(env, html.to_view(), std::string_view("Label A"))
     contains_string_assert(env, html.to_view(), std::string_view("Label B"))
-    // listbox closed on first render
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"listbox\""))
+    // listbox closed on first render (data-open visibility, portaled menu)
+    contains_string_assert(env, html.to_view(), std::string_view("data-open=\"false\" role=\"listbox\""))
 }
 
 // ---------------------------------------------------------------------------
@@ -1216,4 +1216,72 @@ public func components_sheet_modal_aria(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
     contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
     contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Settings\""))
+}
+
+// Select/Dialog/Sheet render overlays/menus through createPortal into
+// document.body (shadcn pattern), so they escape overflow:hidden / transform
+// ancestors. SSR still emits the content inline where the portal sits; the
+// client moves it to body during hydration.
+@test
+public func components_portal_emission(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Select options={["a", "b"]} placeholder="Pick" /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // menu is created through the portal API on the client
+    contains_string_assert(env, js.to_view(), std::string_view("$_r.createPortal"))
+    // the menu keeps its data-open driven visibility (no inline style wipe)
+    contains_string_assert(env, js.to_view(), std::string_view("\"data-open\": $_ucs"))
+    // SSR still renders the menu inline (content must exist for no-JS + hydration)
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"listbox\""))
+    contains_string_assert(env, html.to_view(), std::string_view("chx-select-listbox"))
+}
+
+@test
+public func components_dialog_portal_emission(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Dialog ariaLabel="Confirm" open={true}>
+            <p>Body</p>
+        </Dialog>
+    }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("$_r.createPortal"))
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // SSR keeps the dialog content inline
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
+}
+
+@test
+public func components_sheet_portal_emission(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Sheet title="Settings" open={true}>
+            <p>Body</p>
+        </Sheet>
+    }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("$_r.createPortal"))
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Settings\""))
+}
+
+// The runtime provides $__uni_floating to anchor portaled menus to their
+// trigger with fixed coordinates (re-measured on scroll/resize).
+@test
+public func components_floating_helper_present(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("$__uni_floating"))
+    contains_string_assert(env, js.to_view(), std::string_view("getBoundingClientRect"))
 }

@@ -202,16 +202,21 @@ public #universal Sheet(props) {
     if(width && (side == "left" || side == "right")) {
         style = "width:" + width + ";"
     }
-    return <div class={${sheet_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
-        <SheetBackdrop onClick={close}></SheetBackdrop>
-        <SheetContent ref={contentRef} side={side} style={style} role="dialog" aria-modal="true" aria-label={props.title}>
-            <SheetHeader>
-                {props.title ? <SheetTitle>{props.title}</SheetTitle> : <span></span>}
-                <SheetClose onClick={close} aria-label="Close">×</SheetClose>
-            </SheetHeader>
-            <SheetBody>{props.children}</SheetBody>
-        </SheetContent>
-    </div>
+    // Renders into document.body via createPortal (shadcn pattern) so the
+    // fixed-position overlay stays viewport-relative inside transform/overflow
+    // ancestors. SSR renders it inline; hydration moves it to body.
+    return createPortal(
+        <div class={${sheet_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
+            <SheetBackdrop onClick={close}></SheetBackdrop>
+            <SheetContent ref={contentRef} side={side} style={style} role="dialog" aria-modal="true" aria-label={props.title}>
+                <SheetHeader>
+                    {props.title ? <SheetTitle>{props.title}</SheetTitle> : <span></span>}
+                    <SheetClose onClick={close} aria-label="Close">×</SheetClose>
+                </SheetHeader>
+                <SheetBody>{props.children}</SheetBody>
+            </SheetContent>
+        </div>
+    )
 }
 
 public #universal SheetBackdrop(props) {

@@ -1256,9 +1256,19 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             }
         }
         JsNodeKind.FunctionCall => {
+            // `createPortal(<jsx/>)`: SSR renders the children inline (there is
+            // no body on the server). The client-side hydration moves the
+            // SSR'd nodes into a document.body container afterwards.
+            const call = node as *mut JsFunctionCall;
+            if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
+                const id = call.callee as *mut JsIdentifier;
+                if(id.value.equals(view("createPortal")) && call.args.size() >= 1 && call.args.get(0) != null) {
+                    converter.convert_jsx_ssr_expression(call.args.get(0));
+                    return;
+                }
+            }
             // `.map()` over props/state arrays: render each element through the
             // callback, matching the client's initial render.
-            const call = node as *mut JsFunctionCall;
             if(call.callee != null && call.callee.kind == JsNodeKind.MemberAccess) {
                 const mem = call.callee as *mut JsMemberAccess;
                 if(mem.property.equals(view("map")) && call.args.size() >= 1 && call.args.get(0) != null && call.args.get(0).kind == JsNodeKind.ArrowFunction) {

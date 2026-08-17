@@ -41,6 +41,8 @@ real DOM state:
   (this caught a real bug: state-wrapped universal children rendered twice).
 - **Interactivity** — tabs, accordion, dialog, select, slider, checkbox/switch/radio,
   toggle-group, radio-group, toast auto-dismiss, collapsible, sheet, counter.
+- **Portals** — Select menus inside `overflow: hidden` and `transform` containers must
+  open fully visible and clickable (proves the body-portal escapes clipping).
 - **No runtime errors** — a dedicated test asserts `$__uni_error` never fires.
 
 Every fixture lives in `app/src/main.ch` inside a wrapper with `data-testid`, and state
@@ -156,6 +158,31 @@ These are the real bugs the suite has caught so far — keep the fixes intact:
    computed (e.g. `isOpen` derived from a controlled `props.open`) now re-runs when the
    dep's signal changes, not only on the component's own state assignment. This is what
    makes the Dialog/Sheet focus effect fire when a *parent* toggles `open`.
+10. **Portals** — Select menu, Dialog and Sheet now render through
+    `$_r.createPortal(...)` into `document.body`, escaping `overflow: hidden` and
+    `transform` ancestors (shadcn pattern). Runtime: `__uni_portal` vnode marker
+    hydrates SSR'd nodes in place then MOVES them to a body container; `$_urn` renders
+    fresh into a body container. `$__uni_floating(trigger, menu, opts)` anchors portaled
+    menus under their trigger with fixed coords, re-measured on scroll/resize.
+
+## Portal gotchas (learned the hard way)
+
+- **Menu visibility must NOT be an inline `style` toggle.** The floating helper sets
+  `menu.style.*` (position/top/left); a reactive `style={open ? ...}` subscription does
+  `el.style.cssText = v` which WIPES the inline positioning. Use a `data-open`
+  attribute + CSS `&[data-open="true"] { display: grid; }` instead.
+- **Component roots that return `createPortal(<jsx/>)` need converter support.**
+  `find_returned_jsx` (react/utils.ch) and the SSR FunctionCall case must unwrap
+  `createPortal` to the inner JSX element, otherwise the JS component function is
+  never emitted (`missing component function by name`) and SSR is skipped. Also
+  register `createPortal` in the hook-name switch (converter_core.ch) so it becomes
+  `$_r.createPortal`.
+- **SSR renders portal content inline** (no body on the server); hydration moves the
+  SSR'd nodes to body. E2E tests must query portaled content from `page`/`document`
+  scope, not from inside the fixture: `page.getByRole("listbox")` not
+  `fixture.getByRole("listbox")`.
+- **Components with portals still need `{...props}`** on their root for `data-testid` /
+  custom attributes to reach the DOM (Select root was missing it).
 
 ## Production-hardening patterns (verified in browser)
 
@@ -173,9 +200,12 @@ component should meet:
 
 ## Performance notes
 
-- 19 tests across 10 workers finish in ~5–7s plus app build time (~30–60s for the
+- 21 tests across 10 workers finish in ~5–7s plus app build time (~30–60s for the
   Chemical compile step). The browser tests themselves are fast; the Chemical build is
   the slow part.
+- After changing `lang/libs/page/src/page.ch` (the runtime JS lives in a C++ string),
+  pass `BUILD_NO_CACHE=1` — the cache can otherwise produce stale/broken builds
+  (`struct/union/enum already defined`).
 - `--cache` (default in `build-app.mjs`) skips unchanged modules. Only pass
   `BUILD_NO_CACHE=1` when the compiler/libraries changed in ways the cache misses.
 - Keep the demo app single-page: one page load per test group, fixtures stacked in a

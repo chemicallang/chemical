@@ -330,10 +330,15 @@ public #universal Dialog(props) {
             }
         }
     }, [isOpen])
-    return <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
-        <DialogBackdrop onClick={close}></DialogBackdrop>
-        <DialogContent ref={contentRef} role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
-    </div>
+    // The overlay renders into document.body via createPortal so position: fixed
+    // is viewport-relative even inside transform/overflow ancestors (shadcn does
+    // the same). SSR renders it inline; hydration moves it to body.
+    return createPortal(
+        <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
+            <DialogBackdrop onClick={close}></DialogBackdrop>
+            <DialogContent ref={contentRef} role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
+        </div>
+    )
 }
 
 public #universal DialogBackdrop(props) {

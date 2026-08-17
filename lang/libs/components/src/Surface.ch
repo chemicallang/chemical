@@ -1,9 +1,9 @@
 func paper_styles(page : &mut HtmlPage) : *char {
     return #css {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%), var(--chx-surface);
-        border: 1px solid var(--chx-border);
-        border-radius: var(--chx-radius);
-        box-shadow: var(--chx-shadow);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%), hsl(var(--background));
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
         padding: 1.25rem;
     }
 }
@@ -16,9 +16,9 @@ func appbar_styles(page : &mut HtmlPage) : *char {
         gap: 1rem;
         padding: 0.9rem 1.15rem;
         border-radius: 18px;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         background: rgba(15, 23, 42, 0.04);
-        box-shadow: var(--chx-shadow-sm);
+        box-shadow: var(--shadow-sm);
     }
 }
 
@@ -29,10 +29,10 @@ func drawer_styles(page : &mut HtmlPage) : *char {
         display: grid;
         gap: 0.85rem;
         padding: 1.1rem;
-        border: 1px solid var(--chx-border);
-        border-radius: var(--chx-radius);
-        background: var(--chx-surface);
-        box-shadow: var(--chx-shadow);
+        border: 1px solid hsl(var(--border));
+        border-radius: var(--radius);
+        background: hsl(var(--background));
+        box-shadow: var(--shadow);
     }
 }
 
@@ -42,10 +42,10 @@ func menu_styles(page : &mut HtmlPage) : *char {
         display: grid;
         gap: 0.35rem;
         padding: 0.55rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 14px;
-        background: var(--chx-surface);
-        box-shadow: var(--chx-shadow);
+        background: hsl(var(--background));
+        box-shadow: var(--shadow);
     }
 }
 
@@ -57,11 +57,11 @@ func menu_item_styles(page : &mut HtmlPage) : *char {
         gap: 0.75rem;
         padding: 0.7rem 0.85rem;
         border-radius: 10px;
-        color: var(--chx-text-main);
+        color: hsl(var(--foreground));
         text-decoration: none;
         transition: background 0.18s ease, color 0.18s ease;
         &:hover {
-            background: var(--chx-surface-2);
+            background: hsl(var(--muted));
         }
     }
 }
@@ -73,10 +73,10 @@ func popover_styles(page : &mut HtmlPage) : *char {
         display: grid;
         gap: 0.55rem;
         padding: 0.9rem 1rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 14px;
-        background: var(--chx-surface);
-        box-shadow: var(--chx-shadow);
+        background: hsl(var(--background));
+        box-shadow: var(--shadow);
     }
 }
 
@@ -107,12 +107,12 @@ func dialog_content_styles(page : &mut HtmlPage) : *char {
         max-width: 100%;
         position: relative;
         z-index: 1;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 20px;
         padding: 1.15rem;
-        background: var(--chx-surface);
-        box-shadow: var(--chx-shadow-lg);
-        color: var(--chx-text-main);
+        background: hsl(var(--background));
+        box-shadow: var(--shadow-lg);
+        color: hsl(var(--foreground));
     }
 }
 
@@ -143,10 +143,10 @@ func snackbar_styles(page : &mut HtmlPage) : *char {
         gap: 0.8rem;
         padding: 0.85rem 1rem;
         border-radius: 999px;
-        border: 1px solid var(--chx-border-strong);
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
-        box-shadow: var(--chx-shadow);
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        box-shadow: var(--shadow);
     }
 }
 
@@ -156,11 +156,11 @@ func tooltip_styles(page : &mut HtmlPage) : *char {
         align-items: center;
         padding: 0.45rem 0.65rem;
         border-radius: 10px;
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface-2);
-        color: var(--chx-text-main);
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
         font-size: 0.82rem;
-        box-shadow: var(--chx-shadow-sm);
+        box-shadow: var(--shadow-sm);
         transition: opacity 0.15s ease;
     }
 }
@@ -174,10 +174,10 @@ func bottom_bar_styles(page : &mut HtmlPage) : *char {
         justify-content: space-between;
         gap: 0.75rem;
         padding: 0.85rem 1rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.85);
-        box-shadow: var(--chx-shadow-lg);
+        box-shadow: var(--shadow-lg);
         backdrop-filter: blur(18px);
     }
 }
@@ -188,9 +188,9 @@ func empty_state_styles(page : &mut HtmlPage) : *char {
         gap: 0.75rem;
         justify-items: start;
         padding: 1.3rem;
-        border: 1px dashed var(--chx-border-strong);
-        border-radius: var(--chx-radius);
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.04), transparent 60%), var(--chx-surface);
+        border: 1px dashed hsl(var(--border));
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.04), transparent 60%), hsl(var(--background));
     }
 }
 
@@ -199,10 +199,10 @@ func stat_card_styles(page : &mut HtmlPage) : *char {
         display: grid;
         gap: 0.5rem;
         padding: 1.15rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 18px;
-        background: var(--chx-surface);
-        box-shadow: var(--chx-shadow-sm);
+        background: hsl(var(--background));
+        box-shadow: var(--shadow-sm);
     }
 }
 
@@ -214,9 +214,9 @@ func icon_styles(page : &mut HtmlPage) : *char {
         width: 2rem;
         height: 2rem;
         border-radius: 999px;
-        background: var(--chx-surface-2);
-        border: 1px solid var(--chx-border);
-        color: var(--chx-text-main);
+        background: hsl(var(--muted));
+        border: 1px solid hsl(var(--border));
+        color: hsl(var(--foreground));
         font-weight: 700;
         line-height: 1;
         font-family: ui-monospace, "SFMono-Regular", monospace;

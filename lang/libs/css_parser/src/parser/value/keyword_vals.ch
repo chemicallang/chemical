@@ -481,6 +481,8 @@ func getCursorKeywordKind(hash : size_t) : CSSKeywordKind {
         comptime_fnv1_hash("wait") => { return CSSKeywordKind.Wait }
         comptime_fnv1_hash("help") => { return CSSKeywordKind.Help }
         comptime_fnv1_hash("not-allowed") => { return CSSKeywordKind.NotAllowed }
+        comptime_fnv1_hash("grab") => { return CSSKeywordKind.Grab }
+        comptime_fnv1_hash("grabbing") => { return CSSKeywordKind.Grabbing }
         default => { return CSSKeywordKind.Unknown }
     }
 }

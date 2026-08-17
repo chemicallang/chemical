@@ -642,6 +642,11 @@ func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
 
 func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
     switch(ptr.kind) {
+        CSSKeywordKind.Var => {
+            str.append_view(std::string_view("var("))
+            str.append_view(&ptr.data.keyword.value)
+            str.append(')')
+        }
         CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
         CSSKeywordKind.EaseInOut, CSSKeywordKind.StepStart, CSSKeywordKind.StepEnd => {
             str.append_view(&ptr.data.keyword.value)
@@ -1696,6 +1701,17 @@ func (converter : &mut ASTConverter) writeMediaNestedRule(rule : *mut CSSNestedR
                     current_selectors.push(resolved);
                     p++;
                 }
+            } else if(!parent_selectors.empty()) {
+                // No &: CSS nesting semantics — implicit descendant of parent(s)
+                var p : uint = 0;
+                while(p < parent_selectors.size()) {
+                    var resolved = std::string();
+                    resolved.append_view(parent_selectors.get_ptr(p).view());
+                    resolved.append(' ');
+                    serialize_complex(sel, &mut resolved, std::string_view("&"));
+                    current_selectors.push(resolved);
+                    p++;
+                }
             } else {
                 var resolved = std::string();
                 serialize_complex(sel, &mut resolved, std::string_view("&"));
@@ -1898,10 +1914,23 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
                      current_selectors.push(res);
                      p++;
                  }
+             } else if(!parent_selectors.empty()) {
+                 // No &: CSS nesting semantics — implicit descendant of the
+                 // parent selector(s), e.g. `.foo { .bar {} }` == `.foo .bar {}`
+                 var p : uint = 0;
+                 while(p < parent_selectors.size()) {
+                     var pdf = parent_selectors.get_ptr(p);
+                     var res = std::string();
+                     res.append_view(pdf.view());
+                     res.append(' ');
+                     serialize_complex(sel, &mut res, std::string_view("&"));
+                     current_selectors.push(res);
+                     p++;
+                 }
              } else {
-                 // No &: this is a global selector, use as-is
+                 // No &: no parent — top-level global selector, use as-is
                  var res = std::string();
-                 serialize_complex(sel, &mut res, std::string_view("&")); // replacement ignored
+                 serialize_complex(sel, &mut res, std::string_view("&"));
                  current_selectors.push(res);
              }
              i++;
@@ -2097,11 +2126,17 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
         }
 
         // Nested Rules
+        // Only scope nested selectors under the generated class when the class
+        // block was actually emitted (root had declarations/media/keyframes).
+        // Pure-global CSS blocks (`:root`, `body`, `*`) must stay global, so
+        // their nested rules are passed empty parents and emitted as-is.
         var parents = std::vector<std::string>();
-        var root_sel = std::string();
-        root_sel.append('.');
-        root_sel.append_view(&classView);
-        parents.push(root_sel);
+        if(size > 0 || !om.media_queries.empty() || !om.keyframes.empty()) {
+            var root_sel = std::string();
+            root_sel.append('.');
+            root_sel.append_view(&classView);
+            parents.push(root_sel);
+        }
 
         var n_idx : uint = 0;
         const n_size = om.nested_rules.size();

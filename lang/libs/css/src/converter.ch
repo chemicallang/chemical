@@ -483,6 +483,11 @@ func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
 
 func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
     switch(ptr.kind) {
+        CSSKeywordKind.Var => {
+            str.append_view(std::string_view("var("))
+            str.append_view(&ptr.data.keyword.value)
+            str.append(')')
+        }
         CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
         CSSKeywordKind.EaseInOut, CSSKeywordKind.StepStart, CSSKeywordKind.StepEnd => {
             str.append_view(&ptr.data.keyword.value)
@@ -1388,6 +1393,17 @@ func (converter : &mut CSSRuntimeConverter) writeMediaNestedRule(rule : *mut CSS
                 while(p < parent_selectors.size()) {
                     var resolved = std::string();
                     serialize_complex(sel, &mut resolved, parent_selectors.get_ptr(p).view());
+                    current_selectors.push(resolved);
+                    p++;
+                }
+            } else if(!parent_selectors.empty()) {
+                // No &: CSS nesting semantics — implicit descendant of parent(s)
+                var p : uint = 0;
+                while(p < parent_selectors.size()) {
+                    var resolved = std::string();
+                    resolved.append_view(parent_selectors.get_ptr(p).view());
+                    resolved.append(' ');
+                    serialize_complex(sel, &mut resolved, std::string_view("&"));
                     current_selectors.push(resolved);
                     p++;
                 }

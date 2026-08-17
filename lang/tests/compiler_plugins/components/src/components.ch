@@ -24,6 +24,24 @@ public func contains_string_assert(env : &mut TestEnv, str : std::string_view, n
     contains_assert(env, str, needle)
 }
 
+// Assert `str` does NOT contain `needle`
+public func not_contains_string_assert(env : &mut TestEnv, str : std::string_view, needle : std::string_view) {
+    var needle_ref = needle
+    var str_ref = str
+    if(!str_ref.contains(&needle_ref)) {
+        return;
+    }
+    env.error("unexpected substring found");
+    var exp = std::string("needle :\"");
+    exp.append_view(&needle_ref)
+    exp.append('"');
+    env.info(exp.data())
+    var got = std::string("in     :\"");
+    got.append_view(&str_ref)
+    got.append('"');
+    env.info(got.data())
+}
+
 // ---------------------------------------------------------------------------
 // Button: variant + size props drive data-variant / data-size attributes in SSR
 // ---------------------------------------------------------------------------
@@ -365,13 +383,15 @@ public func components_textarea_renders(env : &mut TestEnv) {
 
 @test
 public func components_select_renders_children(env : &mut TestEnv) {
+    // Custom Select renders a trigger button + listbox (not a native <select>)
     var page = HtmlPage()
-    #html { <Select><option>One</option><option>Two</option></Select> }
+    #html { <Select options={["One", "Two"]} /> }
     var html = std::string()
     html.append_view(page.getHtml())
-    contains_string_assert(env, html.to_view(), std::string_view("<select"))
-    contains_string_assert(env, html.to_view(), std::string_view("<option>One</option>"))
-    contains_string_assert(env, html.to_view(), std::string_view("<option>Two</option>"))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"listbox\""))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"option\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">One</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Two</button>"))
 }
 
 @test
@@ -496,8 +516,14 @@ public func components_theme_inject(env : &mut TestEnv) {
     css.append_view(page.getCss())
     contains_string_assert(env, css.to_view(), std::string_view("--background"))
     contains_string_assert(env, css.to_view(), std::string_view("--primary"))
-    contains_string_assert(env, css.to_view(), std::string_view("--chx-surface"))
+    // Previously-missing tokens now present (radius-lg, font-mono)
+    contains_string_assert(env, css.to_view(), std::string_view("--radius-lg"))
+    contains_string_assert(env, css.to_view(), std::string_view("--font-mono"))
+    // No legacy --chx-* design tokens remain
     contains_string_assert(env, css.to_view(), std::string_view("chx-spinner-rotate"))
+    // Legacy tokens are gone
+    not_contains_string_assert(env, css.to_view(), std::string_view("--chx-surface"))
+    not_contains_string_assert(env, css.to_view(), std::string_view("--chx-text-main"))
 }
 
 // ---------------------------------------------------------------------------
@@ -551,7 +577,7 @@ public func components_stateful_tabs_ssr(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view(">One</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">Two</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">Three</button>"))
-    contains_string_assert(env, html.to_view(), std::string_view("background:var(--chx-primary)"))
+    contains_string_assert(env, html.to_view(), std::string_view("background:hsl(var(--primary))"))
     // Only the active panel is visible
     contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
     // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
@@ -614,7 +640,7 @@ public func components_stateful_pagination_ssr(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Previous page\""))
     contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Next page\""))
     // Page 3 is the active page
-    contains_string_assert(env, html.to_view(), std::string_view("background:var(--chx-primary)"))
+    contains_string_assert(env, html.to_view(), std::string_view("background:hsl(var(--primary))"))
     // JS keeps the current-page guard logic
     var js = std::string()
     js.append_view(page.getJs())
@@ -794,35 +820,30 @@ public func components_card_action_composition(env : &mut TestEnv) {
 public func components_select_placeholder(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
-        <Select placeholder="Pick an option">
-            <option value="a">A</option>
-            <option value="b">B</option>
-        </Select>
+        <Select placeholder="Pick an option" options={["A", "B"]} />
     }
     var html = std::string()
     html.append_view(page.getHtml())
+    // placeholder text renders in the closed trigger
     contains_string_assert(env, html.to_view(), std::string_view("Pick an option"))
-    contains_string_assert(env, html.to_view(), std::string_view(">A</option>"))
-    contains_string_assert(env, html.to_view(), std::string_view(">B</option>"))
-    // placeholder option is disabled
-    contains_string_assert(env, html.to_view(), std::string_view("value=\"\" disabled"))
+    // items render inside the (hidden) listbox
+    contains_string_assert(env, html.to_view(), std::string_view(">A</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">B</button>"))
+    // listbox hidden until opened
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"listbox\""))
 }
 
 @test
 public func components_select_no_placeholder(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
-        <Select>
-            <option value="a">A</option>
-        </Select>
+        <Select options={["A"]} />
     }
     var html = std::string()
     html.append_view(page.getHtml())
-    // no placeholder option rendered
-    if(html.to_view().contains(std::string_view("disabled"))) {
-        env.error("select without placeholder rendered a disabled option")
-    }
-    contains_string_assert(env, html.to_view(), std::string_view(">A</option>"))
+    // default placeholder text renders
+    contains_string_assert(env, html.to_view(), std::string_view("Select..."))
+    contains_string_assert(env, html.to_view(), std::string_view(">A</button>"))
 }
 
 @test
@@ -852,4 +873,220 @@ public func components_progress_variants_sizes(env : &mut TestEnv) {
     css.append_view(page.getCss())
     contains_string_assert(env, css.to_view(), std::string_view("[data-variant=\"error\"]::-webkit-progress-value"))
     contains_string_assert(env, css.to_view(), std::string_view("[data-size=\"lg\"]"))
+}
+
+// ---------------------------------------------------------------------------
+// New shadcn components: Slider, Separator, Collapsible, Sheet, Toast,
+// RadioGroup, ToggleGroup, custom Select
+// ---------------------------------------------------------------------------
+
+@test
+public func components_slider_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Slider defaultValue={40} min={0} max={100} ariaLabel="Volume" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // role=slider with correct aria value at 40%
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"slider\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-valuenow=\"40\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-valuemin=\"0\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-valuemax=\"100\""))
+    // thumb positioned via calc((current - min) / (max - min) * 100%)
+    contains_string_assert(env, html.to_view(), std::string_view("calc((40 - 0) / (100 - 0) * 100%)"))
+    var css = std::string()
+    css.append_view(page.getCss())
+    contains_string_assert(env, css.to_view(), std::string_view("chx-slider-track"))
+}
+
+@test
+public func components_slider_min_max_step(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Slider defaultValue={10} min={5} max={15} step={5} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("aria-valuenow=\"10\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-valuemin=\"5\""))
+    // 10 of [5,15] => 50%
+    contains_string_assert(env, html.to_view(), std::string_view("calc((10 - 5) / (15 - 5) * 100%)"))
+}
+
+@test
+public func components_slider_disabled(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Slider defaultValue={20} disabled={true} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-disabled=\"true\""))
+}
+
+@test
+public func components_separator_orientation(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <Separator />
+            <Separator orientation="vertical" />
+        </div>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"separator\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-orientation=\"horizontal\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-orientation=\"vertical\""))
+}
+
+@test
+public func components_collapsible_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Collapsible trigger="Show details" defaultOpen={true}>Detail content</Collapsible> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Show details"))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-expanded=\"true\""))
+    // content visible when open
+    contains_string_assert(env, html.to_view(), std::string_view("Detail content"))
+}
+
+@test
+public func components_collapsible_closed(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Collapsible trigger="Show details">Hidden</Collapsible> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("aria-expanded=\"false\""))
+    // content hidden
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;"))
+    contains_string_assert(env, html.to_view(), std::string_view("Hidden"))
+}
+
+@test
+public func components_sheet_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Sheet defaultOpen={true} title="Filters" side="left"><p>Body</p></Sheet> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-side=\"left\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Filters"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Body</p>"))
+}
+
+@test
+public func components_sheet_closed(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Sheet title="Filters" side="right">Body</Sheet> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // hidden overlay when closed
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\">"))
+}
+
+@test
+public func components_toast_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ToastViewport><Toast title="Saved" description="All good" variant="success" /></ToastViewport> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"status\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Saved"))
+    contains_string_assert(env, html.to_view(), std::string_view("All good"))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"success\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Close\""))
+}
+
+@test
+public func components_toast_hidden(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Toast title="x" defaultVisible={false} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;"))
+}
+
+@test
+public func components_radio_group_options(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <RadioGroup options={["a", "b", "c"]} defaultValue="b" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"radiogroup\""))
+    contains_string_assert(env, html.to_view(), std::string_view("type=\"radio\""))
+    // b is checked
+    contains_string_assert(env, html.to_view(), std::string_view("checked=\"true\""))
+}
+
+@test
+public func components_radio_group_children(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <RadioGroup>
+            <RadioGroupItem value="x" checked={true}>Option X</RadioGroupItem>
+            <RadioGroupItem value="y">Option Y</RadioGroupItem>
+        </RadioGroup>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("Option X"))
+    contains_string_assert(env, html.to_view(), std::string_view("Option Y"))
+    contains_string_assert(env, html.to_view(), std::string_view("value=\"x\""))
+}
+
+@test
+public func components_toggle_group_single(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ToggleGroup type="single" options={["bold", "italic"]} defaultValue="bold" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("aria-pressed=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-pressed=\"false\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">bold</button>"))
+}
+
+@test
+public func components_toggle_group_multiple_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ToggleGroup type="multiple" options={["a", "b"]} defaultValue={["a"]} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Both options render; SSR pressed state for array selection is refined
+    // at hydration (the initial HTML renders both unpressed).
+    contains_string_assert(env, html.to_view(), std::string_view(">a</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">b</button>"))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // multiple-mode toggle logic present (indexOf membership + filter removal)
+    contains_string_assert(env, js.to_view(), std::string_view("indexOf"))
+    contains_string_assert(env, js.to_view(), std::string_view("filter"))
+}
+
+@test
+public func components_select_options_mode(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Select options={["Red", "Green"]} defaultValue="Red" placeholder="Color" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // trigger shows current value, not placeholder
+    contains_string_assert(env, html.to_view(), std::string_view("chx-select-value\">Red</span>"))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-haspopup=\"listbox\""))
+    // items render in the hidden listbox
+    contains_string_assert(env, html.to_view(), std::string_view("data-select-value=\"Green\""))
+}
+
+@test
+public func components_select_children_mode(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Select placeholder="Pick">
+            <SelectItem value="a">Label A</SelectItem>
+            <SelectItem value="b">Label B</SelectItem>
+        </Select>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-select-value=\"a\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Label A"))
+    contains_string_assert(env, html.to_view(), std::string_view("Label B"))
+    // listbox closed on first render
+    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"listbox\""))
 }

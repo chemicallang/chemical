@@ -1287,20 +1287,22 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
         }
 
             // Reference to a `state`/computed variable: SSR renders the initial
-            // state value as text (matching the client's first render). The value
-            // is static text, so append it directly to the HTML buffer.
+            // state value as text (matching the client's first render). Only
+            // literal init texts are appended directly; anything else falls
+            // through to the SSR-local path so `props.x || default` style inits
+            // don't leak raw JS into the HTML.
             if(converter.is_reactive_var(id.value)) {
                 const initText = converter.find_state_init_text(id.value);
-                if(!initText.empty()) {
-                    converter.str.append_view(&initText);
-                    converter.put_chain_in();
+                const eval = ssr_js_eval_from_text(initText);
+                if(eval.valid) {
+                    converter.append_ssr_eval(eval);
+                    return;
                 }
-                return;
             }
 
-
             // Reference to a local variable declared in the component body:
-            // render it as a child value at SSR runtime.
+            // render it as a child value at SSR runtime. Also the fallback for
+            // computed vars whose init text is not a static literal.
             const local = converter.find_ssr_local(id.value);
             if(local == null) return;
 
@@ -2342,8 +2344,7 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                 // the result can be safely passed to `&SsrAttributeValue` params
                 // (renderHtmlChildValue) without leaving the call type unresolved.
                 return converter.make_ssr_make_call(support.ssrMakeMultipleValueFn, "ssrMakeMultipleValue", multiStruct);
-            }
-            if(bin.op.equals(view("&&")) || bin.op.equals(view("||"))) {
+            }            if(bin.op.equals(view("&&")) || bin.op.equals(view("||"))) {
                 const left = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);
                 if(left == null) return null;
                 const right = converter.convert_ssr_attr_value_expr(bin.right, attrValConv);
@@ -2366,6 +2367,36 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
                     pickCall.get_args().push(noneCall);
                 }
                 return pickCall as *mut Value;
+
+            }
+            // Equality / inequality: return a Boolean SsrAttributeValue so
+            // component-body vars like `var single = props.type == "multiple"`
+            // register as SSR locals and ternaries over them evaluate at SSR
+            // runtime (mirrors convert_ssr_attr_bool_expr).
+            const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="));
+            const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="));
+            if(isEq || isNe) {
+                const leftVal = converter.convert_ssr_attr_value_expr(bin.left, attrValConv);
+                if(leftVal == null) return null;
+                var cmpCall : *mut FunctionCall = null;
+                if(bin.right != null && bin.right.kind == JsNodeKind.Literal) {
+                    const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
+                    cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
+                    cmpCall.get_args().push(leftVal);
+                    cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
+                } else {
+                    const rightVal = converter.convert_ssr_attr_value_expr(bin.right, attrValConv);
+                    if(rightVal == null) return null;
+                    cmpCall = builder.make_function_call_value(builder.make_identifier("ssrValuesEqual", support.ssrValuesEqualFn, false, location), location);
+                    cmpCall.get_args().push(leftVal);
+                    cmpCall.get_args().push(rightVal);
+                }
+                const boolVal = attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), cmpCall as *mut Value);
+                if(isNe) {
+                    const notVal = builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
+                    return attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Boolean"), notVal);
+                }
+                return boolVal;
             }
             return null;
         }

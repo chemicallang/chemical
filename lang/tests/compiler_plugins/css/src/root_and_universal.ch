@@ -121,9 +121,12 @@ public func combined_with_root_decl_and_selector_works(env : &mut TestEnv) {
     var got = page.toStringCssOnly();
     var expected = std::string();
     var classView = std::string_view(got.data(), 8)
+    // Nested rules without `&` are implicitly descendants of the root class
+    // (CSS nesting semantics): `.class .card {}`
     expected.append_view(&classView)
     expected.append_view("{display:flex;}");
-    expected.append_view(".card { gap:8px; }");
+    expected.append_view(&classView)
+    expected.append_view(" .card { gap:8px; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 

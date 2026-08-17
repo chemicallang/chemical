@@ -90,6 +90,8 @@ public enum CSSKeywordKind {
     Wait,
     Help,
     NotAllowed,
+    Grab,
+    Grabbing,
 
     // Direction
     Ltr,

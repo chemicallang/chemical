@@ -4,11 +4,11 @@ func card_styles(page : &mut HtmlPage) : *char {
         display: flex;
         flex-direction: column;
         gap: 0.375rem;
-        border-radius: var(--chx-radius-lg);
+        border-radius: var(--radius-lg);
         border: 1px solid hsl(var(--border));
         background: hsl(var(--card));
         color: hsl(var(--card-foreground));
-        box-shadow: var(--chx-shadow-sm);
+        box-shadow: var(--shadow-sm);
         transition: box-shadow 0.15s ease, border-color 0.15s ease;
         &:hover {
             border-color: hsl(var(--border));
@@ -16,7 +16,7 @@ func card_styles(page : &mut HtmlPage) : *char {
         &[data-interactive="true"] {
             cursor: pointer;
             &:hover {
-                box-shadow: var(--chx-shadow-md);
+                box-shadow: var(--shadow-md);
             }
         }
     }

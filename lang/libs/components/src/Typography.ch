@@ -94,7 +94,7 @@ func caption_styles(page : &mut HtmlPage) : *char {
 
 func code_styles(page : &mut HtmlPage) : *char {
     return #css {
-        font-family: var(--chx-font-mono);
+        font-family: var(--font-mono);
         font-size: 0.875em;
         background: hsl(var(--muted));
         color: hsl(var(--foreground));

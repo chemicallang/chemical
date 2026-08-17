@@ -64,7 +64,7 @@ func make_hello_string() : string {
 }
 
 func make_hello_temp(flag : *mut int) : TempString {
-    var t : TempString
+    var t = TempString()
     t.data.append_view(string_view("Hello World! TempString view test."))
     t.dtor_flag = flag
     return t

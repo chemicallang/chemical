@@ -699,14 +699,157 @@ jobs:
           Write-Host "== Running compiled test suite executable =="
           $testExe = ".\chemical-tests.exe"
           if (-not (Test-Path $testExe)) { $testExe = ".\chemical-tests" }
+          $testRc = 0
           if (Test-Path $testExe) {
               & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              $testRc = $LASTEXITCODE
+              if ($testRc -eq 0) {
+                  Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt -Force
+                  exit 0
+              }
           } else {
               Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
-              exit 1
+              $testRc = 1
           }
-          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt
+
+          # ---- Windows ARM64 TCC runtime diagnostic (only on failure) ----
+          Write-Host "==== BEGIN WINDOWS ARM64 TCC DIAGNOSTIC (exit code $testRc) ====" | Tee-Object compile_output.txt -Append
+          $diagLines = [System.Collections.Generic.List[string]]::new()
+          try {
+              $script:machStr = { param($m) switch ($m) { 0x8664 {"x64"} 0x014c {"x86"} 0xAA64 {"ARM64"} default {("0x{0:X4}" -f $m)} } }
+
+              # 1) CRT DLL presence in System32, with the PE machine type so we can tell a
+              #    native ARM64 DLL from an emulated x86/x64 one.
+              if (Test-Path $testExe) {
+                  $diagLines.Add("== PE info of `"$testExe`" ==")
+                  $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $testExe))
+                  $peOff = [BitConverter]::ToInt32($bytes, 0x3c)
+                  $machine = [BitConverter]::ToUInt16($bytes, $peOff + 4)
+                  $optMagic = [BitConverter]::ToUInt16($bytes, $peOff + 24)
+                  $subsys = [BitConverter]::ToUInt16($bytes, $peOff + 24 + 68)
+                  $diagLines.Add("  machine=" + (& $script:machStr $machine) + (" optmagic=0x{0:X} subsystem={1}" -f $optMagic, $subsys))
+                  $dataDirCount = [BitConverter]::ToUInt32($bytes, $peOff + 24 + 108)
+                  $importDescRva = [BitConverter]::ToUInt32($bytes, $peOff + 24 + 112 + 8)
+                  $diagLines.Add("  import-table-rva=0x{0:X} datadirs={1}" -f $importDescRva, $dataDirCount)
+                  # Walk sections to build an rva -> file-offset map.
+                  $nsec = [BitConverter]::ToUInt16($bytes, $peOff + 6)
+                  $optSize = [BitConverter]::ToUInt16($bytes, $peOff + 20)
+                  $secStart = $peOff + 24 + $optSize
+                  $secs = @()
+                  for ($i = 0; $i -lt $nsec; $i++) {
+                      $o = $secStart + $i * 40
+                      $secName = [System.Text.Encoding]::ASCII.GetString($bytes, $o, 8).TrimEnd([char]0)
+                      $vsz = [BitConverter]::ToUInt32($bytes, $o + 8)
+                      $va  = [BitConverter]::ToUInt32($bytes, $o + 12)
+                      $ro  = [BitConverter]::ToUInt32($bytes, $o + 20)
+                      $secs += [pscustomobject]@{ Name=$secName; VA=$va; Vsz=$vsz; RO=$ro }
+                      $diagLines.Add("  sec $secName rva=0x{0:X} vsz=0x{1:X}" -f $va, $vsz)
+                  }
+                  $r2o = {
+                      param($rva, $secTable)
+                      foreach ($s in $secTable) { if ($rva -ge $s.VA -and $rva -lt ($s.VA + $s.Vsz)) { return ($s.RO + ($rva - $s.VA)) } }
+                      return -1
+                  }
+                  if ($importDescRva -ne 0) {
+                      $io = & $r2o $importDescRva $secs
+                      if ($io -ge 0) {
+                          $diagLines.Add("== imported DLLs ==")
+                          $k = 0
+                          while ($k -lt 16) {
+                              $ent = $io + $k * 20
+                              $ilt = [BitConverter]::ToUInt32($bytes, $ent)
+                              $ts  = [BitConverter]::ToUInt32($bytes, $ent + 4)
+                              $on  = [BitConverter]::ToUInt32($bytes, $ent + 12)
+                              if ($ilt -eq 0 -and $on -eq 0 -and $ts -eq 0) { break }
+                              $no = & $r2o $on $secs
+                              if ($no -lt 0) { break }
+                              $nm = ""
+                              $jj = $no
+                              while ($bytes[$jj] -ne 0) { $nm += [char]$bytes[$jj]; $jj++ }
+                              $diagLines.Add("  DLL: $nm")
+                              $k++
+                          }
+                      }
+                  }
+              }
+
+              # 2) System32 CRT DLLs and whether they are native ARM64.
+              $diagLines.Add("== System32 CRT DLLs ==")
+              foreach ($name in @("msvcrt.dll","ucrtbase.dll","vcruntime140.dll","vcruntime140_1.dll","kernel32.dll")) {
+                  $p = Join-Path $env:WINDIR "System32\$name"
+                  if (Test-Path $p) {
+                      try {
+                          $b = [System.IO.File]::ReadAllBytes($p)
+                          $pO = [BitConverter]::ToInt32($b, 0x3c)
+                          $m = [BitConverter]::ToUInt16($b, $pO + 4)
+                          $diagLines.Add("  $name : present, machine=" + (& $script:machStr $m))
+                      } catch {
+                          $diagLines.Add("  $name : present, machine=<unreadable>")
+                      }
+                  } else {
+                      $diagLines.Add("  $name : MISSING")
+                  }
+              }
+
+              # 3) Loader / runtime failure detail from the Windows Application event log.
+              $diagLines.Add("== Event Log (Application, last 8 errors) ==")
+              try {
+                  $evts = Get-WinEvent -FilterHashtable @{ LogName='Application'; Level=2 } -MaxEvents 8 -ErrorAction SilentlyContinue
+                  foreach ($e in $evts) {
+                      $diagLines.Add("  [" + $e.TimeCreated + "] " + $e.ProviderName)
+                      $diagLines.Add("      " + ($e.Message -replace "`r?`n"," | "))
+                  }
+              } catch { $diagLines.Add("  (no application event log entries readable)") }
+
+              # 4) Compile + run a tiny Chemical program with the same packaged TCCCompiler
+              #    (chemical.exe) to see if ANY TCC ARM64 PE runs on this host. This isolates
+              #    a general TCC-ARM64-PE problem from a bug specific to the large exe.
+              $diagLines.Add("== minimal TCC (chemical.exe) hello test ==")
+              $chemExe = Join-Path $releaseRoot "chemical.exe"
+              if (Test-Path $chemExe) {
+                  $hiSrc = Join-Path $env:TEMP "tiny_hello.ch"
+                  $nl = [Environment]::NewLine
+                  $tinyBody = "@extern public func printf(format : *char, _ : any...) : int" + $nl + "public func main(argc : int, argv : **char) : int {" + $nl + "    printf(""TINY-HELLO-OK\n"")" + $nl + "    return 0" + $nl + "}"
+                  Set-Content -Path $hiSrc -Value $tinyBody -NoNewline
+                  $hiExe = Join-Path $env:TEMP "tiny_hello.exe"
+                  if (Test-Path $hiExe) { Remove-Item $hiExe -Force }
+                  $diagLines.Add("  chemical.exe: $chemExe")
+                  $diagLines.Add("  cmd in ${releaseRoot}: .\chemical.exe `"$hiSrc`" -o `"$hiExe`"")
+                  try {
+                      Push-Location $releaseRoot
+                      $out = & .\chemical.exe $hiSrc -o $hiExe 2>&1
+                      $compileRc = $LASTEXITCODE
+                      Pop-Location
+                      $diagLines.Add("  tiny compile exit code: $compileRc")
+                      if ($out) { $diagLines.Add("  tiny compile output: $($out -join ' | ')") }
+                      if (Test-Path $hiExe) {
+                          $hiBytes = [System.IO.File]::ReadAllBytes($hiExe)
+                          $hiPe = [BitConverter]::ToInt32($hiBytes, 0x3c)
+                          $hiMachine = & $script:machStr ([BitConverter]::ToUInt16($hiBytes, $hiPe + 4))
+                          $diagLines.Add("  tiny-hello.exe produced; machine=$hiMachine")
+                          $p = Start-Process -FilePath $hiExe -NoNewWindow -PassThru -Wait -ErrorAction Stop
+                          $diagLines.Add("  tiny-hello run exit code: $($p.ExitCode)")
+                      } else {
+                          $diagLines.Add("  tiny-hello.exe NOT produced")
+                      }
+                  } catch {
+                      $diagLines.Add("  tiny hello exception: $($_.Exception.Message)")
+                  }
+              } else {
+                  $diagLines.Add("  (chemical.exe not found at $chemExe)")
+              }
+          } catch {
+              $diagLines.Add("  diagnostic script error: $($_.Exception.Message)")
+          }
+          $diagLines.Add("==== END WINDOWS ARM64 TCC DIAGNOSTIC ====")
+          $diagLines | ForEach-Object { Write-Host $_ }
+          $diagLines | Tee-Object -FilePath compile_output.txt -Append
+          if (Test-Path $testExe) {
+              Copy-Item -Path $testExe -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-test.exe -Force -ErrorAction SilentlyContinue
+          }
+          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt -Force
+          exit $testRc
+
         shell: pwsh
 
       - name: Upload Windows Outputs

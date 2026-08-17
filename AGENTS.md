@@ -179,6 +179,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Diagnostics | `.agents/skills/diagnostics/SKILL.md` | Error reporting system: `ASTDiagnoser`, `Diag` structure, severity levels, `SourceLocation` encoding, per-phase collection, parallel-safe merging, `ASTDiag.h` helpers |
 | Performance | `.agents/skills/performance/SKILL.md` | Optimization patterns: arena allocation (`ASTAllocator`), SSO strings (`chem::string`), parallelization (file-level, generic instantiation), caching strategies, memory optimization, profiling tips |
 | Testing Guide | `.agents/skills/testing/SKILL.md` | Test infrastructure: manual `test()` calls vs `@test` annotation dispatch, `test_env` library, `lang/tests/build.lab` wiring, inline/compiled/interpret/library tests, writing tests for compiler failures |
+| Components E2E Testing | `.agents/skills/components_e2e/SKILL.md` | Browser E2E suite for the components/universal libraries (`lang/compiled/components-e2e`, GitHub: chemicallang/components-e2e): how to run, write, and debug Playwright tests against the real SSR→hydration→interaction pipeline |
 
 ### Backends
 
@@ -248,6 +249,7 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Working on interpreter/comptime tests** | `interpreter` |
 | **Writing and organizing tests** | **`testing`** |
 | **Working on the benchmark dashboard / analytics workflows** | **`benchmark_dashboard`** |
+| **Testing components in a real browser / debugging hydration or runtime bugs** | **`components_e2e`**, `universal`, `testing` |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
 | **Implementing TLS/HTTPS** | `chemical_source`, `testing`, `building` |

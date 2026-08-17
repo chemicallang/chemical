@@ -10,11 +10,13 @@ func toggle_styles(page : &mut HtmlPage) : *char {
         user-select: none;
         .chx-toggle-input {
             position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             opacity: 0;
-            width: 1px;
-            height: 1px;
             margin: 0;
-            pointer-events: none;
+            cursor: pointer;
+            z-index: 1;
             &:focus-visible + .chx-checkbox-box,
             &:focus-visible + .chx-radio-box,
             &:focus-visible + .chx-switch-track {
@@ -151,8 +153,8 @@ public #universal Checkbox(props) {
     var size = props.size || "md"
     var disabled = props.disabled || false
     var classes = (props.className || props.class) || ""
-    return <label class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
-        <input type="checkbox" checked={props.checked} disabled={disabled} onClick={props.onClick} onChange={props.onChange} id={props.id} name={props.name} aria-label={props.ariaLabel} class="chx-toggle-input" />
+    return <label {...props} class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
+        <input type="checkbox" checked={props.checked} disabled={disabled} onChange={props.onChange} id={props.id} name={props.name} aria-label={props.ariaLabel} class="chx-toggle-input" />
         <span class="chx-checkbox-box">
             <span class="chx-checkbox-mark"></span>
         </span>
@@ -164,8 +166,8 @@ public #universal Radio(props) {
     var size = props.size || "md"
     var disabled = props.disabled || false
     var classes = (props.className || props.class) || ""
-    return <label class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
-        <input type="radio" checked={props.checked} disabled={disabled} name={props.name} onClick={props.onClick} onChange={props.onChange} id={props.id} aria-label={props.ariaLabel} class="chx-toggle-input" />
+    return <label {...props} class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
+        <input type="radio" checked={props.checked} disabled={disabled} name={props.name} onChange={props.onChange} id={props.id} aria-label={props.ariaLabel} class="chx-toggle-input" />
         <span class="chx-radio-box">
             <span class="chx-radio-dot"></span>
         </span>
@@ -177,8 +179,8 @@ public #universal Switch(props) {
     var size = props.size || "md"
     var disabled = props.disabled || false
     var classes = (props.className || props.class) || ""
-    return <label class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
-        <input type="checkbox" checked={props.checked} disabled={disabled} onClick={props.onClick} onChange={props.onChange} id={props.id} name={props.name} aria-label={props.ariaLabel} class="chx-toggle-input" />
+    return <label {...props} class={${toggle_styles(page)}} class={classes} data-size={size} data-disabled={disabled ? "true" : "false"}>
+        <input type="checkbox" checked={props.checked} disabled={disabled} onChange={props.onChange} id={props.id} name={props.name} aria-label={props.ariaLabel} class="chx-toggle-input" />
         <span class="chx-switch-track">
             <span class="chx-switch-thumb"></span>
         </span>

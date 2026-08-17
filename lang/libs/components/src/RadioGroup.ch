@@ -68,11 +68,13 @@ func radio_item_styles(page : &mut HtmlPage) : *char {
         }
         .chx-radio-input {
             position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             opacity: 0;
-            width: 1px;
-            height: 1px;
             margin: 0;
-            pointer-events: none;
+            cursor: pointer;
+            z-index: 1;
             &:focus-visible + .chx-radio-box {
                 box-shadow: 0 0 0 4px hsl(var(--ring) / 0.4);
             }
@@ -119,12 +121,14 @@ public #universal RadioGroup(props) {
 }
 
 public #universal RadioGroupItem(props) {
-    var checked = props.checked || false
     var disabled = props.disabled || false
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <label class={classes + " " + ${radio_item_styles(page)}} data-disabled={disabled ? "true" : "false"} onClick={props.onClick}>
-        <input type="radio" class="chx-radio-input" checked={checked} disabled={disabled} name={props.name} value={props.value} onChange={props.onChange} id={props.id} aria-label={props.ariaLabel} />
+    // `checked` is passed straight through to the input (not through a local)
+    // so the runtime keeps it reactive: when the parent group's selection
+    // changes, the signal recomputes and this radio updates.
+    return <label {...props} class={classes + " " + ${radio_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
+        <input type="radio" class="chx-radio-input" checked={props.checked} disabled={disabled} name={props.name} value={props.value} onChange={props.onChange} id={props.id} aria-label={props.ariaLabel} />
         <span class="chx-radio-box">
             <span class="chx-radio-dot"></span>
         </span>

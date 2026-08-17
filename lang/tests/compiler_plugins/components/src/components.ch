@@ -581,8 +581,8 @@ public func components_stateful_tabs_ssr(env : &mut TestEnv) {
     // Only the active panel is visible
     contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
     // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"tabpanel\">Panel 1</div>"))
-    contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"tabpanel\">Panel 3</div>"))
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\" role=\"tabpanel\" id=\"tabs-panel-0\""))
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\" role=\"tabpanel\" id=\"tabs-panel-2\""))
 }
 
 @test
@@ -1089,4 +1089,72 @@ public func components_select_children_mode(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("Label B"))
     // listbox closed on first render
     contains_string_assert(env, html.to_view(), std::string_view("display:none;\" role=\"listbox\""))
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests: props spread + reactive child props (found by E2E suite)
+// ---------------------------------------------------------------------------
+
+// Every component forwards {...props} to its root element, so data-testid /
+// custom attributes land on the real DOM node (shadcn behavior). The E2E
+// suite relies on this; the string assertions below pin it.
+@test
+public func components_props_spread_reaches_root(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <Checkbox data-testid="cb-test">Enable</Checkbox>
+            <Radio data-testid="radio-test">A</Radio>
+            <Switch data-testid="sw-test">S</Switch>
+            <Toast data-testid="toast-test" defaultVisible={false}>T</Toast>
+        </div>
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("data-testid=\"cb-test\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-testid=\"radio-test\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-testid=\"sw-test\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-testid=\"toast-test\""))
+}
+
+// Group item pressed/checked props must stay reactive: the compiled JS must
+// reference props.pressed / props.checked inside a $_ucs() wrapper (or as raw
+// props reads) so the runtime subscribes when the parent selection changes.
+// A frozen copy (var pressed = props.pressed || false) breaks updates after
+// clicks — this is what the E2E toggle-group / radio-group tests caught.
+@test
+public func components_toggle_group_item_reactive(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ToggleGroup type="single" options={["bold", "italic"]} defaultValue="bold" /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // item renders pressed from the props read directly (reactive)
+    contains_string_assert(env, js.to_view(), std::string_view("props.pressed"))
+    // no frozen unwrap of the pressed prop into a plain local
+    not_contains_string_assert(env, js.to_view(), std::string_view("var pressed = window.$__uni_value(props.pressed)"))
+}
+
+@test
+public func components_radio_group_item_reactive(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <RadioGroup options={["a", "b"]} defaultValue="a" /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // input checked comes from the props read directly (reactive)
+    contains_string_assert(env, js.to_view(), std::string_view("\"checked\": props.checked"))
+    not_contains_string_assert(env, js.to_view(), std::string_view("var checked = window.$__uni_value(props.checked)"))
+}
+
+// Tabs wire aria-controls / aria-labelledby so tabpanels have accessible
+// names derived from their tabs (shadcn semantics; verified in the browser).
+@test
+public func components_tabs_aria_wiring(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Tabs id="demo" tabs={["Alpha", "Beta"]} panels={["Panel A", "Panel B"]} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("aria-controls=\"demo-panel-0\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-labelledby=\"demo-tab-1\""))
+    contains_string_assert(env, html.to_view(), std::string_view("id=\"demo-tab-0\""))
+    contains_string_assert(env, html.to_view(), std::string_view("id=\"demo-panel-1\""))
 }

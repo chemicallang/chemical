@@ -907,6 +907,34 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         }
         const start = document.createComment("s");
         const end = document.createComment("e");
+        const stateVal = v.value;
+        // SSR'd vnode (universal child or plain element) rendered inline without
+        // markers: adopt the existing element in place instead of appending a
+        // duplicate copy. Wrap it in markers so later updates can swap it out.
+        if(dom && dom.nodeType === 1 && stateVal && typeof stateVal === "object" && stateVal.t !== undefined) {
+            if(parent) {
+                parent.insertBefore(start, dom);
+                parent.insertBefore(end, dom.nextSibling);
+            }
+            v.subscribe((next) => {
+                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+                start.after(window.$_urn(next));
+            });
+            if(stateVal.t === "__uni_uc") {
+                window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
+            } else if(stateVal.t === window.$_ur.Fragment) {
+                window.$__uni_hydrate_node(parent, dom, stateVal.c || []);
+            } else if(typeof stateVal.t === "function") {
+                const nextProps = stateVal.p ? { ...stateVal.p } : {};
+                if(stateVal.c && stateVal.c.length) nextProps.children = stateVal.c.length === 1 ? stateVal.c[0] : stateVal.c;
+                window.$__uni_hydrate_node(parent, dom, stateVal.t(nextProps));
+            } else {
+                const props = stateVal.p || {};
+                for(const k in props) window.$__uni_apply_prop(dom, k, props[k]);
+                if(stateVal.c && stateVal.c.length) window.$__uni_hydrate_children(dom, stateVal.c);
+            }
+            return end.nextSibling;
+        }
         if(parent) {
             if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
             else { parent.appendChild(start); parent.appendChild(end); }

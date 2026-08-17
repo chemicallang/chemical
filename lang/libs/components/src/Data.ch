@@ -366,15 +366,19 @@ public #universal Tabs(props) {
             active = i
             if(props.onChange) { props.onChange(i) }
         }
+        // ARIA wiring: each tab controls its panel (aria-controls), each panel
+        // is labelled by its tab (aria-labelledby), giving tabpanels an
+        // accessible name derived from the tab text.
+        var baseId = props.id ? props.id : "tabs"
         return <div {...props} class={${tabs_styles(page)}}>
             <div class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
             <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">
                 {props.panels.map((panel, i) => (
-                    <div role="tabpanel" style={active == i ? "" : "display:none;"}>{panel}</div>
+                    <div role="tabpanel" id={baseId + "-panel-" + i} aria-labelledby={baseId + "-tab-" + i} style={active == i ? "" : "display:none;"}>{panel}</div>
                 ))}
             </div>
         </div>

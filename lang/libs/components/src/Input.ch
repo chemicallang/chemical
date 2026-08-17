@@ -179,10 +179,10 @@ public #universal TextArea(props) {
     >{props.children}</textarea>
 }
 
-// Native select with the shared input look. `placeholder` renders a disabled
-// placeholder option (shown while no value is selected); `variant`/`size` mirror
-// the Input props; everything else passes through via the spread.
-public #universal Select(props) {
+// Native <select> (kept for plain forms; the styled dropdown lives in
+// Select.ch). `placeholder` renders a disabled placeholder option; `variant`/
+// `size` mirror the Input props; everything else passes through the spread.
+public #universal NativeSelect(props) {
     return <select
         {...props}
         value={props.value}

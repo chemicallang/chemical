@@ -43,6 +43,11 @@ func (cssParser : &mut CSSParser) parseAnimation(
                 } else {
                     anim.easing.data.keyword = CSSKeywordValueData { kind = easingKind, value = builder.allocate_view(&token.value) }
                 }
+            } else if(hash == comptime_fnv1_hash("var")) {
+                parser.increment()
+                var varName = cssParser.parseCSSVariableFunc(parser, builder)
+                anim.easing.data.keyword = CSSKeywordValueData { kind : CSSKeywordKind.Var, value : builder.allocate_view(&varName) }
+                anim.easing.kind = CSSKeywordKind.Var
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
                 anim.easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)

@@ -185,6 +185,11 @@ func (cssParser : &mut CSSParser) parseTransition(
                 } else {
                     transition.easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(&token.value) }
                 }
+            } else if(hash == comptime_fnv1_hash("var")) {
+                parser.increment()
+                var varName = cssParser.parseCSSVariableFunc(parser, builder)
+                transition.easing.data.keyword = CSSKeywordValueData { kind : CSSKeywordKind.Var, value : builder.allocate_view(&varName) }
+                transition.easing.kind = CSSKeywordKind.Var
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
                 transition.easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)
@@ -207,6 +212,11 @@ func (cssParser : &mut CSSParser) parseTransition(
                 }
             }
        } else if(token.type == TokenType.Number) {
+            // First length in a transition is the duration; a second one is the
+            // delay. The duration/delay split is PER transition entry, so the
+            // flag must be reset when a comma starts the next entry — otherwise
+            // `transform 200ms linear` after a comma would misparse `200ms` as
+            // the delay and emit `transform linear 200ms`.
             if(has_duration) {
                 if(transition.delay.kind == CSSLengthKind.Unknown) {
                     cssParser.parseLengthInto(parser, builder, &mut transition.delay)
@@ -224,6 +234,8 @@ func (cssParser : &mut CSSParser) parseTransition(
             new (nextTransition) CSSTransitionValueData()
             transition.next = nextTransition
             transition = nextTransition
+            // New transition entry: duration/delay split restarts
+            has_duration = false;
         } else if(token.type == TokenType.Semicolon) {
             break;
         } else if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
@@ -269,6 +281,11 @@ func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
             } else {
                 easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(&token.value) }
             }
+        } else if(hash == comptime_fnv1_hash("var")) {
+            parser.increment()
+            var varName = cssParser.parseCSSVariableFunc(parser, builder)
+            easing.data.keyword = CSSKeywordValueData { kind : CSSKeywordKind.Var, value : builder.allocate_view(&varName) }
+            easing.kind = CSSKeywordKind.Var
         } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
             parser.increment()
             easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)

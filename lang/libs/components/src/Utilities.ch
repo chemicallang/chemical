@@ -39,6 +39,9 @@ func skeleton_styles(page : &mut HtmlPage) : *char {
             background-size: 400px 100%;
             animation: chx-skeleton-shimmer 1.6s infinite linear;
         }
+        &.chx-skeleton-circle {
+            border-radius: 50%;
+        }
     }
 }
 
@@ -59,6 +62,10 @@ func container_styles(page : &mut HtmlPage) : *char {
         padding-inline: 1rem;
         max-width: 80rem;
         box-sizing: border-box;
+        &.chx-container-sm { max-width: 40rem; }
+        &.chx-container-md { max-width: 48rem; }
+        &.chx-container-lg { max-width: 64rem; }
+        &.chx-container-full { max-width: none; padding-inline: 0; }
     }
 }
 
@@ -66,6 +73,24 @@ func stack_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: flex;
         box-sizing: border-box;
+        &.chx-stack-column { flex-direction: column; }
+        &.chx-stack-row { flex-direction: row; }
+        &.chx-stack-row-reverse { flex-direction: row-reverse; }
+        &.chx-stack-column-reverse { flex-direction: column-reverse; }
+        &.chx-stack-gap-none { gap: 0; }
+        &.chx-stack-gap-xs { gap: 0.25rem; }
+        &.chx-stack-gap-sm { gap: 0.5rem; }
+        &.chx-stack-gap-md { gap: 1rem; }
+        &.chx-stack-gap-lg { gap: 1.5rem; }
+        &.chx-stack-gap-xl { gap: 2rem; }
+        &.chx-stack-align-start { align-items: flex-start; }
+        &.chx-stack-align-center { align-items: center; }
+        &.chx-stack-align-end { align-items: flex-end; }
+        &.chx-stack-align-stretch { align-items: stretch; }
+        &.chx-stack-justify-start { justify-content: flex-start; }
+        &.chx-stack-justify-center { justify-content: center; }
+        &.chx-stack-justify-end { justify-content: flex-end; }
+        &.chx-stack-justify-between { justify-content: space-between; }
     }
 }
 
@@ -74,6 +99,11 @@ func grid_styles(page : &mut HtmlPage) : *char {
         display: grid;
         gap: 1rem;
         box-sizing: border-box;
+        &.chx-grid-gap-none { gap: 0; }
+        &.chx-grid-gap-xs { gap: 0.25rem; }
+        &.chx-grid-gap-sm { gap: 0.5rem; }
+        &.chx-grid-gap-md { gap: 1rem; }
+        &.chx-grid-gap-lg { gap: 1.5rem; }
     }
 }
 

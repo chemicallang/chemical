@@ -326,7 +326,9 @@ public func transition_shorthand_multiple_works(env : &mut TestEnv) {
     #css {
         transition: opacity 0.3s ease-in-out 0s, transform 200ms linear;
     }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform linear 200ms;");
+    // The duration/delay split is per transition entry: `transform 200ms
+    // linear` keeps its duration before the easing.
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform 200ms linear;");
 }
 
 @test
@@ -335,7 +337,7 @@ public func transition_multiple_properties_works(env : &mut TestEnv) {
     #css {
         transition: opacity 250ms ease-in, transform 400ms cubic-bezier(0.2,0.8,0.2,1);
     }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform cubic-bezier(0.2,0.8,0.2,1) 400ms;");
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform 400ms cubic-bezier(0.2,0.8,0.2,1);");
 }
 
 @test
@@ -752,9 +754,12 @@ public func nested_queries_test6(env : &mut TestEnv) {
     var got = page.toStringCssOnly();
     var expected = std::string();
     var classView = std::string_view(got.data(), 8)
+    // Nested rules without `&` are implicit descendants of the root class
+    // (CSS nesting semantics): `.class div {}`
     expected.append_view(&classView)
     expected.append_view("{color:red;}");
-    expected.append_view("div { color:red; }");
+    expected.append_view(&classView)
+    expected.append_view(" div { color:red; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 

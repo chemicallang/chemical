@@ -2,11 +2,10 @@
 //
 // The design tokens follow shadcn/ui's zinc theme exactly: CSS custom
 // properties defined as HSL triplets (consumed via hsl(var(--...))) with a
-// `.dark` class for dark mode. Legacy `--chx-*` variables are kept as aliases
-// so existing page CSS keeps working unchanged.
+// `.dark` class for dark mode. No legacy --chx-* aliases are kept.
 //
 // Usage:
-//   page.injectDefaultComponentsTheme()   // :root + .dark + --chx-* aliases
+//   page.injectDefaultComponentsTheme()   // :root + .dark tokens
 //   <html class="dark">                   // opt into dark mode
 public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
     page.append_css_view("""
@@ -38,10 +37,19 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
             --input: 240 5.9% 90%;
             --ring: 240 5.9% 10%;
             --radius: 0.5rem;
+            --radius-sm: 0.375rem;
+            --radius-md: 0.625rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
             --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+            --font-mono: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 0.25s var(--ease);
+            --border-width: 1px;
         }
 
         .dark {
@@ -76,61 +84,10 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
             --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
         }
 
-        /* ============ Legacy --chx-* aliases ============ */
-        :root, .dark {
-            --chx-font: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-            --chx-ease: cubic-bezier(0.4, 0, 0.2, 1);
-            --chx-transition: 0.25s var(--chx-ease);
-            --chx-radius: 0.5rem;
-            --chx-radius-sm: 0.375rem;
-            --chx-border-width: 1px;
-            --chx-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --chx-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            --chx-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-
-        :root {
-            --chx-bg: #ffffff;
-            --chx-surface: #ffffff;
-            --chx-surface-2: #f4f4f5;
-            --chx-primary: #18181b;
-            --chx-primary-hover: #27272a;
-            --chx-primary-fg: #fafafa;
-            --chx-text-main: #09090b;
-            --chx-text-muted: #71717a;
-            --chx-border: #e4e4e7;
-            --chx-border-strong: #d4d4d8;
-            --chx-accent: #2563eb;
-            --chx-error: #dc2626;
-            --chx-success: #16a34a;
-            --chx-warning: #f59e0b;
-            --chx-info: #2563eb;
-            --chx-ring: rgba(24, 24, 27, 0.12);
-        }
-
-        .dark {
-            --chx-bg: #09090b;
-            --chx-surface: #09090b;
-            --chx-surface-2: #18181b;
-            --chx-primary: #fafafa;
-            --chx-primary-hover: #e4e4e7;
-            --chx-primary-fg: #18181b;
-            --chx-text-main: #fafafa;
-            --chx-text-muted: #a1a1aa;
-            --chx-border: #27272a;
-            --chx-border-strong: #3f3f46;
-            --chx-accent: #3b82f6;
-            --chx-error: #ef4444;
-            --chx-success: #22c55e;
-            --chx-warning: #f59e0b;
-            --chx-info: #3b82f6;
-            --chx-ring: rgba(250, 250, 250, 0.18);
-        }
-
         body.chx-default {
-            background: var(--chx-bg);
-            color: var(--chx-text-main);
-            font-family: var(--chx-font);
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: var(--font-sans);
             -webkit-font-smoothing: antialiased;
         }
 
@@ -152,6 +109,38 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
         @keyframes chx-fade-in {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+        @keyframes chx-toast-in {
+            from { opacity: 0; transform: translateY(0.75rem); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes chx-toast-out {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(0.75rem); }
+        }
+        @keyframes chx-sheet-in-right {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes chx-sheet-in-left {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes chx-sheet-in-top {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes chx-sheet-in-bottom {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes chx-slide-down {
+            from { opacity: 0; transform: translateY(-0.5rem); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes chx-collapsible-down {
+            from { height: 0; opacity: 0; }
+            to { height: var(--chx-collapsible-height, 20rem); opacity: 1; }
         }
     """)
 }

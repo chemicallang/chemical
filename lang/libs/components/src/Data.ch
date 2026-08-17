@@ -4,12 +4,12 @@ func progress_styles(page : &mut HtmlPage) : *char {
         width: 100%;
         height: 8px;
         border-radius: 999px;
-        background: var(--chx-surface-2);
+        background: hsl(var(--muted));
         border: 0;
         overflow: hidden;
         &::-webkit-progress-bar {
             border-radius: 999px;
-            background: var(--chx-surface-2);
+            background: hsl(var(--muted));
         }
         &::-webkit-progress-value {
             border-radius: 999px;
@@ -61,9 +61,9 @@ func progress_styles(page : &mut HtmlPage) : *char {
 
 func accordion_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 14px;
-        background: var(--chx-surface);
+        background: hsl(var(--background));
         overflow: hidden;
     }
 }
@@ -74,27 +74,27 @@ func accordion_summary_styles(page : &mut HtmlPage) : *char {
         list-style: none;
         padding: 1rem 1.1rem;
         font-weight: 650;
-        color: var(--chx-text-main);
-        background: var(--chx-surface);
-        border-bottom: 1px solid var(--chx-border);
+        color: hsl(var(--foreground));
+        background: hsl(var(--background));
+        border-bottom: 1px solid hsl(var(--border));
     }
 }
 
 func accordion_panel_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 1rem 1.1rem;
-        color: var(--chx-text-muted);
-        background: var(--chx-surface);
+        color: hsl(var(--muted-foreground));
+        background: hsl(var(--background));
     }
 }
 
 func accordion_item_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 18px;
-        background: var(--chx-surface);
+        background: hsl(var(--background));
         overflow: hidden;
-        box-shadow: var(--chx-shadow-sm);
+        box-shadow: var(--shadow-sm);
         .chx-accordion-summary {
             display: flex;
             align-items: center;
@@ -105,8 +105,8 @@ func accordion_item_styles(page : &mut HtmlPage) : *char {
             width: 100%;
             padding: 1rem 1.1rem;
             font-weight: 650;
-            color: var(--chx-text-main);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 80%), var(--chx-surface);
+            color: hsl(var(--foreground));
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 80%), hsl(var(--background));
             border: 0;
         }
         .chx-accordion-summary::-webkit-details-marker {
@@ -118,12 +118,12 @@ func accordion_item_styles(page : &mut HtmlPage) : *char {
         }
         .chx-accordion-title {
             font-size: 1rem;
-            color: var(--chx-text-main);
+            color: hsl(var(--foreground));
         }
         .chx-accordion-subtitle {
             font-size: 0.84rem;
             font-weight: 500;
-            color: var(--chx-text-muted);
+            color: hsl(var(--muted-foreground));
         }
         .chx-accordion-icon {
             width: 2rem;
@@ -132,8 +132,8 @@ func accordion_item_styles(page : &mut HtmlPage) : *char {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: var(--chx-surface-2);
-            border: 1px solid var(--chx-border);
+            background: hsl(var(--muted));
+            border: 1px solid hsl(var(--border));
             font-size: 1rem;
             line-height: 1;
             font-family: ui-monospace, "SFMono-Regular", monospace;
@@ -142,14 +142,14 @@ func accordion_item_styles(page : &mut HtmlPage) : *char {
         }
         .chx-accordion-panel {
             padding: 1rem 1.1rem;
-            color: var(--chx-text-muted);
-            background: var(--chx-surface);
-            border-top: 1px solid var(--chx-border);
+            color: hsl(var(--muted-foreground));
+            background: hsl(var(--background));
+            border-top: 1px solid hsl(var(--border));
         }
         &[open] .chx-accordion-icon {
             transform: rotate(45deg);
-            background: var(--chx-primary);
-            color: var(--chx-primary-fg);
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
             border-color: transparent;
         }
     }
@@ -168,9 +168,9 @@ func tab_list_styles(page : &mut HtmlPage) : *char {
         flex-wrap: wrap;
         gap: 0.6rem;
         padding: 0.45rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 999px;
-        background: var(--chx-surface);
+        background: hsl(var(--background));
     }
 }
 
@@ -179,8 +179,8 @@ func tab_styles(page : &mut HtmlPage) : *char {
         border: 0;
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
-        background: var(--chx-surface-2);
-        color: var(--chx-text-main);
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
         font-weight: 600;
         cursor: pointer;
         &:hover {
@@ -191,18 +191,18 @@ func tab_styles(page : &mut HtmlPage) : *char {
 
 func tab_active_styles(page : &mut HtmlPage) : *char {
     return #css {
-        background: var(--chx-primary);
-        color: var(--chx-primary-fg);
+        background: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
     }
 }
 
 func tab_panel_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 1rem 1.1rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 14px;
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -224,9 +224,9 @@ func pagination_item_styles(page : &mut HtmlPage) : *char {
         justify-content: center;
         padding: 0 0.85rem;
         border-radius: 999px;
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
         text-decoration: none;
         font-weight: 600;
     }
@@ -234,8 +234,8 @@ func pagination_item_styles(page : &mut HtmlPage) : *char {
 
 func pagination_active_styles(page : &mut HtmlPage) : *char {
     return #css {
-        background: var(--chx-primary);
-        color: var(--chx-primary-fg);
+        background: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
         border-color: transparent;
     }
 }
@@ -253,10 +253,10 @@ func list_styles(page : &mut HtmlPage) : *char {
 func list_item_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.85rem 1rem;
-        border: 1px solid var(--chx-border);
+        border: 1px solid hsl(var(--border));
         border-radius: 12px;
-        background: var(--chx-surface);
-        color: var(--chx-text-main);
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
     }
 }
 
@@ -266,8 +266,8 @@ func table_styles(page : &mut HtmlPage) : *char {
         border-collapse: collapse;
         overflow: hidden;
         border-radius: 14px;
-        border: 1px solid var(--chx-border);
-        background: var(--chx-surface);
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--background));
     }
 }
 
@@ -275,20 +275,20 @@ func table_head_cell_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.85rem 1rem;
         text-align: left;
-        background: var(--chx-surface-2);
-        color: var(--chx-text-main);
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
         font-size: 0.82rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        border-bottom: 1px solid var(--chx-border);
+        border-bottom: 1px solid hsl(var(--border));
     }
 }
 
 func table_cell_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.9rem 1rem;
-        color: var(--chx-text-main);
-        border-bottom: 1px solid var(--chx-border);
+        color: hsl(var(--foreground));
+        border-bottom: 1px solid hsl(var(--border));
     }
 }
 
@@ -369,7 +369,7 @@ public #universal Tabs(props) {
         return <div {...props} class={${tabs_styles(page)}}>
             <div class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} class={${tab_styles(page)}} style={active == i ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
             <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">
@@ -429,7 +429,7 @@ public #universal Pagination(props) {
         return <nav {...props} class={${pagination_styles(page)}}>
             <button type="button" onClick={goPrev} disabled={current <= 1} class={${pagination_item_styles(page)}} aria-label="Previous page">{prevLabel}</button>
             {props.pages.map(p => (
-                <button type="button" onClick={() => goTo(p)} class={${pagination_item_styles(page)}} style={current == p ? "background:var(--chx-primary);color:var(--chx-primary-fg);border-color:transparent;" : ""} aria-current={current == p ? "page" : null}>{p}</button>
+                <button type="button" onClick={() => goTo(p)} class={${pagination_item_styles(page)}} style={current == p ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} aria-current={current == p ? "page" : null}>{p}</button>
             ))}
             <button type="button" onClick={goNext} disabled={current >= props.pages.length} class={${pagination_item_styles(page)}} aria-label="Next page">{nextLabel}</button>
         </nav>

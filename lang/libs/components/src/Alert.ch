@@ -3,7 +3,7 @@ func alert_styles(page : &mut HtmlPage) : *char {
         position: relative;
         display: flex;
         gap: 0.75rem;
-        border-radius: var(--chx-radius-lg);
+        border-radius: var(--radius-lg);
         border: 1px solid;
         padding: 0.875rem 1rem;
         font-size: 0.875rem;

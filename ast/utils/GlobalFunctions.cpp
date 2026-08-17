@@ -2903,10 +2903,18 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
     // Check for Windows
     if (triple.isOSWindows()) {
         data.windows = true;
-        if (arhType == llvm::Triple::x86) {
-            data.win32 = true;
-        } else if (arhType == llvm::Triple::x86_64) {
+        // Windows uses the LLP64 data model on all 64-bit architectures
+        // (x86_64 and aarch64 alike): long/ulong stay 32-bit but size_t,
+        // uintptr_t, and ptrdiff_t are 64-bit. win64 selects size_t = ubigint
+        // in std_types.ch, so it must be set for every 64-bit Windows target.
+        if (triple.isArch64Bit()) {
             data.win64 = true;
+        } else if (arhType == llvm::Triple::x86
+            || arhType == llvm::Triple::arm
+            || arhType == llvm::Triple::thumb
+            || arhType == llvm::Triple::thumbeb
+            || arhType == llvm::Triple::armeb) {
+            data.win32 = true;
         }
     }
 
@@ -3076,13 +3084,26 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
             continue; // trailing environment marker, not the OS
         }
         if (p == "linux") { data.isLinux = true; data.isUnix = true; break; }
-        else if (p == "windows") { data.win32 = true; data.windows = true; break; }
+        else if (p == "windows") { data.windows = true; break; }
         else if (p == "darwin" || p == "macos") { data.macos = true; data.isUnix = true; break; }
         else if (p == "freebsd") { data.freebsd = true; data.isUnix = true; break; }
         else if (p == "android") { data.android = true; data.isUnix = true; break; }
         else if (p == "cygwin") { data.cygwin = true; data.isUnix = true; break; }
-        else if (p == "mingw32") { data.mingw32 = true; data.win32 = true; data.windows = true; break; }
-        else if (p == "mingw64") { data.win64 = true; data.windows = true; break; }
+        else if (p == "mingw32") { data.mingw32 = true; data.windows = true; break; }
+        else if (p == "mingw64") { data.windows = true; break; }
+    }
+
+    // Windows uses the LLP64 data model on all 64-bit targets (x86_64 and
+    // aarch64 alike): long/ulong are 32-bit but size_t/uintptr_t/ptrdiff_t
+    // are 64-bit. win64/win32 select size_t = ubigint vs ulong in
+    // std_types.ch, so set win64 for every 64-bit Windows target and win32
+    // only for 32-bit ones.
+    if (data.windows) {
+        if (data.is64Bit) {
+            data.win64 = true;
+        } else {
+            data.win32 = true;
+        }
     }
 
     // posix

@@ -53,6 +53,29 @@ static inline LONGLONG ManualInterlockedCompareExchange64(LONGLONG volatile* des
 }
 #undef InterlockedCompareExchange64
 #define InterlockedCompareExchange64 ManualInterlockedCompareExchange64
+
+/* TCC's winbase.h implements the 64-bit Interlocked helpers on ARM/ARM64 as
+   inline CAS loops that call the raw extern InterlockedCompareExchange64,
+   which has no definition there. Route them through the manual CAS too. */
+static inline LONGLONG ManualInterlockedExchange64(LONGLONG volatile* dest, LONGLONG exchange) {
+    LONGLONG old = *dest;
+    while (InterlockedCompareExchange64(dest, exchange, old) != old) {
+        old = *dest;
+    }
+    return old;
+}
+#undef InterlockedExchange64
+#define InterlockedExchange64 ManualInterlockedExchange64
+
+static inline LONGLONG ManualInterlockedExchangeAdd64(LONGLONG volatile* dest, LONGLONG value) {
+    LONGLONG old = *dest;
+    while (InterlockedCompareExchange64(dest, old + value, old) != old) {
+        old = *dest;
+    }
+    return old;
+}
+#undef InterlockedExchangeAdd64
+#define InterlockedExchangeAdd64 ManualInterlockedExchangeAdd64
 #endif
 
 #if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__) || defined(__arm__)

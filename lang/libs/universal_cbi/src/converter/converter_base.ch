@@ -16,6 +16,18 @@ struct JsSsrLocal {
     var varInit : *mut ASTNode
 }
 
+// A local variable bound to `createContext(name, default)` or `useContext(name)`
+// in a universal component body (`const ctx = createContext("rg-" + props.name,
+// "")`). The name/default expressions let consumers resolve the same registry
+// entry as the provider, and let SSR resolve `ctx.value` to the static default
+// (children render before their provider's SSR function, so a provider's
+// published value is never observable at SSR time).
+struct JsContextVar {
+    var name : std::string_view
+    var nameExpr : *mut JsNode
+    var defaultExpr : *mut JsNode
+}
+
 struct JsConverter {
     var builder : *mut ASTBuilder
     var support : *mut SymResSupport
@@ -37,6 +49,8 @@ struct JsConverter {
     // Local variables declared in the current universal component body, tracked
     // so JSX attribute/child expressions can reference them during SSR.
     var ssr_locals : std::vector<JsSsrLocal>
+    // Context variables bound to createContext/useContext in the current body.
+    var context_vars : std::vector<JsContextVar>
 
     // Temporary binding used while statically evaluating `.filter()` predicates
     // against the elements of a static (state/array-literal) source.

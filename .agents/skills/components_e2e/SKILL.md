@@ -208,6 +208,33 @@ component should meet:
   page keeps working (verified by clicking a counter after a fallback mounts).
   Fallbacks apply per-component (each universal component mounts independently — a
   parent cannot catch a child's render error).
+- **RadioGroup / ToggleGroup (context):** children-based shadcn API
+  (`<RadioGroup name="plan" defaultValue="pro"><RadioGroupItem value="a">…`); the
+  group owns selection through the runtime context registry. E2E tests verify:
+  mutual exclusivity, `defaultValue` surviving SSR → hydration, multiple mode
+  (independent toggles), and a standalone item with NO provider staying
+  unchecked without crashing.
+
+## Context gotchas (learned the hard way)
+
+- **SSR renders items in their default (unselected) state.** Children render
+  BEFORE the provider's SSR function (children HTML is pre-rendered and passed in
+  as the 3rd arg), so a consumer can never see a published value at SSR. Groups
+  therefore render items unpressed/unchecked server-side, and hydration applies
+  the selection. Do NOT assert `checked="true"`/`aria-pressed="true"` in SSR for
+  children-mode groups — assert the JS bundle contains the context wiring
+  (`createContext("rg-" +`, `$_ucs(() => ctx.value`, `ctx.write`) instead.
+- **Hydration corrects attribute mismatches silently** (only text mismatches
+  warn), so the SSR-unselected → client-selected transition is safe — the
+  reactive `checked`/`aria-pressed` binding re-applies on mount.
+- **`props.children` mutation** (group threading `__rgName` into item vnodes)
+  compiles to `props.children = window.$__uni_value(props.children).map(...)`.
+  The converter emits raw `props.children` on assignment LHS — a `$__uni_value()`
+  wrapper there is an invalid assignment target (ReferenceError at runtime;
+  caught by the E2E suite).
+- **Injected props leak to the DOM:** `{...props}` spread on the item renders
+  `__rgname="tg-main"` as an attribute (browser lowercases it). Harmless; don't
+  assert on it.
 
 ## Portaled menu collision flipping
 
@@ -219,9 +246,13 @@ must kick in (it does: `spaceBelow < menuHeight + gap`).
 
 ## Performance notes
 
-- 26 tests across 10 workers finish in ~6–15s plus app build time (~30–60s for the
+- 29 tests across 10 workers finish in ~7–15s plus app build time (~30–60s for the
   Chemical compile step). The browser tests themselves are fast; the Chemical build is
   the slow part.
+- The `no universal runtime errors on the page` test fails loudly whenever ANY
+  component throws at mount (the error-boundary path logs `[universal] component
+  render failed`). When context tests fail, check this test first — it pinpoints
+  the broken component (e.g. an invalid assignment target in emitted JS).
 - After changing `lang/libs/page/src/page.ch` (the runtime JS lives in a C++ string),
   pass `BUILD_NO_CACHE=1` — the cache can otherwise produce stale/broken builds
   (`struct/union/enum already defined`).

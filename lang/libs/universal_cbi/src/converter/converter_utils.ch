@@ -85,6 +85,33 @@ func (converter : &mut JsConverter) is_reactive_var(name : std::string_view) : b
     return false;
 }
 
+// True when `name` is a local bound to createContext/useContext (a context var).
+func (converter : &mut JsConverter) is_context_var(name : std::string_view) : bool {
+    return converter.find_context_var(name) != null;
+}
+
+// Returns the recorded context var for `name`, or null. The name/default
+// expressions let SSR resolve `ctx.value` to the static default.
+func (converter : &mut JsConverter) find_context_var(name : std::string_view) : *JsContextVar {
+    for(var i : uint = 0; i < converter.context_vars.size(); i++) {
+        if(converter.context_vars.get_ptr(i).name.equals(&name)) {
+            return converter.context_vars.get_ptr(i);
+        }
+    }
+    return null;
+}
+
+// Records `name` as a context var bound to a createContext/useContext call.
+// `nameExpr`/`defaultExpr` are the call's registry-key and default-value
+// expressions (default may be null for useContext).
+func (converter : &mut JsConverter) add_context_var(name : std::string_view, nameExpr : *mut JsNode, defaultExpr : *mut JsNode) {
+    converter.context_vars.push(JsContextVar {
+        name : name,
+        nameExpr : nameExpr,
+        defaultExpr : defaultExpr
+    });
+}
+
 func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsNode) : bool {
     if(node == null) return false;
     switch(node.kind) {
@@ -93,8 +120,12 @@ func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsN
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
-            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
-                return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                const objName = (mem.object as *mut JsIdentifier).value;
+                if(converter.is_context_var(objName)) return true;
+                if(mem.property.equals(view("value"))) {
+                    return converter.is_reactive_var(objName);
+                }
             }
             return converter.expr_references_reactive_var(mem.object);
         }
@@ -1000,8 +1031,12 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
-            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && mem.property.equals(view("value"))) {
-                return converter.is_reactive_var((mem.object as *mut JsIdentifier).value);
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                const objName = (mem.object as *mut JsIdentifier).value;
+                if(converter.is_context_var(objName)) return true;
+                if(mem.property.equals(view("value"))) {
+                    return converter.is_reactive_var(objName);
+                }
             }
             if(converter.in_jsx_attribute && converter.is_component_props_read(node)) return true;
             return converter.jsx_expr_needs_reactive_wrapper(mem.object);
@@ -1723,6 +1758,24 @@ func (converter : &mut JsConverter) append_ssr_eval(eval : SsrJsExprEval) {
     converter.put_chain_in()
 }
 
+// Resolves a context-member read (`ctx.value`, `ctx.mode`, ...) to the value it
+// renders at SSR time. A provider's SSR function runs AFTER its children render
+// (children HTML is pre-rendered and passed in), so a consumer can never observe
+// a published value at SSR - reads resolve to the static createContext default
+// (or None for useContext without a default). Returns null when unresolvable.
+func (converter : &mut JsConverter) convert_ssr_context_member_read(mem : *mut JsMemberAccess, attrValConv : &mut AttrValueConverter) : *mut Value {
+    if(mem == null || mem.object == null || mem.object.kind != JsNodeKind.Identifier) return null;
+    const cv = converter.find_context_var((mem.object as *mut JsIdentifier).value);
+    if(cv == null) return null;
+    if(mem.property.equals(view("value")) && cv.defaultExpr != null) {
+        return converter.convert_ssr_attr_value_expr(cv.defaultExpr, attrValConv);
+    }
+    // Non-value members and useContext vars without a default are undefined at
+    // SSR, matching the pre-provider client state (undefined == anything is
+    // false, so items render unpressed/unchecked).
+    return converter.make_ssr_make_call(converter.support.ssrNoneValueFn, "ssrNoneValue", null);
+}
+
 func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mut JsNode) : *mut Value {
     if(node == null) return null;
 
@@ -1741,6 +1794,17 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
             const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
             truthyCall.get_args().push(v);
             return truthyCall as *mut Value;
+        }
+        const cvMem = node as *mut JsMemberAccess;
+        if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
+            var attrValConv = converter.make_attr_value_converter();
+            const v = converter.convert_ssr_context_member_read(cvMem, &mut attrValConv);
+            if(v != null) {
+                const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+                truthyCall.get_args().push(v);
+                return truthyCall as *mut Value;
+            }
+            return null;
         }
     }
 
@@ -1904,6 +1968,16 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
                 truthyCall.get_args().push(v);
                 return truthyCall as *mut Value;
             }
+            const cvMem = node as *mut JsMemberAccess;
+            if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
+                const v = converter.convert_ssr_context_member_read(cvMem, attrValConv);
+                if(v != null) {
+                    const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
+                    truthyCall.get_args().push(v);
+                    return truthyCall as *mut Value;
+                }
+                return null;
+            }
             return null;
         }
         JsNodeKind.BinaryOp => {
@@ -2019,6 +2093,15 @@ func (converter : &mut JsConverter) emit_ssr_assignment_stmt(expr : *mut JsNode)
     if(expr == null || expr.kind != JsNodeKind.BinaryOp) return false;
     const bin = expr as *mut JsBinaryOp;
     if(!bin.op.equals(view("="))) return false;
+    // Context publish (`ctx.value = x`, `ctx.write = fn`) is a no-op at SSR:
+    // consumers render before the provider's SSR function runs, so nothing can
+    // observe the published value.
+    if(bin.left != null && bin.left.kind == JsNodeKind.MemberAccess) {
+        const mem = bin.left as *mut JsMemberAccess;
+        if(mem.object != null && mem.object.kind == JsNodeKind.Identifier && converter.is_context_var((mem.object as *mut JsIdentifier).value)) {
+            return true;
+        }
+    }
     if(bin.left == null || bin.left.kind != JsNodeKind.Identifier) return false;
     const id = bin.left as *mut JsIdentifier;
     const local = converter.find_ssr_local(id.value);
@@ -2323,6 +2406,10 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
             if(converter.is_component_props_read(node)) {
                 if(converter.is_props_children(node)) return null;
                 return converter.make_ssr_prop_v_call((node as *mut JsMemberAccess).property);
+            }
+            const cvMem = node as *mut JsMemberAccess;
+            if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
+                return converter.convert_ssr_context_member_read(cvMem, attrValConv);
             }
             return null;
         }

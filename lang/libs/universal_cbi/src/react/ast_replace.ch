@@ -47,6 +47,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         current_func : funcNode,
         component_props_name : root.signature.propsName,
         ssr_locals : std::vector<JsSsrLocal>(),
+        context_vars : std::vector<JsContextVar>(),
         ssr_bound_param : std::string_view(),
         ssr_bound_param_valid : false,
         ssr_bound_param_value : ssr_js_eval_invalid(),

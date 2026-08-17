@@ -1005,59 +1005,95 @@ public func components_toast_hidden(env : &mut TestEnv) {
 }
 
 @test
-public func components_radio_group_options(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #html { <RadioGroup options={["a", "b", "c"]} defaultValue="b" /> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    contains_string_assert(env, html.to_view(), std::string_view("role=\"radiogroup\""))
-    contains_string_assert(env, html.to_view(), std::string_view("type=\"radio\""))
-    // b is checked
-    contains_string_assert(env, html.to_view(), std::string_view("checked=\"true\""))
-}
-
-@test
 public func components_radio_group_children(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
-        <RadioGroup>
-            <RadioGroupItem value="x" checked={true}>Option X</RadioGroupItem>
-            <RadioGroupItem value="y">Option Y</RadioGroupItem>
+        <RadioGroup name="plan" defaultValue="pro">
+            <RadioGroupItem value="free">Free</RadioGroupItem>
+            <RadioGroupItem value="pro">Pro</RadioGroupItem>
         </RadioGroup>
     }
     var html = std::string()
     html.append_view(page.getHtml())
-    contains_string_assert(env, html.to_view(), std::string_view("Option X"))
-    contains_string_assert(env, html.to_view(), std::string_view("Option Y"))
-    contains_string_assert(env, html.to_view(), std::string_view("value=\"x\""))
+    // group renders its wrapper with the ARIA role and the items render inside
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"radiogroup\""))
+    contains_string_assert(env, html.to_view(), std::string_view("type=\"radio\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Free"))
+    contains_string_assert(env, html.to_view(), std::string_view("Pro"))
+    contains_string_assert(env, html.to_view(), std::string_view("value=\"free\""))
+}
+
+// Children-mode context: the compiled JS must publish the group selection to a
+// createContext registry entry and items must read it back through useContext
+// inside a reactive computed (so clicks re-render every item).
+@test
+public func components_radio_group_context_js(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <RadioGroup name="plan" defaultValue="pro">
+            <RadioGroupItem value="free">Free</RadioGroupItem>
+            <RadioGroupItem value="pro">Pro</RadioGroupItem>
+        </RadioGroup>
+    }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // provider registers under "rg-" + name
+    contains_string_assert(env, js.to_view(), std::string_view("createContext(\"rg-\" +"))
+    // consumer resolves the same key from the threaded __rgName
+    contains_string_assert(env, js.to_view(), std::string_view("useContext(\"rg-\" +"))
+    contains_string_assert(env, js.to_view(), std::string_view("__rgName"))
+    // checked state reads the context value reactively
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.value == window.$__uni_value(props.value)"))
+    // group name is threaded into item vnodes before mount
+    contains_string_assert(env, js.to_view(), std::string_view("c.p.props.__rgName"))
+    // SSR renders items unchecked (children render before the provider's SSR
+    // function runs, so checked state is applied at hydration)
+    not_contains_string_assert(env, js.to_view(), std::string_view("checked=\"true\""))
 }
 
 @test
-public func components_toggle_group_single(env : &mut TestEnv) {
+public func components_toggle_group_children(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <ToggleGroup type="single" options={["bold", "italic"]} defaultValue="bold" /> }
+    #html {
+        <ToggleGroup name="tg" type="single" defaultValue="bold">
+            <ToggleGroupItem value="bold">Bold</ToggleGroupItem>
+            <ToggleGroupItem value="italic">Italic</ToggleGroupItem>
+        </ToggleGroup>
+    }
     var html = std::string()
     html.append_view(page.getHtml())
-    contains_string_assert(env, html.to_view(), std::string_view("aria-pressed=\"true\""))
-    contains_string_assert(env, html.to_view(), std::string_view("aria-pressed=\"false\""))
-    contains_string_assert(env, html.to_view(), std::string_view(">bold</button>"))
+    // both items render; SSR shows them unpressed (no aria-pressed yet)
+    contains_string_assert(env, html.to_view(), std::string_view(">Bold</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Italic</button>"))
+    not_contains_string_assert(env, html.to_view(), std::string_view("aria-pressed=\"true\""))
+    var js = std::string()
+    js.append_view(page.getJs())
+    // context wiring: createContext + useContext under "tg-" + name
+    contains_string_assert(env, js.to_view(), std::string_view("createContext(\"tg-\" +"))
+    contains_string_assert(env, js.to_view(), std::string_view("useContext(\"tg-\" +"))
 }
 
 @test
 public func components_toggle_group_multiple_js(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <ToggleGroup type="multiple" options={["a", "b"]} defaultValue={["a"]} /> }
+    #html {
+        <ToggleGroup name="tg" type="multiple" defaultValue={["a"]}>
+            <ToggleGroupItem value="a">A</ToggleGroupItem>
+            <ToggleGroupItem value="b">B</ToggleGroupItem>
+        </ToggleGroup>
+    }
     var html = std::string()
     html.append_view(page.getHtml())
-    // Both options render; SSR pressed state for array selection is refined
-    // at hydration (the initial HTML renders both unpressed).
-    contains_string_assert(env, html.to_view(), std::string_view(">a</button>"))
-    contains_string_assert(env, html.to_view(), std::string_view(">b</button>"))
+    // Both items render; SSR pressed state is refined at hydration.
+    contains_string_assert(env, html.to_view(), std::string_view(">A</button>"))
+    contains_string_assert(env, html.to_view(), std::string_view(">B</button>"))
     var js = std::string()
     js.append_view(page.getJs())
-    // multiple-mode toggle logic present (indexOf membership + filter removal)
+    // multiple-mode selection logic present (indexOf membership + filter removal)
     contains_string_assert(env, js.to_view(), std::string_view("indexOf"))
     contains_string_assert(env, js.to_view(), std::string_view("filter"))
+    // items compare against the context value through the reactive computed
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.mode == \"multiple\""))
 }
 
 @test
@@ -1117,32 +1153,45 @@ public func components_props_spread_reaches_root(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("data-testid=\"toast-test\""))
 }
 
-// Group item pressed/checked props must stay reactive: the compiled JS must
-// reference props.pressed / props.checked inside a $_ucs() wrapper (or as raw
-// props reads) so the runtime subscribes when the parent selection changes.
-// A frozen copy (var pressed = props.pressed || false) breaks updates after
-// clicks — this is what the E2E toggle-group / radio-group tests caught.
+// Group item state must be reactive through context: the item's pressed/
+// checked value reads the context entry inside a $_ucs() computed, so the
+// runtime subscribes to the provider's signal and re-renders when the group
+// selection changes (this is what the E2E group tests verify in the browser).
 @test
 public func components_toggle_group_item_reactive(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <ToggleGroup type="single" options={["bold", "italic"]} defaultValue="bold" /> }
+    #html {
+        <ToggleGroup name="tg" type="single" defaultValue="bold">
+            <ToggleGroupItem value="bold">Bold</ToggleGroupItem>
+            <ToggleGroupItem value="italic">Italic</ToggleGroupItem>
+        </ToggleGroup>
+    }
     var js = std::string()
     js.append_view(page.getJs())
-    // item renders pressed from the props read directly (reactive)
-    contains_string_assert(env, js.to_view(), std::string_view("props.pressed"))
-    // no frozen unwrap of the pressed prop into a plain local
-    not_contains_string_assert(env, js.to_view(), std::string_view("var pressed = window.$__uni_value(props.pressed)"))
+    // pressed is a computed that reads the context value reactively
+    contains_string_assert(env, js.to_view(), std::string_view("$_ucs(() => (ctx.mode"))
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.value == window.$__uni_value(props.value)"))
+    // writes go through the provider's ctx.write callback
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.write(window.$__uni_value(props.value))"))
 }
 
 @test
 public func components_radio_group_item_reactive(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <RadioGroup options={["a", "b"]} defaultValue="a" /> }
+    #html {
+        <RadioGroup name="plan" defaultValue="a">
+            <RadioGroupItem value="a">A</RadioGroupItem>
+            <RadioGroupItem value="b">B</RadioGroupItem>
+        </RadioGroup>
+    }
     var js = std::string()
     js.append_view(page.getJs())
-    // input checked comes from the props read directly (reactive)
-    contains_string_assert(env, js.to_view(), std::string_view("\"checked\": props.checked"))
-    not_contains_string_assert(env, js.to_view(), std::string_view("var checked = window.$__uni_value(props.checked)"))
+    // checked reads the context value inside a reactive computed
+    contains_string_assert(env, js.to_view(), std::string_view("\"checked\": $_ucs(() => ctx.value"))
+    // provider publishes its state signal (raw, for the runtime wiring)
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.value = value;"))
+    // writes go through ctx.write
+    contains_string_assert(env, js.to_view(), std::string_view("ctx.write(window.$__uni_value(props.value))"))
 }
 
 // Tabs wire aria-controls / aria-labelledby so tabpanels have accessible

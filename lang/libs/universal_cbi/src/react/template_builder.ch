@@ -56,6 +56,7 @@ func compute_universal_template(builder : *mut ASTBuilder, comp : *mut JsCompone
         current_func : comp.signature.functionNode,
         component_props_name : comp.signature.propsName,
         ssr_locals : std::vector<JsSsrLocal>(),
+        context_vars : std::vector<JsContextVar>(),
         ssr_bound_param : "",
         ssr_bound_param_valid : false,
         ssr_bound_param_value : ssr_js_eval_invalid(),

@@ -125,12 +125,26 @@ func select_item_styles(page : &mut HtmlPage) : *char {
             color: hsl(var(--accent-foreground));
             font-weight: 600;
         }
+        &[data-highlighted="true"] {
+            background: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+            outline: 2px solid hsl(var(--ring) / 0.6);
+            outline-offset: -2px;
+        }
+        &:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: -2px;
+        }
     }
 }
 
 public #universal Select(props) {
     state open = false
     state selected = props.defaultValue || ""
+    state highlight = 0
+    state typed = ""
+    const menuRef = useRef(null)
+    const typeaheadRef = useRef(null)
     var current = props.value != null ? props.value : selected
     var disabled = props.disabled || false
     var size = props.size || "default"
@@ -150,9 +164,84 @@ public #universal Select(props) {
             return
         }
         open = !open
+        if(open) {
+            // Opened: start highlight on the current value (or first option).
+            highlight = 0
+            if(props.options) {
+                for(var i = 0; i < props.options.length; i++) {
+                    if(props.options[i] == current) {
+                        highlight = i
+                        break
+                    }
+                }
+            }
+        }
     }
     var close = () => {
         open = false
+        typed = ""
+    }
+    // Keyboard navigation (WAI-ARIA combobox/listbox pattern):
+    // ArrowDown/ArrowUp move the highlight, Home/End jump to the ends,
+    // Enter selects the highlighted option, printable keys typeahead-search.
+    // When closed, ArrowDown/ArrowUp/Enter/Space open the listbox.
+    var moveHighlight = (delta) => {
+        if(!props.options || props.options.length == 0) {
+            return
+        }
+        var next = highlight + delta
+        if(next < 0) { next = props.options.length - 1 }
+        if(next >= props.options.length) { next = 0 }
+        highlight = next
+    }
+    var handleTriggerKeyDown = (e) => {
+        if(disabled) {
+            return
+        }
+        if(!open) {
+            if(e.key == "ArrowDown" || e.key == "ArrowUp" || e.key == "Enter" || e.key == " " || e.key == "Spacebar") {
+                e.preventDefault()
+                toggle()
+            }
+            return
+        }
+        if(e.key == "ArrowDown") {
+            e.preventDefault()
+            moveHighlight(1)
+        } else if(e.key == "ArrowUp") {
+            e.preventDefault()
+            moveHighlight(-1)
+        } else if(e.key == "Home") {
+            e.preventDefault()
+            highlight = 0
+        } else if(e.key == "End") {
+            e.preventDefault()
+            if(props.options) { highlight = props.options.length - 1 }
+        } else if(e.key == "Enter") {
+            e.preventDefault()
+            if(props.options && props.options[highlight] != null) {
+                select(props.options[highlight])
+            }
+        } else if(e.key == "Escape") {
+            close()
+        } else if(e.key.length == 1) {
+            // Typeahead: accumulate printable chars, reset after 500ms.
+            var newTyped = typed + e.key
+            typed = newTyped
+            if(typeaheadRef.current) {
+                clearTimeout(typeaheadRef.current)
+            }
+            typeaheadRef.current = setTimeout(() => { typed = "" }, 500)
+            if(props.options) {
+                var lower = newTyped.toLowerCase()
+                for(var j = 0; j < props.options.length; j++) {
+                    if(props.options[j].toLowerCase().startsWith(lower)) {
+                        highlight = j
+                        break
+                    }
+                }
+            }
+        }
     }
     useEffect(() => {
         const handler = (e) => {
@@ -163,6 +252,16 @@ public #universal Select(props) {
         document.addEventListener("keydown", handler)
         return () => document.removeEventListener("keydown", handler)
     }, [])
+    // Keep the highlighted option in view while navigating with the keyboard.
+    useEffect(() => {
+        if(!open || !menuRef.current) {
+            return
+        }
+        const items = menuRef.current.querySelectorAll("[data-select-value]")
+        if(highlight >= 0 && highlight < items.length) {
+            items[highlight].scrollIntoView({ block: "nearest" })
+        }
+    }, [open, highlight])
     // Delegated selection: read the clicked item's data-select-value.
     var handleMenuClick = (e) => {
         var item = e.target.closest("[data-select-value]")
@@ -175,13 +274,13 @@ public #universal Select(props) {
     var placeholder = props.placeholder || "Select..."
     return <div class={classes} style="position:relative;display:inline-block;width:100%;">
         <div onClick={close} style={open ? "position:fixed;inset:0;z-index:10;" : "display:none;"}></div>
-        <button type="button" disabled={disabled} onClick={toggle} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-label={props.ariaLabel}>
+        <button type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel}>
             <span class={current != "" ? "chx-select-value" : "chx-select-value chx-select-placeholder"}>{current ? current : placeholder}</span>
             <span class="chx-select-chevron">▾</span>
         </button>
-        <div class={${select_menu_styles(page)}} style={open ? "display:grid;" : "display:none;"} role="listbox" onClick={handleMenuClick}>
+        <div ref={menuRef} class={${select_menu_styles(page)}} style={open ? "display:grid;" : "display:none;"} role="listbox" id="chx-select-listbox" onClick={handleMenuClick}>
             {props.options ? props.options.map((opt, i) => (
-                <button type="button" role="option" aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} class={${select_item_styles(page)}}>{opt}</button>
+                <button type="button" role="option" id={"chx-select-opt-" + i} aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} data-highlighted={highlight == i ? "true" : "false"} class={${select_item_styles(page)}}>{opt}</button>
             )) : props.children}
         </div>
     </div>

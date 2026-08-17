@@ -154,7 +154,7 @@ public #universal Toast(props) {
         }, duration)
         return () => clearTimeout(timer)
     }, [isVisible, duration])
-    return <div data-variant={variant} role="status" class={${toast_styles(page)}} style={isVisible ? "" : "display:none;"}>
+    return <div {...props} data-variant={variant} role="status" class={${toast_styles(page)}} style={isVisible ? "" : "display:none;"}>
         <div class={${toast_body_styles(page)}}>
             {props.title ? <div class={${toast_title_styles(page)}}>{props.title}</div> : null}
             {props.description ? <div class={${toast_description_styles(page)}}>{props.description}</div> : null}

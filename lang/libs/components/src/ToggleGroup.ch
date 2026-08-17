@@ -121,27 +121,29 @@ public #universal ToggleGroup(props) {
         if(multiple) {
             // Multiple mode: the pressed set is an array; SSR shows the initial
             // selection via defaultValue comparison and hydration refines it.
-            return <div role="group" class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-                {props.options.map((opt, i) => (
-                    <ToggleGroupItem value={opt} pressed={current.indexOf(opt) != -1} disabled={disabled} variant={variant} size={size} onClick={() => toggle(opt)}>{opt}</ToggleGroupItem>
-                ))}
-            </div>
+        return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
+            {props.options.map((opt, i) => (
+                <ToggleGroupItem value={opt} pressed={current.indexOf(opt) != -1} disabled={disabled} variant={variant} size={size} onClick={() => toggle(opt)}>{opt}</ToggleGroupItem>
+            ))}
+        </div>
         }
-        return <div role="group" class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
+        return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>
             {props.options.map((opt, i) => (
                 <ToggleGroupItem value={opt} pressed={current == opt} disabled={disabled} variant={variant} size={size} onClick={() => toggle(opt)}>{opt}</ToggleGroupItem>
             ))}
         </div>
     }
-    return <div role="group" class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
+    return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
 public #universal ToggleGroupItem(props) {
-    var pressed = props.pressed || false
     var disabled = props.disabled || false
     var variant = props.variant || "default"
     var size = props.size || "default"
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <button type="button" aria-pressed={pressed ? "true" : "false"} data-pressed={pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} onClick={props.onClick} class={classes + " " + ${toggle_group_item_styles(page)}}>{props.children}</button>
+    // `pressed` is passed straight through to the attributes (not through a
+    // local) so the runtime keeps it reactive: when the parent group's
+    // selection changes, the signal recomputes and this button re-renders.
+    return <button {...props} type="button" aria-pressed={props.pressed ? "true" : "false"} data-pressed={props.pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} class={classes + " " + ${toggle_group_item_styles(page)}}>{props.children}</button>
 }

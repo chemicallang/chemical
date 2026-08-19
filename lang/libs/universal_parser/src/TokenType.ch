@@ -97,7 +97,7 @@ public enum JsTokenType {
 public func isIdOrKw(type : JsTokenType) : bool {
     switch(type) {
         JsTokenType.Identifier, JsTokenType.Function, JsTokenType.Return, JsTokenType.If, JsTokenType.Else, JsTokenType.Const, JsTokenType.Let, JsTokenType.For, JsTokenType.While,
-        JsTokenType.Break, JsTokenType.Continue, JsTokenType.Switch, JsTokenType.Case, JsTokenType.Default, JsTokenType.Do,
+        JsTokenType.Break, JsTokenType.Continue, JsTokenType.Switch, JsTokenType.Case, JsTokenType.Default, JsTokenType.Do, JsTokenType.State,
         JsTokenType.Try, JsTokenType.Catch, JsTokenType.Finally, JsTokenType.Throw,
         JsTokenType.True, JsTokenType.False, JsTokenType.Null, JsTokenType.Undefined,
         JsTokenType.Typeof, JsTokenType.Void, JsTokenType.Delete, JsTokenType.In, JsTokenType.InstanceOf,

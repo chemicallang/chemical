@@ -1,6 +1,9 @@
 // ===== HTTP request/response parsers and URL utilities =====
 public namespace http {
 
+    // Default maximum response body size read into memory (100MB).
+    public comptime const DEFAULT_MAX_BODY_LEN : usize = 100u * 1024u * 1024u
+
     // URL decode (percent-decoding)
     public func url_decode(in_s: &std::string_view) : std::string {
         var out = std::string();
@@ -175,7 +178,17 @@ public namespace http {
     }
 
     // Incremental response reader (with optional TLS support)
-    public func read_response_incremental(s: net::Socket, buf: &mut net::Buffer, timeout_secs: long, max_header_bytes: usize, tls_ctx: *mut tls::SSLContext = null) : std::Option<Response> {
+    // Reads response headers, then wraps the remaining stream in a streaming
+    // Body. `max_body_len` caps how much total body data Body::read will
+    // deliver; pass 0 for an unlimited stream (e.g. file downloads).
+    public func read_response_incremental(
+        s: net::Socket,
+        buf: &mut net::Buffer,
+        timeout_secs: long,
+        max_header_bytes: usize,
+        tls_ctx: *mut tls::SSLContext = null,
+        max_body_len: usize = DEFAULT_MAX_BODY_LEN
+    ) : std::Option<Response> {
         if(s != 0) {
             net::set_recv_timeout(s, timeout_secs, 0);
         }
@@ -204,7 +217,7 @@ public namespace http {
                         var Some(te) = te_opt else unreachable;
                         if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                     }
-                    res.body = Body.make_body(s, buf as *mut net::Buffer, body_len, chunked, timeout_secs * 4, 100u * 1024u * 1024u);
+                    res.body = Body.make_body(s, buf as *mut net::Buffer, body_len, chunked, timeout_secs * 4, max_body_len);
                     if(tls_ctx != null) {
                         res.body.tls_ctx = tls_ctx
                     }

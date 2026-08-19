@@ -1,6 +1,7 @@
 public namespace environment {
 
 using std::string;
+using std::string_view;
 
 public variant EnvError {
     OperationFailed(msg : string)

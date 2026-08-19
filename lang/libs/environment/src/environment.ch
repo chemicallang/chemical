@@ -38,11 +38,11 @@ public func get_or(name : string_view, default_val : string_view) : string {
 public func set(name : string_view, value : string_view) : Result<UnitTy, EnvError> {
     comptime if(def.windows) {
         var r = SetEnvironmentVariableA(name.data(), value.data());
-        if(r == 0) { return Result.Err(EnvError.OperationFailed("SetEnvironmentVariableA failed")); }
+        if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
         return Result.Ok(UnitTy{});
     } else {
         var r = setenv(name.data(), value.data(), 1);
-        if(r != 0) { return Result.Err(EnvError.OperationFailed("setenv failed")); }
+        if(r != 0) { return Result.Err(EnvError.OperationFailed(string("setenv failed"))); }
         return Result.Ok(UnitTy{});
     }
 }
@@ -51,11 +51,11 @@ public func set(name : string_view, value : string_view) : Result<UnitTy, EnvErr
 public func unset(name : string_view) : Result<UnitTy, EnvError> {
     comptime if(def.windows) {
         var r = SetEnvironmentVariableA(name.data(), null);
-        if(r == 0) { return Result.Err(EnvError.OperationFailed("SetEnvironmentVariableA failed")); }
+        if(r == 0) { return Result.Err(EnvError.OperationFailed(string("SetEnvironmentVariableA failed"))); }
         return Result.Ok(UnitTy{});
     } else {
         var r = unsetenv(name.data());
-        if(r != 0) { return Result.Err(EnvError.OperationFailed("unsetenv failed")); }
+        if(r != 0) { return Result.Err(EnvError.OperationFailed(string("unsetenv failed"))); }
         return Result.Ok(UnitTy{});
     }
 }
@@ -120,26 +120,6 @@ public func shell() : Option<string> {
 /// Get the terminal type.
 public func term() : Option<string> {
     return get("TERM");
-}
-
-// ---------------------------------------------------------------------------
-// OS-specific externs
-// ---------------------------------------------------------------------------
-
-@extern("getenv")
-func getenv(name : *char) : *char
-
-comptime if(!def.windows) {
-    @extern("setenv")
-    func setenv(name : *char, value : *char, overwrite : int) : int
-
-    @extern("unsetenv")
-    func unsetenv(name : *char) : int
-}
-
-comptime if(def.windows) {
-    @extern("SetEnvironmentVariableA")
-    func SetEnvironmentVariableA(name : *char, value : *char) : int
 }
 
 // ---------------------------------------------------------------------------

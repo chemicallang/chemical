@@ -179,11 +179,13 @@ public namespace http {
     public struct Client {
         var default_timeout_secs: long;
         var max_response_header_bytes: usize;
+        var max_body_len: usize;   // 0 = unlimited streaming body (e.g. downloads); default 100MB
 
         @constructor func constructor() {
             return Client {
                 default_timeout_secs = 10,
-                max_response_header_bytes = 64u * 1024u
+                max_response_header_bytes = 64u * 1024u,
+                max_body_len = DEFAULT_MAX_BODY_LEN
             }
         }
 
@@ -268,7 +270,8 @@ public namespace http {
             var buf_ptr = new net::Buffer()
             var res_opt = read_response_incremental(s, &mut *buf_ptr, req_builder.timeout_secs,
                                                       self.max_response_header_bytes,
-                                                      tls_ctx)
+                                                      tls_ctx,
+                                                      self.max_body_len)
             if(res_opt is std::Option.None) {
                 if(is_https) {
                     // tls_ctx is heap-allocated via malloc; free with ssl_free + dealloc

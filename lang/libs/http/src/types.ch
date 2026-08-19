@@ -34,7 +34,8 @@ public namespace http {
             headers.push_back(std::pair<std::string,std::string>{ first : std::string(k.data(), k.size()), second : std::string(v.data(), v.size()) })
         }
 
-        func get(&self, name: *char) : std::Option<std::string> {
+        // Case-insensitive header lookup. Returns Some(value) if present.
+        public func get(&self, name: *char) : std::Option<std::string> {
             var i = 0u;
             while(i < headers.size()) {
                 var p = headers.get_ptr(i);
@@ -197,8 +198,9 @@ public namespace http {
         return take;
     }
 
-    // PUBLIC: read up to `cap` bytes into dst
-    func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
+    // PUBLIC: read up to `cap` bytes into dst.
+    // Returns the number of bytes read, 0 on end of body, or -1 on error.
+    public func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
         if(b.closed) { return 0 }
         if(b.max_body > 0u && b.seen_total >= b.max_body) { return -1 }
 
@@ -381,6 +383,33 @@ public namespace http {
     // close resources
     public func (b: &mut Body) close() {
         b.closed = true;
+    }
+
+    // Access to the underlying socket for consumers that need to inspect or
+    // close it themselves (e.g. aborting a download mid-stream).
+    public func (b: &Body) socket() : net::Socket {
+        return b.sock
+    }
+
+    // Close the underlying socket immediately. Subsequent reads return 0.
+    // Useful when a consumer wants to abandon a response body without draining.
+    public func (b: &mut Body) close_socket() {
+        if(b.sock != 0u) {
+            net::close_socket(b.sock)
+            b.sock = 0u
+        }
+        b.closed = true
+    }
+
+    // True if the body uses Transfer-Encoding: chunked.
+    public func (b: &Body) is_chunked() : bool {
+        return b.chunked
+    }
+
+    // Remaining body bytes when Content-Length was present, or -1 when the
+    // length is unknown (read-until-close framing).
+    public func (b: &Body) content_length() : isize {
+        return b.remaining
     }
 
     public struct Request {

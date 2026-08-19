@@ -35,7 +35,7 @@ is a **standalone repo** that is also hosted on GitHub as
 
 A Chemical demo app (`app/`) renders every interactive component with stable
 `data-testid` hooks. Playwright loads the static output, hydrates, clicks, and asserts
-real DOM state (~140 tests):
+real DOM state (~177 tests):
 
 - **Hydration correctness** — SSR output becomes interactive without node duplication
   (the hydration fix in `page.ch` removes the original SSR text node when a state
@@ -50,11 +50,14 @@ real DOM state (~140 tests):
   - **Checkbox/Switch/Radio**: toggle, mutual exclusion, disabled state.
   - **ToggleGroup**: single and multiple mode.
   - **RadioGroup**: select, defaultValue, no-provider, focusable items.
-  - **Toast**: auto-dismiss.
-  - **Collapsible**: toggle + aria-expanded.
-  - **Sheet**: open/close, inert background.
+  - **Toast**: auto-dismiss, duration=0 (no auto-dismiss), manual close button, action slot, role=status, title-only and description-only render.
+  - **Collapsible**: toggle + aria-expanded, controlled mode (external button).
+  - **Sheet**: open/close, inert background, side prop (left/top/bottom).
   - **Dropdown**: portal escapes overflow:hidden, non-modal no-inert.
   - **Input**: default/filled/ghost/error/success variants, sm/lg sizes, disabled, type=email/number/password/search, textarea rows, field (label/hint/error), focus ring, typed value via onChange.
+  - **Dialog**: controlled mode (parent drives open/close via state + Escape).
+  - **ToggleGroup**: controlled mode (parent drives selection), outline/ghost variants.
+  - **RadioGroup**: controlled mode (click updates parent).
   - **NativeSelect**: <select> renders, placeholder disabled, accepts selection.
   - **Tooltip**: hover show/hide, bottom position.
   - **Pagination**: prev/next, last page disables next.
@@ -73,12 +76,28 @@ real DOM state (~140 tests):
 - **Accessibility** — buttons have names, accordion/collapsible have `aria-expanded`,
   dialog has `aria-modal`, separator has `role=separator`.
 - **Error boundary** — fallback UI shown on error, page keeps working after fallback mounts.
+- **Utility/layout components** — Container (sm/md/lg/full), Stack (direction, gap, align, justify), Grid (cols, gap), Breadcrumbs (links, separator, current page), Divider, Kbd, Skeleton (width/height/circle), Spinner (sm/md/lg, aria-label).
+- **Surface components** — Paper, AppBar, Drawer, Snackbar (role=status), Icon, BottomBar, EmptyState, StatCard.
+- **Dark mode** — `.dark` class on `<html>` applies shadcn dark theme tokens; verified via CSS variable inspection.
+- **Text polymorphism** — `Text` renders as `<p>`, `<span>`, or `<div>` via the `as` prop.
+- **ToggleGroup variants** — outline/ghost variants render (group-level CSS, items use default variant).
 
 **Selector rule**: components that spread `{...props}` (Button, Input, Checkbox,
 Switch, Radio, Select, Slider, Progress) accept `data-testid` directly. Components
-that do NOT spread props (Card, Badge, Avatar, Typography, Tooltip, Alert, Separator)
-require text-based, role-based, or attribute-based selectors (e.g. `getByText`,
-`locator('[role="alert"]')`, `locator('[data-variant="info"]')`).
+that do NOT spread props (Card, Badge, Avatar, Typography, Tooltip, Alert, Separator,
+Stack, Grid, Skeleton, Spinner, Text) require text-based, role-based, or attribute-
+based selectors (e.g. `getByText`, `locator('[role="alert"]')`,
+`locator('[data-variant="info"]')`, `locator('.chx-stack-row')`).
+
+**Component → selector cheat sheet**:
+| Component | Forward testid? | Selector pattern |
+|---|---|---|
+| Button, Input, Checkbox, Switch, Radio, Select, Slider, Progress | Yes | `getByTestId()` |
+| Card, Badge, Avatar, Typography, Tooltip, Alert, Separator | No | `getByText()`, `locator('[role=...]')`, `locator('[data-variant=...]')` |
+| Stack, Grid | No | `locator('.chx-stack-row')`, `locator('.chx-grid-gap-sm')` |
+| Skeleton, Spinner | No | `locator('span')` or `locator('[role=status]')` within fixture |
+| Dialog, Sheet (portaled) | No (portaled) | `page.getByRole('dialog')`, not fixture-scoped |
+| Toast (portaled to viewport) | On wrapper | Scoped via fixture `data-testid` |
 
 Every fixture lives in `app/src/main.ch` inside a wrapper with `data-testid`, and state
 lives in the fixture (so tests exercise SSR → hydration → click).

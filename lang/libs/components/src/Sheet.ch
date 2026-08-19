@@ -202,6 +202,12 @@ public #universal Sheet(props) {
     if(width && (side == "left" || side == "right")) {
         style = "width:" + width + ";"
     }
+    // WAI-ARIA modal pattern: while the sheet is open the background becomes
+    // inert (see Dialog for the same pattern).
+    useEffect(() => {
+        window.$__uni_inert_scan();
+        return () => window.$__uni_inert_scan();
+    }, [isOpen])
     // Renders into document.body via createPortal (shadcn pattern) so the
     // fixed-position overlay stays viewport-relative inside transform/overflow
     // ancestors. SSR renders it inline; hydration moves it to body.
@@ -215,7 +221,8 @@ public #universal Sheet(props) {
                 </SheetHeader>
                 <SheetBody>{props.children}</SheetBody>
             </SheetContent>
-        </div>
+        </div>,
+        { modal: true }
     )
 }
 

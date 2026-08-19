@@ -35,15 +35,50 @@ is a **standalone repo** that is also hosted on GitHub as
 
 A Chemical demo app (`app/`) renders every interactive component with stable
 `data-testid` hooks. Playwright loads the static output, hydrates, clicks, and asserts
-real DOM state:
+real DOM state (~140 tests):
 
-- **Hydration correctness** — SSR output must become interactive without duplication
-  (this caught a real bug: state-wrapped universal children rendered twice).
-- **Interactivity** — tabs, accordion, dialog, select, slider, checkbox/switch/radio,
-  toggle-group, radio-group, toast auto-dismiss, collapsible, sheet, counter.
+- **Hydration correctness** — SSR output becomes interactive without node duplication
+  (the hydration fix in `page.ch` removes the original SSR text node when a state
+  branch wraps text content).
+- **Interactive components (full parameter coverage):**
+  - **Button**: all 10 variants, 3 sizes, disabled, loading, type=submit, aria-label, Fab + Fab disabled.
+  - **Tabs**: click switch, ArrowLeft/Right/Home/End, ariaLabel, 2-tab edge case.
+  - **Accordion**: open/close, keyboard, multi-open, disabled items, subtitle, chevronOpen/chevronClosed.
+  - **Dialog**: open/close, inert, focus trap, Escape, aria-modal, aria-label, controlled state, backdrop click.
+  - **Select**: pick option, keyboard typeahead, controlled mode, disabled, empty options, defaultValue, aria-expanded/haspopup/activedescendant, Escape, Home/End, Space opens.
+  - **Slider**: ArrowRight/Left/Up/Down, End/Home, disabled state, custom range, min/max boundaries.
+  - **Checkbox/Switch/Radio**: toggle, mutual exclusion, disabled state.
+  - **ToggleGroup**: single and multiple mode.
+  - **RadioGroup**: select, defaultValue, no-provider, focusable items.
+  - **Toast**: auto-dismiss.
+  - **Collapsible**: toggle + aria-expanded.
+  - **Sheet**: open/close, inert background.
+  - **Dropdown**: portal escapes overflow:hidden, non-modal no-inert.
+  - **Input**: default/filled/ghost/error/success variants, sm/lg sizes, disabled, type=email/number/password/search, textarea rows, field (label/hint/error), focus ring, typed value via onChange.
+  - **NativeSelect**: <select> renders, placeholder disabled, accepts selection.
+  - **Tooltip**: hover show/hide, bottom position.
+  - **Pagination**: prev/next, last page disables next.
+  - **List**: renders <ul>/<li> items.
+  - **Table**: renders <th>/<td> headers and cells.
+  - **Nested**: card + input + button together.
+- **Presentation components:** Alert (6 variants, role, title+dismiss), Avatar (5 sizes, bordered, group, more counter), Badge (8 variants, 3 sizes, inline span), Card (header/title/description/content/footer, onClick, interactive, action slot), Typography (H1-H6, Heading dynamic level, Text muted/as, Lead, Caption, CodeText, Link, Blockquote), Separator (role, orientation), Progress (variants, value).
 - **Portals** — Select menus inside `overflow: hidden` and `transform` containers must
   open fully visible and clickable (proves the body-portal escapes clipping).
-- **No runtime errors** — a dedicated test asserts `$__uni_error` never fires.
+- **Context system** — RadioGroup/ToggleGroup children-based context, defaultValue SSR,
+  no-provider standalone items.
+- **Inert/background lock** — Dialog/Sheet set `inert` on `<main>` while open;
+  non-modal portals (Select, Dropdown) do NOT inert.
+- **Performance** — SSR HTML size < 200KB, hydration < 5s, no crash on rapid clicks,
+  all 29 fixtures render from SSR, cross-component interaction works.
+- **Accessibility** — buttons have names, accordion/collapsible have `aria-expanded`,
+  dialog has `aria-modal`, separator has `role=separator`.
+- **Error boundary** — fallback UI shown on error, page keeps working after fallback mounts.
+
+**Selector rule**: components that spread `{...props}` (Button, Input, Checkbox,
+Switch, Radio, Select, Slider, Progress) accept `data-testid` directly. Components
+that do NOT spread props (Card, Badge, Avatar, Typography, Tooltip, Alert, Separator)
+require text-based, role-based, or attribute-based selectors (e.g. `getByText`,
+`locator('[role="alert"]')`, `locator('[data-variant="info"]')`).
 
 Every fixture lives in `app/src/main.ch` inside a wrapper with `data-testid`, and state
 lives in the fixture (so tests exercise SSR → hydration → click).
@@ -85,15 +120,21 @@ Rules of thumb:
 
 - **Prefer roles over CSS/testid where possible** (`getByRole("button", { name })`,
   `getByRole("slider", { name: "Volume" })`, `getByRole("tabpanel", { name })`). This
-  also catches accessibility gaps — e.g. tabpanels without `aria-labelledby` fail to
-  resolve by name, which is exactly why Tabs now wires `aria-controls`/`aria-labelledby`.
+  also catches accessibility gaps.
 - **`data-testid` requires `{...props}` spread** on the component root. If a test can't
-  find its hook, the component is likely not forwarding props (a real library bug —
-  shadcn components all spread props).
+  find its hook, check whether the component spreads props (a real library bug —
+  shadcn components all spread props). For components that don't forward props,
+  use: `getByText()` for text content, `locator('[role="..."]')` for ARIA roles,
+  `locator('[data-variant="..."]')` for rendered data attributes, or
+  `locator('h1')/locator('h2')` for heading tags.
+- **Strict mode**: when a locator matches multiple elements, use `.first()` or narrow
+  the scope (e.g. `f.locator('[data-variant="info"]')` inside a specific fixture).
 - **Controlled state lives in the fixture** (`state value = "x"` in the `#universal`
   fixture), so tests verify both SSR output and the parent's `onValueChange`/`onChange`.
 - Timing: use Playwright's built-in auto-waiting; only add explicit `timeout` for
   genuinely slow effects (toast auto-dismiss) — and keep durations short.
+- **Avoid `page` as a variable name** inside fixtures — it collides with the
+  C codegen's internal `page` (HtmlPage*) parameter. Use `currentPage` instead.
 
 ## Writing a new fixture + test (step by step)
 
@@ -164,6 +205,13 @@ These are the real bugs the suite has caught so far — keep the fixes intact:
     hydrates SSR'd nodes in place then MOVES them to a body container; `$_urn` renders
     fresh into a body container. `$__uni_floating(trigger, menu, opts)` anchors portaled
     menus under their trigger with fixed coords, re-measured on scroll/resize.
+11. **Hydration text-doubling fix** — when a `state` value wraps a text child during
+    hydration, the original SSR text node was never removed. The `dom = el.firstChild`
+    saved the SSR text node, markers were inserted, the state branch rendered a new text
+    node, but `dom` was never detached — producing doubled text like “Click meClick me”.
+    Fixed in `$__uni_hydrate_node` (`page.ch`): after inserting the state branch's marker,
+    if `dom` was an SSR text node (not adopted as a component slot), remove it with
+    `dom.parentNode.removeChild(dom)`.
 
 ## Portal gotchas (learned the hard way)
 

@@ -1136,7 +1136,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             start.after(window.$_urn(next));
         });
         start.after(window.$_urn(v.value));
-        return dom;
+        // Remove original SSR node that was replaced by state markers to
+        // prevent text/element doubling when hydration re-renders the value.
+        if(dom && dom.parentNode === parent) dom.remove();
+        return end.nextSibling;
     }
     if(typeof v === "string" || typeof v === "number") {
         const nextText = "" + v;

@@ -699,7 +699,7 @@ window.$_r = {
         }
         return window.$__uni_ctx[name];
     },
-    createPortal: (children) => ({ t: "__uni_portal", c: Array.isArray(children) ? children : [ children ] }),
+    createPortal: (children, opts) => ({ t: "__uni_portal", p: opts || {}, c: Array.isArray(children) ? children : [ children ] }),
     useErrorBoundary: (fallback) => {
         const inst = window.$__uni_current_instance;
         if(!inst) return;
@@ -775,6 +775,41 @@ window.$__uni_floating = ((trigger, menu, opts = {}) => {
         window.removeEventListener("resize", update);
     };
 })
+// Tags a portal container so the inert manager can exempt it (and the modal
+// manager can find it). `opts.modal` marks modal overlays (Dialog/Sheet) whose
+// visibility locks the background.
+window.$__uni_tag_portal = ((container, opts = {}) => {
+    container.setAttribute("data-uni-portal", "");
+    if(opts && opts.modal) container.setAttribute("data-uni-modal", "");
+})
+// Modal overlay support (WAI-ARIA dialog pattern): while ANY modal portal is
+// visible, everything in <body> except the portal containers becomes inert
+// (not focusable, not clickable, hidden from the a11y tree). Non-modal portals
+// (Select menu, DropdownMenu) stay interactive even inside an open modal.
+// Components opt in via createPortal(children, { modal: true }) and call this
+// from an effect keyed on their open state (open -> lock, close -> unlock).
+window.$__uni_inert_scan = (() => {
+    const scan = () => {
+        let active = false;
+        const modals = document.querySelectorAll("[data-uni-modal]");
+        for(let i = 0; i < modals.length; i++) {
+            const first = modals[i].firstElementChild;
+            if(!first) continue;
+            const st = window.getComputedStyle(first);
+            if(st.display !== "none" && st.visibility !== "hidden") {
+                active = true;
+                break;
+            }
+        }
+        const kids = document.body.children;
+        for(let i = 0; i < kids.length; i++) {
+            const kid = kids[i];
+            const isPortal = kid.hasAttribute("data-uni-portal");
+            kid.inert = active && !isPortal;
+        }
+    };
+    return scan;
+})()
 window.$__uni_run_effects = ((inst, effects) => {
     if(!effects) return;
     for(let i = 0; i < effects.length; i++) {
@@ -995,6 +1030,7 @@ window.$_urn = ((v) => {
         if(v.t === "__uni_portal") {
             const container = document.createElement("div");
             document.body.appendChild(container);
+            window.$__uni_tag_portal(container, v.p);
             const children = v.c || [];
             for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));
             return container;
@@ -1135,6 +1171,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             // content escapes overflow/transform clipping by its ancestors.
             const container = document.createElement("div");
             document.body.appendChild(container);
+            window.$__uni_tag_portal(container, v.p);
             const children = v.c || [];
             if(!dom) {
                 for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));

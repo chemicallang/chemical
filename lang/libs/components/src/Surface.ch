@@ -339,6 +339,14 @@ public #universal Dialog(props) {
             }
         }
     }, [isOpen])
+    // WAI-ARIA modal pattern: while the dialog is open the background becomes
+    // inert (not focusable/clickable for AT and keyboard users). The modal flag
+    // marks this portal as a modal overlay for the inert manager; the effect
+    // re-scans on open/close (the overlay hides via display:none when closed).
+    useEffect(() => {
+        window.$__uni_inert_scan();
+        return () => window.$__uni_inert_scan();
+    }, [isOpen])
     // The overlay renders into document.body via createPortal so position: fixed
     // is viewport-relative even inside transform/overflow ancestors (shadcn does
     // the same). SSR renders it inline; hydration moves it to body.
@@ -346,7 +354,8 @@ public #universal Dialog(props) {
         <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
             <DialogBackdrop onClick={close}></DialogBackdrop>
             <DialogContent ref={contentRef} role="dialog" aria-modal="true" aria-label={props.ariaLabel}>{props.children}</DialogContent>
-        </div>
+        </div>,
+        { modal: true }
     )
 }
 

@@ -275,6 +275,37 @@ Portaled menus position themselves under the trigger with fixed coordinates. Whe
 `maxHeight` clamped to available space). This is required: a fixed menu opening
 below the fold is unreachable (fixed elements can't be scrolled into view).
 
+### Modal portals and inert background
+
+When a modal overlay (Dialog, Sheet) opens via `createPortal(children, {modal: true})`,
+the portal container gets `data-uni-modal`. The runtime helper `$__uni_inert_scan()` scans
+all `<main>` / `<body>` children: non-portal siblings and non-modal portal containers get
+`inert` added; modal portals and their children are exempt. On close the scan runs again
+to remove inert.
+
+Key rules:
+
+- Pass `{modal: true}` as the second arg to `createPortal` for modals (Dialog/Sheet).
+- Non-modal portals (Select menu, DropdownMenu) must NOT pass `{modal: true}`.
+- `inert` on a parent makes all descendants inert (not focusable, not clickable for AT).
+- The portal container itself is outside the inert subtree (it's appended to `document.body`).
+- `el.inert` (DOM property) only reflects the element's own attribute, NOT inherited inert
+  state. Use `el.closest("[inert]")` to check if an element is effectively inert.
+
+The `page.ch` runtime helper:
+
+```js
+window.$__uni_inert_scan = () => {
+    const main = document.querySelector("main") || document.body;
+    for (const kid of main.children) {
+        kid.inert = !kid.hasAttribute("data-uni-portal") || kid.hasAttribute("data-uni-modal");
+    }
+};
+```
+
+Dialog/Sheet components add a `useEffect([isOpen])` that calls `$__uni_inert_scan()` on
+both open and close.
+
 ### Subscriber mutation during notification
 
 Symptoms:

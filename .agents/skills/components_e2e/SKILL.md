@@ -203,6 +203,14 @@ component should meet:
   `[data-accordion-root]` DOM traversal (works with the children-based API).
 - **Dropdown:** menu is portaled like Select; `role="menu"`/`role="menuitem"` on
   Menu/MenuItem.
+- **Inert background:** when a modal (Dialog/Sheet) opens, `inert` is added to `<main>`
+  children (non-portal siblings). When closed, inert is removed. Non-modal portals
+  (Select menu, DropdownMenu) must NOT inert the background. Tests verify:
+  1. `<main>` gets `inert` attribute when dialog/sheet opens
+  2. `el.closest("[inert]")` returns true for background controls (NOT `el.inert`,
+     which only reflects the element's own attribute)
+  3. Inert is removed when dialog/sheet closes
+  4. Select menu does NOT apply inert to background
 - **Error boundary:** a component whose render throws is replaced by its
   `useErrorBoundary(fallback)` result or the default `.chx-error-boundary` UI; the
   page keeps working (verified by clicking a counter after a fallback mounts).

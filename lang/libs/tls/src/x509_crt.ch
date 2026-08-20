@@ -143,6 +143,28 @@ public namespace tls {
         }
     }
 
+    // Free an entire certificate chain, deallocating every node's malloc'd
+    // fields AND the X509Cert structs themselves. Unlike cert_free (which only
+    // releases fields and lets the caller dealloc a single struct), this walks
+    // the whole `next` list. Use this for heap-allocated chains such as the
+    // system CA bundle and the peer certificate chain from a handshake.
+    public func cert_chain_free(head : *mut X509Cert) {
+        var curr = head
+        while(curr != null) {
+            var nxt = curr.next
+            if(curr.raw_pem != null) { unsafe { dealloc curr.raw_pem } }
+            if(curr.san_entries != null) { unsafe { dealloc curr.san_entries } }
+            // Reassigning an empty string frees the heap buffer owned by the
+            // embedded std::string (move-assignment deletes the old buffer).
+            curr.issuer = string()
+            curr.subject = string()
+            curr.next = null
+            curr.prev = null
+            unsafe { dealloc curr }
+            curr = nxt
+        }
+    }
+
     // Initialize an X509 certificate
     public func x509_cert_init(crt : *mut X509Cert) {
         crt.raw_pem = null

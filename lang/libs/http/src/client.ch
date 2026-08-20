@@ -211,7 +211,7 @@ public namespace http {
                 }
                 var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
                 if(config_mem == null) {
-                    if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
+                    if(ca != null) { tls::cert_chain_free(ca) }
                     tls::ssl_free(ssl_ptr)
                     unsafe { dealloc ssl_ptr }
                     return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS config alloc failed"))
@@ -228,7 +228,7 @@ public namespace http {
                                             req_builder.url.host.data(),
                                             req_builder.url.port)
                 if(ret < 0) {
-                    if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
+                    if(ca != null) { tls::cert_chain_free(ca) }
                     tls::ssl_free(ssl_ptr)
                     unsafe { dealloc ssl_ptr }
                     return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS handshake failed"))
@@ -236,7 +236,7 @@ public namespace http {
 
                 // CA bundle is only needed for handshake-time certificate
                 // verification, which has completed — release it now.
-                if(ca != null) { tls::cert_free(ca); unsafe { dealloc ca } }
+                if(ca != null) { tls::cert_chain_free(ca) }
 
                 // Verify the server's certificate matches the requested hostname
                 if(ssl_ptr.peer_cert != null) {

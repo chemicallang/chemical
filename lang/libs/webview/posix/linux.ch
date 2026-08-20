@@ -21,6 +21,8 @@ public type GtkContainer = window::GtkContainer
 @no_init @extern public struct WebKitWebView {}
 @no_init @extern public struct WebKitSettings {}
 @no_init @extern public struct WebKitUserContentManager {}
+@no_init @extern public struct WebKitUserScript {}
+@no_init @extern public struct WebKitScriptDialog {}
 @no_init @extern public struct WebKitWebContext {}
 
 // GTK constants
@@ -32,6 +34,28 @@ const GTK_FILL = 4
 const GTK_EXPAND = 2
 const GTK_SHRINK = 1
 const WEBKIT_LOAD_FINISHED = 4
+
+// WebKit enum values (not exported by the runtime headers).
+const WEBKIT_SCRIPT_DIALOG_PROMPT = 2
+const WEBKIT_USER_CONTENT_INJECT_TOP_FRAME = 0
+const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
+
+// JS<->native bridge transport. The JS side calls
+//   window.webview_bridge.call(method, argsJson)
+// which invokes prompt() with the message "__WV_BIND__" + method + "\n" + args.
+// The script-dialog signal handler (see webview_bind) recognizes the prefix,
+// dispatches to the bound handler, and answers the prompt with the returned
+// JSON. The newline separator is safe because JSON.stringify never emits a raw
+// newline inside a string (it escapes it as \n).
+const WEBVIEW_BIND_PREFIX : *char = "__WV_BIND__"
+const WEBVIEW_BIND_PREFIX_LEN = 11
+// Single-quoted JavaScript so the raw triple-quoted string needs no escapes.
+// The newline separator inside the prompt is built with String.fromCharCode(10)
+// so JSON args can never accidentally contain a raw separating newline.
+const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { call: function(method, args) { var r = prompt('__WV_BIND__' + method + String.fromCharCode(10) + args); if (r === null) return '{"ok":false,"error":"cancelled"}'; return r; } };"""
+
+// The injected WebKitUserScript is owned by the user content manager for the
+// lifetime of the web view (no manual unreference needed).
 
 // GTK functions
 @extern public func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
@@ -94,7 +118,16 @@ const WEBKIT_LOAD_FINISHED = 4
 @no_init @extern public struct WebKitJavascriptResult {}
 @extern public func webkit_web_view_run_javascript_finish(web_view : *mut WebKitWebView, res : *mut void, error : *mut *mut void) : *mut WebKitJavascriptResult
 @extern public func webkit_javascript_result_get_js_value(result : *mut WebKitJavascriptResult) : *mut JSCValue
-@extern public func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult)
+@extern public func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult) : *mut WebKitJavascriptResult
+
+// User content manager + script-dialog (JS<->native bridge) APIs
+@extern public func webkit_web_view_get_user_content_manager(web_view : *mut WebKitWebView) : *mut WebKitUserContentManager
+@extern public func webkit_user_content_manager_new() : *mut WebKitUserContentManager
+@extern public func webkit_user_content_manager_add_script(manager : *mut WebKitUserContentManager, script : *mut WebKitUserScript)
+@extern public func webkit_user_script_new(source : *char, injected_frames : int, injection_time : int, allow_list : *mut *mut void, block_list : *mut *mut void) : *mut WebKitUserScript
+@extern public func webkit_script_dialog_get_dialog_type(dialog : *mut WebKitScriptDialog) : int
+@extern public func webkit_script_dialog_get_message(dialog : *mut WebKitScriptDialog) : *char
+@extern public func webkit_script_dialog_prompt_set_text(dialog : *mut WebKitScriptDialog, text : *char)
 
 // Per-call context for webview_evaluate_js_result (freed in the callback).
 public struct JsEvalHandler {
@@ -135,6 +168,13 @@ public struct WebView {
     var visible : bool
     var initialized : bool
 
+    // Handler registered via webview_bind. Dispatches JS window.webview_bridge
+    // calls. The handler is heap-allocated (std.function fields cannot be
+    // initialized inside a struct literal); bind_ctx is null until bound and
+    // bind_handler_set guards dispatch when no handler is bound.
+    var bind_ctx : *mut JsBindHolder
+    var bind_handler_set : bool
+
     @make
     func make() : WebView {
         return WebView {
@@ -152,7 +192,9 @@ public struct WebView {
             width : 800,
             height : 600,
             visible : false,
-            initialized : false
+            initialized : false,
+            bind_ctx : null,
+            bind_handler_set : false
         }
     }
 }
@@ -165,6 +207,15 @@ func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, da
 }
 
 public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewError> {
+    // WebKit's JavaScriptCore reads the process environment through glibc's
+    // exported `environ`. The generated C references only `__environ`, and in
+    // a non-PIE ELF that produces a copy relocation which leaves glibc's
+    // `environ` NULL — JSC then segfaults walking its options. Mirror the real
+    // environment pointer into `environ` before any WebKit object exists.
+    comptime if(def.gnu) {
+        environ = get_environ()
+    }
+
     // The top-level window is created through the window library, so the app
     // can mix native UI with the webview (and gets all the window features).
     wv.win.width = wv.width
@@ -202,6 +253,124 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     wv.visible = false
     wv.initialized = true
 
+    webview_inject_bridge(wv.web_view)
+
+    return std.Result.Ok(std::Unit{})
+}
+
+// Inject the JS<->native bridge stub into every page the webview loads.
+// The script runs at document start so window.webview_bridge exists before any
+// page script executes. It is harmless when no handler is bound yet.
+func webview_inject_bridge(wv : *mut GtkWidget) {
+    if(wv == null) {
+        return
+    }
+    var manager = webkit_web_view_get_user_content_manager(wv as *mut WebKitWebView)
+    if(manager == null) {
+        return
+    }
+    // allow_list/block_list are NULL-terminated arrays of content-filter names;
+    // null means "apply to all".
+    var script = webkit_user_script_new(
+        WEBVIEW_BRIDGE_JS,
+        WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+        WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START,
+        null, null)
+    if(script != null) {
+        webkit_user_content_manager_add_script(manager, script)
+    }
+}
+
+// Heap-allocated holder for a bound JS<->native handler. Exists because a
+// std.function field cannot be populated from inside a struct literal; the
+// holder is `new`-allocated, assigned via set(), and `delete`d on destroy.
+public struct JsBindHolder {
+    var handler : JsBindHandler
+    func set(&mut self, handler_ : JsBindHandler) {
+        self.handler = handler_
+    }
+}
+
+// Invoked by WebKit on the GTK main loop whenever the page calls window.prompt,
+// window.alert, or window.confirm. We only handle our bridge prefix; every
+// other dialog is left to WebKit's default handling (returning FALSE).
+func linux_on_script_dialog(web_view : *mut WebKitWebView, dialog : *mut WebKitScriptDialog, data : *mut void) : int {
+    if(data == null) {
+        return 0
+    }
+    var wv = data as *mut WebView
+    if(!wv.bind_handler_set || wv.bind_ctx == null) {
+        return 0
+    }
+    if(webkit_script_dialog_get_dialog_type(dialog) != WEBKIT_SCRIPT_DIALOG_PROMPT) {
+        return 0
+    }
+    var msg = webkit_script_dialog_get_message(dialog)
+    if(msg == null) {
+        return 0
+    }
+    var msg_view = std::string_view::make_no_len(msg)
+
+    // Must start with the bridge prefix.
+    var prefix_len = WEBVIEW_BIND_PREFIX_LEN as size_t
+    if(msg_view.size() < prefix_len) {
+        return 0
+    }
+    for(var i = 0; i < WEBVIEW_BIND_PREFIX_LEN; i++) {
+        if(msg_view.get(i as size_t) != WEBVIEW_BIND_PREFIX[i]) {
+            return 0
+        }
+    }
+
+    // Find the newline separator: prefix + method + '\n' + args.
+    var nl = prefix_len
+    var found = false
+    while(nl < msg_view.size()) {
+        if(msg_view.get(nl) == '\n') {
+            found = true
+            break
+        }
+        nl = nl + 1
+    }
+    if(!found) {
+        return 0
+    }
+
+    var method = msg_view.subview(prefix_len, nl)
+    var args = msg_view.subview(nl + 1, msg_view.size())
+
+    var result = wv.bind_ctx.handler(method, args)
+    webkit_script_dialog_prompt_set_text(dialog, result.data())
+    return 1
+}
+
+// Bind a native handler to the JS window.webview_bridge.call(method, args).
+// Returns the handler's JSON result synchronously to the calling JavaScript.
+// The handler runs on the GTK main loop; it must not block for long (it blocks
+// page JavaScript while it runs).
+public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+    if(wv.web_view == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
+    }
+    var holder = new JsBindHolder
+    if(holder == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: allocation failed")))
+    }
+    // `new` does not construct members, so the std.function capture in the
+    // freshly allocated holder is garbage. Zeroing makes the implicit delete of
+    // the old capture a no-op (dtor null, is_heap false) before set() copies
+    // the real handler in.
+    memset(holder as *mut void, 0, sizeof(JsBindHolder))
+    holder.set(handler)
+    wv.bind_ctx = holder
+    wv.bind_handler_set = true
+    g_signal_connect_data(
+        wv.web_view as *mut void,
+        "script-dialog",
+        linux_on_script_dialog as *mut void,
+        wv as *mut void,
+        null,
+        0)
     return std.Result.Ok(std::Unit{})
 }
 
@@ -280,6 +449,8 @@ public func webview_attach(
     gtk_container_add(host as *mut GtkContainer, wv.fixed)
     gtk_widget_show_all(wv.fixed)
 
+    webview_inject_bridge(wv.web_view)
+
     wv.initialized = true
     return std.Result.Ok(std::Unit{})
 }
@@ -302,6 +473,11 @@ public func webview_set_bounds(wv : *mut WebView, x : int, y : int, width : int,
 
 public func webview_destroy(wv : *mut WebView) {
     wv.initialized = false
+    if(wv.bind_ctx != null) {
+        delete wv.bind_ctx
+    }
+    wv.bind_ctx = null
+    wv.bind_handler_set = false
     // If the last window_run() returned because the window was destroyed (the
     // user closed it), every widget packed into it — including this webview
     // section and the top-level window itself — has already been finalized.
@@ -310,6 +486,11 @@ public func webview_destroy(wv : *mut WebView) {
     // pointers (the struct can be relocated by webview::create), so just
     // clear the state.
     if(window::window_quit_by_destroy() != 0) {
+        if(wv.bind_ctx != null) {
+            delete wv.bind_ctx
+        }
+        wv.bind_ctx = null
+        wv.bind_handler_set = false
         wv.web_view = null
         wv.fixed = null
         wv.attached = false

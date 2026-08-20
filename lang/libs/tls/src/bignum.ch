@@ -15,7 +15,7 @@ public namespace tls {
     public comptime const ERR_MPI_DIVISION_BY_ZERO = -0x0050
     public comptime const ERR_MPI_ALLOC_FAILED = -0x0060
 
-    public comptime const MAX_LIMBS : size_t = 256
+    public comptime const MAX_LIMBS : size_t = 512
     public comptime const BITS_PER_LIMB : size_t = 32
 
     public struct Mpi {

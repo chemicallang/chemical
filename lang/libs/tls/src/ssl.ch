@@ -2084,6 +2084,11 @@ public namespace tls {
         ret = rsa_import_pubkey(rsa, n_data, n_data_len, e_data, e_data_len)
         if(ret < 0) { return ret }
 
+        // Report the actual RSA modulus bit length. The parser sets a default
+        // (2048) at parse time, which is wrong for 4096-bit keys — compute it
+        // from the imported modulus so pk_bitlen reflects reality.
+        crt.pk_bitlen = mpi_bitlen(&raw mut rsa.N) as u16
+
         return 0
     }
 
@@ -2429,11 +2434,105 @@ public namespace tls {
         return ERR_X509_CERT_VERIFY_FAILED
     }
 
+    // ─── DN helpers for chain building ────────────────────────────────────
+    // Compare two DER-encoded distinguished names byte-for-byte.
+    // Returns true when both are non-null, same length, and identical bytes.
+    func x509_dn_equal(a : *mut u8, a_len : size_t, b : *mut u8, b_len : size_t) : bool {
+        if(a == null || b == null) { return false }
+        if(a_len != b_len) { return false }
+        var i : size_t = 0
+        while(i < a_len) {
+            if(a[i] != b[i]) { return false }
+            i += 1
+        }
+        return true
+    }
+
+    // Walk a certificate chain (linked via `next`) looking for the first cert
+    // whose subject DN matches the given issuer DN. Used to find the signer of
+    // `leaf` both inside the peer chain (intermediates) and in the CA store.
+    func x509_find_cert_by_subject(chain : *mut X509Cert, issuer_raw : *mut u8,
+                                   issuer_len : size_t) : *mut X509Cert {
+        var curr = chain
+        while(curr != null) {
+            if(x509_dn_equal(curr.subject_raw, curr.subject_raw_len, issuer_raw, issuer_len)) {
+                return curr
+            }
+            curr = curr.next
+        }
+        return null
+    }
+
+    // Parse a full Certificate message body into a linked chain of heap
+    // X509Cert nodes. `data` points at the handshake message BODY (right after
+    // the 4-byte handshake header), `data_len` is the body length.
+    //   TLS 1.3 body: context(1+ctx) + cert_list_len(3) + per entry
+    //                 [cert_data_len(3) + cert_data + ext_len(2) + ext]
+    //   TLS 1.2 body: cert_list_len(3) + per entry [cert_data_len(3) + cert_data]
+    // Returns the head of the chain (leaf first) via `out`, or an error code.
+    func x509_parse_server_cert_chain(data : *u8, data_len : size_t, tls13 : bool,
+                                      out_head : *mut *mut X509Cert) : int {
+        var pos : size_t = 0
+        if(tls13) {
+            // Context: 1-byte length + that many bytes.
+            if(pos >= data_len) { return ERR_X509_INVALID_FORMAT }
+            var ctx_len = data[pos] as size_t
+            pos += 1 + ctx_len
+        }
+        // certificate_list length (3 bytes)
+        if(pos + 3 > data_len) { return ERR_X509_INVALID_FORMAT }
+        var list_len = read_u24(data + pos) as size_t
+        pos += 3
+        var list_end = pos + list_len
+        if(list_end > data_len) { list_end = data_len }
+
+        var head : *mut X509Cert = null
+        var tail : *mut X509Cert = null
+        while(pos + 3 <= list_end) {
+            var cert_data_len = read_u24(data + pos) as size_t
+            pos += 3
+            if(cert_data_len == 0 || pos + cert_data_len > list_end) { break }
+            var cert_data = data + pos
+
+            var cert_mem = x509_cert_alloc()
+            if(cert_mem == null) { break }
+            var pr = parse_cert_der(cert_mem, cert_data, cert_data_len)
+            if(pr != 0) {
+                cert_free(cert_mem)
+                unsafe { dealloc cert_mem }
+                break
+            }
+            if(tail != null) {
+                tail.next = cert_mem
+                cert_mem.prev = tail
+            } else {
+                head = cert_mem
+            }
+            tail = cert_mem
+
+            pos += cert_data_len
+            if(tls13) {
+                // 2-byte extensions length + the extensions themselves.
+                if(pos + 2 > list_end) { break }
+                var ext_len = read_u16_be(data + pos) as size_t
+                pos += 2
+                if(pos + ext_len > list_end) { break }
+                pos += ext_len
+            }
+        }
+
+        *out_head = head
+        return 0
+    }
+
     // ─── X.509 Certificate Chain Verification ─────────────────────────────
     // Verify a certificate chain from leaf to root.
-    // Supports both RSA and ECDSA certificates.
-    // leaf: the peer's certificate (first in chain)
-    // trusted_ca: a trusted root CA certificate (or null to skip root verification)
+    // Supports both RSA and ECDSA certificates, and multi-level chains with
+    // intermediates (e.g. leaf -> intermediate -> trusted root).
+    // leaf: the peer's certificate (head of the peer chain; `.next` holds any
+    //       intermediates sent by the server).
+    // trusted_ca: head of a linked list of trusted root CA certificates, or
+    //             null to skip root verification (only valid for self-signed).
     // hostname: expected server hostname (or null to skip)
     // Returns 0 on success, negative error code on failure.
     // Sets crt->flags with verification results.
@@ -2442,22 +2541,8 @@ public namespace tls {
         var flags : u32 = 0
 
         // 1. Self-signed check: if leaf issuer == leaf subject, it's self-signed
-        var is_self_signed = false
-        if(leaf.issuer.size() > 0 && leaf.subject.size() > 0) {
-            var iss_view = leaf.issuer.to_view()
-            var sub_view = leaf.subject.to_view()
-            // Compare issuer and subject byte-by-byte
-            var dn_match = true
-            if(iss_view.size() != sub_view.size()) { dn_match = false }
-            if(dn_match) {
-                var di : size_t = 0
-                while(di < iss_view.size()) {
-                    if(iss_view.get(di) != sub_view.get(di)) { dn_match = false }
-                    di += 1
-                }
-            }
-            if(dn_match) { is_self_signed = true }
-        }
+        var is_self_signed = x509_dn_equal(leaf.issuer_raw, leaf.issuer_raw_len,
+                                           leaf.subject_raw, leaf.subject_raw_len)
 
         // 2. Check hostname first (always run regardless of CA verification)
         var hostname_ok = true
@@ -2474,41 +2559,70 @@ public namespace tls {
         }
         if(!hostname_ok) { return ERR_X509_CERT_VERIFY_FAILED }
 
-        // 3. Check date validity
+        // 3. Check date validity of the leaf
         var date_ret = x509_check_date(leaf)
         if(date_ret != 0) {
             leaf.flags = leaf.flags | date_ret as u32
             return ERR_X509_CERT_VERIFY_FAILED
         }
 
-        if(trusted_ca == null && is_self_signed) {
-            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
-                leaf.flags = 0
-                return 0
+        // 4. Build and verify the chain. Walk from the leaf up: at each step
+        //    we look for a cert (either an intermediate the server sent, or a
+        //    trusted root) whose SUBJECT is this cert's ISSUER, then verify the
+        //    signature link. A path that ends at a trusted root succeeds.
+        var current = leaf
+        var hops = 0
+        while(current != null && hops < 16) {
+            hops += 1
+
+            // 4a. Look for the signer of `current` among the trusted roots.
+            if(trusted_ca != null) {
+                var ca_issuer = x509_find_cert_by_subject(trusted_ca,
+                                                          current.issuer_raw,
+                                                          current.issuer_raw_len)
+                if(ca_issuer != null) {
+                    if(x509_verify_sig_with_issuer(current, ca_issuer) == 0) {
+                        leaf.flags = 0
+                        return 0
+                    }
+                    // Signature didn't verify; fall through to intermediates.
+                }
             }
+
+            // 4b. Look for the signer of `current` among the peer chain
+            //     (intermediates the server sent after the leaf).
+            var peer_issuer = x509_find_cert_by_subject(current.next,
+                                                        current.issuer_raw,
+                                                        current.issuer_raw_len)
+            if(peer_issuer != null) {
+                var sig_ret = x509_verify_sig_with_issuer(current, peer_issuer)
+                if(sig_ret == 0) {
+                    // Check the intermediate's own validity window.
+                    var inter_date = x509_check_date(peer_issuer)
+                    if(inter_date != 0) {
+                        leaf.flags = leaf.flags | inter_date as u32
+                        return ERR_X509_CERT_VERIFY_FAILED
+                    }
+                    current = peer_issuer
+                    continue
+                }
+            }
+
+            // 4c. Self-signed trust anchor: if this cert is self-signed and its
+            //     signature verifies against itself, accept it as the root.
+            if(is_self_signed) {
+                if(x509_verify_sig_with_issuer(current, current) == 0) {
+                    leaf.flags = 0
+                    return 0
+                }
+            }
+
             leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
             return ERR_X509_CERT_VERIFY_FAILED
         }
 
-        // 4. Verify signature using trusted CA or self-signed
-        if(trusted_ca != null) {
-            if(x509_verify_sig_with_issuer(leaf, trusted_ca) == 0) {
-                leaf.flags = 0 as u32
-                return 0
-            }
-            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
-            return ERR_X509_CERT_VERIFY_FAILED
-        } else if(is_self_signed) {
-            if(x509_verify_sig_with_issuer(leaf, leaf) == 0) {
-                leaf.flags = 0 as u32
-                return 0
-            }
-            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
-            return ERR_X509_CERT_VERIFY_FAILED
-        } else {
-            leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
-            return ERR_X509_CERT_VERIFY_FAILED
-        }
+        leaf.flags = X509_BADCERT_NOT_TRUSTED as u32
+        return ERR_X509_CERT_VERIFY_FAILED
     }
 
     // ─── Parse ServerHello and extract key parameters ────────────────────
@@ -2641,51 +2755,44 @@ public namespace tls {
             // Feed Certificate into transcript hash (body starts at hs_buf[4])
             ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
 
-            // Parse first certificate in the chain
-            // Handshake message layout:
+            // Parse the full server certificate chain (leaf first, then any
+            // intermediates). Certificate message layout (TLS 1.2):
             //   hs_buf[0]: handshake type
             //   hs_buf[1..3]: body length (hs_len)
             //   hs_buf[4..6]: certificate_list length (3 bytes)
-            //   hs_buf[7..9]: first cert data length (3 bytes)
-            //   hs_buf[10..]: first cert DER data
-            if(hs_len >= 8) {
-                var cert_list_len = read_u24(&raw hs_buf[4]) as size_t
-                if(3 + cert_list_len <= hs_len as size_t && cert_list_len >= 7) {
-                    var first_cert_len = read_u24(&raw hs_buf[7]) as size_t
-                    if(3 + first_cert_len <= cert_list_len && first_cert_len >= 4) {
-                        // Heap-allocate the peer cert: it outlives the handshake
-                        // (peer_cert is freed by ssl_free), and the parser's
-                        // borrowed DER pointers are rebased onto its own copy.
-                        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
-                        if(cert_mem != null) {
-                            x509_cert_init(cert_mem)
-                            var ret2 = parse_cert_der(cert_mem, &raw hs_buf[10], first_cert_len)
-                            if(ret2 == 0) {
-                                // Try to extract RSA public key
-                                rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-                                var ret3 = x509_extract_rsa_pubkey(cert_mem, &raw mut rsa_ctx)
-                                if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
-                                    has_rsa_key = true
-                                    ssl.peer_cert = cert_mem
-                                    // Run certificate chain verification if CA chain is configured
-                                    if(ssl.conf != null && ssl.conf.ca_chain != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
-                                        var chain_ret = x509_verify_chain(cert_mem, ssl.conf.ca_chain,
-                                                                            ssl.hostname)
-                                        if(chain_ret != 0) {
-                                            // Cert verification failed — reject the connection.
-                                            // peer_cert stays attached; ssl_free cleans it up.
-                                            return ERR_SSL_CERT_VERIFY_FAILED
-                                        }
-                                    }
-                                } else {
-                                    cert_free(cert_mem)
-                                    unsafe { dealloc cert_mem }
-                                }
-                            } else {
-                                cert_free(cert_mem)
-                                unsafe { dealloc cert_mem }
+            //   each entry: cert_data_len(3) + cert_data
+            if(hs_len >= 4) {
+                var cert_chain : *mut X509Cert = null
+                var chain_ret = x509_parse_server_cert_chain(&raw hs_buf[4],
+                                                             hs_len as size_t,
+                                                             false,
+                                                             &raw mut cert_chain)
+                if(chain_ret == 0 && cert_chain != null) {
+                    var leaf = cert_chain
+                    var parsed_key = false
+                    if(leaf.pk_type == PK_RSA as u8) {
+                        rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+                        var ret3 = x509_extract_rsa_pubkey(leaf, &raw mut rsa_ctx)
+                        if(ret3 == 0 && rsa_get_len(&raw mut rsa_ctx) > 0) {
+                            has_rsa_key = true
+                            parsed_key = true
+                        }
+                    }
+                    ssl.peer_cert = leaf
+                    if(parsed_key) {
+                        // Run certificate chain verification if CA chain is configured
+                        if(ssl.conf != null && ssl.conf.ca_chain != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
+                            var vret = x509_verify_chain(leaf, ssl.conf.ca_chain,
+                                                        ssl.hostname)
+                            if(vret != 0) {
+                                // Cert verification failed — reject the connection.
+                                // peer_cert stays attached; ssl_free cleans it up.
+                                return ERR_SSL_CERT_VERIFY_FAILED
                             }
                         }
+                    } else {
+                        cert_chain_free(leaf)
+                        ssl.peer_cert = null
                     }
                 }
             }
@@ -3280,6 +3387,12 @@ public namespace tls {
         // Saved transcript hash before CertificateVerify (for signature verification)
         var cv_transcript_copy : crypto::Sha256Context
         var cv_saved : bool = false
+        // Persistent handshake-message accumulator. Servers may coalesce
+        // several handshake messages into a single record and a single
+        // message may span records — so we buffer plaintext here and drain
+        // complete messages in the inner while loop.
+        var msg_buf : [17408]u8
+        var msg_buf_len : size_t = 0
 
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
@@ -3309,114 +3422,111 @@ public namespace tls {
                 return ERR_SSL_UNEXPECTED_MESSAGE
             }
 
-            // Read the handshake message body
-            var msg_buf : [4096]u8
-            var msg_payload = read_record_payload(ssl, &raw mut msg_buf[0], 4096 as i32)
-            if(msg_payload < 4) { return ERR_SSL_DECODE_ERROR }
+            // Read the handshake record payload into a persistent accumulator.
+            // TLS 1.3 servers coalesce several handshake messages (Encrypted
+            // Extensions, Certificate, CertificateVerify, Finished) into a single
+            // record, and a single large message may span multiple records — so
+            // we accumulate plaintext here and drain complete messages one at a
+            // time in the inner loop below.
+            var want = (17408 as i32) - msg_buf_len
+            var nread = read_record_payload(ssl, &raw mut msg_buf[msg_buf_len], want)
+            if(nread < 0) { return nread }
+            msg_buf_len += nread as size_t
 
-            var msg_type_code = msg_buf[0] as u32
-            var msg_body_len2 = read_u24(&raw msg_buf[1])
+            // Process every complete handshake message currently buffered.
+            while(msg_buf_len >= 4) {
+                var msg_type_code = msg_buf[0] as u32
+                var msg_body_len2 = read_u24(&raw msg_buf[1])
+                var msg_total : size_t = 4 + msg_body_len2 as size_t
+                if(msg_total > msg_buf_len) { break }  // need more data
 
-            if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
-                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+                if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
+                    crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], msg_body_len2 + 4)
 
-                // Parse ALPN from EncryptedExtensions
-                if(msg_body_len2 >= 4) {
-                    var ee_pos : size_t = 4
-                    var ee_end : size_t = 4 + msg_body_len2 as size_t
-                    while(ee_pos + 4 <= ee_end) {
-                        var ext_type = read_u16_be(&raw msg_buf[ee_pos]) as u16
-                        ee_pos += 2
-                        var ext_data_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
-                        ee_pos += 2
-                        if(ext_type == TLS_EXT_ALPN as u16 && ext_data_len >= 2) {
-                            var alpn_list_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
+                    // Parse ALPN from EncryptedExtensions
+                    if(msg_body_len2 >= 4) {
+                        var ee_pos : size_t = 4
+                        var ee_end : size_t = 4 + msg_body_len2 as size_t
+                        while(ee_pos + 4 <= ee_end) {
+                            var ext_type = read_u16_be(&raw msg_buf[ee_pos]) as u16
                             ee_pos += 2
-                            if(alpn_list_len > 0 && ee_pos < ee_end) {
-                                var alpn_name_len = msg_buf[ee_pos] as size_t
-                                ee_pos += 1
-                                if(alpn_name_len > 0 && alpn_name_len <= 255 &&
-                                   ee_pos + alpn_name_len <= ee_end) {
-                                    // Store negotiated protocol
-                                    var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
-                                    if(alpn_mem != null) {
-                                        var alpi : size_t = 0
-                                        while(alpi < alpn_name_len) {
-                                            alpn_mem[alpi] = msg_buf[ee_pos + alpi]
-                                            alpi += 1
+                            var ext_data_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
+                            ee_pos += 2
+                            if(ext_type == TLS_EXT_ALPN as u16 && ext_data_len >= 2) {
+                                var alpn_list_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
+                                ee_pos += 2
+                                if(alpn_list_len > 0 && ee_pos < ee_end) {
+                                    var alpn_name_len = msg_buf[ee_pos] as size_t
+                                    ee_pos += 1
+                                    if(alpn_name_len > 0 && alpn_name_len <= 255 &&
+                                       ee_pos + alpn_name_len <= ee_end) {
+                                        // Store negotiated protocol
+                                        var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
+                                        if(alpn_mem != null) {
+                                            var alpi : size_t = 0
+                                            while(alpi < alpn_name_len) {
+                                                alpn_mem[alpi] = msg_buf[ee_pos + alpi]
+                                                alpi += 1
+                                            }
+                                            alpn_mem[alpn_name_len] = 0
+                                            ssl.alpn_negotiated = alpn_mem as *char
+                                            ssl.alpn_negotiated_len = alpn_name_len
                                         }
-                                        alpn_mem[alpn_name_len] = 0
-                                        ssl.alpn_negotiated = alpn_mem as *char
-                                        ssl.alpn_negotiated_len = alpn_name_len
                                     }
                                 }
                             }
+                            ee_pos += ext_data_len
                         }
-                        ee_pos += ext_data_len
                     }
-                }
 
             } else if(msg_type_code == SSL_HS_CERTIFICATE as u32) {
                 // Hash Certificate into transcript BEFORE saving transcript state
                 crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
-                // Parse server certificate to extract RSA public key for CertificateVerify
+                // Parse the full server certificate chain: leaf first, then any
+                // intermediates. The chain is stored on ssl.peer_cert and freed
+                // by ssl_free; each cert's borrowed DER pointers are rebased
+                // onto its own heap copy by parse_cert_der.
                 if(msg_body_len2 >= 10) {
-                    // Certificate message: context(1) + cert_list_len(3) + cert_chain
-                    // Skip context byte
-                    var pos2 : size_t = 4
-                    var ctx_len_byte = msg_buf[pos2] as size_t
-                    pos2 += 1 + ctx_len_byte
-                    // cert_list_len (3 bytes)
-                    if(pos2 + 3 <= 4 + msg_body_len2 as size_t) {
-                        pos2 += 3  // skip past cert_list_len
-                        // First certificate entry: cert_data_len(3) + cert_data
-                        if(pos2 + 3 <= 4 + msg_body_len2 as size_t) {
-                            var cert_data_len = read_u24(&raw msg_buf[pos2]) as size_t
-                            pos2 += 3
-                            if(pos2 + cert_data_len <= 4 + msg_body_len2 as size_t) {
-                                var cert_der = &raw msg_buf[pos2]
-                                // Heap-allocate the peer cert (freed by ssl_free);
-                                // borrowed DER pointers are rebased onto its own copy.
-                                var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
-                                if(cert_mem != null) {
-                                    x509_cert_init(cert_mem)
-                                    var parse_ret = parse_cert_der(cert_mem, cert_der, cert_data_len)
-                                    if(parse_ret == 0) {
-                                        if(cert_mem.pk_type == PK_RSA as u8) {
-                                            rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
-                                            var ext_ret = x509_extract_rsa_pubkey(cert_mem, &raw mut server_rsa_ctx)
-                                            if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
-                                                has_server_rsa = true
-                                            }
-                                        } else if(cert_mem.pk_type == PK_ECKEY as u8) {
-                                            ecdsa_init(&raw mut server_ecdsa_ctx)
-                                            var ext_ret = x509_extract_ecdsa_pubkey(cert_mem, &raw mut server_ecdsa_ctx)
-                                            if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
-                                                has_server_ecdsa = true
-                                            }
-                                        }
-                                        if(has_server_rsa || has_server_ecdsa) {
-                                            ssl.peer_cert = cert_mem
-                                            if(ssl.conf != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
-                                                // Verify the certificate chain
-                                                var ca = ssl.conf.ca_chain
-                                                var chain_ret = x509_verify_chain(cert_mem, ca, ssl.hostname)
-                                                if(chain_ret != 0) {
-                                                    // peer_cert stays attached; ssl_free cleans it up.
-                                                    return ERR_SSL_CERT_VERIFY_FAILED
-                                                }
-                                            }
-                                        } else {
-                                            cert_free(cert_mem)
-                                            unsafe { dealloc cert_mem }
-                                        }
-                                    } else {
-                                        cert_free(cert_mem)
-                                        unsafe { dealloc cert_mem }
-                                    }
+                    var cert_chain : *mut X509Cert = null
+                    var chain_ret = x509_parse_server_cert_chain(&raw msg_buf[4],
+                                                                 msg_body_len2 as size_t,
+                                                                 true,
+                                                                 &raw mut cert_chain)
+                    if(chain_ret == 0 && cert_chain != null) {
+                        var leaf = cert_chain
+                        var parsed_key = false
+                        if(leaf.pk_type == PK_RSA as u8) {
+                            rsa_init(&raw mut server_rsa_ctx, RSA_PKCS_V15, 0)
+                            var ext_ret = x509_extract_rsa_pubkey(leaf, &raw mut server_rsa_ctx)
+                            if(ext_ret == 0 && rsa_get_len(&raw mut server_rsa_ctx) > 0) {
+                                has_server_rsa = true
+                                parsed_key = true
+                            }
+                        } else if(leaf.pk_type == PK_ECKEY as u8) {
+                            ecdsa_init(&raw mut server_ecdsa_ctx)
+                            var ext_ret = x509_extract_ecdsa_pubkey(leaf, &raw mut server_ecdsa_ctx)
+                            if(ext_ret == 0 && server_ecdsa_ctx.is_init) {
+                                has_server_ecdsa = true
+                                parsed_key = true
+                            }
+                        }
+                        ssl.peer_cert = leaf
+                        if(parsed_key) {
+                            if(ssl.conf != null && ssl.conf.authmode != SSL_VERIFY_NONE) {
+                                var ca = ssl.conf.ca_chain
+                                var vret = x509_verify_chain(leaf, ca, ssl.hostname)
+                                if(vret != 0) {
+                                    // peer_cert stays attached; ssl_free cleans it up.
+                                    return ERR_SSL_CERT_VERIFY_FAILED
                                 }
                             }
+                        } else {
+                            // No usable public key on the leaf; nothing to
+                            // verify CertificateVerify against. Clean up the
+                            // whole chain (peer_cert stays null).
+                            cert_chain_free(leaf)
+                            ssl.peer_cert = null
                         }
                     }
                 }
@@ -3540,6 +3650,23 @@ public namespace tls {
 
             } else {
                 return ERR_SSL_UNEXPECTED_MESSAGE
+            }
+
+            // Consume the processed message: shift any remaining buffered
+            // plaintext (coalesced messages from the same record, or the start
+            // of a message that continues in the next record) to the front.
+            var consumed : size_t = msg_total
+            if(consumed > msg_buf_len) { consumed = msg_buf_len }
+            if(consumed < msg_buf_len) {
+                var si : size_t = 0
+                while(si < msg_buf_len - consumed) {
+                    msg_buf[si] = msg_buf[consumed + si]
+                    si += 1
+                }
+            }
+            msg_buf_len -= consumed
+
+            if(server_finished_verified) { break }
             }
         }
 
@@ -3777,36 +3904,77 @@ public namespace tls {
             return null
         }
 
-        // Allocate and parse the certificate
-        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
-        if(cert_mem == null) {
-            unsafe { dealloc buf }
-            return null
-        }
+        var head : *mut X509Cert = null
+        var tail : *mut X509Cert = null
+        var scan_pos : size_t = 0
+        var begin_marker = string_view("-----BEGIN CERTIFICATE-----")
+        var data_view = string_view(buf as *char, total_read)
 
-        x509_cert_init(cert_mem)
-        var ret = parse_cert_pem(cert_mem, buf, total_read)
-        if(ret < 0) {
-            // Try DER parsing
-            ret = parse_cert_der(cert_mem, buf, total_read)
-            if(ret < 0) {
-                // A partial parse may have left issuer/subject strings with heap
-                // buffers; reassigning empty strings frees them before dealloc.
+        // Parse every PEM certificate in the bundle into a linked chain.
+        while(scan_pos < total_read) {
+            var search_view = data_view.subview(scan_pos, total_read)
+            var rel_pos = search_view.find(&begin_marker)
+            if(rel_pos == std::NPOS) { break }
+            var begin_pos = scan_pos + rel_pos
+
+            var cert_mem = x509_cert_alloc()
+            if(cert_mem == null) { break }
+            var ret = parse_cert_pem(cert_mem, buf + begin_pos, total_read - begin_pos)
+            if(ret == 0) {
+                if(tail != null) {
+                    tail.next = cert_mem
+                    cert_mem.prev = tail
+                } else {
+                    head = cert_mem
+                }
+                tail = cert_mem
+            } else {
                 cert_mem.issuer = string()
                 cert_mem.subject = string()
                 unsafe { dealloc cert_mem }
-                unsafe { dealloc buf }
-                return null
+            }
+            // Continue scanning after this BEGIN marker.
+            scan_pos = begin_pos + 27
+        }
+
+        if(head == null) {
+            // No PEM certificates found in the buffer. Try DER parsing the
+            // whole file as a single binary certificate.
+            var der_cert = x509_cert_alloc()
+            if(der_cert != null) {
+                var ret = parse_cert_der(der_cert, buf, total_read)
+                if(ret == 0) {
+                    head = der_cert
+                    tail = der_cert
+                } else {
+                    der_cert.issuer = string()
+                    der_cert.subject = string()
+                    unsafe { dealloc der_cert }
+                }
             }
         }
 
         unsafe { dealloc buf }
-        return cert_mem
+        return head
     }
 
     // Set the trusted CA chain for certificate verification
     public func ssl_set_ca_chain(conf : *mut SSLConfig, ca : *mut X509Cert) {
         conf.ca_chain = ca
+    }
+
+    // Allocate and initialize a single X509Cert on the heap. malloc'd memory is
+    // NOT zeroed, so we memset first: x509_cert_init move-assigns embedded
+    // std::string members (issuer/subject) which calls their destructor on the
+    // old buffer — on uninitialized bytes that would free garbage. Zeroed
+    // strings have state '\0', so the destructor is a no-op.
+    func x509_cert_alloc() : *mut X509Cert {
+        var cert_mem = malloc(sizeof(X509Cert)) as *mut X509Cert
+        if(cert_mem != null) {
+            memset(cert_mem as *mut void, 0, sizeof(X509Cert))
+            x509_cert_init(cert_mem)
+        }
+        return cert_mem
     }
 
     // Set the server's own RSA private key for decrypting the pre-master secret
@@ -4835,9 +5003,8 @@ public namespace tls {
             ssl.alpn_negotiated = null
         }
         if(ssl.peer_cert != null) {
-            // Peer cert is heap-allocated and owned by the library
-            cert_free(ssl.peer_cert)
-            unsafe { dealloc ssl.peer_cert }
+            // Peer cert chain is heap-allocated and owned by the library
+            cert_chain_free(ssl.peer_cert)
             ssl.peer_cert = null
         }
         if(ssl.conf_owned && ssl.conf != null) {

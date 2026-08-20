@@ -462,8 +462,7 @@ public func INT_system_ca_bundle(env : &mut TestEnv) {
     if(ca == null) {
         env.error("no system CA bundle found")
     } else {
-        cert_free(ca)
-        unsafe { dealloc ca }
+        cert_chain_free(ca)
     }
 }
 

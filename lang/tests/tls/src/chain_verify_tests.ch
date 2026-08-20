@@ -113,6 +113,7 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
+    var cert_path = test_tmp_file(string_view("chem_rsa4096_cert.der"))
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -120,12 +121,15 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "now=datetime.datetime.utcnow()\ncert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'test.example.com')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'Test4096CA')])).public_key(pub).serial_number(1).not_valid_before(now-datetime.timedelta(days=1)).not_valid_after(now+datetime.timedelta(days=365)).sign(key,hashes.SHA256()))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "der=cert.public_bytes(Encoding.DER)\nf=open('/tmp/chem_rsa4096_cert.der','wb');f.write(der);f.close()\nprint('LEN='+str(len(der)))\n" as *char; si=0
+    l = "der=cert.public_bytes(Encoding.DER)\nf=open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, cert_path.to_view())
+    l = "','wb');f.write(der);f.close()\nprint('LEN='+str(len(der)))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     test_python_run_script(&raw script[0], sp, string_view("cert_rsa4096.py"))
 
-    var cert_file = fopen("/tmp/chem_rsa4096_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
     if(cert_file == null) { env.error("cannot open cert"); return }
     var cert_buf : [2048]u8
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
@@ -152,6 +156,7 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
+    var cert_path = test_tmp_file(string_view("chem_rsa2048_cert.der"))
     var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -159,12 +164,15 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "now=datetime.datetime.utcnow()\ncert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'test.example.com')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'Test2048CA')])).public_key(pub).serial_number(1).not_valid_before(now-datetime.timedelta(days=1)).not_valid_after(now+datetime.timedelta(days=365)).sign(key,hashes.SHA256()))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "der=cert.public_bytes(Encoding.DER)\nf=open('/tmp/chem_rsa2048_cert.der','wb');f.write(der);f.close()\n" as *char; si=0
+    l = "der=cert.public_bytes(Encoding.DER)\nf=open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, cert_path.to_view())
+    l = "','wb');f.write(der);f.close()\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     test_python_run_script(&raw script[0], sp, string_view("cert_rsa2048.py"))
 
-    var cert_file = fopen("/tmp/chem_rsa2048_cert.der\0" as *char, "rb\0" as *char)
+    var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
     if(cert_file == null) { env.error("cannot open cert"); return }
     var cert_buf : [2048]u8
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
@@ -188,7 +196,10 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
 // at 4b) AND a 4096-bit RSA signature on the root→intermediate link.
 
 func test_write_chain_python() {
-    var script : [4096]u8; var sp : size_t = 0; var si : size_t = 0
+    var root_path = test_tmp_file(string_view("chem_chain_root.der"))
+    var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
+    var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa,ec\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "def nm(cn):return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,cn)])\n" as *char; si=0
@@ -205,11 +216,20 @@ func test_write_chain_python() {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "lk=ec.generate_private_key(ec.SECP256R1())\nleaf=san(x509.CertificateBuilder().subject_name(nm('test.example.com')).issuer_name(nm('InterCA')).public_key(lk.public_key()).serial_number(3).not_valid_before(na).not_valid_after(nb)).sign(ik,hashes.SHA256())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "open('/tmp/chem_chain_root.der','wb').write(root.public_bytes(Encoding.DER))\n" as *char; si=0
+    l = "open('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "open('/tmp/chem_chain_inter.der','wb').write(inter.public_bytes(Encoding.DER))\n" as *char; si=0
+    test_script_append_view(&raw mut script[0], &raw mut sp, root_path.to_view())
+    l = "','wb').write(root.public_bytes(Encoding.DER))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "open('/tmp/chem_chain_leaf.der','wb').write(leaf.public_bytes(Encoding.DER))\n" as *char; si=0
+    l = "open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, inter_path.to_view())
+    l = "','wb').write(inter.public_bytes(Encoding.DER))\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, leaf_path.to_view())
+    l = "','wb').write(leaf.public_bytes(Encoding.DER))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "print('OK')\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
@@ -229,9 +249,12 @@ func test_read_der_file(path : *char, buf : *mut u8, max_len : size_t) : size_t 
 public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) {
     test_write_chain_python()
 
-    var root_buf : [2048]u8; var root_len = test_read_der_file("/tmp/chem_chain_root.der\0" as *char, &raw mut root_buf[0], 2048)
-    var inter_buf : [2048]u8; var inter_len = test_read_der_file("/tmp/chem_chain_inter.der\0" as *char, &raw mut inter_buf[0], 2048)
-    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file("/tmp/chem_chain_leaf.der\0" as *char, &raw mut leaf_buf[0], 2048)
+    var root_path = test_tmp_file(string_view("chem_chain_root.der"))
+    var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
+    var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
     var root : X509Cert; x509_cert_init(&raw mut root)
@@ -263,24 +286,31 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
 public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     test_write_chain_python()
 
-    var root_buf : [2048]u8; var root_len = test_read_der_file("/tmp/chem_chain_root.der\0" as *char, &raw mut root_buf[0], 2048)
-    var inter_buf : [2048]u8; var inter_len = test_read_der_file("/tmp/chem_chain_inter.der\0" as *char, &raw mut inter_buf[0], 2048)
-    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file("/tmp/chem_chain_leaf.der\0" as *char, &raw mut leaf_buf[0], 2048)
+    var root_path = test_tmp_file(string_view("chem_chain_root.der"))
+    var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
+    var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
+    var wrong_path = test_tmp_file(string_view("chem_chain_wrong.der"))
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
     // Generate an UNRELATED self-signed root.
-    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "import datetime\nkey=rsa.generate_private_key(65537,2048)\nna=datetime.datetime.utcnow()-datetime.timedelta(days=1)\nnb=datetime.datetime.utcnow()+datetime.timedelta(days=365)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'WrongCA')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'WrongCA')])).public_key(key.public_key()).serial_number(9).not_valid_before(na).not_valid_after(nb).add_extension(x509.BasicConstraints(ca=True,path_length=None),critical=True).sign(key,hashes.SHA256()))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "open('/tmp/chem_chain_wrong.der','wb').write(cert.public_bytes(Encoding.DER))\nprint('OK')\n" as *char; si=0
+    l = "open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, wrong_path.to_view())
+    l = "','wb').write(cert.public_bytes(Encoding.DER))\nprint('OK')\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     test_python_run_script(&raw script[0], sp, string_view("wrong_root.py"))
 
-    var wrong_buf : [2048]u8; var wrong_len = test_read_der_file("/tmp/chem_chain_wrong.der\0" as *char, &raw mut wrong_buf[0], 2048)
+    var wrong_buf : [2048]u8; var wrong_len = test_read_der_file(wrong_path.data() as *char, &raw mut wrong_buf[0], 2048)
     if(wrong_len == 0) { env.error("failed to read wrong root"); return }
 
     var root : X509Cert; x509_cert_init(&raw mut root)
@@ -310,8 +340,10 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
 public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestEnv) {
     test_write_chain_python()
 
-    var root_buf : [2048]u8; var root_len = test_read_der_file("/tmp/chem_chain_root.der\0" as *char, &raw mut root_buf[0], 2048)
-    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file("/tmp/chem_chain_leaf.der\0" as *char, &raw mut leaf_buf[0], 2048)
+    var root_path = test_tmp_file(string_view("chem_chain_root.der"))
+    var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
     var root : X509Cert; x509_cert_init(&raw mut root)
@@ -336,24 +368,40 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
 @test
 public func INT_x509_pem_bundle_multicert_vs_python(env : &mut TestEnv) {
     test_write_chain_python()
+    var root_path = test_tmp_file(string_view("chem_chain_root.der"))
+    var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
+    var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
+    var bundle_path = test_tmp_file(string_view("chem_chain_bundle.pem"))
 
     // Bundle all three PEMs into a single file.
-    var script : [4096]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509 import load_pem_x509_certificate\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
-    var l = "root=x509.load_der_x509_certificate(open('/tmp/chem_chain_root.der','rb').read())\n" as *char; si=0
+    var l = "root=x509.load_der_x509_certificate(open('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "inter=x509.load_der_x509_certificate(open('/tmp/chem_chain_inter.der','rb').read())\n" as *char; si=0
+    test_script_append_view(&raw mut script[0], &raw mut sp, root_path.to_view())
+    l = "','rb').read())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "leaf=x509.load_der_x509_certificate(open('/tmp/chem_chain_leaf.der','rb').read())\n" as *char; si=0
+    l = "inter=x509.load_der_x509_certificate(open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, inter_path.to_view())
+    l = "','rb').read())\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "leaf=x509.load_der_x509_certificate(open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, leaf_path.to_view())
+    l = "','rb').read())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "bundle=root.public_bytes(Encoding.PEM)+inter.public_bytes(Encoding.PEM)+leaf.public_bytes(Encoding.PEM)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "open('/tmp/chem_chain_bundle.pem','wb').write(bundle)\nprint('OK')\n" as *char; si=0
+    l = "open('" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    test_script_append_view(&raw mut script[0], &raw mut sp, bundle_path.to_view())
+    l = "','wb').write(bundle)\nprint('OK')\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     test_python_run_script(&raw script[0], sp, string_view("bundle_gen.py"))
 
-    var chain = x509_crt_load_pem_file("/tmp/chem_chain_bundle.pem\0" as *char)
+    var chain = x509_crt_load_pem_file(bundle_path.data() as *char)
     if(chain == null) { env.error("failed to load multi-cert PEM bundle"); return }
 
     // Walk the parsed chain: expect exactly 3 certs, root first.

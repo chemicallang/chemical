@@ -32,6 +32,33 @@ func environment_get_temp() : *char {
     }
 }
 
+// Absolute temp path for a test artifact, normalized to forward slashes so the
+// same string can be used in C fopen() calls and embedded in Python string
+// literals (both accept '/' as a separator on Windows; raw backslashes would
+// be interpreted as Python escapes and corrupt the path).
+func test_tmp_file(name : string_view) : string {
+    var p = test_temp_path(name)
+    var out = string()
+    var i : size_t = 0
+    while(i < p.size()) {
+        var c = p.get(i)
+        if(c == '\\') { out.append('/') } else { out.append(c) }
+        i += 1
+    }
+    return out
+}
+
+// Append a string_view into a byte buffer — used to splice resolved temp paths
+// into the generated Python scripts.
+func test_script_append_view(buf : *mut u8, len : *mut size_t, v : string_view) {
+    var i : size_t = 0
+    while(i < v.size()) {
+        buf[*len] = v.get(i) as u8
+        *len += 1
+        i += 1
+    }
+}
+
 // -- Cross-platform random bytes --
 func test_random_bytes(buf : *mut u8, len : size_t) {
     tls::random_fill(buf, len)

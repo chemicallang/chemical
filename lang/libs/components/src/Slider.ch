@@ -75,12 +75,14 @@ func slider_styles(page : &mut HtmlPage) : *char {
 
 public #universal Slider(props) {
     state value = props.defaultValue != null ? props.defaultValue : (props.min || 0)
+    state dragging = false
     var min = props.min || 0
     var max = props.max || 100
     var step = props.step || 1
     var current = props.value != null ? props.value : value
     var range = max - min
     var disabled = props.disabled || false
+    const trackRef = useRef(null)
     var setValue = (v) => {
         var clamped = v
         if(clamped < min) { clamped = min }
@@ -96,19 +98,60 @@ public #universal Slider(props) {
             }
         }
     }
+    var valueFromX = (clientX) => {
+        if(!trackRef.current) { return current }
+        var rect = trackRef.current.getBoundingClientRect()
+        if(rect.width == 0) { return current }
+        var ratio = (clientX - rect.left) / rect.width
+        var raw = min + ratio * range
+        var stepped = Math.round((raw - min) / step) * step + min
+        return stepped
+    }
     // Click/tap on the track: compute the value from the horizontal position.
     var handleTrackClick = (e) => {
         if(disabled) {
             return
         }
-        var rect = e.currentTarget.getBoundingClientRect()
-        if(rect.width == 0) {
+        setValue(valueFromX(e.clientX))
+    }
+    // Drag: mousedown on thumb starts, mousemove on document tracks, mouseup ends.
+    var handleThumbMouseDown = (e) => {
+        if(disabled) {
             return
         }
-        var ratio = (e.clientX - rect.left) / rect.width
-        var raw = min + ratio * range
-        var stepped = Math.round((raw - min) / step) * step + min
-        setValue(stepped)
+        e.preventDefault()
+        dragging = true
+        var onMove = (me) => {
+            if(!dragging) { return }
+            setValue(valueFromX(me.clientX))
+        }
+        var onUp = () => {
+            dragging = false
+            document.removeEventListener("mousemove", onMove)
+            document.removeEventListener("mouseup", onUp)
+        }
+        document.addEventListener("mousemove", onMove)
+        document.addEventListener("mouseup", onUp)
+    }
+    // Touch drag support
+    var handleThumbTouchStart = (e) => {
+        if(disabled) {
+            return
+        }
+        dragging = true
+        var onMove = (te) => {
+            if(!dragging) { return }
+            if(te.touches.length > 0) {
+                setValue(valueFromX(te.touches[0].clientX))
+            }
+        }
+        var onEnd = () => {
+            dragging = false
+            document.removeEventListener("touchmove", onMove)
+            document.removeEventListener("touchend", onEnd)
+        }
+        document.addEventListener("touchmove", onMove)
+        document.addEventListener("touchend", onEnd)
     }
     var handleKeyDown = (e) => {
         if(disabled) {
@@ -134,9 +177,9 @@ public #universal Slider(props) {
     // left = (current - min) / (max - min) * 100%
     var posStyle = "left:calc((" + current + " - " + min + ") / (" + max + " - " + min + ") * 100%);"
     return <div class={classes + " " + ${slider_styles(page)}} data-disabled={disabled ? "true" : "false"} style={props.style}>
-        <div class="chx-slider-track" onClick={handleTrackClick}>
+        <div class="chx-slider-track" ref={trackRef} onClick={handleTrackClick}>
             <div class="chx-slider-range" style={"width:" + "calc((" + current + " - " + min + ") / (" + max + " - " + min + ") * 100%);"}></div>
-            <div class="chx-slider-thumb" role="slider" tabindex="0" aria-valuemin={min} aria-valuemax={max} aria-valuenow={current} aria-label={props.ariaLabel || "Slider"} onKeyDown={handleKeyDown} style={posStyle}></div>
+            <div class="chx-slider-thumb" role="slider" tabindex="0" aria-valuemin={min} aria-valuemax={max} aria-valuenow={current} aria-label={props.ariaLabel || "Slider"} onKeyDown={handleKeyDown} onMouseDown={handleThumbMouseDown} onTouchStart={handleThumbTouchStart} style={posStyle}></div>
         </div>
     </div>
 }

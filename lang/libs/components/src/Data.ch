@@ -263,7 +263,8 @@ func list_item_styles(page : &mut HtmlPage) : *char {
 func table_styles(page : &mut HtmlPage) : *char {
     return #css {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         overflow: hidden;
         border-radius: 14px;
         border: 1px solid hsl(var(--border));

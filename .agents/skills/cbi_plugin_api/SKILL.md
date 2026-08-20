@@ -144,9 +144,7 @@ These are the plugins shipped with the compiler. Each demonstrates different CBI
 | `css_cbi` | `lang/libs/css_cbi/` | `#css` macro | Parses CSS properties, generates style strings |
 | `js_cbi` | `lang/libs/js_cbi/` | `#js` macro | Inlines JavaScript code into the JS bundle |
 | `universal_cbi` | `lang/libs/universal_cbi/` | `#universal` component | SSR + hydration — generates server function + JS hydration |
-| `react_cbi` | `lang/libs/react_cbi/` | `#react` component | React-style JSX → runtime calls |
-| `preact_cbi` | `lang/libs/preact_cbi/` | `#preact` component | Preact-style JSX → runtime calls |
-| `solid_cbi` | `lang/libs/solid_cbi/` | `#solid` component | SolidJS-style JSX |
+
 | `md_cbi` | `lang/libs/md_cbi/` | Markdown processing | Converts markdown to HTML |
 
 ### Example: html_cbi Structure

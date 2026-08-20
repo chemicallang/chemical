@@ -418,61 +418,10 @@ public struct HtmlPage {
         appendViewportMeta();
     }
 
-    // TODO: why is the preact setup so large, fix that
-    func defaultPreactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script>"""))
-        pageHeadJs.append_view(std::string_view("""window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c,p) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, p || {}), P); e.replaceWith(P); };"""))
-        // universal component bridge for preact
-        pageHeadJs.append_view(std::string_view("""
-function UniPreactBridge({ html, fnName, props }) {
-    const ref = $_ph.useRef(null);
-    $_ph.useLayoutEffect(() => {
-        const target = ref.current;
-        window.$__uni_dispatch(fnName, target, props);
-    }, [fnName, props]);
-    return $_p.h('div', {
-        ref,
-        style: "display: contents",
-        dangerouslySetInnerHTML: { __html: html }
-    });
-}
-const $p_uni_ch = (html, fnName, props) => $_p.h(UniPreactBridge, { html, fnName, props });
-"""))
-    }
-
-    func reactHeadJs(&mut self) {
-        pageHeadJs.append_view(std::string_view("""window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }"""));
-        pageHeadJs.append_view(std::string_view("""
-function UniReactBridge({ html, fnName, props }) {
-    const ref = $_r.useRef(null);
-    $_r.useLayoutEffect(() => {
-        const target = ref.current;
-        window.$__uni_dispatch(fnName, target, props);
-    }, [fnName, props]);
-    return $_r.createElement('div', {
-        ref,
-        style: { display: 'contents' },
-        dangerouslySetInnerHTML: { __html: html }
-    });
-}
-const $r_uni_ch = (html, fnName, props) => $_r.createElement(UniReactBridge, { html, fnName, props });
-"""))
-    }
-
-    func defaultDevelopmentReactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>"""))
-        reactHeadJs()
-    }
-
-    func defaultReactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>"""))
-        reactHeadJs()
-    }
-
     func defaultUniversalSetup(&mut self) {
         // we must not put anything else in the head js
         // everything else must go into body js
-        // this is just required for react, solid and preact integration to work
+        // universal component hydration runtime
         pageHeadJs.append_view(std::string_view("""
 window.$__uni_hydration_queue = []
 window.$__uni_error = ((message, details = "", cause = null) => {
@@ -1279,59 +1228,6 @@ window.$__universal_flush = function() {
 };
 """))
         pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
-    }
-
-    func asynchronousSolidSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script type="module">
-            import * as solid from 'https://esm.sh/solid-js@1.9.10';
-            import * as web from 'https://esm.sh/solid-js@1.9.10/web'; 
-            import h from 'https://esm.sh/solid-js@1.9.10/h';
-            window.$_s = solid;
-            window.$_sw = web;
-            window.$_sh = h;
-            if(window.$_sc) window.$_sc();
-        </script> 
-        <script>
-            let $_sr_queue = [];
-            function $_sr(e, comp, props) {
-                const mount = document.createElement('div');
-                e.replaceWith(mount);
-                $_sw.render(() => comp(props || {}), mount);
-            }
-            window.$_sc = () => {
-                for(var i = 0; i < $_sr_queue.length; i++) {
-                    const q = $_sr_queue[i];
-                    $_sr(q[0], q[1], q[2])
-                }
-                $_sr_queue = [];
-            }
-            window.$_sm = (e, comp, props) => {
-                if(window.$_sw) {
-                    $_sr(e, comp, props)
-                } else {
-                    $_sr_queue.push([e, comp, props])
-                }
-            };
-        </script>"""))
-    }
-
-    func defaultSolidSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script>"""))
-        pageHeadJs.append_view(std::string_view("""window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };"""))
-        pageHeadJs.append_view(std::string_view("""
-function UniSolidBridge(props) {
-   let el;
-   $_s.onMount(() => {
-       window.$__uni_dispatch(props.fnName, el, props.props);
-   });
-   return $_sh("div", {
-       ref: (r) => el = r,
-       style: { display: "contents" },
-       innerHTML: props.html
-   });
-}
-const $s_uni_ch = (html, fnName, props) => $_sh(UniSolidBridge, { html, fnName, props });
-"""))
     }
 
     func getFinalizedPageJs(&self) : std::string {

@@ -157,7 +157,7 @@ comptime if(intrinsics::is_interpretation()) {
 
 We test most libraries in the tests above (`lang/tests/build.lab`) but some libraries like:
 - `html_cbi`, `css_cbi`, `js_cbi`, `components`
-- `react_cbi`, `preact_cbi`, `solid_cbi`, `universal_cbi`
+- `universal_cbi`
 
 These are compiler plugins, tested via a separate executable:
 
@@ -178,7 +178,7 @@ Helpful flags:
 If you modify anything inside the [server](/server/) directory, note that it's part of the LSP target.
 
 These modules are all LSP-related and require the LSP server running to verify:
-- `html_ide`, `css_ide`, `js_ide`, `react_ide`, `preact_ide`, `solid_ide`, `universal_ide`, `md_ide`
+- `html_ide`, `css_ide`, `js_ide`, `universal_ide`, `md_ide`
 
 ```bash
 # Build LSP

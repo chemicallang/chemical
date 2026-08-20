@@ -8,11 +8,12 @@ description: Diagnose, fix, and implement features in the Chemical universal com
 Universal library is present in `lang/libs/universal_cbi`, its a macro processing library, it handles
 specifically `#univeral` macros, for examples you can look for components present in `lang/libs/components`
 
-Universal library emits components, Universal library is meant for server side rendering + hydration, The reason
-its called universal is because we have libraries like `react_cbi`, `preact_cbi`, `solid_cbi`, they do not do hydration + ssr,
-instead they just translate jsx to runtime calls, which is way easier. Universal components are supposed to
-work inside react, preact or solid components, we have another `#html` macro, library `html_cbi`, universal components
-work inside the html macro too. So yeah, Universal components work everywhere, they are fast because they do ssr + hydration.
+Universal library emits components, Universal library is meant for server side rendering + hydration.
+Universal components work inside `#html` blocks (processed by `html_cbi`) and are the primary way
+to build interactive UI. They do SSR + hydration for fast initial paint and full interactivity.
+
+> **Note:** React, Preact, and Solid framework bridges (`react_cbi`, `preact_cbi`, `solid_cbi`) have been
+> removed. The universal component system is the only supported component model.
 
 ### How universal performs ssr + hydration.
 
@@ -22,14 +23,13 @@ third the text for the children, yes we pass children as `SsrText` (a struct in 
 
 The server function does two things, it appends a js function that would perform hydration into the js bundle, It also appends the server side rendered html
 to the html bundle.
-A trick used by `react_cbi`, `solid_cbi` and `preact_cbi`, they actually capture this html and put it into the js bundle.
+The universal component system captures this html and puts it into the js bundle for hydration.
 
 When I say js bundle or html bundle, A struct HtmlPage present in `lang/libs/page` is used for each page, it contains strings
 in which we append, `pageHtml`, `pageHeadJs`, `pageJs`, these fields are used to write the final output.
 
-`react_cbi`, `solid_cbi` and `preact_cbi` write their components to `pageHeadJs`, because we use umd bundles, so that everything is rendered
-without flash of unrendered components, `universal_cbi` however appends to the `pageJs`, so its components are present in the js loaded at the end of body
-this means we have to use a queue to hydrate universal components, once they have been rendered.
+`universal_cbi` appends to the `pageJs`, so its components are present in the js loaded at the end of body.
+This means we have to use a queue (`$__uni_hydration_queue`) to hydrate universal components once they have been rendered.
 
 One very important thing to note:
 

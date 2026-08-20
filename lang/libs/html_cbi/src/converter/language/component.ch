@@ -176,11 +176,8 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // appendUIntCall.get_args().push(uIdVal as *mut Value);
         // converter.vec.push(appendUIntCall as *mut ASTNode);
 
-        // Emit " data-u-comp="Name">
+        // Emit closing quote and >
         converter.str.append('"');
-        // converter.str.append_view(" data-u-comp=\"")
-        // get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, converter.str);
-        // converter.str.append('"');
         converter.str.append('>');
         converter.put_chain_in();
 
@@ -312,22 +309,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
     s.append_view("<script>")
 
-    if(signature.mountStrategy == MountStrategy.Preact) {
-        // Preact Mount Strategy
-        s.append_view("$_pm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
-        s.append_view(", {")
-    } else if(signature.mountStrategy == MountStrategy.React) {
-        // React Mount Strategy
-        s.append_view("$_rm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
-        s.append_view(", {")
-    } else if(signature.mountStrategy == MountStrategy.Solid) {
-        // Solid Mount Strategy
-        s.append_view("$_sm(document.currentScript, ")
-        get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
-        s.append_view(", {")
-    } else if(signature.mountStrategy == MountStrategy.Universal) {
+    if(signature.mountStrategy == MountStrategy.Universal) {
         // Universal Mount Strategy (HTML-first, no framework dependency)
         s.append_view("$_um(document.currentScript, ")
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)

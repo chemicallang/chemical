@@ -1,7 +1,7 @@
 ---
 name: Macro Code gen
 description:
-    How libraries (html_cbi, preact_cbi, react_cbi, solid_cbi, universal_cbi) generate code
+    How libraries (html_cbi, universal_cbi) generate code
 ---
 
 When you write in chemical
@@ -47,13 +47,12 @@ func my_html(page : &mut HtmlPage, name : &std::string_view) {
 
 This is how we handle chemical values, But you may notice that we support top level macros
 
-`#preact`, `#react`, `#solid`, `#universal` All these component framework libraries are top level macros. The reason being
-that these handle components and that's why.
+`#universal` is the component macro. It handles SSR + hydration for server-rendered interactive UI.
 
-for example
+For example:
 
 ```chemical
-#preact Greeting(props) {
+#universal Greeting(props) {
     return <div>Hello {props.name}</div>
 }
 ```
@@ -75,6 +74,6 @@ The function names maybe a little different, but they accomplish similar logic, 
 universal lib generate a function that takes two more parameters, an SsrAttributeList, content for the children
 universal lib also generates in both bundles, HTML that is server side rendered (from the component) and then a js function
 that would hydrate the emitted html.
-universal components are fast and they render everywhere, they work in react, preact and solid components. They work in `#html` too.
+universal components are fast and they render everywhere. They work in `#html` blocks too.
 
 For more information on universal components, load the `universal` skill. For developing new compiler plugins or understanding the plugin API, load the `cbi_plugin_api` skill. For understanding the compiler intrinsics and reflection APIs that macros can use at compile time, load the `intrinsics_compiler_reflection` skill.

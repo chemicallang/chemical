@@ -285,6 +285,24 @@ public func backdrop_filter_works(env : &mut TestEnv) {
 }
 
 @test
+public func backdrop_filter_none_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        backdrop-filter: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "backdrop-filter:none;");
+}
+
+@test
+public func backdrop_filter_percentage_arg_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        backdrop-filter: blur(50%);
+    }
+    css_equals(env, page.toStringCssOnly(), "backdrop-filter:blur(50%);");
+}
+
+@test
 public func background_image_with_linear_gradient_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

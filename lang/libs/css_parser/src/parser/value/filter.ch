@@ -27,7 +27,7 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                  }
                  // Handle 'none' as keyword
                  var noneVal = builder.allocate<CSSKeywordValueData>()
-                 new (noneVal) CSSKeywordValueData { kind : CSSKeywordKind.None, value : token.value }
+                 new (noneVal) CSSKeywordValueData { kind : CSSKeywordKind.None, value : builder.allocate_view(&token.value) }
                  value.kind = CSSValueKind.Keyword
                  value.data = noneVal
                  return
@@ -65,7 +65,7 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                      } else if(argTok.type == TokenType.Percentage) {
                          parser.increment()
                          var pVal = builder.allocate<CSSLengthValueData>()
-                         new (pVal) CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : argTok.value }
+                         new (pVal) CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(&argTok.value) }
                          argVal.kind = CSSValueKind.Length
                          argVal.data = pVal
                          filter.arguments.push(argVal)

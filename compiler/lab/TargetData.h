@@ -96,6 +96,9 @@ consteval TargetData create_target_data() {
 #ifdef __linux__
     d.isLinux = true;
     d.isUnix = true;
+#    ifdef __GLIBC__
+    d.gnu = true;
+#    endif
 #endif
 
 // musl cannot be reliably detected at runtime from host macros, so it is set

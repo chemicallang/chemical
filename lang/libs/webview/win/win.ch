@@ -1511,5 +1511,11 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
     return &raw mut wv.win
 }
 
+// JS<->native binding is Linux-only (WebKitGTK script-dialog bridge). The
+// Win32 WebView2 backend does not expose it yet.
+public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+    return std.Result.Err(WebViewError.PlatformNotSupported())
+}
+
 } // end namespace webview
 

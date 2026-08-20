@@ -1,6 +1,7 @@
 public namespace webview {
 
 using std::string;
+using std::string_view;
 
 // Callback invoked with the result of webview_evaluate_js_result.
 // `result` is a JSON-encoded string (as returned by the engine — e.g. a JS
@@ -8,6 +9,13 @@ using std::string;
 // text) and is valid only during the call. `data` is the user data passed to
 // webview_evaluate_js_result. On evaluation failure `result` is null.
 public type JsResultCallback = (data : *mut void, result : *char) => void
+
+// Handler invoked for every JS->native bridge call. `method` is the bridge
+// method name and `args` the JSON-encoded argument object (e.g. "{}"). The
+// handler returns a JSON-encoded string; the engine surfaces it to the calling
+// JavaScript as the return value of window.webview_bridge.call(). Runs on the
+// GTK main loop (main thread), synchronously with the page's JavaScript.
+public type JsBindHandler = std.function<(method : string_view, args : string_view) => string>
 
 public variant WebViewError {
     PlatformNotSupported()

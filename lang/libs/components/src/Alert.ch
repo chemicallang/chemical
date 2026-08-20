@@ -121,7 +121,7 @@ public #universal Alert(props) {
         </div>
     }
     return <div role="alert" data-variant={variant} class={out}>
-        {props.children}
+        <div class={${alert_content_styles(page)}}>{props.children}</div>
         {dismissible ? <button type="button" class={${alert_dismiss_styles(page)}} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}
     </div>
 }

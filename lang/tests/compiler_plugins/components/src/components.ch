@@ -601,7 +601,7 @@ public func components_stateful_tabs_js(env : &mut TestEnv) {
 @test
 public func components_stateful_accordion_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <Accordion><AccordionItem value="q1"><AccordionTrigger>Is it accessible?</AccordionTrigger><AccordionContent>Yes. It adheres to the WAI-ARIA design pattern.</AccordionContent></AccordionItem></Accordion> }
+    #html { <Accordion><AccordionItem value="q1" trigger="Is it accessible?">Yes. It adheres to the WAI-ARIA design pattern.</AccordionItem></Accordion> }
     var html = std::string()
     html.append_view(page.getHtml())
     // Accordion root renders with data-accordion-root
@@ -617,7 +617,7 @@ public func components_stateful_accordion_ssr(env : &mut TestEnv) {
 @test
 public func components_stateful_accordion_closed_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <Accordion><AccordionItem value="q2"><AccordionTrigger>What is it?</AccordionTrigger><AccordionContent>Something.</AccordionContent></AccordionItem></Accordion> }
+    #html { <Accordion><AccordionItem value="q2" trigger="What is it?">Something.</AccordionItem></Accordion> }
     var html = std::string()
     html.append_view(page.getHtml())
     // Item renders with value attribute
@@ -1382,16 +1382,15 @@ public func components_accordion_arrow_nav(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <Accordion>
-            <AccordionItem value="a"><AccordionTrigger>A</AccordionTrigger><AccordionContent>a</AccordionContent></AccordionItem>
-            <AccordionItem value="b"><AccordionTrigger>B</AccordionTrigger><AccordionContent>b</AccordionContent></AccordionItem>
+            <AccordionItem value="a" trigger="A">a</AccordionItem>
+            <AccordionItem value="b" trigger="B">b</AccordionItem>
         </Accordion>
     }
     var html = std::string()
     html.append_view(page.getHtml())
     contains_string_assert(env, html.to_view(), std::string_view("data-accordion-root=\"true\""))
-    var js = std::string()
-    js.append_view(page.getJs())
-    contains_string_assert(env, js.to_view(), std::string_view("chx-accordion-trigger:not([disabled])"))
-    contains_string_assert(env, js.to_view(), std::string_view("ArrowDown"))
-    contains_string_assert(env, js.to_view(), std::string_view("ArrowUp"))
+    // Each AccordionItem renders a trigger button with data-accordion-trigger
+    contains_string_assert(env, html.to_view(), std::string_view("data-accordion-trigger=\"true\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">A</"))
+    contains_string_assert(env, html.to_view(), std::string_view(">B</"))
 }

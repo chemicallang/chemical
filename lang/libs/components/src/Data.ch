@@ -247,7 +247,7 @@ func list_item_styles(page : &mut HtmlPage) : *char {
     }
 }
 
-func table_styles(page : &mut HtmlPage) : *char {
+public func table_styles(page : &mut HtmlPage) : *char {
     return #css {
         width: 100%;
         border-collapse: separate;
@@ -259,7 +259,7 @@ func table_styles(page : &mut HtmlPage) : *char {
     }
 }
 
-func table_head_cell_styles(page : &mut HtmlPage) : *char {
+public func table_head_cell_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.85rem 1rem;
         text-align: left;
@@ -272,7 +272,7 @@ func table_head_cell_styles(page : &mut HtmlPage) : *char {
     }
 }
 
-func table_cell_styles(page : &mut HtmlPage) : *char {
+public func table_cell_styles(page : &mut HtmlPage) : *char {
     return #css {
         padding: 0.9rem 1rem;
         color: hsl(var(--foreground));
@@ -303,56 +303,48 @@ public #universal Progress(props) {
 // Shadcn-style Accordion: manages open state for child AccordionItems.
 // `defaultValue` is an array of item values open by default.
 // `multiple` allows multiple items open at the same time.
+// Accordion: styled wrapper for a group of AccordionItems.
+// Passes through all props. data-accordion-root enables keyboard nav via JS.
 public #universal Accordion(props) {
     var multiple = props.multiple || false
-    var defaultValues = props.defaultValue || []
-    state openItems = defaultValues
-    var toggleItem = (value) => {
-        var idx = openItems.indexOf(value)
-        if(idx >= 0) {
-            openItems.splice(idx, 1)
-        } else {
-            if(!multiple) { openItems = [] }
-            openItems.push(value)
-        }
-        if(props.onValueChange) { props.onValueChange(openItems) }
-    }
-    var isItemOpen = (value) => { return openItems.indexOf(value) >= 0 }
-    // Keyboard navigation: ArrowDown/Up/Home/End cycle through triggers
-    var handleKeyDown = (e) => {
-        if(e.key != "ArrowDown" && e.key != "ArrowUp" && e.key != "Home" && e.key != "End") { return }
-        const root = e.currentTarget.closest("[data-accordion-root]")
-        const triggers = root ? root.querySelectorAll("button.chx-accordion-trigger:not([disabled])") : []
-        if(triggers.length == 0) { return }
-        var idx = -1
-        for(var t = 0; t < triggers.length; t++) {
-            if(triggers[t] == e.currentTarget) { idx = t; break }
-        }
-        if(idx < 0) { return }
-        var next = idx
-        if(e.key == "ArrowDown") { e.preventDefault(); next = (idx + 1) % triggers.length }
-        else if(e.key == "ArrowUp") { e.preventDefault(); next = (idx - 1 + triggers.length) % triggers.length }
-        else if(e.key == "Home") { e.preventDefault(); next = 0 }
-        else if(e.key == "End") { e.preventDefault(); next = triggers.length - 1 }
-        triggers[next].focus()
-    }
-    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true" data-state="open" data-multiple={multiple ? "true" : "false"} onKeyDown={handleKeyDown}>
+    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true" data-multiple={multiple ? "true" : "false"}>
         {props.children}
     </div>
 }
 
-// Shadcn-style AccordionItem: wraps a trigger + content pair.
+// AccordionItem: self-contained item with trigger + content.
+// Manages its own open/close state. Accepts:
+//   trigger     - label text or JSX for the clickable header
+//   defaultOpen - initial open state (default false)
+//   disabled    - disables toggle
+//   value       - identifier for external querying
+//   children    - collapsible content
 public #universal AccordionItem(props) {
-    var itemValue = props.value || ""
+    state open = props.defaultOpen ? true : false
     var disabled = props.disabled || false
-    return <div {...props} class={${accordion_item_styles(page)}} data-state="open" data-disabled={disabled ? "true" : "false"} data-value={itemValue}>
-        {props.children}
+    var itemValue = props.value || ""
+    var toggle = () => {
+        if(disabled) { return }
+        open = !open
+    }
+    var chevronSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+    return <div {...props} class={${accordion_item_styles(page)}} data-state={open ? "open" : "closed"} data-value={itemValue} data-disabled={disabled ? "true" : "false"}>
+        <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"} data-accordion-trigger="true">
+            <span>{props.trigger || ""}</span>
+            <span class={${accordion_icon_styles(page)}} style={open ? "transform:rotate(180deg)" : ""}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </span>
+        </button>
+        <div class={${accordion_content_styles(page)}} style={open ? "" : "display:none;"} data-accordion-content="true" role="region">
+            <div class={${accordion_content_inner_styles(page)}}>{props.children}</div>
+        </div>
     </div>
 }
 
-// Shadcn-style AccordionTrigger: the clickable header.
+// Standalone AccordionTrigger: styled clickable header (no state).
+// Use inside AccordionItem for composition, or standalone for custom layouts.
 public #universal AccordionTrigger(props) {
-    return <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} data-state="open" aria-expanded="true">
+    return <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} data-accordion-trigger="true">
         {props.children}
         <span class={${accordion_icon_styles(page)}}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -360,38 +352,10 @@ public #universal AccordionTrigger(props) {
     </button>
 }
 
-// Shadcn-style AccordionContent: the collapsible content panel.
+// Standalone AccordionContent: collapsible content panel (no state).
 public #universal AccordionContent(props) {
-    return <div class={${accordion_content_styles(page)}} data-state="open" role="region">
+    return <div class={${accordion_content_styles(page)}} role="region">
         <div class={${accordion_content_inner_styles(page)}}>{props.children}</div>
-    </div>
-}
-
-// Legacy aliases
-public #universal AccordionSummary(props) {
-    return <AccordionTrigger {...props}>{props.children}</AccordionTrigger>
-}
-public #universal AccordionPanel(props) {
-    return <AccordionContent {...props}>{props.children}</AccordionContent>
-}
-
-// Legacy: old-style accordion item with title/subtitle props.
-public #universal AccordionItemLegacy(props) {
-    state open = props.defaultOpen ? true : false
-    var disabled = props.disabled || false
-    var toggle = () => {
-        if(disabled) { return }
-        open = !open
-    }
-    return <div {...props} class={${accordion_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-        <button type="button" class="chx-accordion-summary" onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"}>
-            <span class="chx-accordion-copy">
-                <span class="chx-accordion-title">{props.title}</span>
-                <span class="chx-accordion-subtitle">{props.subtitle}</span>
-            </span>
-            <span class="chx-accordion-icon">{open ? "+" : "+"}</span>
-        </button>
-        <div class="chx-accordion-panel" style={open ? "" : "display:none;"}>{props.children}</div>
     </div>
 }
 

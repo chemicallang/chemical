@@ -95,6 +95,11 @@ public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) :
 // normalize path removing "." and resolving ".." relative components (no symlink resolution)
 public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var len : size_t = 0; while(path_in[len] != 0) { len++ }
+    // Preserve an absolute root so absolute paths stay absolute (critical for
+    // create_dir_all: dropping "/" would turn "/tmp/x" into a relative
+    // "tmp/x" created under the process CWD).
+    var is_abs : bool = false;
+    if(len > 0 && (path_in[0] == '/' || path_in[0] == '\\')) { is_abs = true }
     const MAX_COMPS = 512;
     var offs : [MAX_COMPS]size_t;
     var lens : [MAX_COMPS]size_t;
@@ -110,8 +115,12 @@ public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_
             // skip
         } else if(c_len == 2 && path_in[start] == '.' && path_in[start+1] == '.') {
             if(count > 0) { count -= 1; } else {
-                if(count >= MAX_COMPS) { return Result.Err(FsError.PathTooLong()); }
-                offs[count] = start; lens[count] = c_len; count++;
+                // ".." at the root of an absolute path is a no-op (can't go up
+                // past "/"); for relative paths keep it.
+                if(!is_abs) {
+                    if(count >= MAX_COMPS) { return Result.Err(FsError.PathTooLong()); }
+                    offs[count] = start; lens[count] = c_len; count++;
+                }
             }
         } else {
             if(count >= MAX_COMPS) { return Result.Err(FsError.PathTooLong()); }
@@ -119,10 +128,19 @@ public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_
         }
     }
     if(count == 0) {
+        if(is_abs) {
+            if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
+            out_buf[0] = '/'; out_buf[1] = 0; return Result.Ok(1);
+        }
         if(out_len < 2) { return Result.Err(FsError.PathTooLong()); }
         out_buf[0] = '.'; out_buf[1] = 0; return Result.Ok(1);
     }
     var pos : size_t = 0; var j : size_t = 0;
+    // Emit the leading "/" for absolute paths before the first component.
+    if(is_abs) {
+        if(pos + 1 >= out_len) { return Result.Err(FsError.PathTooLong()); }
+        out_buf[pos++] = '/';
+    }
     while(j < count) {
         if(j > 0) {
             if(pos + 1 >= out_len) { return Result.Err(FsError.PathTooLong()); }

@@ -2132,14 +2132,32 @@ public namespace tls {
         if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
         if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
 
-        // Compute SHA-256 hash of TBSCertificate
-        var hash : [32]u8
-        var sha_ctx : crypto::Sha256Context
-        crypto::sha256_init(&raw mut sha_ctx)
-        crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
-        crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+        // Compute the digest with the hash declared by the certificate's
+        // signature algorithm (defaults to SHA-256).
+        var hash : [64]u8
+        var hash_len : size_t = 32
+        var sig_hash = crt.sig_md
+        if(sig_hash == SSL_HASH_SHA384 as u8) {
+            var sha_ctx : crypto::Sha512Context
+            crypto::sha384_init(&raw mut sha_ctx)
+            crypto::sha384_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha384_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 48
+        } else if(sig_hash == SSL_HASH_SHA512 as u8) {
+            var sha_ctx : crypto::Sha512Context
+            crypto::sha512_init(&raw mut sha_ctx)
+            crypto::sha512_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha512_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 64
+        } else {
+            var sha_ctx : crypto::Sha256Context
+            crypto::sha256_init(&raw mut sha_ctx)
+            crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 32
+        }
 
-        var ret = ecdsa_verify(issuer_ecdsa, &raw hash[0], 32, crt.sig, crt.sig_len)
+        var ret = ecdsa_verify(issuer_ecdsa, &raw hash[0], hash_len, crt.sig, crt.sig_len)
         if(ret < 0) { return ERR_X509_SIG_MISMATCH }
         return 0
     }
@@ -2154,15 +2172,33 @@ public namespace tls {
         if(crt.tbs_der == null || crt.tbs_der_len == 0) { return ERR_X509_INVALID_FORMAT }
         if(crt.sig == null || crt.sig_len == 0) { return ERR_X509_INVALID_FORMAT }
 
-        // Compute SHA-256 hash of the TBSCertificate DER using init/update/final
-        var hash : [32]u8
-        var sha_ctx : crypto::Sha256Context
-        crypto::sha256_init(&raw mut sha_ctx)
-        crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
-        crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+        // Compute the digest with the hash declared by the certificate's
+        // signature algorithm (defaults to SHA-256).
+        var hash : [64]u8
+        var hash_len : size_t = 32
+        var sig_hash = crt.sig_md
+        if(sig_hash == SSL_HASH_SHA384 as u8) {
+            var sha_ctx : crypto::Sha512Context
+            crypto::sha384_init(&raw mut sha_ctx)
+            crypto::sha384_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha384_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 48
+        } else if(sig_hash == SSL_HASH_SHA512 as u8) {
+            var sha_ctx : crypto::Sha512Context
+            crypto::sha512_init(&raw mut sha_ctx)
+            crypto::sha512_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha512_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 64
+        } else {
+            var sha_ctx : crypto::Sha256Context
+            crypto::sha256_init(&raw mut sha_ctx)
+            crypto::sha256_update(&raw mut sha_ctx, crt.tbs_der, crt.tbs_der_len)
+            crypto::sha256_final(&raw mut sha_ctx, &raw mut hash[0])
+            hash_len = 32
+        }
 
         // Verify using RSA PKCS#1 v1.5 signature verification
-        var ret = rsa_pkcs1_verify(issuer_rsa, &raw hash[0], 32, crt.sig, crt.sig_len)
+        var ret = rsa_pkcs1_verify(issuer_rsa, &raw hash[0], hash_len, crt.sig, crt.sig_len)
         if(ret < 0) { return ERR_X509_SIG_MISMATCH }
 
         return 0
@@ -4896,6 +4932,26 @@ public namespace tls {
 
         // If a transform is active, use the record layer (handles decryption)
         if(ssl.transform_in != null && ssl.state is SSLState.HANDSHAKE_OVER()) {
+            // If the previous call only drained part of a record, keep feeding
+            // the caller from the same (still buffered) record before reading
+            // any new record from the socket.
+            if(ssl.in_offt > 0) {
+                var remain = ssl.in_msglen - ssl.in_offt
+                var take = remain
+                if(take > len) { take = len }
+                var i : i32 = 0
+                while(i < take) {
+                    buf[i] = ssl.in_buf[5 + ssl.in_offt + i]
+                    i += 1
+                }
+                ssl.in_offt = ssl.in_offt + take
+                if(ssl.in_offt >= ssl.in_msglen) {
+                    ssl_consume_record(ssl)
+                    ssl.in_offt = 0
+                }
+                return take
+            }
+
             while(true) {
                 var ret = ssl_read_record(ssl)
                 if(ret < 0) { return ret }
@@ -4941,7 +4997,14 @@ public namespace tls {
                     buf[i] = ssl.in_buf[5 + i]
                     i += 1
                 }
-                ssl_consume_record(ssl)
+                if(copy_len >= ssl.in_msglen) {
+                    ssl_consume_record(ssl)
+                    ssl.in_offt = 0
+                } else {
+                    // The caller's buffer was too small for the whole record:
+                    // keep the rest of this record buffered for the next call.
+                    ssl.in_offt = copy_len
+                }
                 return copy_len
             }
         }
@@ -5039,6 +5102,41 @@ public namespace tls {
 
         var ret = ssl_handshake(ssl)
         if(ret < 0) {
+            // Some servers only negotiate TLS 1.2. We advertised TLS 1.3 + 1.2
+            // in supported_versions, and they answered with a plain legacy
+            // ServerHello which the TLS 1.3 parser could not interpret (it may
+            // surface as ERR_SSL_HANDSHAKE_FAILURE when no key_share was
+            // found, ERR_SSL_DECODE_ERROR or ERR_SSL_UNEXPECTED_MESSAGE when
+            // the legacy ServerHello shape tripped the 1.3 record parser).
+            // Retry the handshake pinned to TLS 1.2 so downloads from
+            // TLS-1.2-only servers (e.g. some CDNs) still work. The retry is
+            // only attempted when the parser actually received a message it
+            // could not understand — not for connection-level errors (which
+            // would just be a plain non-TLS peer).
+            if((ret == ERR_SSL_HANDSHAKE_FAILURE || ret == ERR_SSL_DECODE_ERROR || ret == ERR_SSL_UNEXPECTED_MESSAGE) &&
+               ssl.conf != null && ssl.conf.max_tls_version >= SSL_VERSION_TLS1_3 &&
+               ssl.conf.min_tls_version <= SSL_VERSION_TLS1_2) {
+                net::close_socket(sock)
+                ssl.transport_connected = false
+                ssl.state = SSLState.HELLO_REQUEST()
+                ssl.tls_version = SSL_VERSION_TLS1_2
+                ssl.major_ver = 3
+                ssl.minor_ver = 3 as u8
+                ssl.in_msglen = 0
+                ssl.in_left = 0
+                var sock2 = net::dial(host, port)
+                if(sock2 != 0 as net::Socket) {
+                    ssl_set_socket(ssl, sock2)
+                    ssl.conf.max_tls_version = SSL_VERSION_TLS1_2
+                    var ret2 = ssl_handshake(ssl)
+                    if(ret2 < 0) {
+                        ssl.transport_connected = false
+                        net::close_socket(sock2)
+                        return ret2
+                    }
+                    return 0
+                }
+            }
             ssl.transport_connected = false
             net::close_socket(sock)
             return ret

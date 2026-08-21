@@ -575,6 +575,43 @@ public namespace tls {
         if(ret == 0 && sa_oid_tag == ASN1_OID) {
             crt.sig_oid = (der_data + pos) as *mut u8
             crt.sig_oid_len = sa_oid_len
+
+            // Map the signature OID to the digest used by the signer:
+            //   sha1WithRSA          1.2.840.113549.1.1.5
+            //   sha256WithRSA        1.2.840.113549.1.1.11
+            //   sha384WithRSA        1.2.840.113549.1.1.12
+            //   sha512WithRSA        1.2.840.113549.1.1.13
+            //   sha256WithECDSA      1.2.840.10045.4.3.2
+            //   sha384WithECDSA      1.2.840.10045.4.3.3
+            //   sha512WithECDSA      1.2.840.10045.4.3.4
+            var sha1_with_rsa : [9]u8 = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05]
+            var sha256_with_rsa : [9]u8 = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B]
+            var sha384_with_rsa : [9]u8 = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0C]
+            var sha512_with_rsa : [9]u8 = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0D]
+            var sha224_with_rsa : [9]u8 = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0E]
+            var sha256_with_ecdsa : [8]u8 = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x02]
+            var sha384_with_ecdsa : [8]u8 = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x03]
+            var sha512_with_ecdsa : [8]u8 = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x04]
+            var sha1_with_ecdsa : [8]u8 = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x01]
+
+            if(oid_matches(der_data + pos, sa_oid_len, &raw sha256_with_rsa[0], 9) ||
+               oid_matches(der_data + pos, sa_oid_len, &raw sha256_with_ecdsa[0], 8)) {
+                crt.sig_md = SSL_HASH_SHA256 as u8
+            } else if(oid_matches(der_data + pos, sa_oid_len, &raw sha384_with_rsa[0], 9) ||
+                      oid_matches(der_data + pos, sa_oid_len, &raw sha384_with_ecdsa[0], 8)) {
+                crt.sig_md = SSL_HASH_SHA384 as u8
+            } else if(oid_matches(der_data + pos, sa_oid_len, &raw sha512_with_rsa[0], 9) ||
+                      oid_matches(der_data + pos, sa_oid_len, &raw sha512_with_ecdsa[0], 8)) {
+                crt.sig_md = SSL_HASH_SHA512 as u8
+            } else if(oid_matches(der_data + pos, sa_oid_len, &raw sha224_with_rsa[0], 9)) {
+                crt.sig_md = SSL_HASH_SHA224 as u8
+            } else {
+                crt.sig_md = SSL_HASH_SHA1 as u8
+            }
+        } else {
+            // Unparseable / no OID: default to the only legacy default we can
+            // verify, SHA-1 with RSA.
+            crt.sig_md = SSL_HASH_SHA1 as u8
         }
         pos = sa_oid_start + sig_alg_len
 
@@ -641,6 +678,11 @@ public namespace tls {
             crt.pk_type = PK_ECKEY as u8
             crt.pk_bitlen = 256
         }
+
+        // Advance to the end of SubjectPublicKeyInfo. We no longer need its
+        // internal contents (bit string public key is kept via pk_raw below),
+        // and the extensions block ([3] EXPLICIT) immediately follows it.
+        pos = spki_end
 
         // --- Parse outer signatureAlgorithm (at Certificate level) ---
         // --- Parse Extensions (if present) ---

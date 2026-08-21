@@ -19,6 +19,7 @@ TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
 TEST_TLS=false
+TEST_CDM=false
 MODE="debug_quick"
 NO_CACHE="--no-cache"
 INCREMENTAL=false
@@ -46,6 +47,8 @@ usage() {
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
   echo "  --negative              Run negative (safety) tests only"
   echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
+  echo "  --tls                   Build & run the TLS integration test suite"
+  echo "  --cdm                   Build & run the ChemicalDM (cdm) app test suite"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
   echo "  --no-build              Skip building compiler target, use existing binary"
@@ -87,6 +90,7 @@ while [ $# -gt 0 ]; do
     --negative) TEST_NEGATIVE=true ;;
     --plugins) TEST_PLUGINS=true ;;
     --tls) TEST_TLS=true ;;
+    --cdm) TEST_CDM=true ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
     --no-build) BUILD_TARGET=false ;;
@@ -164,6 +168,18 @@ if [ ! -f "$COMPILER_BIN" ]; then
   echo "Error: Compiler binary not found at $COMPILER_BIN"
   echo "Build it with: $0 --$([ "$TARGET" = "Compiler" ] && echo "llvm" || echo "tcc") (without --no-build)"
   exit 1
+fi
+
+# ChemicalDM app test suite (standalone application under lang/compiled/cdm).
+# Uses the app's own build.sh --test flow (source "tests" if test).
+if [ "$TEST_CDM" = true ]; then
+  CDM_DIR="lang/compiled/cdm"
+  if [ ! -f "$CDM_DIR/build.sh" ]; then
+    echo "Error: cdm build.sh not found at $CDM_DIR/build.sh"
+    exit 1
+  fi
+  (cd "$CDM_DIR" && ./build.sh --test) || exit 1
+  exit $?
 fi
 
 # Determine output path

@@ -476,7 +476,7 @@ public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "key=ec.generate_private_key(ec.SECP256R1())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
-    l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).public_key(key.public_key()).serial_number(1).not_valid_before(datetime.datetime(2024,1,1)).not_valid_after(datetime.datetime(2026,1,1)).sign(key,hashes.SHA256()))\n" as *char; si=0
+    l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'myhost.example.com')])).public_key(key.public_key()).serial_number(1).not_valid_before(datetime.datetime(2024,1,1)).not_valid_after(datetime.datetime(2030,1,1)).add_extension(x509.SubjectAlternativeName([x509.DNSName('*.example.com')]),critical=False).sign(key,hashes.SHA256()))\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     l = "from cryptography.hazmat.primitives.serialization import Encoding\nder=cert.public_bytes(Encoding.DER)\nf=open('/tmp/chem_hostname_cert.der','wb');f.write(der);f.close()\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
@@ -493,10 +493,19 @@ public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
     var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
 
-    var match = x509_verify_hostname(&raw mut crt, "myhost.example.com" as *char)
-    if(match != 0) { env.error("expected hostname to match"); return } else {}
+    // SAN wildcard must be parsed (regression: the parser skipped past the
+    // extensions block entirely because pos never advanced past the SPKI, so
+    // san_entries was null and only the CN fallback ran).
+    if(crt.san_entries == null || crt.san_count == 0) {
+        env.error("SAN entries were not parsed from X.509 extensions")
+        return
+    }
 
-    var nomatch = x509_verify_hostname(&raw mut crt, "wrong.example.com" as *char)
+    // CN is 'myhost.example.com', SAN is '*.example.com'
+    var match_san = x509_verify_hostname(&raw mut crt, "foo.example.com" as *char)
+    if(match_san != 0) { env.error("expected SAN wildcard to match foo.example.com"); return } else {}
+
+    var nomatch = x509_verify_hostname(&raw mut crt, "wrong.example.org" as *char)
     if(nomatch == 0) { env.error("expected hostname mismatch"); return } else {}
 }
 
@@ -635,4 +644,145 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     if(inner_ct != 23) { env.error("inner content type mismatch"); return } else {}
     if(dec_len as size_t != pt_len) { env.error("decrypted length mismatch"); return } else {}
     if(!test_bytes_eq(&raw dec_buf[0], &raw pt_data[0], pt_len)) { env.error("decrypted data mismatch"); return } else {}
+}
+
+// Regression (partial-record reads): the TLS 1.2 / 1.3 record layer must keep
+// serving bytes from a partially-returned record instead of discarding the
+// unread remainder (ssl_read used to copy only `len` bytes from a record then
+// consume the whole record, silently dropping the tail). Streaming a large
+// payload through small buffers reproduces that bug.
+@test
+public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
+    const PAYLOAD : size_t = 102400   // 100 KiB, spans many 16 KiB records
+    test_ensure_tmp_dir()
+    write_tls_python_utils()
+    test_kill_port(19970u)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19970_cert.pem /tmp/tls_19970_key.pem test.example.com ec"))
+    test_py_run_background(string_view("bigsrv /tmp/tls_19970_cert.pem /tmp/tls_19970_key.pem 19970 102400"))
+    test_server_wait()
+
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    config.max_tls_version = SSL_VERSION_TLS1_3
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19970u)
+    if(ret < 0) { env.error("tls13 large stream: connect failed"); return } else {}
+
+    // Write a request so the server starts streaming.
+    var req = "GET / HTTP/1.0\r\n\r\n"
+    ssl_write(&raw mut ctx, req as *u8, 18)
+
+    // Read with a small 1000-byte buffer so individual 16 KiB records are
+    // delivered across many calls (exercises the partial-record path).
+    var buf : [1000]u8
+    var total : size_t = 0
+    var ok = true
+    var guard = 0
+    while(total < PAYLOAD && guard < 10000) {
+        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 1000)
+        if(n < 0) { ok = false; break }
+        if(n == 0) { break }
+        total = total + (n as size_t)
+        guard += 1
+    }
+    if(!ok || total != PAYLOAD) {
+        env.error("tls13 large stream: incomplete read (got ")
+        var tstr = string(); tstr.append_uinteger(total as ubigint)
+        env.error(tstr.data())
+        env.error(" want 102400)")
+    }
+    ssl_close_notify(&raw mut ctx)
+    ssl_free(&raw mut ctx)
+    test_kill_port(19970u)
+}
+
+// Regression (TLS 1.2 fallback): a config that advertises TLS 1.3 + 1.2 must
+// transparently fall back to TLS 1.2 when the server only supports TLS 1.2.
+// Previously the TLS 1.3 parser failed on the legacy ServerHello (no key_share)
+// and never re-ran the handshake pinned to TLS 1.2.
+@test
+public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
+    write_tls_python_utils()
+    test_kill_port(19971u)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_19971_cert.pem /tmp/tls_19971_key.pem test.example.com rsa"))
+    // msrv accepts up to 2 connections: the client first tries TLS 1.3 (which
+    // the TLS 1.2-only server answers with a legacy ServerHello), then the
+    // tls_connect fallback opens a SECOND connection pinned to TLS 1.2.
+    test_py_run_background(string_view("msrv /tmp/tls_19971_cert.pem /tmp/tls_19971_key.pem 19971 1.2 2"))
+    test_server_wait()
+
+    // IMPORTANT: max_tls_version stays at TLS 1.3 (the default), so the client
+    // advertises both versions. The server only supports TLS 1.2.
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var config = ssl_config_init(SSL_IS_CLIENT)
+    config.authmode = SSL_VERIFY_NONE
+    ssl_set_config(&raw mut ctx, &raw mut config)
+
+    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19971u)
+    if(ret < 0) {
+        env.error("tls13 config could not connect to TLS 1.2 only server")
+    } else {
+        var req = "GET / HTTP/1.0\r\n\r\n"
+        ssl_write(&raw mut ctx, req as *u8, 18)
+        // The server streams 131072 bytes; read with a small buffer to also
+        // exercise partial-record delivery over the TLS 1.2 record layer.
+        var buf : [1000]u8
+        var total : usize = 0
+        var ok = true
+        var guard = 0
+        while(total < 131072 && guard < 10000) {
+            var n = ssl_read(&raw mut ctx, &raw mut buf[0], 1000)
+            if(n < 0) { ok = false; break }
+            if(n == 0) { break }
+            total = total + (n as usize)
+            guard += 1
+        }
+        if(!ok || total != 131072) {
+            env.error("tls12 fallback stream incomplete")
+        } else {
+            ssl_close_notify(&raw mut ctx)
+        }
+    }
+    ssl_free(&raw mut ctx)
+    test_kill_port(19971u)
+}
+
+// Regression (fs-independent dir safety): ensure the X.509 SAN parser handles
+// a certificate whose SubjectPublicKeyInfo spans a long form length so the
+// extensions follow immediately (the SPKI-skip fix). The hostname test above
+// covers SAN parsing; this one ensures parse_cert_der does not mis-align on a
+// 4096-bit RSA cert with SAN.
+@test
+public func INT_x509_parse_rsa_san_cert(env : &mut TestEnv) {
+    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nimport datetime\n" as *char; si=0
+    while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var l = "key=rsa.generate_private_key(public_exponent=65537,key_size=4096)\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "cert=(x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'big.test')])).issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'big.test')])).public_key(key.public_key()).serial_number(7).not_valid_before(datetime.datetime(2024,1,1)).not_valid_after(datetime.datetime(2030,1,1)).add_extension(x509.SubjectAlternativeName([x509.DNSName('big.test')]),critical=False).sign(key,hashes.SHA256()))\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    l = "from cryptography.hazmat.primitives.serialization import Encoding\nder=cert.public_bytes(Encoding.DER)\nf=open('/tmp/chem_rsa_san_cert.der','wb');f.write(der);f.close()\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_rsa_san.py"))
+
+    var cert_file = fopen("/tmp/chem_rsa_san_cert.der\0" as *char, "rb\0" as *char)
+    if(cert_file == null) { env.error("cannot open generated rsa san cert"); return } else {}
+    var cert_buf : [4096]u8
+    var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 4096, cert_file)
+    fclose(cert_file)
+
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    if(ret < 0) { env.error("parse_cert_der failed for 4096-bit RSA SAN cert"); return } else {}
+    if(crt.san_entries == null || crt.san_count == 0) {
+        env.error("SAN not parsed from 4096-bit RSA cert")
+        return
+    }
+    var match = x509_verify_hostname(&raw mut crt, "big.test" as *char)
+    if(match != 0) { env.error("hostname mismatch on 4096-bit RSA cert"); return } else {}
 }

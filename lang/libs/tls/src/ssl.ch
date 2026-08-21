@@ -2649,16 +2649,13 @@ public namespace tls {
                                                           current.issuer_raw_len)
                 if(ca_issuer != null) {
                     var sig_ok = x509_verify_sig_with_issuer(current, ca_issuer)
-                    fprintf(stderr, "[tls:verify] step %d CA-find pk_type=%d sig_ret=%d\n", hops, ca_issuer.pk_type as int, sig_ok)
-                    fflush(stderr)
                     if(sig_ok == 0) {
                         leaf.flags = 0
                         return 0
                     }
                     // Signature didn't verify; fall through to intermediates.
                 } else {
-                    fprintf(stderr, "[tls:verify] step %d no trusted CA for issuer\n", hops)
-                    fflush(stderr)
+                    // No trusted CA found for this issuer; try intermediates.
                 }
             }
 
@@ -2669,8 +2666,6 @@ public namespace tls {
                                                         current.issuer_raw_len)
             if(peer_issuer != null) {
                 var sig_ret = x509_verify_sig_with_issuer(current, peer_issuer)
-                fprintf(stderr, "[tls:verify] step %d inter pk_type=%d sig_md=%d sig_ret=%d\n", hops, peer_issuer.pk_type as int, current.sig_md as int, sig_ret)
-                fflush(stderr)
                 if(sig_ret == 0) {
                     // Check the intermediate's own validity window.
                     var inter_date = x509_check_date(peer_issuer)

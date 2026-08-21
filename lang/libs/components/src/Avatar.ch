@@ -85,16 +85,10 @@ public #universal Avatar(props) {
     var size = props.size || "md"
     var out = classes + " " + ${avatar_styles(page)}
     var bordered = props.bordered ? "true" : "false"
-    return <span data-size={size} data-bordered={bordered} class={out}>{
-        props.src ? <img class={${avatar_img_styles(page)}} src={props.src} alt={props.alt} />
-                  : (props.fallback ? <span class={${avatar_fallback_styles(page)}}>{props.fallback}</span> : props.children)
-    }</span>
-}
-
-public #universal AvatarGroup(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${avatar_group_styles(page)}}>{props.children}</div>
+    return <span data-size={size} data-bordered={bordered} class={out}>
+        {props.src ? <img class={${avatar_img_styles(page)}} src={props.src} alt={props.alt} />
+                  : (props.fallback ? <span class={${avatar_fallback_styles(page)}}>{props.fallback}</span> : props.children)}
+    </span>
 }
 
 public #universal AvatarMore(props) {
@@ -102,6 +96,39 @@ public #universal AvatarMore(props) {
     if(props.className) { classes = props.className }
     var count = props.count || "+"
     return <span class={classes + " " + ${avatar_count_styles(page)}}>{count}</span>
+}
+
+// Shadcn AvatarBadge: online/status indicator positioned bottom-right of avatar
+func avatar_badge_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 9999px;
+        border: 2px solid hsl(var(--background));
+        background: hsl(var(--success));
+    }
+}
+
+public #universal AvatarBadge(props) {
+    var classes = (props.className || props.class) || ""
+    return <span class={classes + " " + ${avatar_badge_styles(page)}} aria-label={props.label || "status"}></span>
+}
+
+// Shadcn AvatarGroup: overlapping avatar group container
+public #universal AvatarGroup(props) {
+    var classes = (props.className || props.class) || ""
+    var max = props.max || 0
+    var children = props.children
+    return <div class={classes + " " + ${avatar_group_styles(page)}}>{children}</div>
+}
+
+// Shadcn AvatarGroupCount: shows +N overflow count
+public #universal AvatarGroupCount(props) {
+    var classes = (props.className || props.class) || ""
+    return <span class={classes + " " + ${avatar_count_styles(page)}}>{props.children}</span>
 }
 
 // Legacy aliases

@@ -10,7 +10,7 @@ public func universal_ternary_ssr_true(env : &mut TestEnv) {
     }
     
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>True</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>True</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -21,6 +21,6 @@ public func universal_ternary_ssr_false(env : &mut TestEnv) {
         <TernarySsr show={false} />
     }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>False</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>False</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

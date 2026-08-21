@@ -18,7 +18,7 @@ public func universal_ssr_local_var_defaults(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLocalVariant>Hi</SsrLocalVariant> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><span class=" base-cls" data-variant="default" data-size="md">Hi</span></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class=" base-cls" data-variant="default" data-size="md">Hi</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -27,7 +27,7 @@ public func universal_ssr_local_var_props_and_if(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLocalVariant variant="destructive" size="lg" className="custom" >Done</SsrLocalVariant> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><span class="custom base-cls" data-variant="destructive" data-size="lg">Done</span></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class="custom base-cls" data-variant="destructive" data-size="lg">Done</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -41,7 +41,7 @@ public func universal_ssr_local_ternary(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLocalTernary bordered={true} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><span data-bordered="true">true</span></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span data-bordered="true">true</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -62,7 +62,7 @@ public func universal_ssr_conditional_return_dispatch(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrCondTag as="span">Hi</SsrCondTag> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><span class="tag-span">Hi</span></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class="tag-span">Hi</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -72,7 +72,7 @@ public func universal_ssr_conditional_return_default(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrCondTag>Plain</SsrCondTag> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><p class="tag-p">Plain</p></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><p class="tag-p">Plain</p></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -90,7 +90,7 @@ public func universal_ssr_numeric_prop_equals(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrNumericLevel level={2}>T</SsrNumericLevel> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><h2>T</h2></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><h2>T</h2></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -99,7 +99,7 @@ public func universal_ssr_numeric_prop_default(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrNumericLevel>One</SsrNumericLevel> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><h1>One</h1></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><h1>One</h1></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -125,7 +125,7 @@ public func universal_ssr_concat_embed_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrConcatEmbed class="extra">Hi</SsrConcatEmbed> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><span class="extra hD7pDyR">Hi</span></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class="extra hD7pDyR">Hi</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 

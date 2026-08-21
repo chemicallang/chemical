@@ -249,3 +249,16 @@ public #universal SheetClose(props) {
 public #universal SheetBody(props) {
     return <div {...props} class={${sheet_body_styles(page)}}>{props.children}</div>
 }
+
+func sheet_desc_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 0.875rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+    }
+}
+
+public #universal SheetDescription(props) {
+    var classes = (props.className || props.class) || ""
+    return <p {...props} class={classes + " " + ${sheet_desc_styles(page)}}>{props.children}</p>
+}

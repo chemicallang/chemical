@@ -145,51 +145,121 @@ func accordion_panel_styles(page : &mut HtmlPage) : *char {
 func tabs_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: grid;
-        gap: 0.85rem;
+        gap: 1rem;
+        &[data-orientation="vertical"] {
+            grid-template-columns: auto 1fr;
+            gap: 0;
+        }
     }
 }
 
 func tab_list_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: inline-flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-        padding: 0.45rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: 999px;
-        background: hsl(var(--background));
+        align-items: center;
+        gap: 0;
+        border-bottom: 1px solid hsl(var(--border));
+        &[data-variant="line"] {
+            border-bottom: 1px solid hsl(var(--border));
+        }
+        &[data-variant="pills"] {
+            gap: 0.25rem;
+            padding: 0.25rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: 999px;
+            background: hsl(var(--background));
+            border-bottom: 1px solid hsl(var(--border));
+        }
+        &[data-orientation="vertical"] {
+            flex-direction: column;
+            border-bottom: none;
+            border-right: 1px solid hsl(var(--border));
+            align-items: stretch;
+            &[data-variant="pills"] {
+                border-right: none;
+                border-bottom: none;
+            }
+        }
     }
 }
 
 func tab_styles(page : &mut HtmlPage) : *char {
     return #css {
         border: 0;
-        padding: 0.65rem 0.95rem;
-        border-radius: 999px;
-        background: hsl(var(--muted));
-        color: hsl(var(--foreground));
-        font-weight: 600;
+        padding: 0.65rem 1rem;
+        background: transparent;
+        color: hsl(var(--muted-foreground));
+        font-weight: 500;
+        font-size: 0.875rem;
         cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        transition: color 0.15s ease, border-color 0.15s ease;
+        white-space: nowrap;
         &:hover {
-            background: rgba(59, 130, 246, 0.12);
+            color: hsl(var(--foreground));
+        }
+        &:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: -2px;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+        &[data-variant="pills"] {
+            border-bottom: none;
+            margin-bottom: 0;
+            border-radius: 999px;
+            padding: 0.5rem 0.9rem;
+        }
+        &[data-orientation="vertical"] {
+            border-bottom: none;
+            border-right: 2px solid transparent;
+            margin-bottom: 0;
+            margin-right: -1px;
+            text-align: left;
+            justify-content: flex-start;
+            &[data-variant="pills"] {
+                border-right: none;
+                margin-right: 0;
+            }
+        }
+        &[data-disabled="true"] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
         }
     }
 }
 
 func tab_active_styles(page : &mut HtmlPage) : *char {
     return #css {
-        background: hsl(var(--primary));
-        color: hsl(var(--primary-foreground));
+        color: hsl(var(--foreground));
+        border-bottom-color: hsl(var(--primary));
+        font-weight: 600;
+        &[data-variant="pills"] {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            border-bottom-color: transparent;
+        }
+        &[data-orientation="vertical"] {
+            border-bottom-color: transparent;
+            border-right-color: hsl(var(--primary));
+            &[data-variant="pills"] {
+                border-right-color: transparent;
+            }
+        }
     }
 }
 
 func tab_panel_styles(page : &mut HtmlPage) : *char {
     return #css {
-        padding: 1rem 1.1rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: 14px;
-        background: hsl(var(--background));
+        padding: 1rem 0;
+        font-size: 0.875rem;
+        line-height: 1.6;
         color: hsl(var(--foreground));
+        &:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: 2px;
+        }
     }
 }
 
@@ -280,23 +350,49 @@ public func table_cell_styles(page : &mut HtmlPage) : *char {
     }
 }
 
-// Progress bar: `value` (default 0) / `max` (default 100) drive the fill;
-// `variant` picks the tone (default/accent gradient, primary, success, warning,
-// error, info); `size` (sm/md/lg) scales the thickness. Other props pass
-// through via the spread (aria, id, className, ...).
+func progress_label_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: hsl(var(--foreground));
+        margin-bottom: 0.25rem;
+    }
+}
+
+func progress_value_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: hsl(var(--foreground));
+        margin-left: 0.5rem;
+    }
+}
+
+// Shadcn-style Progress bar with optional label/value.
+// Usage:
+//   <Progress value={56} />
+//   <Progress value={56}><ProgressLabel>Upload progress</ProgressLabel><ProgressValue /></Progress>
+//   <Progress value={56} variant="success" size="lg" />
 public #universal Progress(props) {
     var variant = props.variant || "default"
     var size = props.size || "md"
     var value = props.value || 0
     var max = props.max || 100
-    return <progress
-        {...props}
-        max={max}
-        value={value}
-        data-variant={variant}
-        data-size={size}
-        class={${progress_styles(page)}}
-    ></progress>
+    return <div style="display:grid;gap:0.25rem;width:100%;">
+        {props.label !== undefined ? <span class={${progress_label_styles(page)}}>{props.label}</span> : null}
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <progress {...props} max={max} value={value} data-variant={variant} data-size={size} class={${progress_styles(page)}}></progress>
+            {props.showValue ? <span class={${progress_value_styles(page)}}>{value}{props.max ? "/" + max : ""}{props.suffix || ""}</span> : null}
+        </div>
+    </div>
+}
+
+public #universal ProgressLabel(props) {
+    return <span class={${progress_label_styles(page)}}>{props.children}</span>
+}
+
+public #universal ProgressValue(props) {
+    return <span class={${progress_value_styles(page)}}>{props.children}</span>
 }
 
 
@@ -359,92 +455,103 @@ public #universal AccordionContent(props) {
     </div>
 }
 
-// Tabs in two modes:
-// - `tabs`/`panels` arrays + optional `defaultIndex`: the component owns the
-//   active-tab state, renders the tab buttons and toggles panel visibility.
-// - Otherwise it degrades to the plain styled wrapper so explicit
-//   <TabList>/<Tab>/<TabPanel> children keep working unchanged.
+// Shadcn-style Tabs with variant/orientation support.
+// Modes:
+// 1. Declarative (shadcn): <Tabs defaultValue="acc"><TabList><Tab value="acc">...</Tab></TabList><TabContent value="acc">...</TabContent></Tabs>
+// 2. Array mode: <Tabs tabs={[...]} panels={[...]} defaultIndex={0} />
+// 3. Fallback: <Tabs><TabList>...</TabList><TabPanel>...</TabPanel></Tabs>
+// Variant: "line" (default) | "pills"
+// Orientation: "horizontal" (default) | "vertical"
 public #universal Tabs(props) {
-    state active = props.defaultIndex ? props.defaultIndex : 0
-    if(props.tabs) {
-        const tabListRef = useRef(null)
-        var select = (i) => {
-            active = i
-            if(props.onChange) { props.onChange(i) }
+    state active = props.defaultIndex != null ? props.defaultIndex : (props.defaultValue != null ? props.defaultValue : 0)
+    var variant = props.variant || "line"
+    var orientation = props.orientation || "horizontal"
+    var disabled = props.disabled || false
+    var baseId = props.id || "tabs"
+    const tabListRef = useRef(null)
+
+    var select = (val) => {
+        active = val
+        if(props.onValueChange) { props.onValueChange(val) }
+        if(props.onChange) { props.onChange(val) }
+    }
+
+    // Keyboard navigation (WAI-ARIA tabs pattern)
+    var handleTabKeyDown = (e) => {
+        if(!tabListRef.current) { return }
+        const tabs = tabListRef.current.querySelectorAll("[role=tab]")
+        if(tabs.length == 0) { return }
+        var currentIndex = -1
+        for(var t = 0; t < tabs.length; t++) {
+            if(tabs[t] == document.activeElement) { currentIndex = t; break }
         }
-        // Keyboard navigation (shadcn/WAI-ARIA tabs pattern): Left/Right move
-        // focus + selection between tabs (wrapping), Home/End jump to the
-        // first/last. The active tab is the only one in the tab order
-        // (roving tabindex).
-        var handleTabKeyDown = (e) => {
-            if(!tabListRef.current) {
-                return
-            }
-            const tabs = tabListRef.current.querySelectorAll("[role=tab]")
-            if(tabs.length == 0) {
-                return
-            }
-            var currentIndex = -1
-            for(var t = 0; t < tabs.length; t++) {
-                if(tabs[t] == document.activeElement) {
-                    currentIndex = t
-                    break
-                }
-            }
-            if(currentIndex < 0) { currentIndex = active }
-            var next = currentIndex
-            if(e.key == "ArrowRight") {
-                e.preventDefault()
-                next = (currentIndex + 1) % tabs.length
-            } else if(e.key == "ArrowLeft") {
-                e.preventDefault()
-                next = (currentIndex - 1 + tabs.length) % tabs.length
-            } else if(e.key == "Home") {
-                e.preventDefault()
-                next = 0
-            } else if(e.key == "End") {
-                e.preventDefault()
-                next = tabs.length - 1
-            } else {
-                return
-            }
-            tabs[next].focus()
+        if(currentIndex < 0) { currentIndex = 0 }
+        var next = currentIndex
+        var isVertical = orientation == "vertical"
+        var nextKey = isVertical ? "ArrowDown" : "ArrowRight"
+        var prevKey = isVertical ? "ArrowUp" : "ArrowLeft"
+        if(e.key == nextKey) {
+            e.preventDefault()
+            next = (currentIndex + 1) % tabs.length
+        } else if(e.key == prevKey) {
+            e.preventDefault()
+            next = (currentIndex - 1 + tabs.length) % tabs.length
+        } else if(e.key == "Home") {
+            e.preventDefault()
+            next = 0
+        } else if(e.key == "End") {
+            e.preventDefault()
+            next = tabs.length - 1
+        } else {
+            return
+        }
+        tabs[next].focus()
+        // Extract value from data-value attribute
+        var tabValue = tabs[next].getAttribute("data-tab-value")
+        if(tabValue != null) {
+            select(tabValue)
+        } else {
             select(next)
         }
-        // ARIA wiring: each tab controls its panel (aria-controls), each panel
-        // is labelled by its tab (aria-labelledby), giving tabpanels an
-        // accessible name derived from the tab text.
-        var baseId = props.id ? props.id : "tabs"
-        return <div {...props} class={${tabs_styles(page)}}>
-            <div ref={tabListRef} class={${tab_list_styles(page)}} role="tablist" aria-label={props.ariaLabel} onKeyDown={handleTabKeyDown}>
+    }
+
+    // Array mode
+    if(props.tabs) {
+        return <div {...props} class={${tabs_styles(page)}} data-orientation={orientation}>
+            <div ref={tabListRef} class={${tab_list_styles(page)}} data-variant={variant} data-orientation={orientation} role="tablist" aria-label={props.ariaLabel} aria-orientation={orientation} onKeyDown={handleTabKeyDown}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} class={${tab_styles(page)}} style={active == i ? "background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent;" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} class={${tab_styles(page)}} style={active == i ? "" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
-            <div class="chx-tabs-content" style="display:grid;gap:0.85rem;">
+            <div>
                 {props.panels.map((panel, i) => (
-                    <div role="tabpanel" id={baseId + "-panel-" + i} aria-labelledby={baseId + "-tab-" + i} style={active == i ? "" : "display:none;"}>{panel}</div>
+                    <div role="tabpanel" id={baseId + "-panel-" + i} aria-labelledby={baseId + "-tab-" + i} class={${tab_panel_styles(page)}} style={active == i ? "" : "display:none;"} tabindex={0}>{panel}</div>
                 ))}
             </div>
         </div>
     }
-    return <div {...props} class={${tabs_styles(page)}}>{props.children}</div>
+
+    // Fallback: plain wrapper
+    return <div {...props} class={${tabs_styles(page)}} data-orientation={orientation}>{props.children}</div>
 }
 
 public #universal TabList(props) {
-    return <div {...props} class={${tab_list_styles(page)}}>{props.children}</div>
+    var variant = props.variant || "line"
+    var orientation = props.orientation || "horizontal"
+    return <div {...props} data-variant={variant} data-orientation={orientation} class={${tab_list_styles(page)}} role="tablist" aria-orientation={orientation}>{props.children}</div>
 }
 
 public #universal Tab(props) {
-    return <button {...props} type="button" class={${tab_styles(page)}}>{props.children}</button>
+    var disabled = props.disabled || false
+    return <button {...props} type="button" data-disabled={disabled ? "true" : "false"} data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected={props.selected ? "true" : "false"} tabIndex={props.selected ? 0 : -1} disabled={disabled}>{props.children}</button>
 }
 
 public #universal TabActive(props) {
-    return <Tab {...props} class={${tab_active_styles(page)}}>{props.children}</Tab>
+    return <button {...props} type="button" data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected="true" tabIndex={0}>{props.children}</button>
 }
 
 public #universal TabPanel(props) {
-    return <div {...props} class={${tab_panel_styles(page)}}>{props.children}</div>
+    return <div {...props} class={${tab_panel_styles(page)}} role="tabpanel" tabindex={0}>{props.children}</div>
 }
 
 // Pagination in two modes:

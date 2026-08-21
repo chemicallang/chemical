@@ -72,6 +72,21 @@ func badge_styles(page : &mut HtmlPage) : *char {
             color: hsl(var(--info));
             background: transparent;
         }
+        &[data-variant="ghost"] {
+            background: transparent;
+            border-color: transparent;
+            color: hsl(var(--foreground));
+            &:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+        }
+        &[data-variant="link"] {
+            background: transparent;
+            border-color: transparent;
+            color: hsl(var(--primary));
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            cursor: pointer;
+            &:hover { text-decoration: underline; }
+        }
         &[data-size="xs"] {
             font-size: 0.625rem;
             padding: 0 0.4375rem;
@@ -133,4 +148,10 @@ public #universal BadgeInfo(props) {
 }
 public #universal BadgeWarning(props) {
     return <Badge {...props} variant="warning">{props.children}</Badge>
+}
+public #universal BadgeGhost(props) {
+    return <Badge {...props} variant="ghost">{props.children}</Badge>
+}
+public #universal BadgeLink(props) {
+    return <Badge {...props} variant="link">{props.children}</Badge>
 }

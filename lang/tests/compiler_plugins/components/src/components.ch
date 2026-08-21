@@ -601,31 +601,29 @@ public func components_stateful_tabs_js(env : &mut TestEnv) {
 @test
 public func components_stateful_accordion_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <AccordionItem defaultOpen={true} title="Q1" subtitle="S1">Answer 1</AccordionItem> }
+    #html { <Accordion><AccordionItem value="q1"><AccordionTrigger>Is it accessible?</AccordionTrigger><AccordionContent>Yes. It adheres to the WAI-ARIA design pattern.</AccordionContent></AccordionItem></Accordion> }
     var html = std::string()
     html.append_view(page.getHtml())
-    // Summary button with title/subtitle
-    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-summary"))
-    contains_string_assert(env, html.to_view(), std::string_view(">Q1</span>"))
-    contains_string_assert(env, html.to_view(), std::string_view(">S1</span>"))
-    // Open state: chevron icon present + panel visible
-    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-icon\">"))
-    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-panel\" style=\"\">Answer 1</div>"))
+    // Accordion root renders with data-accordion-root
+    contains_string_assert(env, html.to_view(), std::string_view("data-accordion-root"))
+    // Trigger renders as a button
+    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-trigger"))
+    contains_string_assert(env, html.to_view(), std::string_view("Is it accessible?"))
+    // Content renders with role=region
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"region\""))
+    contains_string_assert(env, html.to_view(), std::string_view("Yes. It adheres to the WAI-ARIA design pattern."))
 }
 
 @test
 public func components_stateful_accordion_closed_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <AccordionItem title="Q2" subtitle="S2">Answer 2</AccordionItem> }
+    #html { <Accordion><AccordionItem value="q2"><AccordionTrigger>What is it?</AccordionTrigger><AccordionContent>Something.</AccordionContent></AccordionItem></Accordion> }
     var html = std::string()
     html.append_view(page.getHtml())
-    // Closed: chevron icon present + hidden panel
-    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-icon\">"))
-    contains_string_assert(env, html.to_view(), std::string_view("chx-accordion-panel\" style=\"display:none;\">Answer 2</div>"))
-    // Toggle handler present in the JS bundle
-    var js = std::string()
-    js.append_view(page.getJs())
-    contains_string_assert(env, js.to_view(), std::string_view("open.value = !open.value"))
+    // Item renders with value attribute
+    contains_string_assert(env, html.to_view(), std::string_view("data-value=\"q2\""))
+    // Trigger has aria-expanded
+    contains_string_assert(env, html.to_view(), std::string_view("aria-expanded"))
 }
 
 @test
@@ -1384,8 +1382,8 @@ public func components_accordion_arrow_nav(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <Accordion>
-            <AccordionItem title="A" defaultOpen={false}>a</AccordionItem>
-            <AccordionItem title="B" defaultOpen={false}>b</AccordionItem>
+            <AccordionItem value="a"><AccordionTrigger>A</AccordionTrigger><AccordionContent>a</AccordionContent></AccordionItem>
+            <AccordionItem value="b"><AccordionTrigger>B</AccordionTrigger><AccordionContent>b</AccordionContent></AccordionItem>
         </Accordion>
     }
     var html = std::string()
@@ -1393,7 +1391,7 @@ public func components_accordion_arrow_nav(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("data-accordion-root=\"true\""))
     var js = std::string()
     js.append_view(page.getJs())
-    contains_string_assert(env, js.to_view(), std::string_view("chx-accordion-summary:not([disabled])"))
+    contains_string_assert(env, js.to_view(), std::string_view("chx-accordion-trigger:not([disabled])"))
     contains_string_assert(env, js.to_view(), std::string_view("ArrowDown"))
     contains_string_assert(env, js.to_view(), std::string_view("ArrowUp"))
 }

@@ -419,6 +419,10 @@ public struct HtmlPage {
     }
 
     func defaultUniversalSetup(&mut self) {
+        // Hydration boundary: [data-chx-i] spans are layout-invisible
+        // so their children become direct layout children of the parent.
+        // This fixes table/inline contexts where a wrapper element is invalid.
+        pageCss.append_view(std::string_view("[data-chx-i]{display:contents}"))
         // we must not put anything else in the head js
         // everything else must go into body js
         // universal component hydration runtime

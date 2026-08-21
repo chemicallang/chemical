@@ -10,7 +10,7 @@ public func universal_cond_state_detail_ssr_no_user(env : &mut TestEnv) {
     // State initializers are SSR-evaluated (null → falsy), so the else branch
     // renders — matching the client's first render.
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>No user</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>No user</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -44,7 +44,7 @@ public func universal_precedence_or_cond_ssr_has(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PrecedenceOrCond a="x" /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>Has</div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div>Has</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -53,7 +53,7 @@ public func universal_precedence_or_cond_ssr_none(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PrecedenceOrCond /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>None</div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div>None</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -77,7 +77,7 @@ public func universal_precedence_arith_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <PrecedenceArith /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>7</div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div>7</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -88,6 +88,6 @@ public func universal_cond_state_detail_prop_ssr_empty(env : &mut TestEnv) {
     // State initializers are SSR-evaluated (null → falsy), so the else branch
     // renders — matching the client's first render.
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>Empty</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>Empty</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

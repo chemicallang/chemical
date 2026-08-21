@@ -19,6 +19,13 @@ func card_styles(page : &mut HtmlPage) : *char {
                 box-shadow: var(--shadow-md);
             }
         }
+        &[data-size="sm"] {
+            gap: 0.25rem;
+            padding: 0;
+            & > [data-slot="card-header"] { padding: 0.75rem 0.75rem 0; }
+            & > [data-slot="card-content"] { padding: 0 0.75rem; }
+            & > [data-slot="card-footer"] { padding: 0 0.75rem 0.75rem; }
+        }
     }
 }
 
@@ -95,8 +102,9 @@ func card_footer_styles(page : &mut HtmlPage) : *char {
 public #universal Card(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
+    var size = props.size || "default"
     var out = classes + " " + ${card_styles(page)}
-    return <div data-interactive={props.onClick ? "true" : "false"} class={out} onClick={props.onClick}>{props.children}</div>
+    return <div data-interactive={props.onClick ? "true" : "false"} data-size={size != "default" ? size : null} class={out} onClick={props.onClick}>{props.children}</div>
 }
 
 public #universal CardHeader(props) {

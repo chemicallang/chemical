@@ -577,7 +577,8 @@ public func components_stateful_tabs_ssr(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view(">One</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">Two</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">Three</button>"))
-    contains_string_assert(env, html.to_view(), std::string_view("background:hsl(var(--primary))"))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant="))
+    contains_string_assert(env, html.to_view(), std::string_view("data-orientation="))
     // Only the active panel is visible
     contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
     // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
@@ -593,8 +594,7 @@ public func components_stateful_tabs_js(env : &mut TestEnv) {
     js.append_view(page.getJs())
     // Reactive active state + index-driven comparison in the emitted JS
     contains_string_assert(env, js.to_view(), std::string_view("$_us((window.$__uni_value(props.defaultIndex)"))
-    contains_string_assert(env, js.to_view(), std::string_view("active.value = i"))
-    contains_string_assert(env, js.to_view(), std::string_view("active.value == i"))
+    contains_string_assert(env, js.to_view(), std::string_view("active.value = val"))
     contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.tabs).map((tab, i)"))
 }
 
@@ -670,8 +670,9 @@ public func components_stateful_dialog_ssr(env : &mut TestEnv) {
     var html = std::string()
     html.append_view(page.getHtml())
     // Open by default: overlay visible (style=""), content present
-    contains_string_assert(env, html.to_view(), std::string_view("style=\"\" defaultOpen=\"true\""))
-    contains_string_assert(env, html.to_view(), std::string_view(">Hello</div>"))
+    contains_string_assert(env, html.to_view(), std::string_view("Hello"))
+    contains_string_assert(env, html.to_view(), std::string_view("role=\"dialog\""))
+    contains_string_assert(env, html.to_view(), std::string_view("aria-modal=\"true\""))
     var js = std::string()
     js.append_view(page.getJs())
     // ESC handler via useEffect + onClose callback

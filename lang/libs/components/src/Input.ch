@@ -250,3 +250,85 @@ public #universal FieldHint(props) {
 public #universal FieldError(props) {
     return <span role="alert" class={${field_error_styles(page)}} class={props.className || props.class}>{props.children}</span>
 }
+
+// Shadcn InputGroup: wraps an Input with leading/trailing icons or addons
+func input_group_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        border-radius: calc(var(--radius) - 2px);
+        border: 1px solid hsl(var(--input));
+        background: transparent;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        &:focus-within {
+            border-color: hsl(var(--ring));
+            box-shadow: 0 0 0 3px hsl(var(--ring) / 0.22);
+        }
+        &[data-disabled="true"] {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        input {
+            border: 0;
+            box-shadow: none;
+            border-radius: 0;
+            background: transparent;
+            flex: 1;
+            min-width: 0;
+            height: 2.5rem;
+            padding: 0 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            color: hsl(var(--foreground));
+            &::placeholder { color: hsl(var(--muted-foreground)); }
+            &[data-size="sm"] { height: 2.25rem; font-size: 0.8125rem; }
+            &[data-size="lg"] { height: 2.75rem; font-size: 1rem; }
+        }
+    }
+}
+
+func input_icon_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 2.5rem;
+        height: 100%;
+        color: hsl(var(--muted-foreground));
+        pointer-events: none;
+    }
+}
+
+func input_addon_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        padding: 0 0.75rem;
+        font-size: 0.875rem;
+        color: hsl(var(--muted-foreground));
+        border-left: 1px solid hsl(var(--border));
+        background: hsl(var(--muted) / 0.4);
+    }
+}
+
+public #universal InputGroup(props) {
+    var disabled = props.disabled || false
+    var classes = (props.className || props.class) || ""
+    return <div {...props} class={classes + " " + ${input_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
+}
+
+public #universal InputIcon(props) {
+    var classes = (props.className || props.class) || ""
+    var position = props.position || "start"
+    var posStyle = position == "end" ? "order:10;" : ""
+    return <span class={classes + " " + ${input_icon_styles(page)}} style={posStyle}>{props.children}</span>
+}
+
+public #universal InputAddon(props) {
+    var classes = (props.className || props.class) || ""
+    return <span class={classes + " " + ${input_addon_styles(page)}}>{props.children}</span>
+}

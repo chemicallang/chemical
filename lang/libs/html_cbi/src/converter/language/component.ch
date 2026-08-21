@@ -165,20 +165,13 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // 1. Generate uId: var uId = page.get_next_u_id();
         var pageIdWrapp = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
-        // 2. Emit <span id="u  (span not div: inline-safe for code/badge/etc inside <p>)
+        // 2. Emit <span id="u" data-chx-i>  (inline-safe hydration boundary)
+        //    data-chx-i triggers [data-chx-i]{display:contents} so the span
+        //    is layout-invisible — children become direct layout children of
+        //    the parent, fixing table/inline contexts.
         converter.str.append_view("<span id=\"u");
         converter.str.append_uinteger(idLoc);
-
-        // Emit uId
-        // var appendFuncId = builder.make_identifier(std::string_view("append_html_uinteger"), converter.support.appendHtmlUIntFn, false, location)
-        // var appendUIntChain = builder.make_access_chain(std::span<*mut Value>([ pageIdWrapp, appendFuncId ]), location);
-        // var appendUIntCall = builder.make_function_call_node(appendUIntChain, converter.parent, location);
-        // appendUIntCall.get_args().push(uIdVal as *mut Value);
-        // converter.vec.push(appendUIntCall as *mut ASTNode);
-
-        // Emit closing quote and >
-        converter.str.append('"');
-        converter.str.append('>');
+        converter.str.append_view("\" data-chx-i>");
         converter.put_chain_in();
 
         // 3. Add attributes address as the second argument

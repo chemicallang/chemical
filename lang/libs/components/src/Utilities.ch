@@ -184,7 +184,7 @@ public #universal Skeleton(props) {
         if(!props.height) { style = style + "height:2.5rem;" }
         style = style + "border-radius:50%;"
     }
-    return <span class={out} style={style} />
+    return <div class={out} style={style} aria-hidden="true" {...props} />
 }
 
 public #universal Spinner(props) {
@@ -287,4 +287,34 @@ public #universal BreadcrumbSeparator(props) {
     if(props.className) { classes = props.className }
     var sep = props.separator || "/"
     return <span class={classes + " " + ${breadcrumb_sep_styles(page)}} aria-hidden="true">{sep}</span>
+}
+
+// BreadcrumbEllipsis: collapsed breadcrumb indicator
+func breadcrumb_ellipsis_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: var(--radius);
+        color: hsl(var(--muted-foreground));
+        cursor: pointer;
+        &:hover {
+            background: hsl(var(--accent));
+        }
+    }
+}
+
+public #universal BreadcrumbEllipsis(props) {
+    var classes = (props.className || props.class) || ""
+    return <span class={classes + " " + ${breadcrumb_ellipsis_styles(page)}} role="button" aria-label={props.ariaLabel || "More"} {...props}>
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+    </span>
+}
+
+// BreadcrumbList: ordered list wrapper (shadcn composition)
+public #universal BreadcrumbList(props) {
+    var classes = (props.className || props.class) || ""
+    return <ol class={classes + " " + ${breadcrumbs_styles(page)}}>{props.children}</ol>
 }

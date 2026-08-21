@@ -7,7 +7,7 @@ public func universal_logical_or_ssr_true(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <LogicalOrSsr hide={true} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -16,7 +16,7 @@ public func universal_logical_or_ssr_false(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <LogicalOrSsr hide={false} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>Shown by Default</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>Shown by Default</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -29,7 +29,7 @@ public func universal_nested_conditional_ssr_both(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <NestedConditionalSsr show={true} other={true} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>Both</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>Both</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -42,7 +42,7 @@ public func universal_fragment_conditional_ssr(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <FragmentConditionalSsr show={true} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><p>1</p><p>2</p></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><p>1</p><p>2</p></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -55,6 +55,6 @@ public func universal_logical_not_ssr_false(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <LogicalNotSsr show={false} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>Hidden is False</span></div></span>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><span>Hidden is False</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

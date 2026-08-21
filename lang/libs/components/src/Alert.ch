@@ -172,6 +172,11 @@ public #universal AlertInfo(props) {
     return <Alert {...props} variant="info">{props.children}</Alert>
 }
 
+// Destructive variant (shadcn naming convention)
+public #universal AlertDestructive(props) {
+    return <Alert {...props} variant="error">{props.children}</Alert>
+}
+
 // Shadcn AlertAction: positioned absolutely in the top-right corner of the alert.
 func alert_action_styles(page : &mut HtmlPage) : *char {
     return #css {

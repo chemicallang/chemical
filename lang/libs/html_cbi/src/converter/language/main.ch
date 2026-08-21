@@ -341,6 +341,9 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
             const c = childHtml.data()[ci2];
             if(c == '\"') { tail.append_view("\\\""); }
             else if(c == '\\') { tail.append_view("\\\\"); }
+            else if(c == '\n') { tail.append_view("\\n"); }
+            else if(c == '\r') { tail.append_view("\\r"); }
+            else if(c == '\t') { tail.append_view("\\t"); }
             else { tail.append(c); }
             ci2++;
         }

@@ -2107,7 +2107,38 @@ public namespace tls {
         var ret = asn1_get_tag(data, len, &raw mut pos, &raw mut seq_tag, &raw mut seq_len)
         if(ret < 0) { return ret }
         if(seq_tag != (ASN1_CONSTRUCTED | ASN1_SEQUENCE)) { return ERR_X509_INVALID_ALG }
-        pos += seq_len
+        var alg_content_start = pos
+        var alg_end = pos + seq_len
+
+        // Detect the named curve from the AlgorithmIdentifier params. The
+        // secp256r1 OID 1.2.840.10045.3.1.7 encodes as 06 08 2A 86 48 CE 3D 03 01 07;
+        // the secp384r1 OID 1.3.132.0.34 encodes as 06 05 2B 81 04 00 22.
+        var curve : u16 = TLS_GROUP_SECP256R1 as u16
+        var i : size_t = alg_content_start
+        while(i + 2 < alg_end && i + 12 <= len) {
+            if(data[i] == 0x06 && data[i + 1] == 0x05 && i + 7 <= alg_end) {
+                var ok384 = true
+                var k : size_t = 0
+                var k384 : [5]u8 = [0x2B, 0x81, 0x04, 0x00, 0x22]
+                while(k < 5) { if(data[i + 2 + k] != k384[k]) { ok384 = false }; k += 1 }
+                if(ok384) { curve = TLS_GROUP_SECP384R1 as u16 }
+            } else if(data[i] == 0x06 && data[i + 1] == 0x08 && i + 10 <= alg_end) {
+                var ok256 = true
+                var k : size_t = 0
+                var k256 : [7]u8 = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01]
+                while(k < 7) { if(data[i + 2 + k] != k256[k]) { ok256 = false }; k += 1 }
+                if(ok256 && data[i + 9] == 0x07) { curve = TLS_GROUP_SECP256R1 as u16 }
+            }
+            i += 1
+        }
+
+        // Advance past the AlgorithmIdentifier to the BIT STRING.
+        pos = alg_end
+
+        // The bit_len check depends on the curve (65 bytes = P-256,
+        // 97 bytes = P-384).
+        var coord = 65
+        if(curve == TLS_GROUP_SECP384R1 as u16) { coord = 97 }
 
         // Parse BIT STRING (contains the raw public key)
         var bit_tag : u8 = 0; var bit_len : size_t = 0
@@ -2120,10 +2151,10 @@ public namespace tls {
         pos += 1
         bit_len -= 1
 
-        if(bit_len < 65) { return ERR_X509_INVALID_FORMAT }
+        if(bit_len < (coord as size_t)) { return ERR_X509_INVALID_FORMAT }
         if(data[pos] != 0x04) { return ERR_X509_INVALID_FORMAT }
 
-        return ecdsa_import_pubkey(ecdsa, &raw data[pos], bit_len, TLS_GROUP_SECP256R1 as u16)
+        return ecdsa_import_pubkey(ecdsa, &raw data[pos], bit_len, curve)
     }
 
     // ─── Verify X.509 Certificate ECDSA Signature ───────────────────────
@@ -2617,11 +2648,17 @@ public namespace tls {
                                                           current.issuer_raw,
                                                           current.issuer_raw_len)
                 if(ca_issuer != null) {
-                    if(x509_verify_sig_with_issuer(current, ca_issuer) == 0) {
+                    var sig_ok = x509_verify_sig_with_issuer(current, ca_issuer)
+                    fprintf(stderr, "[tls:verify] step %d CA-find pk_type=%d sig_ret=%d\n", hops, ca_issuer.pk_type as int, sig_ok)
+                    fflush(stderr)
+                    if(sig_ok == 0) {
                         leaf.flags = 0
                         return 0
                     }
                     // Signature didn't verify; fall through to intermediates.
+                } else {
+                    fprintf(stderr, "[tls:verify] step %d no trusted CA for issuer\n", hops)
+                    fflush(stderr)
                 }
             }
 
@@ -2632,6 +2669,8 @@ public namespace tls {
                                                         current.issuer_raw_len)
             if(peer_issuer != null) {
                 var sig_ret = x509_verify_sig_with_issuer(current, peer_issuer)
+                fprintf(stderr, "[tls:verify] step %d inter pk_type=%d sig_md=%d sig_ret=%d\n", hops, peer_issuer.pk_type as int, current.sig_md as int, sig_ret)
+                fflush(stderr)
                 if(sig_ret == 0) {
                     // Check the intermediate's own validity window.
                     var inter_date = x509_check_date(peer_issuer)

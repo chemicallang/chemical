@@ -30,15 +30,84 @@ public namespace tls {
         0xFFFFFFFFu32, 0xFFFFFFFFu32, 0x00000000u32, 0xFFFFFFFFu32
     ]
 
+    // ─── P-384 (secp384r1) parameters ─────────────────────────────────────
+    // Prime p = 2^384 − 2^128 − 2^96 + 2^32 − 1, little-endian limbs.
+    // hex: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF
+    var P384_P : [12]u32 = [
+        0xFFFFFFFFu32, 0x00000000u32, 0x00000000u32, 0xFFFFFFFFu32,
+        0xFFFFFFFEu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32,
+        0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32
+    ]
+
+    // Order n, little-endian limbs.
+    // hex: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973
+    var P384_N : [12]u32 = [
+        0xCCC52973u32, 0xECEC196Au32, 0x48B0A77Au32, 0x581A0DB2u32,
+        0xF4372DDFu32, 0xC7634D81u32, 0xFFFFFFFFu32, 0xFFFFFFFFu32,
+        0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32, 0xFFFFFFFFu32
+    ]
+
+    // Generator Gx, little-endian limbs.
+    // hex: AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7
+    var P384_GX : [12]u32 = [
+        0x72760AB7u32, 0x3A545E38u32, 0xBF55296Cu32, 0x5502F25Du32,
+        0x82542A38u32, 0x59F741E0u32, 0x8BA79B98u32, 0x6E1D3B62u32,
+        0xF320AD74u32, 0x8EB1C71Eu32, 0xBE8B0537u32, 0xAA87CA22u32
+    ]
+
+    // Generator Gy, little-endian limbs.
+    // hex: 3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F
+    var P384_GY : [12]u32 = [
+        0x90EA0E5Fu32, 0x7A431D7Cu32, 0x1D7E819Du32, 0x0A60B1CEu32,
+        0xB5F0B8C0u32, 0xE9DA3113u32, 0x289A147Cu32, 0xF8F41DBDu32,
+        0x9292DC29u32, 0x5D9E98BFu32, 0x96262C6Fu32, 0x3617DE4Au32
+    ]
+
+    // Curve coefficient b, little-endian limbs.
+    // hex: B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF
+    var P384_B : [12]u32 = [
+        0xD3EC2AEFu32, 0x2A85C8EDu32, 0x8A2ED19Du32, 0xC656398Du32,
+        0x5013875Au32, 0x0314088Fu32, 0xFE814112u32, 0x181D9C6Eu32,
+        0xE3F82D19u32, 0x988E056Bu32, 0xE23EE7E4u32, 0xB3312FA7u32
+    ]
+
+    // Current active curve for the generic point arithmetic helpers.
+    // 0 = P-256 (default), 1 = P-384. Set by ecdsa_verify / ecdh around the
+    // multiplicative ladder so the ecp_* parameter accessors use the right set.
+    var GLOBAL_CURVE : int = 0
+
+    public func ecp_select_curve(c : int) {
+        GLOBAL_CURVE = c
+    }
+
+    public func ecp_curve_id() : int {
+        return GLOBAL_CURVE
+    }
+
     public func ecp_curve_gx(gx : *mut Mpi) {
+        if(GLOBAL_CURVE == 1) {
+            mpi_init(gx); gx.n = 12
+            var i : size_t = 0; while(i < 12) { gx.p[i] = P384_GX[i]; i += 1 }
+            return
+        }
         mpi_init(gx); gx.n = 8
         var i : size_t = 0; while(i < 8) { gx.p[i] = P256_GX[i]; i += 1 }
     }
     public func ecp_curve_gy(gy : *mut Mpi) {
+        if(GLOBAL_CURVE == 1) {
+            mpi_init(gy); gy.n = 12
+            var i : size_t = 0; while(i < 12) { gy.p[i] = P384_GY[i]; i += 1 }
+            return
+        }
         mpi_init(gy); gy.n = 8
         var i : size_t = 0; while(i < 8) { gy.p[i] = P256_GY[i]; i += 1 }
     }
     public func ecp_curve_b(b : *mut Mpi) {
+        if(GLOBAL_CURVE == 1) {
+            mpi_init(b); b.n = 12
+            var i : size_t = 0; while(i < 12) { b.p[i] = P384_B[i]; i += 1 }
+            return
+        }
         mpi_init(b); b.n = 8
         var i : size_t = 0; while(i < 8) { b.p[i] = P256_B[i]; i += 1 }
     }
@@ -91,6 +160,13 @@ public namespace tls {
 
     // Load curve parameter p into an Mpi
     public func ecp_curve_p(p : *mut Mpi) {
+        if(GLOBAL_CURVE == 1) {
+            mpi_init(p)
+            p.n = 12
+            var i : size_t = 0
+            while(i < 12) { p.p[i] = P384_P[i]; i += 1 }
+            return
+        }
         mpi_init(p)
         p.n = 8
         var i : size_t = 0
@@ -98,6 +174,13 @@ public namespace tls {
     }
 
     public func ecp_curve_n(p : *mut Mpi) {
+        if(GLOBAL_CURVE == 1) {
+            mpi_init(p)
+            p.n = 12
+            var i : size_t = 0
+            while(i < 12) { p.p[i] = P384_N[i]; i += 1 }
+            return
+        }
         mpi_init(p)
         p.n = 8
         var i : size_t = 0

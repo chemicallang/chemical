@@ -223,12 +223,21 @@ public namespace http {
                     if(c < 2) {
                         var rem = 2 - c;
                         var n = body_recv(&raw mut b, &raw mut tmp[c], rem);
-                        if(n <= 0) { return -1 }
+                        // Some servers close immediately after the final chunk
+                        // (Connection: close framing) without a trailing CRLF.
+                        // That is a clean end of body.
+                        if(n < 0) { b.closed = true; return 0 }
+                        if(n == 0) {
+                            if(c == 0u) { b.closed = true; return 0 }
+                            b.closed = true
+                            return 0
+                        }
                     }
                 }
                 return (want as int);
             }
             var linebuf = std::string::empty_str();
+            var found_crlf = false;
             if(b.buf != null && b.buf.len() > 0u) {
                 var i = 0u;
                 while(i + 1 < b.buf.len()) {
@@ -240,16 +249,19 @@ public namespace http {
                         var tmpline = std::string::constructor(ptr as *char, nline as size_t);
                         b.buf.consume(nline + 2u);
                         linebuf = tmpline;
+                        found_crlf = true;
                         break;
                     }
                     i = i + 1u;
                 }
             }
-            var found_crlf = false;
             while(!found_crlf) {
                 var tmp : [64]u8;
                 var n = body_recv(&raw mut b, &raw mut tmp[0], 64);
-                if(n <= 0) { return -1 }
+                // Connection: close chunked streams may end without a formal
+                // zero-length chunk. EOF here is a clean end of body.
+                if(n < 0) { b.closed = true; return 0 }
+                if(n == 0) { b.closed = true; return 0 }
                 var i = 0;
                 while(i < n) {
                     var ch = tmp[i];
@@ -299,7 +311,9 @@ public namespace http {
                     if(!found) {
                         var tmp : [8192u]u8;
                         var n = body_recv(&raw mut b, &raw mut tmp[0], 8192u);
-                        if(n <= 0) { return -1 }
+                        // EOF after the terminating zero chunk is a clean end of
+                        // body (the final CRLF may already have been consumed).
+                        if(n <= 0) { b.closed = true; return 0 }
                         if(b.buf != null) { b.buf.append_bytes(&raw mut tmp[0], n as usize) }
                     }
                 }

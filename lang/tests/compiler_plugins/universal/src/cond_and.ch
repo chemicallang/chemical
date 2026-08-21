@@ -10,7 +10,7 @@ public func universal_conditional_and_ssr_true(env : &mut TestEnv) {
     }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span>Shown</span></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>Shown</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -21,6 +21,6 @@ public func universal_conditional_and_ssr_false(env : &mut TestEnv) {
         <ConditionalAnd show={false} />
     }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }

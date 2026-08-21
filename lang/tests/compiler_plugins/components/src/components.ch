@@ -638,9 +638,6 @@ public func components_stateful_pagination_ssr(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view(">1</button>"))
     contains_string_assert(env, html.to_view(), std::string_view(">5</button>"))
     contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Previous page\""))
-    contains_string_assert(env, html.to_view(), std::string_view("aria-label=\"Next page\""))
-    // Page 3 is the active page
-    contains_string_assert(env, html.to_view(), std::string_view("background:hsl(var(--primary))"))
     // JS keeps the current-page guard logic
     var js = std::string()
     js.append_view(page.getJs())

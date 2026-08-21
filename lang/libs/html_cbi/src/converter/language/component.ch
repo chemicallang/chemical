@@ -165,8 +165,8 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // 1. Generate uId: var uId = page.get_next_u_id();
         var pageIdWrapp = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
-        // 2. Emit <div id="u
-        converter.str.append_view("<div id=\"u");
+        // 2. Emit <span id="u  (span not div: inline-safe for code/badge/etc inside <p>)
+        converter.str.append_view("<span id=\"u");
         converter.str.append_uinteger(idLoc);
 
         // Emit uId
@@ -295,8 +295,8 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         converter.vec.push(compCall as *mut ASTNode)
         converter.put_chain_in(); // Flush any pending HTML before </div>
 
-        // 5. Emit </div>
-        converter.str.append_view("</div>");
+        // 5. Emit </span>
+        converter.str.append_view("</span>");
         converter.put_chain_in();
 
         // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])

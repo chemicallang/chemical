@@ -29,7 +29,7 @@ public func universal_element_in_html_works(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div>`);
+    str.append_expr(`<span id="u${page.getComponentId(0)}"><span>Hello</span></span>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 
@@ -65,7 +65,7 @@ public func universal_class_merge(env : &mut TestEnv) {
     #html { <ClassMerge class="extra" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div class="extra base-class"></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div class="extra base-class"></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
     
     var js = std::string()
@@ -87,7 +87,7 @@ public func universal_button_variant(env : &mut TestEnv) {
     #html { <ButtonPrimary>Click Me</ButtonPrimary> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="btn-primary btn-base">Click Me</button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="btn-primary btn-base">Click Me</button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -101,7 +101,7 @@ public func universal_deep_prop_passing(env : &mut TestEnv) {
     #html { <DeepPropPassing title="Hover Me" label="Text" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="Hover Me"><span>Text</span></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div title="Hover Me"><span>Text</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -114,7 +114,7 @@ public func universal_multi_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <MultiChild /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span>A</span><span>B</span></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span>A</span><span>B</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -142,7 +142,7 @@ public func universal_nested_universal_ssr(env : &mut TestEnv) {
     #html { <NestedUniversal /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><span>Hello</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -156,7 +156,7 @@ public func universal_nested_universal_props_ssr(env : &mut TestEnv) {
     #html { <NestedUniversalProps title="T" label="L" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="T"><span>L</span></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div title="T"><span>L</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -255,7 +255,7 @@ public func universal_spread_and_static_attr_ssr(env : &mut TestEnv) {
     #html { <SpreadAndStaticAttr title="Hello" /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="Hello" id="static" data-val="123"></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div title="Hello" id="static" data-val="123"></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -280,7 +280,7 @@ public func universal_frag_parent_ssr(env : &mut TestEnv) {
     #html { <FragParent /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span><div>Middle</div><span>Hello</span></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><span>Hello</span><div>Middle</div><span>Hello</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -306,7 +306,7 @@ public func universal_attr_chem_value_ssr(env : &mut TestEnv) {
     #html { <AttrChemValue val={myVal} /> }
     
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div data-val="42"></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div data-val="42"></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -376,7 +376,7 @@ public func universal_ssr_map_state(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapState /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>a</li><li>b</li><li>c</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>a</li><li>b</li><li>c</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -389,7 +389,7 @@ public func universal_ssr_map_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapProps items={["One", "Two"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>One</li><li>Two</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>One</li><li>Two</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -403,7 +403,7 @@ public func universal_ssr_map_numbers(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapNumbers /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>2</li><li>3</li><li>4</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>2</li><li>3</li><li>4</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -419,7 +419,7 @@ public func universal_ssr_map_block_body(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapBlockBody /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>x</li><li>y</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>x</li><li>y</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -432,7 +432,7 @@ public func universal_ssr_map_inline_literal(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapInlineLiteral /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>10</li><li>20</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>10</li><li>20</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -446,7 +446,7 @@ public func universal_ssr_len_state(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLenState /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>2 items</div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>2 items</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -459,7 +459,7 @@ public func universal_ssr_len_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLenProps items={["a", "b", "c", "d"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>4 items</div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>4 items</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -473,7 +473,7 @@ public func universal_ssr_map_local_var(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapLocalVar items={["A", "B"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>A</li><li>B</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>A</li><li>B</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -487,7 +487,7 @@ public func universal_ssr_map_concat(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapConcat /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>a!b!c!</div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>a!b!c!</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -501,7 +501,7 @@ public func universal_spread_duplicate_attr_ssr(env : &mut TestEnv) {
     #html { <SpreadWithDuplicateAttr title="dynamic" /> }
 
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div title="static"></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div title="static"></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -515,7 +515,7 @@ public func universal_ssr_map_index_state(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapIndexState /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>0:a</li><li>1:b</li><li>2:c</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>0:a</li><li>1:b</li><li>2:c</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -529,7 +529,7 @@ public func universal_ssr_map_index_num(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapIndexNum /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>1.a</li><li>2.b</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>1.a</li><li>2.b</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -542,7 +542,7 @@ public func universal_ssr_map_index_props(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrMapIndexProps items={["One", "Two"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><ul><li>0:One</li><li>1:Two</li></ul></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><ul><li>0:One</li><li>1:Two</li></ul></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -556,7 +556,7 @@ public func universal_ssr_state_ternary(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrStateTernary /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div>YES</div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div>YES</div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -570,7 +570,7 @@ public func universal_ssr_state_attr_ternary(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrStateAttrTernary /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><span style="color:blue;">t</span></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><span style="color:blue;">t</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -584,7 +584,7 @@ public func universal_ssr_state_index_compare(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrStateIndexCompare items={["A", "B", "C"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><button style="">A</button><button style="active">B</button><button style="">C</button></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><button style="">A</button><button style="active">B</button><button style="">C</button></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -598,7 +598,7 @@ public func universal_ssr_state_props_init(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrStatePropsInit defaultIndex={2} items={["x", "y", "z"]} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div><span style="off">x</span><span style="off">y</span><span style="on">z</span></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div><span style="off">x</span><span style="off">y</span><span style="on">z</span></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -627,7 +627,7 @@ public func test_simple_button_works(env : &mut TestEnv) {
     var page = HtmlPage()
     my_button_primary_html(&mut page)
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="my_class dc_2 dc_1">Hello</button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="my_class dc_2 dc_1">Hello</button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -639,7 +639,7 @@ public func universal_multiple_in_html(env : &mut TestEnv) {
         <Greeting />
     }
     var str = std::string();
-    str.append_expr(`<div id="u${page.getComponentId(0)}"><span>Hello</span></div><div id="u${page.getComponentId(1)}"><span>Hello</span></div>`);
+    str.append_expr(`<span id="u${page.getComponentId(0)}"><span>Hello</span></span><span id="u${page.getComponentId(1)}"><span>Hello</span></span>`);
     view_equals(env, page.getHtml(), str.to_view());
 }
 

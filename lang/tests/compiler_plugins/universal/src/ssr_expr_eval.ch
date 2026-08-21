@@ -11,7 +11,7 @@ public func universal_ssr_expr_ternary_primary(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprButton variant="primary" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-primary" type="button"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-primary" type="button"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -20,7 +20,7 @@ public func universal_ssr_expr_ternary_default(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprButton variant="outline" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-default" type="button"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-default" type="button"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -33,7 +33,7 @@ public func universal_ssr_expr_or_truthy(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprOrButton primary={true} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn-primary"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn-primary"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -42,7 +42,7 @@ public func universal_ssr_expr_or_falsy(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprOrButton primary={false} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn-default"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn-default"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -55,7 +55,7 @@ public func universal_ssr_expr_and_active(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprAndButton active={true} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn-active"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn-active"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -64,7 +64,7 @@ public func universal_ssr_expr_and_inactive(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprAndButton active={false} /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -77,7 +77,7 @@ public func universal_ssr_expr_compare_attr(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprCompareButton variant="primary" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button disabled="true"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button disabled="true"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -86,7 +86,7 @@ public func universal_ssr_expr_compare_attr_false(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprCompareButton variant="secondary" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -99,7 +99,7 @@ public func universal_ssr_expr_concat(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprConcatButton variant="primary" size="sm" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-primary chx-btn-sm"></button></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><button class="chx-btn chx-btn-primary chx-btn-sm"></button></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 
@@ -112,7 +112,7 @@ public func universal_ssr_expr_dual_class(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrExprClassName className="my-card" /> }
     var html = std::string()
-    html.append_expr(`<div id="u${page.getComponentId(0)}"><div class="chx-card my-card"></div></div>`)
+    html.append_expr(`<span id="u${page.getComponentId(0)}"><div class="chx-card my-card"></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 

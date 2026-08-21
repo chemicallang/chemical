@@ -28,9 +28,9 @@ public func universal_entity_preserved_in_ssr(env : &mut TestEnv) {
         <JsxEntityDecode/>
     }
     var expected = std::string()
-    expected.append_view("<div id=\"u")
+    expected.append_view("<span id=\"u")
     expected.append_view(page.getComponentId(0))
-    expected.append_view("\"><button>&amp; &rarr; Test</button></div>")
+    expected.append_view("\"><button>&amp; &rarr; Test</button></span>")
     string_equals(env, page.toStringHtmlOnly(), expected.to_view())
 }
 

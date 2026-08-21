@@ -38,13 +38,15 @@ public namespace tls {
     public func ecdsa_import_pubkey(ctx : *mut ECDSAContext,
                                      pub_key : *u8, pub_key_len : size_t,
                                      curve : u16) : int {
+        var coord : size_t = 32
+        if(curve == TLS_GROUP_SECP384R1 as u16) { coord = 48 }
         if(pub_key_len < 65 || pub_key[0] != 0x04) {
             return ERR_ECP_BAD_INPUT_DATA
         }
 
-        var ret = mpi_read_binary(&raw mut ctx.pub_x, &raw pub_key[1], 32)
+        var ret = mpi_read_binary(&raw mut ctx.pub_x, &raw pub_key[1], coord)
         if(ret < 0) { return ret }
-        ret = mpi_read_binary(&raw mut ctx.pub_y, &raw pub_key[33], 32)
+        ret = mpi_read_binary(&raw mut ctx.pub_y, &raw pub_key[1 + coord], coord)
         if(ret < 0) { return ret }
 
         ctx.curve_id = curve
@@ -193,9 +195,11 @@ public namespace tls {
 
     // ECDSA signature is ASN.1 DER encoded:
     // SEQUENCE { INTEGER r, INTEGER s }
-    // Returns 0 on success and fills r_bytes and s_bytes (32 bytes each for P-256)
-    func ecdsa_parse_signature(sig : *u8, sig_len : size_t,
-                                r_out : *mut u8, s_out : *mut u8) : int {
+    // Returns 0 on success and fills r_bytes and s_bytes (coord_bytes each,
+    // 32 for P-256, 48 for P-384).
+    func ecdsa_parse_signature_ext(sig : *u8, sig_len : size_t,
+                                    r_out : *mut u8, s_out : *mut u8,
+                                    coord_bytes : size_t) : int {
         // Parse SEQUENCE
         var pos : size_t = 0
         if(pos >= sig_len) { return ERR_ECDSA_BAD_SIGNATURE }
@@ -231,16 +235,21 @@ public namespace tls {
             r_start += 1
             r_bytes -= 1
         }
-        // Zero-pad to 32 bytes for P-256
+        // Zero-pad to coord_bytes
         var pad_r : size_t = 0
-        if(r_bytes < 32) {
-            pad_r = 32 - r_bytes
+        if(r_bytes < coord_bytes) {
+            pad_r = coord_bytes - r_bytes
         }
         var ri : size_t = 0
         while(ri < pad_r) { r_out[ri] = 0; ri += 1 }
-        while(ri < 32 && ri - pad_r < r_bytes) {
+        while(ri < coord_bytes && ri - pad_r < r_bytes) {
             r_out[ri] = sig[r_start + ri - pad_r]
             ri += 1
+        }
+        // r must fit in the coordinate width; leading 0x00 padding is handled
+        // above, so a leftover non-zero r byte means the integer is too big.
+        if(r_bytes > coord_bytes) {
+            return ERR_ECDSA_BAD_SIGNATURE
         }
         pos += r_len
 
@@ -258,17 +267,26 @@ public namespace tls {
             s_bytes -= 1
         }
         var pad_s : size_t = 0
-        if(s_bytes < 32) {
-            pad_s = 32 - s_bytes
+        if(s_bytes < coord_bytes) {
+            pad_s = coord_bytes - s_bytes
         }
         var si : size_t = 0
         while(si < pad_s) { s_out[si] = 0; si += 1 }
-        while(si < 32 && si - pad_s < s_bytes) {
+        while(si < coord_bytes && si - pad_s < s_bytes) {
             s_out[si] = sig[s_start + si - pad_s]
             si += 1
         }
+        if(s_bytes > coord_bytes) {
+            return ERR_ECDSA_BAD_SIGNATURE
+        }
 
         return 0
+    }
+
+    // P-256 signature parse (kept for compatibility).
+    func ecdsa_parse_signature(sig : *u8, sig_len : size_t,
+                                r_out : *mut u8, s_out : *mut u8) : int {
+        return ecdsa_parse_signature_ext(sig, sig_len, r_out, s_out, 32)
     }
 
     // ─── ECDSA Signature Verification (secp256r1) ────────────────────────
@@ -283,22 +301,28 @@ public namespace tls {
                               hash : *u8, hash_len : size_t,
                               sig : *u8, sig_len : size_t) : int {
         if(!ctx.is_init) { return ERR_ECDSA_VERIFY_FAILED }
-        if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
+        var coord_bytes : size_t = 32
+        var curve_select : int = 0
+        if(ctx.curve_id == TLS_GROUP_SECP384R1 as u16) {
+            coord_bytes = 48
+            curve_select = 1
+        } else if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
             return ERR_ECP_FEATURE_UNAVAILABLE
         }
+        // Activate the matching curve constants for the ecp_* helpers.
+        ecp_select_curve(curve_select)
 
-        // Parse signature: extract r and s (32 bytes each for P-256)
-        var sig_r : [32]u8
-        var sig_s : [32]u8
-        var ret = ecdsa_parse_signature(sig, sig_len, &raw mut sig_r[0], &raw mut sig_s[0])
+        var sig_r : [64]u8
+        var sig_s : [64]u8
+        var ret = ecdsa_parse_signature_ext(sig, sig_len, &raw mut sig_r[0], &raw mut sig_s[0], coord_bytes)
         if(ret < 0) { return ret }
 
         // Import r and s as Mpi
         var r : Mpi; mpi_init(&raw mut r)
         var s : Mpi; mpi_init(&raw mut s)
-        ret = mpi_read_binary(&raw mut r, &raw sig_r[0], 32)
+        ret = mpi_read_binary(&raw mut r, &raw sig_r[0], coord_bytes)
         if(ret < 0) { return ret }
-        ret = mpi_read_binary(&raw mut s, &raw sig_s[0], 32)
+        ret = mpi_read_binary(&raw mut s, &raw sig_s[0], coord_bytes)
         if(ret < 0) { return ret }
 
         // Get curve order n
@@ -312,19 +336,26 @@ public namespace tls {
             return ERR_ECDSA_VERIFY_FAILED
         }
 
-        // e = HASH(message), truncated to bitlen(n)
+        // e = HASH(message), truncated to the leftmost bitlen(n) bits.
+        // Per FIPS 186-4, when the digest is longer than the curve order, use
+        // the leftmost bits of the digest (not a right shift of a longer
+        // read): for P-256 (bitlen 256) that is the first 32 bytes.
         var n_bitlen = mpi_bitlen(&raw mut n)
         var e : Mpi; mpi_init(&raw mut e)
-        // For P-256: n_bitlen = 256, hash_len <= 32
+        var e_bytes = (n_bitlen / 8) as size_t
+        if((n_bitlen % 8) != 0) { e_bytes += 1 }
         var e_len = hash_len
-        if(e_len > (n_bitlen / 8) + 1) { e_len = (n_bitlen / 8) + 1 }
+        if(e_len > e_bytes) { e_len = e_bytes }
         ret = mpi_read_binary(&raw mut e, hash, e_len)
         if(ret < 0) { return ret }
-        // If hash bitlen > n_bitlen, shift right
-        if((hash_len * 8) > n_bitlen as size_t) {
-            var shift = (hash_len * 8) - n_bitlen as size_t
-            ret = mpi_shift_r(&raw mut e, shift as size_t)
-            if(ret < 0) { return ret }
+        // If the curve group size is not a whole byte multiple, mask the top
+        // bits so the value fits exactly in bitlen(n) bits.
+        if(e_bytes * 8 > (n_bitlen as size_t)) {
+            var extra = e_bytes * 8 - (n_bitlen as size_t)
+            if(extra > 0 && extra < 8) {
+                ret = mpi_shift_r(&raw mut e, extra)
+                if(ret < 0) { return ret }
+            }
         }
 
         // w = s^(-1) mod n
@@ -347,14 +378,10 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // R = u1 * G + u2 * Q
-        // Build generator point G from P-256 constants
+        // Build generator point G from the active curve constants.
         var G : ECPPoint; ecp_point_init(&raw mut G)
-        mpi_grow(&raw mut G.X, 8); G.X.n = 8
-        mpi_grow(&raw mut G.Y, 8); G.Y.n = 8
-        var gi : size_t = 0
-        while(gi < 8) { G.X.p[gi] = P256_GX[gi]; gi += 1 }
-        gi = 0
-        while(gi < 8) { G.Y.p[gi] = P256_GY[gi]; gi += 1 }
+        ecp_curve_gx(&raw mut G.X)
+        ecp_curve_gy(&raw mut G.Y)
         mpi_lset(&raw mut G.Z, 1)
 
         // Build public key point Q from context

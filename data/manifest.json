@@ -1,6 +1,12 @@
 {
-  "generated_at": "2026-08-20T09:47:53Z",
+  "generated_at": "2026-08-21T09:50:55Z",
   "daily": [
+    "2026-08-21-windows-x64",
+    "2026-08-21-windows-mingw-msvcrt-x64",
+    "2026-08-21-windows-arm64",
+    "2026-08-21-macos-x64",
+    "2026-08-21-linux-x64",
+    "2026-08-21-linux-arm64",
     "2026-08-20-windows-x64",
     "2026-08-20-windows-mingw-msvcrt-x64",
     "2026-08-20-windows-arm64",

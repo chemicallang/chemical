@@ -171,3 +171,18 @@ public #universal AlertWarning(props) {
 public #universal AlertInfo(props) {
     return <Alert {...props} variant="info">{props.children}</Alert>
 }
+
+// Shadcn AlertAction: positioned absolutely in the top-right corner of the alert.
+func alert_action_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+    }
+}
+
+public #universal AlertAction(props) {
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + alert_action_styles(page)}>{props.children}</div>
+}

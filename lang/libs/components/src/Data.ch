@@ -61,98 +61,85 @@ func progress_styles(page : &mut HtmlPage) : *char {
 
 func accordion_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border: 1px solid hsl(var(--border));
-        border-radius: 14px;
-        background: hsl(var(--background));
-        overflow: hidden;
-    }
-}
-
-func accordion_summary_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        cursor: pointer;
-        list-style: none;
-        padding: 1rem 1.1rem;
-        font-weight: 650;
-        color: hsl(var(--foreground));
-        background: hsl(var(--background));
-        border-bottom: 1px solid hsl(var(--border));
-    }
-}
-
-func accordion_panel_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        padding: 1rem 1.1rem;
-        color: hsl(var(--muted-foreground));
-        background: hsl(var(--background));
+        width: 100%;
     }
 }
 
 func accordion_item_styles(page : &mut HtmlPage) : *char {
     return #css {
-        border: 1px solid hsl(var(--border));
-        border-radius: 18px;
-        background: hsl(var(--background));
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-        .chx-accordion-summary {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            cursor: pointer;
-            list-style: none;
-            width: 100%;
-            padding: 1rem 1.1rem;
-            font-weight: 650;
-            color: hsl(var(--foreground));
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 80%), hsl(var(--background));
-            border: 0;
+        border-bottom: 1px solid hsl(var(--border));
+    }
+}
+
+func accordion_trigger_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 1rem 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        text-align: left;
+        color: hsl(var(--foreground));
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        line-height: 1.5;
+        transition: color 0.15s ease;
+        &:hover {
+            text-decoration: underline;
         }
-        .chx-accordion-summary::-webkit-details-marker {
-            display: none;
+        &:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: 2px;
+            border-radius: var(--radius);
         }
-        .chx-accordion-copy {
-            display: grid;
-            gap: 0.2rem;
-        }
-        .chx-accordion-title {
-            font-size: 1rem;
-            color: hsl(var(--foreground));
-        }
-        .chx-accordion-subtitle {
-            font-size: 0.84rem;
-            font-weight: 500;
-            color: hsl(var(--muted-foreground));
-        }
-        .chx-accordion-icon {
-            width: 2rem;
-            height: 2rem;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: hsl(var(--muted));
-            border: 1px solid hsl(var(--border));
-            font-size: 1rem;
-            line-height: 1;
-            font-family: ui-monospace, "SFMono-Regular", monospace;
-            flex-shrink: 0;
-            transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
-        }
-        .chx-accordion-panel {
-            padding: 1rem 1.1rem;
-            color: hsl(var(--muted-foreground));
-            background: hsl(var(--background));
-            border-top: 1px solid hsl(var(--border));
-        }
-        &[open] .chx-accordion-icon {
-            transform: rotate(45deg);
-            background: hsl(var(--primary));
-            color: hsl(var(--primary-foreground));
-            border-color: transparent;
+        &[disabled] {
+            cursor: not-allowed;
+            opacity: 0.5;
+            pointer-events: none;
         }
     }
+}
+
+func accordion_icon_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+        color: hsl(var(--muted-foreground));
+        transition: transform 0.2s ease;
+        transform: rotate(0deg);
+    }
+}
+
+func accordion_content_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        overflow: hidden;
+        font-size: 0.875rem;
+        color: hsl(var(--muted-foreground));
+        [data-state="open"] & {
+            animation: accordion-down 0.2s ease-out;
+        }
+        [data-state="closed"] & {
+            animation: accordion-up 0.2s ease-out;
+        }
+    }
+}
+
+func accordion_content_inner_styles(page : &mut HtmlPage) : *char {
+    return #css {
+        padding: 0 0 1rem 0;
+    }
+}
+
+func accordion_summary_styles(page : &mut HtmlPage) : *char {
+    return accordion_trigger_styles(page)
+}
+
+func accordion_panel_styles(page : &mut HtmlPage) : *char {
+    return accordion_content_styles(page)
 }
 
 func tabs_styles(page : &mut HtmlPage) : *char {
@@ -312,86 +299,97 @@ public #universal Progress(props) {
     ></progress>
 }
 
+
+// Shadcn-style Accordion: manages open state for child AccordionItems.
+// `defaultValue` is an array of item values open by default.
+// `multiple` allows multiple items open at the same time.
 public #universal Accordion(props) {
-    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true">{props.children}</div>
-}
-
-public #universal AccordionSummary(props) {
-    return <summary {...props} class={${accordion_summary_styles(page)}}>{props.children}</summary>
-}
-
-public #universal AccordionPanel(props) {
-    return <div {...props} class={${accordion_panel_styles(page)}}>{props.children}</div>
-}
-
-// Stateful accordion item: owns its open state, swaps the chevron glyph, and
-// shows/hides the panel without relying on native <details> behavior.
-// `defaultOpen` controls the initial (and SSR) state; `chevronOpen`/
-// `chevronClosed` override the glyphs; `disabled` locks the item; `onToggle`
-// fires with the next state on every click.
-public #universal AccordionItem(props) {
-    state open = props.defaultOpen ? true : false
-    var disabled = props.disabled || false
-    var chevronOpen = props.chevronOpen || "−"
-    var chevronClosed = props.chevronClosed || "+"
-    var toggle = () => {
-        if(disabled) {
-            return
+    var multiple = props.multiple || false
+    var defaultValues = props.defaultValue || []
+    state openItems = defaultValues
+    var toggleItem = (value) => {
+        var idx = openItems.indexOf(value)
+        if(idx >= 0) {
+            openItems.splice(idx, 1)
+        } else {
+            if(!multiple) { openItems = [] }
+            openItems.push(value)
         }
-        open = !open
-        if(props.onToggle) {
-            props.onToggle(open)
-        }
+        if(props.onValueChange) { props.onValueChange(openItems) }
     }
-    // Keyboard navigation between sibling items (shadcn accordion pattern):
-    // ArrowDown/ArrowUp move focus to the next/previous item trigger, Home/End
-    // jump to the first/last. Works with the children-based API via DOM
-    // traversal — no parent state required.
+    var isItemOpen = (value) => { return openItems.indexOf(value) >= 0 }
+    // Keyboard navigation: ArrowDown/Up/Home/End cycle through triggers
     var handleKeyDown = (e) => {
-        if(disabled) {
-            return
-        }
-        if(e.key != "ArrowDown" && e.key != "ArrowUp" && e.key != "Home" && e.key != "End") {
-            return
-        }
+        if(e.key != "ArrowDown" && e.key != "ArrowUp" && e.key != "Home" && e.key != "End") { return }
         const root = e.currentTarget.closest("[data-accordion-root]")
-        const triggers = root ? root.querySelectorAll(".chx-accordion-summary:not([disabled])") : []
-        if(triggers.length == 0) {
-            return
-        }
+        const triggers = root ? root.querySelectorAll("button.chx-accordion-trigger:not([disabled])") : []
+        if(triggers.length == 0) { return }
         var idx = -1
         for(var t = 0; t < triggers.length; t++) {
-            if(triggers[t] == e.currentTarget) {
-                idx = t
-                break
-            }
+            if(triggers[t] == e.currentTarget) { idx = t; break }
         }
-        if(idx < 0) {
-            return
-        }
+        if(idx < 0) { return }
         var next = idx
-        if(e.key == "ArrowDown") {
-            e.preventDefault()
-            next = (idx + 1) % triggers.length
-        } else if(e.key == "ArrowUp") {
-            e.preventDefault()
-            next = (idx - 1 + triggers.length) % triggers.length
-        } else if(e.key == "Home") {
-            e.preventDefault()
-            next = 0
-        } else if(e.key == "End") {
-            e.preventDefault()
-            next = triggers.length - 1
-        }
+        if(e.key == "ArrowDown") { e.preventDefault(); next = (idx + 1) % triggers.length }
+        else if(e.key == "ArrowUp") { e.preventDefault(); next = (idx - 1 + triggers.length) % triggers.length }
+        else if(e.key == "Home") { e.preventDefault(); next = 0 }
+        else if(e.key == "End") { e.preventDefault(); next = triggers.length - 1 }
         triggers[next].focus()
     }
+    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true" data-state="open" data-multiple={multiple ? "true" : "false"} onKeyDown={handleKeyDown}>
+        {props.children}
+    </div>
+}
+
+// Shadcn-style AccordionItem: wraps a trigger + content pair.
+public #universal AccordionItem(props) {
+    var itemValue = props.value || ""
+    var disabled = props.disabled || false
+    return <div {...props} class={${accordion_item_styles(page)}} data-state="open" data-disabled={disabled ? "true" : "false"} data-value={itemValue}>
+        {props.children}
+    </div>
+}
+
+// Shadcn-style AccordionTrigger: the clickable header.
+public #universal AccordionTrigger(props) {
+    return <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} data-state="open" aria-expanded="true">
+        {props.children}
+        <span class={${accordion_icon_styles(page)}}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+    </button>
+}
+
+// Shadcn-style AccordionContent: the collapsible content panel.
+public #universal AccordionContent(props) {
+    return <div class={${accordion_content_styles(page)}} data-state="open" role="region">
+        <div class={${accordion_content_inner_styles(page)}}>{props.children}</div>
+    </div>
+}
+
+// Legacy aliases
+public #universal AccordionSummary(props) {
+    return <AccordionTrigger {...props}>{props.children}</AccordionTrigger>
+}
+public #universal AccordionPanel(props) {
+    return <AccordionContent {...props}>{props.children}</AccordionContent>
+}
+
+// Legacy: old-style accordion item with title/subtitle props.
+public #universal AccordionItemLegacy(props) {
+    state open = props.defaultOpen ? true : false
+    var disabled = props.disabled || false
+    var toggle = () => {
+        if(disabled) { return }
+        open = !open
+    }
     return <div {...props} class={${accordion_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
-        <button type="button" class="chx-accordion-summary" onClick={toggle} onKeyDown={handleKeyDown} disabled={disabled} aria-expanded={open ? "true" : "false"}>
+        <button type="button" class="chx-accordion-summary" onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"}>
             <span class="chx-accordion-copy">
                 <span class="chx-accordion-title">{props.title}</span>
                 <span class="chx-accordion-subtitle">{props.subtitle}</span>
             </span>
-            <span class="chx-accordion-icon">{open ? chevronOpen : chevronClosed}</span>
+            <span class="chx-accordion-icon">{open ? "+" : "+"}</span>
         </button>
         <div class="chx-accordion-panel" style={open ? "" : "display:none;"}>{props.children}</div>
     </div>

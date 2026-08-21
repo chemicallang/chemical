@@ -107,8 +107,26 @@ func button_styles(page : &mut HtmlPage) : *char {
             font-size: 0.9375rem;
             border-radius: calc(var(--radius) - 2px);
         }
+        &[data-size="xs"] {
+            height: 2rem;
+            padding: 0 0.5rem;
+            font-size: 0.6875rem;
+            border-radius: calc(var(--radius) - 4px);
+        }
         &[data-size="icon"] {
             width: 2.5rem;
+            padding: 0;
+        }
+        &[data-size="icon-xs"] {
+            width: 2rem;
+            padding: 0;
+        }
+        &[data-size="icon-sm"] {
+            width: 2.25rem;
+            padding: 0;
+        }
+        &[data-size="icon-lg"] {
+            width: 2.75rem;
             padding: 0;
         }
     }

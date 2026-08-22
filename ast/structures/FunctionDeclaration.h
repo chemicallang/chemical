@@ -475,6 +475,7 @@ public:
             body->shallow_copy_into(decl->body.value());
         }
         decl->attrs = attrs;
+        decl->where_clause = where_clause;
         return decl;
     }
 

@@ -18,6 +18,9 @@
 #include "compiler/symres/SymbolResolver.h"
 #include "core/source/LocationManager.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/structures/WhereClause.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/types/GenericType.h"
 
 static GenericTypeParameter* get_generic_param(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked) {
@@ -761,6 +764,91 @@ void verifyArguments(FunctionCall* call, ASTDiagnoser& diagnoser, FunctionType* 
     }
 }
 
+static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
+    auto func = call->safe_linked_func();
+    if (!func || !func->where_clause) return;
+
+    auto& diagnoser = verifier.diagnoser;
+
+    for (auto& constraint : func->where_clause->constraints) {
+        if (!constraint.param) continue;
+
+        // Find the concrete type for this generic parameter
+        BaseType* concrete_type = nullptr;
+
+        auto param_parent = constraint.param->parent();
+
+        if (param_parent && (param_parent->kind() == ASTNodeKind::GenericStructDecl ||
+                            param_parent->kind() == ASTNodeKind::GenericUnionDecl)) {
+            // The constrained parameter is from the struct/union
+            // Get the concrete type from the receiver type
+            if (call->parent_val->kind() == ValueKind::AccessChain) {
+                auto chain = call->parent_val->as_access_chain_unsafe();
+                if (!chain->values.empty()) {
+                    auto receiver_type = chain->values[0]->getType();
+                    if (receiver_type && receiver_type->kind() == BaseTypeKind::Generic) {
+                        auto gen_type = receiver_type->as_generic_type_unsafe();
+                        auto param_index = constraint.param->param_index;
+                        if (param_index < gen_type->types.size()) {
+                            concrete_type = gen_type->types[param_index];
+                        }
+                    }
+                }
+            }
+        } else if (param_parent && param_parent->kind() == ASTNodeKind::GenericFuncDecl) {
+            // The constrained parameter is from the function
+            // Get the concrete type from the function call's generic list
+            auto param_index = constraint.param->param_index;
+            if (param_index < call->generic_list.size()) {
+                concrete_type = call->generic_list[param_index];
+            }
+        }
+
+        // If we couldn't find the concrete type, skip
+        if (!concrete_type) continue;
+
+        // Skip if concrete type is still a generic type parameter
+        // (we're inside a generic context and T is not yet resolved)
+        auto linked = concrete_type->get_direct_linked_node();
+        if (linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
+            continue; // TODO: handle when T is still generic
+        }
+
+        // Check each trait constraint
+        for (auto& trait_type : constraint.constraints) {
+            auto trait_node = trait_type->get_direct_linked_node();
+            if (!trait_node || trait_node->kind() != ASTNodeKind::InterfaceDecl) continue;
+
+            auto interface_def = trait_node->as_interface_def_unsafe();
+
+            // For Copy constraint: check if the type has a destructor.
+            // Types without destructors are implicitly Copy (trivially copyable).
+            if (interface_def->interface_bits.has(InterfaceBits::COPY_BIT)) {
+                auto container = concrete_type->get_members_container();
+                if (container && container->has_destructor()) {
+                    diagnoser.error(call) << "type '" << concrete_type->representation()
+                        << "' does not satisfy where clause constraint '"
+                        << constraint.param_name << " : "
+                        << trait_type->representation() << "'";
+                }
+                continue;
+            }
+
+            // For other interface constraints: check implementations index
+            auto container = concrete_type->get_members_container();
+            if (!container) continue; // primitive types satisfy all traits
+
+            auto impl = verifier.index.get_impl(interface_def, container);
+            if (!impl) {
+                diagnoser.error(call) << "type '" << concrete_type->representation()
+                    << "' does not satisfy where clause constraint '"
+                    << constraint.param_name << " : "
+                    << trait_type->representation() << "'";
+            }
+        }
+    }
+}
+
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
     // verifying the call mutability (self param is mutable and all that...)
@@ -917,6 +1005,9 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
             }
         }
     }
+
+    // verify where clause constraints
+    verify_where_clause(*this, call);
 
     // type checking arguments
     const auto parent = call->parent_val->get_chain_last_linked();

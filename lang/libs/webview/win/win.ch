@@ -108,6 +108,8 @@ public comptime const WM_CLOSE : UINT = 0x0010 as UINT
 public comptime const WM_GETMINMAXINFO : UINT = 0x0024 as UINT
 public comptime const WM_ACTIVATE : UINT = 0x0006 as UINT
 public comptime const WM_QUIT : UINT = 0x0012 as UINT
+// WM_APP: used by webview_dispatch and deferred bridge responses
+public comptime const WM_WV_APP : UINT = 0x8000 as UINT
 
 // Window styles
 public comptime const WS_OVERLAPPEDWINDOW : DWORD = 0x00CF0000 as DWORD
@@ -176,6 +178,12 @@ public comptime const MOVE_FOCUS_REASON_PROGRAMMATIC : int = 0
 public comptime const MOVE_FOCUS_REASON_NEXT : int = 1
 public comptime const MOVE_FOCUS_REASON_PREVIOUS : int = 2
 
+// COREWEBVIEW2_SCRIPT_DIALOG_KIND
+public comptime const SCRIPT_DIALOG_KIND_ALERT : int = 0
+public comptime const SCRIPT_DIALOG_KIND_CONFIRM : int = 1
+public comptime const SCRIPT_DIALOG_KIND_PROMPT : int = 2
+public comptime const SCRIPT_DIALOG_KIND_BEFOREUNLOAD : int = 3
+
 // webview_hint_t values (from webview/types.h)
 public comptime const WV_HINT_NONE : int = 0
 public comptime const WV_HINT_MIN : int = 1
@@ -236,6 +244,8 @@ public comptime const WV_HINT_FIXED : int = 3
 @extern @stdcall @dllimport public func MoveWindow(hwnd : HWND, x : int, y : int, nWidth : int, nHeight : int, bRepaint : BOOL) : BOOL
 @extern @stdcall @dllimport public func DestroyWindow(hwnd : HWND) : BOOL
 @extern @stdcall @dllimport public func PostQuitMessage(nExitCode : int) : void
+@extern @stdcall @dllimport public func PostMessageW(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : BOOL
+@extern @stdcall @dllimport public func SendMessageW(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
 @extern @stdcall @dllimport public func GetMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT) : BOOL
 @extern @stdcall @dllimport public func TranslateMessage(lpMsg : *mut MSG) : BOOL
 @extern @stdcall @dllimport public func DispatchMessageW(lpMsg : *mut MSG) : LRESULT
@@ -392,6 +402,19 @@ public struct ICoreWebView2Vtbl {
     var AddScriptToExecuteOnDocumentCreated : (s : *mut ICoreWebView2, javaScript : LPCWSTR, handler : *mut void) => HRESULT
     var RemoveScriptToExecuteOnDocumentCreated : (s : *mut ICoreWebView2, id : *mut void) => HRESULT
     var ExecuteScript : (s : *mut ICoreWebView2, javaScript : LPCWSTR, handler : *mut void) => HRESULT
+    // --- methods between ExecuteScript and WebMessageReceived (vtable slots 30-36) ---
+    var _CapturePreview : (s : *mut ICoreWebView2) => HRESULT
+    var _Reload : (s : *mut ICoreWebView2) => HRESULT
+    var _add_WebResourceRequested : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var _remove_WebResourceRequested : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    var _AddWebResourceRequestedFilter : (s : *mut ICoreWebView2) => HRESULT
+    var _RemoveWebResourceRequestedFilter : (s : *mut ICoreWebView2) => HRESULT
+    var _add_WindowCloseRequested : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    // --- WebMessageReceived API (vtable slots 37-40) ---
+    var add_WebMessageReceived : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var remove_WebMessageReceived : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    var PostWebMessageAsJson : (s : *mut ICoreWebView2, messageAsJson : LPCWSTR) => HRESULT
+    var PostWebMessageAsString : (s : *mut ICoreWebView2, messageAsStr : LPCWSTR) => HRESULT
 }
 
 public struct ICoreWebView2 {
@@ -437,6 +460,66 @@ public struct ICoreWebView2PermissionRequestedEventArgs {
     var lpVtbl : *ICoreWebView2PermissionRequestedEventArgsVtbl
 }
 
+// ---- ICoreWebView2ScriptDialogOpeningEventArgs ----
+
+public struct ICoreWebView2ScriptDialogOpeningEventArgsVtbl {
+    var QueryInterface : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs) => ULONG
+    var Release : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs) => ULONG
+    var get_Uri : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, value : *mut LPWSTR) => HRESULT
+    var get_Kind : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, value : *mut int) => HRESULT
+    var get_Message : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, value : *mut LPWSTR) => HRESULT
+    var Accept : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs) => HRESULT
+    var put_DefaultText : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, value : LPCWSTR) => HRESULT
+    var put_ResultText : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, value : LPCWSTR) => HRESULT
+    var GetDeferral : (s : *mut ICoreWebView2ScriptDialogOpeningEventArgs, deferral : *mut *mut void) => HRESULT
+}
+
+public struct ICoreWebView2ScriptDialogOpeningEventArgs {
+    var lpVtbl : *ICoreWebView2ScriptDialogOpeningEventArgsVtbl
+}
+
+// ---- ICoreWebView2ScriptDialogOpeningEventHandler ----
+
+public struct ICoreWebView2ScriptDialogOpeningEventHandlerVtbl {
+    var QueryInterface : (s : *mut ICoreWebView2ScriptDialogOpeningEventHandler, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut ICoreWebView2ScriptDialogOpeningEventHandler) => ULONG
+    var Release : (s : *mut ICoreWebView2ScriptDialogOpeningEventHandler) => ULONG
+    var Invoke : (s : *mut ICoreWebView2ScriptDialogOpeningEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2ScriptDialogOpeningEventArgs) => HRESULT
+}
+
+public struct ICoreWebView2ScriptDialogOpeningEventHandler {
+    var lpVtbl : *ICoreWebView2ScriptDialogOpeningEventHandlerVtbl
+}
+
+// ---- ICoreWebView2WebMessageReceivedEventArgs ----
+
+public struct ICoreWebView2WebMessageReceivedEventArgsVtbl {
+    var QueryInterface : (s : *mut ICoreWebView2WebMessageReceivedEventArgs, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut ICoreWebView2WebMessageReceivedEventArgs) => ULONG
+    var Release : (s : *mut ICoreWebView2WebMessageReceivedEventArgs) => ULONG
+    var get_Source : (s : *mut ICoreWebView2WebMessageReceivedEventArgs, source : *mut LPWSTR) => HRESULT
+    var get_WebMessageAsJson : (s : *mut ICoreWebView2WebMessageReceivedEventArgs, messageAsJson : *mut LPWSTR) => HRESULT
+    var get_WebMessageAsString : (s : *mut ICoreWebView2WebMessageReceivedEventArgs, messageAsStr : *mut LPWSTR) => HRESULT
+}
+
+public struct ICoreWebView2WebMessageReceivedEventArgs {
+    var lpVtbl : *ICoreWebView2WebMessageReceivedEventArgsVtbl
+}
+
+// ---- ICoreWebView2WebMessageReceivedEventHandler ----
+
+public struct ICoreWebView2WebMessageReceivedEventHandlerVtbl {
+    var QueryInterface : (s : *mut ICoreWebView2WebMessageReceivedEventHandler, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut ICoreWebView2WebMessageReceivedEventHandler) => ULONG
+    var Release : (s : *mut ICoreWebView2WebMessageReceivedEventHandler) => ULONG
+    var Invoke : (s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2WebMessageReceivedEventArgs) => HRESULT
+}
+
+public struct ICoreWebView2WebMessageReceivedEventHandler {
+    var lpVtbl : *ICoreWebView2WebMessageReceivedEventHandlerVtbl
+}
+
 // ===========================================================================
 // IIDs (from Microsoft's WebView2 SDK header)
 // ===========================================================================
@@ -460,6 +543,22 @@ public const IID_PERM_REQUESTED : IID = IID {
     Data2 : 0xC72A as WORD,
     Data3 : 0x4DF3 as WORD,
     Data4 : [0x91 as BYTE, 0xD7 as BYTE, 0xD0 as BYTE, 0x97 as BYTE, 0xFB as BYTE, 0xEC as BYTE, 0x6B as BYTE, 0xFD as BYTE]
+}
+
+// IID_ICoreWebView2ScriptDialogOpeningEventHandler
+public const IID_SCRIPT_DIALOG_HANDLER : IID = IID {
+    Data1 : 0xDB412266 as DWORD,
+    Data2 : 0xEBCE as WORD,
+    Data3 : 0x4A5B as WORD,
+    Data4 : [0xB0 as BYTE, 0x4D as BYTE, 0x3A as BYTE, 0x93 as BYTE, 0xE0 as BYTE, 0xC8 as BYTE, 0xB6 as BYTE, 0xEB as BYTE]
+}
+
+// IID_ICoreWebView2WebMessageReceivedEventHandler
+public const IID_WEBMESSAGE_HANDLER : IID = IID {
+    Data1 : 0xC028932B as DWORD,
+    Data2 : 0xBD47 as WORD,
+    Data3 : 0x4565 as WORD,
+    Data4 : [0x95 as BYTE, 0x0D as BYTE, 0x4E as BYTE, 0x73 as BYTE, 0xD9 as BYTE, 0xD8 as BYTE, 0xBE as BYTE, 0x7C as BYTE]
 }
 
 // ===========================================================================
@@ -760,6 +859,16 @@ public struct WebView {
     var visible : bool
     var initialized : bool
 
+    // JS<->native bridge state (matches posix/linux.ch)
+    var bind_ctx : *mut JsBindHolder
+    var bind_handler_set : bool
+
+    // Deferred bridge response: wmh_invoke saves the JS call here and
+    // posts WM_WV_APP to the widget; wv_widget_proc picks it up and calls
+    // ExecuteScript from the message loop (safe - not inside a COM callback).
+    var pending_js_call : string
+    var pending_js_ready : bool
+
     @make
     func make() : WebView {
         return WebView {
@@ -777,7 +886,11 @@ public struct WebView {
             width : 800,
             height : 600,
             visible : false,
-            initialized : false
+            initialized : false,
+            bind_ctx : null,
+            bind_handler_set : false,
+            pending_js_call : string("")
+            pending_js_ready : false
         }
     }
 }
@@ -803,6 +916,17 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
         WM_DESTROY => {
             wv.widget = null
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0)
+        }
+        WM_WV_APP => {
+            // Deferred bridge response: execute the saved JS call from the
+            // message loop, safe and not inside a COM callback.
+            if(wv.pending_js_ready && wv.webview != null) {
+                var js_buf : [8192]ushort
+                widen_to_buf(wv.pending_js_call.data(), &raw mut js_buf[0], 8192)
+                wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw js_buf[0], null)
+                wv.pending_js_ready = false
+                wv.pending_js_call = string("")
+            }
         }
         default => {
             return DefWindowProcW(hwnd, msg, wp, lp)
@@ -1016,6 +1140,9 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
         return -10
     }
 
+    // Enable web messaging so chrome.webview.postMessage() works.
+    settings.lpVtbl.put_IsWebMessageEnabled(settings, 1)
+
     wv_resize_webview(wv)
     wv.controller.lpVtbl.put_IsVisible(wv.controller, 1)
     ShowWindow(wv.widget, SW_SHOW)
@@ -1121,6 +1248,215 @@ public const g_js_vtbl : ICoreWebView2ExecuteScriptCompletedHandlerVtbl = ICoreW
 }
 
 // ===========================================================================
+// JS<->native bridge (WebView2 postMessage / WebMessageReceived)
+// ===========================================================================
+
+// Bridge JS: uses chrome.webview.postMessage() to send messages to native,
+// and a global _resolve callback (called via ExecuteScript from native)
+// to receive results back. No prompt() dialogs.
+// The native side calls: ExecuteScript("window.webview_bridge._resolve(id, \"result_json\")")
+const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { _id: 0, _pending: {}, call: function(method, args) { return new Promise(function(resolve) { var id = window.webview_bridge._id++; window.webview_bridge._pending[id] = resolve; window.chrome.webview.postMessage(JSON.stringify({id: id, method: method, args: args})); }); }, _resolve: function(id, result) { var p = window.webview_bridge._pending[id]; if (p) { delete window.webview_bridge._pending[id]; p(result); } } };"""
+
+// Heap-allocated holder for a bound JS<->native handler (same pattern as linux.ch).
+public struct JsBindHolder {
+    var handler : JsBindHandler
+    func set(&mut self, handler_ : JsBindHandler) {
+        self.handler = handler_
+    }
+}
+
+// WebMessageReceived COM handler — dispatches bridge postMessage() calls to the
+// bound JsBindHandler. Created once per webview_bind() call and registered
+// via add_WebMessageReceived; freed when the webview is destroyed.
+public struct WebMessageHandler {
+    var vtbl : *ICoreWebView2WebMessageReceivedEventHandlerVtbl
+    var wv : *mut WebView
+    var ref_count : ULONG
+}
+
+func wmh_from_iface(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : *mut WebMessageHandler {
+    return s as *mut WebMessageHandler
+}
+
+func wmh_qi(s : *mut ICoreWebView2WebMessageReceivedEventHandler, riid : REFIID, ppv : *mut *mut void) : HRESULT {
+    if(ppv == null) {
+        return E_POINTER
+    }
+    var h = wmh_from_iface(s)
+    *ppv = s as *mut void
+    h.ref_count += 1
+    return S_OK
+}
+
+func wmh_addref(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
+    var h = wmh_from_iface(s)
+    h.ref_count += 1
+    return h.ref_count
+}
+
+func wmh_release(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
+    var h = wmh_from_iface(s)
+    if(h.ref_count > 1) {
+        h.ref_count -= 1
+        return h.ref_count
+    }
+    free(h as *mut void)
+    return 0
+}
+
+// WebMessageReceived callback. The JS bridge posts JSON like
+// {"id":N,"method":"name","args":"..."}. We parse it, call the
+// bound handler, and post the result back as
+// {"id":N,"result":"..."}.
+func wmh_invoke(s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2WebMessageReceivedEventArgs) : HRESULT {
+    var h = wmh_from_iface(s)
+    var wv = h.wv
+    if(!wv.bind_handler_set || wv.bind_ctx == null) {
+        return S_OK
+    }
+    // Get the message string from JS
+    var msg_ptr : LPWSTR = null
+    args.lpVtbl.get_WebMessageAsString(args, &raw mut msg_ptr)
+    if(msg_ptr == null) {
+        return S_OK
+    }
+    // Convert UTF-16 to UTF-8
+    var msg_utf8 = js_result_to_utf8(msg_ptr)
+    if(msg_utf8 == null) {
+        return S_OK
+    }
+    var msg_view = std::string_view::make_no_len(msg_utf8)
+
+    // Parse JSON: find "id":
+    // The message is {"id":N,"method":"name","args":"..."}
+    var id_start = msg_view.find(std::string_view::make_no_len("\"id\":"))
+    if(id_start == msg_view.size()) {
+        free(msg_utf8 as *mut void)
+        return S_OK
+    }
+    id_start = id_start + 6 // skip "id":
+    // Parse the numeric id
+    var id_val : i64 = 0
+    while(id_start < msg_view.size()) {
+        var c = msg_view.get(id_start)
+        if(c >= '0' && c <= '9') {
+            id_val = id_val * 10 + (c as i64 - 48)
+        } else {
+            break
+        }
+        id_start = id_start + 1
+    }
+
+    // Find "method":"
+    var method_start = msg_view.find(std::string_view::make_no_len("\"method\":\""))
+    if(method_start == msg_view.size()) {
+        free(msg_utf8 as *mut void)
+        return S_OK
+    }
+    method_start = method_start + 11 // skip "method":"
+    var method_end = method_start
+    while(method_end < msg_view.size()) {
+        if(msg_view.get(method_end) == '"') {
+            break
+        }
+        method_end = method_end + 1
+    }
+    var method = msg_view.subview(method_start, method_end)
+
+    // Find "args":"
+    var args_start = msg_view.find(std::string_view::make_no_len("\"args\":\""))
+    var args_view : std::string_view
+    if(args_start == msg_view.size()) {
+        // No args, or args is not a string — try args": without the quote
+        args_start = msg_view.find(std::string_view::make_no_len("\"args\":\""))
+        if(args_start == msg_view.size()) {
+            args_view = std::string_view::make_no_len("")
+        } else {
+            args_start = args_start + 8 // skip "args":
+            // Skip the opening quote
+            if(args_start < msg_view.size() && msg_view.get(args_start) == '"') {
+                args_start = args_start + 1
+            }
+            var args_end = args_start
+            while(args_end < msg_view.size()) {
+                if(msg_view.get(args_end) == '"') {
+                    break
+                }
+                args_end = args_end + 1
+            }
+            args_view = msg_view.subview(args_start, args_end)
+        }
+    } else {
+        args_start = args_start + 8 // skip "args":
+        if(args_start < msg_view.size() && msg_view.get(args_start) == '"') {
+            args_start = args_start + 1
+        }
+        var args_end2 = args_start
+        while(args_end2 < msg_view.size()) {
+            if(msg_view.get(args_end2) == '"') {
+                break
+            }
+            args_end2 = args_end2 + 1
+        }
+        args_view = msg_view.subview(args_start, args_end2)
+    }
+
+    // Call the bound handler
+    var result = wv.bind_ctx.handler(method, args_view)
+
+    // Build JS call: window.webview_bridge._resolve(id, "escaped_result")
+    // The result is embedded inside a JS string literal, so we must
+    // escape backslashes and double quotes.
+    var js_call = string("window.webview_bridge._resolve(")
+    js_call.append_integer(id_val as bigint)
+    js_call.append_view(std::string_view::make_no_len(", \""))
+    var ri : size_t = 0
+    while(ri < result.size()) {
+        var rc = result.get(ri)
+        if(rc == '\\') {
+            js_call.append_view(std::string_view::make_no_len("\\\\"))
+        } else if(rc == '"') {
+            js_call.append_view(std::string_view::make_no_len("\\\""))
+        } else {
+            js_call.append(rc)
+        }
+        ri = ri + 1
+    }
+    js_call.append_view(std::string_view::make_no_len("\")"))
+
+    // Defer the ExecuteScript call to the message loop. Calling ExecuteScript
+    // directly from inside the WebMessageReceived COM callback can deadlock
+    // because WebView2 is not reentrant during callbacks. Instead, we save
+    // the JS call string and post WM_WV_APP to the widget window; the widget
+    // WndProc picks it up and calls ExecuteScript from the message loop.
+    wv.pending_js_call = js_call
+    wv.pending_js_ready = true
+    PostMessageW(wv.widget, WM_WV_APP, 0, 0)
+
+    free(msg_utf8 as *mut void)
+    return S_OK
+}
+
+public const g_wmh_vtbl : ICoreWebView2WebMessageReceivedEventHandlerVtbl = ICoreWebView2WebMessageReceivedEventHandlerVtbl {
+    QueryInterface : wmh_qi,
+    AddRef : wmh_addref,
+    Release : wmh_release,
+    Invoke : wmh_invoke
+}
+
+// Inject the JS<->native bridge stub into every page the webview loads.
+// Uses AddScriptToExecuteOnDocumentCreated so the script runs before any
+// page script executes. It is harmless when no handler is bound yet.
+func wv_inject_bridge(wv : *mut WebView) {
+    if(wv.webview == null) {
+        return
+    }
+    var js_buf : [2048]ushort
+    widen_to_buf(WEBVIEW_BRIDGE_JS, &raw mut js_buf[0], 2048)
+    wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw js_buf[0], null)
+}
+
+// ===========================================================================
 // public API (matches posix/linux.ch exactly)
 // ===========================================================================
 
@@ -1147,6 +1483,7 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
         return std::Result.Err(WebViewError.InitFailed(msg))
     }
     wv.initialized = true
+    wv_inject_bridge(wv)
     return std::Result.Ok(std::Unit{})
 }
 
@@ -1195,6 +1532,7 @@ public func webview_attach(
         return std.Result.Err(WebViewError.InitFailed(msg))
     }
     wv.initialized = true
+    wv_inject_bridge(wv)
     return std.Result.Ok(std::Unit{})
 }
 
@@ -1459,6 +1797,11 @@ public func webview_load_html(wv : *mut WebView, html : *char) {
 public func webview_destroy(wv : *mut WebView) {
     wv.initialized = false
     wv.visible = false
+    if(wv.bind_ctx != null) {
+        delete wv.bind_ctx
+        wv.bind_ctx = null
+    }
+    wv.bind_handler_set = false
     if(wv.handler != null) {
         env_release(&raw wv.handler.env_vtbl as *mut ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler)
         wv.handler = null
@@ -1511,10 +1854,40 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
     return &raw mut wv.win
 }
 
-// JS<->native binding is Linux-only (WebKitGTK script-dialog bridge). The
-// Win32 WebView2 backend does not expose it yet.
+// Bind a native handler to the JS window.webview_bridge.call(method, args).
+// The handler runs on the UI thread (inside the message loop) and its JSON
+// result is posted back to JS asynchronously via PostWebMessageAsString.
+//
+// On Windows this uses chrome.webview.postMessage() / WebMessageReceived —
+// the standard WebView2 bidirectional messaging API (no prompt() dialogs).
 public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
-    return std.Result.Err(WebViewError.PlatformNotSupported())
+    if(wv.webview == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
+    }
+    var holder = new JsBindHolder
+    if(holder == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: allocation failed")))
+    }
+    memset(holder as *mut void, 0, sizeof(JsBindHolder))
+    holder.set(handler)
+    wv.bind_ctx = holder
+    wv.bind_handler_set = true
+
+    // Register the WebMessageReceived event handler on the webview.
+    var wmh = malloc(sizeof(WebMessageHandler)) as *mut WebMessageHandler
+    if(wmh == null) {
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: handler allocation failed")))
+    }
+    wmh.vtbl = &raw g_wmh_vtbl
+    wmh.wv = wv
+    wmh.ref_count = 1
+    var token : EventRegistrationToken
+    wv.webview.lpVtbl.add_WebMessageReceived(
+        wv.webview,
+        wmh as *mut ICoreWebView2WebMessageReceivedEventHandler,
+        &raw mut token
+    )
+    return std.Result.Ok(std::Unit{})
 }
 
 } // end namespace webview

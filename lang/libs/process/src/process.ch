@@ -35,11 +35,15 @@ public struct ProcessConfig {
     var stdin_data : vector<u8>;
 
     func default() : ProcessConfig {
-        var cfg : ProcessConfig;
-        cfg.capture_stdout = true;
-        cfg.capture_stderr = true;
-        cfg.merge_stdout_stderr = false;
-        return cfg;
+        return ProcessConfig {
+            args = vector<string>(),
+            env = vector<string>(),
+            working_dir = string(),
+            capture_stdout = true,
+            capture_stderr = true,
+            merge_stdout_stderr = false,
+            stdin_data = vector<u8>()
+        }
     }
 }
 
@@ -90,7 +94,7 @@ public func execute(cfg : ProcessConfig) : PR_Result {
         pr_err(e, &mut ret)
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {
-        var result : ProcessResult
+        var result = zeroed:unsafe<ProcessResult>()
         if(posix_execute(&raw mut cfg, &raw mut result)) {
             pr_ok(&mut result, &mut ret)
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
@@ -138,7 +142,7 @@ public func wait(child : *mut ChildProcess) : PR_Result {
         pr_err(e, &mut ret)
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {
-        var result : ProcessResult
+        var result = zeroed:unsafe<ProcessResult>()
         if(posix_wait(child, &raw mut result)) {
             pr_ok(&mut result, &mut ret)
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())

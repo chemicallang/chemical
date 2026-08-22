@@ -173,7 +173,7 @@ func build_argv(args : *vector<string>) : ArgvBuffer {
     buf.count = args.size();
     var i : size_t = 0;
     while(i < args.size()) {
-        buf.ptrs[i] = args.get(i).data();
+        buf.ptrs[i] = args.get_ptr(i).data()
         i += 1;
     }
     buf.ptrs[i] = null;

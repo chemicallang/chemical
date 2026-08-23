@@ -817,4 +817,88 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
     return &raw mut wv.win
 }
 
+// ===========================================================================
+// New API features (Linux stubs — to be implemented)
+// ===========================================================================
+
+// Schedule a function to run on the GTK main loop. Thread-safe.
+public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+    // TODO: implement with g_idle_add_full
+    // g_idle_add_full(G_PRIORITY_DEFAULT, callback, arg, null)
+}
+
+// Set window size with a hint.
+public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+    wv.width = width
+    wv.height = height
+    // TODO: implement with gtk_window_set_geometry_hints (GTK3)
+    // For now, fall back to simple resize.
+    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
+        window::window_set_size(&raw mut wv.win, width, height)
+    }
+}
+
+// Inject JavaScript that runs on every page load.
+public func webview_init(wv : *mut WebView, js : *char) {
+    // TODO: implement with webkit_user_content_manager_add_script
+    // WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START
+}
+
+// Remove a binding.
+public func webview_unbind(wv : *mut WebView, name : *char) {
+    if(wv.bind_ctx != null) {
+        delete wv.bind_ctx
+        wv.bind_ctx = null
+    }
+    wv.bind_handler_set = false
+    // TODO: notify JS side via evaluate_js onUnbind
+}
+
+// Respond to an async binding call.
+public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+    // TODO: implement with webkit_web_view_run_javascript
+    // Same pattern as Windows: build onReply JS call and evaluate
+    // Build: window.__webview__.onReply(id, status, result)
+    // Use webview_json_escape for the id to handle special characters.
+    // For now, a minimal implementation:
+    if(wv.web_view == null) { return }
+    // Build: window.__webview__.onReply(id, status, result)
+    var js = string("window.__webview__.onReply('")
+    var i = 0
+    while(id[i] != '\0' as char) { js.append(id[i]); i = i + 1 }
+    js.append_view(std::string_view::make_no_len("', "))
+    js.append_integer(status as bigint)
+    js.append_view(std::string_view::make_no_len(", "))
+    if(result != null) {
+        var j = 0
+        while(result[j] != '\0' as char) { js.append(result[j]); j = j + 1 }
+    } else {
+        js.append_view(std::string_view::make_no_len("undefined"))
+    }
+    js.append_view(std::string_view::make_no_len(")"))
+    webview_evaluate_js(wv, js.data())
+}
+
+// Get a native handle by kind.
+public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+    if(kind == NATIVE_HANDLE_WINDOW) {
+        if(wv.attached && wv.parent_win != null) {
+            return wv.parent_win.hwnd as *mut void
+        }
+        return wv.win.hwnd as *mut void
+    }
+    if(kind == NATIVE_HANDLE_WIDGET) {
+        return wv.web_view as *mut void
+    }
+    if(kind == NATIVE_HANDLE_BROWSER_CONTROLLER) {
+        return wv.web_view as *mut void
+    }
+    return null
+}
+
+// Get the library version information.
+public func webview_version() : WebViewVersion {
+    return WebViewVersion { major : 0, minor : 12, patch : 1 }
+}
+
 } // end namespace webview

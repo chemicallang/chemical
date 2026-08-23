@@ -18,6 +18,28 @@ public type JsResultCallback = (data : *mut void, result : *char) => void
 // thread (inside the message loop), asynchronously with the page's JavaScript.
 public type JsBindHandler = std.function<(method : string_view, args : string_view) => string>
 
+// Callback for webview_dispatch: a function scheduled to run on the UI thread.
+// `arg` is the user-supplied pointer passed to webview_dispatch.
+public type DispatchCallback = (arg : *mut void) => void
+
+// Size hint constants for webview_set_size_hints.
+public comptime const SIZE_HINT_NONE : int = 0
+public comptime const SIZE_HINT_MIN : int = 1
+public comptime const SIZE_HINT_MAX : int = 2
+public comptime const SIZE_HINT_FIXED : int = 3
+
+// Native handle kind constants for webview_get_native_handle.
+public comptime const NATIVE_HANDLE_WINDOW : int = 0
+public comptime const NATIVE_HANDLE_WIDGET : int = 1
+public comptime const NATIVE_HANDLE_BROWSER_CONTROLLER : int = 2
+
+// Library version information.
+public struct WebViewVersion {
+    var major : u32
+    var minor : u32
+    var patch : u32
+}
+
 public variant WebViewError {
     PlatformNotSupported()
     InitFailed(msg : string)

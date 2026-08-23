@@ -897,29 +897,22 @@ public struct WebView {
     var pending_js_call : string
     var pending_js_ready : bool
 
+    // Dispatch queue: webview_dispatch stores {fn, arg} entries here and
+    // posts WM_WV_APP; wv_widget_proc drains the queue on the UI thread.
+    var dispatch_fns : [16]DispatchCallback
+    var dispatch_args : [16]*mut void
+    var dispatch_count : int
+
     @make
     func make() : WebView {
-        return WebView {
-            win : window::Window.make(),
-            widget : null,
-            webview : null,
-            controller : null,
-            handler : null,
-            loader_lib : null,
-            attached : false,
-            parent : null,
-            parent_wndproc : 0,
-            bounds : RECT { left : 0, top : 0, right : 0, bottom : 0 },
-            title : string("Chemical WebView"),
-            width : 800,
-            height : 600,
-            visible : false,
-            initialized : false,
-            bind_ctx : null,
-            bind_handler_set : false,
-            pending_js_call : string("")
-            pending_js_ready : false
-        }
+        unsafe var wv : WebView
+        memset(&raw mut wv, 0, sizeof(WebView))
+        wv.win = window::Window.make()
+        wv.title = string("Chemical WebView")
+        wv.width = 800
+        wv.height = 600
+        wv.pending_js_call = string("")
+        return wv
     }
 }
 
@@ -946,6 +939,14 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0)
         }
         WM_WV_APP => {
+            // Drain the dispatch queue: execute all pending callbacks.
+            while(wv.dispatch_count > 0) {
+                wv.dispatch_count = wv.dispatch_count - 1
+                var idx = wv.dispatch_count
+                var fn = wv.dispatch_fns[idx]
+                var arg = wv.dispatch_args[idx]
+                fn(arg)
+            }
             // Deferred bridge response: execute the saved JS call from the
             // message loop, safe and not inside a COM callback.
             if(wv.pending_js_ready && wv.webview != null) {
@@ -1969,6 +1970,102 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
     )
     printf("[WMH] add_WebMessageReceived returned hr=0x%x token=%d\n", reg_hr as int, token.value as int)
     return std.Result.Ok(std::Unit{})
+}
+
+// ===========================================================================
+// New API features
+// ===========================================================================
+
+// Schedule a function to run on the UI thread. Thread-safe: can be called
+// from any thread. The function runs inside the next message-loop iteration.
+public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+    if(wv.widget == null || wv.dispatch_count >= 16) { return }
+    var idx = wv.dispatch_count
+    wv.dispatch_fns[idx] = fn
+    wv.dispatch_args[idx] = arg
+    wv.dispatch_count = idx + 1
+    PostMessageW(wv.widget, WM_WV_APP, 0, 0)
+}
+
+// Set window size with a hint controlling how width/height are interpreted.
+public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
+    wv.width = width
+    wv.height = height
+    webview_rebind(wv)
+    wv_set_size(wv, width, height, hint)
+}
+
+// Inject JavaScript that runs on every page load (before window.onload).
+// Unlike evaluate_js which runs once, init scripts persist across navigations.
+public func webview_init(wv : *mut WebView, js : *char) {
+    if(wv.webview == null) { return }
+    unsafe var wbuf : [32768]ushort
+    widen_to_buf(js, &raw mut wbuf[0], 32768)
+    wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw wbuf[0], null)
+}
+
+// Remove a binding previously created with webview_bind.
+public func webview_unbind(wv : *mut WebView, name : *char) {
+    if(wv.webview == null) { return }
+    if(wv.bind_ctx != null) {
+        delete wv.bind_ctx
+        wv.bind_ctx = null
+    }
+    wv.bind_handler_set = false
+    // Build: if(window.__webview__){window.__webview__.onUnbind('name')}
+    var js = string("if(window.__webview__){window.__webview__.onUnbind('")
+    js.append_char_ptr(name)
+    js.append_view(std::string_view::make_no_len("')}"))
+    webview_evaluate_js(wv, js.data())
+}
+
+// Respond to an async binding call from the JS side.
+public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
+    if(wv.webview == null) { return }
+    var id_len : size_t = 0
+    while(id[id_len] != '\0' as char) { id_len = id_len + 1 }
+    var id_escaped = webview_json_escape(std::string_view::constructor(id, id_len))
+    var js = string("window.__webview__.onReply(")
+    js.append_view(std::string_view::constructor(id_escaped.data(), id_escaped.size()))
+    js.append_view(std::string_view::make_no_len(", "))
+    js.append_integer(status as bigint)
+    js.append_view(std::string_view::make_no_len(", "))
+    if(result != null) {
+        var rlen : size_t = 0
+        while(result[rlen] != '\0' as char) { rlen = rlen + 1 }
+        if(rlen > 0) {
+            var res_escaped = webview_json_escape(std::string_view::constructor(result, rlen))
+            js.append_view(std::string_view::constructor(res_escaped.data(), res_escaped.size()))
+        } else {
+            js.append_view(std::string_view::make_no_len("undefined"))
+        }
+    } else {
+        js.append_view(std::string_view::make_no_len("undefined"))
+    }
+    js.append_view(std::string_view::make_no_len(")"))
+    webview_evaluate_js(wv, js.data())
+}
+
+// Get a native handle by kind.
+public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
+    if(kind == NATIVE_HANDLE_WINDOW) {
+        if(wv.attached && wv.parent != null) {
+            return wv.parent.hwnd as *mut void
+        }
+        return wv.win.hwnd as *mut void
+    }
+    if(kind == NATIVE_HANDLE_WIDGET) {
+        return wv.widget as *mut void
+    }
+    if(kind == NATIVE_HANDLE_BROWSER_CONTROLLER) {
+        return wv.controller as *mut void
+    }
+    return null
+}
+
+// Get the library version information.
+public func webview_version() : WebViewVersion {
+    return WebViewVersion { major : 0, minor : 12, patch : 1 }
 }
 
 } // end namespace webview

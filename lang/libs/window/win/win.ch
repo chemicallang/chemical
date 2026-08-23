@@ -221,7 +221,7 @@ var g_layered_fn : SetLayeredWindowAttributesFn = null
 
 func win_user32() : HMODULE {
     if(g_user32 == null) {
-        var wname : [16]ushort
+        unsafe var wname : [16]ushort
         widen_to_buf("user32.dll", &raw mut wname[0], 16)
         g_user32 = LoadLibraryW(&raw wname[0] as LPCWSTR)
     }
@@ -587,10 +587,10 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
                 var hdrop = wp as HANDLE
                 var count = DragQueryFileW(hdrop, 0xFFFFFFFF as UINT, null, 0)
                 if(count > 0) {
-                    var buf : [1024]ushort
+                    unsafe var buf : [1024]ushort
                     var n = DragQueryFileW(hdrop, 0, &raw mut buf[0], 1024)
                     if(n > 0) {
-                        var utf8_buf : [2048]char
+                        unsafe var utf8_buf : [2048]char
                         wide_to_utf8(&raw buf[0], &raw mut utf8_buf[0], 2048)
                         w.drop_cb(w.user_data, &raw utf8_buf[0])
                     }
@@ -626,7 +626,7 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
     var wc = zeroed<WNDCLASSEXW>()
     wc.cbSize = sizeof(WNDCLASSEXW) as UINT
     wc.hInstance = hInstance
-    var wc_class_name : [64]ushort
+    unsafe var wc_class_name : [64]ushort
     widen_to_buf("chem_window", &raw mut wc_class_name[0], 64)
     wc.lpszClassName = &raw wc_class_name[0]
     wc.lpfnWndProc = win_window_proc as WNDPROC
@@ -641,7 +641,7 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
     var phys_w = (w.width * w.dpi) / 96
     var phys_h = (w.height * w.dpi) / 96
 
-    var title_buf : [512]ushort
+    unsafe var title_buf : [512]ushort
     widen_to_buf(w.title.data(), &raw mut title_buf[0], 512)
 
     w.hwnd = CreateWindowExW(
@@ -711,7 +711,7 @@ public func window_set_title(w : *mut Window, title : *char) {
     w.title = string("")
     w.title.append_char_ptr(title)
     if(w.hwnd != null) {
-        var wbuf : [512]ushort
+        unsafe var wbuf : [512]ushort
         widen_to_buf(title, &raw mut wbuf[0], 512)
         SetWindowTextW(w.hwnd, &raw wbuf[0])
     }
@@ -726,7 +726,7 @@ public func window_size(w : *mut Window) : Size {
 // Physical client size (for native layout/rendering code).
 public func window_client_size(w : *mut Window) : Size {
     if(w.hwnd != null) {
-        var rc : RECT
+        unsafe var rc : RECT
         if(GetClientRect(w.hwnd, &raw mut rc)) {
             return Size.make(rc.right - rc.left, rc.bottom - rc.top)
         }
@@ -763,7 +763,7 @@ public func window_set_size(w : *mut Window, width : int, height : int) {
 
 public func window_position(w : *mut Window) : Position {
     if(w.hwnd != null) {
-        var rc : RECT
+        unsafe var rc : RECT
         if(GetWindowRect(w.hwnd, &raw mut rc)) {
             return Position.make(rc.left, rc.top)
         }
@@ -810,7 +810,7 @@ public func window_set_fullscreen(w : *mut Window, fullscreen : bool) {
     if(fullscreen) {
         w.saved_style = GetWindowLongPtrW(w.hwnd, GWL_STYLE)
         GetWindowRect(w.hwnd, &raw mut w.saved_rect)
-        var mi : MONITORINFO
+        unsafe var mi : MONITORINFO
         mi.cbSize = sizeof(MONITORINFO) as DWORD
         GetMonitorInfoW(MonitorFromWindow(w.hwnd, MONITOR_DEFAULTTONEAREST), &raw mut mi)
         SetWindowLongPtrW(w.hwnd, GWL_STYLE, (w.saved_style & ~((WS_CAPTION | WS_THICKFRAME) as LONG_PTR)) | (WS_POPUP as LONG_PTR))
@@ -900,7 +900,7 @@ public func window_set_icon(w : *mut Window, path : *char) {
     if(w.hwnd == null || path == null) {
         return
     }
-    var wbuf : [1024]ushort
+        unsafe var wbuf : [1024]ushort
     widen_to_buf(path, &raw mut wbuf[0], 1024)
     var icon = LoadImageW(
         null,
@@ -981,7 +981,7 @@ var g_monitor_index_scratch : int = 0
 var g_monitor_rect_scratch : RECT = RECT { left : 0, top : 0, right : 0, bottom : 0 }
 
 func win_monitor_enum_proc(hmon : HMONITOR, hdc : HDC, lprc : *mut RECT, data : LPARAM) : BOOL {
-    var mi : MONITORINFO
+    unsafe var mi : MONITORINFO
     mi.cbSize = sizeof(MONITORINFO) as DWORD
     GetMonitorInfoW(hmon, &raw mut mi)
     if(g_monitor_index_scratch == g_monitor_count_scratch) {
@@ -1053,7 +1053,7 @@ public func window_native_handle(w : *mut Window) : *mut void {
 // --- message loop (thread-level) ---
 
 public func window_run() {
-    var msg : MSG
+    unsafe var msg : MSG
     while(GetMessageW(&raw mut msg, null, 0, 0) > 0) {
         TranslateMessage(&raw mut msg)
         DispatchMessageW(&raw mut msg)

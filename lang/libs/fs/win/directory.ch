@@ -13,7 +13,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 
 // create_dir_all (recursive)
 public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
-    var buf : [PATH_MAX_BUF]char;
+    unsafe var buf : [PATH_MAX_BUF]char;
     var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
         var Err(e) = r else unreachable
@@ -26,7 +26,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
     while(i <= len) {
         if(i == len || buf[i] == '/') {
             // prefix is [0..i)
-            var prefix : [PATH_MAX_BUF]char;
+            unsafe var prefix : [PATH_MAX_BUF]char;
             var k : size_t = 0;
             while(k < i) { prefix[k] = buf[k]; k++ }
             prefix[k] = 0;
@@ -164,7 +164,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
 }
 
 public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-    var wbuf : [WIN_MAX_PATH]u16;
+    unsafe var wbuf : [WIN_MAX_PATH]u16;
     var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
     if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     var conv = utf16_to_utf8(&raw mut wbuf[0], out, out_len);
@@ -179,7 +179,7 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
 public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
     // Windows implementation using FindFirstFileW / FindNextFileW
-    var wpath : [WIN_MAX_PATH]u16;
+    unsafe var wpath : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wpath[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
@@ -187,12 +187,12 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     }
     var Ok(wlen) = conv else unreachable
     // append \* pattern
-    var pattern : [WIN_MAX_PATH]u16;
+    unsafe var pattern : [WIN_MAX_PATH]u16;
     var p : size_t = 0; while(wpath[p] != 0) { pattern[p] = wpath[p]; p++ }
     if(p == 0) { pattern[p++] = '.' as u16; }
     if(p > 0 && pattern[p-1] != '\\' && pattern[p-1] != '/') { pattern[p++] = '\\'; }
     pattern[p] = '*'; pattern[p+1] = 0;
-    var findData : WIN32_FIND_DATAW;
+    unsafe var findData : WIN32_FIND_DATAW;
     var h = FindFirstFileW((&mut pattern[0]) as LPCWSTR, &raw mut findData);
     if(h == INVALID_HANDLE_VALUE) {
         var e = GetLastError();
@@ -201,7 +201,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
     }
     while(true) {
         // convert name to utf8
-        var name_utf8 : [DIR_ENT_NAME_MAX]char;
+        unsafe var name_utf8 : [DIR_ENT_NAME_MAX]char;
         var conv2 = utf16_to_utf8(&raw mut findData.cFileName[0], &raw mut name_utf8[0], DIR_ENT_NAME_MAX as size_t);
         if(conv2 is Result.Err) {
             FindClose(h);
@@ -220,7 +220,7 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
 }
 
 public func create_dir(path : *char) : Result<UnitTy, FsError> {
-    var w : [WIN_MAX_PATH]u16;
+    unsafe var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
@@ -230,7 +230,7 @@ public func create_dir(path : *char) : Result<UnitTy, FsError> {
 }
 
 public func remove_dir(path : *char) : Result<UnitTy, FsError> {
-    var w : [WIN_MAX_PATH]u16;
+    unsafe var w : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut w[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable
@@ -240,7 +240,7 @@ public func remove_dir(path : *char) : Result<UnitTy, FsError> {
 }
 
 public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
-    var wbuf : [WIN_MAX_PATH]u16;
+    unsafe var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16_inplace(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
     return remove_dir_all_recursive_native(&raw mut wbuf[0]);

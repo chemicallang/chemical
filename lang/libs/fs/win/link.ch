@@ -20,7 +20,7 @@ func create_symlink_native(target : path_ptr, linkpath : path_ptr, dir : bool) :
 func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var h = CreateFileW(path as LPCWSTR, 0, 0, null, 3 /*OPEN_EXISTING*/, (FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS) as DWORD, null);
     if(h == INVALID_HANDLE_VALUE) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
-    var wout : [WIN_MAX_PATH]u16;
+    unsafe var wout : [WIN_MAX_PATH]u16;
     var n = GetFinalPathNameByHandleW(h, (&mut wout[0]) as LPWSTR, WIN_MAX_PATH as u32, 0);
     CloseHandle(h);
     if(n == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -44,7 +44,7 @@ func is_symlink(path : *char) : Result<bool, FsError> {
 }
 
 func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitTy, FsError> {
-    var wtarget : [WIN_MAX_PATH]u16; var wlink : [WIN_MAX_PATH]u16;
+    unsafe var wtarget : [WIN_MAX_PATH]u16; unsafe var wlink : [WIN_MAX_PATH]u16;
     var f1 = utf8_to_utf16(target, &raw mut wtarget[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable
@@ -61,7 +61,7 @@ func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitT
 func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     // On Windows readlink is more involved; use DeviceIoControl or GetFinalPathNameByHandle
     // Simpler approach: open file and call GetFinalPathNameByHandleW
-    var wpath : [WIN_MAX_PATH]u16;
+    unsafe var wpath : [WIN_MAX_PATH]u16;
     var f1 = utf8_to_utf16(path, &raw mut wpath[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable;
@@ -71,7 +71,7 @@ func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t,
 }
 
 func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
-    var wexist : [WIN_MAX_PATH]u16; var wnew : [WIN_MAX_PATH]u16;
+    unsafe var wexist : [WIN_MAX_PATH]u16; unsafe var wnew : [WIN_MAX_PATH]u16;
     var f1 = utf8_to_utf16(existing, &raw mut wexist[0], WIN_MAX_PATH as size_t)
     if(f1 is Result.Err) {
         var Err(e) = f1 else unreachable

@@ -17,7 +17,7 @@ public func unix_to_filetime(unix_time : i64) : FILETIME {
     const SECS_BETWEEN_EPOCHS : i64 = 11644473600;   // seconds between 1601 and 1970
     const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
 
-    var ft : FILETIME;
+    unsafe var ft : FILETIME;
 
     // Convert unix seconds to Windows ticks
     var windows_time : u64 = ((unix_time + SECS_BETWEEN_EPOCHS) * HUNDRED_NANOSECONDS_PER_SEC) as u64;

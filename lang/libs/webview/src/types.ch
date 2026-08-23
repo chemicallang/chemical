@@ -11,10 +11,11 @@ using std::string_view;
 public type JsResultCallback = (data : *mut void, result : *char) => void
 
 // Handler invoked for every JS->native bridge call. `method` is the bridge
-// method name and `args` the JSON-encoded argument object (e.g. "{}"). The
-// handler returns a JSON-encoded string; the engine surfaces it to the calling
-// JavaScript as the return value of window.webview_bridge.call(). Runs on the
-// GTK main loop (main thread), synchronously with the page's JavaScript.
+// method name and `args` is the JSON array of arguments exactly as passed to
+// window.__webview__.call(method, ...args) (e.g. `["hello"]`). The handler
+// returns a JSON-encoded string; the engine surfaces it to the calling
+// JavaScript as the resolved value of the returned Promise. Runs on the UI
+// thread (inside the message loop), asynchronously with the page's JavaScript.
 public type JsBindHandler = std.function<(method : string_view, args : string_view) => string>
 
 public variant WebViewError {

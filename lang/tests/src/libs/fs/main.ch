@@ -63,7 +63,7 @@ func test_fs_write_and_read_to_buffer_roundtrip(env : &mut TestEnv) {
         return;
     }
 
-    var buf : [256]u8;
+    unsafe var buf : [256]u8;
     var rd = fs::read_to_buffer(file_path.data(), &raw mut buf[0], sizeof(buf));
     if(rd is Result.Err) {
         var Err(e) = rd else unreachable;

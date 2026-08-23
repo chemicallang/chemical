@@ -191,7 +191,7 @@ public namespace tls {
     func ecp_mod_p256(X : *mut Mpi) : int {
         // Fast reduction for P-256 (2^256 - 2^224 + 2^192 + 2^96 - 1)
         // For now, use general mod
-        var p : Mpi; ecp_curve_p(&raw mut p)
+        unsafe var p : Mpi; ecp_curve_p(&raw mut p)
         return mpi_mod(X, X, &raw mut p)
     }
 
@@ -208,16 +208,16 @@ public namespace tls {
         }
         // Using formulas from http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2007-bl
         // For a = -3 (P-256): optimized formulas
-        var p : Mpi; ecp_curve_p(&raw mut p)
-        var XX : Mpi; mpi_init(&raw mut XX)
-        var YY : Mpi; mpi_init(&raw mut YY)
-        var ZZ : Mpi; mpi_init(&raw mut ZZ)
-        var S : Mpi; mpi_init(&raw mut S)
-        var M : Mpi; mpi_init(&raw mut M)
-        var T : Mpi; mpi_init(&raw mut T)
-        var X3 : Mpi; mpi_init(&raw mut X3)
-        var Y3 : Mpi; mpi_init(&raw mut Y3)
-        var Z3 : Mpi; mpi_init(&raw mut Z3)
+        unsafe var p : Mpi; ecp_curve_p(&raw mut p)
+        unsafe var XX : Mpi; mpi_init(&raw mut XX)
+        unsafe var YY : Mpi; mpi_init(&raw mut YY)
+        unsafe var ZZ : Mpi; mpi_init(&raw mut ZZ)
+        unsafe var S : Mpi; mpi_init(&raw mut S)
+        unsafe var M : Mpi; mpi_init(&raw mut M)
+        unsafe var T : Mpi; mpi_init(&raw mut T)
+        unsafe var X3 : Mpi; mpi_init(&raw mut X3)
+        unsafe var Y3 : Mpi; mpi_init(&raw mut Y3)
+        unsafe var Z3 : Mpi; mpi_init(&raw mut Z3)
         var ret : int = 0
 
         // XX = X1^2
@@ -245,11 +245,11 @@ public namespace tls {
 
         // For a=-3: M = 3*(X1 + ZZ)*(X1 - ZZ)
         // = 3*(X1^2 - Z1^4) = 3*X1^2 + a*Z1^4 (where a=-3)
-        var X_plus_ZZ : Mpi; mpi_init(&raw mut X_plus_ZZ)
+        unsafe var X_plus_ZZ : Mpi; mpi_init(&raw mut X_plus_ZZ)
         ret = mpi_add(&raw mut X_plus_ZZ, &raw mut P.X, &raw mut ZZ)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X_plus_ZZ, &raw mut X_plus_ZZ, &raw mut p)
-        var X_minus_ZZ : Mpi; mpi_init(&raw mut X_minus_ZZ)
+        unsafe var X_minus_ZZ : Mpi; mpi_init(&raw mut X_minus_ZZ)
         ret = mpi_sub(&raw mut X_minus_ZZ, &raw mut P.X, &raw mut ZZ)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X_minus_ZZ, &raw mut X_minus_ZZ, &raw mut p)
@@ -320,19 +320,19 @@ public namespace tls {
             return 0
         }
 
-        var p : Mpi; ecp_curve_p(&raw mut p)
-        var Z1Z1 : Mpi; mpi_init(&raw mut Z1Z1)
-        var U2 : Mpi; mpi_init(&raw mut U2)
-        var S2 : Mpi; mpi_init(&raw mut S2)
-        var H : Mpi; mpi_init(&raw mut H)
-        var HH : Mpi; mpi_init(&raw mut HH)
-        var I : Mpi; mpi_init(&raw mut I)
-        var R_val : Mpi; mpi_init(&raw mut R_val)
-        var J : Mpi; mpi_init(&raw mut J)
-        var V : Mpi; mpi_init(&raw mut V)
-        var X3 : Mpi; mpi_init(&raw mut X3)
-        var Y3 : Mpi; mpi_init(&raw mut Y3)
-        var Z3 : Mpi; mpi_init(&raw mut Z3)
+        unsafe var p : Mpi; ecp_curve_p(&raw mut p)
+        unsafe var Z1Z1 : Mpi; mpi_init(&raw mut Z1Z1)
+        unsafe var U2 : Mpi; mpi_init(&raw mut U2)
+        unsafe var S2 : Mpi; mpi_init(&raw mut S2)
+        unsafe var H : Mpi; mpi_init(&raw mut H)
+        unsafe var HH : Mpi; mpi_init(&raw mut HH)
+        unsafe var I : Mpi; mpi_init(&raw mut I)
+        unsafe var R_val : Mpi; mpi_init(&raw mut R_val)
+        unsafe var J : Mpi; mpi_init(&raw mut J)
+        unsafe var V : Mpi; mpi_init(&raw mut V)
+        unsafe var X3 : Mpi; mpi_init(&raw mut X3)
+        unsafe var Y3 : Mpi; mpi_init(&raw mut Y3)
+        unsafe var Z3 : Mpi; mpi_init(&raw mut Z3)
         var ret : int = 0
 
         // Z1Z1 = Z1^2
@@ -390,7 +390,7 @@ public namespace tls {
         ret = mpi_mul(&raw mut X3, &raw mut R_val, &raw mut R_val)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut X3, &raw mut X3, &raw mut p)
-        var _x3i : size_t; var _x3b : [32]u8; var _x3size : size_t
+        unsafe var _x3i : size_t; unsafe var _x3b : [32]u8; unsafe var _x3size : size_t
         if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[X3DBG] after R2: s=%d n=%lu modp=", X3.s, X3.n); _x3i=0;for(_x3i=0;_x3i<32;_x3i+=1){_x3b[_x3i]=0};mpi_write_binary(&raw mut X3,&raw mut _x3b[0],32);_x3i=0;while(_x3i<32){printf("%02x",_x3b[_x3i]as int);_x3i+=1};printf("\n") }
         ret = mpi_sub(&raw mut X3, &raw mut X3, &raw mut J)
         if(ret < 0) { if(tls_config::EXTENSIVE_DEBUG_LOG) printf("[X3DBG] sub1 failed ret=%d\n",ret); return ret }
@@ -406,12 +406,12 @@ public namespace tls {
 
         // Y3 = R_val * (V - X3) - 2 * Y1 * J
         // temp = V - X3
-        var tmp_vy : Mpi; mpi_init(&raw mut tmp_vy)
+        unsafe var tmp_vy : Mpi; mpi_init(&raw mut tmp_vy)
         ret = mpi_sub(&raw mut tmp_vy, &raw mut V, &raw mut X3)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut tmp_vy, &raw mut tmp_vy, &raw mut p)
         if(ret < 0) { return ret }
-        var _y3b : [32]u8; var _y3i : size_t; var _y3sz : size_t
+        unsafe var _y3b : [32]u8; unsafe var _y3i : size_t; unsafe var _y3sz : size_t
         if(tls_config::EXTENSIVE_DEBUG_LOG) { printf("[Y3DBG] tmp_vy s=%d n=%lu val=", tmp_vy.s, tmp_vy.n); _y3i=0;for(_y3i=0;_y3i<32;_y3i+=1){_y3b[_y3i]=0};_y3sz=mpi_size(&raw mut tmp_vy);if(_y3sz>32){printf("<too big:%lu>",_y3sz)}else{mpi_write_binary(&raw mut tmp_vy,&raw mut _y3b[0],32);_y3i=0;while(_y3i<32){printf("%02x",_y3b[_y3i]as int);_y3i+=1}};printf("\n") }
         // Y3 = R_val * (V - X3)
         ret = mpi_mul(&raw mut Y3, &raw mut R_val, &raw mut tmp_vy)
@@ -421,7 +421,7 @@ public namespace tls {
 
 
         // DEBUG ALL INTERMEDIATES
-        if(P.Z.n == 8 && tls_config::EXTENSIVE_DEBUG_LOG) { var _b:[32]u8; var _i:size_t
+        if(P.Z.n == 8 && tls_config::EXTENSIVE_DEBUG_LOG) { unsafe var _b:[32]u8; unsafe var _i:size_t
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut Z1Z1,&raw mut _b[0],32);printf("[ADDDBG] Z1Z1=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut U2,&raw mut _b[0],32);printf("[ADDDBG] U2=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
         _i=0;for(_i=0;_i<32;_i+=1){_b[_i]=0};mpi_write_binary(&raw mut H,&raw mut _b[0],32);printf("[ADDDBG] H=");_i=0;while(_i<32){printf("%02x",_b[_i]as int);_i+=1};printf("\n")
@@ -436,7 +436,7 @@ public namespace tls {
         }
 
         // Y1J = Y1 * J
-        var Y1J : Mpi; mpi_init(&raw mut Y1J)
+        unsafe var Y1J : Mpi; mpi_init(&raw mut Y1J)
         ret = mpi_mul(&raw mut Y1J, &raw mut P.Y, &raw mut J)
         if(ret < 0) { return ret }
         mpi_mod(&raw mut Y1J, &raw mut Y1J, &raw mut p)
@@ -478,13 +478,13 @@ public namespace tls {
         // P starts affine (from generator or normalized point) and is
         // kept affine throughout by only doubling the accumulator.
 
-        var R0 : ECPPoint; ecp_point_init(&raw mut R0)
+        unsafe var R0 : ECPPoint; ecp_point_init(&raw mut R0)
         mpi_lset(&raw mut R0.X, 1)
         mpi_lset(&raw mut R0.Y, 1)
         mpi_lset(&raw mut R0.Z, 0)
 
         // Keep a normalized copy of P that stays affine (Z=1)
-        var P_affine : ECPPoint; ecp_point_init(&raw mut P_affine)
+        unsafe var P_affine : ECPPoint; ecp_point_init(&raw mut P_affine)
         mpi_copy(&raw mut P_affine.X, &raw mut P.X)
         mpi_copy(&raw mut P_affine.Y, &raw mut P.Y)
         mpi_lset(&raw mut P_affine.Z, 1)
@@ -526,9 +526,9 @@ public namespace tls {
             return 0
         }
 
-        var p : Mpi; ecp_curve_p(&raw mut p)
-        var zi : Mpi; mpi_init(&raw mut zi)
-        var zi2 : Mpi; mpi_init(&raw mut zi2)
+        unsafe var p : Mpi; ecp_curve_p(&raw mut p)
+        unsafe var zi : Mpi; mpi_init(&raw mut zi)
+        unsafe var zi2 : Mpi; mpi_init(&raw mut zi2)
         var ret : int = 0
 
         // zi = Z^-1 mod p
@@ -569,21 +569,21 @@ public namespace tls {
         if(priv_len < 32 || pub_len < 65) { return ERR_ECP_BUFFER_TOO_SMALL }
 
         // Generate private key from CSPRNG
-        var priv_mpi : Mpi; mpi_init(&raw mut priv_mpi)
+        unsafe var priv_mpi : Mpi; mpi_init(&raw mut priv_mpi)
         var rng_ret = random_fill(priv, 32)
         if(rng_ret < 0) { return rng_ret }
 
         // Import private key and reduce modulo group order
         var ret = mpi_read_binary(&raw mut priv_mpi, priv, 32)
         if(ret < 0) { return ret }
-        var n : Mpi; ecp_curve_n(&raw mut n)
+        unsafe var n : Mpi; ecp_curve_n(&raw mut n)
         ret = mpi_mod(&raw mut priv_mpi, &raw mut priv_mpi, &raw mut n)
         if(ret < 0) { return ret }
         ret = mpi_write_binary(&raw mut priv_mpi, priv, 32)
         if(ret < 0) { return ret }
 
         // Compute public key = private * G
-        var G : ECPPoint; ecp_point_init(&raw mut G)
+        unsafe var G : ECPPoint; ecp_point_init(&raw mut G)
         // Set generator point directly from pre-computed P-256 Gx, Gy
         mpi_grow(&raw mut G.X, 8); G.X.n = 8
         mpi_grow(&raw mut G.Y, 8); G.Y.n = 8
@@ -593,7 +593,7 @@ public namespace tls {
         while(j < 8) { G.Y.p[j] = P256_GY[j]; j += 1 }
         mpi_lset(&raw mut G.Z, 1)
 
-        var pub_point : ECPPoint; ecp_point_init(&raw mut pub_point)
+        unsafe var pub_point : ECPPoint; ecp_point_init(&raw mut pub_point)
 
         ret = ecp_mul(&raw mut pub_point, &raw mut priv_mpi, &raw mut G)
         if(ret < 0) { return ret }
@@ -634,7 +634,7 @@ public namespace tls {
         if(shared_len < 32) { return ERR_ECP_BUFFER_TOO_SMALL }
 
         // Import peer's public key
-        var peer_point : ECPPoint; ecp_point_init(&raw mut peer_point)
+        unsafe var peer_point : ECPPoint; ecp_point_init(&raw mut peer_point)
         var ret = mpi_read_binary(&raw mut peer_point.X, &raw peer_pub[1], 32)
         if(ret < 0) { return ret }
         ret = mpi_read_binary(&raw mut peer_point.Y, &raw peer_pub[33], 32)
@@ -643,15 +643,15 @@ public namespace tls {
 
         // Basic sanity checks: reject point-at-infinity and coordinates >= p
         if(peer_point.X.n == 0 && peer_point.Y.n == 0) { return ERR_ECP_INVALID_KEY }
-        var p : Mpi; ecp_curve_p(&raw mut p)
+        unsafe var p : Mpi; ecp_curve_p(&raw mut p)
         if(mpi_cmp(&raw mut peer_point.X, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
         if(mpi_cmp(&raw mut peer_point.Y, &raw mut p) >= 0) { return ERR_ECP_INVALID_KEY }
 
         // Point-on-curve validation: y^2 ≡ x^3 - 3x + b (mod p) for P-256
-        var lhs : Mpi; mpi_init(&raw mut lhs)
-        var rhs : Mpi; mpi_init(&raw mut rhs)
-        var tmp : Mpi; mpi_init(&raw mut tmp)
-        var b_m : Mpi; mpi_init(&raw mut b_m)
+        unsafe var lhs : Mpi; mpi_init(&raw mut lhs)
+        unsafe var rhs : Mpi; mpi_init(&raw mut rhs)
+        unsafe var tmp : Mpi; mpi_init(&raw mut tmp)
+        unsafe var b_m : Mpi; mpi_init(&raw mut b_m)
         // b = P256_B
         mpi_grow(&raw mut b_m, 8); b_m.n = 8
         var bj : size_t = 0
@@ -673,7 +673,7 @@ public namespace tls {
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut tmp, &raw mut tmp, &raw mut p)
         // Use separate temporary to avoid aliasing issues
-        var rhs2 : Mpi; mpi_init(&raw mut rhs2)
+        unsafe var rhs2 : Mpi; mpi_init(&raw mut rhs2)
         ret = mpi_sub(&raw mut rhs2, &raw mut rhs, &raw mut tmp)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut rhs2, &raw mut rhs2, &raw mut p)
@@ -684,7 +684,7 @@ public namespace tls {
         if(mpi_cmp(&raw mut lhs, &raw mut rhs2) != 0) { return ERR_ECP_INVALID_KEY }
 
         // Compute shared = private * peer_point
-        var shared_point : ECPPoint; ecp_point_init(&raw mut shared_point)
+        unsafe var shared_point : ECPPoint; ecp_point_init(&raw mut shared_point)
         ret = ecp_mul(&raw mut shared_point, &raw mut ctx.priv_key, &raw mut peer_point)
         if(ret < 0) { return ret }
 

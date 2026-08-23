@@ -43,7 +43,7 @@ public namespace std {
 
         public func hardware_threads() : usize {
             comptime if (def.windows) {
-                var info : SYSTEM_INFO
+                unsafe var info : SYSTEM_INFO
                 GetSystemInfo(&raw info)
                 return info.dwNumberOfProcessors as usize
             } else {
@@ -68,7 +68,7 @@ public namespace std {
                 // musl defaults to a 128KB thread stack when RLIMIT_STACK is
                 // unlimited, which overflows with deep frames + posix_spawn's
                 // 5KB buffer. Give workers an explicit 8MB stack like glibc.
-                var attr_storage:[PTHREAD_ATTR_T_SIZE / 8]ulong
+                unsafe var attr_storage:[PTHREAD_ATTR_T_SIZE / 8]ulong
                 const attr_ptr = &raw mut attr_storage[0] as *mut u8
                 if(pthread_attr_init(attr_ptr)!=0){
                     panic("pthread_attr_init")
@@ -111,7 +111,7 @@ public namespace std {
             var future_dropped: bool;
 
             @constructor func constructor(){
-                var xx : T
+                unsafe var xx : T
                 return Promise<T> {
                     ready=false;
                     future_dropped = false
@@ -137,7 +137,7 @@ public namespace std {
                 return Future<T> { p : pp }
             }
             func get(&mut self):T {
-                var thing : T
+                unsafe var thing : T
                 p.m.lock();
                 while(!p.ready){ p.cv.wait(&mut p.m) }
                 // mark that consumer will free (so worker won't free)

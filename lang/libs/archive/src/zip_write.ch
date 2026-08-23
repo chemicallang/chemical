@@ -25,7 +25,7 @@ public struct ZipWriteEntry {
 public func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
     var crc = crc32_compute(file_data, file_len)
 
-    var entry : ZipWriteEntry
+    unsafe var entry : ZipWriteEntry
     entry.name = string("")
     entry.name.append_char_ptr(name)
     entry.uncompressed_size = file_len as u32

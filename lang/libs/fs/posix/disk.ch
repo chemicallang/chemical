@@ -3,7 +3,7 @@ public namespace fs {
 using std::Result;
 
 func disk_space_native(path : path_ptr, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
-    var st : Statvfs;
+    unsafe var st : Statvfs;
     var r = statvfs(path, &raw mut st);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     *total_out = (st.f_blocks as u64) * (st.f_frsize as u64);

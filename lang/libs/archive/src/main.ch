@@ -77,7 +77,7 @@ public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Uni
 }
 
 public func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    var entry : ArchiveEntry
+    unsafe var entry : ArchiveEntry
     if(archive.archive_type == 1) {
         var entry_result = zip_find_entry(&raw mut archive.zip_data, name, &raw mut entry)
         if(entry_result is Result.Err) {

@@ -67,7 +67,7 @@ func test_fs_directory_iteration(env : &mut TestEnv) {
 
 @test
 func test_fs_temp_dir(env : &mut TestEnv) {
-    var buf : [PATH_MAX_BUF]char;
+    unsafe var buf : [PATH_MAX_BUF]char;
     var r = fs::temp_dir(&raw mut buf[0], PATH_MAX_BUF as size_t);
     expect_true(env, !(r is Result.Err), "temp_dir failed");
     var Ok(len) = r else unreachable;

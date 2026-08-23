@@ -7,7 +7,7 @@ using namespace std;
 @test
 func test_sha256_abc(env : &mut TestEnv) {
     var data : [3]u8 = [ 0x61, 0x62, 0x63 ];
-    var digest : [32]u8;
+    unsafe var digest : [32]u8;
     crypto::sha256_hash(&raw data[0], 3, &raw mut digest[0]);
     // SHA-256 of "abc" (FIPS 180-4 test vector)
     if(!(digest[0] == 0xBA && digest[1] == 0x78 && digest[2] == 0x16 && digest[3] == 0xBF &&
@@ -24,13 +24,13 @@ func test_sha256_abc(env : &mut TestEnv) {
 
 @test
 func test_sha256_streaming(env : &mut TestEnv) {
-    var ctx : crypto::Sha256Context;
+    unsafe var ctx : crypto::Sha256Context;
     crypto::sha256_init(&raw mut ctx);
     var part1 : [2]u8 = [ 0x48, 0x65 ];
     var part2 : [3]u8 = [ 0x6C, 0x6C, 0x6F ];
     crypto::sha256_update(&raw mut ctx, &raw part1[0], 2);
     crypto::sha256_update(&raw mut ctx, &raw part2[0], 3);
-    var digest : [32]u8;
+    unsafe var digest : [32]u8;
     crypto::sha256_final(&raw mut ctx, &raw mut digest[0]);
     // Same as SHA-256 of "Hello"
     if(!(digest[0] == 0x18 && digest[1] == 0x5F && digest[2] == 0x8D && digest[3] == 0xB3 &&
@@ -42,10 +42,10 @@ func test_sha256_streaming(env : &mut TestEnv) {
 @test
 func test_sha256_multi_block(env : &mut TestEnv) {
     // 100 bytes of 'a' - spans multiple 64-byte blocks
-    var data : [100]u8;
+    unsafe var data : [100]u8;
     var i : size_t = 0;
     while(i < 100) { data[i] = 0x61; i += 1; }
-    var digest : [32]u8;
+    unsafe var digest : [32]u8;
     crypto::sha256_hash(&raw data[0], 100, &raw mut digest[0]);
     // SHA-256 of 100 'a' characters
     if(!(digest[0] == 0x28 && digest[1] == 0x16 && digest[2] == 0x59 && digest[3] == 0x78)) {
@@ -56,7 +56,7 @@ func test_sha256_multi_block(env : &mut TestEnv) {
 @test
 func test_md5_abc(env : &mut TestEnv) {
     var data : [3]u8 = [ 0x61, 0x62, 0x63 ];
-    var digest : [16]u8;
+    unsafe var digest : [16]u8;
     crypto::md5_hash(&raw data[0], 3, &raw mut digest[0]);
     // MD5 of "abc" (RFC 1321 test vector)
     if(!(digest[0] == 0x90 && digest[1] == 0x01 && digest[2] == 0x50 && digest[3] == 0x98 &&
@@ -69,13 +69,13 @@ func test_md5_abc(env : &mut TestEnv) {
 
 @test
 func test_md5_streaming(env : &mut TestEnv) {
-    var ctx : crypto::Md5Context;
+    unsafe var ctx : crypto::Md5Context;
     crypto::md5_init(&raw mut ctx);
     var part1 : [2]u8 = [ 0x48, 0x65 ];
     var part2 : [3]u8 = [ 0x6C, 0x6C, 0x6F ];
     crypto::md5_update(&raw mut ctx, &raw part1[0], 2);
     crypto::md5_update(&raw mut ctx, &raw part2[0], 3);
-    var digest : [16]u8;
+    unsafe var digest : [16]u8;
     crypto::md5_final(&raw mut ctx, &raw mut digest[0]);
     // Same as MD5 of "Hello"
     if(!(digest[0] == 0x8B && digest[1] == 0x1A && digest[2] == 0x99 && digest[3] == 0x53)) {
@@ -85,7 +85,7 @@ func test_md5_streaming(env : &mut TestEnv) {
 
 @test
 func test_base64_encode_single_byte(env : &mut TestEnv) {
-    var buf : [128]char;
+    unsafe var buf : [128]char;
     // Single byte: 0x61 = 'a' -> base64: "YQ=="
     var data : [1]u8 = [ 0x61 ];
     var r = crypto::base64_encode(&raw data[0], 1, &raw mut buf[0], 128);
@@ -98,7 +98,7 @@ func test_base64_encode_single_byte(env : &mut TestEnv) {
 
 @test
 func test_base64_encode_two_bytes(env : &mut TestEnv) {
-    var buf : [128]char;
+    unsafe var buf : [128]char;
     // Two bytes: 0x61 0x62 = "ab" -> base64: "YWI="
     var data : [2]u8 = [ 0x61, 0x62 ];
     var r = crypto::base64_encode(&raw data[0], 2, &raw mut buf[0], 128);
@@ -111,7 +111,7 @@ func test_base64_encode_two_bytes(env : &mut TestEnv) {
 
 @test
 func test_base64_decode_invalid(env : &mut TestEnv) {
-    var buf : [64]u8;
+    unsafe var buf : [64]u8;
     // Invalid base64 character '@'
     var r = crypto::base64_decode("SGVs@G8=", 8, &raw mut buf[0], 64);
     if(!(r is Result.Err)) {
@@ -121,7 +121,7 @@ func test_base64_decode_invalid(env : &mut TestEnv) {
 
 @test
 func test_base64_decode_single_byte(env : &mut TestEnv) {
-    var buf : [64]u8;
+    unsafe var buf : [64]u8;
     var r = crypto::base64_decode("YQ==", 4, &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("base64_decode failed"); return; }
     var Ok(len) = r else unreachable;
@@ -137,8 +137,8 @@ func test_hmac_sha256_rfc4231_case2(env : &mut TestEnv) {
     var key : [4]u8 = [ 0x4A, 0x65, 0x66, 0x65 ];
     var data : [28]u8 = [ 0x77, 0x68, 0x61, 0x74, 0x20, 0x64, 0x6F, 0x20, 0x79, 0x61,
                          0x20, 0x77, 0x61, 0x6E, 0x74, 0x20, 0x66, 0x6F, 0x72, 0x20,
-                         0x6E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0x3F ];
-    var digest : [32]u8;
+                          0x6E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0x3F ];
+    unsafe var digest : [32]u8;
     crypto::hmac_sha256(&raw key[0], 4, &raw data[0], 28, &raw mut digest[0]);
     // Expected: 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
     if(!(digest[0] == 0x5B && digest[1] == 0xDC && digest[2] == 0xC1 && digest[3] == 0x46 &&
@@ -176,7 +176,7 @@ func test_constant_time_equal_byte_by_byte(env : &mut TestEnv) {
 
 @test
 func test_base64_encode_empty(env : &mut TestEnv) {
-    var buf : [128]char;
+    unsafe var buf : [128]char;
     var r = crypto::base64_encode(&raw buf[0] as *u8, 0, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("base64_encode empty failed"); return; }
     var Ok(len) = r else unreachable;
@@ -188,7 +188,7 @@ func test_base64_encode_empty(env : &mut TestEnv) {
 @test
 func test_sha256_zero_byte(env : &mut TestEnv) {
     var data : [1]u8 = [ 0 ];
-    var digest : [32]u8;
+    unsafe var digest : [32]u8;
     crypto::sha256_hash(&raw data[0], 1, &raw mut digest[0]);
     // SHA-256 of a single zero byte has this hash
     if(!(digest[0] == 0x6E && digest[1] == 0x34 && digest[2] == 0x0B && digest[3] == 0x9C)) {
@@ -199,7 +199,7 @@ func test_sha256_zero_byte(env : &mut TestEnv) {
 @test
 func test_md5_zero_byte(env : &mut TestEnv) {
     var data : [1]u8 = [ 0 ];
-    var digest : [16]u8;
+    unsafe var digest : [16]u8;
     crypto::md5_hash(&raw data[0], 1, &raw mut digest[0]);
     // MD5 of a single zero byte
     if(!(digest[0] == 0x93 && digest[1] == 0xB8 && digest[2] == 0x85 && digest[3] == 0xAD)) {
@@ -210,10 +210,10 @@ func test_md5_zero_byte(env : &mut TestEnv) {
 @test
 func test_md5_longer_data(env : &mut TestEnv) {
     // MD5 of 1 million 'a' characters (RFC 1321 test 7, but smaller)
-    var data : [1000]u8;
+    unsafe var data : [1000]u8;
     var i : size_t = 0;
     while(i < 1000) { data[i] = 0x61; i += 1; }
-    var digest : [16]u8;
+    unsafe var digest : [16]u8;
     crypto::md5_hash(&raw data[0], 1000, &raw mut digest[0]);
     if(!(digest[0] == 0xCA && digest[1] == 0xBE && digest[2] == 0x45 && digest[3] == 0xDC)) {
         env.error("MD5 of 1000 'a' bytes is wrong");
@@ -223,11 +223,11 @@ func test_md5_longer_data(env : &mut TestEnv) {
 @test
 func test_base64_roundtrip_all_values(env : &mut TestEnv) {
     // Roundtrip all byte values 0x00 through 0xFF
-    var original : [256]u8;
+    unsafe var original : [256]u8;
     var i : size_t = 0;
     while(i < 256) { original[i] = i as u8; i += 1; }
-    var encoded : [512]char;
-    var decoded : [256]u8;
+    unsafe var encoded : [512]char;
+    unsafe var decoded : [256]u8;
     var r = crypto::base64_encode(&raw original[0], 256, &raw mut encoded[0], 512);
     if(r is Result.Err) { env.error("base64_encode failed"); return; }
     var Ok(enc_len) = r else unreachable;
@@ -245,7 +245,7 @@ func test_base64_roundtrip_all_values(env : &mut TestEnv) {
 @test
 func test_hmac_sha256_empty_key(env : &mut TestEnv) {
     var data : [5]u8 = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ];
-    var digest : [32]u8;
+    unsafe var digest : [32]u8;
     crypto::hmac_sha256(&raw digest[0] as *u8, 0, &raw data[0], 5, &raw mut digest[0]);
     // HMAC-SHA256 with empty key should produce non-zero output
     if(digest[0] == 0 && digest[1] == 0 && digest[2] == 0 && digest[3] == 0) {

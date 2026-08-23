@@ -119,7 +119,7 @@ func parse_zip_central_dir(archive : *mut ZipArchive) : std::Result<std::Unit, A
             }
         }
 
-        var entry : ArchiveEntry
+        unsafe var entry : ArchiveEntry
         entry.name = name
         entry.size = uncomp_size
         entry.compressed_size = comp_size
@@ -232,7 +232,7 @@ public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry,
 }
 
 public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-    var entry : ArchiveEntry
+    unsafe var entry : ArchiveEntry
     var entry_result = zip_find_entry(archive, name, &raw mut entry)
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
@@ -246,7 +246,7 @@ public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result
 }
 
 public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
-    var entry : ArchiveEntry
+    unsafe var entry : ArchiveEntry
     var r = zip_find_entry(archive, name, &raw mut entry)
     return r is Result.Ok
 }

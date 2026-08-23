@@ -224,7 +224,7 @@ public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, Audio
         return std.Result.Err(AudioError.InvalidFormat(string("channel count mismatch")))
     }
 
-    var max_samples : size_t
+    unsafe var max_samples : size_t
     if(a.num_samples > b.num_samples) {
         max_samples = a.num_samples
     } else {

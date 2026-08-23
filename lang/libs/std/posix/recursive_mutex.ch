@@ -20,7 +20,7 @@ public namespace std {
         @constructor
         func constructor() {
             var m = recursive_mutex { storage : [] }
-            var attr_storage : [PTHREAD_MUTEXATTR_T_SIZE]u8
+            unsafe var attr_storage : [PTHREAD_MUTEXATTR_T_SIZE]u8
             var rc = pthread_mutexattr_init(&raw mut attr_storage[0])
             if(rc != 0) {
                 panic("pthread_mutexattr_init failed")

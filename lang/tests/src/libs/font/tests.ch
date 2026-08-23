@@ -124,7 +124,7 @@ public func font_load_nonexistent_file(env : &mut TestEnv) {
 @test
 public func font_load_garbage_data(env : &mut TestEnv) {
     // Write garbage data to temp file and try to load it
-    var garbage : [20]u8; var i : size_t = 0
+    unsafe var garbage : [20]u8; unsafe var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
     var font_path = make_temp_test_path("test_bad_font.ttf")
     var write_result = fs::write_text_file(font_path.data(), &raw garbage[0], 20)
@@ -148,7 +148,7 @@ public func font_load_too_small(env : &mut TestEnv) {
 @test
 public func font_load_bad_sfnt_version(env : &mut TestEnv) {
     // Create a minimal file with invalid sfVersion
-    var data : [12]u8
+    unsafe var data : [12]u8
     data[0] = 0x00; data[1] = 0x00; data[2] = 0x00; data[3] = 0x00  // sfVersion = 0, not 0x00010000
     data[4] = 0; data[5] = 0  // numTables = 0
     var font_path = make_temp_test_path("test_bad_sfnt.ttf")
@@ -165,7 +165,7 @@ public func font_load_bad_sfnt_version(env : &mut TestEnv) {
 
 @test
 public func font_table_struct_works(env : &mut TestEnv) {
-    var table : font::FontTable
+    unsafe var table : font::FontTable
     table.tag = 0x68656164u32  // 'head'
     table.offset = 100
     table.length = 54

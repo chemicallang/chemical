@@ -75,7 +75,7 @@ struct HuffTable {
 }
 
 func build_huffman_table(lengths : *u8, num_codes : int, output : *mut HuffTable) : std::Result<std::Unit, ArchiveError> {
-    var bl_count : [MAX_HUFFMAN_BITS + 1]u32;
+    unsafe var bl_count : [MAX_HUFFMAN_BITS + 1]u32;
     var i : int = 0
     while(i <= MAX_HUFFMAN_BITS) {
         bl_count[i] = 0
@@ -98,7 +98,7 @@ func build_huffman_table(lengths : *u8, num_codes : int, output : *mut HuffTable
         i += 1
     }
 
-    var next_code : [MAX_HUFFMAN_BITS + 1]u32
+    unsafe var next_code : [MAX_HUFFMAN_BITS + 1]u32
     var code : u32 = 0
     i = 1
     while(i <= MAX_HUFFMAN_BITS) {
@@ -115,7 +115,7 @@ func build_huffman_table(lengths : *u8, num_codes : int, output : *mut HuffTable
     while(i < num_codes) {
         var len = lengths[i] as int
         if(len > 0) {
-            var entry : HuffEntry
+            unsafe var entry : HuffEntry
             entry.code = next_code[len] as u16
             entry.bits = len as u8
             entry.value = i as u16
@@ -179,8 +179,8 @@ public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8
                 i += 1
             }
         } else if(btype == 1 || btype == 2) {
-            var lit_lens : [MAX_HUFFMAN_CODES]u8
-            var dist_lens : [32]u8
+            unsafe var lit_lens : [MAX_HUFFMAN_CODES]u8
+            unsafe var dist_lens : [32]u8
             var num_lit_codes : int = 288
             var num_dist_codes : int = 0
 
@@ -202,7 +202,7 @@ public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8
                 num_dist_codes = hdist
 
                 var cl_order : [19]int = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]
-                var cl_lens : [19]u8
+                unsafe var cl_lens : [19]u8
                 var k : int = 0
                 while(k < 19) { cl_lens[k] = 0; k += 1 }
                 k = 0
@@ -211,7 +211,7 @@ public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8
                     k += 1
                 }
 
-                var cl_table : HuffTable
+                unsafe var cl_table : HuffTable
                 var cl_result = build_huffman_table(&raw cl_lens[0], 19, &raw mut cl_table)
                 if(cl_result is Result.Err) {
                     return std.Result.Err(ArchiveError.DecompressionFailed(string("invalid code length Huffman table")))
@@ -261,13 +261,13 @@ public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8
                 }
             }
 
-            var lit_table : HuffTable
+            unsafe var lit_table : HuffTable
             var lit_result = build_huffman_table(&raw lit_lens[0], num_lit_codes, &raw mut lit_table)
             if(lit_result is Result.Err) {
                 return std.Result.Err(ArchiveError.DecompressionFailed(string("invalid literal/length Huffman table")))
             }
 
-            var dist_table : HuffTable
+            unsafe var dist_table : HuffTable
             var dist_result = build_huffman_table(&raw dist_lens[0], num_dist_codes, &raw mut dist_table)
             if(dist_result is Result.Err) {
                 return std.Result.Err(ArchiveError.DecompressionFailed(string("invalid distance Huffman table")))

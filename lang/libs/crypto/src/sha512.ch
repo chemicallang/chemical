@@ -155,14 +155,14 @@ public func sha384_final(ctx : *mut Sha512Context, digest : *mut u8) {
 }
 
 public func sha512_hash(data : *u8, data_len : size_t, digest : *mut u8) {
-    var ctx : Sha512Context;
+    unsafe var ctx : Sha512Context;
     sha512_init(&raw mut ctx);
     sha512_update(&raw mut ctx, data, data_len);
     sha512_final(&raw mut ctx, digest);
 }
 
 public func sha384_hash(data : *u8, data_len : size_t, digest : *mut u8) {
-    var ctx : Sha512Context;
+    unsafe var ctx : Sha512Context;
     sha384_init(&raw mut ctx);
     sha384_update(&raw mut ctx, data, data_len);
     sha384_final(&raw mut ctx, digest);
@@ -170,7 +170,7 @@ public func sha384_hash(data : *u8, data_len : size_t, digest : *mut u8) {
 
 // One SHA-512 compression round on a 128-byte block.
 func sha512_transform(ctx : *mut Sha512Context, block : *u8) {
-    var w : [80]u64;
+    unsafe var w : [80]u64;
     var t : size_t = 0;
     while(t < 16) {
         var b0 = block[t*8] as u64; var b1 = block[t*8+1] as u64;

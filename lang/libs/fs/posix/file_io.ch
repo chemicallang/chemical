@@ -15,7 +15,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
     if(opts.append) { flags = flags | O_APPEND; }
     var fd = open(path, flags, 0o666);
     if(fd < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
-    var f : File; f._unix.fd = fd; f.valid = true;
+    unsafe var f : File; f._unix.fd = fd; f.valid = true;
     return Result.Ok(f);
 }
 
@@ -52,7 +52,7 @@ public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
 
 func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
     // use utimensat or utimes
-    var times : [2]timespec;
+    unsafe var times : [2]timespec;
     times[0].tv_sec = atime;
     times[0].tv_nsec = 0;
     times[1].tv_sec = mtime;
@@ -64,7 +64,7 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
 
 func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
     // POSIX: open src, dst and copy in chunks
-    var srcopts : OpenOptions; 
+    unsafe var srcopts : OpenOptions; 
     srcopts.read = true; srcopts.write = false; srcopts.append = false; srcopts.create = false; srcopts.create_new = false; srcopts.truncate = false; srcopts.binary = true;
     var sres = file_open(src, srcopts);
     if(sres is Result.Err) {
@@ -73,7 +73,7 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
     }
     var Ok(sf) = sres else unreachable
 
-    var dstopts : OpenOptions; 
+    unsafe var dstopts : OpenOptions; 
     dstopts.read = false; dstopts.write = true; dstopts.append = false; dstopts.create = true; dstopts.create_new = false; dstopts.truncate = true; dstopts.binary = true;
     var dres = file_open(dst, dstopts);
     if(dres is Result.Err) {
@@ -83,7 +83,7 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
     }
     var Ok(df) = dres else unreachable
     // TODO: use COPY_CHUNK as the array size here
-    var buf : [64 * 1024]u8;
+    unsafe var buf : [64 * 1024]u8;
     while(true) {
         var r = file_read(&raw mut sf, &raw mut buf[0], sizeof(buf));
         if(r is Result.Err) {
@@ -108,7 +108,7 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
 
 func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mut_path_ptr, fh : *mut File) : Result<UnitTy, FsError> {
     // create template like /tmp/prefixXXXXXX
-    var tmpl : [PATH_MAX_BUF]char;
+    unsafe var tmpl : [PATH_MAX_BUF]char;
     var p : size_t = 0; while(dir[p] != 0) { tmpl[p] = dir[p]; p++ }
     if(p > 0 && tmpl[p-1] != '/') { tmpl[p++] = '/'; }
     var q : size_t = 0; while(prefix[q] != 0) { tmpl[p + q] = prefix[q]; q++ }

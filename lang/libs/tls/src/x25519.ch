@@ -173,7 +173,7 @@ public namespace tls {
 
     // ─── Addition mod p (fully reduced) ────────────────────────────────
     public func fe_add(c : *mut u32, a : *u32, b : *u32) {
-        var t : [8]u64
+        unsafe var t : [8]u64
         var i : size_t = 0
         while(i < 8) {
             t[i] = (a[i] as u64) + (b[i] as u64)
@@ -191,7 +191,7 @@ public namespace tls {
 
     func fe_debug_print(msg : *char, f : *u32) {
         if(!tls_config::EXTENSIVE_DEBUG_LOG) { return }
-        var bytes : [32]u8
+        unsafe var bytes : [32]u8
         fe_encode(&raw mut bytes[0], f)
         printf("[FEDBG] %s: ", msg)
         var i : size_t = 0
@@ -212,7 +212,7 @@ public namespace tls {
     // Computes c = a - b mod p = (a + (p - b)) mod p
     public func fe_sub(c : *mut u32, a : *u32, b : *u32) {
         // Step 1: compute p - b using borrow subtraction (b < p, so this is exact)
-        var t : [8]u64
+        unsafe var t : [8]u64
         var borrow : u64 = 0
         var i : size_t = 0
         while(i < 8) {
@@ -275,7 +275,7 @@ public namespace tls {
     // Schoolbook multiplication of two 8-limb numbers, then reduce mod p.
     public func fe_mul(c : *mut u32, a : *u32, b : *u32) {
         // Compute 16 partial products (256-bit * 256-bit = 512-bit result)
-        var t : [16]u64
+        unsafe var t : [16]u64
         fe_zero_u64_arr(&raw mut t[0], 16)
 
         var i : size_t = 0
@@ -383,7 +383,7 @@ public namespace tls {
         // Square-and-multiply from bit 254 down to 0:
         // Start with r = 1, then for each bit: r = r^2, if bit set: r = r * a
         
-        var r : [8]u32; fe_set_small(&raw mut r[0], 1)
+        unsafe var r : [8]u32; fe_set_small(&raw mut r[0], 1)
         
         var bit : i32 = 254
         while(bit >= 0) {
@@ -439,7 +439,7 @@ public namespace tls {
 
     public func x25519_ladder(out : *mut u8, scalar : *u8, u : *u8) {
         // Clamp scalar per RFC 7748 Section 5 (implementations MUST clamp)
-        var clamped : [32]u8
+        unsafe var clamped : [32]u8
         var ci : size_t = 0
         while(ci < 32) {
             clamped[ci] = scalar[ci]
@@ -451,11 +451,11 @@ public namespace tls {
         var effective_scalar = &raw clamped[0]
 
         // Decode u coordinate
-        var u_fe : [8]u32
+        unsafe var u_fe : [8]u32
         fe_decode(&raw mut u_fe[0], u)
 
         if(tls_config::EXTENSIVE_DEBUG_LOG) {
-            var _enc : [32]u8; fe_encode(&raw mut _enc[0], &raw u_fe[0])
+            unsafe var _enc : [32]u8; fe_encode(&raw mut _enc[0], &raw u_fe[0])
             printf("[LADDER] u_decoded: ");
             var _xi : size_t = 0; while(_xi < 8) { printf("%08x ", u_fe[_xi]); _xi += 1 }
             printf(" => "); _xi = 0; while(_xi < 32) { printf("%02x", _enc[_xi] as int); _xi += 1 }
@@ -463,20 +463,20 @@ public namespace tls {
         }
 
         // State variables
-        var x2 : [8]u32; fe_set_small(&raw mut x2[0], 1)   // X2 = 1
-        var z2 : [8]u32; fe_zero(&raw mut z2[0])             // Z2 = 0
-        var x3 : [8]u32; fe_copy(&raw mut x3[0], &raw u_fe[0])  // X3 = u
-        var z3 : [8]u32; fe_set_small(&raw mut z3[0], 1)     // Z3 = 1
+        unsafe var x2 : [8]u32; fe_set_small(&raw mut x2[0], 1)   // X2 = 1
+        unsafe var z2 : [8]u32; fe_zero(&raw mut z2[0])             // Z2 = 0
+        unsafe var x3 : [8]u32; fe_copy(&raw mut x3[0], &raw u_fe[0])  // X3 = u
+        unsafe var z3 : [8]u32; fe_set_small(&raw mut z3[0], 1)     // Z3 = 1
 
         // a24 = 121665
-        var a24 : [8]u32; fe_set_small(&raw mut a24[0], 121665)
+        unsafe var a24 : [8]u32; fe_set_small(&raw mut a24[0], 121665)
 
         // Temp variables
-        var A : [8]u32; var AA : [8]u32
-        var B : [8]u32; var BB : [8]u32
-        var E : [8]u32; var C : [8]u32; var D : [8]u32
-        var DA : [8]u32; var CB : [8]u32
-        var T : [8]u32; var DT : [8]u32
+        unsafe var A : [8]u32; unsafe var AA : [8]u32
+        unsafe var B : [8]u32; unsafe var BB : [8]u32
+        unsafe var E : [8]u32; unsafe var C : [8]u32; unsafe var D : [8]u32
+        unsafe var DA : [8]u32; unsafe var CB : [8]u32
+        unsafe var T : [8]u32; unsafe var DT : [8]u32
 
         var swap : u32 = 0
 
@@ -539,7 +539,7 @@ public namespace tls {
         fe_cswap(&raw mut z2[0], &raw mut z3[0], swap)
 
         // Result = x2 * z2^(-1) mod p
-        var z2_inv : [8]u32
+        unsafe var z2_inv : [8]u32
         fe_inv(&raw mut z2_inv[0], &raw z2[0])
         fe_mul(&raw mut x2[0], &raw x2[0], &raw z2_inv[0])
 
@@ -570,7 +570,7 @@ public namespace tls {
         if(all_zero_peer) { return ERR_ECP_INVALID_KEY }
 
         // Clamp the private key per RFC 7748 Section 5
-        var clamped_priv : [32]u8
+        unsafe var clamped_priv : [32]u8
         var ci : size_t = 0
         while(ci < 32) {
             clamped_priv[ci] = priv[ci]

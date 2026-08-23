@@ -22,8 +22,8 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
         // skip . and ..
         if(name_len == 1 && name[0] == '.') { return true; }
         if(name_len == 2 && name[0] == '.' && name[1] == '.') { return true; }
-        var srcchild : [PATH_MAX_BUF]char;
-        var dstchild : [PATH_MAX_BUF]char;
+        unsafe var srcchild : [PATH_MAX_BUF]char;
+        unsafe var dstchild : [PATH_MAX_BUF]char;
         var p : size_t = 0; while(src[p] != 0) { srcchild[p] = src[p]; p++ }
         if(p > 0 && srcchild[p-1] != '/') { srcchild[p++] = '/'; }
         var q : size_t = 0; while(q <= name_len) { srcchild[p + q] = name[q]; q++ }

@@ -77,13 +77,13 @@ public namespace tls {
             return ERR_ECP_FEATURE_UNAVAILABLE
         }
 
-        var n : Mpi; ecp_curve_n(&raw mut n)
-        var e : Mpi; mpi_init(&raw mut e)
+        unsafe var n : Mpi; ecp_curve_n(&raw mut n)
+        unsafe var e : Mpi; mpi_init(&raw mut e)
         var ret = mpi_read_binary(&raw mut e, hash, hash_len)
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] read_hash=%d\n", ret)
         if(ret < 0) { return ret }
 
-        var G : ECPPoint; ecp_point_init(&raw mut G)
+        unsafe var G : ECPPoint; ecp_point_init(&raw mut G)
         mpi_grow(&raw mut G.X, 8); G.X.n = 8
         mpi_grow(&raw mut G.Y, 8); G.Y.n = 8
         var gi : size_t = 0
@@ -93,17 +93,17 @@ public namespace tls {
         mpi_lset(&raw mut G.Z, 1)
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] G_ok\n")
 
-        var k : Mpi; mpi_init(&raw mut k)
-        var r_val : Mpi; mpi_init(&raw mut r_val)
-        var s_val : Mpi; mpi_init(&raw mut s_val)
-        var k_inv : Mpi; mpi_init(&raw mut k_inv)
-        var temp : Mpi; mpi_init(&raw mut temp)
-        var R : ECPPoint; ecp_point_init(&raw mut R)
+        unsafe var k : Mpi; mpi_init(&raw mut k)
+        unsafe var r_val : Mpi; mpi_init(&raw mut r_val)
+        unsafe var s_val : Mpi; mpi_init(&raw mut s_val)
+        unsafe var k_inv : Mpi; mpi_init(&raw mut k_inv)
+        unsafe var temp : Mpi; mpi_init(&raw mut temp)
+        unsafe var R : ECPPoint; ecp_point_init(&raw mut R)
 
         var attempts : i32 = 0
-        var k_bytes : [32]u8
-        var r_bytes : [32]u8
-        var s_bytes : [32]u8
+        unsafe var k_bytes : [32]u8
+        unsafe var r_bytes : [32]u8
+        unsafe var s_bytes : [32]u8
         var r_body_len : size_t = 0
         var s_body_len : size_t = 0
 
@@ -312,21 +312,21 @@ public namespace tls {
         // Activate the matching curve constants for the ecp_* helpers.
         ecp_select_curve(curve_select)
 
-        var sig_r : [64]u8
-        var sig_s : [64]u8
+        unsafe var sig_r : [64]u8
+        unsafe var sig_s : [64]u8
         var ret = ecdsa_parse_signature_ext(sig, sig_len, &raw mut sig_r[0], &raw mut sig_s[0], coord_bytes)
         if(ret < 0) { return ret }
 
         // Import r and s as Mpi
-        var r : Mpi; mpi_init(&raw mut r)
-        var s : Mpi; mpi_init(&raw mut s)
+        unsafe var r : Mpi; mpi_init(&raw mut r)
+        unsafe var s : Mpi; mpi_init(&raw mut s)
         ret = mpi_read_binary(&raw mut r, &raw sig_r[0], coord_bytes)
         if(ret < 0) { return ret }
         ret = mpi_read_binary(&raw mut s, &raw sig_s[0], coord_bytes)
         if(ret < 0) { return ret }
 
         // Get curve order n
-        var n : Mpi; ecp_curve_n(&raw mut n)
+        unsafe var n : Mpi; ecp_curve_n(&raw mut n)
 
         // Verify 1 <= r, s <= n-1
         if(mpi_cmp_int(&raw mut r, 1) < 0 || mpi_cmp(&raw mut r, &raw mut n) >= 0) {
@@ -341,7 +341,7 @@ public namespace tls {
         // the leftmost bits of the digest (not a right shift of a longer
         // read): for P-256 (bitlen 256) that is the first 32 bytes.
         var n_bitlen = mpi_bitlen(&raw mut n)
-        var e : Mpi; mpi_init(&raw mut e)
+        unsafe var e : Mpi; mpi_init(&raw mut e)
         var e_bytes = (n_bitlen / 8) as size_t
         if((n_bitlen % 8) != 0) { e_bytes += 1 }
         var e_len = hash_len
@@ -359,19 +359,19 @@ public namespace tls {
         }
 
         // w = s^(-1) mod n
-        var w : Mpi; mpi_init(&raw mut w)
+        unsafe var w : Mpi; mpi_init(&raw mut w)
         ret = mpi_mod_inv(&raw mut w, &raw mut s, &raw mut n)
         if(ret < 0) { return ERR_ECDSA_VERIFY_FAILED }
 
         // u1 = (e * w) mod n
-        var u1 : Mpi; mpi_init(&raw mut u1)
+        unsafe var u1 : Mpi; mpi_init(&raw mut u1)
         ret = mpi_mul(&raw mut u1, &raw mut e, &raw mut w)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut u1, &raw mut u1, &raw mut n)
         if(ret < 0) { return ret }
 
         // u2 = (r * w) mod n
-        var u2 : Mpi; mpi_init(&raw mut u2)
+        unsafe var u2 : Mpi; mpi_init(&raw mut u2)
         ret = mpi_mul(&raw mut u2, &raw mut r, &raw mut w)
         if(ret < 0) { return ret }
         ret = mpi_mod(&raw mut u2, &raw mut u2, &raw mut n)
@@ -379,24 +379,24 @@ public namespace tls {
 
         // R = u1 * G + u2 * Q
         // Build generator point G from the active curve constants.
-        var G : ECPPoint; ecp_point_init(&raw mut G)
+        unsafe var G : ECPPoint; ecp_point_init(&raw mut G)
         ecp_curve_gx(&raw mut G.X)
         ecp_curve_gy(&raw mut G.Y)
         mpi_lset(&raw mut G.Z, 1)
 
         // Build public key point Q from context
-        var Q : ECPPoint; ecp_point_init(&raw mut Q)
+        unsafe var Q : ECPPoint; ecp_point_init(&raw mut Q)
         mpi_copy(&raw mut Q.X, &raw mut ctx.pub_x)
         mpi_copy(&raw mut Q.Y, &raw mut ctx.pub_y)
         mpi_lset(&raw mut Q.Z, 1)
 
         // R1 = u1 * G
-        var R1 : ECPPoint; ecp_point_init(&raw mut R1)
+        unsafe var R1 : ECPPoint; ecp_point_init(&raw mut R1)
         ret = ecp_mul(&raw mut R1, &raw mut u1, &raw mut G)
         if(ret < 0) { return ret }
 
         // R2 = u2 * Q
-        var R2 : ECPPoint; ecp_point_init(&raw mut R2)
+        unsafe var R2 : ECPPoint; ecp_point_init(&raw mut R2)
         ret = ecp_mul(&raw mut R2, &raw mut u2, &raw mut Q)
         if(ret < 0) { return ret }
 
@@ -404,7 +404,7 @@ public namespace tls {
         // ecp_add_jac is a mixed Jacobian-affine addition and requires the
         // second operand to be in affine coordinates (Z = 1). R2 is the
         // un-normalized Jacobian result of ecp_mul, so normalize it first.
-        var R : ECPPoint; ecp_point_init(&raw mut R)
+        unsafe var R : ECPPoint; ecp_point_init(&raw mut R)
         ret = ecp_normalize_jac(&raw mut R2)
         if(ret < 0) { return ret }
         ret = ecp_add_jac(&raw mut R, &raw mut R1, &raw mut R2)
@@ -420,7 +420,7 @@ public namespace tls {
         }
 
         // v = R.x mod n
-        var v : Mpi; mpi_init(&raw mut v)
+        unsafe var v : Mpi; mpi_init(&raw mut v)
         ret = mpi_mod(&raw mut v, &raw mut R.X, &raw mut n)
         if(ret < 0) { return ret }
 

@@ -9,13 +9,13 @@ impl core::stream::Stream for CommandLineStream {
     }
 
     func writeSigned(&self, value : bigint) {
-        var buf : [64]char;
+        unsafe var buf : [64]char;
         var len = self.i64_to_chars(&raw mut buf[0], value);
         fwrite(&raw buf[0], 1, len, get_stdout());
     }
 
     func writeUnsigned(&self, value : ubigint) {
-        var buf : [64]char;
+        unsafe var buf : [64]char;
         var len = self.u64_to_chars(&raw mut buf[0], value);
         fwrite(&raw buf[0], 1, len, get_stdout());
     }
@@ -29,13 +29,13 @@ impl core::stream::Stream for CommandLineStream {
     }
 
     func writeFloat(&self, value : float) {
-        var buf : [128]char;
+        unsafe var buf : [128]char;
         var len = self.float_to_chars(&raw mut buf[0], value, 6);
         fwrite(&raw buf[0], 1, len, get_stdout());
     }
 
     func writeDouble(&self, value : double) {
-        var buf : [256]char;
+        unsafe var buf : [256]char;
         var len = self.double_to_chars(&raw mut buf[0], value, 6);
         fwrite(&raw buf[0], 1, len, get_stdout());
     }
@@ -54,7 +54,7 @@ public struct CommandLineStream {
         }
 
         // temporary reversed digits (max 20 digits for 64-bit)
-        var rev : [20]char;
+        unsafe var rev : [20]char;
         var ri : int = 0;
         while(value != 0) {
             const d = (value % 10) as uint;
@@ -138,7 +138,7 @@ public struct CommandLineStream {
         var int_part = (v as bigint);
 
         // write integer part into tmp then copy to out_buf
-        var tmp_int : [32]char;
+        unsafe var tmp_int : [32]char;
         var int_len = self.i64_to_chars(&raw mut tmp_int[0], int_part);
         // copy integer chars
         var ci : size_t = 0;
@@ -210,7 +210,7 @@ public struct CommandLineStream {
         }
 
         // convert scaled to digits reversed
-        var revf : [20]char;
+        unsafe var revf : [20]char;
         var rfi : int = 0;
         var tmpf = scaled;
         while(tmpf != 0) {

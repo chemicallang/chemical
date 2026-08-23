@@ -8,12 +8,12 @@ union u64_double_union {
 }
 
 func dbl_bits(x : double) : u64 {
-    var u : u64_double_union;
+    unsafe var u : u64_double_union;
     u.d = x;
     return u.u;
 }
 func dbl_from_bits(b : u64) : double {
-    var u : u64_double_union;
+    unsafe var u : u64_double_union;
     u.u = b;
     return u.d;
 }
@@ -404,7 +404,7 @@ public struct string {
         }
 
         // temporary buffer for digits (max 20 digits for u64)
-        var buf : [20]char;
+        unsafe var buf : [20]char;
         var bi : int = 0;
         while(value != 0) {
             const digit = (value % 10) as uint;
@@ -558,7 +558,7 @@ public struct string {
         // scaled is in [0, pow10_u)
         // we need to write exactly 'precision' digits (with leading zeros)
         // convert scaled to string into temporary buffer
-        var frac_buf : [20]char;
+        unsafe var frac_buf : [20]char;
         var fbi : int = 0;
         if(scaled == 0) {
             // write zeros
@@ -600,7 +600,7 @@ public struct string {
     }
 
     func substring(&self, start : size_t, end : size_t) : string {
-        var s : string
+        unsafe var s : string
         const actual_len : size_t = end - start;
         if(actual_len < STR_BUFF_SIZE) {
             s.state = '1'

@@ -14,7 +14,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 
 // create_dir_all (recursive)
 public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
-    var buf : [PATH_MAX_BUF]char;
+    unsafe var buf : [PATH_MAX_BUF]char;
     var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
         var Err(e) = r else unreachable
@@ -27,7 +27,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
     while(i <= len) {
         if(i == len || buf[i] == '/') {
             // prefix is [0..i)
-            var prefix : [PATH_MAX_BUF]char;
+            unsafe var prefix : [PATH_MAX_BUF]char;
             var k : size_t = 0;
             while(k < i) { prefix[k] = buf[k]; k++ }
             prefix[k] = 0;
@@ -104,7 +104,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         // printf("entry: '%s' (dirfd=%d)\n", &ent.d_name[0], dirfd);
 
         // fstatat relative to dirfd
-        var st : Stat;
+        unsafe var st : Stat;
         set_errno(0);
         if(fstatat(dirfd, &raw ent.d_name[0], &raw mut st, AT_SYMLINK_NOFOLLOW) != 0) {
             var e = get_errno();
@@ -242,11 +242,11 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
         // isdir = (ent.d_type == DT_DIR);
         // else {
         // fallback: stat child
-        var child : [PATH_MAX_BUF]char;
+        unsafe var child : [PATH_MAX_BUF]char;
         var p : size_t = 0; while(path[p] != 0) { child[p] = path[p]; p++ }
         if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
         var q : size_t = 0; while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
-        var st : Stat;
+        unsafe var st : Stat;
         var r = lstat(&raw child[0], &raw mut st);
         if(r == 0) { isdir = ((st.st_mode & 0xF000) == 0x4000); }
         // }

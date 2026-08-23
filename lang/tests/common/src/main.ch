@@ -168,6 +168,7 @@ public func run_common_tests() {
     test_bitwise_precedence();
     test_double_to_typealias_cast();
     test_access_chain_thru_ref();
+    test_addr_of_member_access();
 
     test_for_in()
     test_sizeof_alignof()

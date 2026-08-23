@@ -17,7 +17,7 @@ public func INT_tls13_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -51,7 +51,7 @@ public func INT_tls13_client(env : &mut TestEnv) {
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             // Expected the Python server's literal "OK" response, proving the
@@ -73,7 +73,7 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -117,7 +117,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -146,7 +146,7 @@ public func INT_tls12_client(env : &mut TestEnv) {
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("TLS12: app-data response mismatch")
@@ -173,7 +173,7 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -204,7 +204,7 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     // The server responds with its own KeyUpdate (update_not_requested) and
     // then "OK" under its NEW send keys. ssl_read must process the KeyUpdate
     // (rotate receive keys) before decrypting "OK".
-    var buf : [512]u8
+    unsafe var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS13 KeyUpdate: app-data mismatch after key update")
@@ -229,7 +229,7 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -272,7 +272,7 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -293,7 +293,7 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
     // The server sends NewSessionTicket(s) before its "OK" app data.
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    var buf : [512]u8
+    unsafe var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS13 ticket: app-data mismatch")
@@ -331,7 +331,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     test_server_wait()
 
     // ── Connection 1: full handshake + ticket acquisition ───────────
-    var ctx1 : SSLContext; ssl_init(&raw mut ctx1)
+    unsafe var ctx1 : SSLContext; ssl_init(&raw mut ctx1)
     var cfg1 = ssl_config_init(SSL_IS_CLIENT)
     cfg1.authmode = SSL_VERIFY_NONE
     cfg1.max_tls_version = SSL_VERSION_TLS1_3
@@ -350,7 +350,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx1, req as *u8, 18)
-    var buf : [512]u8
+    unsafe var buf : [512]u8
     var n = ssl_read(&raw mut ctx1, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("resumption: conn1 app-data mismatch")
@@ -367,7 +367,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     ssl_close_notify(&raw mut ctx1)
 
     // ── Connection 2: offer the ticket for resumption ────────────────
-    var ctx2 : SSLContext; ssl_init(&raw mut ctx2)
+    unsafe var ctx2 : SSLContext; ssl_init(&raw mut ctx2)
     var cfg2 = ssl_config_init(SSL_IS_CLIENT)
     cfg2.authmode = SSL_VERIFY_NONE
     cfg2.max_tls_version = SSL_VERSION_TLS1_3
@@ -413,7 +413,7 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
 
     var req2 = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx2, req2 as *u8, 18)
-    var buf2 : [512]u8
+    unsafe var buf2 : [512]u8
     var n2 = ssl_read(&raw mut ctx2, &raw mut buf2[0], 512)
     if(n2 != 2 || buf2[0] != 79 || buf2[1] != 75) {
         env.error("resumption: conn2 app-data mismatch after resume")
@@ -437,7 +437,7 @@ public func INT_ssl_delete_cleanup(env : &mut TestEnv) {
     ssl_init(ssl_mem)
 
     // Attach resources so the destructor has something to release.
-    var tr : Transform; transform_init(&raw mut tr)
+    unsafe var tr : Transform; transform_init(&raw mut tr)
     var tr_out = malloc(sizeof(Transform)) as *mut Transform
     *tr_out = tr
     ssl_mem.transform_out = tr_out
@@ -524,7 +524,7 @@ public func INT_tls13_server_client(env : &mut TestEnv) {
     if(ret < 0) {
         env.error("TLS 1.3 server handshake failed against Python client")
     } else {
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         // The Python client sends "GET / HTTP/1.0\r\n\r\n"; verify the decrypted bytes.
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
@@ -602,7 +602,7 @@ public func INT_ecdsa_server_client_x25519(env : &mut TestEnv) {
     if(ret < 0) {
         env.error("ECDSA cert + x25519 server handshake failed")
     } else {
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)
@@ -631,7 +631,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -674,7 +674,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     var ec_cert = x509_crt_load_pem_file("/tmp/tls_ec_pub.crt")
     if(ec_cert == null) { env.error("failed to load EC cert"); return }
 
-    var ecdsa : ECDSAContext
+    unsafe var ecdsa : ECDSAContext
     ecdsa_init(&raw mut ecdsa)
     var ret = x509_extract_ecdsa_pubkey(ec_cert, &raw mut ecdsa)
     if(ret != 0) {
@@ -702,7 +702,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
         cert_free(ec_cert); unsafe { dealloc ec_cert }
         env.error("failed to load RSA cert"); return
     }
-    var e2 : ECDSAContext
+    unsafe var e2 : ECDSAContext
     ecdsa_init(&raw mut e2)
     ret = x509_extract_ecdsa_pubkey(rsa_cert, &raw mut e2)
     if(ret == 0) { env.error("x509_extract_ecdsa_pubkey should reject an RSA cert") }
@@ -725,8 +725,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_19885_cert.pem")
     if(cert == null) { env.error("failed to load RSA server cert"); return }
 
-    var n_buf : [512]u8
-    var d_buf : [512]u8
+    unsafe var n_buf : [512]u8
+    unsafe var d_buf : [512]u8
     var n_len : size_t = 0
     var d_len : size_t = 0
     test_parse_n_d_hex_file("/tmp/tls_19885_priv.txt\0" as *char,
@@ -734,7 +734,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
                             &raw mut d_buf[0], 512, &raw mut d_len)
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
-    var rsa_ctx : RSAContext
+    unsafe var rsa_ctx : RSAContext
     rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
@@ -768,7 +768,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     if(ssl_mem == null) {
         env.error("tls_accept server handshake failed against Python TLS 1.2 client")
     } else {
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)
@@ -804,8 +804,8 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     var cert = x509_crt_load_pem_file("/tmp/tls_19886_cert.pem")
     if(cert == null) { env.error("failed to load RSA server cert"); return }
 
-    var n_buf : [512]u8
-    var d_buf : [512]u8
+    unsafe var n_buf : [512]u8
+    unsafe var d_buf : [512]u8
     var n_len : size_t = 0
     var d_len : size_t = 0
     test_parse_n_d_hex_file("/tmp/tls_19886_priv.txt\0" as *char,
@@ -813,7 +813,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
                             &raw mut d_buf[0], 512, &raw mut d_len)
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
-    var rsa_ctx : RSAContext
+    unsafe var rsa_ctx : RSAContext
     rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
@@ -849,7 +849,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
         if(ssl_mem.negotiated_ciphersuite != TLS_RSA_WITH_AES_128_CBC_SHA256 as u16) {
             env.error("tls_accept CBC: wrong negotiated ciphersuite")
         }
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)
@@ -883,7 +883,7 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -900,7 +900,7 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
         }
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
-        var buf : [512]u8
+        unsafe var buf : [512]u8
         var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("TLS12 CBC client: app-data response mismatch")
@@ -925,7 +925,7 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -944,7 +944,7 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
 
     var total : size_t = 0
     var bad = false
-    var buf : [17400]u8
+    unsafe var buf : [17400]u8
     while(total < 131072) {
         var n = ssl_read(&raw mut ctx, &raw mut buf[0], 17400)
         if(n <= 0) { bad = true; break }

@@ -8,8 +8,8 @@ using std::vector;
 
 // POSIX impl returns bool: true=success, false=error (details in errno)
 public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
-    var stdout_pipe : [2]int;
-    var stderr_pipe : [2]int;
+    unsafe var stdout_pipe : [2]int;
+    unsafe var stderr_pipe : [2]int;
 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
@@ -83,8 +83,8 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
 }
 
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
-    var stdout_pipe : [2]int;
-    var stderr_pipe : [2]int;
+    unsafe var stdout_pipe : [2]int;
+    unsafe var stderr_pipe : [2]int;
 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
@@ -169,7 +169,7 @@ struct ArgvBuffer {
 }
 
 func build_argv(args : *vector<string>) : ArgvBuffer {
-    var buf : ArgvBuffer;
+    unsafe var buf : ArgvBuffer;
     buf.count = args.size();
     var i : size_t = 0;
     while(i < args.size()) {
@@ -181,7 +181,7 @@ func build_argv(args : *vector<string>) : ArgvBuffer {
 }
 
 func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
-    var buf : [4096]u8;
+    unsafe var buf : [4096]u8;
     while(true) {
         var n = read(fd, &raw mut buf[0], 4096);
         if(n < 0) {

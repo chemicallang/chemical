@@ -43,7 +43,7 @@ func setup_symmetric_record_test() : SSLContext {
     // and sequence counters, never ssl.conf.  Setting config from a stack
     // variable would create a dangling pointer when this helper returns.
 
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
 
     // Known AES-128-GCM key (from FIPS 197 test vector)
@@ -58,7 +58,7 @@ func setup_symmetric_record_test() : SSLContext {
     ]
 
     // Create symmetric transform for encrypt (key_enc) and decrypt (key_dec)
-    var tr : Transform
+    unsafe var tr : Transform
     transform_init(&raw mut tr)
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16
@@ -110,7 +110,7 @@ public func tls_ssl_set_config_works(env : &mut TestEnv) {
     cfg.min_tls_version = SSL_VERSION_TLS1_2
     cfg.max_tls_version = SSL_VERSION_TLS1_3
 
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
     ssl_set_config(&raw mut ctx, &raw mut cfg)
 
@@ -168,12 +168,12 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
     ssl_set_config(&raw mut ctx, &raw mut cfg)
 
     // Known shared secret (32 bytes, from ECDHE)
-    var shared_secret : [32]u8
+    unsafe var shared_secret : [32]u8
     var i : size_t = 0
     while(i < 32) {
         shared_secret[i] = i as u8
@@ -181,7 +181,7 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     }
 
     // Known transcript hash (SHA-256 of ClientHello + ServerHello)
-    var transcript_hash : [32]u8
+    unsafe var transcript_hash : [32]u8
     i = 0
     while(i < 32) {
         transcript_hash[i] = (i + 0x55) as u8
@@ -236,13 +236,13 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
     ssl_set_config(&raw mut ctx, &raw mut cfg)
 
     // Derive handshake keys first (prerequisite)
-    var shared_secret : [32]u8
-    var transcript_hash : [32]u8
+    unsafe var shared_secret : [32]u8
+    unsafe var transcript_hash : [32]u8
     var i : size_t = 0
     while(i < 32) {
         shared_secret[i] = i as u8
@@ -259,8 +259,8 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     }
 
     // Save handshake keys for comparison
-    var hs_key_enc : [16]u8
-    var hs_key_dec : [16]u8
+    unsafe var hs_key_enc : [16]u8
+    unsafe var hs_key_dec : [16]u8
     i = 0
     while(i < 16) {
         hs_key_enc[i] = ctx.transform_out.key_enc[i]
@@ -269,7 +269,7 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     }
 
     // Now derive application keys
-    var hs_hash : [32]u8
+    unsafe var hs_hash : [32]u8
     i = 0
     while(i < 32) {
         hs_hash[i] = (i + 0xAA) as u8
@@ -326,7 +326,7 @@ public func tls13_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
     ]
 
     // Encrypt
-    var output : [256]u8
+    unsafe var output : [256]u8
     var enc_len = tls13_encrypt_record(&raw mut ctx,
                                         SSL_MSG_APPLICATION_DATA as u8,
                                         &raw pt[0], 24,
@@ -367,7 +367,7 @@ public func tls13_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
     while(i < 8) { ctx.in_ctr[i] = 0; i += 1 }
 
     // Decrypt: pass encrypted data without the 5-byte header
-    var decrypted : [256]u8
+    unsafe var decrypted : [256]u8
     var inner_ct : u8 = 0
     var dec_len = tls13_decrypt_record(&raw mut ctx,
                                         &raw output[5], (enc_len - 5) as size_t,
@@ -401,14 +401,14 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
 
     // Record 1: "Hello, "
     var pt1 : [7]u8 = [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20]
-    var buf1 : [256]u8
+    unsafe var buf1 : [256]u8
     var len1 = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
                                     &raw pt1[0], 7, &raw mut buf1[0], 256)
     if(len1 < 0) { env.error("encrypt record 1 should succeed"); return }
 
     // Record 2: "World!"
     var pt2 : [6]u8 = [0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21]
-    var buf2 : [256]u8
+    unsafe var buf2 : [256]u8
     var len2 = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
                                     &raw pt2[0], 6, &raw mut buf2[0], 256)
     if(len2 < 0) { env.error("encrypt record 2 should succeed"); return }
@@ -424,7 +424,7 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 8) { ctx.in_ctr[i] = 0; i += 1 }
 
-    var dec1 : [256]u8
+    unsafe var dec1 : [256]u8
     var inner_ct1 : u8 = 0
     var dlen1 = tls13_decrypt_record(&raw mut ctx, &raw buf1[5], (len1 - 5) as size_t,
                                       &raw mut dec1[0], 256, &raw mut inner_ct1)
@@ -439,7 +439,7 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
     ctx.in_hdr[0] = buf2[0]; ctx.in_hdr[1] = buf2[1]; ctx.in_hdr[2] = buf2[2]
     ctx.in_hdr[3] = buf2[3]; ctx.in_hdr[4] = buf2[4]
 
-    var dec2 : [256]u8
+    unsafe var dec2 : [256]u8
     var inner_ct2 : u8 = 0
     var dlen2 = tls13_decrypt_record(&raw mut ctx, &raw buf2[5], (len2 - 5) as size_t,
                                       &raw mut dec2[0], 256, &raw mut inner_ct2)
@@ -467,7 +467,7 @@ public func tls13_encrypt_decrypt_different_content_types(env : &mut TestEnv) {
     while(ct_idx < 3) {
         var ct = content_types[ct_idx]
 
-        var enc_out : [256]u8
+        unsafe var enc_out : [256]u8
         var enc_len = tls13_encrypt_record(&raw mut ctx, ct,
                                             &raw test_data[0], 4,
                                             &raw mut enc_out[0], 256)
@@ -482,7 +482,7 @@ public func tls13_encrypt_decrypt_different_content_types(env : &mut TestEnv) {
         ctx.in_hdr[4] = enc_out[4]
 
         // Decrypt (in_ctr auto-incremented from previous decrypt, matches out_ctr)
-        var dec : [256]u8
+        unsafe var dec : [256]u8
         var inner_ct : u8 = 0
         var dec_len = tls13_decrypt_record(&raw mut ctx,
                                             &raw enc_out[5], (enc_len - 5) as size_t,
@@ -516,7 +516,7 @@ public func tls13_decrypt_tampered_ct_fails(env : &mut TestEnv) {
 
     // Encrypt
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
-    var enc_out : [256]u8
+    unsafe var enc_out : [256]u8
     var enc_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
                                         &raw pt[0], 8, &raw mut enc_out[0], 256)
     if(enc_len < 0) { env.error("encrypt should succeed"); return }
@@ -534,7 +534,7 @@ public func tls13_decrypt_tampered_ct_fails(env : &mut TestEnv) {
     while(i < 8) { ctx.in_ctr[i] = 0; i += 1 }
 
     // Decrypt should fail (GCM authentication tag mismatch)
-    var dec : [256]u8
+    unsafe var dec : [256]u8
     var inner_ct : u8 = 0
     var dec_len = tls13_decrypt_record(&raw mut ctx,
                                         &raw enc_out[5], (enc_len - 5) as size_t,
@@ -553,13 +553,13 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.authmode = SSL_VERIFY_NONE
 
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
     ssl_set_config(&raw mut ctx, &raw mut cfg)
 
     // Derive handshake keys
-    var shared_secret : [32]u8
-    var transcript_hash : [32]u8
+    unsafe var shared_secret : [32]u8
+    unsafe var transcript_hash : [32]u8
     var i : size_t = 0
     while(i < 32) {
         shared_secret[i] = i as u8
@@ -572,7 +572,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     if(ret < 0) { env.error("handshake key derivation should succeed"); return }
 
     // Derive application keys (prerequisite for key update per RFC 8446)
-    var hs_hash : [32]u8
+    unsafe var hs_hash : [32]u8
     i = 0
     while(i < 32) {
         hs_hash[i] = (i + 0xAA) as u8
@@ -582,8 +582,8 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     if(ret < 0) { env.error("application key derivation should succeed"); return }
 
     // Capture pre-update keys
-    var pre_key_enc : [16]u8
-    var pre_iv_enc : [12]u8
+    unsafe var pre_key_enc : [16]u8
+    unsafe var pre_iv_enc : [12]u8
     i = 0
     while(i < 16) {
         pre_key_enc[i] = ctx.transform_out.key_enc[i]
@@ -632,7 +632,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
 
 @test
 public func tls_ssl_close_notify_no_socket_works(env : &mut TestEnv) {
-    var ctx : SSLContext
+    unsafe var ctx : SSLContext
     ssl_init(&raw mut ctx)
     // No socket or config set — just ensures ssl_close_notify doesn't crash
 

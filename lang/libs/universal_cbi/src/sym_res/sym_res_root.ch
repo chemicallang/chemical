@@ -6,7 +6,7 @@ func sym_res_components(
     for (var i : uint = 0; i < components.size(); i += 1) {
         var element = components.get(i);
 
-        var name : std::string_view;
+        unsafe var name : std::string_view;
         if(element.opening.tagName.kind == JsNodeKind.Identifier) {
              const jsId = element.opening.tagName as *mut JsIdentifier
              name = jsId.value;

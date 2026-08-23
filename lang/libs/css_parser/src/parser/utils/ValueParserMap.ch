@@ -13,7 +13,7 @@ struct ValueParserMap {
     }
 
     func getParserFor(&self, name : &std::string_view) : *void {
-        var value : *mut void
+        unsafe var value : *mut void
         if(map.find(name, &mut value)) {
             return value;
         } else {

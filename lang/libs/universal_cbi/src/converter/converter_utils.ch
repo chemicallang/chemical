@@ -4,7 +4,7 @@ func (converter : &mut JsConverter) append_hex(val : uint) {
         converter.str.append('0');
         return;
     }
-    var buf : [16]char;
+    unsafe var buf : [16]char;
     var bi = 0;
     while(val > 0) {
         buf[bi++] = hex[val & 0xF]
@@ -239,8 +239,8 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
-    var name : std::string_view
-    var fnPtr : *mut ASTNode
+    unsafe var name : std::string_view
+    unsafe var fnPtr : *mut ASTNode
     if(converter.target == BufferType.JavaScript) {
         name = fn_name
         fnPtr = jsFnPtr
@@ -308,8 +308,8 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
-    var name : std::string_view
-    var fnPtr : *mut ASTNode
+    unsafe var name : std::string_view
+    unsafe var fnPtr : *mut ASTNode
     if(converter.target == BufferType.JavaScript) {
         name = std::string_view("append_js")
         fnPtr = converter.support.appendHeadJsFn
@@ -381,8 +381,8 @@ func (converter : &mut JsConverter) put_char_chain(value : char) {
     const location = intrinsics::get_raw_location();
     var base = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
 
-    var name : std::string_view
-    var fnPtr : *mut ASTNode
+    unsafe var name : std::string_view
+    unsafe var fnPtr : *mut ASTNode
     if(converter.target == BufferType.JavaScript) {
         name = std::string_view("append_js_char")
         fnPtr = converter.support.appendHeadJsCharFn

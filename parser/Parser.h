@@ -617,7 +617,8 @@ public:
             bool topLevel,
             bool matchExpr,
             bool allowDeclarations,
-            bool comptime
+            bool comptime,
+            bool is_unsafe = false
     );
 
     /**

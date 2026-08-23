@@ -50,6 +50,16 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
             return (ASTNode*) parseUnionStructureTokens(allocator, spec);
         case TokenType::VariantKw:
             return (ASTNode*) parseVariantStructureTokens(allocator, spec);
+        case TokenType::UnsafeKw:
+            switch(token[1].type) {
+                case TokenType::VarKw:
+                case TokenType::ConstKw:
+                    token++;
+                    return parseVarInitializationTokens(allocator, spec, true, false, true, comptime, true);
+                default:
+                    error("expected a variable declaration after 'unsafe' at this position");
+                    return nullptr;
+            }
         case TokenType::VarKw:
         case TokenType::ConstKw:
             return parseVarInitializationTokens(allocator, spec, true, false, true, comptime);
@@ -100,6 +110,15 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                     return (ASTNode*) parseIfStatement(allocator, false, false, false, true);
                 default:
                     return parseTopLevelStatement(allocator, true);
+            }
+        case TokenType::UnsafeKw:
+            switch(token[1].type) {
+                case TokenType::VarKw:
+                case TokenType::ConstKw:
+                    token++;
+                    return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true, false, true, comptime, true);
+                default:
+                    return (ASTNode*) parseUnsafeBlock(allocator);
             }
         case TokenType::ConstKw:
         case TokenType::VarKw:
@@ -159,7 +178,14 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::UnsafeKw:
-            return (ASTNode*) parseUnsafeBlock(allocator);
+            switch(token[1].type) {
+                case TokenType::VarKw:
+                case TokenType::ConstKw:
+                    token++;
+                    return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, true, false, true);
+                default:
+                    return (ASTNode*) parseUnsafeBlock(allocator);
+            }
         case TokenType::BreakKw:
             return (ASTNode*) parseBreakStatement(allocator);
         case TokenType::ContinueKw:

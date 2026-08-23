@@ -137,6 +137,10 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
 - Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `compiler_plugins/`, `nodes/`, `stdlib/`.
 - Lib tests in `lang/tests/compiler_plugins/*/src/`.
+- Dedicated library suites (run independently so the main `--tcc` suite stays fast and environment-specific suites can run alone):
+  - `lang/tests/process/` (`chemical.mod` + `src/`) — `process` **and** `environment` library tests. Run with `./scripts/test.sh --tcc --process`.
+  - `lang/tests/webview/` (`chemical.mod` + `src/`) — `webview` library tests (display-independent API only; requires GTK3 + WebKit2GTK to link/run). Run with `./scripts/test.sh --tcc --webview`.
+  - See `## Chemical Library Development Gotchas` → *Uninitialized Variables Require the `unsafe` Keyword* for the migration rule that applies to all of these test sources.
 
 ### Interpretation Mode Details
 
@@ -367,6 +371,47 @@ LLVM requires `UndefValue` for uninitialized phis in certain lowering patterns. 
 ## Chemical Library Development Gotchas
 
 These patterns were discovered while implementing 5 pure-Chemical libraries (archive, image, font, audio, webview).
+
+### Uninitialized Variables Require the `unsafe` Keyword
+
+The compiler **enforces** that any variable declared **without an initializer** must be
+prefixed with `unsafe`. This is a hard parse/semantic error, not a warning — code that
+compiled before will fail to build until fixed. It applies to local variables and
+module-level (global) variables. Intentional uninitialized declarations (buffers later filled
+by `sprintf`/`popen`, zero-init globals, etc.) must opt in to unsafety.
+
+```chemical
+// OK — has an initializer
+var x : int = 0
+var buf : [256]char = zeroed
+
+// ERROR: uninitialized declaration requires 'unsafe'
+var cmd : char[2048]
+
+// FIX:
+unsafe var cmd : char[2048]
+
+// With a visibility modifier, `unsafe` comes AFTER the visibility keyword:
+internal unsafe var g_work_dir : [512]char
+public unsafe var g_something : SomeType
+```
+
+Rules and exemptions:
+- Global `@extern` declarations are exempt (defined elsewhere).
+- A `var`/`const` declared **inside an `unsafe { }` block** is exempt.
+- **Struct member declarations are exempt** — do NOT add `unsafe` to fields inside a `struct`/`class` body (it is invalid there). The rule only targets local and module-level variable statements.
+- `const` without an initializer is also subject to the rule.
+
+Compiler error:
+```
+[Parser] error: uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'
+```
+
+When migrating or writing code, search for type-only declarations `var <name> :` (no `=`)
+and add `unsafe`. When fixing a whole suite, prefer the `edit` tool for individual statements;
+only a generated helper script may bulk-apply it, and that script MUST skip `var` inside
+struct/variant/enum bodies (the compiler only flags local/module-level statements, but a naive
+text matcher will wrongly flag struct fields).
 
 ### Struct Initialization Rules
 

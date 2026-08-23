@@ -76,6 +76,18 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 # Include library tests
 ./scripts/test.sh --tcc --plugins
 
+# Process + environment library tests (no special system deps)
+./scripts/test.sh --tcc --process
+
+# Webview library tests (requires GTK3 + WebKit2GTK to link/run)
+./scripts/test.sh --tcc --webview
+
+# Negative (compiler-failure verification) tests
+./scripts/test.sh --tcc --negative
+
+# Forward a target triple to the compiler (omitted unless specified)
+./scripts/test.sh --tcc --process --target x86_64-linux-gnu
+
 # Custom output path
 ./scripts/test.sh --tcc -o my_tests
 

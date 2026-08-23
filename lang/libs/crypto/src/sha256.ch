@@ -89,14 +89,14 @@ public func sha256_final(ctx : *mut Sha256Context, digest : *mut u8) {
 }
 
 public func sha256_hash(data : *u8, data_len : size_t, digest : *mut u8) {
-    var ctx : Sha256Context;
+    unsafe var ctx : Sha256Context;
     sha256_init(&raw mut ctx);
     sha256_update(&raw mut ctx, data, data_len);
     sha256_final(&raw mut ctx, digest);
 }
 
 func sha256_transform(ctx : *mut Sha256Context, block : *u8) {
-    var w : [64]u32;
+    unsafe var w : [64]u32;
     var t : size_t = 0;
     while(t < 16) {
         var b0 = block[t*4] as u32; var b1 = block[t*4+1] as u32;

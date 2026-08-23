@@ -15,7 +15,7 @@ using std::Result;
 /// digest: output buffer (at least 32 bytes)
 public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
     // If key is longer than block size (64 bytes), hash it first
-    var actual_key : [64]u8;
+    unsafe var actual_key : [64]u8;
     var actual_key_len : size_t = key_len;
 
     if(key_len > 64) {
@@ -35,8 +35,8 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
     }
 
     // Compute inner hash: H((key ^ ipad) || message)
-    var inner_key : [64]u8;
-    var outer_key : [64]u8;
+    unsafe var inner_key : [64]u8;
+    unsafe var outer_key : [64]u8;
     const IPAD : u8 = 0x36;
     const OPAD : u8 = 0x5C;
 
@@ -48,16 +48,16 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
     }
 
     // Inner hash: SHA256(inner_key || data)
-    var inner_ctx : Sha256Context;
+    unsafe var inner_ctx : Sha256Context;
     sha256_init(&raw mut inner_ctx);
     sha256_update(&raw mut inner_ctx, &raw inner_key[0], 64);
     sha256_update(&raw mut inner_ctx, data, data_len);
 
-    var inner_digest : [32]u8;
+    unsafe var inner_digest : [32]u8;
     sha256_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
 
     // Outer hash: SHA256(outer_key || inner_digest)
-    var outer_ctx : Sha256Context;
+    unsafe var outer_ctx : Sha256Context;
     sha256_init(&raw mut outer_ctx);
     sha256_update(&raw mut outer_ctx, &raw outer_key[0], 64);
     sha256_update(&raw mut outer_ctx, &raw inner_digest[0], 32);
@@ -70,7 +70,7 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
 
 /// Compute HMAC-MD5 (legacy only, not for security).
 public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
-    var actual_key : [64]u8;
+    unsafe var actual_key : [64]u8;
     var actual_key_len : size_t = key_len;
 
     if(key_len > 64) {
@@ -89,8 +89,8 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
         }
     }
 
-    var inner_key : [64]u8;
-    var outer_key : [64]u8;
+    unsafe var inner_key : [64]u8;
+    unsafe var outer_key : [64]u8;
     const IPAD : u8 = 0x36;
     const OPAD : u8 = 0x5C;
 
@@ -102,16 +102,16 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
     }
 
     // Inner MD5
-    var inner_ctx : Md5Context;
+    unsafe var inner_ctx : Md5Context;
     md5_init(&raw mut inner_ctx);
     md5_update(&raw mut inner_ctx, &raw inner_key[0], 64);
     md5_update(&raw mut inner_ctx, data, data_len);
 
-    var inner_digest : [16]u8;
+    unsafe var inner_digest : [16]u8;
     md5_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
 
     // Outer MD5
-    var outer_ctx : Md5Context;
+    unsafe var outer_ctx : Md5Context;
     md5_init(&raw mut outer_ctx);
     md5_update(&raw mut outer_ctx, &raw outer_key[0], 64);
     md5_update(&raw mut outer_ctx, &raw inner_digest[0], 16);

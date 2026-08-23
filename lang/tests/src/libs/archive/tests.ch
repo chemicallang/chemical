@@ -59,7 +59,7 @@ public func crc32_update_empty(env : &mut TestEnv) {
 
 @test
 public func endian_u16_le_roundtrip(env : &mut TestEnv) {
-    var buf : [2]u8
+    unsafe var buf : [2]u8
     archive::write_u16_le(&raw mut buf[0], 0, 0x1234u16)
     if(buf[0] != 0x34u8 || buf[1] != 0x12u8) {
         env.error("u16 LE write failed")
@@ -72,7 +72,7 @@ public func endian_u16_le_roundtrip(env : &mut TestEnv) {
 
 @test
 public func endian_u32_le_roundtrip(env : &mut TestEnv) {
-    var buf : [4]u8
+    unsafe var buf : [4]u8
     archive::write_u32_le(&raw mut buf[0], 0, 0xDEADBEEFu32)
     var val = archive::read_u32_le(&raw buf[0], 0)
     if(val != 0xDEADBEEFu32) {
@@ -82,7 +82,7 @@ public func endian_u32_le_roundtrip(env : &mut TestEnv) {
 
 @test
 public func endian_u64_le_roundtrip(env : &mut TestEnv) {
-    var buf : [8]u8
+    unsafe var buf : [8]u8
     archive::write_u64_le(&raw mut buf[0], 0, 0x0123456789ABCDEFu64)
     var val = archive::read_u64_le(&raw buf[0], 0)
     if(val != 0x0123456789ABCDEFu64) {
@@ -92,7 +92,7 @@ public func endian_u64_le_roundtrip(env : &mut TestEnv) {
 
 @test
 public func endian_u16_le_read_function(env : &mut TestEnv) {
-    var buf : [2]u8
+    unsafe var buf : [2]u8
     buf[0] = 0xCD; buf[1] = 0xAB
     var val = archive::read_u16_le(&raw buf[0], 0)
     if(val != 0xABCDu16) { env.error("read_u16_le") }
@@ -100,7 +100,7 @@ public func endian_u16_le_read_function(env : &mut TestEnv) {
 
 @test
 public func endian_u32_le_read_function(env : &mut TestEnv) {
-    var buf : [4]u8
+    unsafe var buf : [4]u8
     buf[0] = 0x78; buf[1] = 0x56; buf[2] = 0x34; buf[3] = 0x12
     var val = archive::read_u32_le(&raw buf[0], 0)
     if(val != 0x12345678u32) { env.error("read_u32_le") }
@@ -108,7 +108,7 @@ public func endian_u32_le_read_function(env : &mut TestEnv) {
 
 @test
 public func endian_u64_le_read_function(env : &mut TestEnv) {
-    var buf : [8]u8
+    unsafe var buf : [8]u8
     buf[0] = 0xEF; buf[1] = 0xCD; buf[2] = 0xAB; buf[3] = 0x89
     buf[4] = 0x67; buf[5] = 0x45; buf[6] = 0x23; buf[7] = 0x01
     var val = archive::read_u64_le(&raw buf[0], 0)
@@ -250,7 +250,7 @@ public func zip_large_number_of_files(env : &mut TestEnv) {
 
 @test
 public func zip_invalid_data(env : &mut TestEnv) {
-    var garbage : [100]u8; var i : size_t = 0
+    unsafe var garbage : [100]u8; var i : size_t = 0
     while(i < 100) { garbage[i] = i as u8; i += 1 }
     var a = archive::ZipArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
     var result = archive::open_zip_bytes(&raw garbage[0], 100, &raw mut a)
@@ -284,11 +284,11 @@ public func zip_find_entry_multiple(env : &mut TestEnv) {
     var a = archive::ZipArchive{data: vector<u8>(), entries: vector<archive::ArchiveEntry>(), data_loaded: false}
     archive::open_zip_bytes(writer.data.data(), writer.data.size(), &raw mut a)
 
-    var entry1 : archive::ArchiveEntry
+    unsafe var entry1 : archive::ArchiveEntry
     var r1 = archive::zip_find_entry(&raw mut a, "x.txt\0" as *char, &raw mut entry1)
     if(r1 is Result.Err) { env.error("should find x.txt") }
 
-    var entry2 : archive::ArchiveEntry
+    unsafe var entry2 : archive::ArchiveEntry
     var r2 = archive::zip_find_entry(&raw mut a, "x.txt\0" as *char, &raw mut entry2)
     if(r2 is Result.Err) { env.error("should find x.txt again") }
     if(entry2.size != 2) { env.error("second find should give correct size") }
@@ -336,7 +336,7 @@ public func zip_writer_save_to_file(env : &mut TestEnv) {
 
 @test
 public func deflate_empty_input(env : &mut TestEnv) {
-    var out_buf : [64]u8
+    unsafe var out_buf : [64]u8
     var result = archive::deflate_decompress(null, 0, &raw mut out_buf[0], 64)
     if(result is Result.Ok) {
         var Ok(len) = result else unreachable
@@ -346,8 +346,8 @@ public func deflate_empty_input(env : &mut TestEnv) {
 
 @test
 public func deflate_invalid_data(env : &mut TestEnv) {
-    var out_buf : [64]u8
-    var garbage : [10]u8; var i : size_t = 0
+    unsafe var out_buf : [64]u8
+    unsafe var garbage : [10]u8; var i : size_t = 0
     while(i < 10) { garbage[i] = i as u8; i += 1 }
     var result = archive::deflate_decompress(&raw garbage[0], 10, &raw mut out_buf[0], 64)
     if(result is Result.Ok) { env.error("garbage input should produce error") }
@@ -356,7 +356,7 @@ public func deflate_invalid_data(env : &mut TestEnv) {
 @test
 public func deflate_stored_block(env : &mut TestEnv) {
     // Create a deflate stored block: bfinal=1, btype=0, len=5, nlen=65530, data=Hello
-    var input : [11]u8
+    unsafe var input : [11]u8
     input[0] = 1u8  // bfinal=1, btype=0 (stored)
     input[1] = 5u8; input[2] = 0u8     // len = 5
     input[3] = (5 ^ 0xFFFF) as u8; input[4] = ((5 ^ 0xFFFF) >> 8) as u8  // nlen
@@ -364,7 +364,7 @@ public func deflate_stored_block(env : &mut TestEnv) {
     input[8] = 'l' as u8; input[9] = 'o' as u8
     input[10] = 0u8  // padding
 
-    var out_buf : [64]u8
+    unsafe var out_buf : [64]u8
     var result = archive::deflate_decompress(&raw input[0], 11, &raw mut out_buf[0], 64)
     if(result is Result.Err) { env.error("stored block should decompress"); return }
     var Ok(len) = result else unreachable
@@ -570,7 +570,7 @@ public func archive_open_tar_via_unified(env : &mut TestEnv) {
 
 @test
 public func archive_open_invalid_format(env : &mut TestEnv) {
-    var garbage : [20]u8; var i : size_t = 0
+    unsafe var garbage : [20]u8; var i : size_t = 0
     while(i < 20) { garbage[i] = i as u8; i += 1 }
     var arc_path = make_temp_test_path("test_invalid_archive.bin")
     var write_result = fs::write_text_file(arc_path.data(), &raw garbage[0], 20)

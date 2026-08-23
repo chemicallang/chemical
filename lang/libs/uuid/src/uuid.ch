@@ -81,7 +81,7 @@ public namespace uuid {
             return std::Result.Err(std::string("UUID must have hyphens at positions 8, 13, 18, and 23"));
         }
 
-        var bytes : [16]u8;
+        unsafe var bytes : [16]u8;
         var byte_idx = 0;
 
         for(var i = 0u; i < 36u; i++) {
@@ -141,7 +141,7 @@ public namespace uuid {
     }
 
     public func v4() : UUID {
-        var bytes : [16]u8;
+        unsafe var bytes : [16]u8;
         if(!get_random_bytes(&raw mut bytes[0], 16u)) {
             panic("Failed to generate secure random bytes for UUIDv4");
         }
@@ -181,7 +181,7 @@ public namespace uuid {
 
         atomic_store_u32(&raw mut g_v7_lock, 0u, memory_order.release);
 
-        var bytes : [16]u8;
+        unsafe var bytes : [16]u8;
         if(!get_random_bytes(&raw mut bytes[0], 16u)) {
             panic("Failed to generate secure random bytes for UUIDv7");
         }

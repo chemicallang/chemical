@@ -90,7 +90,7 @@ func parse_tar_entries(archive : *mut TarArchive) : std::Result<std::Unit, Archi
             is_dir = true
         }
 
-        var entry : ArchiveEntry
+        unsafe var entry : ArchiveEntry
         entry.name = full_name
         entry.size = size
         entry.compressed_size = size
@@ -172,7 +172,7 @@ public func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry,
 }
 
 public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-    var entry : ArchiveEntry
+    unsafe var entry : ArchiveEntry
     var entry_result = tar_find_entry(archive, name, &raw mut entry)
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
@@ -186,7 +186,7 @@ public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result
 }
 
 public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
-    var entry : ArchiveEntry
+    unsafe var entry : ArchiveEntry
     var r = tar_find_entry(archive, name, &raw mut entry)
     return r is Result.Ok
 }

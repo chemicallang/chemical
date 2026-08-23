@@ -27,7 +27,7 @@ func read_msg_type(msg_ptr : *mut *char) : MessageCommandType {
     }
 
     const CMD_MAX = 128;
-    var command_buffer : [CMD_MAX]char;
+    unsafe var command_buffer : [CMD_MAX]char;
     var written : int = 0;
 
     while (true) {
@@ -232,6 +232,6 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
  *   3 = out of range for int (overflow/underflow)
  */
 func parse_int(s : *char, out : *mut int) : int {
-    var end_ptr : *char
+    unsafe var end_ptr : *char
     return parse_int_w_end(s, out, &raw mut end_ptr)
 }

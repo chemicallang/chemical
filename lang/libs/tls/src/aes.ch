@@ -175,10 +175,10 @@ public namespace tls {
         var r : u32 = 1
         while(r < ctx.nr) {
             // SubBytes + ShiftRows + MixColumns + AddRoundKey
-            var t0 : u32
-            var t1 : u32
-            var t2 : u32
-            var t3 : u32
+            unsafe var t0 : u32
+            unsafe var t1 : u32
+            unsafe var t2 : u32
+            unsafe var t3 : u32
 
             t0 = ((AES_SBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
                  ((AES_SBOX[(s1 >> 16) & 0xFF] as u32) << 16) ^
@@ -299,10 +299,10 @@ public namespace tls {
         var r : u32 = ctx.nr - 1
         while(r > 0) {
             // InvShiftRows + InvSubBytes
-            var t0 : u32
-            var t1 : u32
-            var t2 : u32
-            var t3 : u32
+            unsafe var t0 : u32
+            unsafe var t1 : u32
+            unsafe var t2 : u32
+            unsafe var t3 : u32
 
             t0 = ((AES_RSBOX[(s0 >> 24) & 0xFF] as u32) << 24) ^
                  ((AES_RSBOX[(s3 >> 16) & 0xFF] as u32) << 16) ^
@@ -476,7 +476,7 @@ public namespace tls {
             }
         } else {
             // Decrypt
-            var next_iv : [16]u8
+            unsafe var next_iv : [16]u8
             var i : size_t = 0
             while(i < length) {
                 // Save input to next_iv for next iteration

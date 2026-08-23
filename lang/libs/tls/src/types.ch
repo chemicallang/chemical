@@ -353,7 +353,7 @@ public namespace tls {
         func constructor(endpoint_type : int) {
             ensure_init()  // Initialize ciphersuite database
             var pref_count = num_preferred_ciphersuites()
-            var suite_list : [64]u16
+            unsafe var suite_list : [64]u16
             var i : u32 = 0
             while(i < pref_count) {
                 suite_list[i] = get_preferred_ciphersuite(i)
@@ -364,7 +364,7 @@ public namespace tls {
             }
 
             // Need to initialize fields one by one
-            var cfg : SSLConfig
+            unsafe var cfg : SSLConfig
             cfg.endpoint = endpoint_type
             cfg.transport = SSL_TRANSPORT_STREAM
             cfg.min_tls_version = SSL_VERSION_TLS1_2

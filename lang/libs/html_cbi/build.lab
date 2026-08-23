@@ -61,7 +61,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     }
 
     // only compile html ide module in lsp
-    var htmlIde : *mut Module
+    var htmlIde : *mut Module = null
     comptime if(def.lsp) {
         htmlIde = htmlIdeMod.build(ctx, job)
         if(htmlIde == null) {

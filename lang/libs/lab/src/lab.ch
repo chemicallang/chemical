@@ -503,7 +503,7 @@ public namespace lab {
 
     func parent_path(str : std::string_view) : std::string {
         var final = std::string()
-        var pos : int
+        var pos : int = 0
         comptime if(def.windows) {
             pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
         } else {

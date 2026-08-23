@@ -81,7 +81,7 @@ public namespace http {
                 } else { return std::Option.None<Request>() }
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
-            var tmp : [DEFAULT_READ_BUF]u8;
+            unsafe var tmp : [DEFAULT_READ_BUF]u8;
             var n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Request>() }
             buf.append_bytes(&raw mut tmp[0], n as usize);
@@ -225,7 +225,7 @@ public namespace http {
                 } else { return std::Option.None<Response>() }
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
-            var tmp : [DEFAULT_READ_BUF]u8;
+            unsafe var tmp : [DEFAULT_READ_BUF]u8;
             var n = http_recv(s, tls_ctx, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Response>() }
             buf.append_bytes(&raw mut tmp[0], n as usize);

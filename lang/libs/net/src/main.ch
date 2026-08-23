@@ -157,18 +157,18 @@ public namespace net {
         startup();
         
         var addrinfo: *mut char = null;
-        var port_str : [8]char;
+        unsafe var port_str : [8]char;
         // manually convert port to string
         var p = port; var i = 0;
         if (p == 0) { port_str[0] = '0'; port_str[1] = '\0'; }
         else {
-            var tmp : [8]char; var cnt = 0;
+            unsafe var tmp : [8]char; var cnt = 0;
             while(p > 0) { tmp[cnt] = (p % 10 + '0' as uint) as char; p = p / 10; cnt = cnt + 1; }
             while(cnt > 0) { port_str[i] = tmp[cnt-1]; i = i + 1; cnt = cnt - 1; }
             port_str[i] = '\0';
         }
         
-        var hints : [64]char; // assuming size of addrinfo
+        unsafe var hints : [64]char; // assuming size of addrinfo
         // set ai_family=AF_INET, ai_socktype=SOCK_STREAM
         // This is fragile as struct definition is opaque. 
         // Let's pass null hints for now to get any address.

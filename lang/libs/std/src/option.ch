@@ -9,7 +9,7 @@ public variant Option<T> {
             panic("cannot take on a option that's none")
         }
         var Some(value) = self else unreachable
-        var temp : T
+        unsafe var temp : T
         memcpy(&raw mut temp, &raw value, sizeof(T))
         // initialize without destruction
         new(&raw self) Option.None<T>()

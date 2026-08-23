@@ -77,24 +77,24 @@ public struct test_string_union {
 
 func test_unions() {
     test("int float union works - 1", () => {
-        var u : IntFloatUnion
+        unsafe var u : IntFloatUnion
         u.a = 5;
         return u.a == 5;
     })
     test("int float union works - 2", () => {
-        var u : IntFloatUnion
+        unsafe var u : IntFloatUnion
         u.b = 1.2f;
         return u.b == 1.2f;
     })
     test("a complex union of two structs - 1", () => {
-        var tu : TwoStructs
+        unsafe var tu : TwoStructs
         var y = 55;
         tu.First.data = &raw y;
         tu.First.length = 345678;
         return *tu.First.data == 55 && tu.First.length == 345678;
     })
     test("a complex union of two structs - 2", () => {
-        var tu : TwoStructs
+        unsafe var tu : TwoStructs
         tu.Second.data = 123;
         tu.Second.length = 456;
         return tu.Second.data == 123 && tu.Second.length == 456;
@@ -124,7 +124,7 @@ func test_unions() {
         return u.sfu_float_plus() == 35.0f
     })
     test("union access doesn't fail through method", () => {
-        var t : test_string_union
+        unsafe var t : test_string_union
         t.storage.sso.length = 0
         t.state = '1'
         return (t.size() as int) == (t.storage.sso.length as int)

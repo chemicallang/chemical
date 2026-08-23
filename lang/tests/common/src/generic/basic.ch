@@ -259,7 +259,7 @@ struct gen_existence_89<T> {
     var x : T
     @make
     func make() {
-        var y : T
+        unsafe var y : T
         return gen_existence_89<T> {
             x : y
         }

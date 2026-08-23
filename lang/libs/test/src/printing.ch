@@ -121,7 +121,7 @@ func print_log_multiline(out : *mut FILE, msg : *char) {
     var p = msg;
     while (*p) {
         const nl = strchr(p, '\n');
-        var len : size_t
+        unsafe var len : size_t
         if(nl) {
             len = (nl - p) as size_t
         } else {
@@ -173,7 +173,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
         }
         if (!found) {
             if (groups_len + 1 > groups_cap) {
-                var newcap : size_t
+                unsafe var newcap : size_t
                 if(groups_cap) {
                     newcap = groups_cap * 2
                 } else {
@@ -192,7 +192,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
         }
     }
 
-    var col_one : *char
+    unsafe var col_one : *char
     if(failed) {
         col_one = col_red()
     } else {
@@ -278,7 +278,7 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
         }
     }
 
-    var some_col : *char
+    unsafe var some_col : *char
     if(failed) {
         some_col = col_red()
     } else {

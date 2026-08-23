@@ -34,7 +34,7 @@ public namespace std {
     comptime const CLOCK_REALTIME = 0
 
     func compute_abstime_ms(out : *mut timespec, timeout_ms : ulong) {
-        var now : timespec
+        unsafe var now : timespec
         var rc = clock_gettime(CLOCK_REALTIME, &raw mut now)
         if(rc != 0) {
             panic("clock_gettime failed")
@@ -77,7 +77,7 @@ public namespace std {
         // timed_wait: returns true if signalled, false if timed out.
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
-            var ts : timespec
+            unsafe var ts : timespec
             compute_abstime_ms(&raw mut ts, timeout_ms)
             var r = pthread_cond_timedwait(&raw mut storage[0], &raw mut mutex.storage[0], &raw ts)
             // pthread_cond_timedwait returns 0 on success, ETIMEDOUT on timeout

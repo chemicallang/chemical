@@ -19,7 +19,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, ou
         config.before_each(&mut env)
     }
 
-    var return_success : bool
+    unsafe var return_success : bool
     if(config.benchmark) {
         // TODO: benchmarking code here
         return_success = run_test_fn_ptr(&mut env, tfn.ptr as *void, tfn.returns_bool)
@@ -41,7 +41,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig, ou
 }
 
 func append_integer(str : &mut std::string, dig : int) {
-    var buffer : [160]char
+    unsafe var buffer : [160]char
     const buffStart = &raw mut buffer[0]
     snprintf(buffStart, sizeof(buffer), "%d", dig)
     str.append_char_ptr(buffStart);

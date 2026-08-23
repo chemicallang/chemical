@@ -143,7 +143,7 @@ private:
     /* parse literal like true/false/null */
     func parse_literal(&mut self, lit : *char, litlen : size_t, type : int) : ParseResult {
         if (pos + litlen > len) return ParseResult::Err(pos, "unexpected end in literal");
-        var i : size_t;
+        var i : size_t = 0;
         for (i = 0; i < litlen; ++i) {
             if (s[pos + i] != lit[i]) return ParseResult::Err(pos, "invalid literal");
         }

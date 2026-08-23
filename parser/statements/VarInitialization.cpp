@@ -9,6 +9,16 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/PatternMatchExprNode.h"
+#include "ast/base/ASTNodeKind.h"
+
+// returns true if the given node is lexically contained within an unsafe block
+static bool is_inside_unsafe_block(ASTNode* node) {
+    while(node) {
+        if(node->kind() == ASTNodeKind::UnsafeBlock) return true;
+        node = node->parent();
+    }
+    return false;
+}
 
 // if neither a type or a value is given, it would causes errors (in lsp)
 VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
@@ -198,8 +208,10 @@ ASTNode* Parser::parseVarInitializationTokens(
 
     // equal sign
     if (!consumeToken(TokenType::EqualSym)) {
-        // an uninitialized declaration (no value) requires the unsafe keyword
-        if(stmt->type && !is_unsafe) {
+        // an uninitialized declaration (no value) requires the unsafe keyword,
+        // unless it's an external declaration (marked with @extern) or it is
+        // lexically contained within an unsafe block
+        if(stmt->type && !is_unsafe && !stmt->is_extern() && !is_inside_unsafe_block(stmt->parent())) {
             error("uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'");
         }
         if(

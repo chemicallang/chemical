@@ -587,14 +587,14 @@ public func audio_wav_parse_8bit(env : &mut TestEnv) {
 
 @test
 public func audio_wav_too_small(env : &mut TestEnv) {
-    var data : [10]u8
+    unsafe var data : [10]u8
     var result = audio::parse_wav(&raw data[0], 10)
     if(result is Result.Ok) { env.error("should fail on <44 byte data") }
 }
 
 @test
 public func audio_wav_not_riff(env : &mut TestEnv) {
-    var data : [44]u8
+    unsafe var data : [44]u8
     data[0] = 'N'; data[1] = 'O'; data[2] = 'P'; data[3] = 'E'
     var result = audio::parse_wav(&raw data[0], 44)
     if(result is Result.Ok) { env.error("should fail on non-RIFF") }
@@ -602,7 +602,7 @@ public func audio_wav_not_riff(env : &mut TestEnv) {
 
 @test
 public func audio_wav_not_wave(env : &mut TestEnv) {
-    var data : [44]u8
+    unsafe var data : [44]u8
     data[0] = 'R'; data[1] = 'I'; data[2] = 'F'; data[3] = 'F'
     data[8] = 'N'; data[9] = 'A'; data[10] = 'T'; data[11] = 'V'  // Not WAVE
     var result = audio::parse_wav(&raw data[0], 44)

@@ -19,6 +19,9 @@ TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
 TEST_TLS=false
+TEST_PROCESS=false
+TEST_WEBVIEW=false
+COMPILE_TARGET=""
 MODE="debug_quick"
 NO_CACHE="--no-cache"
 INCREMENTAL=false
@@ -47,6 +50,9 @@ usage() {
   echo "  --negative              Run negative (safety) tests only"
   echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
+  echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
+  echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
+  echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
   echo "  --no-build              Skip building compiler target, use existing binary"
@@ -88,6 +94,9 @@ while [ $# -gt 0 ]; do
     --negative) TEST_NEGATIVE=true ;;
     --plugins) TEST_PLUGINS=true ;;
     --tls) TEST_TLS=true ;;
+    --process) TEST_PROCESS=true ;;
+    --webview) TEST_WEBVIEW=true ;;
+    --target) COMPILE_TARGET="$2"; shift ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
     --no-build) BUILD_TARGET=false ;;
@@ -186,6 +195,9 @@ if [ "$TEST_NEGATIVE" = true ]; then
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
   [ "$VERBOSE" = true ] && CMD+=("-v")
+  if [ -n "$COMPILE_TARGET" ]; then
+    CMD+=("--target" "$COMPILE_TARGET")
+  fi
   if [ "$PRINT_CMD" = true ]; then
     echo "${CMD[@]}"
     exit 0
@@ -211,6 +223,9 @@ elif [ "$TEST_INTERPRET" = true ]; then
   [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")
   [ "$BENCHMARK_MODULES" = true ] && CMD+=("-bm-modules")
   [ "$VERBOSE" = true ] && CMD+=("-v")
+  if [ -n "$COMPILE_TARGET" ]; then
+    CMD+=("--target" "$COMPILE_TARGET")
+  fi
   if [ "$PRINT_CMD" = true ]; then
     echo "${CMD[@]}"
     exit 0
@@ -243,6 +258,15 @@ else
   fi
   if [ "$TEST_TLS" = true ]; then
     CMD+=("--arg-test-tls")
+  fi
+  if [ "$TEST_PROCESS" = true ]; then
+    CMD+=("--arg-test-process")
+  fi
+  if [ "$TEST_WEBVIEW" = true ]; then
+    CMD+=("--arg-test-webview")
+  fi
+  if [ -n "$COMPILE_TARGET" ]; then
+    CMD+=("--target" "$COMPILE_TARGET")
   fi
   if [ "$PRINT_CMD" = true ]; then
     echo "${CMD[@]}"

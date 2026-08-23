@@ -48,6 +48,8 @@ import "./compiler_plugins/universal_runtime/build.lab" as universalRuntimeTestM
 import "./compiler_plugins/components/build.lab" as componentsTestMod
 import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
+import "./process/chemical.mod" as processTestMod
+import "./webview/chemical.mod" as webviewTestMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -300,6 +302,22 @@ func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_process_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-process-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, processTestMod.build(ctx, exe_job))
+    return exe_job
+}
+
+func test_webview_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-webview-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, webviewTestMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     if(ctx.has_arg(std::string_view("test-plugins"))) {
@@ -318,6 +336,10 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("components"))
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-process"))) {
+        return test_process_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-webview"))) {
+        return test_webview_exe(ctx)
     }
 
     const debug = true;

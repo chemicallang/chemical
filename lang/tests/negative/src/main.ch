@@ -4,7 +4,7 @@
 // (POSIX: /tmp, Windows: %TEMP%). The old hardcoded "/tmp/chemical_neg_tests"
 // resolves to "\tmp\..." on the current drive on Windows, which usually is
 // not writable without admin rights.
-internal var g_neg_work_dir_buf : [512]char
+internal unsafe var g_neg_work_dir_buf : [512]char
 internal var NEG_WORK_DIR : *char = null
 
 internal func neg_init_work_dir() {
@@ -60,7 +60,7 @@ internal func string_contains(haystack : *char, needle : *char) : bool {
 }
 
 internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int) : int {
-    var cmd : char[2048]
+    unsafe var cmd : char[2048]
     // Write the (failed or successful) output executable into the test dir;
     // "/dev/null" is POSIX-only and on Windows would try to create "\dev\null"
     // on the current drive. Quoting every argument keeps paths with spaces working.
@@ -78,7 +78,7 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
         return -1
     }
     var total = 0
-    var line_buf : char[4096]
+    unsafe var line_buf : char[4096]
     while(fgets(&raw mut line_buf[0], 4096, pipe) != null) {
         var line_len = strlen(&raw line_buf[0])
         var i = 0u
@@ -94,15 +94,15 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
 }
 
 internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
-    var test_dir : char[512]
+    unsafe var test_dir : char[512]
     sprintf(&raw mut test_dir[0], "%s/%s", work_dir, name)
     fs::mkdir(&raw test_dir[0])
 
-    var mod_path : char[512]
+    unsafe var mod_path : char[512]
     sprintf(&raw mut mod_path[0], "%s/chemical.mod", &raw test_dir[0])
     write_file(&raw mod_path[0], mod_content)
 
-    var ch_path : char[512]
+    unsafe var ch_path : char[512]
     sprintf(&raw mut ch_path[0], "%s/test.ch", &raw test_dir[0])
     write_file(&raw ch_path[0], ch_content)
 
@@ -110,7 +110,7 @@ internal func setup_test_files(work_dir : *char, name : *char, mod_content : *ch
 }
 
 internal func cleanup_test_dir(work_dir : *char, name : *char) {
-    var path : char[512]
+    unsafe var path : char[512]
     sprintf(&raw mut path[0], "%s/%s", work_dir, name)
     // cross-platform recursive delete (no shelling out to "rm -rf", which
     // does not exist on Windows cmd.exe)
@@ -131,12 +131,12 @@ internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    var mod_path : char[512]
+    unsafe var mod_path : char[512]
     sprintf(&raw mut mod_path[0], "%s/%s/chemical.mod", NEG_WORK_DIR, name)
-    var out_path : char[512]
+    unsafe var out_path : char[512]
     sprintf(&raw mut out_path[0], "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
+    unsafe var output_buf : char[16384]
     var rc = run_compiler_capture(&raw mod_path[0], &raw out_path[0], &raw mut output_buf[0], 16384)
 
     var has_error = string_contains(&raw output_buf[0], "error:")
@@ -159,12 +159,12 @@ internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content 
 internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    var mod_path : char[512]
+    unsafe var mod_path : char[512]
     sprintf(&raw mut mod_path[0], "%s/%s/chemical.mod", NEG_WORK_DIR, name)
-    var out_path : char[512]
+    unsafe var out_path : char[512]
     sprintf(&raw mut out_path[0], "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
+    unsafe var output_buf : char[16384]
     var rc = run_compiler_capture(&raw mod_path[0], &raw out_path[0], &raw mut output_buf[0], 16384)
 
     if(rc != 0) {

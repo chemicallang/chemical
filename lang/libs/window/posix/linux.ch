@@ -383,7 +383,7 @@ public struct WindowCtx {
 // array literal at module scope (ArrayValue::element_type() returns null for
 // `[]`), while a type-only global takes the safe zero-init path in both
 // backends. The buffer is filled by win_ctx_key() on first use.
-var g_win_ctx_key : [32]char
+unsafe var g_win_ctx_key : [32]char
 var g_win_ctx_key_ready : int = 0
 
 // g_object_set_data_full stores the key POINTER, not a copy, so the key

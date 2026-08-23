@@ -5356,7 +5356,17 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<Value*>& values, const
         const auto previous = index >= 1 ? values[index - 1] : nullptr;
         const auto current = values[index];
         const auto next = index + 1 < total_size ? values[index + 1] : nullptr;
+        // When &raw/&mut produces &expr and the accessor is ->, we need parens
+        // to prevent &expr->field being parsed as &(expr->field) in C
+        const auto current_kind = current->val_kind();
+        const bool needs_addr_parens = (current_kind == ValueKind::AddrOfValue || current_kind == ValueKind::ReferenceOfValue) && next;
+        if(needs_addr_parens) {
+            visitor.write('(');
+        }
         chain_value_accept(visitor, previous, current, next);
+        if(needs_addr_parens) {
+            visitor.write(')');
+        }
         if(next) {
             write_accessor(visitor, current, next);
         }

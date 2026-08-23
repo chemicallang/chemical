@@ -44,12 +44,13 @@ const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
 // script-message-received signal on the __webview__ user-content handler
 // (window.webkit.messageHandlers.__webview__.postMessage). The native handler
 // dispatches to the bound native function and returns the result by invoking
-// window.webview_bridge._resolve(id, result). This is WebKit's designed-for
-// async messaging API (no prompt()/dialog abuse). The same window.webview_bridge
-// object is used on every platform; only the postMessage transport differs.
-// args is kept as the caller's JSON text. JSON.stringify escapes it for the
-// transport and linux_extract_args restores the original text on reception.
-const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { _id: 0, _pending: {}, call: function(method, args) { return new Promise(function(resolve) { var id = window.webview_bridge._id++; window.webview_bridge._pending[id] = resolve; var payload = {id: id, method: method, args: args}; window.webkit.messageHandlers.__webview__.postMessage(JSON.stringify(payload)); }); }, _resolve: function(id, result) { var p = window.webview_bridge._pending[id]; if (p) { delete window.webview_bridge._pending[id]; p(result); } } };"""
+// window.__webview__.onReply(id, 0, result). This mirrors the WebView2
+// (Windows) bridge contract so the same JS and the same tests run on every
+// platform; only the postMessage transport differs. The bridge object is
+// `window.__webview__` with `call(method, ...params)` returning a Promise that
+// resolves with the JSON-parsed handler result; `window.webview_bridge` is kept
+// as an alias for older callers.
+const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.webkit.messageHandlers.__webview__.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(!promise)return;if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error('Failed to parse binding result as JSON'));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
 
 // The injected WebKitUserScript is owned by the user content manager for the
 // lifetime of the web view (no manual unreference needed).
@@ -323,28 +324,25 @@ func linux_on_script_message(
     free(msg_cstr as *mut void)
 }
 
-// Extract the "args" JSON value from a bridge message. Returns the raw,
-// un-escaped argument object. When the bridge embeds args as a real JSON value
-// (the common case) we copy it verbatim; when it arrives as a quoted JSON string
-// (e.g. invalid caller input) we unescape it.
-func linux_extract_args(msg_view : std::string_view) : string {
-    var args_start = msg_view.find(std::string_view::make_no_len("\"args\":"))
-    if(args_start == msg_view.size()) {
+// Extract the JSON value for `key` (e.g. "\"params\":") from a bridge message.
+// Mirrors the Windows webview_json_parse: quoted values are unescaped; raw
+// values (object/array/number/bool/null) are copied until the top-level closing
+// , } or ]. Returns "" if the key is not found.
+func linux_json_value(msg_view : std::string_view, key : *char) : string {
+    var pos = msg_view.find(std::string_view::make_no_len(key))
+    if(pos >= msg_view.size()) {
         return string()
     }
-    args_start = args_start + 7 // skip "args":
-    while(args_start < msg_view.size() && msg_view.get(args_start) == ' ') {
-        args_start = args_start + 1
-    }
-    if(args_start >= msg_view.size()) {
+    var vstart = pos + std::string_view::make_no_len(key).size()
+    if(vstart >= msg_view.size()) {
         return string()
     }
-    var first = msg_view.get(args_start)
-    if(first == '"') {
-        // Quoted JSON string: copy the content, unescaping \n \t \r \\ \" \/ .
-        args_start = args_start + 1
+    var c0 = msg_view.get(vstart)
+    if(c0 == '"') {
+        // Quoted JSON string: copy the content, unescaping escapes.
+        vstart = vstart + 1
         var out = string()
-        var i = args_start
+        var i = vstart
         while(i < msg_view.size()) {
             var c = msg_view.get(i)
             if(c == '"') {
@@ -356,9 +354,11 @@ func linux_extract_args(msg_view : std::string_view) : string {
                 if(e == 'n') { out.append('\n') }
                 else if(e == 't') { out.append('\t') }
                 else if(e == 'r') { out.append('\r') }
-                else if(e == '"') { out.append('"') }
-                else if(e == '\\') { out.append('\\') }
+                else if(e == 'b') { out.append('\b') }
+                else if(e == 'f') { out.append('\f') }
                 else if(e == '/') { out.append('/') }
+                else if(e == '\\') { out.append('\\') }
+                else if(e == '"') { out.append('"') }
                 else { out.append(e) }
             } else {
                 out.append(c)
@@ -368,21 +368,21 @@ func linux_extract_args(msg_view : std::string_view) : string {
         return out
     }
     // Raw JSON value (object/array/number/bool/null): copy until the top-level
-    // closing , or }.
+    // closing , } or ].
     var out = string()
     var depth = 0
-    var i = args_start
+    var i = vstart
     while(i < msg_view.size()) {
         var c = msg_view.get(i)
+        if(depth == 0 && (c == ',' || c == '}' || c == ']')) {
+            break
+        }
         if(c == '{' || c == '[') {
             depth = depth + 1
             out.append(c)
         } else if(c == '}' || c == ']') {
             depth = depth - 1
             out.append(c)
-            if(depth == 0) { break }
-        } else if(c == ',' && depth == 0) {
-            break
         } else {
             out.append(c)
         }
@@ -391,69 +391,70 @@ func linux_extract_args(msg_view : std::string_view) : string {
     return out
 }
 
-// Process an incoming bridge message (JSON from JS). Parses {id, method, args},
-// calls the bound handler, and sends the result back via run_javascript.
+// Escape a string into a JSON string literal (with surrounding quotes). Used to
+// embed the bridge call id and the handler's result into the reply script.
+func linux_json_escape(sv : std::string_view) : string {
+    var result = string("\"")
+    var i : size_t = 0
+    while(i < sv.size()) {
+        var c = sv.get(i)
+        if(c == '"') { result.append_view(std::string_view::make_no_len("\\\"")) }
+        else if(c == '\\') { result.append_view(std::string_view::make_no_len("\\\\")) }
+        else if(c == '\b') { result.append_view(std::string_view::make_no_len("\\b")) }
+        else if(c == '\f') { result.append_view(std::string_view::make_no_len("\\f")) }
+        else if(c == '\n') { result.append_view(std::string_view::make_no_len("\\n")) }
+        else if(c == '\r') { result.append_view(std::string_view::make_no_len("\\r")) }
+        else if(c == '\t') { result.append_view(std::string_view::make_no_len("\\t")) }
+        else if((c as u8) <= (0x1f as u8)) {
+            result.append_view(std::string_view::make_no_len("\\u00"))
+            var hex = string("0123456789abcdef")
+            var uc : u8 = c as u8
+            result.append(hex.get((uc >> 4) as size_t))
+            result.append(hex.get((uc & 0x0f) as size_t))
+        } else {
+            result.append(c)
+        }
+        i = i + 1
+    }
+    result.append('"')
+    return result
+}
+
+// Process an incoming bridge message (JSON from JS). Parses {id, method,
+// params}, calls the bound handler, and sends the result back via
+// window.__webview__.onReply(id, 0, result).
 func linux_on_message(wv : *mut WebView, msg : *char) {
     var msg_view = std::string_view::make_no_len(msg)
 
-    // Parse "id":
-    var id_start = msg_view.find(std::string_view::make_no_len("\"id\":"))
-    if(id_start == msg_view.size()) {
+    var id_str = linux_json_value(msg_view, "\"id\":")
+    var method = linux_json_value(msg_view, "\"method\":")
+    var params_str = linux_json_value(msg_view, "\"params\":")
+
+    if(method.size() == 0) {
         return
     }
-    id_start = id_start + 5 // length of "id":
-    while(id_start < msg_view.size() && (msg_view.get(id_start) < '0' || msg_view.get(id_start) > '9')) {
-        id_start = id_start + 1
-    }
-    var id_val : i64 = 0
-    while(id_start < msg_view.size()) {
-        var c = msg_view.get(id_start)
-        if(c >= '0' && c <= '9') {
-            id_val = id_val * 10 + (c as i64 - 48)
-        } else {
-            break
-        }
-        id_start = id_start + 1
-    }
 
-    // Parse "method":"..."
-    var method_start = msg_view.find(std::string_view::make_no_len("\"method\":\""))
-    if(method_start == msg_view.size()) {
-        return
-    }
-    method_start = method_start + 10 // length of "method":
-    var method_end = method_start
-    while(method_end < msg_view.size() && msg_view.get(method_end) != '"') {
-        method_end = method_end + 1
-    }
-    var method = msg_view.subview(method_start, method_end)
+    var method_view = std::string_view::make_view(&method)
+    var params_view = std::string_view::make_view(&params_str)
+    var result = wv.bind_ctx.handler(method_view, params_view)
 
-    // Parse args (raw, un-escaped).
-    var args_str = linux_extract_args(msg_view)
-    var args_view = std::string_view::make_view(&args_str)
-
-    // Call the bound handler.
-    var result = wv.bind_ctx.handler(method, args_view)
-
-    // Build JS call: window.webview_bridge._resolve(id, "escaped_result").
-    // The result is embedded inside a JS string literal, so escape backslashes
-    // and double quotes.
-    var js_call = string("window.webview_bridge._resolve(")
-    js_call.append_integer(id_val as bigint)
-    js_call.append_view(std::string_view::make_no_len(", \""))
-    var ri : size_t = 0
-    while(ri < result.size()) {
-        var rc = result.get(ri)
-        if(rc == '\\') {
-            js_call.append_view(std::string_view::make_no_len("\\\\"))
-        } else if(rc == '"') {
-            js_call.append_view(std::string_view::make_no_len("\\\""))
-        } else {
-            js_call.append(rc)
-        }
-        ri = ri + 1
+    // Resolve the call: window.__webview__.onReply(id, 0, result_json). The id
+    // and result are embedded as JSON string literals (escaped).
+    var js_call = string("window.__webview__.onReply(")
+    var id_view = std::string_view::make_view(&id_str)
+    var esc_id = linux_json_escape(id_view)
+    var esc_id_view = std::string_view::make_view(&esc_id)
+    js_call.append_view(&esc_id_view)
+    js_call.append_view(std::string_view::make_no_len(", 0, "))
+    if(result.size() == 0) {
+        js_call.append_view(std::string_view::make_no_len("undefined"))
+    } else {
+        var result_view = std::string_view::make_view(&result)
+        var esc_result = linux_json_escape(result_view)
+        var esc_result_view = std::string_view::make_view(&esc_result)
+        js_call.append_view(&esc_result_view)
     }
-    js_call.append_view(std::string_view::make_no_len("\")"))
+    js_call.append(')')
     webview_evaluate_js(wv, js_call.data())
 }
 

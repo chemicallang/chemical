@@ -3,10 +3,10 @@ public namespace fs {
 using std::Result;
 
 func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
-    var fi : WIN32_FILE_ATTRIBUTE_DATA;
+    unsafe var fi : WIN32_FILE_ATTRIBUTE_DATA;
     var ok = GetFileAttributesExW(path as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &raw mut fi);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
-    var m : Metadata;
+    unsafe var m : Metadata;
     var attrs = fi.dwFileAttributes;
     m.is_dir = ((attrs & FILE_ATTRIBUTE_DIRECTORY) != 0);
     m.is_file = !m.is_dir;
@@ -21,7 +21,7 @@ func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
 }
 
 public func metadata(path : *char) : Result<Metadata, FsError> {
-    var wbuf : [WIN_MAX_PATH]u16;
+    unsafe var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &raw mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {
         var Err(e) = conv else unreachable

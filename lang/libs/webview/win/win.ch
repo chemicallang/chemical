@@ -1712,7 +1712,29 @@ func wv_init(wv : *mut WebView, debug : int) : int {
     return wv_embed(wv, debug)
 }
 
+// Re-store the current WebView pointer as user data on both HWNDs.
+// Must be called before any operation that can trigger window messages
+// (show, run, set_size) when the WebView was created via webview::create()
+// which returns the struct by value — the HWNDs still hold a pointer to the
+// original stack frame inside create() which becomes stale after the return.
+public func webview_rebind(wv : *mut WebView) {
+    if(!wv.initialized) { return }
+    // Re-store the Window pointer on the top-level HWND so that
+    // win_window_proc reads the correct Window (and its resize/focus callbacks
+    // get the correct user_data).
+    if(wv.win.hwnd != null) {
+        SetWindowLongPtrW(wv.win.hwnd, GWLP_USERDATA, &raw mut wv.win as LONG_PTR)
+    }
+    window::window_set_user_data(&raw mut wv.win, wv as *mut void)
+    // Re-store the WebView pointer on the widget HWND so that
+    // wv_widget_proc reads the correct WebView.
+    if(wv.widget != null) {
+        SetWindowLongPtrW(wv.widget, GWLP_USERDATA, wv as LONG_PTR)
+    }
+}
+
 public func webview_run(wv : *mut WebView) {
+    webview_rebind(wv)
     window::window_run()
 }
 
@@ -1757,10 +1779,12 @@ func wv_set_size(wv : *mut WebView, width : int, height : int, hints : int) {
 public func webview_set_size(wv : *mut WebView, width : int, height : int) {
     wv.width = width
     wv.height = height
+    webview_rebind(wv)
     wv_set_size(wv, width, height, WV_HINT_NONE)
 }
 
 public func webview_show(wv : *mut WebView) {
+    webview_rebind(wv)
     if(wv.attached) {
         // embed mode: the app owns the parent window; just make sure the
         // webview section itself is visible

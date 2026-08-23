@@ -126,7 +126,8 @@ ASTNode* Parser::parseVarInitializationTokens(
         bool topLevel,
         bool matchExpr,
         bool allowDeclarations,
-        bool comptime
+        bool comptime,
+        bool is_unsafe
 ) {
 
     auto& start_tok = *token;
@@ -197,6 +198,10 @@ ASTNode* Parser::parseVarInitializationTokens(
 
     // equal sign
     if (!consumeToken(TokenType::EqualSym)) {
+        // an uninitialized declaration (no value) requires the unsafe keyword
+        if(stmt->type && !is_unsafe) {
+            error("uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'");
+        }
         if(
             // for loop sends false
             allowDeclarations == false ||

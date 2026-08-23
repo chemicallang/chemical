@@ -4,15 +4,15 @@ using std::string_view
 
 @test
 public func INT_hkdf_against_python(env : &mut TestEnv) {
-    var shared_secret : [32]u8
+    unsafe var shared_secret : [32]u8
     test_random_bytes(&raw mut shared_secret[0], 32)
-    var transcript_hash : [32]u8
+    unsafe var transcript_hash : [32]u8
     test_random_bytes(&raw mut transcript_hash[0], 32)
 
-    var ss_hex : [65]char; test_bytes_to_hex(&raw shared_secret[0], 32, &raw mut ss_hex[0])
-    var th_hex : [65]char; test_bytes_to_hex(&raw transcript_hash[0], 32, &raw mut th_hex[0])
+    unsafe var ss_hex : [65]char; test_bytes_to_hex(&raw shared_secret[0], 32, &raw mut ss_hex[0])
+    unsafe var th_hex : [65]char; test_bytes_to_hex(&raw transcript_hash[0], 32, &raw mut th_hex[0])
 
-    var script : [2048]u8; var sp : size_t = 0
+    unsafe var script : [2048]u8; var sp : size_t = 0
     var hdr = "import hashlib,hmac\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
 
@@ -50,7 +50,7 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("hkdf_py.py"))
 
-    var py_ck : [16]u8; var py_civ : [12]u8; var py_sk : [16]u8; var py_siv : [12]u8
+    unsafe var py_ck : [16]u8; unsafe var py_civ : [12]u8; unsafe var py_sk : [16]u8; unsafe var py_siv : [12]u8
     var ck_len = test_parse_py_hex_label(&raw mut py_out, string_view("CK="), &raw mut py_ck[0], 16)
     var civ_len = test_parse_py_hex_label(&raw mut py_out, string_view("CIV="), &raw mut py_civ[0], 12)
     var sk_len = test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut py_sk[0], 16)
@@ -59,7 +59,7 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
         env.error("failed to parse all keys from Python output"); return
     } else {}
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(&raw mut ctx, &raw mut cfg)

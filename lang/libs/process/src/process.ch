@@ -118,7 +118,7 @@ public func spawn(cfg : ProcessConfig) : CP_Result {
         std::replace<CP_Result>(&mut ret, Result.Err<ChildProcess, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
         return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
     } else {
-        var child : ChildProcess
+        unsafe var child : ChildProcess
         if(posix_spawn(&raw mut cfg, &raw mut child)) {
             std::replace(&mut ret, Result.Ok<ChildProcess, ProcessError>(std::replace(&mut child, zeroed:unsafe<ChildProcess>())))
             return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())

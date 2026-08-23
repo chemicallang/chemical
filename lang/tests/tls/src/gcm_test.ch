@@ -4,17 +4,17 @@ using std::string_view
 
 @test
 public func INT_gcm_encrypt_against_python(env : &mut TestEnv) {
-    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    var aad : [5]u8; test_random_bytes(&raw mut aad[0], 5)
-    var pt : [29]u8; test_random_bytes(&raw mut pt[0], 29)
+    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    unsafe var aad : [5]u8; test_random_bytes(&raw mut aad[0], 5)
+    unsafe var pt : [29]u8; test_random_bytes(&raw mut pt[0], 29)
 
-    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    var aad_hex : [11]char; test_bytes_to_hex(&raw aad[0], 5, &raw mut aad_hex[0])
-    var pt_hex : [59]char; test_bytes_to_hex(&raw pt[0], 29, &raw mut pt_hex[0])
+    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    unsafe var aad_hex : [11]char; test_bytes_to_hex(&raw aad[0], 5, &raw mut aad_hex[0])
+    unsafe var pt_hex : [59]char; test_bytes_to_hex(&raw pt[0], 29, &raw mut pt_hex[0])
 
-    var script : [1024]u8; var sp : size_t = 0
+    unsafe var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
 
@@ -40,15 +40,15 @@ public func INT_gcm_encrypt_against_python(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_py.py"))
 
-    var py_ct : [29]u8; var py_tag : [16]u8
+    unsafe var py_ct : [29]u8; unsafe var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 29)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 29 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
-    var gcm : GCMContext
+    unsafe var gcm : GCMContext
     var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
-    var chem_ct : [64]u8; var chem_tag : [16]u8
+    unsafe var chem_ct : [64]u8; unsafe var chem_tag : [16]u8
     ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 5, &raw pt[0], 29, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
@@ -63,9 +63,9 @@ public func INT_gcm_encrypt_against_python(env : &mut TestEnv) {
         return
     } else {}
 
-    var gcm2 : GCMContext
+    unsafe var gcm2 : GCMContext
     gcm_init(&raw mut gcm2, &raw key[0], 16)
-    var chem_dec : [64]u8
+    unsafe var chem_dec : [64]u8
     ret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, &raw aad[0], 5, &raw py_ct[0], 29, &raw py_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 29)) { env.error("GCM decrypt roundtrip mismatch"); return } else {}

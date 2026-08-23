@@ -402,19 +402,47 @@ public struct ICoreWebView2Vtbl {
     var AddScriptToExecuteOnDocumentCreated : (s : *mut ICoreWebView2, javaScript : LPCWSTR, handler : *mut void) => HRESULT
     var RemoveScriptToExecuteOnDocumentCreated : (s : *mut ICoreWebView2, id : *mut void) => HRESULT
     var ExecuteScript : (s : *mut ICoreWebView2, javaScript : LPCWSTR, handler : *mut void) => HRESULT
-    // --- methods between ExecuteScript and WebMessageReceived (vtable slots 30-36) ---
+    // --- vtable slots 30-60 (post-ExecuteScript, per official WebView2 IDL) ---
+    // Slot 30: CapturePreview
     var _CapturePreview : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 31: Reload
     var _Reload : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 32-33: PostWebMessageAsJson / PostWebMessageAsString
+    var PostWebMessageAsJson : (s : *mut ICoreWebView2, messageAsJson : LPCWSTR) => HRESULT
+    var PostWebMessageAsString : (s : *mut ICoreWebView2, messageAsStr : LPCWSTR) => HRESULT
+    // Slot 34-35: WebMessageReceived event handler registration
+    var add_WebMessageReceived : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var remove_WebMessageReceived : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    // Slot 36-42: DevTools protocol + browser info + navigation
+    var _CallDevToolsProtocolMethod : (s : *mut ICoreWebView2) => HRESULT
+    var _GetBrowserProcessId : (s : *mut ICoreWebView2) => HRESULT
+    var _GetCanGoBack : (s : *mut ICoreWebView2) => HRESULT
+    var _GetCanGoForward : (s : *mut ICoreWebView2) => HRESULT
+    var _GoBack : (s : *mut ICoreWebView2) => HRESULT
+    var _GoForward : (s : *mut ICoreWebView2) => HRESULT
+    var _GetDevToolsProtocolEventReceiver : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 43: Stop
+    var _Stop : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 44-48: NewWindow, DocumentTitle, HostObjects
+    var _add_NewWindowRequested : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var _remove_NewWindowRequested : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    var _add_DocumentTitleChanged : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var _remove_DocumentTitleChanged : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    var _GetDocumentTitle : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 49-54: Host objects + dev tools + full screen
+    var _AddHostObjectToScript : (s : *mut ICoreWebView2) => HRESULT
+    var _RemoveHostObjectFromScript : (s : *mut ICoreWebView2) => HRESULT
+    var _OpenDevToolsWindow : (s : *mut ICoreWebView2) => HRESULT
+    var _add_ContainsFullScreenElementChanged : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
+    var _remove_ContainsFullScreenElementChanged : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
+    var _GetContainsFullScreenElement : (s : *mut ICoreWebView2) => HRESULT
+    // Slot 55-60: WebResource + WindowClose
     var _add_WebResourceRequested : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
     var _remove_WebResourceRequested : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
     var _AddWebResourceRequestedFilter : (s : *mut ICoreWebView2) => HRESULT
     var _RemoveWebResourceRequestedFilter : (s : *mut ICoreWebView2) => HRESULT
     var _add_WindowCloseRequested : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
-    // --- WebMessageReceived API (vtable slots 37-40) ---
-    var add_WebMessageReceived : (s : *mut ICoreWebView2, handler : *mut void, token : *mut EventRegistrationToken) => HRESULT
-    var remove_WebMessageReceived : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
-    var PostWebMessageAsJson : (s : *mut ICoreWebView2, messageAsJson : LPCWSTR) => HRESULT
-    var PostWebMessageAsString : (s : *mut ICoreWebView2, messageAsStr : LPCWSTR) => HRESULT
+    var _remove_WindowCloseRequested : (s : *mut ICoreWebView2, token : EventRegistrationToken) => HRESULT
 }
 
 public struct ICoreWebView2 {
@@ -1254,8 +1282,8 @@ public const g_js_vtbl : ICoreWebView2ExecuteScriptCompletedHandlerVtbl = ICoreW
 // Bridge JS: uses chrome.webview.postMessage() to send messages to native,
 // and a global _resolve callback (called via ExecuteScript from native)
 // to receive results back. No prompt() dialogs.
-// The native side calls: ExecuteScript("window.webview_bridge._resolve(id, \"result_json\")")
-const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { _id: 0, _pending: {}, call: function(method, args) { return new Promise(function(resolve) { var id = window.webview_bridge._id++; window.webview_bridge._pending[id] = resolve; window.chrome.webview.postMessage(JSON.stringify({id: id, method: method, args: args})); }); }, _resolve: function(id, result) { var p = window.webview_bridge._pending[id]; if (p) { delete window.webview_bridge._pending[id]; p(result); } } };"""
+// The native side calls: ExecuteScript("window.__webview__.onReply(id, status, result_json)")
+const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.chrome.webview.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error("Failed to parse binding result as JSON"));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();})()"""
 
 // Heap-allocated holder for a bound JS<->native handler (same pattern as linux.ch).
 public struct JsBindHolder {
@@ -1304,10 +1332,107 @@ func wmh_release(s : *mut ICoreWebView2WebMessageReceivedEventHandler) : ULONG {
     return 0
 }
 
+// === JSON helpers (ported from webview/webview json.hh) =====================
+// Escape a string into a JSON string literal (with surrounding quotes).
+func webview_json_escape(s : std::string_view) : string {
+    var result = string("\"")
+    var i : size_t = 0
+    while(i < s.size()) {
+        var c = s.get(i)
+        if(c == '"') {
+            result.append_view(std::string_view::make_no_len("\\\""))
+        } else if(c == '\\') {
+            result.append_view(std::string_view::make_no_len("\\\\"))
+        } else if(c == '\b') {
+            result.append_view(std::string_view::make_no_len("\\b"))
+        } else if(c == '\f') {
+            result.append_view(std::string_view::make_no_len("\\f"))
+        } else if(c == '\n') {
+            result.append_view(std::string_view::make_no_len("\\n"))
+        } else if(c == '\r') {
+            result.append_view(std::string_view::make_no_len("\\r"))
+        } else if(c == '\t') {
+            result.append_view(std::string_view::make_no_len("\\t"))
+        } else if((c as u8) <= (0x1f as u8)) {
+            result.append_view(std::string_view::make_no_len("\\u00"))
+            var hex = std::string("0123456789abcdef")
+            var uc : u8 = c as u8
+            result.append(hex.get((uc >> 4) as size_t))
+            result.append(hex.get((uc & 0x0f) as size_t))
+        } else {
+            result.append(c)
+        }
+        i = i + 1
+    }
+    result.append('"')
+    return result
+}
+
+// Parse the value for `key` out of a JSON object. Returns the unescaped content
+// for quoted string values, or the raw text for arrays/objects/numbers. Returns
+// "" if the key is not found.
+func webview_json_parse(msg : std::string_view, key : std::string_view) : string {
+    // Build needle: "key": (with both quotes around the key)
+    var needle = string("\"")
+    needle.append_view(&key)
+    needle.append('"')
+    needle.append(':')
+    var nv = std::string_view::constructor(needle.data(), needle.size())
+    var pos = msg.find(&nv)
+    if(pos >= msg.size()) {
+        return string("")
+    }
+    var vstart : size_t = pos + needle.size()
+    if(vstart >= msg.size()) {
+        return string("")
+    }
+    var c0 = msg.get(vstart)
+    if(c0 == '"') {
+        var out = string("")
+        var j : size_t = vstart + 1
+        while(j < msg.size()) {
+            var c = msg.get(j)
+            if(c == '\\') {
+                j = j + 1
+                if(j >= msg.size()) { break }
+                var e = msg.get(j)
+                if(e == 'b') { out.append('\b') }
+                else if(e == 'f') { out.append('\f') }
+                else if(e == 'n') { out.append('\n') }
+                else if(e == 'r') { out.append('\r') }
+                else if(e == 't') { out.append('\t') }
+                else if(e == '/') { out.append('/') }
+                else if(e == '\\') { out.append('\\') }
+                else if(e == '"') { out.append('"') }
+                else { out.append(e) }
+            } else if(c == '"') {
+                break
+            } else {
+                out.append(c)
+            }
+            j = j + 1
+        }
+        return out
+    }
+    // Non-string value: read until a top-level , } or ]
+    var out = string("")
+    var j : size_t = vstart
+    var depth : int = 0
+    while(j < msg.size()) {
+        var c = msg.get(j)
+        // Check break conditions at current depth BEFORE adjusting depth
+        if(depth == 0 && (c == ',' || c == '}' || c == ']')) { break }
+        if(c == '{' || c == '[') { depth = depth + 1 }
+        else if(c == '}' || c == ']') { depth = depth - 1 }
+        out.append(c)
+        j = j + 1
+    }
+    return out
+}
+
 // WebMessageReceived callback. The JS bridge posts JSON like
-// {"id":N,"method":"name","args":"..."}. We parse it, call the
-// bound handler, and post the result back as
-// {"id":N,"result":"..."}.
+// {"id":"...","method":"name","params":[...]}. We parse it, call the
+// bound handler, and resolve the call via window.__webview__.onReply(id, 0, result).
 func wmh_invoke(s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *mut ICoreWebView2, args : *mut ICoreWebView2WebMessageReceivedEventArgs) : HRESULT {
     var h = wmh_from_iface(s)
     var wv = h.wv
@@ -1327,102 +1452,33 @@ func wmh_invoke(s : *mut ICoreWebView2WebMessageReceivedEventHandler, sender : *
     }
     var msg_view = std::string_view::make_no_len(msg_utf8)
 
-    // Parse JSON: find "id":
-    // The message is {"id":N,"method":"name","args":"..."}
-    var id_start = msg_view.find(std::string_view::make_no_len("\"id\":"))
-    if(id_start == msg_view.size()) {
+    var id = webview_json_parse(msg_view, std::string_view::make_no_len("id"))
+    var method = webview_json_parse(msg_view, std::string_view::make_no_len("method"))
+    var params = webview_json_parse(msg_view, std::string_view::make_no_len("params"))
+
+    if(method.size() == 0) {
         free(msg_utf8 as *mut void)
         return S_OK
     }
-    id_start = id_start + 6 // skip "id":
-    // Parse the numeric id
-    var id_val : i64 = 0
-    while(id_start < msg_view.size()) {
-        var c = msg_view.get(id_start)
-        if(c >= '0' && c <= '9') {
-            id_val = id_val * 10 + (c as i64 - 48)
-        } else {
-            break
-        }
-        id_start = id_start + 1
-    }
 
-    // Find "method":"
-    var method_start = msg_view.find(std::string_view::make_no_len("\"method\":\""))
-    if(method_start == msg_view.size()) {
-        free(msg_utf8 as *mut void)
-        return S_OK
-    }
-    method_start = method_start + 11 // skip "method":"
-    var method_end = method_start
-    while(method_end < msg_view.size()) {
-        if(msg_view.get(method_end) == '"') {
-            break
-        }
-        method_end = method_end + 1
-    }
-    var method = msg_view.subview(method_start, method_end)
+    // Call the bound handler. `method` and `params` are strings; convert to
+    // string_view for the handler signature (method : string_view, args : string_view).
+    var method_view = std::string_view::constructor(method.data(), method.size())
+    var params_view = std::string_view::constructor(params.data(), params.size())
+    var result = wv.bind_ctx.handler(method_view, params_view)
 
-    // Find "args":"
-    var args_start = msg_view.find(std::string_view::make_no_len("\"args\":\""))
-    unsafe var args_view : std::string_view
-    if(args_start == msg_view.size()) {
-        // No args, or args is not a string — try args": without the quote
-        args_start = msg_view.find(std::string_view::make_no_len("\"args\":\""))
-        if(args_start == msg_view.size()) {
-            args_view = std::string_view::make_no_len("")
-        } else {
-            args_start = args_start + 8 // skip "args":
-            // Skip the opening quote
-            if(args_start < msg_view.size() && msg_view.get(args_start) == '"') {
-                args_start = args_start + 1
-            }
-            var args_end = args_start
-            while(args_end < msg_view.size()) {
-                if(msg_view.get(args_end) == '"') {
-                    break
-                }
-                args_end = args_end + 1
-            }
-            args_view = msg_view.subview(args_start, args_end)
-        }
+    // Resolve the call. Mirrors webview/webview engine_base.hh resolve().
+    var js_call = string("window.__webview__.onReply(")
+    var id_escaped = webview_json_escape(std::string_view::constructor(id.data(), id.size()))
+    js_call.append_view(std::string_view::constructor(id_escaped.data(), id_escaped.size()))
+    js_call.append_view(std::string_view::make_no_len(", 0, "))
+    if(result.size() == 0) {
+        js_call.append_view(std::string_view::make_no_len("undefined"))
     } else {
-        args_start = args_start + 8 // skip "args":
-        if(args_start < msg_view.size() && msg_view.get(args_start) == '"') {
-            args_start = args_start + 1
-        }
-        var args_end2 = args_start
-        while(args_end2 < msg_view.size()) {
-            if(msg_view.get(args_end2) == '"') {
-                break
-            }
-            args_end2 = args_end2 + 1
-        }
-        args_view = msg_view.subview(args_start, args_end2)
+        var result_escaped = webview_json_escape(std::string_view::constructor(result.data(), result.size()))
+        js_call.append_view(std::string_view::constructor(result_escaped.data(), result_escaped.size()))
     }
-
-    // Call the bound handler
-    var result = wv.bind_ctx.handler(method, args_view)
-
-    // Build JS call: window.webview_bridge._resolve(id, "escaped_result")
-    // The result is embedded inside a JS string literal, so we must
-    // escape backslashes and double quotes.
-    var js_call = string("window.webview_bridge._resolve(")
-    js_call.append_integer(id_val as bigint)
-    js_call.append_view(std::string_view::make_no_len(", \""))
-    var ri : size_t = 0
-    while(ri < result.size()) {
-        var rc = result.get(ri)
-        if(rc == '\\') {
-            js_call.append_view(std::string_view::make_no_len("\\\\"))
-        } else if(rc == '"') {
-            js_call.append_view(std::string_view::make_no_len("\\\""))
-        } else {
-            js_call.append(rc)
-        }
-        ri = ri + 1
-    }
-    js_call.append_view(std::string_view::make_no_len("\")"))
+    js_call.append_view(std::string_view::make_no_len(")"))
 
     // Defer the ExecuteScript call to the message loop. Calling ExecuteScript
     // directly from inside the WebMessageReceived COM callback can deadlock
@@ -1451,8 +1507,8 @@ func wv_inject_bridge(wv : *mut WebView) {
     if(wv.webview == null) {
         return
     }
-    unsafe var js_buf : [2048]ushort
-    widen_to_buf(WEBVIEW_BRIDGE_JS, &raw mut js_buf[0], 2048)
+    unsafe var js_buf : [8192]ushort
+    widen_to_buf(WEBVIEW_BRIDGE_JS, &raw mut js_buf[0], 8192)
     wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw js_buf[0], null)
 }
 
@@ -1854,7 +1910,7 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
     return &raw mut wv.win
 }
 
-// Bind a native handler to the JS window.webview_bridge.call(method, args).
+// Bind a native handler to the JS window.__webview__.call(method, ...params).
 // The handler runs on the UI thread (inside the message loop) and its JSON
 // result is posted back to JS asynchronously via PostWebMessageAsString.
 //
@@ -1882,11 +1938,12 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
     wmh.wv = wv
     wmh.ref_count = 1
     unsafe var token : EventRegistrationToken
-    wv.webview.lpVtbl.add_WebMessageReceived(
+    var reg_hr = wv.webview.lpVtbl.add_WebMessageReceived(
         wv.webview,
         wmh as *mut ICoreWebView2WebMessageReceivedEventHandler,
         &raw mut token
     )
+    printf("[WMH] add_WebMessageReceived returned hr=0x%x token=%d\n", reg_hr as int, token.value as int)
     return std.Result.Ok(std::Unit{})
 }
 

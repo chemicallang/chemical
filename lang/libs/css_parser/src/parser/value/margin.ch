@@ -22,7 +22,7 @@ func (cssParser : &mut CSSParser) parseMargin(
 
         var i = 0;
         while(i < 4) {
-            var next : CSSValue
+            unsafe var next : CSSValue
             if(cssParser.parseLengthOrAuto(parser, builder, &mut next)) {
 
                 multiple.values.push(next)

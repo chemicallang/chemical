@@ -66,7 +66,7 @@ func (cssParser : &mut CSSParser) parseBorder(
                 if(token.value.equals("var")) {
                     parser.increment();
                     const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                    var valueRef : *mut CSSValue
+                    unsafe var valueRef : *mut CSSValue
                     if(has_length) {
                         if(has_style) {
                             valueRef = &raw mut border.color

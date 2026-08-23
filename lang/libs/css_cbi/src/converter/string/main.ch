@@ -1208,7 +1208,7 @@ func (converter : &mut ASTConverter) append_hex(val : uint) {
         str.append('0');
         return;
     }
-    var buf : [16]char;
+    unsafe var buf : [16]char;
     var bi = 0;
     while(val > 0) {
         buf[bi++] = hex[val & 0xF]

@@ -510,6 +510,92 @@ test("broken_return_type_errors",
         mod, ch_new, true, "TypeCheck"))
 ```
 
+## Dedicated Library Test Suites (process, environment, webview)
+
+Some libraries have their own separately-runnable test executables so the main `--tcc` suite
+stays fast and so environment-specific suites (e.g. webview needs GTK + a display) can be run
+independently. These are wired in `lang/tests/build.lab` and gated behind dedicated flags in
+`scripts/test.sh`.
+
+| Library | Test location | Run command | Notes |
+|---------|---------------|-------------|-------|
+| `process` | `lang/tests/process/src/process_test.ch` | `./scripts/test.sh --tcc --process` | POSIX `fork`/`exec` via `process::execute` |
+| `environment` | `lang/tests/process/src/environment_test.ch` | `./scripts/test.sh --tcc --process` | Env var get/set/unset — shares the `--process` suite (a separate `--environment` flag was deemed overkill) |
+| `webview` | `lang/tests/webview/src/webview_test.ch` | `./scripts/test.sh --tcc --webview` | Requires GTK3 + WebKit2GTK to **link/run** |
+
+### Where to write the tests
+
+Each suite is a standalone `application` module under `lang/tests/`:
+
+- `lang/tests/process/chemical.mod` — `application process_tests`, `source "src"`, imports `cstd`, `std`, `test`, `test_env`, `process`, `environment`.
+- `lang/tests/webview/chemical.mod` — `application webview_tests`, `source "src"`, imports `cstd`, `std`, `test`, `test_env`, `webview`, `window`.
+
+Each `src/` directory has a `main.ch` that simply calls `test_runner(argc, argv)` (the `@test`
+functions are auto-discovered), plus one or more `*_test.ch` files with the actual `@test`
+functions. Tests use the standard `@test` + `TestEnv` pattern and report failures with
+`env.error("msg"); return` (see Option B2 above).
+
+To add a new test, drop another `@test` function into the relevant `*_test.ch` (or a new file in
+the same `src/` directory) — no build.lab change is needed. To add a whole new library suite,
+create `lang/tests/<name>/chemical.mod` + `src/`, import it in `lang/tests/build.lab`, add a
+`test_<name>_exe(ctx)` function returning a `build_exe` job, and add a `test-<name>` branch in
+`build()` plus a matching `--<name>` flag in `scripts/test.sh`.
+
+### Webview test constraints (headless)
+
+The webview + window libraries **link against GTK3 / WebKit2GTK**, which are not present in
+headless CI — so `--webview` can only be *linked/run* where those libs exist. The test source
+can still be validated headlessly via C-emission:
+
+```bash
+./scripts/test.sh --tcc --webview --no-run --emit-c
+```
+
+Only the **display-independent** API can be exercised in tests:
+
+- `webview::WebView.make()` default field values (`width == 800`, `height == 600`, `title == "Chemical WebView"`, `initialized == false`)
+- `webview::webview_set_title(&raw mut wv, "...")` / `webview::webview_set_size(&raw mut wv, w, h)` — these update struct fields **without** creating a display.
+
+Do **not** call `webview::create` / `show` / `run` in tests — they require a graphical display
+and will fail in headless environments.
+
+### How to run
+
+```bash
+# Process + environment library tests (no special system deps)
+./scripts/test.sh --tcc --process
+
+# Webview library tests (requires GTK3 + WebKit2GTK)
+./scripts/test.sh --tcc --webview
+
+# Skip compiler rebuild when only .ch/.lab files changed:
+./scripts/test.sh --tcc --process --no-build
+```
+
+### `--target` flag
+
+`scripts/test.sh` accepts `--target <triple>` to forward a target triple to the compiler command
+line. It is **omitted** unless specified (so default runs are unaffected):
+
+```bash
+./scripts/test.sh --tcc --process --target x86_64-linux-gnu
+```
+
+### Move-semantics note for test helpers
+
+`PatternMatchId` values (`var Some(v) = result else unreachable`) and struct-member accesses are
+**non-movable**. When writing helper functions, pass them by pointer with `&raw` rather than by
+value, otherwise you'll hit:
+`[SymRes:link] error: cannot move this value without re-initializing memory`.
+
+```chemical
+func string_eq(a : *string, b : string_view) : bool { ... }
+// call as: string_eq(&raw v, string_view("expected"))
+
+func stdout_contains(data : *vector<u8>, expected : string_view) : bool { ... }
+// call as: stdout_contains(&raw r.output.stdout_data, "hello")
+```
+
 ## Writing Tests for Compiler Failure
 
 There are two approaches to testing that the compiler correctly rejects invalid code:

@@ -96,7 +96,7 @@ public func test_webview_bind_roundtrip(env : &mut TestEnv) {
 
     // The page calls the bridge on load. JSON.stringify keeps the args free of
     // raw double quotes so the HTML attribute stays valid.
-    var html = "<html><body><script>window.webview_bridge.call('ping', JSON.stringify({n:42, msg:'hello'}));</script></body></html>\0" as *char
+    var html = "<html><body><script>window.__webview__.call('ping', JSON.stringify({n:42, msg:'hello'}));</script></body></html>\0" as *char
     webview::webview_load_html(&raw mut wv, html)
     webview::webview_show(&raw mut wv)
     webview::webview_run(&raw mut wv)
@@ -130,7 +130,7 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
 
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("get")) == 0) {
-            return string("delivered")
+            return string("\"delivered\"")
         }
         if(method.find(string_view::make_no_len("verify")) == 0) {
             g_result_ok = args.find(string_view::make_no_len("delivered")) != args.size()
@@ -144,7 +144,7 @@ public func test_webview_bind_result_delivery(env : &mut TestEnv) {
         return
     }
 
-    var html = "<html><body><script>window.webview_bridge.call('get', '{}').then(function(v){ window.webview_bridge.call('verify', JSON.stringify({v:v})); });</script></body></html>\0" as *char
+    var html = "<html><body><script>window.__webview__.call('get', '{}').then(function(v){ window.__webview__.call('verify', JSON.stringify({v:v})); });</script></body></html>\0" as *char
     webview::webview_load_html(&raw mut wv, html)
     webview::webview_show(&raw mut wv)
     webview::webview_run(&raw mut wv)
@@ -176,11 +176,11 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
     var bind_result = webview::webview_bind(&raw mut wv, (method, args) => {
         if(method.find(string_view::make_no_len("alpha")) == 0) {
             g_alpha = true
-            return string("A")
+            return string("\"A\"")
         }
         if(method.find(string_view::make_no_len("beta")) == 0) {
             g_beta = true
-            return string("B")
+            return string("\"B\"")
         }
         if(method.find(string_view::make_no_len("gamma")) == 0) {
             g_gamma = true
@@ -194,7 +194,7 @@ public func test_webview_bind_method_routing(env : &mut TestEnv) {
         return
     }
 
-    var html = "<html><body><script>window.webview_bridge.call('alpha', '{}').then(function(){ return window.webview_bridge.call('beta', '{}'); }).then(function(){ return window.webview_bridge.call('gamma', '{}'); });</script></body></html>\0" as *char
+    var html = "<html><body><script>window.__webview__.call('alpha', '{}').then(function(){ return window.__webview__.call('beta', '{}'); }).then(function(){ return window.__webview__.call('gamma', '{}'); });</script></body></html>\0" as *char
     webview::webview_load_html(&raw mut wv, html)
     webview::webview_show(&raw mut wv)
     webview::webview_run(&raw mut wv)
@@ -232,7 +232,7 @@ public func test_webview_evaluate_js_result(env : &mut TestEnv) {
         return
     }
 
-    var html = "<html><body><script>window.webview_bridge.call('eval', '{}');</script></body></html>\0" as *char
+    var html = "<html><body><script>window.__webview__.call('eval', '{}');</script></body></html>\0" as *char
     webview::webview_load_html(&raw mut wv, html)
     webview::webview_show(&raw mut wv)
     webview::webview_run(&raw mut wv)

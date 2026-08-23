@@ -22,7 +22,6 @@ public type GtkContainer = window::GtkContainer
 @no_init @extern public struct WebKitSettings {}
 @no_init @extern public struct WebKitUserContentManager {}
 @no_init @extern public struct WebKitUserScript {}
-@no_init @extern public struct WebKitScriptDialog {}
 @no_init @extern public struct WebKitWebContext {}
 
 // GTK constants
@@ -36,23 +35,21 @@ const GTK_SHRINK = 1
 const WEBKIT_LOAD_FINISHED = 4
 
 // WebKit enum values (not exported by the runtime headers).
-const WEBKIT_SCRIPT_DIALOG_PROMPT = 2
 const WEBKIT_USER_CONTENT_INJECT_TOP_FRAME = 0
 const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
 
 // JS<->native bridge transport. The JS side calls
-//   window.webview_bridge.call(method, argsJson)
-// which invokes prompt() with the message "__WV_BIND__" + method + "\n" + args.
-// The script-dialog signal handler (see webview_bind) recognizes the prefix,
-// dispatches to the bound handler, and answers the prompt with the returned
-// JSON. The newline separator is safe because JSON.stringify never emits a raw
-// newline inside a string (it escapes it as \n).
-const WEBVIEW_BIND_PREFIX : *char = "__WV_BIND__"
-const WEBVIEW_BIND_PREFIX_LEN = 11
-// Single-quoted JavaScript so the raw triple-quoted string needs no escapes.
-// The newline separator inside the prompt is built with String.fromCharCode(10)
-// so JSON args can never accidentally contain a raw separating newline.
-const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { call: function(method, args) { var r = prompt('__WV_BIND__' + method + String.fromCharCode(10) + args); if (r === null) return '{"ok":false,"error":"cancelled"}'; return r; } };"""
+//   window.webview_bridge.call(method, args)
+// which posts JSON {id, method, args} to the native side through WebKit's
+// script-message-received signal on the __webview__ user-content handler
+// (window.webkit.messageHandlers.__webview__.postMessage). The native handler
+// dispatches to the bound native function and returns the result by invoking
+// window.webview_bridge._resolve(id, result). This is WebKit's designed-for
+// async messaging API (no prompt()/dialog abuse). The same window.webview_bridge
+// object is used on every platform; only the postMessage transport differs.
+// args is kept as the caller's JSON text. JSON.stringify escapes it for the
+// transport and linux_extract_args restores the original text on reception.
+const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { _id: 0, _pending: {}, call: function(method, args) { return new Promise(function(resolve) { var id = window.webview_bridge._id++; window.webview_bridge._pending[id] = resolve; var payload = {id: id, method: method, args: args}; window.webkit.messageHandlers.__webview__.postMessage(JSON.stringify(payload)); }); }, _resolve: function(id, result) { var p = window.webview_bridge._pending[id]; if (p) { delete window.webview_bridge._pending[id]; p(result); } } };"""
 
 // The injected WebKitUserScript is owned by the user content manager for the
 // lifetime of the web view (no manual unreference needed).
@@ -120,14 +117,12 @@ const WEBVIEW_BRIDGE_JS : *char = """window.webview_bridge = { call: function(me
 @extern public func webkit_javascript_result_get_js_value(result : *mut WebKitJavascriptResult) : *mut JSCValue
 @extern public func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult) : *mut WebKitJavascriptResult
 
-// User content manager + script-dialog (JS<->native bridge) APIs
+// User content manager + script-message-received (JS<->native bridge) APIs
 @extern public func webkit_web_view_get_user_content_manager(web_view : *mut WebKitWebView) : *mut WebKitUserContentManager
 @extern public func webkit_user_content_manager_new() : *mut WebKitUserContentManager
 @extern public func webkit_user_content_manager_add_script(manager : *mut WebKitUserContentManager, script : *mut WebKitUserScript)
+@extern public func webkit_user_content_manager_register_script_message_handler(manager : *mut WebKitUserContentManager, name : *char) : int
 @extern public func webkit_user_script_new(source : *char, injected_frames : int, injection_time : int, allow_list : *mut *mut void, block_list : *mut *mut void) : *mut WebKitUserScript
-@extern public func webkit_script_dialog_get_dialog_type(dialog : *mut WebKitScriptDialog) : int
-@extern public func webkit_script_dialog_get_message(dialog : *mut WebKitScriptDialog) : *char
-@extern public func webkit_script_dialog_prompt_set_text(dialog : *mut WebKitScriptDialog, text : *char)
 
 // Per-call context for webview_evaluate_js_result (freed in the callback).
 public struct JsEvalHandler {
@@ -167,6 +162,7 @@ public struct WebView {
     var height : int
     var visible : bool
     var initialized : bool
+    var bind_signal_connected : bool
 
     // Handler registered via webview_bind. Dispatches JS window.webview_bridge
     // calls. The handler is heap-allocated (std.function fields cannot be
@@ -193,6 +189,7 @@ public struct WebView {
             height : 600,
             visible : false,
             initialized : false,
+            bind_signal_connected : false,
             bind_ctx : null,
             bind_handler_set : false
         }
@@ -253,22 +250,27 @@ public func webview_create(wv : *mut WebView) : std::Result<std::Unit, WebViewEr
     wv.visible = false
     wv.initialized = true
 
-    webview_inject_bridge(wv.web_view)
+    webview_inject_bridge(wv)
 
     return std.Result.Ok(std::Unit{})
 }
 
-// Inject the JS<->native bridge stub into every page the webview loads.
-// The script runs at document start so window.webview_bridge exists before any
-// page script executes. It is harmless when no handler is bound yet.
-func webview_inject_bridge(wv : *mut GtkWidget) {
+// Inject the JS<->native bridge stub into every page the webview loads and wire
+// up the script-message-received transport. The named handler (__webview__) must
+// be registered on the user content manager BEFORE the page loads so that
+// window.webkit.messageHandlers.__webview__ exists when the injected script runs
+// (it executes at document start). The signal is connected once per webview.
+func webview_inject_bridge(wv : *mut WebView) {
     if(wv == null) {
         return
     }
-    var manager = webkit_web_view_get_user_content_manager(wv as *mut WebKitWebView)
+    var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
     if(manager == null) {
         return
     }
+    // Register the named message handler. Returns non-zero on success; calling
+    // it again for the same name is harmless (WebKit returns 0 / FALSE).
+    webkit_user_content_manager_register_script_message_handler(manager, "__webview__")
     // allow_list/block_list are NULL-terminated arrays of content-filter names;
     // null means "apply to all".
     var script = webkit_user_script_new(
@@ -291,63 +293,174 @@ public struct JsBindHolder {
     }
 }
 
-// Invoked by WebKit on the GTK main loop whenever the page calls window.prompt,
-// window.alert, or window.confirm. We only handle our bridge prefix; every
-// other dialog is left to WebKit's default handling (returning FALSE).
-func linux_on_script_dialog(web_view : *mut WebKitWebView, dialog : *mut WebKitScriptDialog, data : *mut void) : int {
-    if(data == null) {
-        return 0
+// Callback for the WebKitUserContentManager "script-message-received::__webview__"
+// signal. The JS side posts a string via
+// window.webkit.messageHandlers.__webview__.postMessage(); WebKit wraps it in a
+// WebKitJavascriptResult. We extract the string, parse the {id, method, args}
+// JSON, dispatch to the bound handler, and send the result back via
+// window.webview_bridge._resolve(id, result).
+func linux_on_script_message(
+    manager : *mut WebKitUserContentManager,
+    js_result : *mut WebKitJavascriptResult,
+    data : *mut void
+) : void {
+    if(js_result == null || data == null) {
+        return
     }
     var wv = data as *mut WebView
     if(!wv.bind_handler_set || wv.bind_ctx == null) {
-        return 0
+        return
     }
-    if(webkit_script_dialog_get_dialog_type(dialog) != WEBKIT_SCRIPT_DIALOG_PROMPT) {
-        return 0
+    var jsc_value = webkit_javascript_result_get_js_value(js_result)
+    if(jsc_value == null) {
+        return
     }
-    var msg = webkit_script_dialog_get_message(dialog)
-    if(msg == null) {
-        return 0
+    var msg_cstr = jsc_value_to_string(jsc_value)
+    if(msg_cstr == null) {
+        return
     }
+    linux_on_message(wv, msg_cstr)
+    free(msg_cstr as *mut void)
+}
+
+// Extract the "args" JSON value from a bridge message. Returns the raw,
+// un-escaped argument object. When the bridge embeds args as a real JSON value
+// (the common case) we copy it verbatim; when it arrives as a quoted JSON string
+// (e.g. invalid caller input) we unescape it.
+func linux_extract_args(msg_view : std::string_view) : string {
+    var args_start = msg_view.find(std::string_view::make_no_len("\"args\":"))
+    if(args_start == msg_view.size()) {
+        return string()
+    }
+    args_start = args_start + 7 // skip "args":
+    while(args_start < msg_view.size() && msg_view.get(args_start) == ' ') {
+        args_start = args_start + 1
+    }
+    if(args_start >= msg_view.size()) {
+        return string()
+    }
+    var first = msg_view.get(args_start)
+    if(first == '"') {
+        // Quoted JSON string: copy the content, unescaping \n \t \r \\ \" \/ .
+        args_start = args_start + 1
+        var out = string()
+        var i = args_start
+        while(i < msg_view.size()) {
+            var c = msg_view.get(i)
+            if(c == '"') {
+                break
+            } else if(c == '\\') {
+                i = i + 1
+                if(i >= msg_view.size()) { break }
+                var e = msg_view.get(i)
+                if(e == 'n') { out.append('\n') }
+                else if(e == 't') { out.append('\t') }
+                else if(e == 'r') { out.append('\r') }
+                else if(e == '"') { out.append('"') }
+                else if(e == '\\') { out.append('\\') }
+                else if(e == '/') { out.append('/') }
+                else { out.append(e) }
+            } else {
+                out.append(c)
+            }
+            i = i + 1
+        }
+        return out
+    }
+    // Raw JSON value (object/array/number/bool/null): copy until the top-level
+    // closing , or }.
+    var out = string()
+    var depth = 0
+    var i = args_start
+    while(i < msg_view.size()) {
+        var c = msg_view.get(i)
+        if(c == '{' || c == '[') {
+            depth = depth + 1
+            out.append(c)
+        } else if(c == '}' || c == ']') {
+            depth = depth - 1
+            out.append(c)
+            if(depth == 0) { break }
+        } else if(c == ',' && depth == 0) {
+            break
+        } else {
+            out.append(c)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+// Process an incoming bridge message (JSON from JS). Parses {id, method, args},
+// calls the bound handler, and sends the result back via run_javascript.
+func linux_on_message(wv : *mut WebView, msg : *char) {
     var msg_view = std::string_view::make_no_len(msg)
 
-    // Must start with the bridge prefix.
-    var prefix_len = WEBVIEW_BIND_PREFIX_LEN as size_t
-    if(msg_view.size() < prefix_len) {
-        return 0
+    // Parse "id":
+    var id_start = msg_view.find(std::string_view::make_no_len("\"id\":"))
+    if(id_start == msg_view.size()) {
+        return
     }
-    for(var i = 0; i < WEBVIEW_BIND_PREFIX_LEN; i++) {
-        if(msg_view.get(i as size_t) != WEBVIEW_BIND_PREFIX[i]) {
-            return 0
-        }
+    id_start = id_start + 5 // length of "id":
+    while(id_start < msg_view.size() && (msg_view.get(id_start) < '0' || msg_view.get(id_start) > '9')) {
+        id_start = id_start + 1
     }
-
-    // Find the newline separator: prefix + method + '\n' + args.
-    var nl = prefix_len
-    var found = false
-    while(nl < msg_view.size()) {
-        if(msg_view.get(nl) == '\n') {
-            found = true
+    var id_val : i64 = 0
+    while(id_start < msg_view.size()) {
+        var c = msg_view.get(id_start)
+        if(c >= '0' && c <= '9') {
+            id_val = id_val * 10 + (c as i64 - 48)
+        } else {
             break
         }
-        nl = nl + 1
-    }
-    if(!found) {
-        return 0
+        id_start = id_start + 1
     }
 
-    var method = msg_view.subview(prefix_len, nl)
-    var args = msg_view.subview(nl + 1, msg_view.size())
+    // Parse "method":"..."
+    var method_start = msg_view.find(std::string_view::make_no_len("\"method\":\""))
+    if(method_start == msg_view.size()) {
+        return
+    }
+    method_start = method_start + 10 // length of "method":
+    var method_end = method_start
+    while(method_end < msg_view.size() && msg_view.get(method_end) != '"') {
+        method_end = method_end + 1
+    }
+    var method = msg_view.subview(method_start, method_end)
 
-    var result = wv.bind_ctx.handler(method, args)
-    webkit_script_dialog_prompt_set_text(dialog, result.data())
-    return 1
+    // Parse args (raw, un-escaped).
+    var args_str = linux_extract_args(msg_view)
+    var args_view = std::string_view::make_view(&args_str)
+
+    // Call the bound handler.
+    var result = wv.bind_ctx.handler(method, args_view)
+
+    // Build JS call: window.webview_bridge._resolve(id, "escaped_result").
+    // The result is embedded inside a JS string literal, so escape backslashes
+    // and double quotes.
+    var js_call = string("window.webview_bridge._resolve(")
+    js_call.append_integer(id_val as bigint)
+    js_call.append_view(std::string_view::make_no_len(", \""))
+    var ri : size_t = 0
+    while(ri < result.size()) {
+        var rc = result.get(ri)
+        if(rc == '\\') {
+            js_call.append_view(std::string_view::make_no_len("\\\\"))
+        } else if(rc == '"') {
+            js_call.append_view(std::string_view::make_no_len("\\\""))
+        } else {
+            js_call.append(rc)
+        }
+        ri = ri + 1
+    }
+    js_call.append_view(std::string_view::make_no_len("\")"))
+    webview_evaluate_js(wv, js_call.data())
 }
 
 // Bind a native handler to the JS window.webview_bridge.call(method, args).
-// Returns the handler's JSON result synchronously to the calling JavaScript.
-// The handler runs on the GTK main loop; it must not block for long (it blocks
-// page JavaScript while it runs).
+// The handler runs on the GTK main loop; it must not block for long. The
+// script-message-received signal is connected here, after the caller owns the
+// final WebView address returned by create().
 public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
     if(wv.web_view == null) {
         return std.Result.Err(WebViewError.InitFailed(string("webview_bind: webview is not initialized")))
@@ -364,13 +477,23 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
     holder.set(handler)
     wv.bind_ctx = holder
     wv.bind_handler_set = true
-    g_signal_connect_data(
-        wv.web_view as *mut void,
-        "script-dialog",
-        linux_on_script_dialog as *mut void,
-        wv as *mut void,
-        null,
-        0)
+    if(!wv.bind_signal_connected) {
+        var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
+        if(manager == null) {
+            delete holder
+            wv.bind_ctx = null
+            wv.bind_handler_set = false
+            return std.Result.Err(WebViewError.InitFailed(string("webview_bind: user content manager unavailable")))
+        }
+        g_signal_connect_data(
+            manager as *mut void,
+            "script-message-received::__webview__",
+            linux_on_script_message as *mut void,
+            wv as *mut void,
+            null,
+            0)
+        wv.bind_signal_connected = true
+    }
     return std.Result.Ok(std::Unit{})
 }
 
@@ -449,7 +572,7 @@ public func webview_attach(
     gtk_container_add(host as *mut GtkContainer, wv.fixed)
     gtk_widget_show_all(wv.fixed)
 
-    webview_inject_bridge(wv.web_view)
+    webview_inject_bridge(wv)
 
     wv.initialized = true
     return std.Result.Ok(std::Unit{})
@@ -478,6 +601,7 @@ public func webview_destroy(wv : *mut WebView) {
     }
     wv.bind_ctx = null
     wv.bind_handler_set = false
+    wv.bind_signal_connected = false
     // If the last window_run() returned because the window was destroyed (the
     // user closed it), every widget packed into it — including this webview
     // section and the top-level window itself — has already been finalized.

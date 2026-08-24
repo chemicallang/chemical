@@ -377,7 +377,7 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func usleep(usec : int) : int
 @extern public func chdir(path : *char) : int
 @extern public func kill(pid : int, sig : int) : int
-@extern public func fcntl(fd : int, cmd : int, arg : int) : int
+@extern public func fcntl(fd : int, cmd : int, _ : any...) : int
 @extern public func __errno_location() : *mut int
 @extern public func access(path : *char, mode : int) : int
 

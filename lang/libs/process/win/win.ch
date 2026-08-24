@@ -33,6 +33,9 @@ public func CreatePipe(
     nSize : DWORD
 ) : BOOL;
 
+@dllimport @extern @stdcall
+public func SetHandleInformation(hObject : HANDLE, dwMask : DWORD, dwFlags : DWORD) : BOOL;
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -42,6 +45,7 @@ comptime const CREATE_NO_WINDOW : DWORD = 0x08000000 as DWORD;
 comptime const WAIT_OBJECT_0 : DWORD = 0 as DWORD;
 comptime const WAIT_TIMEOUT : DWORD = 258 as DWORD;
 comptime const INFINITE : DWORD = 0xFFFFFFFF as DWORD;
+comptime const HANDLE_FLAG_INHERIT : DWORD = 0x00000001 as DWORD;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -64,11 +68,9 @@ func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
     return true
 }
 
-/// Build a command line string from args: "cmd /c arg1 arg2 arg3"
-/// The result is a null-terminated mutable buffer for CreateProcessA.
+/// Build a command line string from args with "cmd /c" wrapper.
+/// Used by win_execute where stdin piping is not needed.
 func win_build_cmdline(args : *vector<string>) : string {
-    // Always use cmd /c to ensure cmd.exe builtins and PATH resolution work.
-    // Quote args after -c flags so sh receives the full command string.
     var cmd = string("cmd /c ")
     var i : size_t = 0
     var prev_was_flag = false
@@ -114,6 +116,7 @@ public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
         if(CreatePipe(&raw mut stdout_read, &raw mut stdout_write, &raw mut sa, 0) == 0) {
             return false
         }
+        SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0)
     }
 
     // Create stderr pipe (not needed when merging into stdout)
@@ -125,6 +128,7 @@ public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
             }
             return false
         }
+        SetHandleInformation(stderr_read, HANDLE_FLAG_INHERIT, 0)
     }
 
     // Build command line
@@ -242,6 +246,11 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
         if(CreatePipe(&raw mut stdout_read, &raw mut stdout_write, &raw mut sa, 0) == 0) {
             return false
         }
+        // Prevent the parent-side read handle from being inherited by the child.
+        // Without this, CreateProcessA duplicates ALL inheritable handles, so the
+        // parent's copy of stdout_read would keep the pipe alive even after the
+        // real read end is closed — blocking win_read_all forever.
+        SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0)
     }
 
     // Create stderr pipe
@@ -253,6 +262,7 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
             }
             return false
         }
+        SetHandleInformation(stderr_read, HANDLE_FLAG_INHERIT, 0)
     }
 
     // Create stdin pipe
@@ -261,6 +271,10 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
         if(cfg.capture_stderr) { CloseHandle(stderr_read); CloseHandle(stderr_write) }
         return false
     }
+    // Prevent the parent-side write handle from being inherited by the child.
+    // Without this, closing stdin_write in the parent doesn't send EOF because
+    // the child still has its own inherited copy of the write handle.
+    SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, 0)
 
     // Build command line
     var cmd = win_build_cmdline(&raw mut cfg.args)
@@ -331,6 +345,14 @@ public func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool
     var stdout_data = vector<u8>()
     var stderr_data = vector<u8>()
 
+    // Close stdin first — the child may be blocking on stdin (e.g. cat,
+    // shell). Closing the write end sends EOF so the child can exit and
+    // close its stdout/stderr, preventing a deadlock in win_read_all.
+    if(child.win.h_stdin_write != null) {
+        CloseHandle(child.win.h_stdin_write)
+        child.win.h_stdin_write = null
+    }
+
     // Read stdout
     if(child.win.h_stdout_read != null) {
         win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
@@ -343,12 +365,6 @@ public func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool
         win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
         CloseHandle(child.win.h_stderr_read)
         child.win.h_stderr_read = null
-    }
-
-    // Close stdin
-    if(child.win.h_stdin_write != null) {
-        CloseHandle(child.win.h_stdin_write)
-        child.win.h_stdin_write = null
     }
 
     // Wait for process

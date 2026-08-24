@@ -17,4 +17,19 @@ public namespace process {
 @stdcall
 public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 
+@dllimport
+@extern
+@stdcall
+public func WaitForSingleObject(hHandle : HANDLE, dwMilliseconds : DWORD) : DWORD;
+
+@dllimport
+@extern
+@stdcall
+public func GetCurrentProcessId() : DWORD;
+
+@dllimport
+@extern
+@stdcall
+public func Sleep(dwMilliseconds : DWORD) : void;
+
 } // end namespace process

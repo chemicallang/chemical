@@ -85,6 +85,7 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;
+    unsafe var stdin_pipe : [2]int;
 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
@@ -95,17 +96,26 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
             return false
         } else {}
     } else {}
+    // Always create a stdin pipe so write_stdin/close_stdin work.
+    if(pipe(&raw mut stdin_pipe[0]) != 0) {
+        if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
+        if(cfg.capture_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+        return false
+    } else {}
 
     var pid = fork();
     if(pid == -1) {
         if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
         if(cfg.capture_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+        close(stdin_pipe[0]); close(stdin_pipe[1]);
         return false
     } else {}
 
     if(pid == 0) {
         if(cfg.capture_stdout) { close(stdout_pipe[0]); dup2(stdout_pipe[1], 1); close(stdout_pipe[1]); } else {}
         if(cfg.capture_stderr) { close(stderr_pipe[0]); dup2(stderr_pipe[1], 2); close(stderr_pipe[1]); } else {}
+        // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
+        close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
         var argv = build_argv(&raw mut cfg.args);
         execvp(argv.ptrs[0], &raw argv.ptrs[0]);
         _exit(1);
@@ -113,11 +123,12 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
 
     if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
     if(cfg.capture_stderr) { close(stderr_pipe[1]); } else {}
+    close(stdin_pipe[0]); // parent writes to stdin_pipe[1]
 
     child._unix.pid = pid;
     child._unix.stdout_fd = if(cfg.capture_stdout) stdout_pipe[0] else -1;
     child._unix.stderr_fd = if(cfg.capture_stderr) stderr_pipe[0] else -1;
-    child._unix.stdin_fd = -1;
+    child._unix.stdin_fd = stdin_pipe[1];
     child.is_running = true;
     return true
 }
@@ -141,6 +152,11 @@ public func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bo
         } else {}
         close(child._unix.stderr_fd);
         child._unix.stderr_fd = -1;
+    } else {}
+    // Close stdin pipe if still open.
+    if(child._unix.stdin_fd >= 0) {
+        close(child._unix.stdin_fd);
+        child._unix.stdin_fd = -1;
     } else {}
 
     var status : int = 0;
@@ -207,6 +223,8 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func close(fd : int) : int
 @extern public func read(fd : int, buf : *mut void, count : size_t) : isize
 @extern public func write(fd : int, buf : *void, count : size_t) : isize
+@extern public func getpid() : int
+@extern public func usleep(usec : int) : int
 
 const _WIFEXITED_MASK = 0x7f;
 func WIFEXITED(status : int) : bool { return (status & _WIFEXITED_MASK) == 0; }

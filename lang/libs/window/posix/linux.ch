@@ -622,9 +622,6 @@ func linux_on_drag_data_received(
 // ===========================================================================
 
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
-    if(w == null) {
-        return std.Result.Err(WindowError.InvalidState(string("window_create: null window")))
-    }
     if(w.created) {
         return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
     }
@@ -725,9 +722,6 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
 }
 
 public func window_destroy(w : *mut Window) {
-    if(w == null) {
-        return
-    }
     if(g_quit_by_destroy != 0) {
         // The window was already destroyed by the user (the main loop quit
         // because the destroy handler fired) — the widget pointer may be
@@ -746,9 +740,6 @@ public func window_destroy(w : *mut Window) {
 }
 
 public func window_is_created(w : *mut Window) : bool {
-    if(w == null) {
-        return false
-    }
     return w.created && w.widget != null
 }
 
@@ -912,7 +903,7 @@ public func window_set_cursor(w : *mut Window, cursor : int) {
 }
 
 public func window_set_icon(w : *mut Window, path : *char) {
-    if(w.widget == null || path == null) {
+    if(w.widget == null) {
         return
     }
     var err : *mut GError = null

@@ -721,9 +721,7 @@ public func window_title(w : *mut Window) : string {
 
 public func window_set_title(w : *mut Window, title : *char) {
     w.title = string("")
-    if(title != null) {
-        w.title.append_char_ptr(title)
-    }
+    w.title.append_char_ptr(title)
     if(w.hwnd != null) {
         unsafe var wbuf : [512]ushort
         widen_to_buf(title, &raw mut wbuf[0], 512)
@@ -911,7 +909,7 @@ public func window_set_cursor(w : *mut Window, cursor : int) {
 }
 
 public func window_set_icon(w : *mut Window, path : *char) {
-    if(w.hwnd == null || path == null) {
+    if(w.hwnd == null) {
         return
     }
         unsafe var wbuf : [1024]ushort

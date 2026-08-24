@@ -174,6 +174,8 @@ public:
 
     void VisitIsValue(IsValue* value);
 
+    void VisitZeroedValue(ZeroedValue* value);
+
     void VisitLambdaFunction(LambdaFunction* value);
 
     void VisitNegativeValue(NegativeValue* value);

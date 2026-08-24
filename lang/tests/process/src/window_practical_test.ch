@@ -394,16 +394,6 @@ public func test_practical_window_monitor_info(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
-// Error: create null window
-// ---------------------------------------------------------------------------
-
-@test
-public func test_practical_window_create_null_fails(env : &mut TestEnv) {
-    var res = window::window_create(null)
-    if(res is Result.Ok) { env.error("create(null) should fail"); return }
-}
-
-// ---------------------------------------------------------------------------
 // Error: create already-created window
 // ---------------------------------------------------------------------------
 

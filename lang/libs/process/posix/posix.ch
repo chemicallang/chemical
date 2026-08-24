@@ -56,8 +56,25 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
             dup2(stderr_pipe[1], 2)
             close(stderr_pipe[1])
         } else {}
+        // stdin_data: create a temporary pipe in the child, write data, then dup2 to fd 0.
+        // This is done in the child so the parent doesn't need a separate pipe.
+        if(cfg.stdin_data.size() > 0) {
+            unsafe var stdin_pipe_tmp : [2]int
+            pipe(&raw mut stdin_pipe_tmp[0])
+            // Write data to the pipe write end in the child, then close it.
+            var written = write(stdin_pipe_tmp[1], cfg.stdin_data.data() as *void, cfg.stdin_data.size())
+            close(stdin_pipe_tmp[1])
+            dup2(stdin_pipe_tmp[0], 0)
+            close(stdin_pipe_tmp[0])
+        } else {}
         var argv = build_argv(&raw mut cfg.args);
-        execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+        // If env vars are provided, use execve() with custom environment.
+        if(cfg.env.size() > 0) {
+            var envp = build_envp(&raw mut cfg.env);
+            execve(argv.ptrs[0], &raw argv.ptrs[0], &raw envp.ptrs[0]);
+        } else {
+            execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+        }
         _exit(1);
     } else {}
 
@@ -94,7 +111,28 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     } else {}
 
     var status : int = 0;
-    waitpid(pid, &raw mut status, 0);
+    var timed_out = false
+    if(cfg.timeout_ms > 0) {
+        // Poll with timeout: sleep in 10ms increments
+        var elapsed : int = 0
+        while(elapsed < cfg.timeout_ms) {
+            var ret = waitpid(pid, &raw mut status, 1) // WNOHANG
+            if(ret != 0) { break }
+            usleep(10000) // 10ms
+            elapsed += 10
+        }
+        if(elapsed >= cfg.timeout_ms) {
+            // Check one more time
+            var ret = waitpid(pid, &raw mut status, 1)
+            if(ret == 0) {
+                timed_out = true
+                kill(pid, 9) // SIGKILL
+                waitpid(pid, &raw mut status, 0)
+            }
+        }
+    } else {
+        waitpid(pid, &raw mut status, 0)
+    }
 
     var exit_code : int = 0;
     var signaled : bool = false;
@@ -108,7 +146,7 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     out.status.code = exit_code;
     out.status.signaled = signaled;
     out.status.signal = signal_no;
-    out.success = (exit_code == 0 && !signaled);
+    out.success = (exit_code == 0 && !signaled && !timed_out);
     return true
 }
 
@@ -151,7 +189,12 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
         close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
         var argv = build_argv(&raw mut cfg.args);
-        execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+        if(cfg.env.size() > 0) {
+            var envp = build_envp(&raw mut cfg.env);
+            execve(argv.ptrs[0], &raw argv.ptrs[0], &raw envp.ptrs[0]);
+        } else {
+            execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+        }
         _exit(1);
     } else {}
 
@@ -230,6 +273,18 @@ func build_argv(args : *vector<string>) : ArgvBuffer {
     return buf;
 }
 
+func build_envp(env : *vector<string>) : ArgvBuffer {
+    unsafe var buf : ArgvBuffer;
+    buf.count = env.size();
+    var i : size_t = 0;
+    while(i < env.size()) {
+        buf.ptrs[i] = env.get_ptr(i).data()
+        i += 1;
+    }
+    buf.ptrs[i] = null;
+    return buf;
+}
+
 func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
     unsafe var buf : [4096]u8;
     while(true) {
@@ -252,6 +307,7 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func fork() : int
 @extern public func dup2(oldfd : int, newfd : int) : int
 @extern public func execvp(file : *char, argv : **char) : int
+@extern public func execve(file : *char, argv : **char, envp : **char) : int
 @extern public func waitpid(pid : int, status : *mut int, options : int) : int
 @extern public func _exit(status : int)
 @extern public func close(fd : int) : int
@@ -260,6 +316,7 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func getpid() : int
 @extern public func usleep(usec : int) : int
 @extern public func chdir(path : *char) : int
+@extern public func kill(pid : int, sig : int) : int
 
 const _WIFEXITED_MASK = 0x7f;
 func WIFEXITED(status : int) : bool { return (status & _WIFEXITED_MASK) == 0; }

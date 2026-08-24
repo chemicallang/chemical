@@ -53,6 +53,7 @@ public struct ProcessConfig {
     var capture_stderr : bool;
     var merge_stdout_stderr : bool;
     var stdin_data : vector<u8>;
+    var timeout_ms : int;
 
     func default() : ProcessConfig {
         return ProcessConfig {
@@ -62,7 +63,8 @@ public struct ProcessConfig {
             capture_stdout = true,
             capture_stderr = true,
             merge_stdout_stderr = false,
-            stdin_data = vector<u8>()
+            stdin_data = vector<u8>(),
+            timeout_ms = 0
         }
     }
 }

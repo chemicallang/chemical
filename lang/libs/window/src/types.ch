@@ -153,5 +153,6 @@ public type FocusCallback = (data : *mut void, focused : bool) => void
 public type EventCallback = (data : *mut void, event : *mut Event) => void
 public type DropCallback = (data : *mut void, path : *char) => void
 public type CommandCallback = (data : *mut void, id : int) => void
+public type TimerCallback = (data : *mut void) => void
 
 } // end namespace window

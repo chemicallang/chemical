@@ -1056,4 +1056,93 @@ public func window_post_empty_event() {
     g_idle_add(linux_empty_callback as *mut void, null)
 }
 
+// ===========================================================================
+// clipboard (GTK)
+// ===========================================================================
+
+@extern public func gtk_clipboard_get(selection : *mut void) : *mut void
+@extern public func gtk_clipboard_set_text(clipboard : *mut void, text : *char, len : int) : void
+@extern public func gtk_clipboard_wait_for_text(clipboard : *mut void) : *char
+@extern public func gtk_selection_data_get_text(data : *mut void) : *char
+@extern public func g_free(mem : *mut void)
+
+/// Get the current clipboard text content.
+public func window_get_clipboard() : Option<string> {
+    // GDK_SELECTION_CLIPBOARD = gdk_atom_intern("CLIPBOARD", 1)
+    // We use a simpler approach: get the default clipboard
+    var sel = gdk_atom_intern("CLIPBOARD", 1)
+    var cb = gtk_clipboard_get(sel)
+    if(cb == null) { return Option.None<string>() }
+    var text = gtk_clipboard_wait_for_text(cb)
+    if(text == null) { return Option.None<string>() }
+    var result = string(text)
+    g_free(text as *mut void)
+    return Option.Some(result)
+}
+
+/// Set the clipboard text content.
+public func window_set_clipboard(text : string_view) : bool {
+    var sel = gdk_atom_intern("CLIPBOARD", 1)
+    var cb = gtk_clipboard_get(sel)
+    if(cb == null) { return false }
+    gtk_clipboard_set_text(cb, text.data(), text.size() as int)
+    return true
+}
+
+@extern public func gdk_atom_intern(atom_name : *char, only_if_exists : int) : *mut void
+
+// ===========================================================================
+// timer (GTK)
+// ===========================================================================
+
+@extern public func g_timeout_add(interval_ms : u32, function : *mut void, data : *mut void) : u32
+@extern public func g_source_remove(tag : u32) : int
+
+comptime const MAX_TIMERS : int = 16
+unsafe var g_timer_cbs : [16]TimerCallback
+unsafe var g_timer_data : [16]*mut void
+unsafe var g_timer_used : [16]bool
+unsafe var g_timer_ids : [16]u32
+
+func linux_timer_wrapper(data : *mut void) : int {
+    // data is the timer index (as a pointer)
+    var idx = data as int
+    if(idx >= 0 && idx < MAX_TIMERS && g_timer_used[idx] && g_timer_cbs[idx] != null) {
+        g_timer_cbs[idx](g_timer_data[idx])
+    }
+    return 1 // return 1 to keep the timer running
+}
+
+/// Set a periodic timer.
+public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
+    var idx = -1
+    var i : int = 0
+    while(i < MAX_TIMERS) {
+        if(!g_timer_used[i]) {
+            idx = i
+            break
+        }
+        i += 1
+    }
+    if(idx < 0) { return 0 }
+    g_timer_cbs[idx] = cb
+    g_timer_data[idx] = data
+    g_timer_used[idx] = true
+    var tag = g_timeout_add(interval_ms as u32, linux_timer_wrapper as *mut void, idx as *mut void)
+    g_timer_ids[idx] = tag
+    return idx + 1
+}
+
+/// Cancel a previously set timer.
+public func window_cancel_timer(timer_id : int) {
+    if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
+    var idx = timer_id - 1
+    if(g_timer_used[idx]) {
+        g_source_remove(g_timer_ids[idx])
+        g_timer_used[idx] = false
+        g_timer_cbs[idx] = null
+        g_timer_data[idx] = null
+    }
+}
+
 } // end namespace window

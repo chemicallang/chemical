@@ -41,6 +41,17 @@ public func SetHandleInformation(hObject : HANDLE, dwMask : DWORD, dwFlags : DWO
 @extern
 func SetEnvironmentVariableA(name : *char, value : *char) : int;
 
+@dllimport @extern @stdcall
+func CreateFileA(
+    lpFileName : LPCSTR,
+    dwDesiredAccess : DWORD,
+    dwShareMode : DWORD,
+    lpSecurityAttributes : *mut SECURITY_ATTRIBUTES,
+    dwCreationDisposition : DWORD,
+    dwFlagsAndAttributes : DWORD,
+    hTemplateFile : HANDLE
+) : HANDLE;
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -51,10 +62,21 @@ comptime const WAIT_OBJECT_0 : DWORD = 0 as DWORD;
 comptime const WAIT_TIMEOUT : DWORD = 258 as DWORD;
 comptime const INFINITE : DWORD = 0xFFFFFFFF as DWORD;
 comptime const HANDLE_FLAG_INHERIT : DWORD = 0x00000001 as DWORD;
+comptime const FILE_WRITE_DATA : DWORD = 0x00000002 as DWORD;
+comptime const OPEN_EXISTING : DWORD = 3 as DWORD;
+comptime const INVALID_HANDLE_VALUE : HANDLE = (0xFFFFFFFF as usize) as HANDLE;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/// Open NUL: (Windows /dev/null equivalent) so un-captured output doesn't
+/// leak to the parent's console.
+func win_open_nul() : HANDLE {
+    var h = CreateFileA("NUL", FILE_WRITE_DATA, 0, null, OPEN_EXISTING, 0, null)
+    if(h == INVALID_HANDLE_VALUE) { return GetStdHandle(STD_OUTPUT_HANDLE) }
+    return h
+}
 
 /// Read all data from a handle until EOF.
 func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
@@ -221,14 +243,14 @@ public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
         si.hStdOutput = stdout_write
     } else {
-        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE)
+        si.hStdOutput = win_open_nul()
     }
     if(cfg.merge_stdout_stderr) {
         si.hStdError = stdout_write
     } else if(cfg.capture_stderr) {
         si.hStdError = stderr_write
     } else {
-        si.hStdError = GetStdHandle(STD_ERROR_HANDLE)
+        si.hStdError = win_open_nul()
     }
     if(has_stdin_data) {
         si.hStdInput = stdin_read
@@ -416,14 +438,14 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
         si.hStdOutput = stdout_write
     } else {
-        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE)
+        si.hStdOutput = win_open_nul()
     }
     if(cfg.merge_stdout_stderr) {
         si.hStdError = stdout_write
     } else if(cfg.capture_stderr) {
         si.hStdError = stderr_write
     } else {
-        si.hStdError = GetStdHandle(STD_ERROR_HANDLE)
+        si.hStdError = win_open_nul()
     }
     si.hStdInput = stdin_read
 

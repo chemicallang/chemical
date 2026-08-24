@@ -10,6 +10,8 @@
 public namespace window {
 
 using std::string;
+using std::Option;
+using std::string_view;
 
 // 32-bit unsigned, matching GDK's guint32 event fields (cstd only defines
 // DWORD on Windows; the Windows backend maps it to ulong there).
@@ -162,6 +164,7 @@ const GDK_ACTION_COPY = 2
 // ===========================================================================
 
 @extern public func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
+@extern public func gtk_init_check(argc : *mut int, argv : *mut *mut *char) : int
 @extern public func gtk_main()
 @extern public func gtk_main_quit()
 
@@ -879,8 +882,8 @@ public func window_restore(w : *mut Window) {
 public func window_show(w : *mut Window) {
     if(w.widget != null) {
         gtk_widget_show_all(w.widget)
-        w.visible = true
     }
+    w.visible = true
 }
 
 public func window_hide(w : *mut Window) {
@@ -1064,10 +1067,24 @@ public func window_post_empty_event() {
 @extern public func gtk_clipboard_set_text(clipboard : *mut void, text : *char, len : int) : void
 @extern public func gtk_clipboard_wait_for_text(clipboard : *mut void) : *char
 @extern public func gtk_selection_data_get_text(data : *mut void) : *char
-@extern public func g_free(mem : *mut void)
+
+/// Lazily initialize GTK exactly once. The toolkit must be initialized before
+/// any clipboard call; doing it here (rather than relying on the caller having
+/// created a window first) keeps the clipboard API self-contained while only
+/// paying the init cost a single time per process.
+unsafe var g_gtk_initialized : bool = false
+func ensure_gtk_init() {
+    if(!g_gtk_initialized) {
+        var argc : int = 0
+        var argv : *mut *mut *char = null
+        gtk_init_check(&raw mut argc, argv)
+        g_gtk_initialized = true
+    }
+}
 
 /// Get the current clipboard text content.
 public func window_get_clipboard() : Option<string> {
+    ensure_gtk_init()
     // GDK_SELECTION_CLIPBOARD = gdk_atom_intern("CLIPBOARD", 1)
     // We use a simpler approach: get the default clipboard
     var sel = gdk_atom_intern("CLIPBOARD", 1)
@@ -1082,6 +1099,7 @@ public func window_get_clipboard() : Option<string> {
 
 /// Set the clipboard text content.
 public func window_set_clipboard(text : string_view) : bool {
+    ensure_gtk_init()
     var sel = gdk_atom_intern("CLIPBOARD", 1)
     var cb = gtk_clipboard_get(sel)
     if(cb == null) { return false }

@@ -11,7 +11,9 @@ using std::vector;
 
 // POSIX: the environ variable (declared in env_os.ch on Windows)
 comptime if(!def.windows) {
-    @extern var environ : **char
+    // Use get_environ() rather than a direct `environ`/`__environ` import:
+    // in a non-PIE ELF the public `environ` symbol gets a copy relocation
+    // that leaves it NULL, while get_environ() returns the real pointer.
 }
 
 // ---------------------------------------------------------------------------
@@ -147,12 +149,12 @@ public func all() : vector<string> {
         }
         FreeEnvironmentStringsA(env_ptr)
     } else {
-        var ep = environ
+        var ep = get_environ()
         if(ep == null) { return result }
-        var i : int = 0
+        var i : int = 0;
         while(ep[i] != null) {
-            result.push(string.make_no_len(ep[i]))
-            i += 1
+            result.push(string.make_no_len(ep[i] as *char))
+            i += 1;
         }
     }
     return result
@@ -163,7 +165,9 @@ public func temp_dir() : Option<string> {
     comptime if(def.windows) {
         return get("TEMP");
     } else {
-        return get("TMPDIR");
+        var t = get("TMPDIR");
+        if(t is Option.Some) { return t; }
+        return Option.Some(string("/tmp"));
     }
 }
 

@@ -29,11 +29,32 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     } else {}
 
     if(pid == 0) {
-        if(cfg.capture_stdout) { close(stdout_pipe[0]); dup2(stdout_pipe[1], 1); close(stdout_pipe[1]); } else {}
-        if(cfg.capture_stderr || cfg.merge_stdout_stderr) {
-            close(stderr_pipe[0]);
-            if(cfg.merge_stdout_stderr) { dup2(stdout_pipe[1], 2); } else { dup2(stderr_pipe[1], 2); }
-            close(stderr_pipe[1]);
+        // Change working directory if requested.
+        if(cfg.working_dir.size() > 0) {
+            chdir(cfg.working_dir.data())
+        } else {}
+        if(cfg.capture_stdout) {
+            close(stdout_pipe[0])
+            if(cfg.merge_stdout_stderr) {
+                // Both stdout and stderr go to stdout_pipe[1]
+                dup2(stdout_pipe[1], 1)
+                dup2(stdout_pipe[1], 2)
+                close(stdout_pipe[1])
+            } else {
+                dup2(stdout_pipe[1], 1)
+                close(stdout_pipe[1])
+            }
+        } else {}
+        if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
+            close(stderr_pipe[0])
+            dup2(stderr_pipe[1], 2)
+            close(stderr_pipe[1])
+        } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
+            // merge without capture_stdout: redirect both to stderr_pipe[1]
+            close(stderr_pipe[0])
+            dup2(stderr_pipe[1], 1)
+            dup2(stderr_pipe[1], 2)
+            close(stderr_pipe[1])
         } else {}
         var argv = build_argv(&raw mut cfg.args);
         execvp(argv.ptrs[0], &raw argv.ptrs[0]);
@@ -41,8 +62,8 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     } else {}
 
     if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
-    if(cfg.capture_stderr) { close(stderr_pipe[1]); } else {}
-    if(cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
+    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { close(stderr_pipe[1]); } else {}
 
     var stdout_data = vector<u8>();
     var stderr_data = vector<u8>();
@@ -50,13 +71,22 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     if(cfg.capture_stdout) {
         if(!read_all_fd(stdout_pipe[0], &raw mut stdout_data)) {
             close(stdout_pipe[0]);
-            if(cfg.capture_stderr) { close(stderr_pipe[0]); } else {}
+            if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { close(stderr_pipe[0]); } else {}
             return false
         } else {}
         close(stdout_pipe[0]);
     } else {}
-    if(cfg.capture_stderr) {
+    // When merge_stdout_stderr is true, stderr was redirected to stdout_pipe
+    // (or stderr_pipe), so we only need one read.
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
         if(!read_all_fd(stderr_pipe[0], &raw mut stderr_data)) {
+            close(stderr_pipe[0]);
+            return false
+        } else {}
+        close(stderr_pipe[0]);
+    } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
+        // merge without capture_stdout: read from stderr_pipe[0] as merged
+        if(!read_all_fd(stderr_pipe[0], &raw mut stdout_data)) {
             close(stderr_pipe[0]);
             return false
         } else {}
@@ -112,6 +142,10 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     } else {}
 
     if(pid == 0) {
+        // Change working directory if requested.
+        if(cfg.working_dir.size() > 0) {
+            chdir(cfg.working_dir.data())
+        } else {}
         if(cfg.capture_stdout) { close(stdout_pipe[0]); dup2(stdout_pipe[1], 1); close(stdout_pipe[1]); } else {}
         if(cfg.capture_stderr) { close(stderr_pipe[0]); dup2(stderr_pipe[1], 2); close(stderr_pipe[1]); } else {}
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
@@ -225,6 +259,7 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func write(fd : int, buf : *void, count : size_t) : isize
 @extern public func getpid() : int
 @extern public func usleep(usec : int) : int
+@extern public func chdir(path : *char) : int
 
 const _WIFEXITED_MASK = 0x7f;
 func WIFEXITED(status : int) : bool { return (status & _WIFEXITED_MASK) == 0; }

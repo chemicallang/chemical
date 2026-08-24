@@ -334,6 +334,7 @@ public func win_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
 
     // Get exit code
     var exit_code : DWORD = 0
+    GetExitCodeProcess(pi.hProcess, &raw mut exit_code)
 
     // Close process handles
     CloseHandle(pi.hProcess)
@@ -412,12 +413,14 @@ public func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     var si : STARTUPINFOA = zeroed<STARTUPINFOA>()
     si.cb = sizeof(STARTUPINFOA) as DWORD
     si.dwFlags = STARTF_USESTDHANDLES
-    if(cfg.capture_stdout) {
+    if(cfg.capture_stdout || cfg.merge_stdout_stderr) {
         si.hStdOutput = stdout_write
     } else {
         si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE)
     }
-    if(cfg.capture_stderr) {
+    if(cfg.merge_stdout_stderr) {
+        si.hStdError = stdout_write
+    } else if(cfg.capture_stderr) {
         si.hStdError = stderr_write
     } else {
         si.hStdError = GetStdHandle(STD_ERROR_HANDLE)
@@ -483,22 +486,34 @@ public func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool
         child.win.h_stdin_write = null
     }
 
-    // Read stdout
-    if(child.win.h_stdout_read != null) {
-        win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
-        CloseHandle(child.win.h_stdout_read)
-        child.win.h_stdout_read = null
-    }
+    // Check if the process has already exited (e.g. after kill()).
+    // If so, close pipe handles to avoid blocking on orphaned children.
+    var already_exited = (WaitForSingleObject(child.win.h_process, 0) == WAIT_OBJECT_0)
 
-    // Read stderr
-    if(child.win.h_stderr_read != null) {
-        win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
-        CloseHandle(child.win.h_stderr_read)
-        child.win.h_stderr_read = null
+    if(already_exited) {
+        // Process is dead — close pipe read handles so reads return immediately
+        if(child.win.h_stdout_read != null) {
+            CloseHandle(child.win.h_stdout_read)
+            child.win.h_stdout_read = null
+        }
+        if(child.win.h_stderr_read != null) {
+            CloseHandle(child.win.h_stderr_read)
+            child.win.h_stderr_read = null
+        }
+    } else {
+        // Normal case: read stdout, then stderr, then wait
+        if(child.win.h_stdout_read != null) {
+            win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
+            CloseHandle(child.win.h_stdout_read)
+            child.win.h_stdout_read = null
+        }
+        if(child.win.h_stderr_read != null) {
+            win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
+            CloseHandle(child.win.h_stderr_read)
+            child.win.h_stderr_read = null
+        }
+        WaitForSingleObject(child.win.h_process, INFINITE)
     }
-
-    // Wait for process
-    WaitForSingleObject(child.win.h_process, INFINITE)
 
     // Get exit code
     var exit_code : DWORD = 0

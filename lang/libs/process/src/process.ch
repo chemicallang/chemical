@@ -167,11 +167,21 @@ public func spawn(cfg : ProcessConfig) : CP_Result {
 
 public func wait(child : *mut ChildProcess) : PR_Result {
     var ret = zeroed:unsafe<PR_Result>()
-    if(!child.is_running) {
-        var e = ProcessError.NotRunning()
-        pr_err(e, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
-    } else {}
+    // Allow wait() after kill() — process was killed but needs to be reaped.
+    // Only reject if the process handle has already been cleaned up.
+    comptime if(def.windows) {
+        if(!child.is_running && child.win.h_process == null) {
+            var e = ProcessError.NotRunning()
+            pr_err(e, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        } else {}
+    } else {
+        if(!child.is_running) {
+            var e = ProcessError.NotRunning()
+            pr_err(e, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        } else {}
+    }
     comptime if(def.windows) {
         var result = zeroed:unsafe<ProcessResult>()
         if(win_wait(child, &raw mut result)) {
@@ -209,11 +219,24 @@ public func kill(child : *mut ChildProcess, signal : int) : UT_Result {
             std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
             return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
         } else {}
-        child.is_running = false;
+        // Close pipe handles so win_read_all doesn't block on orphaned children.
+        if(child.win.h_stdin_write != null) {
+            CloseHandle(child.win.h_stdin_write)
+            child.win.h_stdin_write = null
+        }
+        if(child.win.h_stdout_read != null) {
+            CloseHandle(child.win.h_stdout_read)
+            child.win.h_stdout_read = null
+        }
+        if(child.win.h_stderr_read != null) {
+            CloseHandle(child.win.h_stderr_read)
+            child.win.h_stderr_read = null
+        }
+        child.is_running = false
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
-        child.is_running = false;
+        child.is_running = false
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     }

@@ -15,11 +15,27 @@ using std::string_view;
 /// Get an environment variable by name.
 /// Returns Some(value) if found, None if not found.
 public func get(name : string_view) : Option<string> {
-    var ptr = getenv(name.data());
-    if(ptr == null) {
-        return Option.None<string>();
+    comptime if(def.windows) {
+        // Use GetEnvironmentVariableA instead of getenv because getenv
+        // caches the environment block and doesn't reflect SetEnvironmentVariableA
+        // changes within the same process.
+        var needed = GetEnvironmentVariableA(name.data(), null, 0)
+        if(needed == 0) {
+            return Option.None<string>()
+        }
+        unsafe var buf : [4096]char
+        var got = GetEnvironmentVariableA(name.data(), &raw mut buf[0], 4096)
+        if(got == 0 || got >= 4096) {
+            return Option.None<string>()
+        }
+        return Option.Some(string.make_no_len(&raw mut buf[0]))
+    } else {
+        var ptr = getenv(name.data());
+        if(ptr == null) {
+            return Option.None<string>();
+        }
+        return Option.Some(string.make_no_len(ptr));
     }
-    return Option.Some(string.make_no_len(ptr));
 }
 
 /// Get an environment variable with a default value.

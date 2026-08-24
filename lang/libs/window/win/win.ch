@@ -945,7 +945,11 @@ public func window_set_always_on_top(w : *mut Window, on_top : bool) {
 }
 
 public func window_set_decorated(w : *mut Window, decorated : bool) {
-    if(w.hwnd == null || decorated == w.decorated) {
+    if(decorated == w.decorated) {
+        return
+    }
+    w.decorated = decorated
+    if(w.hwnd == null) {
         return
     }
     var style = GetWindowLongPtrW(w.hwnd, GWL_STYLE)
@@ -956,7 +960,6 @@ public func window_set_decorated(w : *mut Window, decorated : bool) {
     }
     SetWindowLongPtrW(w.hwnd, GWL_STYLE, style)
     SetWindowPos(w.hwnd, null, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
-    w.decorated = decorated
 }
 
 // --- DPI / scale ---

@@ -62,8 +62,9 @@ public func test_practical_write_file(env : &mut TestEnv) {
 
     // Now read the file back
     var cfg2 = process::ProcessConfig.default()
-    cfg2.args.push(string("cat"))
-    cfg2.args.push(string("/tmp/chemical_test_write.txt"))
+    cfg2.args.push(string("sh"))
+    cfg2.args.push(string("-c"))
+    cfg2.args.push(string("cat /tmp/chemical_test_write.txt"))
     var res2 = process::execute(cfg2)
     if(res2 is Result.Err) { env.error("cat failed"); return }
     var Ok(r2) = res2 else unreachable
@@ -74,9 +75,9 @@ public func test_practical_write_file(env : &mut TestEnv) {
     }
     // Cleanup
     var cleanup_cfg = process::ProcessConfig.default()
-    cleanup_cfg.args.push(string("rm"))
-    cleanup_cfg.args.push(string("-f"))
-    cleanup_cfg.args.push(string("/tmp/chemical_test_write.txt"))
+    cleanup_cfg.args.push(string("sh"))
+    cleanup_cfg.args.push(string("-c"))
+    cleanup_cfg.args.push(string("rm -f /tmp/chemical_test_write.txt"))
     process::execute(cleanup_cfg)
 }
 
@@ -104,6 +105,8 @@ public func test_practical_exit_code_42(env : &mut TestEnv) {
 @test
 public func test_practical_stdin_to_cat(env : &mut TestEnv) {
     var cfg = process::ProcessConfig.default()
+    cfg.args.push(string("sh"))
+    cfg.args.push(string("-c"))
     cfg.args.push(string("cat"))
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }

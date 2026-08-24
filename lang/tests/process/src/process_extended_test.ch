@@ -402,6 +402,8 @@ public func test_process_error_messages(env : &mut TestEnv) {
 @test
 public func test_process_close_stdin(env : &mut TestEnv) {
     var cfg = process::ProcessConfig.default()
+    cfg.args.push(string("sh"))
+    cfg.args.push(string("-c"))
     cfg.args.push(string("cat"))
     var spawn_res = process::spawn(cfg)
     if(spawn_res is Result.Err) {

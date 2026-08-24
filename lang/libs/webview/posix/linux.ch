@@ -22,6 +22,17 @@ public type GtkContainer = window::GtkContainer
 @no_init @extern public struct WebKitSettings {}
 @no_init @extern public struct WebKitUserContentManager {}
 @no_init @extern public struct WebKitUserScript {}
+
+// GdkGeometry-based hints (gtk_window_set_geometry_hints) are not declared here
+// because the system GTK header already provides that prototype with the real
+// GdkGeometry type; redeclaring it causes a C redefinition error. The hint
+// behavior below is implemented with already-declared GTK calls:
+//   SIZE_HINT_MIN  -> gtk_widget_set_size_request (min size request)
+//   SIZE_HINT_FIXED -> set_size_request + gtk_window_set_resizable(FALSE)
+//   SIZE_HINT_MAX  -> default size (no simple GTK3 max-size API)
+//   SIZE_HINT_NONE -> default size as usual
+const GDK_HINT_MIN_SIZE : u32 = 2
+const GDK_HINT_MAX_SIZE : u32 = 4
 @no_init @extern public struct WebKitWebContext {}
 
 // GTK constants
@@ -67,6 +78,8 @@ const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateI
 @extern public func gtk_window_set_title(window : *mut GtkWindow, title : *char)
 @extern public func gtk_window_set_default_size(window : *mut GtkWindow, width : int, height : int)
 @extern public func gtk_window_set_position(window : *mut GtkWindow, position : int)
+@extern public func gtk_window_set_resizable(window : *mut GtkWindow, resizable : int)
+@extern public func g_idle_add(function : *mut void, data : *mut void) : u32
 @extern public func gtk_window_get_type() : size_t
 
 @extern public func gtk_box_new(orientation : int, spacing : int) : *mut GtkWidget
@@ -821,76 +834,145 @@ public func webview_window(wv : *mut WebView) : *mut window::Window {
 // New API features (Linux stubs — to be implemented)
 // ===========================================================================
 
-// Schedule a function to run on the GTK main loop. Thread-safe.
-public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
-    // TODO: implement with g_idle_add_full
-    // g_idle_add_full(G_PRIORITY_DEFAULT, callback, arg, null)
+// Closure carried through the GLib idle source for webview_dispatch.
+struct DispatchClosure {
+    var fn : DispatchCallback
+    var arg : *mut void
 }
 
-// Set window size with a hint.
+// GLib GSourceFunc: runs the closure on the GTK main loop (one-shot).
+func linux_dispatch_idle(data : *mut void) : i32 {
+    var c = data as *mut DispatchClosure
+    if(c != null && c.fn != null) {
+        c.fn(c.arg)
+    }
+    if(c != null) {
+        free(c as *mut void)
+    }
+    return 0
+}
+
+// Schedule a function to run on the GTK main loop. Thread-safe.
+public func webview_dispatch(wv : *mut WebView, fn : DispatchCallback, arg : *mut void) {
+    if(fn == null) {
+        return
+    }
+    var c = malloc(sizeof(DispatchClosure)) as *mut DispatchClosure
+    if(c == null) {
+        return
+    }
+    c.fn = fn
+    c.arg = arg
+    g_idle_add(linux_dispatch_idle as *mut void, c as *mut void)
+}
+
+// Set window size with a hint (none / min / max / fixed).
 public func webview_set_size_hints(wv : *mut WebView, width : int, height : int, hint : int) {
     wv.width = width
     wv.height = height
-    // TODO: implement with gtk_window_set_geometry_hints (GTK3)
-    // For now, fall back to simple resize.
-    if(!wv.attached && window::window_is_created(&raw mut wv.win)) {
-        window::window_set_size(&raw mut wv.win, width, height)
+    if(!wv.attached && window::window_is_created(&raw mut wv.win) && wv.web_view != null) {
+        var win = window::window_native_handle(&raw mut wv.win) as *mut GtkWindow
+        if(hint == webview::SIZE_HINT_FIXED) {
+            gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height)
+            gtk_window_set_resizable(win, 0)
+        } else if(hint == webview::SIZE_HINT_MIN) {
+            gtk_widget_set_size_request(wv.web_view as *mut GtkWidget, width, height)
+            gtk_window_set_resizable(win, 1)
+        } else if(hint == webview::SIZE_HINT_MAX) {
+            gtk_window_set_default_size(win, width, height)
+            gtk_window_set_resizable(win, 1)
+        } else {
+            // SIZE_HINT_NONE: just apply the size.
+            gtk_window_set_default_size(win, width, height)
+            gtk_window_set_resizable(win, 1)
+        }
     }
 }
 
 // Inject JavaScript that runs on every page load.
 public func webview_init(wv : *mut WebView, js : *char) {
-    // TODO: implement with webkit_user_content_manager_add_script
-    // WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START
+    if(wv.web_view == null) {
+        return
+    }
+    var manager = webkit_web_view_get_user_content_manager(wv.web_view as *mut WebKitWebView)
+    if(manager == null) {
+        return
+    }
+    var script = webkit_user_script_new(
+        js,
+        WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+        WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START,
+        null,
+        null)
+    if(script != null) {
+        webkit_user_content_manager_add_script(manager, script)
+    }
 }
 
-// Remove a binding.
+// Remove a binding (single global handler on this backend).
 public func webview_unbind(wv : *mut WebView, name : *char) {
+    var was_bound = wv.bind_handler_set
     if(wv.bind_ctx != null) {
         delete wv.bind_ctx
         wv.bind_ctx = null
     }
     wv.bind_handler_set = false
-    // TODO: notify JS side via evaluate_js onUnbind
+    wv.bind_signal_connected = false
+    if(wv.web_view != null && name != null && was_bound) {
+        var js = string("window.__webview__.onUnbind('")
+        var i = 0
+        while(name[i] != '\0' as char) {
+            js.append(name[i])
+            i = i + 1
+        }
+        js.append_view(std::string_view::make_no_len("')"))
+        webview_evaluate_js(wv, js.data())
+    }
 }
 
-// Respond to an async binding call.
+// Respond to an async binding call (used by handlers invoked from other threads).
 public func webview_return(wv : *mut WebView, id : *char, status : int, result : *char) {
-    // TODO: implement with webkit_web_view_run_javascript
-    // Same pattern as Windows: build onReply JS call and evaluate
-    // Build: window.__webview__.onReply(id, status, result)
-    // Use webview_json_escape for the id to handle special characters.
-    // For now, a minimal implementation:
-    if(wv.web_view == null) { return }
-    // Build: window.__webview__.onReply(id, status, result)
-    var js = string("window.__webview__.onReply('")
-    var i = 0
-    while(id[i] != '\0' as char) { js.append(id[i]); i = i + 1 }
-    js.append_view(std::string_view::make_no_len("', "))
-    js.append_integer(status as bigint)
-    js.append_view(std::string_view::make_no_len(", "))
-    if(result != null) {
-        var j = 0
-        while(result[j] != '\0' as char) { js.append(result[j]); j = j + 1 }
-    } else {
-        js.append_view(std::string_view::make_no_len("undefined"))
+    if(wv.web_view == null) {
+        return
     }
-    js.append_view(std::string_view::make_no_len(")"))
-    webview_evaluate_js(wv, js.data())
+    var js_call = string("window.__webview__.onReply(")
+    var id_str = string("")
+    if(id != null) {
+        var i = 0
+        while(id[i] != '\0' as char) { id_str.append(id[i]); i = i + 1 }
+    }
+    var esc_id = linux_json_escape(std::string_view::make_view(&id_str))
+    var esc_id_view = std::string_view::make_view(&esc_id)
+    js_call.append_view(&esc_id_view)
+    js_call.append_view(std::string_view::make_no_len(", "))
+    js_call.append_integer(status as bigint)
+    js_call.append_view(std::string_view::make_no_len(", "))
+    if(result != null) {
+        var res_str = string("")
+        var j = 0
+        while(result[j] != '\0' as char) { res_str.append(result[j]); j = j + 1 }
+        var esc_res = linux_json_escape(std::string_view::make_view(&res_str))
+        var esc_res_view = std::string_view::make_view(&esc_res)
+        js_call.append_view(&esc_res_view)
+    } else {
+        js_call.append_view(std::string_view::make_no_len("undefined"))
+    }
+    js_call.append(')')
+    webview_evaluate_js(wv, js_call.data())
 }
 
 // Get a native handle by kind.
 public func webview_get_native_handle(wv : *mut WebView, kind : int) : *mut void {
-    if(kind == NATIVE_HANDLE_WINDOW) {
-        if(wv.attached && wv.parent_win != null) {
-            return wv.parent_win.hwnd as *mut void
-        }
-        return wv.win.hwnd as *mut void
+    if(wv.web_view == null) {
+        return null
     }
-    if(kind == NATIVE_HANDLE_WIDGET) {
+    if(kind == webview::NATIVE_HANDLE_WINDOW) {
+        return window::window_native_handle(&raw mut wv.win) as *mut void
+    }
+    if(kind == webview::NATIVE_HANDLE_WIDGET) {
         return wv.web_view as *mut void
     }
-    if(kind == NATIVE_HANDLE_BROWSER_CONTROLLER) {
+    if(kind == webview::NATIVE_HANDLE_BROWSER_CONTROLLER) {
         return wv.web_view as *mut void
     }
     return null

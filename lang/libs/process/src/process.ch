@@ -75,6 +75,7 @@ public struct ChildProcess {
             var h_stdout_read : *mut void;
             var h_stderr_read : *mut void;
             var h_stdin_write : *mut void;
+            var pid : int;
         } win;
     } else {
         struct {
@@ -110,9 +111,15 @@ public func execute(cfg : ProcessConfig) : PR_Result {
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {}
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("not implemented"))
-        pr_err(e, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        var result = zeroed:unsafe<ProcessResult>()
+        if(win_execute(&raw mut cfg, &raw mut result)) {
+            pr_ok(&mut result, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        } else {
+            var e = ProcessError.OperationFailed(string("exec failed"))
+            pr_err(e, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        }
     } else {
         var result = zeroed:unsafe<ProcessResult>()
         if(posix_execute(&raw mut cfg, &raw mut result)) {
@@ -134,11 +141,17 @@ public func spawn(cfg : ProcessConfig) : CP_Result {
         return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
     } else {}
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("not implemented"))
-        std::replace<CP_Result>(&mut ret, Result.Err<ChildProcess, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
-        return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
+        var child = zeroed:unsafe<ChildProcess>()
+        if(win_spawn(&raw mut cfg, &raw mut child)) {
+            std::replace(&mut ret, Result.Ok<ChildProcess, ProcessError>(std::replace(&mut child, zeroed:unsafe<ChildProcess>())))
+            return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
+        } else {
+            var e = ProcessError.OperationFailed(string("spawn failed"))
+            std::replace<CP_Result>(&mut ret, Result.Err<ChildProcess, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+            return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
+        }
     } else {
-        unsafe var child : ChildProcess
+        var child = zeroed:unsafe<ChildProcess>()
         if(posix_spawn(&raw mut cfg, &raw mut child)) {
             std::replace(&mut ret, Result.Ok<ChildProcess, ProcessError>(std::replace(&mut child, zeroed:unsafe<ChildProcess>())))
             return std::replace<CP_Result>(&mut ret, zeroed:unsafe<CP_Result>())
@@ -158,9 +171,15 @@ public func wait(child : *mut ChildProcess) : PR_Result {
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {}
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("not implemented"))
-        pr_err(e, &mut ret)
-        return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        var result = zeroed:unsafe<ProcessResult>()
+        if(win_wait(child, &raw mut result)) {
+            pr_ok(&mut result, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        } else {
+            var e = ProcessError.OperationFailed(string("wait failed"))
+            pr_err(e, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        }
     } else {
         var result = zeroed:unsafe<ProcessResult>()
         if(posix_wait(child, &raw mut result)) {
@@ -232,8 +251,21 @@ public func is_running(child : *mut ChildProcess) : bool {
 public func write_stdin(child : *mut ChildProcess, data : *vector<u8>) : UT_Result {
     var ret = zeroed:unsafe<UT_Result>()
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("write_stdin not implemented on Windows"))
-        std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+        if(child.win.h_stdin_write == null) {
+            var e = ProcessError.InvalidArgs(string("no stdin pipe"))
+            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+        }
+        if(data.size() > 0) {
+            var written : DWORD = 0
+            var ok = WriteFile(child.win.h_stdin_write, data.data() as *void, data.size() as DWORD, &raw mut written, null)
+            if(ok == 0) {
+                var e = ProcessError.IoError(string("write to stdin failed"))
+                std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+                return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+            }
+        }
+        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
         if(child._unix.stdin_fd < 0) {
@@ -258,8 +290,11 @@ public func write_stdin(child : *mut ChildProcess, data : *vector<u8>) : UT_Resu
 public func close_stdin(child : *mut ChildProcess) : UT_Result {
     var ret = zeroed:unsafe<UT_Result>()
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("close_stdin not implemented on Windows"))
-        std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+        if(child.win.h_stdin_write != null) {
+            CloseHandle(child.win.h_stdin_write)
+            child.win.h_stdin_write = null
+        }
+        std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
         if(child._unix.stdin_fd >= 0) {
@@ -281,8 +316,46 @@ public func try_wait(child : *mut ChildProcess) : PR_Result {
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     }
     comptime if(def.windows) {
-        var e = ProcessError.OperationFailed(string("try_wait not implemented on Windows"))
-        pr_err(e, &mut ret)
+        // Non-blocking: check with 0 timeout
+        var rc = WaitForSingleObject(child.win.h_process, 0u32)
+        if(rc == WAIT_TIMEOUT) {
+            var e = ProcessError.NotRunning()
+            pr_err(e, &mut ret)
+            return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
+        }
+        // Process has exited
+        var exit_code : DWORD = 0
+        GetExitCodeProcess(child.win.h_process, &raw mut exit_code)
+        // Read any remaining output
+        var stdout_data = vector<u8>()
+        var stderr_data = vector<u8>()
+        if(child.win.h_stdout_read != null) {
+            win_read_all(child.win.h_stdout_read, &raw mut stdout_data)
+            CloseHandle(child.win.h_stdout_read)
+            child.win.h_stdout_read = null
+        }
+        if(child.win.h_stderr_read != null) {
+            win_read_all(child.win.h_stderr_read, &raw mut stderr_data)
+            CloseHandle(child.win.h_stderr_read)
+            child.win.h_stderr_read = null
+        }
+        if(child.win.h_stdin_write != null) {
+            CloseHandle(child.win.h_stdin_write)
+            child.win.h_stdin_write = null
+        }
+        CloseHandle(child.win.h_process)
+        CloseHandle(child.win.h_thread)
+        child.win.h_process = null
+        child.win.h_thread = null
+        child.is_running = false
+        var result = zeroed:unsafe<ProcessResult>()
+        result.output.stdout_data = stdout_data
+        result.output.stderr_data = stderr_data
+        result.status.code = exit_code as int
+        result.status.signaled = false
+        result.status.signal = 0
+        result.success = (exit_code == 0)
+        pr_ok(&mut result, &mut ret)
         return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
     } else {
         var status : int = 0
@@ -333,9 +406,7 @@ public func sleep_ms(ms : int) {
 /// Get the PID of a child process.
 public func child_pid(child : *mut ChildProcess) : int {
     comptime if(def.windows) {
-        // Windows doesn't expose a PID from the HANDLE in a portable way;
-        // return 0 as a sentinel.
-        return 0
+        return child.win.pid
     } else {
         return child._unix.pid
     }

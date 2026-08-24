@@ -5,4 +5,7 @@ public namespace environment {
     @extern
     func SetEnvironmentVariableA(name : *char, value : *char) : int
 
+    @extern
+    func GetEnvironmentVariableA(name : *char, buf : *mut char, size : u32) : u32
+
 } // end namespace environment

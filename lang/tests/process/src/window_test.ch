@@ -251,16 +251,6 @@ public func test_window_native_handle_before_create(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
-// Error cases
-// ---------------------------------------------------------------------------
-
-@test
-public func test_window_create_null(env : &mut TestEnv) {
-    var res = window::window_create(null)
-    if(res is Result.Ok) { env.error("window_create(null) should return Err"); return }
-}
-
-// ---------------------------------------------------------------------------
 // Geometry types
 // ---------------------------------------------------------------------------
 

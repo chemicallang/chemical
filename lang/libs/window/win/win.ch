@@ -17,6 +17,8 @@
 public namespace window {
 
 using std::string;
+using std::string_view;
+using std::Option;
 
 // ===========================================================================
 // Win32 types (the ones cstd does not provide)
@@ -303,6 +305,24 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 @extern @stdcall @dllimport public func DragAcceptFiles(hwnd : HWND, fAccept : BOOL) : void
 @extern @stdcall @dllimport public func DragQueryFileW(hdrop : HANDLE, iFile : UINT, lpszFile : LPWSTR, cch : UINT) : UINT
 @extern @stdcall @dllimport public func DragFinish(hdrop : HANDLE) : void
+
+// user32 (clipboard)
+@extern @stdcall @dllimport public func OpenClipboard(hWndNewOwner : HWND) : BOOL
+@extern @stdcall @dllimport public func CloseClipboard() : BOOL
+@extern @stdcall @dllimport public func EmptyClipboard() : BOOL
+@extern @stdcall @dllimport public func SetClipboardData(uFormat : UINT, hMem : HANDLE) : HANDLE
+@extern @stdcall @dllimport public func GetClipboardData(uFormat : UINT) : HANDLE
+@extern @stdcall @dllimport public func GlobalLock(hMem : HANDLE) : *mut void
+@extern @stdcall @dllimport public func GlobalUnlock(hMem : HANDLE) : BOOL
+@extern @stdcall @dllimport public func GlobalSize(hMem : HANDLE) : size_t
+@extern @stdcall @dllimport public func GlobalAlloc(uFlags : UINT, dwBytes : size_t) : HANDLE
+@extern @stdcall @dllimport public func lstrlenA(lpString : *char) : int
+
+// user32 (timer)
+@extern @stdcall @dllimport public func SetTimer(hWnd : HWND, nIDEvent : UINT, uElapse : UINT, lpTimerFunc : *mut void) : UINT
+@extern @stdcall @dllimport public func KillTimer(hWnd : HWND, nIDEvent : UINT) : BOOL
+
+comptime const CF_TEXT : UINT = 1 as UINT
 
 // ===========================================================================
 // the Window struct
@@ -1085,6 +1105,116 @@ public func window_quit_by_destroy() : int {
 public func window_post_empty_event() {
     // PostMessage with WM_NULL is the standard way to wake a message loop.
     PostMessageA(null, 0u32, 0, 0)
+}
+
+// ===========================================================================
+// clipboard
+// ===========================================================================
+
+/// Get the current clipboard text content.
+/// Returns Option.None if the clipboard is empty or doesn't contain text.
+public func window_get_clipboard() : Option<string> {
+    if(OpenClipboard(null) == 0) {
+        return Option.None<string>()
+    }
+    var h_data = GetClipboardData(CF_TEXT)
+    if(h_data == null) {
+        CloseClipboard()
+        return Option.None<string>()
+    }
+    var p_data = GlobalLock(h_data) as *char
+    if(p_data == null) {
+        CloseClipboard()
+        return Option.None<string>()
+    }
+    var result = string(p_data)
+    GlobalUnlock(h_data)
+    CloseClipboard()
+    return Option.Some(result)
+}
+
+/// Set the clipboard text content.
+/// Returns true on success.
+public func window_set_clipboard(text : string_view) : bool {
+    if(OpenClipboard(null) == 0) {
+        return false
+    }
+    EmptyClipboard()
+    var len = text.size()
+    var h_mem = GlobalAlloc(0x0042 as UINT, len + 1) // GMEM_MOVEABLE | GMEM_ZEROINIT
+    if(h_mem == null) {
+        CloseClipboard()
+        return false
+    }
+    var p_mem = GlobalLock(h_mem) as *mut u8
+    if(p_mem == null) {
+        CloseClipboard()
+        return false
+    }
+    var src = text.data()
+    memcpy(p_mem, src as *void, len)
+    p_mem[len] = 0
+    GlobalUnlock(h_mem)
+    SetClipboardData(CF_TEXT, h_mem)
+    CloseClipboard()
+    return true
+}
+
+// ===========================================================================
+// timer
+// ===========================================================================
+
+// Timer callback storage (up to 16 concurrent timers)
+comptime const MAX_TIMERS : int = 16
+unsafe var g_timer_cbs : [16]TimerCallback
+unsafe var g_timer_data : [16]*mut void
+unsafe var g_timer_used : [16]bool
+
+func win_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) : void {
+    var idx = timer_id as int
+    if(idx >= 0 && idx < MAX_TIMERS) {
+        if(g_timer_used[idx] && g_timer_cbs[idx] != null) {
+            g_timer_cbs[idx](g_timer_data[idx])
+        }
+    }
+}
+
+/// Set a periodic timer that calls the callback every `interval_ms` milliseconds.
+/// Returns a timer ID (positive) on success, 0 on failure.
+public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
+    // Find a free slot
+    var idx = -1
+    var i : int = 0
+    while(i < MAX_TIMERS) {
+        if(!g_timer_used[i]) {
+            idx = i
+            break
+        }
+        i += 1
+    }
+    if(idx < 0) { return 0 }
+    g_timer_cbs[idx] = cb
+    g_timer_data[idx] = data
+    g_timer_used[idx] = true
+    // Use a hidden window-less timer via SetTimer with a NULL hwnd.
+    // SetTimer with hwnd=NULL and a non-zero nIDEvent creates a timer
+    // that posts WM_TIMER to the calling thread's message queue.
+    var timer_id = SetTimer(null, (idx + 1) as UINT, interval_ms as UINT, win_timer_proc as *mut void)
+    if(timer_id == 0) {
+        g_timer_used[idx] = false
+        return 0
+    }
+    return idx + 1
+}
+
+/// Cancel a previously set timer.
+public func window_cancel_timer(timer_id : int) {
+    if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
+    var idx = timer_id - 1
+    KillTimer(null, timer_id as UINT)
+    g_timer_used[idx] = false
+    g_timer_cbs[idx] = null
+    g_timer_data[idx] = null
 }
 
 } // end namespace window

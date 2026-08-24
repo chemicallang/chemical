@@ -149,7 +149,7 @@ public func test_process_kill(env : &mut TestEnv) {
         return
     }
     var Ok(child) = spawn_res else unreachable
-    var kill_res = process::kill(&raw mut child, 9)
+    var kill_res = process::kill_process(&raw mut child, 9)
     if(kill_res is Result.Err) {
         env.error("kill returned Err")
         return
@@ -174,7 +174,7 @@ public func test_process_is_running_after_spawn(env : &mut TestEnv) {
     var Ok(child) = spawn_res else unreachable
     if(!process::is_running(&raw mut child)) { env.error("child should be running immediately after spawn"); return }
     // Kill it so we don't leave zombies
-    process::kill(&raw mut child, 9)
+    process::kill_process(&raw mut child, 9)
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ public func test_process_kill_not_running(env : &mut TestEnv) {
     // Wait to reap
     process::wait(&raw mut child)
     // Kill on non-running should fail
-    var kill_res = process::kill(&raw mut child, 9)
+    var kill_res = process::kill_process(&raw mut child, 9)
     if(kill_res is Result.Ok) { env.error("kill on non-running child should return Err"); return }
 }
 

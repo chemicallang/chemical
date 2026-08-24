@@ -176,7 +176,9 @@ public func wait(child : *mut ChildProcess) : PR_Result {
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
         } else {}
     } else {
-        if(!child.is_running) {
+        // Allow wait() after kill(): the process was signalled but still needs
+        // to be reaped. Only reject once it has already been waited on (pid 0).
+        if(child._unix.pid == 0) {
             var e = ProcessError.NotRunning()
             pr_err(e, &mut ret)
             return std::replace<PR_Result>(&mut ret, zeroed:unsafe<PR_Result>())
@@ -205,7 +207,7 @@ public func wait(child : *mut ChildProcess) : PR_Result {
     }
 }
 
-public func kill(child : *mut ChildProcess, signal : int) : UT_Result {
+public func kill_process(child : *mut ChildProcess, signal : int) : UT_Result {
     var ret = zeroed:unsafe<UT_Result>()
     if(!child.is_running) {
         var e = ProcessError.NotRunning()
@@ -236,6 +238,12 @@ public func kill(child : *mut ChildProcess, signal : int) : UT_Result {
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
     } else {
+        var r = kill(child._unix.pid, signal);
+        if(r != 0) {
+            var e = ProcessError.OperationFailed(string("kill failed"))
+            std::replace(&mut ret, Result.Err<UnitTy, ProcessError>(std::replace<ProcessError>(&mut e, ProcessError.NotRunning())))
+            return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())
+        } else {}
         child.is_running = false
         std::replace(&mut ret, Result.Ok<UnitTy, ProcessError>(UnitTy{}))
         return std::replace<UT_Result>(&mut ret, zeroed:unsafe<UT_Result>())

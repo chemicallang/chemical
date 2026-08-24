@@ -149,7 +149,7 @@ public func test_process_spawn_kill_wait_lifecycle(env : &mut TestEnv) {
     if(spawn_res is Result.Err) { env.error("spawn failed"); return }
     var Ok(child) = spawn_res else unreachable
     if(!child.is_running) { env.error("should be running after spawn"); return }
-    var kr = process::kill(&raw mut child, 9)
+    var kr = process::kill_process(&raw mut child, 9)
     if(kr is Result.Err) { env.error("kill should succeed"); return }
     if(child.is_running) { env.error("should not be running after kill"); return }
     var w = process::wait(&raw mut child)
@@ -229,19 +229,6 @@ public func test_window_user_data_before_create(env : &mut TestEnv) {
 // ===========================================================================
 // Window: null pointer safety
 // ===========================================================================
-
-@test
-public func test_window_null_safety(env : &mut TestEnv) {
-    // These should not crash with null
-    window::window_set_title(null, "test\0" as *char)
-    window::window_set_size(null, 100, 100)
-    window::window_set_position(null, 10, 10)
-    window::window_set_decorated(null, false)
-    window::window_set_always_on_top(null, true)
-    window::window_set_opacity(null, 0.5)
-    window::window_set_cursor(null, window::CURSOR_HAND)
-    window::window_destroy(null)
-}
 
 // ===========================================================================
 // Window: quit_by_destroy

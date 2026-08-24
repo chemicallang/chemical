@@ -238,7 +238,7 @@ public func test_practical_kill_long_process(env : &mut TestEnv) {
     if(!process::is_running(&raw mut child)) { env.error("sleep should be running"); return }
 
     // Kill it
-    var kr = process::kill(&raw mut child, 9)
+    var kr = process::kill_process(&raw mut child, 9)
     if(kr is Result.Err) { env.error("kill should succeed"); return }
 
     // Should not be running

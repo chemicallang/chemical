@@ -68,12 +68,16 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
             close(stdin_pipe_tmp[0])
         } else {}
         var argv = build_argv(&raw mut cfg.args);
-        // If env vars are provided, use execve() with custom environment.
+        // Resolve the program via PATH (execve doesn't search PATH, unlike
+        // execvp). When env vars are provided we must use execve to replace
+        // the environment entirely; otherwise execvp is fine.
+        unsafe var resolved : [4096]char;
+        var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
         if(cfg.env.size() > 0) {
             var envp = build_envp(&raw mut cfg.env);
-            execve(argv.ptrs[0], &raw argv.ptrs[0], &raw envp.ptrs[0]);
+            execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]);
         } else {
-            execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+            execvp(prog, &raw argv.ptrs[0]);
         }
         _exit(1);
     } else {}
@@ -85,54 +89,43 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     var stdout_data = vector<u8>();
     var stderr_data = vector<u8>();
 
-    if(cfg.capture_stdout) {
-        if(!read_all_fd(stdout_pipe[0], &raw mut stdout_data)) {
-            close(stdout_pipe[0]);
-            if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { close(stderr_pipe[0]); } else {}
-            return false
-        } else {}
-        close(stdout_pipe[0]);
-    } else {}
-    // When merge_stdout_stderr is true, stderr was redirected to stdout_pipe
-    // (or stderr_pipe), so we only need one read.
-    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-        if(!read_all_fd(stderr_pipe[0], &raw mut stderr_data)) {
-            close(stderr_pipe[0]);
-            return false
-        } else {}
-        close(stderr_pipe[0]);
-    } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
-        // merge without capture_stdout: read from stderr_pipe[0] as merged
-        if(!read_all_fd(stderr_pipe[0], &raw mut stdout_data)) {
-            close(stderr_pipe[0]);
-            return false
-        } else {}
-        close(stderr_pipe[0]);
-    } else {}
+    // Read from the pipes in a non-blocking fashion so we can also poll the
+    // child and enforce the timeout (otherwise a long-running child would
+    // block the read forever and the timeout could never fire).
+    if(cfg.capture_stdout) { set_nonblock(stdout_pipe[0]); } else {}
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { set_nonblock(stderr_pipe[0]); } else {}
+    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { set_nonblock(stderr_pipe[0]); } else {}
 
     var status : int = 0;
     var timed_out = false
-    if(cfg.timeout_ms > 0) {
-        // Poll with timeout: sleep in 10ms increments
-        var elapsed : int = 0
-        while(elapsed < cfg.timeout_ms) {
-            var ret = waitpid(pid, &raw mut status, 1) // WNOHANG
-            if(ret != 0) { break }
+    var elapsed : int = 0;
+    var done = false;
+    while(!done) {
+        if(cfg.capture_stdout) { read_available(stdout_pipe[0], &raw mut stdout_data); } else {}
+        if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { read_available(stderr_pipe[0], &raw mut stderr_data); } else {}
+        if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { read_available(stderr_pipe[0], &raw mut stdout_data); } else {}
+
+        var ret = waitpid(pid, &raw mut status, 1) // WNOHANG
+        if(ret != 0) {
+            done = true
+        } else if(cfg.timeout_ms > 0) {
             usleep(10000) // 10ms
             elapsed += 10
-        }
-        if(elapsed >= cfg.timeout_ms) {
-            // Check one more time
-            var ret = waitpid(pid, &raw mut status, 1)
-            if(ret == 0) {
+            if(elapsed >= cfg.timeout_ms) {
                 timed_out = true
                 kill(pid, 9) // SIGKILL
                 waitpid(pid, &raw mut status, 0)
+                done = true
             }
+        } else {
+            usleep(5000)
         }
-    } else {
-        waitpid(pid, &raw mut status, 0)
     }
+
+    // Final drain now that the child is dead (pipe yields remaining data then EOF).
+    if(cfg.capture_stdout) { read_available(stdout_pipe[0], &raw mut stdout_data); close(stdout_pipe[0]); } else {}
+    if(cfg.capture_stderr && !cfg.merge_stdout_stderr) { read_available(stderr_pipe[0], &raw mut stderr_data); close(stderr_pipe[0]); } else {}
+    if(cfg.merge_stdout_stderr && !cfg.capture_stdout) { read_available(stderr_pipe[0], &raw mut stdout_data); close(stderr_pipe[0]); } else {}
 
     var exit_code : int = 0;
     var signaled : bool = false;
@@ -150,6 +143,34 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     return true
 }
 
+// Make a file descriptor non-blocking so reads don't stall the timeout loop.
+func set_nonblock(fd : int) {
+    var flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+// Read whatever is currently available from a non-blocking fd, stopping on
+// EOF or when no more data is immediately readable (EAGAIN).
+func read_available(fd : int, data : *mut vector<u8>) : bool {
+    unsafe var buf : [4096]u8;
+    while(true) {
+        var n = read(fd, &raw mut buf[0], 4096);
+        if(n > 0) {
+            var i : size_t = 0;
+            while(i < n as size_t) {
+                data.push(buf[i]);
+                i += 1;
+            }
+        } else if(n == 0) {
+            return true
+        } else {
+            if(*__errno_location() == EAGAIN) { return true }
+            return false
+        }
+    }
+    return false
+}
+
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;
@@ -158,7 +179,7 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
     } else {}
-    if(cfg.capture_stderr) {
+    if(cfg.capture_stderr || cfg.merge_stdout_stderr) {
         if(pipe(&raw mut stderr_pipe[0]) != 0) {
             if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
             return false
@@ -184,8 +205,29 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         if(cfg.working_dir.size() > 0) {
             chdir(cfg.working_dir.data())
         } else {}
-        if(cfg.capture_stdout) { close(stdout_pipe[0]); dup2(stdout_pipe[1], 1); close(stdout_pipe[1]); } else {}
-        if(cfg.capture_stderr) { close(stderr_pipe[0]); dup2(stderr_pipe[1], 2); close(stderr_pipe[1]); } else {}
+        if(cfg.capture_stdout) {
+            close(stdout_pipe[0])
+            if(cfg.merge_stdout_stderr) {
+                // Both stdout and stderr go to stdout_pipe[1]
+                dup2(stdout_pipe[1], 1)
+                dup2(stdout_pipe[1], 2)
+                close(stdout_pipe[1])
+            } else {
+                dup2(stdout_pipe[1], 1)
+                close(stdout_pipe[1])
+            }
+        } else {}
+        if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
+            close(stderr_pipe[0])
+            dup2(stderr_pipe[1], 2)
+            close(stderr_pipe[1])
+        } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
+            // merge without capture_stdout: redirect both to stderr_pipe[1]
+            close(stderr_pipe[0])
+            dup2(stderr_pipe[1], 1)
+            dup2(stderr_pipe[1], 2)
+            close(stderr_pipe[1])
+        } else {}
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
         close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
         var argv = build_argv(&raw mut cfg.args);
@@ -199,12 +241,12 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     } else {}
 
     if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
-    if(cfg.capture_stderr) { close(stderr_pipe[1]); } else {}
+    if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
     close(stdin_pipe[0]); // parent writes to stdin_pipe[1]
 
     child._unix.pid = pid;
     child._unix.stdout_fd = if(cfg.capture_stdout) stdout_pipe[0] else -1;
-    child._unix.stderr_fd = if(cfg.capture_stderr) stderr_pipe[0] else -1;
+    child._unix.stderr_fd = if(cfg.capture_stderr) stderr_pipe[0] else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) stderr_pipe[0] else -1;
     child._unix.stdin_fd = stdin_pipe[1];
     child.is_running = true;
     return true
@@ -247,6 +289,7 @@ public func posix_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bo
     else if(WIFSIGNALED(status)) { signaled = true; signal_no = WTERMSIG(status); exit_code = -1; } else {}
 
     child.is_running = false;
+    child._unix.pid = 0;
     out.output.stdout_data = stdout_data;
     out.output.stderr_data = stderr_data;
     out.status.code = exit_code;
@@ -317,6 +360,57 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 @extern public func usleep(usec : int) : int
 @extern public func chdir(path : *char) : int
 @extern public func kill(pid : int, sig : int) : int
+@extern public func fcntl(fd : int, cmd : int, arg : int) : int
+@extern public func __errno_location() : *mut int
+@extern public func access(path : *char, mode : int) : int
+
+const F_GETFL = 3
+const F_SETFL = 4
+const O_NONBLOCK = 2048
+const EAGAIN = 11
+const X_OK = 1
+
+// Resolve an executable name to a path usable by execve, searching PATH when
+// the name doesn't already contain a '/'. `out` is filled with the result and
+// its pointer is returned (must remain valid until exec).
+func lookup_program(prog : *char, out : *mut char, out_size : size_t) : *mut char {
+    var i : size_t = 0;
+    while(prog[i] != 0) {
+        if(prog[i] == '/') {
+            var k : size_t = 0;
+            while(prog[k] != 0 && k < out_size) { out[k] = prog[k]; k += 1 }
+            if(k < out_size) { out[k] = 0 }
+            return out
+        }
+        i += 1;
+    }
+    var path = getenv("PATH");
+    if(path == null) {
+        var k : size_t = 0;
+        while(prog[k] != 0 && k < out_size) { out[k] = prog[k]; k += 1 }
+        if(k < out_size) { out[k] = 0 }
+        return out
+    }
+    var seg_start : size_t = 0;
+    while(true) {
+        var seg_end : size_t = seg_start;
+        while(path[seg_end] != 0 && path[seg_end] != ':') { seg_end += 1 }
+        var len : size_t = 0;
+        var k = seg_start;
+        while(k < seg_end && len + 1 < out_size) { out[len] = path[k]; len += 1; k += 1 }
+        if(len < out_size) { out[len] = '/'; len += 1 }
+        var pi : size_t = 0;
+        while(prog[pi] != 0 && len < out_size) { out[len] = prog[pi]; len += 1; pi += 1 }
+        if(len < out_size) { out[len] = 0 }
+        if(access(out, X_OK) == 0) { return out }
+        if(path[seg_end] == 0) { break }
+        seg_start = seg_end + 1;
+    }
+    var k : size_t = 0;
+    while(prog[k] != 0 && k < out_size) { out[k] = prog[k]; k += 1 }
+    if(k < out_size) { out[k] = 0 }
+    return out
+}
 
 const _WIFEXITED_MASK = 0x7f;
 func WIFEXITED(status : int) : bool { return (status & _WIFEXITED_MASK) == 0; }

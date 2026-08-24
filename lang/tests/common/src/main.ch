@@ -182,4 +182,7 @@ public func run_common_tests() {
     // Parallel generic instantiation tests
     test_generic_instantiation();
 
+    // Generic instantiation in global variable value
+    test_generic_in_global_var();
+
 }

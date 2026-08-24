@@ -7825,12 +7825,19 @@ void ToCAstVisitor::VisitNullPtrType(NullPtrType* type) {
 }
 
 void ToCAstVisitor::VisitZeroedValue(ZeroedValue* value) {
-    write("((");
-    auto prev = array_types_as_subscript;
-    array_types_as_subscript = true;
-    visit(value->getType());
-    array_types_as_subscript = prev;
-    write("){0})");
+    auto type = value->getType();
+    if(type && type->kind() == BaseTypeKind::Array) {
+        // For C array types, use plain {0} instead of a compound literal.
+        // TinyCC doesn't support compound literals for array types like (struct T[N]){0}.
+        write("{0}");
+    } else {
+        write("(");
+        auto prev = array_types_as_subscript;
+        array_types_as_subscript = true;
+        visit(type);
+        array_types_as_subscript = prev;
+        write("){0}");
+    }
 }
 
 bool ToCBackendContext::forget(ASTNode* targetNode) {

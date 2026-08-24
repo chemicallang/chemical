@@ -185,4 +185,7 @@ public func run_common_tests() {
     // Generic instantiation in global variable value
     test_generic_in_global_var();
 
+    // C codegen compatibility tests (TinyCC patterns)
+    test_tcc_codegen_compat();
+
 }

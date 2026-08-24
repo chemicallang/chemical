@@ -70,6 +70,8 @@ const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateI
 @extern public func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
 @extern public func gtk_main()
 @extern public func gtk_main_quit()
+@extern public func gtk_main_iteration() : int
+@extern public func gtk_events_pending() : int
 @extern public func gtk_widget_show_all(widget : *mut GtkWidget)
 @extern public func gtk_widget_destroy(widget : *mut GtkWidget)
 @extern public func gtk_widget_set_size_request(widget : *mut GtkWidget, width : int, height : int)
@@ -437,6 +439,7 @@ func linux_json_escape(sv : std::string_view) : string {
 // params}, calls the bound handler, and sends the result back via
 // window.__webview__.onReply(id, 0, result).
 func linux_on_message(wv : *mut WebView, msg : *char) {
+    fprintf(stderr, "[WV-BRIDGE] message received\n")
     var msg_view = std::string_view::make_no_len(msg)
 
     var id_str = linux_json_value(msg_view, "\"id\":")
@@ -444,9 +447,11 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
     var params_str = linux_json_value(msg_view, "\"params\":")
 
     if(method.size() == 0) {
+        fprintf(stderr, "[WV-BRIDGE] empty method\n")
         return
     }
 
+    fprintf(stderr, "[WV-BRIDGE] method=%s\n", method.data())
     var method_view = std::string_view::make_view(&method)
     var params_view = std::string_view::make_view(&params_str)
     var result = wv.bind_ctx.handler(method_view, params_view)
@@ -677,6 +682,15 @@ public func webview_load_html(wv : *mut WebView, html : *char) {
 public func webview_evaluate_js(wv : *mut WebView, script : *char) {
     if(wv.web_view != null) {
         webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null)
+        // Pump the GLib main loop until no more events are pending so the queued
+        // JS (e.g. onReply) actually executes. A single iteration may pick up an
+        // unrelated event (e.g. download-thread I/O) and leave the JS evaluation
+        // callback still queued; the Promise would then never resolve.
+        var safety = 0
+        while(gtk_events_pending() != 0 && safety < 20) {
+            gtk_main_iteration()
+            safety = safety + 1
+        }
     }
 }
 

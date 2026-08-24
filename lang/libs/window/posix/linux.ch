@@ -329,6 +329,7 @@ func apply_cursor(w : *mut Window) {
     if(gdkwin == null) {
         return
     }
+    ensure_gtk_init()
     var cursor = gdk_cursor_new_from_name(gdk_display_get_default(), cursor_name_for_kind(w.cursor))
     if(cursor != null) {
         gdk_window_set_cursor(gdkwin, cursor)
@@ -956,10 +957,12 @@ public func window_scale_factor(w : *mut Window) : double {
 }
 
 public func window_monitor_count() : int {
+    ensure_gtk_init()
     return gdk_display_get_n_monitors(gdk_display_get_default())
 }
 
 public func window_monitor_bounds(index : int) : Rect {
+    ensure_gtk_init()
     var display = gdk_display_get_default()
     var monitor = gdk_display_get_monitor(display, index)
     var rect = GdkRectangle { x : 0, y : 0, width : 0, height : 0 }
@@ -970,6 +973,7 @@ public func window_monitor_bounds(index : int) : Rect {
 }
 
 public func window_monitor_scale(index : int) : double {
+    ensure_gtk_init()
     var display = gdk_display_get_default()
     var monitor = gdk_display_get_monitor(display, index)
     var scale = 1

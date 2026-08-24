@@ -631,9 +631,6 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
 // ===========================================================================
 
 public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError> {
-    if(w == null) {
-        return std.Result.Err(WindowError.InvalidState(string("window_create: null window")))
-    }
     if(w.created) {
         return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
     }
@@ -704,9 +701,6 @@ public func window_create(w : *mut Window) : std::Result<std::Unit, WindowError>
 }
 
 public func window_destroy(w : *mut Window) {
-    if(w == null) {
-        return
-    }
     if(w.hwnd != null) {
         DestroyWindow(w.hwnd)
         w.hwnd = null
@@ -716,9 +710,6 @@ public func window_destroy(w : *mut Window) {
 }
 
 public func window_is_created(w : *mut Window) : bool {
-    if(w == null) {
-        return false
-    }
     return w.created && w.hwnd != null
 }
 
@@ -729,7 +720,6 @@ public func window_title(w : *mut Window) : string {
 }
 
 public func window_set_title(w : *mut Window, title : *char) {
-    if(w == null) { return }
     w.title = string("")
     if(title != null) {
         w.title.append_char_ptr(title)
@@ -759,7 +749,6 @@ public func window_client_size(w : *mut Window) : Size {
 }
 
 public func window_set_size(w : *mut Window, width : int, height : int) {
-    if(w == null) { return }
     w.width = width
     w.height = height
     if(w.hwnd == null) {
@@ -797,7 +786,6 @@ public func window_position(w : *mut Window) : Position {
 }
 
 public func window_set_position(w : *mut Window, x : int, y : int) {
-    if(w == null) { return }
     w.x = x
     w.y = y
     if(w.hwnd != null) {
@@ -918,7 +906,6 @@ public func window_close(w : *mut Window) {
 // --- visual ---
 
 public func window_set_cursor(w : *mut Window, cursor : int) {
-    if(w == null) { return }
     w.cursor = cursor
     SetCursor(cursor_for_kind(cursor))
 }
@@ -944,7 +931,6 @@ public func window_set_icon(w : *mut Window, path : *char) {
 }
 
 public func window_set_opacity(w : *mut Window, opacity : double) {
-    if(w == null) { return }
     w.opacity = opacity
     if(w.hwnd == null) {
         return
@@ -961,7 +947,6 @@ public func window_set_opacity(w : *mut Window, opacity : double) {
 }
 
 public func window_set_always_on_top(w : *mut Window, on_top : bool) {
-    if(w == null) { return }
     w.always_on_top = on_top
     if(w.hwnd != null) {
         if(on_top) {
@@ -973,7 +958,6 @@ public func window_set_always_on_top(w : *mut Window, on_top : bool) {
 }
 
 public func window_set_decorated(w : *mut Window, decorated : bool) {
-    if(w == null) { return }
     if(decorated == w.decorated) {
         return
     }

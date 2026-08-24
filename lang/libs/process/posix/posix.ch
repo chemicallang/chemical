@@ -6,6 +6,16 @@ using std::string;
 using std::string_view;
 using std::vector;
 
+// Redirect a file descriptor to /dev/null so un-captured output doesn't
+// leak to the parent's terminal.
+func redirect_to_devnull(fd : int) {
+    var dn = open("/dev/null", O_WRONLY, 0);
+    if(dn >= 0) {
+        dup2(dn, fd);
+        close(dn);
+    } else {}
+}
+
 // POSIX impl returns bool: true=success, false=error (details in errno)
 public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     unsafe var stdout_pipe : [2]int;
@@ -35,27 +45,30 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
         } else {}
         if(cfg.capture_stdout) {
             close(stdout_pipe[0])
+            dup2(stdout_pipe[1], 1)
             if(cfg.merge_stdout_stderr) {
                 // Both stdout and stderr go to stdout_pipe[1]
-                dup2(stdout_pipe[1], 1)
                 dup2(stdout_pipe[1], 2)
-                close(stdout_pipe[1])
-            } else {
-                dup2(stdout_pipe[1], 1)
-                close(stdout_pipe[1])
             }
-        } else {}
-        if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
-            close(stderr_pipe[0])
-            dup2(stderr_pipe[1], 2)
-            close(stderr_pipe[1])
-        } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
-            // merge without capture_stdout: redirect both to stderr_pipe[1]
+            close(stdout_pipe[1])
+        } else if(cfg.merge_stdout_stderr) {
+            // merge without capturing stdout: route both to stderr pipe
             close(stderr_pipe[0])
             dup2(stderr_pipe[1], 1)
             dup2(stderr_pipe[1], 2)
             close(stderr_pipe[1])
-        } else {}
+        } else {
+            redirect_to_devnull(1)
+        }
+        if(cfg.merge_stdout_stderr) {
+            // fd2 already handled above
+        } else if(cfg.capture_stderr) {
+            close(stderr_pipe[0])
+            dup2(stderr_pipe[1], 2)
+            close(stderr_pipe[1])
+        } else {
+            redirect_to_devnull(2)
+        }
         // stdin_data: create a temporary pipe in the child, write data, then dup2 to fd 0.
         // This is done in the child so the parent doesn't need a separate pipe.
         if(cfg.stdin_data.size() > 0) {
@@ -216,7 +229,9 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
                 dup2(stdout_pipe[1], 1)
                 close(stdout_pipe[1])
             }
-        } else {}
+        } else {
+            redirect_to_devnull(1)
+        }
         if(cfg.capture_stderr && !cfg.merge_stdout_stderr) {
             close(stderr_pipe[0])
             dup2(stderr_pipe[1], 2)
@@ -227,6 +242,8 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
             dup2(stderr_pipe[1], 1)
             dup2(stderr_pipe[1], 2)
             close(stderr_pipe[1])
+        } else if(!cfg.merge_stdout_stderr && !cfg.capture_stderr) {
+            redirect_to_devnull(2)
         } else {}
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
         close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
@@ -366,6 +383,7 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
 
 const F_GETFL = 3
 const F_SETFL = 4
+const O_WRONLY = 1
 const O_NONBLOCK = 2048
 const EAGAIN = 11
 const X_OK = 1

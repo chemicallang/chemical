@@ -372,11 +372,19 @@ void TopLevelLinkSignature::VisitIndexOperator(IndexOperator* value) {
     }
 }
 
-void TopLevelLinkSignature::TopLevelLinkSignature::VisitIsValue(IsValue* value) {
+void TopLevelLinkSignature::VisitIsValue(IsValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIsValue(value);
     if(!comptime_context) {
         diagnoser.error("cannot determine at runtime outside function body", value);
     }
+}
+
+void TopLevelLinkSignature::VisitZeroedValue(ZeroedValue* value) {
+    if (value->getType() == nullptr) {
+        diagnoser.error("couldn't infer type for zeroed value", value);
+        return;
+    }
+    RecursiveVisitor<TopLevelLinkSignature>::VisitZeroedValue(value);
 }
 
 void TopLevelLinkSignature::VisitLambdaFunction(LambdaFunction* value) {

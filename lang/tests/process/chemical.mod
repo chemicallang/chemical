@@ -7,3 +7,4 @@ import test
 import test_env
 import process
 import environment
+import window

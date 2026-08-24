@@ -193,6 +193,7 @@ const GDK_ACTION_COPY = 2
 @extern public func gtk_widget_add_events(widget : *mut GtkWidget, events : int)
 
 @extern public func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
+@extern public func g_idle_add(function : *mut void, data : *mut void) : u32
 
 // GObject object-data — used for the stable per-widget callback context
 // (g_object_set_data_full auto-frees the context when the widget is destroyed)
@@ -1042,6 +1043,17 @@ public func window_quit() {
     if(g_in_main_loop != 0) {
         gtk_main_quit()
     }
+}
+
+func linux_empty_callback(data : *mut void) : int {
+    // Return 0 so GTK removes the idle source after firing once.
+    return 0
+}
+
+/// Post an empty event to wake up the message loop.
+/// Useful for waking up the message loop from another thread.
+public func window_post_empty_event() {
+    g_idle_add(linux_empty_callback as *mut void, null)
 }
 
 } // end namespace window

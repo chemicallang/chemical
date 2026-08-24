@@ -297,6 +297,7 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 @extern @stdcall @dllimport public func GetSystemMetrics(nIndex : int) : int
 // NOTE: the SDK header maps LoadImage -> LoadImageW (the real user32 export).
 @extern @stdcall @dllimport public func LoadImageW(hInstance : HINSTANCE, name : LPCWSTR, type : UINT, cx : int, cy : int, fuLoad : UINT) : HANDLE
+@extern @stdcall @dllimport public func PostMessageA(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : BOOL
 
 // shell32 (drag & drop)
 @extern @stdcall @dllimport public func DragAcceptFiles(hwnd : HWND, fAccept : BOOL) : void
@@ -1062,6 +1063,25 @@ public func window_run() {
 
 public func window_quit() {
     PostQuitMessage(0)
+}
+
+/// Returns 1 if the last window_run() returned because a window was destroyed
+/// (the user closed it) rather than because window_quit() was called.
+/// On Windows this mirrors the Linux backend's g_quit_by_destroy flag.
+public func window_quit_by_destroy() : int {
+    // On Windows, WM_DESTROY always calls PostQuitMessage which exits the
+    // message loop, so the distinction between "user closed" and
+    // "window_quit()" is not tracked separately.  Return 0 for now — the
+    // webview library guards its destroy path with window_is_created() checks
+    // which is sufficient on this platform.
+    return 0
+}
+
+/// Post a empty message to the window's message queue.
+/// Useful for waking up the message loop from another thread.
+public func window_post_empty_event() {
+    // PostMessage with WM_NULL is the standard way to wake a message loop.
+    PostMessageA(null, 0u32, 0, 0)
 }
 
 } // end namespace window

@@ -8,6 +8,7 @@ public variant ProcessError {
     OperationFailed(msg : string)
     NotRunning()
     TimedOut()
+    IoError(msg : string)
 
     func message(&self) : string {
         switch(self) {
@@ -23,6 +24,11 @@ public variant ProcessError {
             }
             NotRunning() => return string("ProcessError: process is not running")
             TimedOut() => return string("ProcessError: operation timed out")
+            IoError(msg) => {
+                var s = string("ProcessError: I/O error: ")
+                s.append_view(msg.to_view())
+                return s
+            }
         }
     }
 }

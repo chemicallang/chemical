@@ -180,13 +180,36 @@ public namespace http {
         var default_timeout_secs: long;
         var max_response_header_bytes: usize;
         var max_body_len: usize;   // 0 = unlimited streaming body (e.g. downloads); default 100MB
+        // Optional TLS customization:
+        //   ca_chain         - caller-owned trust anchor(s); used instead of the
+        //                      system CA bundle for server certificate verification.
+        //                      The Client does NOT take ownership (caller frees).
+        //   tls_skip_verify  - disable certificate chain AND hostname verification
+        //                      (self-signed local servers, test harnesses).
+        var ca_chain: *mut tls::X509Cert;
+        var tls_skip_verify: bool;
 
         @constructor func constructor() {
             return Client {
                 default_timeout_secs = 10,
                 max_response_header_bytes = 64u * 1024u,
-                max_body_len = DEFAULT_MAX_BODY_LEN
+                max_body_len = DEFAULT_MAX_BODY_LEN,
+                ca_chain = null,
+                tls_skip_verify = false
             }
+        }
+
+        // Use a specific CA certificate (chain) for HTTPS server verification
+        // instead of the system bundle. The chain remains caller-owned.
+        public func set_ca_chain(&mut self, ca: *mut tls::X509Cert) : &mut Client {
+            ca_chain = ca;
+            return self;
+        }
+
+        // Disable TLS certificate and hostname verification (insecure mode).
+        public func insecure_skip_verify(&mut self, skip: bool = true) : &mut Client {
+            tls_skip_verify = skip;
+            return self;
         }
 
         public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> {
@@ -201,13 +224,23 @@ public namespace http {
                 var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
                 tls::ssl_init(ssl_ptr)
 
-                // Create config with auto-loaded CA. The config is heap-allocated
-                // so it outlives this function (the Body's TLS context keeps
-                // pointing at it); ssl_free releases it via conf_owned.
+                // Create config with auto-loaded CA (or the caller's custom
+                // chain). The config is heap-allocated so it outlives this
+                // function (the Body's TLS context keeps pointing at it);
+                // ssl_free releases it via conf_owned.
                 var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
-                var ca = tls::load_system_ca_bundle()
+                var custom_ca = ca_chain != null
+                var ca: *mut tls::X509Cert = null
+                if(custom_ca) {
+                    ca = ca_chain
+                } else {
+                    ca = tls::load_system_ca_bundle()
+                }
                 if(ca != null) {
                     tls::ssl_set_ca_chain(&raw mut config, ca)
+                }
+                if(tls_skip_verify) {
+                    config.authmode = tls::SSL_VERIFY_NONE
                 }
                 var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
                 if(config_mem == null) {
@@ -228,18 +261,19 @@ public namespace http {
                                             req_builder.url.host.data(),
                                             req_builder.url.port)
                 if(ret < 0) {
-                    if(ca != null) { tls::cert_chain_free(ca) }
+                    if(ca != null && !custom_ca) { tls::cert_chain_free(ca) }
                     tls::ssl_free(ssl_ptr)
                     unsafe { dealloc ssl_ptr }
                     return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS handshake failed"))
                 }
 
-                // CA bundle is only needed for handshake-time certificate
-                // verification, which has completed — release it now.
-                if(ca != null) { tls::cert_chain_free(ca) }
+                // The CA bundle is only needed for handshake-time certificate
+                // verification, which has completed — release it now (only if
+                // we loaded it ourselves; custom chains are caller-owned).
+                if(ca != null && !custom_ca) { tls::cert_chain_free(ca) }
 
                 // Verify the server's certificate matches the requested hostname
-                if(ssl_ptr.peer_cert != null) {
+                if(!tls_skip_verify && ssl_ptr.peer_cert != null) {
                     var hostname_nul = std::string(req_builder.url.host.data(), req_builder.url.host.size())
                     hostname_nul.append('\0')
                     var hret = tls::x509_verify_hostname(ssl_ptr.peer_cert,

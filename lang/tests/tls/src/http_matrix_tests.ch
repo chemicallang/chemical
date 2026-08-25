@@ -1,5 +1,5 @@
-// ============================================================================
-// HTTP matrix + stress tests (part 1) — sizes, byte cycles, headers, queries
+﻿// ============================================================================
+// HTTP matrix + stress tests (part 1) â€” sizes, byte cycles, headers, queries
 // ============================================================================
 // Each test drives complete HTTP request/response cycles through the whole
 // stack (http::Client -> TLS -> net) against live python servers. Sizes,
@@ -34,13 +34,14 @@ func mtx_pattern256(len : usize) : string {
     return s
 }
 
-// ─── 1. Download size boundary matrix ────────────────────────────────────────
-// 1, 1023, 16383, 16384 (max TLS plaintext), 16385, 65536 — each must arrive
+// â”€â”€â”€ 1. Download size boundary matrix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// 1, 1023, 16383, 16384 (max TLS plaintext), 16385, 65536 â€” each must arrive
 // complete with the exact i%251 pattern.
 @test
 @test.timeout(90000)
 public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
     const PORT : uint = 20430u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_mtx30_cert.pem", "/tmp/tls_mtx30_key.pem")
 
     var client = Client()
@@ -103,11 +104,12 @@ public func MATRIX_download_size_boundaries(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 2. Upload size boundary matrix (echo roundtrips) ────────────────────────
+// â”€â”€â”€ 2. Upload size boundary matrix (echo roundtrips) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
 @test.timeout(90000)
 public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     const PORT : uint = 20431u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_mtx31_cert.pem", "/tmp/tls_mtx31_key.pem")
 
     var client = Client()
@@ -169,12 +171,13 @@ public func MATRIX_upload_size_boundaries(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 3. Full 0..255 byte cycle survives upload+echo over TLS ─────────────────
+// â”€â”€â”€ 3. Full 0..255 byte cycle survives upload+echo over TLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Catches signed-char / sign-extension bugs that the usual %251 pattern misses.
 @test
 @test.timeout(60000)
 public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     const PORT : uint = 20432u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_mtx32_cert.pem", "/tmp/tls_mtx32_key.pem")
 
     var client = Client()
@@ -204,7 +207,7 @@ public func MATRIX_full_byte_cycle_roundtrip(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 4. 120 response headers: presence + case-insensitive lookup ────────────
+// â”€â”€â”€ 4. 120 response headers: presence + case-insensitive lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
 @test.timeout(60000)
 public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
@@ -254,11 +257,12 @@ public func MATRIX_many_response_headers_lookup(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 5. Very large query string (~8 KB) survives builder + TLS + parse ──────
+// â”€â”€â”€ 5. Very large query string (~8 KB) survives builder + TLS + parse â”€â”€â”€â”€â”€â”€
 @test
 @test.timeout(60000)
 public func MATRIX_large_query_string_roundtrip(env : &mut TestEnv) {
     const PORT : uint = 20434u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_mtx34_cert.pem", "/tmp/tls_mtx34_key.pem")
 
     var client = Client()

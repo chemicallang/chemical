@@ -107,11 +107,21 @@ func xpy_key_path(tag : string_view) : string {
     return s
 }
 
+// Full stdio redirect for detached background processes. Without stdout
+// redirection the child keeps the parent's output pipe open forever.
+func xpy_redir_all() : string {
+    comptime if(def.windows) {
+        return string(" >nul 2>&1")
+    } else {
+        return string(" >/dev/null 2>&1")
+    }
+}
+
 // Launch `python /tmp/http_extra.py <args>` in the background after killing
 // whatever occupies the port.
 func xpy_bg(args : string_view) {
     test_ensure_tmp_dir()
-    var redir = test_redir()
+    var redir = xpy_redir_all()
     var cmd = test_py_interp()
     cmd.append_view("/tmp/http_extra.py ")
     cmd.append_view(&args)
@@ -147,8 +157,22 @@ func xpy_server_cmd(mode : string_view, tag : string_view, port : uint) : string
     return cmd
 }
 
+// Forcibly free a TCP port. test_kill_port() is a POSIX-only no-op on
+// Windows, where orphaned servers from aborted runs otherwise hold the port
+// forever (python http.server never times out). Uses netstat+taskkill.
+func xpy_force_kill_port(port : uint) {
+    comptime if(def.windows) {
+        var cmd = string("for /f \"tokens=5\" %a in ('netstat -aon ^| findstr \":")
+        cmd.append_uinteger(port as ubigint)
+        cmd.append_view("\" ^| findstr LISTENING') do @taskkill /F /PID %a >nul 2>&1")
+        system(cmd.data())
+    } else {
+        test_kill_port(port as int)
+    }
+}
+
 func xpy_kill_and_wait(port : uint) {
-    test_kill_port(port as int)
+    xpy_force_kill_port(port)
     test_server_wait()
 }
 

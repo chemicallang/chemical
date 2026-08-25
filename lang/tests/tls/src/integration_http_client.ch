@@ -21,6 +21,13 @@ func int_start_httpsrv(env : &mut TestEnv, port : uint, cert_path : string_view,
     write_tls_python_utils()
     test_kill_port(port as int)
     test_server_wait()
+    var gen = string()
+    gen.append_view("cert ")
+    gen.append_view(&cert_path)
+    gen.append_view(" ")
+    gen.append_view(&key_path)
+    gen.append_view(" localhost ec")
+    test_py_run_foreground(gen.to_view())
     var cmd = string()
     cmd.append_view("httpsrv ")
     cmd.append_view(&cert_path)
@@ -294,7 +301,6 @@ public func INT_https_put_patch_delete_work(env : &mut TestEnv) {
 }
 
 // ─── Transfer-Encoding: chunked responses reassemble correctly over TLS ─────
-@test
 @test
 @test.timeout(60000)
 public func INT_https_chunked_response_parsed(env : &mut TestEnv) {

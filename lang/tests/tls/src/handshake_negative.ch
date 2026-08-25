@@ -274,12 +274,14 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
 // ─── Oversized ssl_write (>16384) must be rejected, context stays usable ────
 @test
 @test.timeout(60000)
-public func NEG_oversized_write_rejected_cleanly(env : &mut TestEnv) {
+public func NEG_oversized_write_fragments_cleanly(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20126u)
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_20126_cert.pem /tmp/tls_20126_key.pem localhost ec"))
-    test_py_run_background(string_view("mround /tmp/tls_20126_cert.pem /tmp/tls_20126_key.pem 20126 1.3 2 1"))
+    // echo_srv drains exactly <size> bytes before replying, so closing with
+    // unread data never triggers a TCP reset mid-test.
+    test_py_run_background(string_view("echo /tmp/tls_20126_cert.pem /tmp/tls_20126_key.pem 20126 1 20001"))
     test_server_wait()
 
     unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
@@ -296,21 +298,24 @@ public func NEG_oversized_write_rejected_cleanly(env : &mut TestEnv) {
         return
     }
 
-    // MAX_RECORD_PAYLOAD is 16384: anything larger must be refused up front
-    // (the library does not fragment yet) instead of emitting a broken record.
-    unsafe var big : [20000]u8
-    var wret = ssl_write(&raw mut ctx, &raw big[0], 20000)
-    if(wret >= 0) {
-        env.error("oversized write: ssl_write must refuse len > MAX_RECORD_PAYLOAD")
+    // MAX_RECORD_PAYLOAD is 16384: writes larger than one record must be
+    // fragmented into multiple valid records (SSL_write semantics), never
+    // truncated or emitted as an oversized frame. The payload matches the
+    // python echo_srv expectation (i%251) so its integrity check passes.
+    unsafe var big : [20001]u8
+    var bi : size_t = 0
+    while(bi < 20001u) { big[bi] = ((bi % 251) as u8); bi += 1 }
+    var wret = ssl_write(&raw mut ctx, &raw big[0], 20001)
+    if(wret != 20001) {
+        env.error("oversized write: ssl_write must fragment and report full length")
     }
 
-    // The context must remain fully usable after the refusal.
-    var ping = "p\0" as *char
-    ssl_write(&raw mut ctx, ping as *u8, 1)
+    // The context must remain fully usable after the fragmented write: the
+    // draining peer answers with "OK" once all 20001 bytes arrived intact.
     unsafe var buf : [64]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 64)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
-        env.error("oversized write: context unusable after refused write")
+        env.error("oversized write: context unusable after fragmented write")
     }
 
     ssl_close_notify(&raw mut ctx)

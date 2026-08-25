@@ -1,5 +1,5 @@
-// ============================================================================
-// HTTP Client limits and timeouts — full stack against live python servers
+﻿// ============================================================================
+// HTTP Client limits and timeouts â€” full stack against live python servers
 // ============================================================================
 // Exercises the Client's own knobs (max_body_len, max_response_header_bytes,
 // per-request timeout) plus robustness against servers that lie about
@@ -21,13 +21,14 @@ func lim_url(port : uint, path : string_view) : string {
     return s
 }
 
-// ─── 1. max_body_len caps how much body the client will deliver ─────────────
+// â”€â”€â”€ 1. max_body_len caps how much body the client will deliver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // A 64 KB download with a 32 KB cap must stop delivering (read error) while a
 // default client reads the same resource fully.
 @test
 @test.timeout(60000)
 public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     const PORT : uint = 20420u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_lim20_cert.pem", "/tmp/tls_lim20_key.pem")
 
     var u = lim_url(PORT, "/size/65536")
@@ -64,7 +65,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 2. Oversized response headers are rejected ──────────────────────────────
+// â”€â”€â”€ 2. Oversized response headers are rejected â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Default cap is 64 KB of header bytes; an ~80 KB header block must produce a
 // request error, while a normal response on another server succeeds.
 @test
@@ -75,7 +76,7 @@ public func LIMIT_max_response_header_bytes_enforced(env : &mut TestEnv) {
 
     write_http_extra_py()
 
-    // Big-header server: 1200 headers x ~56 bytes ≈ 67 KB of header block.
+    // Big-header server: 1200 headers x ~56 bytes â‰ˆ 67 KB of header block.
     xpy_kill_and_wait(BIG_PORT)
     xpy_gen_cert("lim21")
     var cmd_big = xpy_server_cmd("hdrsrv", "lim21", BIG_PORT)
@@ -121,7 +122,7 @@ public func LIMIT_max_response_header_bytes_enforced(env : &mut TestEnv) {
     test_kill_port(OK_PORT as int)
 }
 
-// ─── 3. Per-request timeout plumbing: short fails fast, long succeeds ────────
+// â”€â”€â”€ 3. Per-request timeout plumbing: short fails fast, long succeeds â”€â”€â”€â”€â”€â”€â”€â”€
 // The python slowsrv sleeps 3 seconds before answering. timeout(1) must give
 // up during the header wait; timeout(8) must complete successfully.
 @test
@@ -141,7 +142,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
 
     var base = string("https://127.0.0.1:20423/slow")
 
-    // Impatient request — must time out.
+    // Impatient request â€” must time out.
     var u_opt1 = URL::parse(base.to_view())
     if(u_opt1 is std::Option.None) { env.error("url parse failed"); test_kill_port(PORT as int); return }
     var Some(u1) = u_opt1 else unreachable;
@@ -152,7 +153,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
         env.error("1s timeout against a 3s server must fail")
     }
 
-    // Patient request — must succeed.
+    // Patient request â€” must succeed.
     var u_opt2 = URL::parse(base.to_view())
     if(u_opt2 is std::Option.None) { env.error("url parse failed"); test_kill_port(PORT as int); return }
     var Some(u2) = u_opt2 else unreachable;
@@ -170,7 +171,7 @@ public func LIMIT_request_timeout_short_fails_long_succeeds(env : &mut TestEnv) 
     test_kill_port(PORT as int)
 }
 
-// ─── 4. Server declares Content-Length but closes early → read error ─────────
+// â”€â”€â”€ 4. Server declares Content-Length but closes early â†’ read error â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // The response parses fine (headers arrive), but read_to_string must surface
 // the truncation instead of silently returning short data.
 @test

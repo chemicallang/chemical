@@ -1,5 +1,5 @@
-// ============================================================================
-// HTTP matrix + stress tests (part 2) — redirects, methods, concurrency
+﻿// ============================================================================
+// HTTP matrix + stress tests (part 2) â€” redirects, methods, concurrency
 // ============================================================================
 // Ports used: 20435-20439.
 // ============================================================================
@@ -24,7 +24,7 @@ func mtx2_url(port : uint, path : string_view) : string {
     return s
 }
 
-// ─── 6. Redirect flow: 301 Location header drives a second hop ──────────────
+// â”€â”€â”€ 6. Redirect flow: 301 Location header drives a second hop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @test
 @test.timeout(60000)
 public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
@@ -70,7 +70,7 @@ public func MATRIX_redirect_location_header_flow(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 7. OPTIONS method + URL fragment stripping, live ─────────────────────────
+// â”€â”€â”€ 7. OPTIONS method + URL fragment stripping, live â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // The builder supports arbitrary methods; fragments must never reach the wire.
 @test
 @test.timeout(60000)
@@ -119,7 +119,7 @@ public func MATRIX_options_method_and_fragment_stripping(env : &mut TestEnv) {
     test_kill_port(PORT as int)
 }
 
-// ─── 8. Concurrent mixed plain + TLS clients ─────────────────────────────────
+// â”€â”€â”€ 8. Concurrent mixed plain + TLS clients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Two threads hammer a plain python http.server while two others hammer an
 // HTTPS server; one Client instance per thread proves scheme dispatch stays
 // stable under parallel load.
@@ -133,43 +133,63 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
     write_http_extra_py()
     test_ensure_tmp_dir()
 
-    // Plain python file server.
-    test_kill_port(MTX8_PLAIN_PORT as int)
+    // Plain python file server (fully redirected so it never holds our stdio).
+    xpy_force_kill_port(MTX8_PLAIN_PORT)
+    test_server_wait()
     var plain_cmd = test_py_interp()
     plain_cmd.append_view("-m http.server 20437 --bind 127.0.0.1")
+    var plain_redir = xpy_redir_all()
+    plain_cmd.append_view(plain_redir.to_view())
     test_run_bg(plain_cmd.data())
 
-    // Routed HTTPS server.
+    // Routed HTTPS server (tls_utils httpsrv, fully redirected).
     xpy_kill_and_wait(MTX8_TLS_PORT)
     xpy_gen_cert("mtx38")
     var srv_cert = xpy_cert_path("mtx38")
     var srv_key = xpy_key_path("mtx38")
-    var cmd = string("httpsrv ")
+    var cmd = test_py_interp()
+    cmd.append_view("/tmp/tls_utils.py httpsrv ")
     cmd.append_view(srv_cert.to_view())
     cmd.append_view(" ")
     cmd.append_view(srv_key.to_view())
     cmd.append_view(" 20438 16")
-    test_py_run_background(cmd.to_view())
+    var tls_redir = xpy_redir_all()
+    cmd.append_view(tls_redir.to_view())
+    test_run_bg(cmd.data())
     test_server_wait()
     test_server_wait()
     test_server_wait()
 
-    // Serial preflights: prove both servers are answering before the
-    // concurrent phase, so a readiness race can't masquerade as a client bug.
-    var pre_plain = http::Client()
-    var plain_url8 = string("http://127.0.0.1:20437/")
-    var pp = pre_plain.get(plain_url8.to_view())
-    if(pp is Result.Err) { env.error("preflight: plain http.server not reachable"); test_kill_port(MTX8_PLAIN_PORT as int); test_kill_port(MTX8_TLS_PORT as int); return }
-    var Ok(pv) = pp else unreachable;
-    if(pv.status != 200u) { env.error("preflight: plain http.server returned non-200") }
+    // Serial preflights with retries: prove both servers are answering before
+    // the concurrent phase, so a readiness race can't masquerade as a bug.
+    var attempt : uint = 0
+    var plain_ok = false
+    var tls_ok = false
+    while(attempt < 5u && (!plain_ok || !tls_ok)) {
+        if(!plain_ok) {
+            var pre_plain = http::Client()
+            var pu8 = string("http://127.0.0.1:20437/")
+            var pp = pre_plain.get(pu8.to_view())
+            if(pp is Result.Ok) { plain_ok = true }
+        }
+        if(!tls_ok) {
+            var pre_tls = http::Client()
+            pre_tls.insecure_skip_verify()
+            var tu8 = string("https://127.0.0.1:20438/hello")
+            var pt = pre_tls.get(tu8.to_view())
+            if(pt is Result.Ok) { tls_ok = true }
+        }
+        if(!plain_ok || !tls_ok) { std::concurrent::sleep_ms(1000u) }
+        attempt += 1u
+    }
 
-    var pre_tls = http::Client()
-    pre_tls.insecure_skip_verify()
-    var tls_url8 = string("https://127.0.0.1:20438/hello")
-    var pt = pre_tls.get(tls_url8.to_view())
-    if(pt is Result.Err) { env.error("preflight: https server not reachable"); test_kill_port(MTX8_PLAIN_PORT as int); test_kill_port(MTX8_TLS_PORT as int); return }
-    var Ok(tv) = pt else unreachable;
-    if(tv.status != 200u) { env.error("preflight: https server returned non-200") }
+    if(!plain_ok || !tls_ok) {
+        if(!plain_ok) { env.error("preflight: plain http.server not reachable after retries") }
+        if(!tls_ok) { env.error("preflight: https server not reachable after retries") }
+        xpy_force_kill_port(MTX8_PLAIN_PORT)
+        xpy_force_kill_port(MTX8_TLS_PORT)
+        return
+    }
 
     var cap : MtxCounter = {
         ok_plain = 0u
@@ -177,7 +197,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         lock = std.mutex()
     }
 
-    // Plain worker template — two instances.
+    // Plain worker template â€” two instances.
     var t1 = std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
@@ -214,7 +234,7 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         return null
     }, &raw mut cap)
 
-    // TLS workers — two instances.
+    // TLS workers â€” two instances.
     var t3 = std.concurrent.spawn(||(arg : *void) => {
         var c = arg as *mut MtxCounter
         var client = http::Client()
@@ -267,11 +287,11 @@ public func MATRIX_concurrent_plain_and_tls_clients(env : &mut TestEnv) {
         env.error(msg.data())
     }
 
-    test_kill_port(MTX8_PLAIN_PORT as int)
-    test_kill_port(MTX8_TLS_PORT as int)
+    xpy_force_kill_port(MTX8_PLAIN_PORT)
+    xpy_force_kill_port(MTX8_TLS_PORT)
 }
 
-// ─── 9. Parallel upload + download streams through the same server ───────────
+// â”€â”€â”€ 9. Parallel upload + download streams through the same server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 struct MtxUpDown {
     var fails : uint;
     var lock : std.mutex
@@ -281,6 +301,7 @@ struct MtxUpDown {
 @test.timeout(90000)
 public func MATRIX_parallel_upload_download_streams(env : &mut TestEnv) {
     const PORT : uint = 20439u
+    xpy_force_kill_port(PORT)
     int_start_httpsrv(env, PORT, "/tmp/tls_mtx39_cert.pem", "/tmp/tls_mtx39_key.pem")
 
     var st : MtxUpDown = {

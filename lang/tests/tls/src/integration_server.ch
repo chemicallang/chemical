@@ -71,7 +71,8 @@ func srv_read_request_stream(ssl : *mut SSLContext, buf : *mut u8, buf_size : si
     while(true) {
         var head_end = srv_mem_find_crlfcrlf(buf, 0, *filled)
         if(head_end != SRV_NPOS) {
-            var clen = srv_parse_content_length(buf, head_end + 4, *filled)
+            // Content-Length lives in the header block [0, head_end).
+            var clen = srv_parse_content_length(buf, 0, head_end)
             if(*filled >= head_end + 4 + clen) {
                 *consumed = head_end + 4 + clen
                 return 0

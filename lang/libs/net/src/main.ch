@@ -132,7 +132,12 @@ public namespace net {
 
     public func accept_socket(listen_sock: Socket) : Socket {
         // pass both NULL when we don't want peer address information
-        return sock_accept(listen_sock, null, null);
+        // Windows non-blocking accept yields INVALID_SOCKET (~0) when no
+        // connection is pending; normalize every failure to 0 so callers
+        // checking `== 0` never mistake an error for a live socket.
+        var s = sock_accept(listen_sock, null, null);
+        if(s == 0u || ((s as longlong) < 0)) { return 0u }
+        return s;
     }
 
     public func recv_all(s: Socket, buf: *mut u8, cap: usize) : int {

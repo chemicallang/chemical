@@ -5048,8 +5048,17 @@ public namespace tls {
     // Write application data
     public func ssl_write(ssl : *mut SSLContext, data : *u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
-        var ret = send_record(ssl, SSL_MSG_APPLICATION_DATA as u8, data, len as u16)
-        if(ret < 0) { return ret }
+        // Fragment into max-size TLS records; send_record rejects anything
+        // larger than MAX_RECORD_PAYLOAD, and a single u16 cast would both
+        // truncate big writes and violate the 2^14 record limit.
+        var off : i32 = 0
+        while(off < len) {
+            var chunk = len - off
+            if(chunk > MAX_RECORD_PAYLOAD as i32) { chunk = MAX_RECORD_PAYLOAD as i32 }
+            var ret = send_record(ssl, SSL_MSG_APPLICATION_DATA as u8, data + off, chunk as u16)
+            if(ret < 0) { return ret }
+            off += chunk
+        }
         return len
     }
 

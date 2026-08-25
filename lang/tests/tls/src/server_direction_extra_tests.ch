@@ -24,16 +24,6 @@ func sdv_send_raw(ssl : *mut SSLContext, resp : string) : int {
     return ssl_write(ssl, resp.data() as *u8, resp.size() as i32)
 }
 
-// Best-effort drain of remaining request bytes (bounded by the socket recv
-// timeout). Used after a header-only read so late body records never linger.
-func sdv_drain_leftover(ssl : *mut SSLContext) {
-    unsafe var tmp : [4096]u8
-    while(true) {
-        var n = ssl_read(ssl, &raw mut tmp[0], 4096)
-        if(n <= 0) { break }
-    }
-}
-
 // Extract the request target (path[?query]) from the request line.
 func sdv_request_target(buf : *u8, consumed : size_t, out : *mut u8, out_cap : size_t) : size_t {
     var sp1 : size_t = 0
@@ -257,8 +247,10 @@ func sdv_loop_head(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
 }
 
 // CONFORMANCE probe: python uploads a chunked request body. RFC 9112 §6
-// requires servers to decode Transfer-Encoding: chunked; the body must come
-// back echoed. A short/empty echo means chunked requests are unsupported.
+// requires servers to decode Transfer-Encoding: chunked. The Chemical server
+// here dechunks the received records itself and echoes exactly the decoded
+// bytes; python compares against the original payload, so any transport or
+// framing corruption (or undecodable chunks) fails the roundtrip.
 func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     const BUF_CAP : size_t = 16384u
     unsafe var req_buf : [BUF_CAP]u8
@@ -272,12 +264,93 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
                                         &raw mut filled, &raw mut consumed)
     if(rret != 0) { env.error("chunkup: header read failed"); return false }
 
-    // Drain whatever body followed (chunked records) until quiet.
-    sdv_drain_leftover(ssl_mem)
+    // Accumulate body bytes until quiet.
+    unsafe var raw_body : [4096]u8
+    var raw_len : size_t = 0
+    while(raw_len < 4096u) {
+        var n = ssl_read(ssl_mem, (&raw mut raw_body[0]) + raw_len, (4096u - raw_len) as i32)
+        if(n <= 0) { break }
+        raw_len += (n as usize)
+    }
 
-    // Echo what a compliant decoder would have produced.
-    var resp = string("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 20\r\nConnection: close\r\n\r\n")
-    resp.append_view(string_view("chunk-one-chunk-two!"))
+    // Dechunk per RFC 9112 §7.1: hex-size [;ext] CRLF data CRLF ... 0 CRLF trailers.
+    unsafe var decoded : [2048]u8
+    var dlen : size_t = 0
+    var pos : size_t = 0
+    var done = false
+    while(pos < raw_len) {
+        // Find the chunk-size line terminator.
+        var le = pos
+        while(le + 1 < raw_len && !(raw_body[le] == 13u8 && raw_body[le + 1u] == 10u8)) { le += 1 }
+        if(le + 1 >= raw_len) { break }
+
+        // Parse hex size up to an optional ';' extension separator.
+        var sz : usize = 0
+        var hi = pos
+        var any_hex = false
+        while(hi < le) {
+            var c = raw_body[hi]
+            var v : int = -1
+            if(c >= 48u8 && c <= 57u8) {
+                v = (c - 48u8) as int
+            } else if(c >= 97u8 && c <= 102u8) {
+                v = (c - 87u8) as int
+            } else if(c >= 65u8 && c <= 70u8) {
+                v = (c - 55u8) as int
+            }
+            if(v < 0) { break }
+            sz = sz * 16u + (v as usize)
+            any_hex = true
+            hi += 1
+        }
+        if(!any_hex) { break }
+
+        pos = le + 2u
+        if(sz == 0u) { done = true; break }
+
+        var avail = raw_len - pos
+        var take = sz
+        if(take > avail) { take = avail }
+        var k : usize = 0
+        while(k < take && dlen < 2048u) {
+            decoded[dlen] = raw_body[pos + k]
+            dlen += 1
+            k += 1
+        }
+        pos += take
+        // Skip the data-terminating CRLF.
+        if(pos + 1u < raw_len && raw_body[pos] == 13u8 && raw_body[pos + 1u] == 10u8) {
+            pos += 2u
+        }
+    }
+
+    // Verify the decoded payload matches what python sent.
+    var want = "chunk-one-chunk-two!"
+    var match = done && dlen == 20u
+    if(match) {
+        var wi : size_t = 0
+        while(wi < dlen) {
+            if(decoded[wi] != (want[wi] as u8)) { match = false; break }
+            wi += 1
+        }
+    }
+    if(!match) {
+        env.error("[CONFORMANCE] chunked request body not decoded correctly")
+        var m = string("decoded=")
+        m.append_uinteger(dlen as ubigint)
+        m.append_view(" complete=")
+        var ds = string("false")
+        if(done) { ds = string("true") }
+        m.append_view(ds.to_view())
+        env.error(m.data())
+    }
+
+    // Echo exactly what we decoded — python validates against the original.
+    var resp = string("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ")
+    resp.append_uinteger(dlen as ubigint)
+    resp.append_view("\r\nConnection: close\r\n\r\n")
+    var di2 : size_t = 0
+    while(di2 < dlen) { resp.append(decoded[di2] as char); di2 += 1 }
     if(sdv_send_raw(ssl_mem, resp) < 0) { env.error("chunkup: response write failed"); return false }
     return true
 }

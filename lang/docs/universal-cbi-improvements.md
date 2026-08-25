@@ -411,7 +411,52 @@ Tests are golden-string comparisons of generated JS text (`lang/tests/compiler_p
 Add: (1) structural tests asserting `switch`/`while`/`throw`/`%` appear in output (or that a diagnostic
 fires); (2) a headless-DOM harness that executes the generated JS and asserts the hydrated DOM (this is
 how the todo demo was validated during this analysis); (3) SSR-content tests (`<h3>5 left</h3>`, not
-`<h3> left</h3>`); (4) move every `universal_failures.md` case into the suite.
+`<h3> left</h3>`); (4)    move every `universal_failures.md` case into the suite.
+
+### 3.10 Reactive render model: pitfalls that break conditional UI (verified, cdm `ErrorOverlay`)
+
+While building `ErrorOverlay` (a global uncaught-error catcher) in
+`lang/libs/components/src/ErrorOverlay.ch`, two framework behaviors repeatedly prevented the
+overlay from ever appearing. Both are direct consequences of the runtime's
+**"component bodies run once; only derived/conditional JSX nodes re-render"** model (the
+`$_ucs` computed-signal patcher in `defaultUniversalSetup`).
+
+**Pitfall A — `#css` style helpers are server-only and crash at hydration.**
+`#css { … }` helpers such as `error_overlay_styles(page : &mut HtmlPage) : *char` take the SSR
+`page` pointer. On the client the component is invoked as `factory(props)` with **no `page`
+argument**, so calling the helper throws during hydration → the component hits the error
+boundary (`$__uni_render_fallback`) and renders nothing. Symptom: the component is silently
+absent and nothing appears, with no visible error.
+- **Workaround (proven):** do not use `#css` helpers inside `#universal` components that must
+  render on the client. Use inline `style={{ … }}` objects (string/number values) or plain
+  `class="…"` strings, matching the existing app dialogs (e.g. `CdmApp`'s Tools dialog uses
+  `class` + inline `style`). For reusable styling, emit the CSS once in a top-level
+  `<style>`/theme and reference class names instead of per-component `#css` helpers.
+
+**Pitfall B — visibility toggles must be a JSX conditional child, never control-flow
+`if`/`return`.**
+`if(!open) { return null }` is evaluated **once at mount** and is not a reactive binding, so
+flipping `open` later does nothing. Storing the conditional in a local `var overlay = open ? …
+: null` and then `return overlay` is also one-time — the local is not wrapped in a computed
+signal. Only a conditional used **directly as a JSX child expression** becomes a `$_ucs`
+computed that re-evaluates when its state dependencies change.
+- **Workaround (proven):** render `{open && errors.length > 0 ? <div …>…</div> : null}` inline
+  as a child (wrap in an inert `<div style={{display:"contents"}}>` if a single root is
+  needed). All state reads (`open`, `errors`, `selected`, `copied`) must happen *inside* that
+  conditional so they subscribe. Never `return` a precomputed local.
+
+**Net result:** once both pitfalls were avoided (inline styles + inlined conditional child),
+`window.__reportError(msg, stack)` and the `window.addEventListener("error" /
+"unhandledrejection")` handlers installed in the component's `useEffect` correctly flip
+`open` and the modal renders. This is the pattern every show/hide component (dialogs, toasts,
+dropdowns, modals) in this framework must follow.
+
+Suggested roadmap additions:
+- (N) In `#universal` components, hard-warn (or reject) `#css` helper usage in positions that
+  execute during client hydration — or make `#css` a no-op that returns a stable class name on
+  the client.
+- (N) Document the "conditional child, not `if`/`return`" rule in the component authoring guide
+  and ideally lint for early-`return`-on-state patterns.
 
 ---
 

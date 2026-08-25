@@ -9,133 +9,13 @@
 // It is intentionally dependency-free (no app imports) so it can live in the
 // shared `components` library and be reused by any Chemical webview app.
 //
-// Optional props:
-//   title        header text (default "Application Error")
-//   max          max number of captured errors kept (default 10)
-//   variant      accent color token (default "destructive")
-//
-// App code that swallows errors (e.g. a bridge `.catch`) can still surface them
-// by calling `window.__reportError(message, stack?)` — the overlay listens for
-// it and opens the dialog just like a real uncaught error.
-
-func error_overlay_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: fixed;
-        inset: 0;
-        z-index: 1000;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 2rem 1rem;
-        background: hsl(var(--background) / 0.6);
-        backdrop-filter: blur(2px);
-        overflow: auto;
-    }
-}
-
-func error_overlay_dialog_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 100%;
-        max-width: 46rem;
-        border-radius: var(--radius-lg);
-        border: 1px solid hsl(var(--destructive) / 0.4);
-        background: hsl(var(--card));
-        color: hsl(var(--foreground));
-        box-shadow: var(--shadow-lg);
-        display: flex;
-        flex-direction: column;
-        max-height: 80vh;
-        overflow: hidden;
-    }
-}
-
-func error_overlay_header_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.875rem 1rem;
-        border-bottom: 1px solid hsl(var(--border));
-        background: hsl(var(--destructive) / 0.08);
-    }
-}
-
-func error_overlay_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-weight: 600;
-        font-size: 0.95rem;
-        margin: 0;
-    }
-}
-
-func error_overlay_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        padding: 1rem;
-        overflow: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-}
-
-func error_overlay_msg_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: hsl(var(--destructive));
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-}
-
-func error_overlay_pre_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        margin: 0;
-        padding: 0.75rem;
-        border-radius: var(--radius-md);
-        background: hsl(var(--muted) / 0.5);
-        border: 1px solid hsl(var(--border));
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.8rem;
-        line-height: 1.35rem;
-        white-space: pre-wrap;
-        word-break: break-word;
-        max-height: 40vh;
-        overflow: auto;
-    }
-}
-
-func error_overlay_list_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-    }
-}
-
-func error_overlay_chip_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.72rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 999px;
-        border: 1px solid hsl(var(--border));
-        background: hsl(var(--muted) / 0.4);
-        cursor: pointer;
-    }
-}
-
-func error_overlay_footer_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        border-top: 1px solid hsl(var(--border));
-    }
-}
+// IMPORTANT: visibility is expressed as a JSX conditional used DIRECTLY as a
+// child expression (`{open && errors.length > 0 ? <div>…</div> : null}`). This
+// framework runs component bodies once and only re-renders reactive (derived)
+// JSX nodes, so a control-flow `if(!open) return null` would never update when
+// `open` flips. The styling uses inline `style={{...}}` objects (not `#css`
+// helpers) because `#css` needs a server-only `page` pointer that is absent
+// during client hydration.
 
 public #universal ErrorOverlay(props) {
     var title = props.title || "Application Error"
@@ -204,48 +84,74 @@ public #universal ErrorOverlay(props) {
         }
     }, [])
 
-    if(!open) { return null }
-
-    var total = errors.length
-    var idx = selected
-    if(idx < 0) { idx = 0 }
-    if(idx >= total) { idx = total - 1 }
-    var current = errors[idx]
-    var reportText = (current.message || "") + "\n\n" + (current.stack || "") + "\n\n[source: " + (current.source || "") + " | time: " + (current.time || "") + "]"
-
+    var dismiss = () => { open = false }
     var copyReport = () => {
+        var cur = (errors.length > 0) ? errors[selected] : null
+        var report = (cur ? (cur.message || "") : "") + "\n\n" + (cur ? (cur.stack || "") : "") + "\n\n[source: " + (cur ? (cur.source || "") : "") + " | time: " + (cur ? (cur.time || "") : "") + "]"
         try {
             if(navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(reportText)
+                navigator.clipboard.writeText(report)
             }
         } catch (e) { }
         copied = true
         setTimeout(() => { copied = false }, 2000)
     }
-    var dismiss = () => { open = false }
 
-    return <div class={error_overlay_styles(page)} onClick={dismiss}>
-        <div class={error_overlay_dialog_styles(page)} onClick={(e) => { e.stopPropagation() }}>
-            <div class={error_overlay_header_styles(page)}>
-                <h3 class={error_overlay_title_styles(page)}>{title}</h3>
-                <button type="button" class="cdm-btn" onClick={dismiss}>{"×"}</button>
+    return <div style={{ display: "contents" }}>
+        {open && errors.length > 0 ? <div style={{
+            position: "fixed",
+            inset: "0",
+            zIndex: "1000",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "2rem 1rem",
+            background: "rgba(0,0,0,0.55)",
+            overflow: "auto"
+        }} onClick={dismiss}>
+            <div style={{
+                width: "100%",
+                maxWidth: "46rem",
+                borderRadius: "12px",
+                border: "1px solid #e11d48",
+                background: "#ffffff",
+                color: "#111111",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+                display: "flex",
+                flexDirection: "column",
+                maxHeight: "80vh",
+                overflow: "hidden",
+                marginTop: "2rem"
+            }} onClick={(e) => { e.stopPropagation() }}>
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.75rem",
+                    padding: "0.875rem 1rem",
+                    borderBottom: "1px solid #e5e7eb",
+                    background: "rgba(225,29,72,0.08)"
+                }}>
+                    <h3 style={{ fontWeight: 600, fontSize: "0.95rem", margin: 0 }}>{title}</h3>
+                    <button type="button" style={{ border: "none", background: "transparent", fontSize: "1.1rem", cursor: "pointer", color: "#111111" }} onClick={dismiss}>{"×"}</button>
+                </div>
+                <div style={{ padding: "1rem", overflow: "auto", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {errors.length > 1 ? <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                        {errors.map((er, i) => (
+                            <span style={{ fontSize: "0.72rem", padding: "0.15rem 0.5rem", borderRadius: "999px", border: "1px solid #e5e7eb", background: "#f3f4f6", cursor: "pointer" }} onClick={() => { selected = i }}>
+                                {("#" + (i + 1) + " " + (er.source || "err"))}
+                            </span>
+                        ))}
+                    </div> : null}
+                    <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "#e11d48", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{errors[selected].message}</p>
+                    <pre style={{ margin: 0, padding: "0.75rem", borderRadius: "8px", background: "#f3f4f6", border: "1px solid #e5e7eb", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "0.8rem", lineHeight: "1.35rem", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: "40vh", overflow: "auto" }}>{errors[selected].stack}</pre>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "0.5rem", padding: "0.75rem 1rem", borderTop: "1px solid #e5e7eb" }}>
+                    <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>{"source: " + (errors[selected].source || "") + " @ " + (errors[selected].time || "")}</span>
+                    <button type="button" style={{ border: "1px solid #e5e7eb", background: "#ffffff", borderRadius: "8px", padding: "0.35rem 0.7rem", cursor: "pointer" }} onClick={copyReport}>{copied ? "Copied!" : "Copy report"}</button>
+                    <button type="button" style={{ border: "1px solid #e11d48", background: "#e11d48", color: "#ffffff", borderRadius: "8px", padding: "0.35rem 0.7rem", cursor: "pointer" }} onClick={dismiss}>{"Dismiss"}</button>
+                </div>
             </div>
-            <div class={error_overlay_body_styles(page)}>
-                {total > 1 ? <div class={error_overlay_list_styles(page)}>
-                    {errors.map((er, i) => (
-                        <span class={error_overlay_chip_styles(page)} onClick={() => { selected = i }}>
-                            {("#" + (i + 1) + " " + (er.source || "err"))}
-                        </span>
-                    ))}
-                </div> : null}
-                <p class={error_overlay_msg_styles(page)}>{current.message}</p>
-                <pre class={error_overlay_pre_styles(page)}>{current.stack}</pre>
-            </div>
-            <div class={error_overlay_footer_styles(page)}>
-                <span style={{ fontSize: "0.72rem", color: "hsl(var(--muted-foreground))" }}>{"source: " + (current.source || "") + " @ " + (current.time || "")}</span>
-                <button type="button" class="cdm-btn" onClick={copyReport}>{copied ? "Copied!" : "Copy report"}</button>
-                <button type="button" class="cdm-btn" data-variant="primary" onClick={dismiss}>{"Dismiss"}</button>
-            </div>
-        </div>
+        </div> : null}
     </div>
 }

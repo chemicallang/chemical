@@ -144,9 +144,14 @@ public:
     std::string read_error;
 
     /**
+     * lexer diagnostics for the .mod file
+     */
+    std::vector<Diag> lex_diagnostics;
+
+    /**
      * diagnostics for the .mod file
      */
-    std::vector<Diag> diagnostics;
+    std::vector<Diag> parse_diagnostics;
 
     /**
      * the file id is not given and module scope is also null because file
@@ -173,7 +178,8 @@ public:
         compiler_interfaces.clear();
         options.clear();
         read_error.clear();
-        diagnostics.clear();
+        lex_diagnostics.clear();
+        parse_diagnostics.clear();
     }
 
 };

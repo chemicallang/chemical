@@ -953,6 +953,9 @@ bool ASTProcessor::import_mod_file_as_lab(
     ModuleFileData data(meta);
     auto importModFileRes = import_chemical_mod_file(file_allocator, file_allocator, loc_man, data, modFileId, modFile, inp_source);
     if(!importModFileRes) {
+        result.continue_processing = false;
+        result.lex_diagnostics = std::move(data.lex_diagnostics);
+        result.parse_diagnostics = std::move(data.parse_diagnostics);
         return false;
     }
 
@@ -1473,20 +1476,27 @@ bool ASTProcessor::import_chemical_mod_file(
         tokens.data()
     );
 
-    // put the lexing diagnostic into the parser diagnostic for now
-    if(!tokens.empty()) {
-        auto& last_token = tokens.back();
-        if (last_token.type == TokenType::Unexpected) {
-            parser.diagnostics.emplace_back(Diagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
-        }
+    // if diagnostics not empty
+    if (!lexer.diagnoser.diagnostics.empty()) {
+        data.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+    }
+
+
+    // if lexer has errors
+    if (lexer.diagnoser.has_errors()) {
+        return false;
     }
 
     // setting file scope as parent of all nodes parsed
     parser.parent_node = &data.scope;
 
+    // parse the module file
     parser.parseModuleFile(modAllocator, data);
 
-    data.diagnostics = std::move(parser.diagnostics);
+    // append the diagnostics of parser to data
+    if (!parser.diagnostics.empty()) {
+        data.parse_diagnostics = std::move(parser.diagnostics);
+    }
 
     return !parser.has_errors();
 
